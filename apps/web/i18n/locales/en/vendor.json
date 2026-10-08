@@ -123,8 +123,7 @@
           "active": "Workspace ready",
           "needs_intervention": "Needs attention",
           "pending": "Setup is in progress"
-        },
-        "incomplete": "The installation was reserved but setup has not been queued. Submit again with the same details to resume this request."
+        }
       },
       "plan": {
         "field": "Plan",
@@ -320,18 +319,11 @@
       "noSources": "No published software version is available. Ask the platform operator to provide a trusted published source before creating a package.",
       "publishedEdit": "Published content is preserved. Return to the package and choose Edit package to create a new draft version.",
       "editReviewHint": "Saving changes returns this version to draft and cancels its previous review.",
-      "nextAction": "Next action",
-      "preserveCustomers": "Existing customers stay on their selected version. Publishing or withdrawing another version never changes them automatically.",
       "history": "Package versions",
       "technical": "Technical source details",
       "sourceHash": "Source fingerprint",
       "revisionId": "Version identifier",
-      "reasonRequired": "Enter a reason between 3 and 1,000 characters.",
-      "selectionMode": "Customer offering",
-      "publishedChoice": "Published package",
-      "legacyChoice": "Historical software composition",
       "legacyHint": "This compatibility path uses the historical catalog without an approved commercial package. Existing unspecified quotas stay unlimited.",
-      "selectPackage": "Select a published package",
       "status": {
         "all": "All states",
         "draft": "Draft",
@@ -343,22 +335,6 @@
         "draft": "Review package",
         "validated": "Approve and publish",
         "published": "Manage availability"
-      },
-      "actions": {
-        "validate": "Review package",
-        "publish": "Approve and publish",
-        "withdraw": "Stop new enrollment",
-        "restore": "Restore availability",
-        "delete": "Delete draft",
-        "revisions": "Edit package"
-      },
-      "effects": {
-        "validate": "Checks the composition and quotas. Review alone does not make this package available to customers.",
-        "publish": "Approves this reviewed version and makes it selectable for new customers.",
-        "withdraw": "Prevents new customers from selecting this version. Existing customers and their limits are preserved.",
-        "restore": "Makes this published version selectable for new customers again.",
-        "delete": "Permanently deletes this unassigned draft. Published versions are preserved.",
-        "revisions": "Creates an editable draft of the next version. The published version remains available and its customers are unchanged."
       },
       "tiers": {
         "core": "Platform foundation",
@@ -536,7 +512,7 @@
         "platformLimits": "Platform limits",
         "branches": "Branches",
         "lifecycle": "Trial, grace and renewal",
-        "included": "What is included"
+        "included": "What the bundle includes"
       },
       "fields": {
         "name": "Name",
@@ -782,14 +758,6 @@
           "fresh": "Fresh",
           "stale": "Stale",
           "unavailable": "Unavailable"
-        },
-        "units": {
-          "users": "Users",
-          "projects": "Projects",
-          "attachment_bytes": "Attachment storage",
-          "extra_branches": "Extra branches",
-          "count": "Usage",
-          "mebibytes": "Attachment storage (MiB)"
         },
         "reasons": {
           "source_unreachable": "Source unreachable",

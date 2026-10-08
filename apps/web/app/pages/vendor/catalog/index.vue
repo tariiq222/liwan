@@ -4,10 +4,10 @@ import { packageLabel, packageListReturnTo, packageMatchesStatus } from '@/utils
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const { request } = useVendorApi(); const { can } = useVendorContext(); const hydrated = useHydrated()
 const { data, error, pending, refresh } = await useAsyncData('vendor:packages', () => request<{ items: PackageRevision[]; total: number }>('packages'))
-const listQuery = computed(() => route.path.endsWith('/new') ? Object.fromEntries(new URL(packageListReturnTo(route.query.returnTo), 'http://nasq.local').searchParams) : route.query)
+const listQuery = computed(() => route.query)
 const search = computed(() => typeof listQuery.value.q === 'string' ? listQuery.value.q : '')
 const status = computed(() => typeof listQuery.value.status === 'string' ? listQuery.value.status : '')
-const listTo = computed(() => packageListReturnTo(route.path.endsWith('/new') ? route.query.returnTo : route.fullPath))
+const listTo = computed(() => packageListReturnTo(route.fullPath))
 function filter(key: string, value: unknown) { void router.replace({ path: '/vendor/catalog', query: { ...listQuery.value, [key]: typeof value === 'string' && value ? value : undefined } }) }
 const items = computed(() => (data.value?.items ?? []).filter(item => (!search.value || `${item.name} ${item.description}`.toLocaleLowerCase().includes(search.value.toLocaleLowerCase())) && packageMatchesStatus(item, status.value)))
 const statusOptions = computed(() => ['', 'draft', 'validated', 'published', 'unavailable'].map(value => ({ value, label: t(`vendor.packages.status.${value || 'all'}`) })))

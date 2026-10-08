@@ -162,6 +162,8 @@ describe('error codes', () => {
     ] } as never
     expect(appName((release as { applications: never[] }).applications[0]!, 'ar')).toBe('Probe')
     expect(bundleLimitKeys(release, ['probe'])).toEqual(['probe.max_items'])
-    expect(keyLabel('probe.enabled', k => k, () => false)).toBe('probe.enabled')
+    // An unregistered label falls back to the raw key; a registered one is translated.
+    expect(keyLabel('probe.enabled', k => `T:${k}`, () => false)).toBe('probe.enabled')
+    expect(keyLabel('probe.enabled', k => `T:${k}`, path => path === 'vendor.pricing.keys.probe_enabled')).toBe('T:vendor.pricing.keys.probe_enabled')
   })
 })

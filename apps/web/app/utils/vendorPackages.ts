@@ -1,10 +1,9 @@
-import { PACKAGE_LIMIT_MAX, packageActionSchema, packageCloneSchema, packageInputSchema, type PackageInput } from '@nasq/commercial-contracts'
+import { PACKAGE_LIMIT_MAX, packageInputSchema, type PackageInput } from '@nasq/commercial-contracts'
 import { humanizeId } from './labelFallback'
 import { safeReturnTo } from './safeReturnTo'
 export type PackageCatalog = { id: string; version: string; status: string; solution: { base_modules?: string[]; tiers?: PackageTier[] } }
 export type PackageTier = { id?: string; name?: string; modules?: string[]; features?: string[] }
 export type PackageLimitDraft = { mode: '' | 'limited' | 'unlimited'; value: string }
-export type PackageAction = 'validate' | 'publish' | 'withdraw' | 'restore' | 'delete' | 'revisions'
 export function packageLimitValue(draft: PackageLimitDraft): number | null {
   if (draft.mode === 'unlimited') return null
   const value = draft.value.trim()
@@ -26,21 +25,12 @@ export function packageLabel(kind: 'tier' | 'module' | 'feature' | 'limit', valu
   // A newer application's module id reads as its name; other unknown values stay as sent (Phase 3 catalog names).
   return kind === 'module' && /^(?:nasq|customer)_[a-z0-9_]+$/.test(value) ? humanizeId(value) : value
 }
-export function packageActionBody(action: PackageAction, revision: number, reason: string) {
-  return action === 'revisions' ? packageCloneSchema.parse({ reason }) : packageActionSchema.parse({ revision, reason })
-}
 export function packageListReturnTo(value: unknown): string {
   const safe = safeReturnTo(value, '/vendor/catalog', ['/vendor/catalog'])
   return new URL(safe, 'http://nasq.local').pathname.replace(/\/$/, '') === '/vendor/catalog' ? safe : '/vendor/catalog'
 }
 export function packageFormInput(draft: Omit<PackageInput, 'limits'>, limits: Record<string, PackageLimitDraft>, keys: string[]): PackageInput {
   return packageInputSchema.parse({ ...draft, limits: Object.fromEntries(keys.map(key => { if (!limits[key]) throw new Error('invalid_limit'); return [key, packageLimitValue(limits[key])] })) })
-}
-export function packageErrorKey(error: unknown): string {
-  const value = error as { code?: string; data?: { code?: string; data?: { code?: string } }; response?: { _data?: { code?: string } } } | null
-  const code = value?.data?.data?.code ?? value?.data?.code ?? value?.response?._data?.code ?? value?.code
-  const known = ['package_revision_conflict', 'package_transition_invalid', 'package_missing', 'package_forbidden', 'package_limits_invalid', 'package_unavailable', 'package_authority_mismatch', 'package_admin_required', 'package_storage_required', 'package_source_unavailable', 'package_source_mismatch', 'published_catalog_missing']
-  return known.includes(code ?? '') ? `vendor.packages.errors.${code}` : 'vendor.errors.save'
 }
 export function packageMatchesStatus(item: { status: string; available: boolean }, status: string): boolean {
   if (!status) return true
