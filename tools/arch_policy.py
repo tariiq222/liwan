@@ -25,7 +25,7 @@ FOUNDATION_MAX_RANK = 2
 
 # R2 tokens that are not an addon of this repository: Odoo models and the meeting engine.
 # app_token() adds every registered application and bridge (ranks 4 and 5 in arch_layers.json).
-STATIC_APP_TOKENS = ('project', 'hr', 'pmo', 'meetings', 'chat', 'cyan_meeting_minutes')
+STATIC_APP_TOKENS = ('project', 'cyan_meeting_minutes')
 ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
@@ -209,11 +209,12 @@ def pascal(name: str) -> str:
 
 
 def foreign_component_uses(text: str, own_app: str, web_apps: dict) -> int:
-    """R3 (web): tags or imports of another app's components."""
+    """R3 (web): tags or imports of another app's components or module manifest folder."""
     total = 0
     for app, dirs in web_apps.items():
         if app == own_app:
             continue
+        total += len(re.findall(rf'modules/{re.escape(app)}/', text))
         for directory in dirs['components']:
             total += len(re.findall(rf'<{pascal(directory)}[A-Z]', text))
             total += len(re.findall(rf'components/{re.escape(directory)}/', text))
@@ -419,6 +420,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
     for app, dirs in web_apps.items():
         folders = [web / 'app' / 'components' / d for d in dirs['components']]
         folders += [web / 'app' / 'pages' / d for d in dirs['pages']]
+        folders.append(web / 'app' / 'modules' / app)
         for folder in folders:
             if not folder.is_dir():
                 continue

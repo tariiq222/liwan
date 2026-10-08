@@ -207,6 +207,12 @@ class TestAppToken(unittest.TestCase):
 
     def test_odoo_models_and_the_meeting_engine_stay_tokens(self):
         token = app_token({'nasq_core': 0})
+        self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'; c = 'cyan_meeting_minutes.x'"), 2)
+        self.assertEqual(count(token, "a = 'pmo.tasks.read'; b = 'meetings.read'; d = 'chat.title'"), 0)
+
+    def test_shipped_application_prefixes_come_from_the_registered_ranks(self):
+        shipped = {'nasq_core': 0, 'nasq_hr': 4, 'nasq_pmo': 4, 'nasq_meetings': 4, 'nasq_chat': 4}
+        token = app_token(shipped)
         self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'; c = 'cyan_meeting_minutes.x'"), 3)
         self.assertEqual(count(token, "a = 'pmo.tasks.read'; b = 'meetings.read'; d = 'chat.title'"), 3)
 
