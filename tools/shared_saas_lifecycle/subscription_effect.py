@@ -248,6 +248,8 @@ def validate_observation(value):
             or not all(isinstance(k, str) and FEATURE_RE.fullmatch(k) and type(v) is int and v >= 0
                        for k, v in usage.items())):
         raise EffectError('observation_invalid')
+    if not {'users.limit', 'storage.limit_mb', BRANCH_LIMIT} <= set(usage):
+        raise EffectError('observation_invalid')
     if (not isinstance(gates, dict) or set(gates) != set(usage)
             or not all(isinstance(g, list) and all(isinstance(k, str) and FEATURE_RE.fullmatch(k) for k in g)
                        for g in gates.values())):

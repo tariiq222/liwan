@@ -172,6 +172,30 @@ class ReconfigureTests(Base):
             self.assertEqual((runner.applies, runner.installed), (0, []))
         self.assertFalse(self.dir.exists())
 
+    def test_limit_equal_to_usage_is_accepted(self):
+        request = make_request()
+        usage = {**observation()['usage'], 'users.limit': 10, 'projects.max_projects': 5, 'storage.limit_mb': 100}
+        runner = FakeRunner(observation(usage=usage), apply_state=applied_state(request))
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+
+    def test_unlimited_target_is_never_refused(self):
+        ent = make_request()['entitlement']
+        request = make_request(entitlement={**ent, 'features': {**ent['features'], 'users.limit': None}})
+        runner = FakeRunner(observation(usage={**observation()['usage'], 'users.limit': 10**6}),
+                            apply_state=applied_state(request))
+        self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+
+    def test_open_application_limit_is_checked(self):
+        ent = make_request()['entitlement']
+        request = make_request(entitlement={**ent, 'features': {**ent['features'], 'pmo.enabled': True, 'projects.max_projects': 2}})
+        runner = FakeRunner(observation(usage={**observation()['usage'], 'projects.max_projects': 3}))
+        with self.assertRaises(EffectError) as ctx:
+            self.effect(runner).reconfigure(request)
+        self.assertEqual(str(ctx.exception), 'downgrade_below_usage')
+        self.assertEqual(runner.applies, 0)
+
     def test_downgrade_branches(self):
         active = [{'branch_id': str(i) * 8 + B1[8:], 'state': 'active', 'odoo_company_id': i,
                    'active': True, 'parent_is_root': True} for i in range(1, 4)]
@@ -274,12 +298,20 @@ class ObserveTests(Base):
         with self.assertRaises(EffectError):
             self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
 
-
-if __name__ == '__main__':
-    unittest.main()
-
     def test_observation_gates_must_name_every_usage_key(self):
         bad = observation()
         bad['limit_gates'] = {'users.limit': []}
         with self.assertRaises(EffectError):
             self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+
+    def test_observation_must_carry_platform_limits(self):
+        for missing in ('users.limit', 'storage.limit_mb', 'branches.extra_limit'):
+            bad = observation()
+            del bad['usage'][missing]
+            del bad['limit_gates'][missing]
+            with self.assertRaises(EffectError, msg=missing):
+                self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+
+
+if __name__ == '__main__':
+    unittest.main()
