@@ -55,7 +55,18 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
   }
 }
 
-const UNITS: Record<string, UsageMetric['unit']> = { 'users.limit': 'users', 'storage.limit_mb': 'mebibytes', [BRANCH_LIMIT]: 'extra_branches' }
+const UNITS: Record<string, UsageMetric['unit']> = {
+  'users.limit': 'users', 'storage.limit_mb': 'mebibytes', [BRANCH_LIMIT]: 'extra_branches',
+  users: 'users', projects: 'projects', attachment_bytes: 'attachment_bytes', extra_branches: 'extra_branches',
+}
+/** Pre-Phase-3 samples stored operational counters (bytes for storage). When a sample has no limit-keyed
+ * metric, the limit key is shown against its legacy counter, with the limit converted to that counter's unit. */
+const LEGACY_COUNTERS: Record<string, { key: string; unit: UsageMetric['unit']; scale: number }> = {
+  'users.limit': { key: 'users', unit: 'users', scale: 1 },
+  'projects.max_projects': { key: 'projects', unit: 'projects', scale: 1 },
+  'storage.limit_mb': { key: 'attachment_bytes', unit: 'attachment_bytes', scale: 1024 * 1024 },
+  [BRANCH_LIMIT]: { key: 'extra_branches', unit: 'extra_branches', scale: 1 },
+}
 
 export async function getUsage(pool: Pool, input: { tenant_id: string; limits: Record<string, number | null>; now?: Date }): Promise<UsageSnapshot> {
   const now = input.now ?? new Date()
@@ -69,9 +80,13 @@ export async function getUsage(pool: Pool, input: { tenant_id: string; limits: R
   const freshness = !row || row.freshness === 'unavailable' ? 'unavailable'
     : row.freshness === 'stale' || now.getTime() - observed!.getTime() > FRESH_MS ? 'stale' : 'fresh'
   const metrics: UsageMetric[] = keys.map(key => {
-    const v = freshness === 'unavailable' ? null : stored[key]
+    const legacy = LEGACY_COUNTERS[key]
+    const counter = !(key in stored) && legacy && legacy.key in stored ? legacy : { key, unit: UNITS[key] ?? 'count', scale: 1 }
+    const v = freshness === 'unavailable' ? null : stored[counter.key]
     const used = typeof v === 'number' ? v : null
-    return { key, used, limit: input.limits[key] ?? null, unit: UNITS[key] ?? 'count', reason: used === null ? 'not_collected' : null }
+    const raw = input.limits[key]
+    const limit = raw === null || raw === undefined ? null : raw * counter.scale
+    return { key, used, limit, unit: counter.unit, reason: used === null ? 'not_collected' : null }
   })
   return { tenant_id: input.tenant_id, observed_at: observed ? observed.toISOString() : null, policy_revision_id: policy, freshness, metrics }
 }
