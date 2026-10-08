@@ -42,6 +42,7 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 - Model calls: the first run of an `agent.act` calls the configured model. Later runs
   replay the cached actions in a few seconds. `.e2e/cache/` is output; deleting it only
   slows the next run.
+- `npm run e2e:explore -- 'goal' --max-steps 4` (mock) and `npm run e2e:odoo:explore -- ...` (scratch Odoo) run `e2e explore` through the same isolated wrapper (`E2E_COMMAND=explore`; args are forwarded to `e2e explore`).
 - `npx e2e explore` hunts for bugs toward a goal without a test file.
   `npx e2e mcp` lets a coding agent drive and inspect the live app, then write a test
   from what it saw. Point both at the isolated stack (start it with the commands in
@@ -61,7 +62,7 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
     `E2E_USER_<NAME>_PASSWORD`). Expect about 40 s on a warm machine, more on a cold one; a
     failed create drops the half-built database. Later runs reuse it (about 25 s of
     startup).
-  - `E2E_ODOO_RESET=1` drops and recreates it; `E2E_ODOO_UPDATE=1` runs `-u` and re-seeds.
+  - `E2E_ODOO_RESET=1` drops and recreates it; `E2E_ODOO_UPDATE=1` runs `-u` and re-seeds. `E2E_ODOO_SEED=1` only re-runs the seed on the existing database (the seed is idempotent).
     Tests must use unique names (timestamps), because the database persists between runs.
   - Ports: Odoo 43369 (`E2E_ODOO_PORT`), Nuxt 43300 (`E2E_NUXT_PORT`); 3000 and 8069 are
     refused. Odoo logs: `.e2e/odoo/logs/odoo.log` (server), `prepare.log` (create/seed).
