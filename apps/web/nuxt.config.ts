@@ -1,3 +1,7 @@
+import { fileURLToPath } from 'node:url'
+import { discoverLocaleFiles } from './i18n/localeFiles'
+
+const localeFiles = discoverLocaleFiles(fileURLToPath(new URL('./i18n/locales', import.meta.url)))
 
 // Shared multi-tenant lane is opt-in. Dedicated (default) keeps the historical topology:
 // Nuxt talks to Odoo directly and routeRules proxy Odoo browser paths.
@@ -42,12 +46,12 @@ export default defineNuxtConfig({
   i18n: {
     // One file per pillar namespace, merged by @nuxtjs/i18n into a single
     // message object per locale — key paths are unchanged ($t('tasks.state.done')
-    // still resolves). A pillar owns its own namespace file: the HR pillar adds
-    // i18n/locales/{ar,en}/hr.json and one entry per locale here, and never
-    // touches common.json or tasks.json.
+    // still resolves). A pillar owns its own namespace file: adding
+    // i18n/locales/{ar,en}/<name>.json is enough. The files list is discovered
+    // from the locale folders (common.json first); a missing ar/en pair fails the load.
     locales: [
-      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: ['ar/common.json', 'ar/tasks.json', 'ar/projects.json', 'ar/settings.json', 'ar/hr.json', 'ar/access.json', 'ar/attachments.json', 'ar/notifications.json', 'ar/taskLifecycle.json', 'ar/chat.json', 'ar/meetings.json', 'ar/vendor.json', 'ar/subscription.json', 'ar/invite.json'] },
-      { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: ['en/common.json', 'en/tasks.json', 'en/projects.json', 'en/settings.json', 'en/hr.json', 'en/access.json', 'en/attachments.json', 'en/notifications.json', 'en/taskLifecycle.json', 'en/chat.json', 'en/meetings.json', 'en/vendor.json', 'en/subscription.json', 'en/invite.json'] },
+      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: localeFiles.ar },
+      { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: localeFiles.en },
     ],
     defaultLocale: 'ar',
     strategy: 'no_prefix',
