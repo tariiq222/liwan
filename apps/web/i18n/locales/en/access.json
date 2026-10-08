@@ -105,6 +105,7 @@
       "companyScope": "Available for the company",
       "unknownPermission": "Unavailable permission",
       "domains": { "access": "Access administration", "hr": "People and HR", "pmo": "Projects", "meetings": "Meetings", "settings": "Settings" },
+      "descriptions": { "employee": "Basic access for signing in and using the platform.", "system_admin": "Manages login accounts, role assignments, the access audit and branding settings.", "vendor_support": "Vendor support access for operating the environment on request.", "pmo_manager": "Manages projects, tasks, approvals and project settings.", "hr_manager": "Manages the HR directory, departments and documents." },
       "clone": "Clone",
       "rowActions": "Actions for role {name}",
       "confirm": {

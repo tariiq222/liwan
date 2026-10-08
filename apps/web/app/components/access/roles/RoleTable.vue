@@ -4,11 +4,13 @@ import type { RoleSummary } from '@nasq/contracts'
 import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import type { RowAction } from '@/components/shared/RowActions.vue'
+import { builtinRoleDescription } from '@/utils/labelFallback'
 
 const props = defineProps<{ roles: RoleSummary[]; canManage?: boolean }>()
 const emit = defineEmits<{ open: [id: number]; clone: [id: number] }>()
-const { t, locale } = useI18n()
+const { t, te, locale } = useI18n()
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
+const roleDescription = (role: RoleSummary) => builtinRoleDescription(role, t, te)
 
 function actionsFor(role: RoleSummary): RowAction[] {
   return [
@@ -35,7 +37,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
         <UTable :data="roles" :columns="columns" :caption="t('access.roles.title')" :ui="{ caption: 'sr-only', th: '' }">
           <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
           <template #name-cell="{ row }"><span class="font-medium">{{ roleLabel(row.original) }}</span></template>
-          <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal">{{ row.original.description }}</span></template>
+          <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal">{{ roleDescription(row.original) }}</span></template>
           <template #type-cell="{ row }">{{ row.original.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</template>
           <template #user_count-cell="{ row }">{{ row.original.user_count }}</template>
           <template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template>
@@ -54,7 +56,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
           </div>
           <AccessStateBadge :active="role.active" :protected="role.protected" />
         </div>
-        <p class="mt-2 text-xs text-muted">{{ role.description }}</p>
+        <p class="mt-2 text-xs text-muted">{{ roleDescription(role) }}</p>
         <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
           <div><dt>{{ t('access.roles.columns.type') }}</dt><dd>{{ role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom') }}</dd></div>
           <div><dt>{{ t('access.roles.columns.users') }}</dt><dd>{{ role.user_count }}</dd></div>

@@ -3,7 +3,7 @@ import type { Capability, PermissionDefinition } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/composables/useAdminRoles'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
-import { permissionDomainLabel } from '@/utils/labelFallback'
+import { permissionDomainLabel, builtinRoleDescription } from '@/utils/labelFallback'
 
 const { t, te, locale } = useI18n()
 const domainLabel = (domain: string) => permissionDomainLabel(domain, t, te)
@@ -38,7 +38,7 @@ watch([clone.data, catalog.data], ([role, permissionCatalog]) => {
   if (!role) return
   nameAr.value = `${role.name.ar} - نسخة`
   nameEn.value = role.name.en ? `${role.name.en} - copy` : ''
-  description.value = role.description
+  description.value = builtinRoleDescription(role, t, te)
   const allowed = new Set((permissionCatalog?.items ?? []).filter((item) => item.custom_role_allowed).map((item) => item.key))
   selected.value = role.permissions.filter((permission): permission is Capability => allowed.has(permission))
 })
