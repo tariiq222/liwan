@@ -22,6 +22,7 @@ from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resol
 from tools.nasq_cli.managed_credentials import build_credentials_script, parse_credentials
 from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
 
+from tools.catalog_check import TEST_ONLY_MODULES
 from tools.nasq_cli.module_closure import REPO_ADDONS
 
 MODULE_ID = re.compile(r'(?:nasq|customer)_[a-z0-9_]+')
@@ -41,10 +42,11 @@ def validate_modules(value):
     """A non-empty list of distinct Nasq or customer addons shipped in this repository.
 
     Which modules a policy installs comes from the trusted catalog; this only refuses
-    names that cannot be an addon of this release, so a new application needs no edit.
+    names that cannot be an addon of this release (including test-only addons), so a new application needs no edit.
     """
-    if (not isinstance(value, list) or not value or len(set(value)) != len(value)
-            or not all(isinstance(name, str) and MODULE_ID.fullmatch(name)
+    if (not isinstance(value, list) or not value
+            or not all(isinstance(name, str) for name in value) or len(set(value)) != len(value)
+            or not all(MODULE_ID.fullmatch(name) and name not in TEST_ONLY_MODULES
                        and (REPO_ADDONS / name / '__manifest__.py').is_file() for name in value)):
         raise EffectError('modules_invalid')
     return value

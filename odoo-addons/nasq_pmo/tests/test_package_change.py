@@ -84,6 +84,8 @@ class TestPackageChange(NasqPmoCase):
         self.assertIn('pmo_manager', opened)
         self.assertNotIn('hr_manager', opened)
         self._write(service._nasq_close_unlisted_features(TARGET_WITHOUT_PMO))
+        profile = service._nasq_profile()
+        self.assertIn('pmo.enabled', profile.retained_read_features)  # retained, yet not granted
         closed = service._nasq_entitled_admin_roles()
         self.assertIn('system_admin', closed)  # holds platform permissions next to meetings ones
         self.assertNotIn('pmo_manager', closed)

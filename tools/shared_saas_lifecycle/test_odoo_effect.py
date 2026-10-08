@@ -15,7 +15,7 @@ class PhysicalBoundaryTests(unittest.TestCase):
         for value in ['odoo19', 'postgres', 'nasq_scratch_prod', 'nasq_scratch_a;drop']:
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_database(value)
-        for value in [['nasq_core', 'sale'], ['nasq_core', 'nasq_not_shipped'], [], ['nasq_core', 'nasq_core'], 'nasq_core']:
+        for value in [['nasq_core', 'sale'], ['nasq_core', 'nasq_not_shipped'], ['nasq_core', 'nasq_registry_probe'], [{'a': 1}], [], ['nasq_core', 'nasq_core'], 'nasq_core']:
             with self.subTest(value=value), self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_modules(value)
         release = ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat']
@@ -131,13 +131,6 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                     return admin
                 if xmlid == 'nasq_core.group_vendor_support':
                     return SimpleNamespace(id=99)
-                role_keys = {
-                    'nasq_core.role_system_admin': 'system_admin',
-                    'nasq_pmo.role_pmo_manager': 'pmo_manager',
-                    'nasq_hr.role_hr_manager': 'hr_manager',
-                }
-                if xmlid in role_keys:
-                    return SimpleNamespace(id=role_keys[xmlid])
                 raise AssertionError(xmlid)
             def invalidate_all(self, **kwargs):
                 pass

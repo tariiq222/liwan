@@ -23,7 +23,10 @@ import re
 import sys
 from pathlib import Path
 
-from nasq_cli.module_closure import ClosureError, install_closure
+try:  # run as a script (tools/ on the path) or imported as tools.catalog_check
+    from nasq_cli.module_closure import ClosureError, install_closure
+except ModuleNotFoundError:
+    from tools.nasq_cli.module_closure import ClosureError, install_closure
 
 ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 

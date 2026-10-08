@@ -542,7 +542,9 @@ class NasqEntitlementService(models.AbstractModel):
         """Administrator role keys the current policy opens.
 
         A role holding any platform permission (a permission domain without a
-        registered ``<domain>.enabled`` boolean) is always open. A role made only
+        registered ``<domain>.enabled`` boolean, such as access or settings) is
+        always open, including a mixed role like ``system_admin`` that also holds
+        meetings permissions. A role made only
         of application permissions opens when every one of those applications'
         ``<domain>.enabled`` is granted. Installed modules never decide it: every
         application of the release is installed in every tenant.
