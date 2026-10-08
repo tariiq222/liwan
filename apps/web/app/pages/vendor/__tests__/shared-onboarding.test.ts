@@ -42,7 +42,7 @@ describe('shared tenant onboarding browser contract', () => {
     for (const field of ['mode', 'hosting', 'target']) expect(form).toContain(`<UFormField :label="t('vendor.tenants.fields.${field}')"`)
     // Identity fields lock once the customer exists so a retry never diverges from it.
     expect((form.match(/:disabled="Boolean\(createdCustomer\)"/g) ?? []).length).toBe(3)
-    expect(form).toContain('subscriptions.createCustomer(planTenantCustomerBody(form))')
+    expect(form).toContain('subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))')
     expect(form).toContain('subscriptions.changeQuote(planTenantQuoteBody(')
     expect(form).toContain('subscriptions.placeOrder(')
     expect(form).not.toContain("'packages'")
@@ -54,7 +54,9 @@ describe('shared tenant onboarding browser contract', () => {
   })
 
   it('reuses the created customer when a later step fails, so a retry creates no duplicate', () => {
-    expect(form).toContain('createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form))).id')
+    expect(form).toContain('createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))).id')
+    // A lost create response is retried with the same server-side request id.
+    expect(form).toContain('creationRequestId.value ??= crypto.randomUUID()')
   })
 
   it('does not publish a customer link for failed, stale, or partially activated progress', () => {

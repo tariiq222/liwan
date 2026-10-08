@@ -20,6 +20,7 @@ const cadenceItems = computed(() => (selectedPlan.value?.prices ?? []).map(p => 
 const selectedCadence = computed<Cadence | undefined>(() => selectedPlan.value?.prices.find(p => cadenceKey(p.cadence) === form.cadence)?.cadence)
 const canSubscribe = computed(() => can('vendor.subscriptions.manage'))
 const createdCustomer = ref<string | null>(null)
+const creationRequestId = ref<string | null>(null)
 const busy = ref(false); const saveError = ref<unknown>(null); const submitted = ref(false)
 const dirty = computed(() => !submitted.value && Boolean(form.admin_name.trim() || form.admin_login.trim() || form.name.trim() || form.inventory_target || form.catalog_version || form.catalog_tier || form.plan_revision_id || form.reason.trim() || form.commercial_mode !== 'saas' || form.hosting_model !== 'managed'))
 function fieldError(error: unknown): string {
@@ -38,7 +39,9 @@ async function submit() {
       if (!canSubscribe.value || !selectedPlan.value || !selectedCadence.value) return
       // A retry after a failed quote or order reuses the customer instead of creating a duplicate;
       // the identity fields are locked once it exists so the reused customer never diverges from the form.
-      createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form))).id
+      // The server also deduplicates: one request id per submission returns the same customer on a lost response.
+      creationRequestId.value ??= crypto.randomUUID()
+      createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))).id
       const quote = await subscriptions.changeQuote(planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value))
       await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
       submitted.value = true

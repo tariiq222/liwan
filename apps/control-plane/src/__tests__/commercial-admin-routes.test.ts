@@ -57,6 +57,32 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
   it('requires vendor read before listing customers', async () => {
     await expect(call('GET', '/customers', undefined, [])).rejects.toMatchObject({ status: 403 })
   })
+  it('refuses plan-based tenant creation without vendor.tenants.manage (403, nothing written)', async () => {
+    const name = `${prefix} forbidden ${randomUUID()}`
+    await expect(call('POST', '/customers', { name, admin_name: 'Admin', admin_login: 'admin@example.test' }, ['vendor.read', 'vendor.subscriptions.manage'])).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM customers WHERE name=$1', [name])).rows[0].n).toBe(0)
+    // A first order for a customer that has no tenant provisions one on fulfilment.
+    const customer = randomUUID(), quote = randomUUID()
+    await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, name])
+    await pool.query("INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,'{}','test',now()+interval '1 hour')", [quote, customer])
+    await expect(call('POST', '/orders', { quote_id: quote, expected_subscription_revision: 0, idempotency_key: randomUUID() }, ['vendor.read', 'vendor.subscriptions.manage'])).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM orders WHERE customer_id=$1', [customer])).rows[0].n).toBe(0)
+    expect((await pool.query('SELECT count(*)::int AS n FROM subscriptions WHERE customer_id=$1', [customer])).rows[0].n).toBe(0)
+  })
+  it('makes plan-based tenant (customer) creation idempotent per request id', async () => {
+    const manage = ['vendor.tenants.manage', 'vendor.subscriptions.manage']
+    const request_id = randomUUID(), name = `${prefix} idem ${request_id}`
+    const body = { name, admin_name: 'Admin', admin_login: 'idem@example.test', request_id }
+    // Double submit racing on two connections, then a later network replay.
+    const [a, b] = await Promise.all([call('POST', '/customers', body, manage), call('POST', '/customers', body, manage)])
+    const replay = await call('POST', '/customers', body, manage)
+    expect([a.status, b.status].sort()).toEqual([200, 201])
+    expect(replay.status).toBe(200)
+    expect(new Set([a.data.id, b.data.id, replay.data.id]).size).toBe(1)
+    expect((await pool.query('SELECT count(*)::int AS n FROM customers WHERE name=$1', [name])).rows[0].n).toBe(1)
+    await expect(call('POST', '/customers', { ...body, admin_login: 'other@example.test' }, manage)).rejects.toMatchObject({ status: 409, code: 'idempotency_conflict' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM customers WHERE creation_request_id=$1', [request_id])).rows[0].n).toBe(1)
+  })
   it('keeps SQL filtering aligned with receipt-based display states', async () => {
     const label = `states-${randomUUID()}`
     const cases = [
