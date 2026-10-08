@@ -11,7 +11,10 @@ const SKEW_MS = 5 * 60 * 1000
 const PER_TENANT_MS = 30_000
 const DEFAULT_LIMIT = 50
 const BUDGET_MS = 60_000
-const LOCK_KEY = 1397969234
+// Two-int advisory lock: a different key space from every single-bigint lock in the control plane
+// (1397969233 migrate, REGISTRY_ADVISORY_LOCK 1397969234, hashtext(...) worker locks), so it can never collide with them.
+export const USAGE_LOCK_CLASS = 1397969235
+export const USAGE_LOCK_OBJECT = 1
 // Same set as the Python validate_observation: a sample without these is partial.
 const REQUIRED = ['users.limit', 'storage.limit_mb', 'branches.extra_limit']
 const LIVE_STATES = ['trialing', 'active', 'past_due']
@@ -42,11 +45,15 @@ export function acceptObservation(observed: unknown, database: string, now: Date
 }
 
 /** Runs WORK with an AbortSignal that aborts after MS; the rejection says observe_timeout. */
-async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
+async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: number, stop?: AbortSignal): Promise<T> {
   const controller = new AbortController()
   let timer: NodeJS.Timeout | undefined
+  let onStop: () => void = () => {}
+  const stopped = new Promise<never>((_, reject) => { onStop = () => { controller.abort(); reject(Error('observe_aborted')) } })
+  stopped.catch(() => {})
+  if (stop?.aborted) onStop(); else stop?.addEventListener('abort', onStop, { once: true })
   const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(Error('observe_timeout')) }, ms) })
-  try { return await Promise.race([work(controller.signal), timeout]) } finally { clearTimeout(timer) }
+  try { return await Promise.race([work(controller.signal), timeout, stopped]) } finally { clearTimeout(timer); stop?.removeEventListener('abort', onStop) }
 }
 
 /** Persist Odoo's observed usage for live shared tenants (trialing/active/past_due, operations enabled), the
@@ -55,13 +62,15 @@ async function withDeadline<T>(work: (signal: AbortSignal) => Promise<T>, ms: nu
  * collects at a time across workers (advisory lock; a second caller returns { locked: true }).
  * Nothing is recorded unless the observation names the bound database, is fresh, complete, and the
  * binding is unchanged after the observation; a rejected sample leaves the previous snapshot untouched. */
-export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number }) {
+export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunner; now?: () => Date; log?: (message: string) => void; limit?: number; timeout_ms?: number; budget_ms?: number; signal?: AbortSignal }) {
   const now = input.now ?? (() => new Date())
   const log = input.log ?? ((message: string) => console.error(`[usage-collector] ${message}`))
   const result = { recorded: 0, skipped: 0, locked: false }
+  if (input.signal?.aborted) return result
   const lock = await pool.connect()
+  let broken = false
   try {
-    if (!(await lock.query('SELECT pg_try_advisory_lock($1) AS ok', [LOCK_KEY])).rows[0].ok) return { ...result, locked: true }
+    if (!(await lock.query('SELECT pg_try_advisory_lock($1,$2) AS ok', [USAGE_LOCK_CLASS, USAGE_LOCK_OBJECT])).rows[0].ok) return { ...result, locked: true }
     try {
       const targets = (await pool.query(`SELECT x.tenant_id, x.database_name, x.registry_revision FROM (
           SELECT DISTINCT ON (b.control_tenant_id) s.tenant_id, b.database_name, b.registry_revision
@@ -74,12 +83,12 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
         ORDER BY a.attempted_at ASC NULLS FIRST, x.tenant_id LIMIT $1`, [input.limit ?? DEFAULT_LIMIT, LIVE_STATES])).rows as Array<{ tenant_id: string; database_name: string; registry_revision: string }>
       const deadline = Date.now() + (input.budget_ms ?? BUDGET_MS)
       for (const target of targets) {
-        if (Date.now() >= deadline) break
+        if (Date.now() >= deadline || input.signal?.aborted) break
         try {
           // The attempt is recorded before observing, so a hang or failure still moves the tenant to the back.
           await pool.query('INSERT INTO usage_collection_attempts(tenant_id,attempted_at) VALUES($1,clock_timestamp()) ON CONFLICT (tenant_id) DO UPDATE SET attempted_at=excluded.attempted_at', [target.tenant_id])
           const raw = await withDeadline(signal => input.runner({ tenant_id: target.tenant_id, database: target.database_name, signal }),
-            Math.max(1, Math.min(input.timeout_ms ?? PER_TENANT_MS, deadline - Date.now())))
+            Math.max(1, Math.min(input.timeout_ms ?? PER_TENANT_MS, deadline - Date.now())), input.signal)
           const observed = acceptObservation(raw, target.database_name, now())
           if (!observed) { result.skipped++; continue }
           const still = await pool.query('SELECT 1 FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true AND database_name=$2 AND registry_revision=$3',
@@ -94,9 +103,10 @@ export async function collectUsage(pool: Pool, input: { runner: UsageObserveRunn
       }
       return result
     } finally {
-      await lock.query('SELECT pg_advisory_unlock($1)', [LOCK_KEY]).catch(() => {})
+      // A failed unlock leaves the session lock on the connection: discard it instead of pooling it.
+      try { await lock.query('SELECT pg_advisory_unlock($1,$2)', [USAGE_LOCK_CLASS, USAGE_LOCK_OBJECT]) } catch { broken = true }
     }
   } finally {
-    lock.release()
+    lock.release(broken)
   }
 }

@@ -17,6 +17,8 @@ export type CommercialSchedulerOptions = {
   paymentAdapter?: PaymentAdapter; mailAdapter?: MailAdapter
   subscriptionRunner?: Parameters<typeof recoverInterrupted>[1] extends infer O ? (O extends { runner?: infer R } ? R : never) : never
   usageRunner?: UsageObserveRunner
+  /** Worker shutdown: stops the background usage run before its next target. */
+  signal?: AbortSignal
   log?: (message: string, err?: unknown) => void
 }
 
@@ -29,7 +31,9 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const reconcileEvery = posInt(env.NASQ_COMMERCIAL_RECONCILE_EVERY, 10)
   // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is clamped to 10.
   const usageMs = Math.min(posInt(env.NASQ_COMMERCIAL_USAGE_INTERVAL_SEC, 300), 600) * 1000
-  let lastUsage: number | undefined
+  let nextUsage = 0
+  let lockSkipLogged = false
+  const USAGE_RETRY_MS = 30_000
   let usageRun: Promise<void> | undefined
   const billingMs = posInt(env.NASQ_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
   const origin = (env.NASQ_PAYMENT_RETURN_ORIGINS ?? '').split(',')[0]?.trim() ?? ''
@@ -67,10 +71,14 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       }
       const now = clock()
       // Usage collection talks to Odoo, so it runs in the background (single flight) and never holds a tick.
-      if (o.usageRunner && !usageRun && (lastUsage === undefined || now - lastUsage >= usageMs)) {
-        lastUsage = now
+      if (o.usageRunner && !usageRun && now >= nextUsage && !o.signal?.aborted) {
+        nextUsage = now + usageMs
         const runner = o.usageRunner
-        usageRun = collectUsage(pool, { runner }).then(() => undefined, e => { try { log('usage failed', e) } catch { /* never throw */ } }).finally(() => { usageRun = undefined })
+        usageRun = collectUsage(pool, { runner, signal: o.signal }).then(r => {
+          // Another worker is collecting: retry soon rather than a full interval later.
+          if (r.locked) { nextUsage = clock() + USAGE_RETRY_MS; if (!lockSkipLogged) { lockSkipLogged = true; try { log('usage skipped: another collector holds the lock') } catch { /* never throw */ } } }
+          else lockSkipLogged = false
+        }, e => { try { log('usage failed', e) } catch { /* never throw */ } }).finally(() => { usageRun = undefined })
       }
       if (lastBilling === undefined || now - lastBilling >= billingMs) {
         lastBilling = now

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { migrate } from '../db.js'
 import { acceptObservation, collectUsage, type UsageObserveRunner } from '../commercial/usage-collector.js'
+import { REGISTRY_ADVISORY_LOCK } from '../shared/registry-store.js'
 import { url } from './commercial-helpers.js'
 
 const NOW = new Date('2026-10-07T10:00:00Z')
@@ -35,9 +36,23 @@ describe('usage observation gate (no database)', () => {
   })
 })
 
+describe('usage collector lock connection (no database)', () => {
+  const fake = (unlockFails: boolean) => {
+    const released: unknown[] = []
+    const client = { query: async (sql: string) => { if (sql.includes('pg_advisory_unlock') && unlockFails) throw Error('conn lost'); return { rows: [{ ok: true }] } }, release: (broken?: unknown) => { released.push(broken) } }
+    return { pool: { connect: async () => client, query: async () => ({ rows: [], rowCount: 0 }) }, released }
+  }
+  it('releases the connection as broken when the unlock fails, healthy otherwise', async () => {
+    const bad = fake(true); await collectUsage(bad.pool as never, { runner: async () => null })
+    expect(bad.released).toEqual([true])
+    const good = fake(false); await collectUsage(good.pool as never, { runner: async () => null })
+    expect(good.released).toEqual([false])
+  })
+})
+
 const suite = url ? describe : describe.skip
 suite('usage collector (scratch control database)', () => {
-  const pool = new Pool({ connectionString: url, max: 3 })
+  const pool = new Pool({ connectionString: url, max: 6 })
   beforeAll(async () => { await migrate(pool) })
   afterAll(async () => pool.end())
 
@@ -148,5 +163,52 @@ suite('usage collector (scratch control database)', () => {
     expect(second.locked).toBe(true)
     release()
     expect((await first).locked).toBe(false)
+  })
+
+  it('uses its own lock: a held registry lock does not stop a run, and a run does not block the registry lock', async () => {
+    await tenant()
+    const registry = await pool.connect()
+    const probe = await pool.connect()
+    try {
+      await registry.query('SELECT pg_advisory_lock($1)', [REGISTRY_ADVISORY_LOCK])
+      const held = await collectUsage(pool, { runner: async () => { throw Error('x') }, now: () => NOW, limit: 1, log: () => {} })
+      expect(held.locked).toBe(false)
+      await registry.query('SELECT pg_advisory_unlock($1)', [REGISTRY_ADVISORY_LOCK])
+      let release!: () => void
+      const gate = new Promise<void>(r => { release = r })
+      let started!: () => void
+      const running = new Promise<void>(r => { started = r })
+      const run = collectUsage(pool, { runner: async () => { started(); await gate; throw Error('x') }, now: () => NOW, limit: 1, log: () => {} })
+      await running
+      expect((await probe.query('SELECT pg_try_advisory_lock($1) AS ok', [REGISTRY_ADVISORY_LOCK])).rows[0].ok).toBe(true)
+      await probe.query('SELECT pg_advisory_unlock($1)', [REGISTRY_ADVISORY_LOCK])
+      release()
+      expect((await run).locked).toBe(false)
+    } finally { registry.release(); probe.release() }
+  })
+
+  it('stops before the next target on the stop signal and records no attempt for unobserved targets', async () => {
+    await pool.query('DELETE FROM usage_collection_attempts')
+    await tenant(); await tenant(); await tenant()
+    const stop = new AbortController()
+    const seen: string[] = []
+    const result = await collectUsage(pool, { runner: async ({ tenant_id }) => { seen.push(tenant_id); stop.abort(); throw Error('x') }, now: () => NOW, limit: 1000, log: () => {}, signal: stop.signal })
+    expect(seen).toHaveLength(1)
+    expect(result.locked).toBe(false)
+    expect((await pool.query('SELECT count(*)::int AS n FROM usage_collection_attempts')).rows[0].n).toBe(1)
+    const before = await collectUsage(pool, { runner: async () => { throw Error('must not run') }, now: () => NOW, signal: stop.signal })
+    expect(before).toEqual({ recorded: 0, skipped: 0, locked: false })
+  })
+
+  it('aborts an in-flight observation when the stop signal fires', async () => {
+    await pool.query('DELETE FROM usage_collection_attempts')
+    await tenant()
+    const stop = new AbortController()
+    let sig: AbortSignal | undefined
+    const run = collectUsage(pool, { runner: ({ signal }) => { sig = signal; return new Promise(() => {}) }, now: () => NOW, limit: 1, log: () => {}, signal: stop.signal })
+    await new Promise(r => setTimeout(r, 100))
+    stop.abort()
+    await run
+    expect(sig?.aborted).toBe(true)
   })
 })
