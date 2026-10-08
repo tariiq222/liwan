@@ -86,3 +86,13 @@ export function requiredCapabilityForPath(path: string): string | null {
   if (/^\/settings\/roles\/(new|[^/]+\/edit)$/.test(path)) return 'access.roles.manage'
   return destinations().find(([target]) => isNavPathActive(path, target))?.[1] ?? null
 }
+/**
+ * Route-level gate. A path with a capability rule goes through `canReach`; a path an application
+ * claims by prefix but no rule covers still needs that application's feature (never fail-open).
+ */
+export function canReachPath(identity: AccessIdentity, path: string): boolean {
+  const capability = requiredCapabilityForPath(path)
+  if (capability) return canReach(identity, capability, path)
+  const manifest = manifestForPath(path)
+  return !manifest || hasFeature(identity, manifest.feature, pathIsWrite(path))
+}

@@ -1,4 +1,4 @@
-import { canReach, requiredCapabilityForPath } from '@/utils/accessPolicy'
+import { canReachPath } from '@/utils/accessPolicy'
 export default defineNuxtRouteMiddleware(async (to) => {
   const { $i18n } = useNuxtApp()
   const { me, error, ready, refresh } = useMe()
@@ -17,6 +17,5 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
   if (!me.value) return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
-  const capability = requiredCapabilityForPath(to.path)
-  if (capability && !canReach(me.value, capability, to.path)) throw createError({ statusCode: 403, statusMessage: $i18n.t('errors.forbidden') })
+  if (!canReachPath(me.value, to.path)) throw createError({ statusCode: 403, statusMessage: $i18n.t('errors.forbidden') })
 })

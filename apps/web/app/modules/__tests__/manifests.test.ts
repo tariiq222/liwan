@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { appManifests, manifestForPath, withManifests } from '../manifests'
 import { canUse, featureForCapability, featureForPath, hasFeature, MODULE_FEATURES } from '../registry'
-import { canReach, firstAllowedPath, hasCapability, isNavPathActive, postLoginPath, requiredCapabilityForPath } from '../../utils/accessPolicy'
+import { canReach, canReachPath, firstAllowedPath, hasCapability, isNavPathActive, postLoginPath, requiredCapabilityForPath } from '../../utils/accessPolicy'
 import type { AppManifest } from '../types'
 
 const crm: AppManifest = {
@@ -120,6 +120,24 @@ describe('app manifests', () => {
         expect(canUse(identity, 'nasq.notifications')).toBe(true)
         expect(canUse(withoutCrm, 'nasq.notifications')).toBe(false)
       })
+    })
+    it('gates a claimed prefix that has no capability rule by the application feature', () => {
+      const erp: AppManifest = { ...crm, id: 'erp', feature: 'erp.enabled', routePrefixes: ['/erp', '/erp-extra'], landing: [], routeCapabilities: [], bell: undefined }
+      const open = { capabilities: [], platform: { readable_features: ['erp.enabled'], writable_features: ['erp.enabled'] } }
+      const closed = { capabilities: [], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+      withManifests([...appManifests, erp], () => {
+        expect(requiredCapabilityForPath('/erp-extra/x')).toBeNull()
+        expect(canReachPath(closed, '/erp-extra/x')).toBe(false)
+        expect(canReachPath(open, '/erp-extra/x')).toBe(true)
+        expect(canReachPath(closed, '/account')).toBe(true)
+      })
+    })
+    it('refuses a nested withManifests', () => {
+      withManifests([crm], () => {
+        expect(() => withManifests([], () => 1)).toThrow(/already active/)
+        expect(manifestForPath('/crm')?.id).toBe('crm')
+      })
+      expect(manifestForPath('/crm')).toBeNull()
     })
     it('is removed again afterwards, even when the callback throws', () => {
       expect(() => withManifests([crm], () => { throw new Error('boom') })).toThrow('boom')

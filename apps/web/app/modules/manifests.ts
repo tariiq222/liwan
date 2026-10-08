@@ -17,8 +17,9 @@ export function activeManifests(): readonly AppManifest[] {
   return override ?? appManifests
 }
 
-/** Test seam: run `fn` with `list` as the manifests in force (sync or async), then restore. */
+/** Test seam: run `fn` with `list` as the manifests in force (sync or async), then restore. Throws if an override is already active (no nesting, no concurrent async use). */
 export function withManifests<T>(list: readonly AppManifest[], fn: () => T): T {
+  if (override) throw new Error('withManifests cannot be nested or run concurrently: a manifest override is already active')
   const previous = override
   override = byRail(list)
   let restored = false
