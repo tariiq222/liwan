@@ -112,6 +112,14 @@ suite('downgrade fail-closed usage guards',()=>{
     const f=await fixture()
     await expect(gated(f,{'pmo.enabled':true,'projects.max_projects':10},{'pmo.enabled':true,'projects.max_projects':5},{'projects.max_projects':1},false)).rejects.toMatchObject({status:409,code:'usage_unavailable',field:'projects.max_projects'})
   })
+  it('fails closed on a possible reopen when gates are missing',async()=>{
+    const f=await fixture()
+    await expect(gated(f,{'pmo.enabled':false,'projects.max_projects':0},{'pmo.enabled':true,'projects.max_projects':5},{'projects.max_projects':9},false)).rejects.toMatchObject({status:409,code:'usage_unavailable',field:'projects.max_projects'})
+  })
+  it('lets a pure limit raise with no boolean flip pass without gates',async()=>{
+    const f=await fixture()
+    await gated(f,{'pmo.enabled':true,'projects.max_projects':10},{'pmo.enabled':true,'projects.max_projects':20},{'projects.max_projects':25},false)
+  })
   it('usage reports applied policy revision, not subscription revision UUID',async()=>{
     const f=await fixture();await usage(f)
     expect((await getUsage(pool,{tenant_id:f.tenant,limits:{'users.limit':10},now})).policy_revision_id).toBe(POLICY)

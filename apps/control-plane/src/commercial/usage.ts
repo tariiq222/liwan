@@ -31,7 +31,8 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
     const previous = input.previous[key]
     const lowered = previous === undefined || previous === null || (typeof previous === 'number' && next < previous)
     const gates = stored[key]
-    if (!Array.isArray(gates)) return lowered // no stored gates: a lowered key is checked and fails closed below
+    // No stored gates: a reopen cannot be ruled out, so a key is checked when lowered or when any boolean flips to true.
+    if (!Array.isArray(gates)) return lowered || Object.entries(input.target).some(([k, v]) => v === true && input.previous[k] !== true)
     if (closed(gates, input.target)) return false
     const reopened = closed(gates, input.previous) && gates.some(gate => input.target[gate] === true)
     return lowered || reopened
