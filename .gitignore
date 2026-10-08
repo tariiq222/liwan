@@ -78,3 +78,8 @@ apps/web/storybook-static/
 tools/saas_commercial_acceptance/.state/
 tools/saas_commercial_acceptance/.secrets/
 tools/saas_commercial_acceptance/test-results/
+
+# --- e2e (TesterArmy) run output and replay cache --------------------------
+# Docs default: ignore .e2e/ artifacts; commit .e2e/cache/ only if you want
+# to share replay recordings with CI/teammates (opt-in, keep this line then).
+.e2e/

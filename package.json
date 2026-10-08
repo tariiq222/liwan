@@ -10,11 +10,21 @@
     "build": "npm -w packages/contracts run build && npm -w apps/web run build",
     "test": "python3 -B -m unittest discover -s tools -p 'test_*.py' && python3 -B tools/secret_guard.py && python3 -B tools/no_external_refs.py && python3 -B tools/ui_policy.py && python3 -B tools/ui_inventory.py --check && node tools/ui_templates.mjs && node tools/ui_catalog.mjs --check && npm -w packages/contracts run test && npm -w apps/web run test",
     "lint": "npm -w apps/web run lint && ruff check odoo-addons",
-    "test:commercial": "npm -w packages/commercial-contracts run test && npm -w apps/control-plane run test"
+    "test:commercial": "npm -w packages/commercial-contracts run test && npm -w apps/control-plane run test",
+    "e2e": "E2E_TELEMETRY_DISABLED=1 e2e run",
+    "e2e:smoke": "E2E_TELEMETRY_DISABLED=1 e2e run e2e/tests/smoke.e2e.ts"
   },
   "overrides": {
     "@unovis/ts": {
       "maplibre-gl": "6.4.1"
     }
+  },
+  "devDependencies": {
+    "@ai-sdk/openai": "^4.0.83",
+    "@ai-sdk/openai-compatible": "^3.0.62",
+    "@e2e-dev/web": "^0.11.2",
+    "ai": "^7.0.127",
+    "e2e": "^0.16.0",
+    "playwright": "1.62.1"
   }
 }
