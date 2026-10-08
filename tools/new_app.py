@@ -50,6 +50,20 @@ def render(text, tokens):
     return text
 
 
+def web_slots(root):
+    """The next free rail order (highest + 10) and the first unused single-character nav shortcut."""
+    web = Path(root) / 'apps/web/app'
+    sources = [*sorted((web / 'modules').glob('*/manifest.ts')), web / 'composables/nav/shellModules.ts']
+    text = '\n'.join(path.read_text(encoding='utf-8') for path in sources if path.is_file())
+    orders = [int(match) for match in re.findall(r'\border:\s*(\d+)', text)]
+    used = set(re.findall(r"shortcut:\s*'([a-z0-9]?)'", text))
+    free = [char for char in 'abcdefghijklmnopqrstuvwxyz0123456789' if char not in used]
+    if not free:
+        msg = 'no free single-character nav shortcut is left'
+        raise ScaffoldError(msg)
+    return max(orders, default=0) + 10, free[0]
+
+
 def planned_files(root, tokens):
     """Map each output path (relative to root) to its rendered text."""
     files = {}
@@ -171,7 +185,11 @@ def sync_release_copies(root):
 def scaffold(root, app, name_ar, name_en, dry_run=False):
     root = Path(root).resolve()
     validate(root, app, name_ar, name_en)
-    tokens = {'app': app, 'App': pascal(app), 'name_ar': name_ar.strip(), 'name_en': name_en.strip()}
+    order, shortcut = web_slots(root)
+    tokens = {
+        'app': app, 'App': pascal(app), 'name_ar': name_ar.strip(), 'name_en': name_en.strip(),
+        'order': str(order), 'shortcut': shortcut,
+    }
     files = planned_files(root, tokens)
     edits = registration_edits(root, tokens)
     clashes = sorted(relative for relative in files if (root / relative).exists())

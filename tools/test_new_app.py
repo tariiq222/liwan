@@ -3,6 +3,7 @@ import contextlib
 import difflib
 import io
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -152,6 +153,37 @@ class TestNewApp(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn('SYNCED deploy/provision.sh', out)
         self.assertIn('nasq_sales', (self.root / 'deploy/provision.sh').read_text(encoding='utf-8'))
+
+    def test_rail_order_and_shortcut_are_computed_from_existing_manifests(self):
+        run(self.root, *ARGS)
+        text = (self.root / 'apps/web/app/modules/sales/manifest.ts').read_text(encoding='utf-8')
+        others = ''.join(
+            path.read_text(encoding='utf-8')
+            for path in (self.root / 'apps/web/app/modules').glob('*/manifest.ts') if path.parent.name != 'sales'
+        )
+        highest = max(int(n) for n in re.findall(r'\border:\s*(\d+)', others))
+        self.assertIn(f'order: {highest + 10} ', text)
+        shortcut = re.search(r"shortcut: '([a-z0-9])'", text).group(1)
+        self.assertNotIn(f"shortcut: '{shortcut}'", others)
+        code, _, _ = run(self.root, 'ops', '--name-ar', 'ع', '--name-en', 'Ops')
+        self.assertEqual(code, 0)
+        second = (self.root / 'apps/web/app/modules/ops/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn(f'order: {highest + 20} ', second)
+        self.assertNotIn(f"shortcut: '{shortcut}'", second)
+
+    def test_locale_files_define_every_key_the_web_files_use(self):
+        run(self.root, *ARGS)
+        keys = set()
+        for relative in ('apps/web/app/modules/sales/manifest.ts', 'apps/web/app/pages/sales/index.vue'):
+            keys |= set(re.findall(r"(?:labelKey: |\bt\()'(sales\.[a-zA-Z.]+)'", (self.root / relative).read_text(encoding='utf-8')))
+        self.assertTrue(keys)
+        for lang in ('ar', 'en'):
+            data = json.loads((self.root / f'apps/web/i18n/locales/{lang}/sales.json').read_text(encoding='utf-8'))
+            for key in keys:
+                node = data
+                for part in key.split('.'):
+                    node = node[part]
+                self.assertIsInstance(node, str, key)
 
     def test_dry_run_writes_nothing(self):
         snapshot = {p: p.read_bytes() for p in self.root.rglob('*') if p.is_file()}
