@@ -489,6 +489,11 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         (self.root / 'deploy' / 'provision.sh').write_text('odoo -i demo_core,web_theme_shadcn --stop-after-init\n')
         self.assert_rejected("deploy/provision.sh: module list ['demo_core'] differs from the release modules")
 
+    def test_the_newest_release_is_chosen_by_numeric_suffix(self):
+        self.write('solutions/demo_v3.json', self.data)
+        self.write('solutions/demo_v10.json', self.data)
+        self.assertEqual(catalog_check.current_release(self.root)[0], 'demo_v10.json')
+
     def test_no_schema_3_catalog_means_no_release(self):
         self.data['schema_version'] = 2
         self.write('solutions/demo.json', self.data)

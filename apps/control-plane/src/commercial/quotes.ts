@@ -128,7 +128,7 @@ export async function createQuoteForCustomer(pool: Pool, value: { customer_id: s
     const entitlement = compileEntitlements(sources)
     if (input.kind === 'change') await assertDowngradeFitsUsage(client, {
       tenant_id: customer.rows[0].tenant_id, subscription_id: s.id,
-      previous: applied.entitlement?.features ?? {}, target: entitlement.features, release: sources.release, now,
+      previous: applied.entitlement?.features ?? {}, target: entitlement.features, now,
     })
     try {
       const quote = computeQuote({ ...sources, kind: input.kind, cadence: input.cadence, requested_extra_branches: input.requested_extra_branches,

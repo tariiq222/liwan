@@ -4,7 +4,8 @@ import { randomUUID, createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { migrate } from '../db.js'
-import { createPackage, mutatePackage, resolvePackageAuthority, resolvePackageJobAuthority } from '../packages.js'
+import { resolvePackageAuthority, resolvePackageJobAuthority } from '../packages.js'
+import { seedPublishedPackage } from './package-fixtures.js'
 import { bindJob, payloadDigest, businessKey } from '../shared/provisioning.js'
 import { migrateLegacyToSaas, effectivePolicyHashes, tenantRowSnapshot, uuidv5 } from '../commercial/legacy-mapping.js'
 
@@ -52,11 +53,9 @@ suite('legacy → SaaS commercial migration (C1)', () => {
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), version, JSON.parse(raw.toString()), createHash('sha256').update(raw).digest('hex')])
     await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,ARRAY['vendor.read','vendor.catalog.manage','vendor.tenants.manage','vendor.operations.run'])", [actor.issuer])
 
-    // real published package (through the service) pinned by a tenant, then withdrawn
+    // real published package (seeded with its exact digest) pinned by a tenant, then withdrawn
     const input = { name: 'Legacy projects', description: 'pinned', catalog_version: version, catalog_tier: 'projects', limits: { 'users.limit': 3, 'storage.limit_mb': 2, 'projects.max_projects': 1 } }
-    const d = await createPackage(pool, actor, input)
-    await mutatePackage(pool, actor, d.id, 'validate', { revision: 1, reason }, { repositoryRoot })
-    pkgRevision = await mutatePackage(pool, actor, d.id, 'publish', { revision: 2, reason }, { repositoryRoot }) as any
+    pkgRevision = await seedPublishedPackage(pool, input)
     pkgAuthority = await resolvePackageAuthority(pool, pkgRevision.id, true, { repositoryRoot })
     const pol = { schema_version: 1, features: { a: 1 } }
     await addTenant(T.pkg, { catalog_version: version, catalog_tier: 'projects', package: pkgRevision.id, desired: pol, observed: { ...pol, observed: true }, rev: 3 })

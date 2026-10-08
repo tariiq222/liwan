@@ -51,7 +51,9 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.pricing.manage'] }
   const reason = 'Phase 3 acceptance'
   const solution = JSON.parse(readFileSync(`${repo}deploy/catalog/solutions/platform_v3.json`, 'utf8'))
-  solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', modules: [], features: ['boolean:probe.enabled'] })
+  // A tier must list modules (the parser refuses none). nasq_directory is a real release module (already in the
+  // install closure of messaging/projects), so the effect accepts it and installs nothing extra.
+  solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', modules: ['nasq_directory'], features: ['boolean:probe.enabled'] })
   const state: Record<string, any> = {}
 
   async function publish(kind: 'bundles' | 'plans', body: Record<string, unknown>) {
@@ -106,7 +108,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   })
   afterAll(async () => pool.end())
 
-  it('4: an app that only registered its keys and got a catalog tier appears in the release and in a bundle', async () => {
+  it('4 (API level): registered keys + a catalog tier appear in the release and in a bundle (module path and UI not proven)', async () => {
     const release = (await api('POST', '/catalog/releases', { catalog_version: state.version, reason })).body
     const probe = release.applications.find((a: any) => a.id === 'probe')
     expect(probe).toMatchObject({ name_en: 'probe', selectable: true })
@@ -117,7 +119,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     state.projects = await bundle('projects', ['pmo.enabled', 'meetings.enabled'], { 'projects.max_projects': 5 })
     state.people = await bundle('people', ['hr.enabled'])
     state.probe = await bundle('probe', ['probe.enabled'])
-    console.log('ACCEPT_4', JSON.stringify({ app: probe.id, features: probe.features.map((f: any) => f.key), bundle: state.probe.id }))
+    console.log('ACCEPT_4 (keys + catalog tier, API level)', JSON.stringify({ app: probe.id, features: probe.features.map((f: any) => f.key), bundle: state.probe.id }))
   })
 
   it('1: a plan with two or more apps is applied to the tenant and the applied keys match the compiled ones', async () => {
@@ -126,7 +128,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
     state.small = await plan(`Small ${randomUUID()}`, [state.people.id, state.probe.id], 1)
     const policy = deriveSharedPolicy(solution, 'core')
     // The tenant has the test-only probe addon installed; provisioning compares installed addons with the policy closure.
-    // Reconfigure refuses test-only addons in an entitlement, so the probe tier itself lists no module (modules: []).
+    // Reconfigure refuses test-only addons in an entitlement, so the probe tier lists a real release module instead.
     policy.modules.push('nasq_registry_probe')
     const provisioned = effect({ action: 'provision', tenant: { database: DB, host: HOST }, policy })
     expect(provisioned.error_code, JSON.stringify(provisioned)).toBeUndefined()

@@ -1403,6 +1403,68 @@
       },
       "expect": "reject",
       "error": "catalog_invalid"
+    },
+    {
+      "name": "v2_tier_modules_missing",
+      "catalog": {
+        "schema_version": 2,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
+    },
+    {
+      "name": "v3_tier_modules_missing",
+      "catalog": {
+        "schema_version": 3,
+        "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+        "base_modules": [
+          "nasq_core",
+          "nasq_platform",
+          "nasq_api"
+        ],
+        "tiers": [
+          {
+            "id": "core",
+            "modules": [],
+            "features": [
+              "limit:users.limit",
+              "limit:storage.limit_mb",
+              "limit:branches.extra_limit:0"
+            ]
+          },
+          {
+            "id": "projects",
+            "features": [
+              "boolean:pmo.enabled"
+            ]
+          }
+        ]
+      },
+      "expect": "reject",
+      "error": "catalog_invalid"
     }
   ]
 }

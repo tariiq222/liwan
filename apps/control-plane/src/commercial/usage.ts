@@ -16,10 +16,12 @@ function closed(gates: string[], features: Features): boolean {
 /** Both quote preview and acceptance check against the applied entitlement. Same rule as Python's
  * check_downgrade: a numeric target limit is CHECKED when lowered (absent/null previous = unlimited) or when its
  * app reopens (closed before, open now); it is SKIPPED when its app is closed in the target.
- * Metrics are keyed by limit key, in the limit's own unit (Odoo's _nasq_count_usage). */
+ * Metrics are keyed by limit key, in the limit's own unit (Odoo's _nasq_count_usage).
+ * The branch limit is the exception, as in Python: it is ALWAYS checked against the active plus pending extra
+ * branches (never skipped by gates, lowered or not) and needs no usage sample. */
 export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>, input: {
   tenant_id: string | null; subscription_id: string; previous: Features; target: Features
-  release?: unknown; now?: Date
+  now?: Date
 }) {
   if (input.tenant_id) await client.query('SELECT id FROM tenants WHERE id=$1 FOR SHARE', [input.tenant_id])
   const row = input.tenant_id ? (await client.query('SELECT observed_at,metrics,freshness,limit_gates FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC,id DESC LIMIT 1 FOR SHARE', [input.tenant_id])).rows[0] : null
@@ -27,7 +29,7 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
   const keys = [...new Set([...Object.keys(input.previous), ...Object.keys(input.target)])].sort()
   const lowering = keys.filter(key => {
     const next = input.target[key]
-    if (typeof next !== 'number') return false
+    if (typeof next !== 'number' || key === BRANCH_LIMIT) return false
     const previous = input.previous[key]
     const lowered = previous === undefined || previous === null || (typeof previous === 'number' && next < previous)
     const gates = stored[key]
@@ -37,6 +39,11 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
     const reopened = closed(gates, input.previous) && gates.some(gate => input.target[gate] === true)
     return lowered || reopened
   })
+  const branchLimit = input.target[BRANCH_LIMIT]
+  if (typeof branchLimit === 'number') {
+    const count = (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [input.subscription_id])).rows[0].n
+    if (count > branchLimit) throw new CommercialHttpError('downgrade_below_usage', 422, BRANCH_LIMIT)
+  }
   if (!lowering.length) return
   const now = input.now ?? new Date()
   for (const key of lowering) {
@@ -44,12 +51,7 @@ export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>
     if (!row || row.freshness !== 'fresh' || now.getTime() - new Date(row.observed_at).getTime() > FRESH_MS
       || typeof used !== 'number' || !Number.isFinite(used) || used < 0 || !Array.isArray(stored[key]))
       throw new CommercialHttpError('usage_unavailable', 409, key)
-    let observed = used
-    if (key === BRANCH_LIMIT) {
-      const count = (await client.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')", [input.subscription_id])).rows[0].n
-      observed = Math.max(observed, count)
-    }
-    if (observed > (input.target[key] as number)) throw new CommercialHttpError('downgrade_below_usage', 422, key)
+    if (used > (input.target[key] as number)) throw new CommercialHttpError('downgrade_below_usage', 422, key)
   }
 }
 

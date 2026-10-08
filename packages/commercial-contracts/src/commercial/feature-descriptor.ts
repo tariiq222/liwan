@@ -82,9 +82,10 @@ export function parseCatalogTiers(solution: unknown): ParsedCatalog {
     if (!isRecord(tier) || typeof tier.id !== 'string' || !IDENTIFIER.test(tier.id) || ids.has(tier.id)) return invalid()
     ids.add(tier.id)
     if (!Array.isArray(tier.features)) invalid()
-    if (tier.modules !== undefined && !isModuleList(tier.modules)) invalid()
-    if (tier.modules !== undefined && baseModules?.some(m => (tier.modules as string[]).includes(m))) invalid()
-    return { id: tier.id, modules: tier.modules as string[] | undefined, own: (tier.features as unknown[]).map(d => parseFeatureDescriptor(d as string, schemaVersion)) }
+    // Every tier declares its module list (possibly empty), as the Python parser requires.
+    if (!isModuleList(tier.modules)) invalid()
+    if (baseModules?.some(m => (tier.modules as string[]).includes(m))) invalid()
+    return { id: tier.id, modules: tier.modules as string[], own: (tier.features as unknown[]).map(d => parseFeatureDescriptor(d as string, schemaVersion)) }
   })
   const core = shaped.find(t => t.id === 'core')
   if (schemaVersion >= 2 && !core) invalid()
