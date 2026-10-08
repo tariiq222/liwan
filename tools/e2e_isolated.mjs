@@ -3,7 +3,7 @@
 // server on free ports. E2E_STACK=mock (default) uses the repo mock API;
 // E2E_STACK=odoo uses a real scratch Odoo on the fixed database
 // `nasq_scratch_e2e`. Never touches :3000, :8069 or the dev `odoo19` database.
-// All CLI args are forwarded to `npx e2e run`.
+// All CLI args are forwarded to `npx e2e run` (or `explore` with E2E_COMMAND=explore).
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer } from 'node:net'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -84,8 +84,15 @@ export function refusalReason(baseUrl) {
   return null
 }
 
-export function forwardArgs(argv) {
-  return ['e2e', 'run', ...argv]
+// E2E_COMMAND selects the runner subcommand: `run` (default) or `explore`.
+export function e2eCommand(env = process.env) {
+  const command = env.E2E_COMMAND || 'run'
+  if (command !== 'run' && command !== 'explore') throw new Error(`E2E_COMMAND must be "run" or "explore", got "${command}"`)
+  return command
+}
+
+export function forwardArgs(argv, command = 'run') {
+  return ['e2e', command, ...argv]
 }
 
 export function parsePort(value, name) {
@@ -318,7 +325,7 @@ async function main() {
     await waitFor(`http://localhost:${nuxt}/login`, nuxtChild, nuxtLog, timeoutMs, 'Nuxt dev server')
     console.error(`e2e_isolated: ${backend.label}, nuxt :${nuxt} (logs in .e2e/logs/)`)
 
-    const [cmd, ...args] = ['npx', ...forwardArgs(process.argv.slice(2))]
+    const [cmd, ...args] = ['npx', ...forwardArgs(process.argv.slice(2), e2eCommand())]
     const runner = spawn(cmd, args, {
       cwd: ROOT,
       stdio: 'inherit',
