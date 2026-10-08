@@ -101,6 +101,7 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
     return { state:'verified',receipt }
   })
 }
+const MAX_WRITER_RETRIES = 20
 export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFencedAdapter) {
   if (!adapter) throw new Error('shared_adapter_unavailable')
   z.uuid().parse(id)
@@ -126,7 +127,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     }
   }
   const claim = await transaction(pool, async client => {
-    const result = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND state='queued' FOR UPDATE", [id])
+    const result = await client.query("SELECT * FROM shared_jobs WHERE id=$1 AND state='queued' AND (lease_until IS NULL OR lease_until<=clock_timestamp()) FOR UPDATE", [id])
     if (!result.rowCount) throw new Error('shared_job_not_claimable')
     const row = result.rows[0]
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [row.control_tenant_id])
@@ -171,6 +172,8 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     return journal
   })
   let journal = claim.row.journal ?? null
+  // Set only when adapter.applyFenced itself refused before the runtime gate: no effect ran.
+  let fencedRefusal = null as { observation: unknown } | null
   try {
     await assertOwned()
     let observation = await adapter.observe(claim.job)
@@ -183,7 +186,11 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
     if (decision.action === 'execute') {
       journal = await append('started',observation)
       await assertOwned()
-      await adapter.applyFenced({job:claim.job,attemptId:claim.attemptId,fence:claim.fence,assertOwned})
+      try { await adapter.applyFenced({job:claim.job,attemptId:claim.attemptId,fence:claim.fence,assertOwned}) }
+      catch (applyError) {
+        if (applyError instanceof Error && applyError.message === 'runtime_writer_present') fencedRefusal = { observation }
+        throw applyError
+      }
       await assertOwned()
       observation = await adapter.observe(claim.job)
       const freshTarget = await transaction(pool, client => resolveProvisionTarget(client,claim.row.control_tenant_id,claim.job))
@@ -239,16 +246,24 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
       })
       return { state: 'needs_intervention', reason: 'enrollment_authority_invalid' }
     }
-    // runtime_writer_present is refused before the runtime gate is taken, so no
-    // effect ran. Return the job to queued at its prepared journal with a backoff.
-    if (error instanceof Error && error.message === 'runtime_writer_present') {
+    // runtime_writer_present from applyFenced is refused before the runtime gate is taken, so no
+    // effect ran. Return the job to queued at its prepared journal with a backoff, up to a cap.
+    // The same code from any other call (observe, finalize) takes the normal path below.
+    if (fencedRefusal && error instanceof Error) {
       try {
+        const retries = Number((await transaction(pool, client => client.query("SELECT count(*) AS n FROM shared_job_events WHERE job_id=$1 AND evidence->>'retry'='runtime_writer_present'", [id]))).rows[0]?.n ?? 0)
+        if (retries >= MAX_WRITER_RETRIES) {
+          await append('needs_intervention',fencedRefusal.observation)
+          console.error(`[shared-worker] job ${id} quarantined after ${retries} runtime_writer_present retries`)
+          return { state:'needs_intervention', reason:'runtime_writer_contended' }
+        }
         await owned(async (client,row) => {
-          const journal = { schemaVersion:1,job:claim.job,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage:'prepared' }
-          await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,journal.sequence,'prepared',{observation:{state:'absent'},retry:'runtime_writer_present'}])
-          const updated = await client.query("UPDATE shared_jobs SET state='queued',journal=$1,lease_until=clock_timestamp()+interval '30 seconds' WHERE id=$2 AND attempt_id=$3 AND fence=$4 AND state='running' AND lease_until>clock_timestamp() RETURNING id", [journal,id,claim.attemptId,claim.fence])
+          const requeued = { schemaVersion:1,job:claim.job,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage:'prepared' }
+          await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,requeued.sequence,'prepared',{observation:fencedRefusal!.observation,retry:'runtime_writer_present'}])
+          const updated = await client.query("UPDATE shared_jobs SET state='queued',journal=$1,lease_until=clock_timestamp()+interval '30 seconds' WHERE id=$2 AND attempt_id=$3 AND fence=$4 AND state='running' AND lease_until>clock_timestamp() RETURNING id", [requeued,id,claim.attemptId,claim.fence])
           if (!updated.rowCount) throw new Error('shared_lease_lost')
         })
+        console.warn(`[shared-worker] job ${id} requeued (${retries + 1}/${MAX_WRITER_RETRIES}): runtime_writer_present`)
         return { state:'contended', reason:'runtime_writer_present' }
       } catch { /* could not requeue: fall through and quarantine */ }
     }
