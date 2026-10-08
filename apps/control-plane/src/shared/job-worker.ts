@@ -239,6 +239,19 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
       })
       return { state: 'needs_intervention', reason: 'enrollment_authority_invalid' }
     }
+    // runtime_writer_present is refused before the runtime gate is taken, so no
+    // effect ran. Return the job to queued at its prepared journal with a backoff.
+    if (error instanceof Error && error.message === 'runtime_writer_present') {
+      try {
+        await owned(async (client,row) => {
+          const journal = { schemaVersion:1,job:claim.job,attemptId:claim.attemptId,sequence:nextSequence(row.journal?.sequence ?? 0),stage:'prepared' }
+          await client.query('INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence) VALUES($1,$2,$3,$4,$5,$6)', [id,claim.attemptId,claim.fence,journal.sequence,'prepared',{observation:{state:'absent'},retry:'runtime_writer_present'}])
+          const updated = await client.query("UPDATE shared_jobs SET state='queued',journal=$1,lease_until=clock_timestamp()+interval '30 seconds' WHERE id=$2 AND attempt_id=$3 AND fence=$4 AND state='running' AND lease_until>clock_timestamp() RETURNING id", [journal,id,claim.attemptId,claim.fence])
+          if (!updated.rowCount) throw new Error('shared_lease_lost')
+        })
+        return { state:'contended', reason:'runtime_writer_present' }
+      } catch { /* could not requeue: fall through and quarantine */ }
+    }
     // Never repeat an effect on error. Losing the lease prevents all writes;
     // the expiry/reconciliation operator must quarantine that persisted intent.
     try { await append('needs_intervention',{state:'unknown'}) } catch { /* retain original error and persisted intent */ }

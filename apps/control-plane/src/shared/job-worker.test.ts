@@ -46,6 +46,7 @@ function fixture() {
     if (sql.startsWith('INSERT INTO shared_job_events')) { events.push(values[4]); return result() }
     if (sql.startsWith('UPDATE shared_jobs SET journal=') && sql.includes("state='verified'") && flags.rejectCompletion) return result()
     if (sql.startsWith('UPDATE shared_jobs SET journal=')) { row.journal=values[0]; if (sql.includes("state='verified'")) { row.state='verified'; row.receipt=values[1] }; return result([{id}]) }
+    if (sql.startsWith("UPDATE shared_jobs SET state='queued',journal=$1,lease_until=")) { Object.assign(row,{ state:'queued',journal:values[0] }); return result([{id}]) }
     if (sql.startsWith("UPDATE shared_jobs SET state='needs_intervention'")) { row.state='needs_intervention'; return result() }
     throw Error('unexpected_sql:'+sql)
   } }
@@ -72,6 +73,22 @@ it('quarantines adapter crash without claiming success', async () => {
   const f=fixture()
   await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('worker_crash')} })).rejects.toThrow('worker_crash')
   expect(f.events).toEqual(['prepared','started','needs_intervention']); expect(f.row.state).toBe('needs_intervention'); expect(f.row.receipt).toBeUndefined()
+})
+it('requeues a provision refused by a running usage observer instead of quarantining', async () => {
+  const f=fixture()
+  const result=await runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('runtime_writer_present')} })
+  expect(result).toEqual({ state:'contended', reason:'runtime_writer_present' })
+  expect(f.row.state).toBe('queued'); expect(f.row.journal.stage).toBe('prepared'); expect(f.row.receipt).toBeUndefined()
+  expect(f.events).toEqual(['prepared','started','prepared'])
+  // The next claim executes the effect once from the prepared journal.
+  let effects=0
+  const again=await runSharedJob(f.pool,id,{ observe:async()=>effects ? f.present : {state:'absent'},applyFenced:async()=>{ effects++ } })
+  expect(again.state).toBe('verified'); expect(effects).toBe(1)
+})
+it('still quarantines every other adapter error', async () => {
+  const f=fixture()
+  await expect(runSharedJob(f.pool,id,{ observe:async()=>({state:'absent'}),applyFenced:async()=>{throw Error('target_mismatch')} })).rejects.toThrow('target_mismatch')
+  expect(f.row.state).toBe('needs_intervention')
 })
 it.each(['partial','unknown'])('quarantines %s observation without an effect', async state => {
   const f=fixture(), applyFenced=vi.fn()
