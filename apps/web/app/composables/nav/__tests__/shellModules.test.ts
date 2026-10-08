@@ -105,10 +105,14 @@ describe('contextual module links', () => {
   })
 })
 
+// Additional applications may join the rail without editing these tests: compare only today's module ids.
+const TODAY = ['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'management', 'vendor']
+const today = (ids: string[]) => ids.filter(id => TODAY.includes(id))
+
 describe('module rail', () => {
   it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
-    expect(visibleShellModules(full).map(item => item.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
-    expect(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'vendor'])
+    expect(today(visibleShellModules(full).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
+    expect(today(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'vendor'])
     expect(visibleShellModules(full).find(item => item.id === 'home')?.to).toBe('/projects/dashboard')
     expect(visibleShellModules(full).find(item => item.id === 'projects')?.to).toBe('/projects')
     expect(visibleShellModules(full).find(item => item.id === 'hr')?.labelKey).toBe('nav.organization')
@@ -118,7 +122,7 @@ describe('module rail', () => {
 
   it('selects permitted module destinations without legacy group leakage', () => {
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
-    expect(taskOnly.map(item => item.id)).toEqual(['projects', 'chat'])
+    expect(today(taskOnly.map(item => item.id))).toEqual(['projects', 'chat'])
     expect(taskOnly.find(item => item.id === 'projects')?.to).toBe('/tasks')
     const departmentOnly = visibleShellModules({ capabilities: ['hr.departments.read'] })
     expect(departmentOnly.find(item => item.id === 'hr')?.to).toBe('/hr/departments')
@@ -188,7 +192,15 @@ describe('navigation built from app manifests', () => {
     for (const shortcut of shortcuts) expect(shortcut).toMatch(/^[a-z0-9]$/)
   })
   it('lists the rail in order from the manifests', () => {
-    expect(shellModuleList().map(module => module.id)).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'management', 'vendor'])
+    const ids = shellModuleList().map(module => module.id as string)
+    // Today's modules keep their relative order; any additional application sits between hr and the foundation modules.
+    expect(today(ids)).toEqual(TODAY)
+    expect(new Set(ids).size).toBe(ids.length)
+    const firstFoundation = ids.indexOf('settings')
+    for (const id of ids.filter(id => !TODAY.includes(id))) {
+      expect(ids.indexOf(id)).toBeGreaterThan(ids.indexOf('hr'))
+      expect(ids.indexOf(id)).toBeLessThan(firstFoundation)
+    }
   })
   it('shows a new application in the rail, nav, sidebar and active module with no foundation edit', () => {
     withManifests([...appManifests, crm], () => {

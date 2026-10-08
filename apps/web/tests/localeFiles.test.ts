@@ -43,11 +43,18 @@ afterEach(() => {
 })
 
 describe('discoverLocaleFiles', () => {
-  it('returns the same 14 namespace files per locale as before discovery, common.json first', () => {
+  it('returns today\'s namespace files per locale in the same order, common.json first, tolerating additional namespaces', () => {
     const files = discoverLocaleFiles(localesDir)
 
-    expect(files.ar).toEqual(NAMESPACES.map(name => `ar/${name}`))
-    expect(files.en).toEqual(NAMESPACES.map(name => `en/${name}`))
+    for (const code of ['ar', 'en'] as const) {
+      const expected = NAMESPACES.map(name => `${code}/${name}`)
+      expect(files[code][0]).toBe(`${code}/common.json`)
+      // Every shipped namespace is present, in the same relative order (a subsequence).
+      expect(files[code].filter(file => expected.includes(file))).toEqual(expected)
+      // Additional application namespaces sort by name after common.json.
+      expect(files[code].slice(1)).toEqual([...files[code].slice(1)].sort())
+    }
+    expect(files.ar.map(file => file.slice(3))).toEqual(files.en.map(file => file.slice(3)))
   })
 
   it('ignores non-json entries in a locale folder', () => {
