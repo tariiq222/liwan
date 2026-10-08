@@ -36,7 +36,8 @@ async function submit() {
   try {
     if (sharedEnabled.value) {
       if (!canSubscribe.value || !selectedPlan.value || !selectedCadence.value) return
-      // A retry after a failed quote or order reuses the customer instead of creating a duplicate.
+      // A retry after a failed quote or order reuses the customer instead of creating a duplicate;
+      // the identity fields are locked once it exists so the reused customer never diverges from the form.
       createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form))).id
       const quote = await subscriptions.changeQuote(planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value))
       await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
@@ -61,21 +62,21 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/tenant
     <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!plans && !plansError)" :error="error || catalogError || plansError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPlans() }">
       <form v-if="targets && catalog && plans" class="grid max-w-2xl gap-5" @submit.prevent="submit">
         <UAlert v-if="saveError" color="error" variant="subtle" :title="t(errorKey)" />
-        <UFormField :label="t('vendor.tenants.fields.name')" required><UInput v-model="form.name" required maxlength="200" class="w-full" /></UFormField>
+        <UFormField :label="t('vendor.tenants.fields.name')" required><UInput v-model="form.name" required maxlength="200" :disabled="Boolean(createdCustomer)" class="w-full" /></UFormField>
         <template v-if="sharedEnabled">
           <UAlert color="neutral" variant="subtle" :title="t('vendor.tenants.plan.hint')" />
           <UAlert v-if="!canSubscribe" color="warning" variant="subtle" :title="t('vendor.tenants.plan.forbidden')" />
           <UAlert v-else-if="!plans.length" color="neutral" variant="subtle" :title="t('vendor.tenants.plan.none')" />
           <UFormField :label="t('vendor.tenants.plan.field')" required><USelect v-model="form.plan_revision_id" :items="plans.map(p => ({ label: p.name, value: p.id }))" :disabled="!hydrated || busy || !canSubscribe" class="w-full" /></UFormField>
           <UFormField :label="t('vendor.tenants.plan.cadence')" required><USelect v-model="form.cadence" :items="cadenceItems" :disabled="!hydrated || busy || !selectedPlan" class="w-full" /></UFormField>
-          <UFormField :label="t('vendor.tenants.fields.adminName')" required><UInput v-model="form.admin_name" required maxlength="120" autocomplete="name" class="w-full" /></UFormField>
-          <UFormField :label="t('vendor.tenants.fields.adminLogin')" required><UInput v-model="form.admin_login" required type="email" maxlength="100" autocomplete="username" class="w-full" /></UFormField>
+          <UFormField :label="t('vendor.tenants.fields.adminName')" required><UInput v-model="form.admin_name" required :disabled="Boolean(createdCustomer)" maxlength="120" autocomplete="name" class="w-full" /></UFormField>
+          <UFormField :label="t('vendor.tenants.fields.adminLogin')" required><UInput v-model="form.admin_login" required :disabled="Boolean(createdCustomer)" type="email" maxlength="100" autocomplete="username" class="w-full" /></UFormField>
         </template>
         <template v-else>
           <UAlert v-if="!published.length" color="neutral" variant="subtle" :title="t('vendor.tenants.noPublishedCatalog')" />
-          <UFormField v-if="!sharedEnabled" :label="t('vendor.tenants.fields.mode')" required><USelect v-model="form.commercial_mode" :items="[{ label: t('vendor.mode.saas'), value: 'saas' }, { label: t('vendor.mode.nonSaas'), value: 'non_saas' }]" class="w-full" /></UFormField>
-          <UFormField v-if="!sharedEnabled" :label="t('vendor.tenants.fields.hosting')" required><USelect v-model="form.hosting_model" :items="[{ label: t('vendor.hosting.managed'), value: 'managed' }, { label: t('vendor.hosting.customerHosted'), value: 'customer_hosted' }]" class="w-full" /></UFormField>
-          <UFormField v-if="!sharedEnabled" :label="t('vendor.tenants.fields.target')" required :help="t('vendor.tenants.targetHelp')"><USelect v-model="form.inventory_target" :items="targets.items.map(item => ({ label: `${item.id} · ${t(`vendor.targetKind.${item.kind}`)}`, value: item.id }))" required class="w-full" /><p v-if="!targets.items.length" class="mt-1 text-xs text-muted">{{ t('vendor.tenants.noTargets') }}</p></UFormField>
+          <UFormField :label="t('vendor.tenants.fields.mode')" required><USelect v-model="form.commercial_mode" :items="[{ label: t('vendor.mode.saas'), value: 'saas' }, { label: t('vendor.mode.nonSaas'), value: 'non_saas' }]" class="w-full" /></UFormField>
+          <UFormField :label="t('vendor.tenants.fields.hosting')" required><USelect v-model="form.hosting_model" :items="[{ label: t('vendor.hosting.managed'), value: 'managed' }, { label: t('vendor.hosting.customerHosted'), value: 'customer_hosted' }]" class="w-full" /></UFormField>
+          <UFormField :label="t('vendor.tenants.fields.target')" required :help="t('vendor.tenants.targetHelp')"><USelect v-model="form.inventory_target" :items="targets.items.map(item => ({ label: `${item.id} · ${t(`vendor.targetKind.${item.kind}`)}`, value: item.id }))" required class="w-full" /><p v-if="!targets.items.length" class="mt-1 text-xs text-muted">{{ t('vendor.tenants.noTargets') }}</p></UFormField>
           <UFormField :label="t('vendor.tenants.fields.catalogVersion')" required><USelect v-model="form.catalog_version" :items="published.map(item => ({ label: item.version, value: item.version }))" required class="w-full" /></UFormField>
           <UFormField :label="t('vendor.tenants.fields.catalogTier')" required><USelect v-model="form.catalog_tier" :items="(selectedCatalog?.solution.tiers ?? []).map(tier => ({ label: `${tier.name} · ${t(`vendor.catalog.tiers.${tier.id}`, tier.id)}`, value: tier.id }))" required :disabled="!form.catalog_version" class="w-full" /></UFormField>
           <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="form.reason" required maxlength="1000" class="w-full" /></UFormField>

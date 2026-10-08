@@ -39,7 +39,9 @@ describe('shared tenant onboarding browser contract', () => {
   it('creates a shared tenant from a plan (customer, quote, order) and retains dedicated registration', () => {
     expect(form).toContain('sharedOnboardingEnabled: sharedEnabled')
     expect(form).toContain('sharedEnabled.value ? Promise.resolve({ items: [], total: 0 })')
-    for (const field of ['mode', 'hosting', 'target']) expect(form).toContain(`v-if="!sharedEnabled" :label="t('vendor.tenants.fields.${field}')"`)
+    for (const field of ['mode', 'hosting', 'target']) expect(form).toContain(`<UFormField :label="t('vendor.tenants.fields.${field}')"`)
+    // Identity fields lock once the customer exists so a retry never diverges from it.
+    expect((form.match(/:disabled="Boolean\(createdCustomer\)"/g) ?? []).length).toBe(3)
     expect(form).toContain('subscriptions.createCustomer(planTenantCustomerBody(form))')
     expect(form).toContain('subscriptions.changeQuote(planTenantQuoteBody(')
     expect(form).toContain('subscriptions.placeOrder(')
