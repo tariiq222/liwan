@@ -330,10 +330,17 @@ def release_modules(root, data):
     return sorted(install_closure([Path(root) / ADDONS_DIR], selected))
 
 
+def _solution_order(path):
+    """Order solution files by the numeric suffix of platform_vN, so v10 follows v3."""
+    match = re.search(r'_v(\d+)$', path.stem)
+    return (int(match.group(1)) if match else -1, path.name)
+
+
 def current_release(root, catalog_dir=CATALOG_DIR):
     """(file name, release modules) of the newest schema-3 solution, or None."""
-    solutions = sorted((Path(root) / catalog_dir / 'solutions').glob('*.json'))
-    current = [path for path in solutions if load_json(path).get('schema_version') == RELEASE_SCHEMA]
+    solutions = (Path(root) / catalog_dir / 'solutions').glob('*.json')
+    current = sorted((path for path in solutions if load_json(path).get('schema_version') == RELEASE_SCHEMA),
+                     key=_solution_order)
     if not current:
         return None
     return current[-1].name, release_modules(root, load_json(current[-1]))
