@@ -175,6 +175,7 @@ try:
     if current == values['target_revision_id'] and (profile.commercial_digest or None) != values['digest']:
         refuse('observed_mismatch')
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
+    not_granted = None
     if current != values['target_revision_id']:
         roles_before = env['nasq.entitlement.service']._nasq_entitled_admin_roles()
         # Every application stays installed; keys the target omits close (booleans
@@ -184,7 +185,10 @@ try:
                         'commercial_digest': values['digest'],
                         'commercial_applied_at': fields.Datetime.now()})
         # Roles the policy newly opened go to the enrolment administrator only.
-        operator._nasq_grant_opened_admin_roles(values['admin_login'], roles_before)
+        granted = operator._nasq_grant_opened_admin_roles(values['admin_login'], roles_before)
+        opened = [k for k in env['nasq.entitlement.service']._nasq_entitled_admin_roles() if k not in set(roles_before or ())]
+        if opened and not granted:
+            not_granted = 'no_admin_login' if not values['admin_login'] else 'admin_not_found'
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['nasq.tenant.branch'].search([('branch_uid', '=', uid)])
@@ -193,6 +197,8 @@ try:
     if values['apply']:
         operator._nasq_apply_branches(values['operation_id'], values['target_revision_id'], values['apply'])
     result = {'applied': True}
+    if not_granted:
+        result.update({'roles_not_granted': True, 'roles_not_granted_reason': not_granted})
     env.cr.commit()
 except Refusal as exc:
     result = {'error_code': str(exc)}
@@ -378,9 +384,10 @@ class SubscriptionEffect:
         observed = self._observe(database)
         return {**observed, 'observed_at': self.clock()}
 
-    def receipt(self, request, observed, installed):
+    def receipt(self, request, observed, installed, not_granted=None):
         by_id = {b['branch_id']: b for b in observed['branches']}
-        return {'order_id': request['order_id'], 'database': observed['database'],
+        extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
+        return {**extra, 'order_id': request['order_id'], 'database': observed['database'],
                 'tenant_id': observed['database'],
                 'target_revision_id': request['target_revision_id'],
                 'observed_entitlement_digest': observed['commercial_digest'],
@@ -409,12 +416,13 @@ class SubscriptionEffect:
         missing = [m for m in request['entitlement']['modules'] if m not in observed['modules']]
         if missing:
             self.runner.install_modules(missing)
-        parse_output(self.runner.run_script(build_apply_script(request), 'apply', mutate=True))
+        applied = parse_output(self.runner.run_script(build_apply_script(request), 'apply', mutate=True))
+        not_granted = applied.get('roles_not_granted_reason') if applied.get('roles_not_granted') is True else None
         after = self._observe(database)
         if not verify(request, after):
             raise EffectError('observed_mismatch')
         journal.done()
-        return self.receipt(request, after, missing)
+        return self.receipt(request, after, missing, not_granted if not_granted in ('no_admin_login', 'admin_not_found') else None)
 
 
 # -------------------------------------------------------- default runner
@@ -489,6 +497,7 @@ def main(stdin=None, stdout=None):
         runner = ComposeRunner(request)
 
         def terminate(_signum, _frame):
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
             # Kill the per-attempt effect container, not only the compose client.
             runner.cancel()
             raise EffectError('authority_lost')

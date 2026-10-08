@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Unit tests (no Odoo, no Docker): fake runner replaces script execution."""
+import inspect
 import io
 import json
 import signal
@@ -56,7 +57,8 @@ def wrap(value):
 
 class FakeRunner:
     """Serves observations in order; 'apply' scripts update a simulated state."""
-    def __init__(self, state, *, exists=True, apply_state=None, crash_after_apply=False):
+    def __init__(self, state, *, exists=True, apply_state=None, crash_after_apply=False, apply_result=None):
+        self.apply_result = apply_result or {'applied': True}
         self.state, self.exists, self.apply_state = state, exists, apply_state
         self.crash_after_apply = crash_after_apply
         self.scripts, self.installed, self.applies = [], [], 0
@@ -75,7 +77,7 @@ class FakeRunner:
                 self.state = self.apply_state
             if self.crash_after_apply:
                 raise EffectError('runtime_timeout')
-            return wrap({'applied': True})
+            return wrap(self.apply_result)
         return wrap(self.state)
 
 
@@ -315,6 +317,26 @@ class ReconfigureTests(Base):
         self.assertLess(script.index('roles_before ='), script.index("'features': features"))
         # An older job without a login passes None; Odoo grants nothing and logs it.
         self.assertIn('"admin_login": null', se.build_apply_script(make_request()))
+
+    def test_script_reports_a_due_grant_that_found_no_admin(self):
+        script = se.build_apply_script(make_request())
+        self.assertIn("'roles_not_granted': True", script)
+        self.assertIn("'no_admin_login' if not values['admin_login'] else 'admin_not_found'", script)
+
+    def test_receipt_carries_roles_not_granted_with_the_reason(self):
+        request = make_request()
+        runner = FakeRunner(observation(), apply_state=applied_state(request),
+                            apply_result={'applied': True, 'roles_not_granted': True, 'roles_not_granted_reason': 'admin_not_found'})
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertIs(receipt['roles_not_granted'], True)
+        self.assertEqual(receipt['roles_not_granted_reason'], 'admin_not_found')
+        plain = self.effect(FakeRunner(observation(), apply_state=applied_state(request))).reconfigure(request)
+        self.assertNotIn('roles_not_granted', plain)
+
+    def test_sigterm_handler_ignores_further_sigterm_first(self):
+        source = inspect.getsource(se.main)
+        body = source[source.index('def terminate'):]
+        self.assertLess(body.index('signal.SIG_IGN'), body.index('runner.cancel()'))
 
     def test_admin_login_is_optional_and_validated(self):
         se.validate_reconfigure(make_request())
