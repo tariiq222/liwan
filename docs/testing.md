@@ -42,6 +42,7 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 - Model calls: the first run of an `agent.act` calls the configured model. Later runs
   replay the cached actions in a few seconds. `.e2e/cache/` is output; deleting it only
   slows the next run.
+- `npm run e2e:explore -- 'goal' --max-steps 4` (mock) and `npm run e2e:odoo:explore -- ...` (scratch Odoo) run `e2e explore` through the same isolated wrapper (`E2E_COMMAND=explore`; args are forwarded to `e2e explore`).
 - `npx e2e explore` hunts for bugs toward a goal without a test file.
   `npx e2e mcp` lets a coding agent drive and inspect the live app, then write a test
   from what it saw. Point both at the isolated stack (start it with the commands in

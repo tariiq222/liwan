@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createServer } from 'node:net'
-import { PREFERRED, SCRATCH_DB, assertScratchDb, forwardArgs, freePort, odooArgs, odooConf, parsePort, pgSettings, pickPorts, refusalReason, stackName } from './e2e_isolated.mjs'
+import { PREFERRED, SCRATCH_DB, assertScratchDb, e2eCommand, forwardArgs, freePort, odooArgs, odooConf, parsePort, pgSettings, pickPorts, refusalReason, stackName } from './e2e_isolated.mjs'
 
 test('refuses the daily dev origins', () => {
   assert.match(refusalReason('http://localhost:3000'), /refusing/)
@@ -18,6 +18,13 @@ test('accepts unset or other origins', () => {
 test('forwards all CLI args to e2e run', () => {
   assert.deepEqual(forwardArgs([]), ['e2e', 'run'])
   assert.deepEqual(forwardArgs(['a.e2e.ts', '--headed']), ['e2e', 'run', 'a.e2e.ts', '--headed'])
+})
+
+test('E2E_COMMAND selects run or explore', () => {
+  assert.equal(e2eCommand({}), 'run')
+  assert.equal(e2eCommand({ E2E_COMMAND: 'explore' }), 'explore')
+  assert.throws(() => e2eCommand({ E2E_COMMAND: 'list' }), /E2E_COMMAND/)
+  assert.deepEqual(forwardArgs(['goal'], 'explore'), ['e2e', 'explore', 'goal'])
 })
 
 test('parsePort validates', () => {
