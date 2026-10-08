@@ -1,0 +1,21 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+{
+    'name': 'nasq {{name_en}}',
+    'summary': 'nasq platform: the {{name_en}} application — /api/v1/{{app}} records',
+    'version': '19.0.1.0.0',
+    'category': 'Hidden',
+    'author': 'Tariq Alwalidi',
+    'license': 'LGPL-3',
+    # nasq_api: shared api_handler/ApiError + NasqApiCase. An application depends
+    # on nasq_api and no other application (spec R3); it owns its capabilities,
+    # groups, role and record rule (spec R2).
+    'depends': ['nasq_api'],
+    'data': [
+        'security/{{app}}_capability_groups.xml',
+        'security/{{app}}_rules.xml',
+        'security/ir.model.access.csv',
+        'data/{{app}}_access_permissions.xml',
+    ],
+    'installable': True,
+    'application': False,
+}

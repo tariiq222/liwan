@@ -1,0 +1,34 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.tests import tagged
+
+from .common import Nasq{{App}}Case
+from odoo.addons.nasq_api.tests.common import set_probe_feature
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class Test{{App}}Records(Nasq{{App}}Case):
+
+    def test_employee_reads_the_whitelisted_shape(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        result = self.api('GET', '/api/v1/{{app}}/records')
+        self.assertEqual(result.status_code, 200)
+        body = result.json()
+        item = next(row for row in body['items'] if row['id'] == self.record.id)
+        self.assertEqual(set(item), {'id', 'name'})
+        self.assertGreaterEqual(body['total'], 1)
+
+    def test_manager_reads_records(self):
+        self.authenticate('{{app}}_manager', '{{app}}_manager_pass_123')
+        result = self.api('GET', '/api/v1/{{app}}/records')
+        self.assertEqual(result.status_code, 200)
+
+    def test_invalid_limit_is_a_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        result = self.api('GET', '/api/v1/{{app}}/records?limit=-1')
+        self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'))
+
+    def test_a_closed_feature_refuses_the_route(self):
+        set_probe_feature(self, key='{{app}}.enabled', enabled=False)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        result = self.api('GET', '/api/v1/{{app}}/records')
+        self.assertEqual(result.status_code, 403)
