@@ -13,6 +13,7 @@
     "test:commercial": "npm -w packages/commercial-contracts run test && npm -w apps/control-plane run test",
     "e2e": "node tools/e2e_isolated.mjs",
     "e2e:dev": "E2E_TELEMETRY_DISABLED=1 e2e run",
+    "e2e:odoo": "E2E_STACK=odoo node tools/e2e_isolated.mjs",
     "e2e:smoke": "node tools/e2e_isolated.mjs e2e/tests/smoke.e2e.ts"
   },
   "overrides": {
