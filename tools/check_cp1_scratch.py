@@ -13,11 +13,16 @@ import tempfile
 import uuid
 from pathlib import Path
 
+try:  # run as a script (tools/ on the path) or imported as tools.check_cp1_scratch
+    from catalog_check import current_release
+except ModuleNotFoundError:
+    from tools.catalog_check import current_release
+
 WORKTREE = Path(__file__).resolve().parents[1]
 BASELINE = WORKTREE.parents[1]
 ODOO = Path('/Users/tariq/code/odoo')
 PYTHON = ODOO / '.venv/bin/python'
-MODULES = 'nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat'
+MODULES = ','.join(current_release(WORKTREE)[1])
 EXPECTED_BASE = 'd194f93f65c377a4f2e23e3ca067514bb692805b'
 # CP1-T1/T2 artifacts retained unchanged for the /me slice. This runner itself
 # is intentionally evolving and is reviewed/fingerprinted by the verification gate.
