@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -208,16 +209,47 @@ def pascal(name: str) -> str:
     return ''.join(part.capitalize() for part in name.split('-'))
 
 
-def foreign_component_uses(text: str, own_app: str, web_apps: dict) -> int:
+# Strings are matched first so a `//` inside one (a URL) does not start a comment.
+SOURCE_TOKEN = re.compile(
+    r"""('(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`)|(/\*.*?\*/|//[^\n]*|<!--.*?-->)""",
+    re.DOTALL,
+)
+IMPORT_SPECIFIER = re.compile(
+    r"""(?:\b(?:import|export)\b[^'"`;]*?\bfrom\s*|\bimport\s*\(?\s*)(['"])([^'"\n]+)\1""",
+)
+
+
+def strip_comments(text: str) -> str:
+    return SOURCE_TOKEN.sub(lambda m: m.group(1) or ' ', text)
+
+
+def import_specifiers(text: str, rel: str | None = None) -> list[str]:
+    """Module specifiers of static and dynamic imports (comments ignored, `import.meta.glob` excluded).
+
+    A relative specifier is resolved against the importing file's folder `rel` (a repository path)
+    so `../hr/manifest` from modules/pmo/ becomes `.../modules/hr/manifest`.
+    """
+    found = []
+    for match in IMPORT_SPECIFIER.finditer(strip_comments(text)):
+        spec = match.group(2)
+        if spec.startswith('.') and rel:
+            spec = posixpath.normpath(posixpath.join(posixpath.dirname(rel), spec))
+        found.append(spec)
+    return found
+
+
+def foreign_component_uses(text: str, own_app: str, web_apps: dict, rel: str | None = None) -> int:
     """R3 (web): tags or imports of another app's components or module manifest folder."""
     total = 0
+    code = strip_comments(text)
+    specifiers = import_specifiers(text, rel)
     for app, dirs in web_apps.items():
         if app == own_app:
             continue
-        total += len(re.findall(rf'modules/{re.escape(app)}/', text))
+        total += sum(1 for s in specifiers if re.search(rf'(?:^|/)modules/{re.escape(app)}(?:/|$)', s))
         for directory in dirs['components']:
-            total += len(re.findall(rf'<{pascal(directory)}[A-Z]', text))
-            total += len(re.findall(rf'components/{re.escape(directory)}/', text))
+            total += len(re.findall(rf'<{pascal(directory)}[A-Z]', code))
+            total += sum(1 for s in specifiers if re.search(rf'(?:^|/)components/{re.escape(directory)}(?:/|$)', s))
     return total
 
 
@@ -427,7 +459,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             for path in sorted(folder.rglob('*')):
                 rel = _rel(path, root)
                 if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
-                    _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps))
+                    _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps, rel))
     return v, hard
 
 
