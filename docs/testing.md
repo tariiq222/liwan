@@ -46,6 +46,25 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
   `npx e2e mcp` lets a coding agent drive and inspect the live app, then write a test
   from what it saw. Point both at the isolated stack (start it with the commands in
   `tools/e2e_isolated.mjs`, or set `E2E_BASE_URL` to its origin).
+- `npm run e2e:odoo` (same wrapper with `E2E_STACK=odoo`) runs against a real scratch Odoo
+  instead of the mock, for journeys that write data (`e2e/tests/pmo-journey.e2e.ts`, tag
+  `journey`; it skips itself on the mock stack). The database is the fixed
+  `nasq_scratch_e2e` (the wrapper refuses any other name and never uses `odoo19`), served
+  from `/Users/tariq/code/odoo` (override `E2E_ODOO_ROOT`) with a generated config, data
+  and logs under `.e2e/odoo/` and a `saas` classification fixture like CI. PostgreSQL comes
+  from `PGHOST`/`PGPORT`/`PGUSER` (defaults `127.0.0.1`, `5432`, `tariq`); passwords only
+  through `PGPASSWORD`.
+  - First run creates the database: installs every release module, then
+    `tools/e2e_seed.py` (through `odoo-bin shell`) opens the full entitlement policy
+    (`pmo.enabled` and the other keys) and creates the test accounts `e2e_admin` and
+    `e2e_employee` (credentials declared in `e2e.config.ts`, override with
+    `E2E_USER_<NAME>_PASSWORD`). Expect about 40 s on a warm machine, more on a cold one; a
+    failed create drops the half-built database. Later runs reuse it (about 25 s of
+    startup).
+  - `E2E_ODOO_RESET=1` drops and recreates it; `E2E_ODOO_UPDATE=1` runs `-u` and re-seeds.
+    Tests must use unique names (timestamps), because the database persists between runs.
+  - Ports: Odoo 43369 (`E2E_ODOO_PORT`), Nuxt 43300 (`E2E_NUXT_PORT`); 3000 and 8069 are
+    refused. Odoo logs: `.e2e/odoo/logs/odoo.log` (server), `prepare.log` (create/seed).
 - `npm run e2e:dev` runs the runner directly against an already-running dev server. Use
   it only deliberately and never for state-changing tests.
 
