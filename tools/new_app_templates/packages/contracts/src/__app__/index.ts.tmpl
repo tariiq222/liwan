@@ -1,0 +1,14 @@
+import { z } from 'zod'
+
+export const {{App}}RecordSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+}).strict()
+
+export const {{App}}RecordListSchema = z.object({
+  items: z.array({{App}}RecordSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+export type {{App}}Record = z.infer<typeof {{App}}RecordSchema>
+export type {{App}}RecordList = z.infer<typeof {{App}}RecordListSchema>

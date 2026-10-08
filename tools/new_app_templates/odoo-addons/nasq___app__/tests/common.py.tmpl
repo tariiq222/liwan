@@ -1,0 +1,25 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.tests import new_test_user
+
+from odoo.addons.nasq_api.tests.common import NasqApiCase
+
+
+class Nasq{{App}}Case(NasqApiCase):
+    """The shared nasq_api fixture plus a {{name_en}} manager user and one record."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.manager = new_test_user(
+            cls.env, login='{{app}}_manager', password='{{app}}_manager_pass_123',
+            name='{{name_en}} Manager', groups='nasq_core.group_employee',
+        )
+        cls.env['nasq.access.service']._nasq_replace_assignments(cls.manager, [{
+            'role_id': cls.env.ref('nasq_{{app}}.role_{{app}}_manager').id,
+            'company_id': cls.env.company.id,
+        }])
+        cls.outsider = new_test_user(
+            cls.env, login='{{app}}_outsider', password='{{app}}_outsider_pass_123',
+            name='No {{name_en}} access', groups='base.group_user',
+        )
+        cls.record = cls.env['nasq.{{app}}.record'].create({'name': 'First record'})

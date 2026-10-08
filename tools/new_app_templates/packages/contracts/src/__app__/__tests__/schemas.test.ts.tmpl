@@ -1,0 +1,24 @@
+import { {{App}}RecordListSchema, {{App}}RecordSchema } from '../index'
+
+const RECORD = { id: 1, name: 'First record' }
+
+describe('{{App}}RecordSchema', () => {
+  it('is strict: it accepts exactly id and name', () => {
+    expect({{App}}RecordSchema.parse(RECORD)).toEqual(RECORD)
+    expect(Object.keys({{App}}RecordSchema.shape).sort()).toEqual(['id', 'name'])
+    expect(() => {{App}}RecordSchema.parse({ ...RECORD, secret: 'x' })).toThrow()
+  })
+
+  it('rejects a missing name and a non-positive id', () => {
+    expect(() => {{App}}RecordSchema.parse({ id: 1 })).toThrow()
+    expect(() => {{App}}RecordSchema.parse({ ...RECORD, id: 0 })).toThrow()
+  })
+})
+
+describe('{{App}}RecordListSchema', () => {
+  it('wraps records with a total and rejects extra keys', () => {
+    expect({{App}}RecordListSchema.parse({ items: [RECORD], total: 1 })).toEqual({ items: [RECORD], total: 1 })
+    expect(() => {{App}}RecordListSchema.parse({ items: [RECORD], total: 1, next: 2 })).toThrow()
+    expect(() => {{App}}RecordListSchema.parse({ items: [RECORD], total: -1 })).toThrow()
+  })
+})
