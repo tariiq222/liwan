@@ -165,10 +165,20 @@ def openapi_params(odoo_path: str) -> tuple[str, list[dict]]:
     return PARAM_RE.sub(lambda m: "{%s}" % m.group("name"), odoo_path), params
 
 
+def application_names() -> frozenset[str]:
+    """Rank-4 applications of arch_layers.json without their `nasq_` prefix."""
+    ranks = json.loads((TOOLS / "arch_layers.json").read_text(encoding="utf-8")).get("ranks", {})
+    return frozenset(name.removeprefix("nasq_") for name, rank in ranks.items() if rank == 4)
+
+
 def namespace_hint(path: str) -> str | None:
     for prefix, namespace in NAMESPACE_HINTS:
         if path.startswith(prefix):
             return namespace
+    # Any other application owns its own `/api/v1/<app>` family and contracts namespace.
+    parts = path.split("/")
+    if path.startswith("/api/v1/") and len(parts) > 3 and parts[3] in application_names():
+        return parts[3]
     return None
 
 

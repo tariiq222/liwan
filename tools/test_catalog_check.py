@@ -500,12 +500,105 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         self.assertIsNone(catalog_check.current_release(self.root))
         self.assertEqual(catalog_check.main(['--release-modules', '--root', str(self.root)]), 1)
 
-    def test_the_committed_release_is_the_ten_addon_install(self):
-        self.assertEqual(catalog_check.current_release(ROOT), ('platform_v3.json', [
-            'nasq_api', 'nasq_chat', 'nasq_core', 'nasq_directory', 'nasq_hr', 'nasq_meetings',
-            'nasq_meetings_pmo', 'nasq_notify', 'nasq_platform', 'nasq_pmo',
-        ]))
+    def test_the_committed_release_is_the_base_then_the_tier_closures(self):
+        name, modules = catalog_check.current_release(ROOT)
+        self.assertEqual(name, 'platform_v3.json')
+        data = json.loads((ROOT / 'deploy/catalog/solutions' / name).read_text())
+        self.assertEqual(data['base_modules'], ['nasq_core', 'nasq_platform', 'nasq_api'])
+        order = catalog_check.release_install_order(ROOT, data)
+        self.assertEqual(order[:3], data['base_modules'])
+        self.assertEqual(sorted(order), modules)
+        self.assertEqual(len(order), len(set(order)))
+        position = {module: index for index, module in enumerate(order)}
+        seen = set(data['base_modules'])
+        for tier in data['tiers']:
+            closure = catalog_check.install_closure([ROOT / 'odoo-addons'], data['base_modules'] + tier['modules'])
+            added = closure - seen
+            # a tier's modules come before every module that only a later tier adds
+            later = set(order) - seen - added
+            for module in added:
+                self.assertTrue(all(position[module] < position[other] for other in later))
+            seen |= closure
 
+    def test_the_committed_tree_has_no_catalog_errors(self):
+        self.assertEqual(catalog_check.check_catalog(ROOT), [])
+
+    def test_a_new_application_must_sit_in_exactly_one_tier(self):
+        self.write_layers({'demo_core': 0, 'demo_pmo': 4, 'demo_sales': 4})
+        self.assert_rejected("release_app_missing: application 'demo_sales' must be in exactly one tier (found 0)")
+        self.data['tiers'][1]['modules'].append('demo_sales')
+        self.manifest(self.root / 'odoo-addons', 'demo_sales', ['demo_core'], 'Sales')
+        self.data['tiers'].append({'id': 'again', 'name': 'Again', 'modules': ['demo_sales'], 'features': ['boolean:x.enabled']})
+        self.assert_rejected("application 'demo_sales' must be in exactly one tier (found 2)", self.data)
+
+    def test_a_tier_module_must_be_registered_in_the_layers(self):
+        self.write_layers({'demo_core': 0})
+        self.assert_rejected("release_app_missing: tier module 'demo_pmo' is not registered in tools/arch_layers.json")
+
+    def write_layers(self, ranks):
+        (self.root / 'tools').mkdir(exist_ok=True)
+        (self.root / 'tools' / 'arch_layers.json').write_text(json.dumps({'ranks': ranks}))
+
+
+class SyncReleaseCopiesTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        addons = self.root / 'odoo-addons'
+        for name, depends in (('demo_core', []), ('demo_api', ['demo_core']), ('demo_pmo', ['demo_api']),
+                              ('demo_hr', ['demo_api'])):
+            (addons / name).mkdir(parents=True)
+            (addons / name / '__manifest__.py').write_text(repr({'name': name, 'depends': depends}))
+        solutions = self.root / 'deploy' / 'catalog' / 'solutions'
+        solutions.mkdir(parents=True)
+        (solutions / 'demo.json').write_text(json.dumps({
+            'schema_version': 3, 'base_modules': ['demo_core', 'demo_api'],
+            'tiers': [{'id': 'a', 'modules': ['demo_pmo']}, {'id': 'b', 'modules': ['demo_hr']}],
+        }))
+        (self.root / 'deploy').mkdir(exist_ok=True)
+        self.provision = self.root / 'deploy' / 'provision.sh'
+        self.provision.write_text('odoo -i demo_core,demo_api,demo_pmo,web_theme_shadcn --stop-after-init\n')
+        self.operations = self.root / 'deploy' / 'OPERATIONS.md'
+        self.operations.write_text('--modules demo_core,demo_api\n--test-tags /demo_core,/demo_api\nuntouched demo_hr,x\n')
+        self.isolated = self.root / 'deploy' / 'check_isolated.py'
+        self.isolated.write_text("X = 1\nNASQ_ADDONS = (\n    'demo_core', 'demo_api',\n)\nY = 2\n")
+
+    def test_rewrites_only_the_lists_and_keeps_foreign_modules(self):
+        changed = catalog_check.sync_release_copies(self.root)
+        self.assertEqual(sorted(changed), ['deploy/OPERATIONS.md', 'deploy/check_isolated.py', 'deploy/provision.sh'])
+        self.assertEqual(
+            self.provision.read_text(),
+            'odoo -i demo_core,demo_api,demo_pmo,demo_hr,web_theme_shadcn --stop-after-init\n',
+        )
+        self.assertEqual(
+            self.operations.read_text(),
+            '--modules demo_core,demo_api,demo_pmo,demo_hr\n'
+            '--test-tags /demo_core,/demo_api,/demo_pmo,/demo_hr\nuntouched demo_hr,x\n',
+        )
+        self.assertEqual(
+            self.isolated.read_text(),
+            "X = 1\nNASQ_ADDONS = (\n    'demo_core', 'demo_api', 'demo_pmo', 'demo_hr',\n)\nY = 2\n",
+        )
+
+    def test_is_idempotent(self):
+        catalog_check.sync_release_copies(self.root)
+        before = {path: path.read_text() for path in (self.provision, self.operations, self.isolated)}
+        self.assertEqual(catalog_check.sync_release_copies(self.root), [])
+        self.assertEqual(before, {path: path.read_text() for path in before})
+
+    def test_a_synced_tree_passes_the_copy_guard(self):
+        catalog_check.sync_release_copies(self.root)
+        errors = []
+        catalog_check._check_release_copies(
+            self.root, ['demo_core', 'demo_api'], catalog_check.current_release(self.root)[1], errors)
+        self.assertEqual(errors, [])
+
+    def test_the_command_reports_what_it_rewrote(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(catalog_check.main(['--sync-release-copies', '--root', str(self.root)]), 0)
+        self.assertIn('SYNCED deploy/provision.sh', output.getvalue())
 
 if __name__ == '__main__':
     unittest.main()

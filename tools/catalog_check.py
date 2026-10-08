@@ -24,9 +24,9 @@ import sys
 from pathlib import Path
 
 try:  # run as a script (tools/ on the path) or imported as tools.catalog_check
-    from nasq_cli.module_closure import ClosureError, install_closure
+    from nasq_cli.module_closure import ClosureError, install_closure, install_order
 except ModuleNotFoundError:
-    from tools.nasq_cli.module_closure import ClosureError, install_closure
+    from tools.nasq_cli.module_closure import ClosureError, install_closure, install_order
 
 ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 
@@ -54,15 +54,24 @@ TEST_ONLY_MARKER = 'never installed in production'
 RELEASE_SCHEMA = 3
 # Files that still spell the release module list out (they run where the repository
 # tools are not available). Each list must equal the newest schema-3 release.
+# `python3 -B tools/catalog_check.py --sync-release-copies` rewrites them.
 RELEASE_COPIES = (
     '.woodpecker.yml',
     'deploy/provision.sh',
     'deploy/woodpecker/image.yml',
     'tools/shared_acceptance_live/up.sh',
     'deploy/check_isolated.py',
+    'deploy/OPERATIONS.md',
+    'deploy/verification-checks.json',
+    'deploy/control-plane-outage/outage-fixture',
+    'deploy/control-plane-outage/README.md',
+    'tools/nasq_cli/operator.py',
 )
+ARCH_LAYERS = 'tools/arch_layers.json'
+APPLICATION_RANK = 4
 _COMMA_LIST = re.compile(r'/?[a-z][a-z0-9_]*(?:,/?[a-z][a-z0-9_]*)+')
-_ADDON_TUPLE = re.compile(r'NASQ_ADDONS = \(([^)]*)\)')
+_ADDON_TUPLE = re.compile(r'(?P<head>\b(?:NASQ_ADDONS|CREATE_MODULES) = \()(?P<body>[^)]*)\)')
+_TUPLE_WIDTH = 100
 
 JSON_TYPES = {
     'object': dict,
@@ -375,6 +384,108 @@ def _check_release(root, where, data, registry, errors):
             errors.append(f'{where}: feature {key!r} of release module {module!r} is in no tier')
 
 
+def release_install_order(root, data):
+    """The release in install order: base modules, then each tier's closure in tier order.
+
+    Within a step a module follows its dependencies; auto-install bridges join after
+    the step that completes their dependencies."""
+    paths = [Path(root) / ADDONS_DIR]
+    base = list(data.get('base_modules') or [])
+    ordered = []
+    selected = list(base)
+    steps = [base] + [list(tier.get('modules') or []) for tier in data.get('tiers') or []]
+    for index, step in enumerate(steps):
+        if index:
+            selected = selected + step
+        ordered += [name for name in install_order(paths, step) if name not in ordered]
+        ordered += sorted(install_closure(paths, selected) - set(ordered))
+    return ordered
+
+
+def _extras(plain, expected):
+    return [name for name in plain if name not in expected and not name.startswith(ADDON_PREFIX)]
+
+
+def _rewrite_comma_list(match, order, expected, anchor):
+    names = match.group(0).split(',')
+    plain = [name.lstrip('/') for name in names]
+    if anchor not in plain:
+        return match.group(0)
+    prefix = '/' if names[0].startswith('/') else ''
+    return ','.join(prefix + name for name in [*order, *_extras(plain, expected)])
+
+
+def _render_tuple(names):
+    lines, line = [], '   '
+    for name in names:
+        item = f" '{name}',"
+        if len(line) + len(item) > _TUPLE_WIDTH and line.strip():
+            lines.append(line)
+            line = '   '
+        line += item
+    lines.append(line)
+    return '\n' + '\n'.join(lines) + '\n'
+
+
+def _rewrite_tuple(match, order, expected, anchor):
+    plain = re.findall(r"'([a-z0-9_]+)'", match.group('body'))
+    if anchor not in plain:
+        return match.group(0)
+    return f"{match.group('head')}{_render_tuple([*order, *_extras(plain, expected)])})"
+
+
+def sync_release_copies(root, catalog_dir=CATALOG_DIR):
+    """Rewrite the module lists inside RELEASE_COPIES to the current release.
+
+    Only the lists change (names outside the release that are not Nasq addons, such as
+    the theme, keep their place after them). Returns the relative paths rewritten."""
+    root = Path(root)
+    current = current_release(root, catalog_dir)
+    if current is None:
+        return []
+    newest = load_json(root / catalog_dir / 'solutions' / current[0])
+    base_modules = list(newest.get('base_modules') or [])
+    if not base_modules:
+        return []
+    order = release_install_order(root, newest)
+    expected, anchor = set(order), base_modules[0]
+    changed = []
+    for relative in RELEASE_COPIES:
+        path = root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding='utf-8')
+        updated = _COMMA_LIST.sub(lambda m: _rewrite_comma_list(m, order, expected, anchor), text)
+        updated = _ADDON_TUPLE.sub(lambda m: _rewrite_tuple(m, order, expected, anchor), updated)
+        if updated != text:
+            path.write_text(updated, encoding='utf-8')
+            changed.append(relative)
+    return changed
+
+
+def _check_release_apps(root, where, data, errors):
+    """Every application (rank 4) is in exactly one tier and every tier module is ranked."""
+    layers_path = Path(root) / ARCH_LAYERS
+    if not layers_path.is_file():
+        return
+    ranks = load_json(layers_path).get('ranks') or {}
+    placed = {}
+    for tier in data.get('tiers') or []:
+        for module in tier.get('modules') or []:
+            placed.setdefault(module, []).append(str(tier.get('id')))
+            if module not in ranks:
+                errors.append(f'{where}: release_app_missing: tier module {module!r} is not registered in {ARCH_LAYERS}')
+    for module, rank in sorted(ranks.items()):
+        if rank != APPLICATION_RANK:
+            continue
+        tiers = placed.get(module, [])
+        if len(tiers) != 1:
+            errors.append(
+                f'{where}: release_app_missing: application {module!r} must be in exactly one tier '
+                f'(found {len(tiers)})',
+            )
+
+
 def _check_release_copies(root, base_modules, modules, errors):
     """Literal copies of the release list must equal it (names outside the release that
     are not Nasq addons, such as the theme, are ignored)."""
@@ -391,7 +502,7 @@ def _check_release_copies(root, base_modules, modules, errors):
             if anchor in names:
                 found.append(names)
         for match in _ADDON_TUPLE.finditer(text):
-            found.append(re.findall(r"'([a-z0-9_]+)'", match.group(1)))
+            found.append(re.findall(r"'([a-z0-9_]+)'", match.group('body')))
         for names in found:
             listed = {name for name in names if name in expected or name.startswith(ADDON_PREFIX)}
             if listed != expected:
@@ -575,6 +686,7 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
     if current is not None:
         newest = load_json(base / 'solutions' / current[0])
         _check_release_copies(root, list(newest.get('base_modules') or []), current[1], errors)
+        _check_release_apps(root, f'solution {current[0]}', newest, errors)
 
     for module in sorted(TEST_ONLY_MODULES):
         summary = manifests.get(module, {}).get('summary', '')
@@ -589,12 +701,25 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     root = ROOT_DEFAULT
+    if argv[:1] == ['--sync-release-copies']:
+        argv = argv[1:]
+        if argv and (argv[0] != '--root' or len(argv) != 2):
+            print('usage: catalog_check.py --sync-release-copies [--root REPOSITORY]', file=sys.stderr)
+            return 2
+        try:
+            changed = sync_release_copies(Path(argv[1]).resolve() if argv else root)
+        except ClosureError as exc:
+            print(f'CATALOG_INVALID release module {exc} has no readable manifest', file=sys.stderr)
+            return 1
+        for relative in changed:
+            print(f'SYNCED {relative}')
+        return 0
     release_only = argv[:1] == ['--release-modules']
     if release_only:
         argv = argv[1:]
     if argv:
         if argv[0] != '--root' or len(argv) != 2:
-            print('usage: catalog_check.py [--release-modules] [--root REPOSITORY]', file=sys.stderr)
+            print('usage: catalog_check.py [--release-modules | --sync-release-copies] [--root REPOSITORY]', file=sys.stderr)
             return 2
         root = Path(argv[1]).resolve()
     if release_only:
