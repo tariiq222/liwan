@@ -33,6 +33,19 @@ export default {
     },
   ],
   tests: ['e2e/tests/**/*.e2e.ts'],
+  // Test-only accounts seeded into the disposable nasq_scratch_e2e database by
+  // tools/e2e_seed.py (run by `npm run e2e:odoo`). The defaults mirror that
+  // script; E2E_USER_<NAME>_PASSWORD overrides both sides.
+  credentials: {
+    admin: {
+      username: 'e2e_admin',
+      password: process.env.E2E_USER_ADMIN_PASSWORD ?? 'nasq-e2e-admin-2026',
+    },
+    employee: {
+      username: 'e2e_employee',
+      password: process.env.E2E_USER_EMPLOYEE_PASSWORD ?? 'nasq-e2e-employee-2026',
+    },
+  },
   // The default agent's model (kimi-k3-agent) is a slow reasoning model:
   // a trivial completion takes ~20s, so agent steps need a wider deadline.
   timeout: 300_000,
