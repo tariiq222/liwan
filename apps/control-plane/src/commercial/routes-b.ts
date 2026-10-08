@@ -35,7 +35,8 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
       return {status:200,data:await listCustomers(pool,url)}
     }
     if(m==='POST'){
-      need(input,'vendor.subscriptions.manage')
+      // A new customer is the start of plan-based tenant creation: its first order provisions a tenant.
+      need(input,'vendor.tenants.manage','vendor.subscriptions.manage')
       const body=parseBody(input.raw,z.strictObject({name:z.string().trim().min(1).max(200),tenant_id:z.uuid().nullable().optional(),admin_name:z.string().trim().min(1).max(120).optional(),admin_login:z.email().max(100).optional()}))
       const r=await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5) RETURNING *',[randomUUID(),body.name,body.tenant_id??null,body.admin_name??null,body.admin_login??null]);return {status:201,data:r.rows[0]}
     }
@@ -72,7 +73,11 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   }
   if(m==='POST'&&path==='/orders'){
     need(input,'vendor.subscriptions.manage')
-    const result=await acceptQuote(pool,parseBody(input.raw,acceptQuoteRequestSchema),principal);return {status:result.replay?200:201,data:result}
+    const body=parseBody(input.raw,acceptQuoteRequestSchema)
+    // An order for a customer without a tenant provisions one on fulfilment: that is tenant creation.
+    const owner=(await pool.query('SELECT c.tenant_id FROM commercial_quotes q JOIN customers c ON c.id::text=q.customer_id WHERE q.id=$1',[body.quote_id])).rows[0]
+    if(owner&&!owner.tenant_id)need(input,'vendor.tenants.manage')
+    const result=await acceptQuote(pool,body,principal);return {status:result.replay?200:201,data:result}
   }
   const cancel=/^\/orders\/([^/]+)\/cancel$/.exec(path)
   if(cancel&&m==='POST'){
