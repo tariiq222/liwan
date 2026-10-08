@@ -104,14 +104,16 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
       child.stdin.write(JSON.stringify({action,config:runtime,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:{name:row.admin_name,login:row.admin_login},companyName:row.name,...(packageAuthority?{packageAuthority}:{})}:{authority}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})})+'\n')
     })
   }
-  const subscriptionExecute=async(request:Record<string,unknown>,assertOwned?:()=>Promise<void>)=>{
+  const subscriptionExecute=async(request:Record<string,unknown>,assertOwned?:()=>Promise<void>,cancel?:AbortSignal)=>{
     if(signal.aborted)throw Error('shared_worker_stopping')
+    if(cancel?.aborted)throw Error('observe_aborted')
     return new Promise<unknown>((resolve,reject)=>{
       const child=spawn(config.python,['-B','-m','tools.shared_saas_lifecycle.subscription_effect'],{cwd:config.repositoryRoot,stdio:['pipe','pipe','ignore'],env:{...process.env,PYTHONUNBUFFERED:'1'}})
       let buffer='',result:unknown,error:Error|undefined,chain=Promise.resolve()
       const fail=(e:unknown)=>{error=e instanceof Error?e:Error('shared_effect_unverified');child.kill('SIGTERM')}
       const abort=()=>fail(Error('shared_worker_stopping'))
-      signal.addEventListener('abort',abort,{once:true})
+      const cancelled=()=>fail(Error('observe_aborted'))
+      signal.addEventListener('abort',abort,{once:true});cancel?.addEventListener('abort',cancelled,{once:true})
       const timer=setTimeout(()=>fail(Error('shared_effect_timeout')),30*60*1000)
       const heartbeat=setInterval(()=>{if(assertOwned)void assertOwned().catch(fail)},15000)
       child.on('error',fail);child.stdin.on('error',fail)
@@ -136,7 +138,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
         }
       })
       child.on('close',code=>{
-        clearTimeout(timer);clearInterval(heartbeat);signal.removeEventListener('abort',abort)
+        clearTimeout(timer);clearInterval(heartbeat);signal.removeEventListener('abort',abort);cancel?.removeEventListener('abort',cancelled)
         void chain.then(()=>error?reject(error):code!==0 || result===undefined?reject(Error('shared_effect_unverified')):resolve(result))
       })
       child.stdin.write(JSON.stringify({...request,config:runtime})+'\n')
@@ -150,13 +152,10 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const observeSubscription:ObserveRunner=async input=>{
     const row=await pool.query('SELECT host FROM shared_registry_bindings WHERE control_tenant_id=$1',[input.tenant_id])
     if(!row.rowCount)throw Error('tenant_binding_mismatch')
-    return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},attemptId:randomUUID(),fence:0}) as Awaited<ReturnType<ObserveRunner>>
+    return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},attemptId:randomUUID(),fence:0},undefined,input.signal) as Awaited<ReturnType<ObserveRunner>>
   }
-  const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>{
-    // The same read-only observe action; the collector validates every field it keeps.
-    const value=await observeSubscription(input) as unknown as {database?:unknown;observed_at?:unknown;usage?:unknown;limit_gates?:unknown}
-    return {database:String(value.database),observed_at:String(value.observed_at),usage:value.usage as Record<string,number>,limit_gates:value.limit_gates as Record<string,string[]>}
-  }
+  // The same read-only observe action; the collector validates every field it keeps.
+  const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>await observeSubscription(input) as unknown
   return {
     subscriptionRunner,observeSubscription,observeUsage,
     async observe(job){

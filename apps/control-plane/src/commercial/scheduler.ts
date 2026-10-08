@@ -27,8 +27,10 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const clock = o.clock ?? Date.now
   const log = o.log ?? ((m: string, e?: unknown) => console.error(`[commercial-scheduler] ${m}`, e instanceof Error ? e.message : e ?? ''))
   const reconcileEvery = posInt(env.NASQ_COMMERCIAL_RECONCILE_EVERY, 10)
-  // Downgrade checks need a sample younger than 15 minutes (usage.ts); keep ticks × interval below that.
-  const usageEvery = posInt(env.NASQ_COMMERCIAL_USAGE_EVERY, 10)
+  // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is clamped to 10.
+  const usageMs = Math.min(posInt(env.NASQ_COMMERCIAL_USAGE_INTERVAL_SEC, 300), 600) * 1000
+  let lastUsage: number | undefined
+  let usageRun: Promise<void> | undefined
   const billingMs = posInt(env.NASQ_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
   const origin = (env.NASQ_PAYMENT_RETURN_ORIGINS ?? '').split(',')[0]?.trim() ?? ''
   let ticks = 0
@@ -41,6 +43,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   }
 
   return {
+    /** Resolves when the background usage run in flight (if any) has ended. */
+    async usageIdle(): Promise<void> { await usageRun },
     async tick(): Promise<void> {
       ticks++
       jobCounts = {}
@@ -61,11 +65,13 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         if (o.paymentAdapter) { const a = o.paymentAdapter; await job('reconcile-payments', () => reconcileUnknownAttempts(pool, a)) }
         await job('recover-interrupted', () => recoverInterrupted(pool, { runner: o.subscriptionRunner }))
       }
-      if (o.usageRunner && ticks % usageEvery === 0) {
-        const runner = o.usageRunner
-        await job('usage', () => collectUsage(pool, { runner }))
-      }
       const now = clock()
+      // Usage collection talks to Odoo, so it runs in the background (single flight) and never holds a tick.
+      if (o.usageRunner && !usageRun && (lastUsage === undefined || now - lastUsage >= usageMs)) {
+        lastUsage = now
+        const runner = o.usageRunner
+        usageRun = collectUsage(pool, { runner }).then(() => undefined, e => { try { log('usage failed', e) } catch { /* never throw */ } }).finally(() => { usageRun = undefined })
+      }
       if (lastBilling === undefined || now - lastBilling >= billingMs) {
         lastBilling = now
         if (o.paymentAdapter) {

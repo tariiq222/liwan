@@ -6,8 +6,9 @@ import { acceptObservation, collectUsage, type UsageObserveRunner } from '../com
 import { url } from './commercial-helpers.js'
 
 const NOW = new Date('2026-10-07T10:00:00Z')
-const GATES = { 'users.limit': [], 'storage.limit_mb': [] }
-const ok = (database: string, over: Record<string, unknown> = {}) => ({ database, observed_at: '2026-10-07T09:59:00Z', usage: { 'users.limit': 3, 'storage.limit_mb': 2 }, limit_gates: GATES, ...over })
+const GATES = { 'users.limit': [], 'storage.limit_mb': [], 'branches.extra_limit': [] }
+const USAGE = { 'users.limit': 3, 'storage.limit_mb': 2, 'branches.extra_limit': 0 }
+const ok = (database: string, over: Record<string, unknown> = {}) => ({ database, observed_at: '2026-10-07T09:59:00Z', usage: USAGE, limit_gates: GATES, ...over })
 
 describe('usage observation gate (no database)', () => {
   const db = 'nasq_scratch_' + 'a'.repeat(32)
@@ -19,12 +20,13 @@ describe('usage observation gate (no database)', () => {
     ['a stale sample', ok(db, { observed_at: '2026-10-07T09:44:59Z' })],
     ['a future sample', ok(db, { observed_at: '2026-10-07T10:06:00Z' })],
     ['a malformed time', ok(db, { observed_at: 'yesterday' })],
-    ['a negative value', ok(db, { usage: { 'users.limit': -1 }, limit_gates: { 'users.limit': [] } })],
-    ['a fractional value', ok(db, { usage: { 'users.limit': 1.5 }, limit_gates: { 'users.limit': [] } })],
-    ['a unit key instead of a limit key', ok(db, { usage: { users: 1 }, limit_gates: { users: [] } })],
+    ['a negative value', ok(db, { usage: { ...USAGE, 'users.limit': -1 } })],
+    ['a fractional value', ok(db, { usage: { ...USAGE, 'users.limit': 1.5 } })],
+    ['a unit key instead of a limit key', ok(db, { usage: { ...USAGE, users: 1 }, limit_gates: { ...GATES, users: [] } })],
     ['no metrics', ok(db, { usage: {}, limit_gates: {} })],
+    ['a required metric missing', ok(db, { usage: { 'users.limit': 3, 'storage.limit_mb': 2 }, limit_gates: { 'users.limit': [], 'storage.limit_mb': [] } })],
     ['missing gates', ok(db, { limit_gates: undefined })],
-    ['gates missing a metric', ok(db, { limit_gates: { 'users.limit': [] } })],
+    ['gates missing a metric', ok(db, { limit_gates: { 'users.limit': [], 'storage.limit_mb': [] } })],
     ['gates for an unobserved metric', ok(db, { limit_gates: { ...GATES, 'projects.max_projects': ['pmo.enabled'] } })],
     ['non-list gates', ok(db, { limit_gates: { ...GATES, 'users.limit': 'pmo.enabled' } })],
     ['non-string gate names', ok(db, { limit_gates: { ...GATES, 'users.limit': [1] } })],
@@ -39,14 +41,14 @@ suite('usage collector (scratch control database)', () => {
   beforeAll(async () => { await migrate(pool) })
   afterAll(async () => pool.end())
 
-  async function tenant(enabled = true) {
+  async function tenant(enabled = true, opts: { state?: string; ops?: boolean } = {}) {
     const id = randomUUID(), hex = id.replaceAll('-', ''), database = `nasq_scratch_${hex}`
-    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','managed',$2,true)", [id, `inv-${id}`])
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','managed',$2,$3)", [id, `inv-${id}`, opts.ops ?? true])
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID()
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [customer, 'Usage', id])
     await pool.query("INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,'active')", [subscription, customer, id])
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, subscription, JSON.stringify({ entitlement: { features: {} } }), randomUUID()])
-    await pool.query('UPDATE subscriptions SET applied_revision_id=$2, revision=1 WHERE id=$1', [subscription, revision])
+    await pool.query('UPDATE subscriptions SET applied_revision_id=$2, revision=1, state=$3 WHERE id=$1', [subscription, revision, opts.state ?? 'active'])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,$5,1)', [id, `t${hex}`, `t${hex}.usage.test`, database, enabled])
     return { id, database }
   }
@@ -64,7 +66,7 @@ suite('usage collector (scratch control database)', () => {
     const result = await collectUsage(pool, { runner, now: () => NOW, limit: 1000 })
     expect(seen).not.toContain(disabled.id)
     expect(result.recorded).toBeGreaterThanOrEqual(1)
-    expect(await latest(good.id)).toEqual({ metrics: { 'users.limit': 3, 'storage.limit_mb': 2 }, limit_gates: GATES, source: 'odoo.observe' })
+    expect(await latest(good.id)).toEqual({ metrics: USAGE, limit_gates: GATES, source: 'odoo.observe' })
     expect(await latest(foreign.id)).toBeUndefined()
     expect(await latest(failing.id)).toBeUndefined()
   })
@@ -79,10 +81,10 @@ suite('usage collector (scratch control database)', () => {
       now: () => later, limit: 1000, log: () => {},
     })
     await run(d => ok(d, { limit_gates: undefined, observed_at: '2026-10-07T10:04:00Z' }))
-    await run(d => ok(d, { usage: { 'users.limit': 0 }, observed_at: '2026-10-07T10:04:00Z' }))
+    await run(d => ok(d, { usage: { 'users.limit': 0 }, limit_gates: { 'users.limit': [] }, observed_at: '2026-10-07T10:04:00Z' }))
     await run(() => { throw Error('shared_effect_unverified') })
     expect(await count(t.id)).toBe(1)
-    expect((await latest(t.id)).metrics).toEqual({ 'users.limit': 3, 'storage.limit_mb': 2 })
+    expect((await latest(t.id)).metrics).toEqual(USAGE)
   })
 
   it('drops a sample when the binding moved while it was observed', async () => {
@@ -96,14 +98,55 @@ suite('usage collector (scratch control database)', () => {
     expect(await latest(moved.id)).toBeUndefined()
   })
 
-  it('observes at most the requested number of tenants per run, oldest sample first', async () => {
+  it('observes only live subscriptions of operational tenants', async () => {
+    const live = await tenant(true, { state: 'past_due' }), suspended = await tenant(true, { state: 'suspended' }),
+      cancelled = await tenant(true, { state: 'cancelled' }), off = await tenant(true, { ops: false })
     const seen: string[] = []
-    await collectUsage(pool, { runner: async ({ tenant_id }) => { seen.push(tenant_id); throw Error('x') }, now: () => NOW, limit: 2, log: () => {} })
-    expect(seen).toHaveLength(2)
+    await collectUsage(pool, { runner: async ({ tenant_id }) => { seen.push(tenant_id); throw Error('x') }, now: () => NOW, limit: 1000, log: () => {} })
+    expect(seen).toContain(live.id)
+    for (const t of [suspended, cancelled, off]) expect(seen).not.toContain(t.id)
   })
 
-  it('bounds a hung observation', async () => {
-    const result = await collectUsage(pool, { runner: () => new Promise(() => {}), now: () => NOW, limit: 1, timeout_ms: 20, log: () => {} })
-    expect(result).toEqual({ recorded: 0, skipped: 1 })
+  it('orders by last attempt, oldest first, and a tenant that always fails does not stay at the head', async () => {
+    await pool.query('DELETE FROM usage_collection_attempts')
+    const a = await tenant(), b = await tenant(), c = await tenant(), fresh = await tenant()
+    await pool.query("INSERT INTO usage_collection_attempts(tenant_id,attempted_at) VALUES($1,now()-interval '3 hours'),($2,now()-interval '2 hours'),($3,now()-interval '1 hour')", [a.id, c.id, b.id])
+    const mine = new Set<string>([a.id, b.id, c.id, fresh.id])
+    const seen: string[] = []
+    await collectUsage(pool, { runner: async ({ tenant_id }) => { if (mine.has(tenant_id)) seen.push(tenant_id); throw Error('always fails') }, now: () => NOW, limit: 1000, log: () => {} })
+    expect(seen).toEqual([fresh.id, a.id, c.id, b.id])
+    // One tenant per run: the failing head moves to the back, so every tenant is reached.
+    await pool.query('DELETE FROM usage_collection_attempts')
+    const picks: string[] = []
+    for (let i = 0; i < 4; i++) await collectUsage(pool, { runner: async ({ tenant_id }) => { picks.push(tenant_id); throw Error('always fails') }, now: () => NOW, limit: 1, log: () => {} })
+    expect(new Set(picks).size).toBe(4)
+  })
+
+  it('cancels a hung observation with the runner signal', async () => {
+    await pool.query('DELETE FROM usage_collection_attempts')
+    await tenant()
+    let signal: AbortSignal | undefined
+    const result = await collectUsage(pool, { runner: ({ signal: s }) => { signal = s; return new Promise(() => {}) }, now: () => NOW, limit: 1, timeout_ms: 20, log: () => {} })
+    expect(result).toMatchObject({ recorded: 0, skipped: 1 })
+    expect(signal?.aborted).toBe(true)
+  })
+
+  it('stops taking targets once the time budget is spent', async () => {
+    await tenant(); await tenant()
+    const seen: string[] = []
+    await collectUsage(pool, { runner: async ({ tenant_id }) => { seen.push(tenant_id); await new Promise(r => setTimeout(r, 200)); throw Error('slow') }, now: () => NOW, limit: 1000, budget_ms: 50, log: () => {} })
+    expect(seen).toHaveLength(1)
+  })
+
+  it('lets only one collector run at a time', async () => {
+    await tenant()
+    let release!: () => void
+    const gate = new Promise<void>(r => { release = r })
+    const first = collectUsage(pool, { runner: async () => { await gate; throw Error('x') }, now: () => NOW, limit: 1, log: () => {} })
+    await new Promise(r => setTimeout(r, 100))
+    const second = await collectUsage(pool, { runner: async () => { throw Error('must not run') }, now: () => NOW, limit: 1, log: () => {} })
+    expect(second.locked).toBe(true)
+    release()
+    expect((await first).locked).toBe(false)
   })
 })
