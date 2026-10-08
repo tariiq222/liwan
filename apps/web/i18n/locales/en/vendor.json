@@ -319,13 +319,10 @@
       "noSources": "No published software version is available. Ask the platform operator to provide a trusted published source before creating a package.",
       "publishedEdit": "Published content is preserved. Return to the package and choose Edit package to create a new draft version.",
       "editReviewHint": "Saving changes returns this version to draft and cancels its previous review.",
-      "nextAction": "Next action",
-      "preserveCustomers": "Existing customers stay on their selected version. Publishing or withdrawing another version never changes them automatically.",
       "history": "Package versions",
       "technical": "Technical source details",
       "sourceHash": "Source fingerprint",
       "revisionId": "Version identifier",
-      "reasonRequired": "Enter a reason between 3 and 1,000 characters.",
       "legacyHint": "This compatibility path uses the historical catalog without an approved commercial package. Existing unspecified quotas stay unlimited.",
       "status": {
         "all": "All states",
@@ -338,22 +335,6 @@
         "draft": "Review package",
         "validated": "Approve and publish",
         "published": "Manage availability"
-      },
-      "actions": {
-        "validate": "Review package",
-        "publish": "Approve and publish",
-        "withdraw": "Stop new enrollment",
-        "restore": "Restore availability",
-        "delete": "Delete draft",
-        "revisions": "Edit package"
-      },
-      "effects": {
-        "validate": "Checks the composition and quotas. Review alone does not make this package available to customers.",
-        "publish": "Approves this reviewed version and makes it selectable for new customers.",
-        "withdraw": "Prevents new customers from selecting this version. Existing customers and their limits are preserved.",
-        "restore": "Makes this published version selectable for new customers again.",
-        "delete": "Permanently deletes this unassigned draft. Published versions are preserved.",
-        "revisions": "Creates an editable draft of the next version. The published version remains available and its customers are unchanged."
       },
       "tiers": {
         "core": "Platform foundation",

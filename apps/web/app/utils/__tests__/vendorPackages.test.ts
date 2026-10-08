@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { packageLimitValue, packageLimitKeys, packageLabel, packageActionBody, packageListReturnTo, packageFormInput, packageMatchesStatus } from '../vendorPackages'
+import { packageLimitValue, packageLimitKeys, packageLabel, packageListReturnTo, packageFormInput, packageMatchesStatus } from '../vendorPackages'
 
 describe('package presentation and editable request contract', () => {
   it('keeps explicit unlimited, zero and bounded quotas distinct', () => {
@@ -21,11 +21,6 @@ describe('package presentation and editable request contract', () => {
     expect(packageLabel('module', 'customer_acme_reports', key => key)).toBe('Acme reports')
     expect(packageLabel('feature', 'boolean:sales.enabled', key => key)).toBe('boolean:sales.enabled')
     expect(packageLabel('feature', 'boolean:hr.enabled', key => key)).toBe('vendor.packages.features.hr')
-  })
-  it('sends the optimistic token for lifecycle actions and only reason for clone', () => {
-    expect(packageActionBody('publish', 7, ' Review complete ')).toEqual({ revision: 7, reason: 'Review complete' })
-    expect(packageActionBody('revisions', 7, 'New offer')).toEqual({ reason: 'New offer' })
-    expect(() => packageActionBody('delete', 7, 'x')).toThrow()
   })
   it('accepts only the package list as return destination and preserves filters', () => {
     expect(packageListReturnTo('/vendor/catalog?q=team&status=draft')).toBe('/vendor/catalog?q=team&status=draft')
