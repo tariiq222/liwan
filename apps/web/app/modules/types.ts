@@ -1,3 +1,5 @@
+import type { ZodType } from 'zod'
+
 /**
  * Application manifest: the one place an application declares its web surface.
  * Data only. Manifests import nothing from components; icons are Iconify strings.
@@ -11,12 +13,45 @@ export interface AppNavItem {
 }
 export interface AppContextLink { id: string; labelKey: string; icon: string; to: string; capability: string; pinned?: boolean }
 export interface AppRailEntry { id: string; labelKey: string; icon: string; to: string; order: number }
+/** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
+export type AppSearchApi = <T>(
+  url: string,
+  options: { query?: Record<string, unknown>; schema: ZodType<T> },
+) => Promise<T>
+export interface AppSearchRow { id: number | string; label: string; to: string; caption?: string }
+export interface AppSearchPage {
+  rows: AppSearchRow[]
+  /** Server total for paged providers; omitted when the response is not paged. */
+  total?: number
+  /** True when the server capped the response, so `truncatedKey` is shown. */
+  truncated?: boolean
+}
 export interface AppSearchProvider {
   id: string; labelKey: string; capability: string
-  /** Vue-query key + fetcher run through useApi(); returns rows with id and label. */
-  search: (api: <T>(url: string) => Promise<T>, q: string) => Promise<Array<{ id: number | string; label: string; to: string; caption?: string }>>
+  /** Iconify name of each result row. */
+  icon: string
+  /**
+   * true: the server filters by `q` (query key includes `q`, paged by `offset`, rows wait for the debounce).
+   * false: one unfiltered fetch whose rows are filtered by label on the client.
+   */
+  serverSearch: boolean
+  /** Vue-query key; the shared search surface appends nothing. */
+  queryKey: (q: string) => readonly unknown[]
+  /** Runs through useApi(); `offset` is the number of rows already loaded. Rows link to a path without query. */
+  search: (api: AppSearchApi, q: string, offset: number) => Promise<AppSearchPage>
+  /** Locale key of the notice shown when a page reports `truncated`. */
+  truncatedKey?: string
+  /** Rendered on the dialog only (default: dialog and /search page). */
+  dialogOnly?: boolean
 }
-export interface AppBellKind { kind: string; href: (row: Record<string, unknown>) => string | null; titleKey?: string }
+export interface AppBellKind {
+  kind: string
+  /** Where opening the row goes; null leaves it as mark-read only. */
+  href: (row: Record<string, unknown>) => string | null
+  /** Row title when it is not the generic one; `t` is the i18n translate function. */
+  title?: (row: Record<string, unknown>, t: (key: string, count?: number) => string) => string
+  titleKey?: string
+}
 export interface AppLandingEntry {
   path: string; capability: string
   /** Ordered after the foundation destinations (settings, access) instead of in rail order. */

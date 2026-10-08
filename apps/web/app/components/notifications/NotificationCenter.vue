@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
-import { useNotifications, useMarkNotificationRead, isDigestNotification, isKnownNotification, isMeetingNotification, type BellNotification } from '@/composables/useNotifications'
+import { useNotifications, useMarkNotificationRead, isDigestNotification, isKnownNotification, type BellNotification } from '@/composables/useNotifications'
+import { bellKindFor } from '@/modules/surfaces'
 import { formatNotificationTimestamp, genericNotificationText, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
 
 const { t, locale, localeProperties } = useI18n()
@@ -24,17 +25,14 @@ function notificationTimestamp(item: BellNotification) {
 }
 
 function notificationHref(item: BellNotification): string | null {
-  if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
-  if (isMeetingNotification(item)) return `/meetings/${item.meeting_id}`
-  if (isKnownNotification(item)) return `/tasks/${item.task_id}`
-  // A newer application's row has no client route in this build: opening it only marks it read.
-  return null
+  // A kind no manifest declares (a newer application's row) has no client route in this build:
+  // opening it only marks it read.
+  return bellKindFor(item.kind)?.href(item as unknown as Record<string, unknown>) ?? null
 }
 
 function previewTitle(item: BellNotification): string {
-  if (isDigestNotification(item)) return t('tasks.digest.count', item.overdue_count)
-  if (isMeetingNotification(item)) return item.meeting_name
-  if (isKnownNotification(item)) return item.task_name
+  const declared = bellKindFor(item.kind)?.title
+  if (declared) return declared(item as unknown as Record<string, unknown>, (key, count) => (count === undefined ? t(key) : t(key, count)))
   return genericNotificationText(item).title
 }
 

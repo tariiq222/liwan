@@ -1,3 +1,4 @@
+import { MeetingNotificationSchema } from '@nasq/contracts'
 import type { AppManifest } from '../types'
 
 const manifest: AppManifest = {
@@ -16,7 +17,14 @@ const manifest: AppManifest = {
     { pattern: /^\/meetings\/series\/new$/, capability: 'meetings.create' },
     { pattern: /^\/meetings\/[^/]+\/(edit|resolutions\/new)$/, capability: 'meetings.read' },
   ],
-  bell: { capabilities: ['meetings.read'] },
+  bell: {
+    capabilities: ['meetings.read'],
+    kinds: MeetingNotificationSchema.shape.kind.options.map(kind => ({
+      kind,
+      href: (row: Record<string, unknown>) => `/meetings/${row.meeting_id}`,
+      title: (row: Record<string, unknown>) => String(row.meeting_name),
+    })),
+  },
   isNavActive(path, target) {
     if (target === '/meetings') {
       if (path.startsWith('/meetings/calendar') || path.startsWith('/meetings/series')) return false

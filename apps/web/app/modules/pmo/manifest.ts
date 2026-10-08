@@ -1,4 +1,6 @@
+import { TaskNotificationKindSchema } from '@nasq/contracts'
 import type { AppManifest } from '../types'
+import { projectsSearch, tasksSearch } from './search'
 
 const isProjectSettings = (path: string) => path === '/projects/settings' || path.startsWith('/projects/settings/')
 
@@ -27,7 +29,18 @@ const manifest: AppManifest = {
     { pattern: /^\/projects\/[^/]+\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/new$/, capability: 'pmo.projects.create' },
   ],
-  bell: { capabilities: ['pmo.tasks.read'] },
+  bell: {
+    capabilities: ['pmo.tasks.read'],
+    kinds: [
+      ...TaskNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/tasks/${row.task_id}`, title: (row: Record<string, unknown>) => String(row.task_name) })),
+      {
+        kind: 'overdue_digest',
+        href: row => `/notification-digests/${row.digest_id}`,
+        title: (row, t) => t('tasks.digest.count', Number(row.overdue_count)),
+      },
+    ],
+  },
+  search: [projectsSearch, tasksSearch],
   returnToPaths: ['/archived-tasks'],
   isNavActive(path, target) {
     if (target !== '/projects') return undefined
