@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { assertReconfigureAuthority, type SubscriptionRunner } from './subscription-reconfigure.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 import type { Pool } from 'pg'
-import type { SharedJob } from '@nasq/commercial-contracts/shared'
+import type { SharedJob,SharedReconfigureJob } from '@nasq/commercial-contracts/shared'
 import { sharedObservationSchema } from '@nasq/commercial-contracts/shared'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
@@ -21,6 +21,11 @@ import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
  * Mirrors tools/nasq_cli/managed_verify.py ERROR_CODES plus the managed-policy
  * and catalog-source codes classify_error allows across the IPC boundary. */
+/** The request the subscription effect receives; `admin_login` is sent only when the control plane stored one. */
+export function subscriptionRequest(input:{job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number},adminLogin?:string|null){
+  return {action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},...input.job.authority,attemptId:input.attemptId,fence:input.fence,
+    ...(typeof adminLogin==='string' && adminLogin.length>0?{admin_login:adminLogin}:{})}
+}
 export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present'])
 
 /** Non-reclaimable physical reservation + current durable claim per stage.
@@ -147,7 +152,10 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const subscriptionRunner:SubscriptionRunner=async input=>{
     const assertCurrent=async()=>{await input.assertOwned();await transaction(pool,client=>assertReconfigureAuthority(client,input.job))}
     await assertCurrent()
-    return subscriptionExecute({action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},...input.job.authority,attemptId:input.attemptId,fence:input.fence},assertCurrent)
+    // The enrolment administrator is the one stored in the control plane's onboarding record.
+    // Older tenants without it get no login, and the effect then grants no roles.
+    const admin=input.action==='reconfigure'?await pool.query("SELECT admin_login FROM shared_onboardings WHERE control_tenant_id=$1 AND database_name=$2 AND host=$3 AND stage='active'",[input.job.controlTenantId,input.job.binding.database,input.job.host]):undefined
+    return subscriptionExecute(subscriptionRequest(input,admin?.rowCount===1?admin.rows[0].admin_login:undefined),assertCurrent)
   }
   const observeSubscription:ObserveRunner=async input=>{
     const row=await pool.query('SELECT host FROM shared_registry_bindings WHERE control_tenant_id=$1',[input.tenant_id])

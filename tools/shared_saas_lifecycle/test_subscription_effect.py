@@ -306,6 +306,23 @@ class ReconfigureTests(Base):
         self.assertIn("._nasq_close_unlisted_features(values['features'])", script)
         self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
 
+    def test_apply_script_grants_newly_opened_roles_to_the_enrolment_admin_only(self):
+        script = se.build_apply_script(make_request(admin_login='boss@acme.test'))
+        self.assertIn("values = json.loads(", script)
+        self.assertIn('boss@acme.test', script)
+        self.assertIn("roles_before = env['nasq.entitlement.service']._nasq_entitled_admin_roles()", script)
+        self.assertIn("operator._nasq_grant_opened_admin_roles(values['admin_login'], roles_before)", script)
+        self.assertLess(script.index('roles_before ='), script.index("'features': features"))
+        # An older job without a login passes None; Odoo grants nothing and logs it.
+        self.assertIn('"admin_login": null', se.build_apply_script(make_request()))
+
+    def test_admin_login_is_optional_and_validated(self):
+        se.validate_reconfigure(make_request())
+        se.validate_reconfigure(make_request(admin_login='boss@acme.test'))
+        for bad in ('', 5, 'a' * 255, 'x\ny'):
+            with self.assertRaises(EffectError, msg=repr(bad)):
+                se.validate_reconfigure(make_request(admin_login=bad))
+
     def test_release_complete_target_installs_nothing(self):
         modules = ['nasq_api', 'nasq_core', 'nasq_platform', 'nasq_pmo']
         request = make_request(entitlement={**make_request()['entitlement'], 'modules': modules})

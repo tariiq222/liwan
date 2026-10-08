@@ -276,3 +276,60 @@ class TestEntitlements(TransactionCase):
         )
         self.record.invalidate_recordset()
         self.assertTrue(self.service._nasq_claim_storage(1))
+
+    def _admin_role_probe(self):
+        registry = self.features._nasq_feature_map()
+        if 'pmo.enabled' not in registry or 'pmo_manager' not in self.env['nasq.access.service']._nasq_legacy_admin_roles():
+            self.skipTest('needs nasq_pmo installed')
+        closed = self.service._nasq_close_unlisted_features(
+            {k: v for k, v in self.record.features.items() if k in ('users.limit', 'storage.limit_mb', 'branches.extra_limit')},
+        )
+        self._operator().write({'features': closed})
+        before = self.service._nasq_entitled_admin_roles()
+        self.assertNotIn('pmo_manager', before)
+        self._operator().write({'features': {**closed, 'pmo.enabled': True}})
+        return before
+
+    def _assigned(self, user):
+        return set(self.env['nasq.access.assignment'].search([
+            ('user_id', '=', user.id), ('company_id', '=', self.record.root_company_id.id),
+        ]).mapped('role_id.key'))
+
+    def test_newly_opened_roles_go_to_the_enrolment_admin_only(self):
+        before = self._admin_role_probe()
+        other = new_test_user(self.env, login='other_internal', groups='nasq_core.group_employee')
+        admin = new_test_user(self.env, login='enrolment_admin', groups='nasq_core.group_employee')
+        granted = self._operator()._nasq_grant_opened_admin_roles('enrolment_admin', before)
+        self.assertIn('pmo_manager', granted)
+        self.assertIn('pmo_manager', self._assigned(admin))
+        self.assertNotIn('pmo_manager', self._assigned(other))
+        self.assertTrue(set(granted).isdisjoint(before))  # roles already open are not re-granted
+        # Replays are idempotent and nothing is revoked when the app closes again.
+        self._operator()._nasq_grant_opened_admin_roles('enrolment_admin', before)
+        self.assertEqual(
+            self.env['nasq.access.assignment'].search_count([
+                ('user_id', '=', admin.id), ('role_id.key', '=', 'pmo_manager'),
+            ]), 1,
+        )
+        self._operator().write({'features': self.service._nasq_close_unlisted_features(
+            {k: v for k, v in self.record.features.items() if k in ('users.limit', 'storage.limit_mb', 'branches.extra_limit')},
+        )})
+        self.assertEqual(self._operator()._nasq_grant_opened_admin_roles('enrolment_admin', before), [])
+        self.assertIn('pmo_manager', self._assigned(admin))
+
+    def test_no_login_or_unusable_login_grants_nothing(self):
+        before = self._admin_role_probe()
+        inactive = new_test_user(self.env, login='inactive_admin', groups='nasq_core.group_employee')
+        inactive.active = False
+        portal = new_test_user(self.env, login='portal_admin', groups='base.group_portal')
+        with self.assertLogs('odoo.addons.nasq_platform.models.tenant_profile', level='INFO'):
+            self.assertEqual(self._operator()._nasq_grant_opened_admin_roles(None, before), [])
+        for login in ('inactive_admin', 'portal_admin', 'nobody_here'):
+            self.assertEqual(self._operator()._nasq_grant_opened_admin_roles(login, before), [], login)
+        self.assertNotIn('pmo_manager', self._assigned(inactive))
+        self.assertNotIn('pmo_manager', self._assigned(portal))
+
+    def test_granting_roles_needs_the_operator(self):
+        with self.assertRaises(AccessError):
+            self.record._nasq_grant_opened_admin_roles('enrolment_admin', [])
+

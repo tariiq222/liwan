@@ -76,6 +76,10 @@ def validate_reconfigure(request):
         raise EffectError('entitlement_invalid')
     odoo_effect.validate_modules(ent['modules'])
     validate_features(ent['features'])
+    login = request.get('admin_login')
+    if login is not None and (not isinstance(login, str) or not 1 <= len(login) <= 254
+                              or any(ord(c) < 32 for c in login)):
+        raise EffectError('input_invalid')
     branches = request['branches']
     if not isinstance(branches, dict) or set(branches) != {'apply', 'archive'}:
         raise EffectError('branches_invalid')
@@ -172,12 +176,15 @@ try:
         refuse('observed_mismatch')
     operator = profile.with_context(**{OPERATOR_CONTEXT: True})
     if current != values['target_revision_id']:
+        roles_before = env['nasq.entitlement.service']._nasq_entitled_admin_roles()
         # Every application stays installed; keys the target omits close (booleans
         # false, limits 0). Odoo still refuses a target without its platform keys.
         features = env['nasq.entitlement.service']._nasq_close_unlisted_features(values['features'])
         operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
                         'commercial_digest': values['digest'],
                         'commercial_applied_at': fields.Datetime.now()})
+        # Roles the policy newly opened go to the enrolment administrator only.
+        operator._nasq_grant_opened_admin_roles(values['admin_login'], roles_before)
     # Archive first so a swap never trips branches.extra_limit; data is kept.
     for uid in values['archive']:
         branch = env['nasq.tenant.branch'].search([('branch_uid', '=', uid)])
@@ -212,7 +219,8 @@ def build_apply_script(request):
     values = {'database': request['tenant']['database'], 'operation_id': request['operation_id'],
               'previous_revision_id': request['previous_revision_id'],
               'target_revision_id': request['target_revision_id'], 'digest': ent['digest'],
-              'features': ent['features'], 'apply': br['apply'], 'archive': br['archive']}
+              'features': ent['features'], 'apply': br['apply'], 'archive': br['archive'],
+              'admin_login': request.get('admin_login')}
     return _prefix(values) + _COMMON + _APPLY_BODY + _TAIL
 
 

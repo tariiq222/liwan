@@ -324,6 +324,48 @@ class NasqTenantProfile(models.Model):
         if not (self.env.su and self.env.context.get(OPERATOR_CONTEXT)):
             raise AccessError(self.env._('A trusted local operator is required.'))
 
+    def _nasq_grant_opened_admin_roles(self, login, roles_before):
+        """Give the enrolment administrator the roles a policy change newly opened.
+
+        ROLES_BEFORE are the administrator roles the previous policy opened. Only
+        the roles open now and not before are assigned, to the active internal
+        user whose login the control plane recorded at enrolment, in the root
+        company. Nothing is ever revoked; without a login or a matching user
+        nothing is granted. Returns the granted role keys.
+        """
+        self._nasq_require_operator()
+        previous = set(roles_before or ())
+        opened = [
+            key for key in self.env['nasq.entitlement.service']._nasq_entitled_admin_roles()
+            if key not in previous
+        ]
+        if not opened:
+            return []
+        if not login or not isinstance(login, str):
+            _logger.info('nasq_platform: no enrolment administrator login; opened roles %s not granted', opened)
+            return []
+        user = self.env['res.users'].search(
+            [('login', '=', login), ('active', '=', True), ('share', '=', False)], limit=1,
+        )
+        if not user:
+            _logger.info('nasq_platform: enrolment administrator is not an active internal user; roles not granted')
+            return []
+        company = self.root_company_id
+        granted = []
+        for key in opened:
+            role = self.env['nasq.access.role'].search([('key', '=', key)], limit=1)
+            if not role:
+                continue
+            assignment = self.env['nasq.access.assignment'].search([
+                ('user_id', '=', user.id), ('role_id', '=', role.id), ('company_id', '=', company.id),
+            ])
+            if not assignment:
+                self.env['nasq.access.assignment'].create({
+                    'user_id': user.id, 'role_id': role.id, 'company_id': company.id,
+                })
+            granted.append(key)
+        return granted
+
     def _nasq_apply_branches(self, operation_id, target_revision_id, branches):
         """Bind control-plane branches to child companies of the root company.
 
