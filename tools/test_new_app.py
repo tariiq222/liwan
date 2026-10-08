@@ -100,6 +100,12 @@ class TestNewApp(unittest.TestCase):
             if relative.endswith('.json'):
                 json.loads((self.root / relative).read_text(encoding='utf-8'))
 
+    def test_generated_model_declares_company_scope(self):
+        code, _, err = run(self.root, *ARGS)
+        self.assertEqual(code, 0, err)
+        model = (self.root / 'odoo-addons/nasq_zzprobe/models/zzprobe_record.py').read_text(encoding='utf-8')
+        self.assertIn("_nasq_scope = 'company'", model)
+
     def test_every_python_file_has_the_odoo_header(self):
         run(self.root, *ARGS)
         paths = list((self.root / 'odoo-addons/nasq_zzprobe').rglob('*.py'))
