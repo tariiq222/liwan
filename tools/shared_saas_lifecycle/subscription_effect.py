@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import re
+import signal
 import sys
 
 from tools.shared_saas_lifecycle import odoo_effect
@@ -478,6 +479,13 @@ def main(stdin=None, stdout=None):
             raise EffectError('operation_unavailable')
         validate_tenant(request['tenant'])
         runner = ComposeRunner(request)
+
+        def terminate(_signum, _frame):
+            # Kill the per-attempt effect container, not only the compose client.
+            runner.cancel()
+            raise EffectError('authority_lost')
+        signal.signal(signal.SIGTERM, terminate)
+        signal.signal(signal.SIGINT, terminate)
         if not isinstance(request.get('fence'), (int, str)) or not request.get('attemptId'):
             raise EffectError('input_invalid')
         effect = SubscriptionEffect(runner, odoo_effect.Path(request['config']['stateDir']) / 'reconfigure')

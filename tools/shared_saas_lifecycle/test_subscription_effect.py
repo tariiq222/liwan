@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Unit tests (no Odoo, no Docker): fake runner replaces script execution."""
+import io
 import json
+import signal
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from tools.shared_saas_lifecycle import subscription_effect as se
 from tools.shared_saas_lifecycle.odoo_effect import EffectError
@@ -347,6 +350,41 @@ class ObserveTests(Base):
             del bad['limit_gates'][missing]
             with self.assertRaises(EffectError, msg=missing):
                 self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+
+
+class SigtermTests(unittest.TestCase):
+    def test_sigterm_during_run_script_kills_the_current_container(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            for name in ('compose.yml', 'env'):
+                (root / name).write_text('')
+            request = make_request(
+                fence=1, attemptId='aaaaaaaa-1111-4111-8111-111111111111',
+                config={'schemaVersion': 1, 'projectName': 'nasq-shared-acme', 'composeFile': str(root / 'compose.yml'),
+                        'envFile': str(root / 'env'), 'stateDir': str(root), 'domainSuffix': 'example.test'})
+            handlers, killed = {}, []
+
+            def hang(self, args, **kwargs):
+                # SIGTERM arrives while the effect container is running.
+                handlers[signal.SIGTERM](signal.SIGTERM, None)
+
+            def fake_run(args, **kwargs):
+                killed.append(args)
+
+            def fake_observe(self_, request_):
+                self_.runner.run_script('print(1)', 'observe')
+
+            out = io.StringIO()
+            with mock.patch.object(se.signal, 'signal', lambda num, fn: handlers.__setitem__(num, fn)), \
+                    mock.patch.object(se.ComposeRunner, 'command', hang), \
+                    mock.patch.object(se.odoo_effect.subprocess, 'run', fake_run), \
+                    mock.patch.object(se.SubscriptionEffect, 'observe', fake_observe):
+                code = se.main(stdin=io.StringIO(json.dumps(dict(request, action='observe')) + '\n'), stdout=out)
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(out.getvalue()), {'error_code': 'authority_lost'})
+        self.assertEqual(len(killed), 1)
+        self.assertEqual(killed[0][:2], ['docker', 'kill'])
+        self.assertRegex(killed[0][2], r'^nasq-shared-acme-effect-aaaaaaaa-observe-[0-9a-f]{8}$')
 
 
 if __name__ == '__main__':
