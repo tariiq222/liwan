@@ -54,3 +54,12 @@ The app installs, serves its route and passes its own tests; web, contracts, pol
 2. Generalise the 11 foundation Odoo tests (same approach as the web test generalisation of task 8) so adding an app keeps the suite green; until then the allowed-files rule cannot be met without a red suite.
 3. The mock UI was not exercised in a browser; the page itself (SharedPageState list) is only covered by type-check and the manifest assertion.
 4. Baseline Odoo run without sample was not repeated; attribution of the 11 failures rests on assertion output.
+
+## Update after the fix wave
+
+The two gaps above are closed on `codex/tools-new-app`:
+
+- The model template now declares `_nasq_scope = 'company'` (tested in `tools/test_new_app.py`).
+- The 11 foundation Odoo tests accept additional applications (`4a113daf`). Scratch runs: release modules only,
+  `0 failed, 0 error(s) of 797 tests`; release modules plus a generated `nasq_zzprobe`,
+  `0 failed, 0 error(s) of 807 tests`.
