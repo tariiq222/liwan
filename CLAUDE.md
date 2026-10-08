@@ -457,6 +457,9 @@ addon `tests/__init__.py`. Loading a code/data change into an authorized
 development database may use `-u <addon> --no-http --stop-after-init`; never
 run tests against the dev `odoo19` database.
 
+Test layers and the isolated agentic e2e runner (`npm run e2e`) are described in
+[`docs/testing.md`](docs/testing.md).
+
 The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts` and never
 edit that file. Use `rg` and targeted file reads for code search across Odoo and Nasq addons.
 
