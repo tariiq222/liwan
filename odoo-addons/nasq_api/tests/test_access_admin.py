@@ -270,12 +270,23 @@ class TestAccessAdminRoles(NasqApiCase):
                 ('name', 'in', ['nasq_hr', 'nasq_pmo', 'nasq_meetings']), ('state', '=', 'installed'),
             ])
         }
+        installed_all = {
+            module.name for module in self.env['ir.module.module'].search([('state', '=', 'installed')])
+        }
         # 9 core capabilities, plus 8 for HR, 8 for PMO and 3 for meetings.
         total = (
             9 + 8 * ('nasq_hr' in installed) + 8 * ('nasq_pmo' in installed)
             + 3 * ('nasq_meetings' in installed)
         )
-        self.assertEqual((len(body['items']), body['total']), (total, total))
+        # An application added later adds capabilities; today's are exact.
+        owners = self.env['nasq.access.service']._nasq_capability_map()
+        release = {'nasq_core', 'nasq_hr', 'nasq_pmo', 'nasq_meetings'}
+        items = [item for item in body['items'] if owners[item['key']]['owner'] in release]
+        extra = len(body['items']) - len(items)
+        self.assertEqual((len(items), body['total'] - extra), (total, total))
+        self.assertTrue(all(
+            owners[item['key']]['owner'] in installed_all for item in body['items'] if item not in items
+        ))
         self.assertEqual(
             {item['key'] for item in body['items'] if item['key'].startswith('meetings.')},
             {'meetings.read', 'meetings.create', 'meetings.manage'} if 'nasq_meetings' in installed else set(),

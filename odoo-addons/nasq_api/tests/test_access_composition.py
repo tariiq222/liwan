@@ -25,6 +25,11 @@ EMPLOYEE = frozenset({
     'meetings.read',
 })
 CATALOG = SYSTEM | HR | PMO | MEETINGS
+# These tests pin today's applications. An application added later extends the
+# composition with its own keys, roles and groups; those are checked only for
+# what every application must satisfy (an installed owner, one domain per key).
+RELEASE_OWNERS = frozenset({'nasq_core', 'nasq_hr', 'nasq_pmo', 'nasq_meetings'})
+BUILT_IN_ROLES = frozenset({'employee', 'hr_manager', 'pmo_manager', 'system_admin', 'vendor_support'})
 DEPENDENCIES = {
     'access.users.grant': {'access.users.read', 'access.roles.read'},
     'access.users.assign_roles': {'access.users.read', 'access.roles.read'},
@@ -65,20 +70,28 @@ class TestAccessComposition(TransactionCase):
         cls.service = cls.env['nasq.access.service']
         cls.Permission = cls.env['nasq.access.permission']
 
+    def _release(self, keys):
+        """The keys of today's applications among `keys`."""
+        catalog = self.service._nasq_capability_map()
+        return {key for key in keys if catalog[key]['owner'] in RELEASE_OWNERS}
+
     def _role_keys(self, key):
         role = self.env['nasq.access.role'].search([('key', '=', key), ('type', '=', 'built_in')])
         self.assertEqual(len(role), 1, key)
-        return set(role.permission_ids.mapped('key'))
+        return self._release(role.permission_ids.mapped('key'))
 
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
     def test_catalog_is_the_same_28_keys_each_owned_by_one_addon(self):
         catalog = self.service._nasq_capability_map()
-        self.assertEqual(set(catalog), CATALOG)
-        self.assertEqual(len(catalog), 28)
+        self.assertEqual(self._release(catalog), CATALOG)
+        self.assertEqual(len(self._release(catalog)), 28)
         permissions = self.Permission.search([])
-        self.assertEqual(sorted(permissions.mapped('key')), sorted(CATALOG))
+        self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
+        installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
+        for key, definition in catalog.items():
+            self.assertIn(definition['owner'], installed, key)
         xmlids = permissions.get_external_id()
         for permission in permissions:
             owner = catalog[permission.key]['owner']
@@ -92,23 +105,22 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(self._role_keys('pmo_manager'), PMO)
         self.assertEqual(self._role_keys('system_admin'), SYSTEM | MEETINGS)
         self.assertEqual(self._role_keys('vendor_support'), CATALOG)
-        self.assertEqual(
+        self.assertLessEqual(
+            BUILT_IN_ROLES,
             set(self.env['nasq.access.role'].search([('type', '=', 'built_in')]).mapped('key')),
-            {'employee', 'hr_manager', 'pmo_manager', 'system_admin', 'vendor_support'},
         )
         grants = self.service._nasq_builtin_role_grants()
-        self.assertEqual(
-            {self.env.ref(role_xmlid).key for role_xmlid in grants},
-            {'employee', 'hr_manager', 'pmo_manager', 'system_admin', 'vendor_support'},
-        )
+        self.assertLessEqual(BUILT_IN_ROLES, {self.env.ref(role_xmlid).key for role_xmlid in grants})
 
     def test_permission_dependencies_are_unchanged(self):
         actual = {
             permission.key: set(permission.dependency_ids.mapped('key'))
             for permission in self.Permission.search([]) if permission.dependency_ids
         }
-        self.assertEqual(actual, DEPENDENCIES)
-        self.assertEqual(self.service._nasq_permission_dependencies(), DEPENDENCIES)
+        release = self._release(actual)
+        self.assertEqual({key: actual[key] for key in release}, DEPENDENCIES)
+        composed = self.service._nasq_permission_dependencies()
+        self.assertEqual({key: composed[key] for key in self._release(composed)}, DEPENDENCIES)
 
     def test_groups_keep_their_odoo_and_capability_implications(self):
         employee = self.env.ref('nasq_core.group_employee')
@@ -119,7 +131,7 @@ class TestAccessComposition(TransactionCase):
             permission.key for permission in self.Permission.search([])
             if self.env.ref(permission.group_xmlid) in vendor.all_implied_ids
         }
-        self.assertEqual(implied_keys, CATALOG - {'meetings.read', 'meetings.create'})
+        self.assertEqual(self._release(implied_keys), CATALOG - {'meetings.read', 'meetings.create'})
         access_admin = self.env.ref('nasq_core.group_access_admin')
         self.assertIn(self._group('meetings.manage'), access_admin.all_implied_ids)
         legacy_admin = self.env.ref('nasq_core.group_customer_admin')
@@ -141,7 +153,7 @@ class TestAccessComposition(TransactionCase):
             'role_id': self.env.ref('nasq_core.role_system_admin').id,
             'company_id': self.env.company.id,
         }])
-        self.assertEqual(self.service._nasq_capability_keys(admin), SYSTEM | MEETINGS)
+        self.assertEqual(self._release(self.service._nasq_capability_keys(admin)), SYSTEM | MEETINGS)
         self.assertIn(self._group('meetings.manage'), admin.all_group_ids)
         self.assertFalse(admin.has_group('hr.group_hr_manager'))
         self.assertFalse(admin.has_group('project.group_project_manager'))
@@ -155,19 +167,20 @@ class TestAccessComposition(TransactionCase):
         )
         for index, (groups, expected) in enumerate(cases):
             user = new_test_user(self.env, login=f'composition_legacy_{index}', groups=groups)
-            self.assertEqual(self.service._nasq_capability_keys(user), expected, groups)
+            self.assertEqual(self._release(self.service._nasq_capability_keys(user)), expected, groups)
 
     def test_actor_keys_and_legacy_admin_roles_are_composed(self):
-        self.assertEqual(self.service._nasq_customer_actor_keys(), {
+        self.assertEqual(self._release(self.service._nasq_customer_actor_keys()), {
             'access.users.grant', 'access.users.assign_roles', 'access.users.disable',
             'access.users.reset_password', 'hr.employees.archive',
         })
-        self.assertEqual(
-            set(self.service._nasq_legacy_admin_roles()), {'system_admin', 'hr_manager', 'pmo_manager'},
+        self.assertLessEqual(
+            {'system_admin', 'hr_manager', 'pmo_manager'}, set(self.service._nasq_legacy_admin_roles()),
         )
 
     def test_permission_domains_are_unchanged_on_the_wire(self):
         self.assertEqual(
             {permission.key: permission.domain for permission in self.Permission.search([])},
-            {key: key.split('.')[0] for key in CATALOG},
+            {key: key.split('.')[0] for key in self.service._nasq_capability_map()},
         )
+        self.assertLessEqual(CATALOG, set(self.service._nasq_capability_map()))

@@ -40,6 +40,12 @@ class TestEntitlements(TransactionCase):
         'nasq_chat': {'chat.enabled'},
     }
 
+    def _release_boolean_keys(self):
+        return set().union(*self.APP_BOOLEANS.values())
+
+    # Owners of today's capabilities; an application added later owns more.
+    RELEASE_CAPABILITY_OWNERS = {'nasq_core', 'nasq_hr', 'nasq_pmo', 'nasq_meetings'}
+
     def _installed_apps(self):
         return {
             module.name for module in self.env['ir.module.module'].sudo().search([
@@ -76,12 +82,12 @@ class TestEntitlements(TransactionCase):
         if 'nasq_pmo' in self._installed_apps():
             self.assertIsNone(self.record.features['projects.max_projects'])
         self.assertIsNone(self.record.features['storage.limit_mb'])
-        self.assertEqual(
-            set(self.record.retained_read_features),
-            flags,
-        )
-        if self._installed_apps() == {'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat'}:
-            self.assertEqual(set(self.record.retained_read_features), {
+        # An application added later is granted too: its keys are extra.
+        retained = set(self.record.retained_read_features)
+        self.assertEqual(retained & self._release_boolean_keys(), flags)
+        self.assertTrue(all(key.endswith('.enabled') for key in retained - flags))
+        if self._installed_apps() == set(self.APP_BOOLEANS):
+            self.assertEqual(retained & self._release_boolean_keys(), {
                 'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',
             })
         first_revision = self.record.policy_revision
@@ -176,31 +182,38 @@ class TestEntitlements(TransactionCase):
 
     def test_registry_exposes_owned_keys_and_baseline_capabilities(self):
         apps = self._installed_apps()
-        self.assertEqual(set(self.features._nasq_module_map()), apps)
-        self.assertEqual(
-            set(self.features._nasq_boolean_keys()), self._installed_boolean_keys(),
-        )
+        # Today's applications are exact; an application added later only adds
+        # keys, and every key it adds belongs to an installed module.
+        installed_modules = set(self.features._nasq_installed_module_ids())
+        release = set(self.APP_BOOLEANS)
+        module_map = set(self.features._nasq_module_map())
+        self.assertEqual(module_map & release, apps)
+        self.assertLessEqual(module_map, installed_modules | release)
+        booleans = set(self.features._nasq_boolean_keys())
+        self.assertEqual(booleans & self._release_boolean_keys(), self._installed_boolean_keys())
+        self.assertTrue(all(key.endswith('.enabled') for key in booleans))
         limits = {'users.limit', 'storage.limit_mb', 'branches.extra_limit'}
         if 'nasq_pmo' in apps:
             limits.add('projects.max_projects')
-        self.assertEqual(set(self.features._nasq_limit_keys()), limits)
+        actual_limits = set(self.features._nasq_limit_keys())
+        self.assertLessEqual(limits, actual_limits)
+        if module_map <= release:
+            self.assertEqual(actual_limits, limits)
         capability_map = self.env['nasq.access.service']._nasq_capability_map()
         self.assertTrue(set(capability_map) >= CAPABILITIES)
+        release_map = {
+            key: value for key, value in capability_map.items()
+            if value['owner'] in self.RELEASE_CAPABILITY_OWNERS
+        }
+        for key, value in capability_map.items():
+            self.assertTrue(value['owner'], key)
+            if key not in release_map:
+                self.assertIn(value['owner'], installed_modules, key)
         # 9 core capabilities, plus 8 for HR, 8 for PMO and 3 for meetings (28 in all).
         expected = 9 + 8 * ('nasq_hr' in apps) + 8 * ('nasq_pmo' in apps) + 3 * ('nasq_meetings' in apps)
-        self.assertEqual(len(capability_map), expected)
-        if apps == {'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat'}:
-            self.assertEqual(set(self.features._nasq_module_map()), {
-                'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat',
-            })
-            self.assertEqual(set(self.features._nasq_boolean_keys()), {
-                'pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled',
-            })
-            self.assertEqual(set(self.features._nasq_limit_keys()), {
-                'users.limit', 'projects.max_projects', 'storage.limit_mb',
-                'branches.extra_limit',
-            })
-            self.assertEqual(len(capability_map), 28)
+        self.assertEqual(len(release_map), expected)
+        if apps == set(self.APP_BOOLEANS):
+            self.assertEqual(len(release_map), 28)
         self.assertNotIn('probe.inspect', capability_map)
         self.assertNotIn('probe.enabled', self.features._nasq_feature_map())
 
