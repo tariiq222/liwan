@@ -242,6 +242,9 @@ function prepareOdoo({ port, pg, env }) {
     console.error(`e2e_isolated: E2E_ODOO_UPDATE=1, updating ${db}`)
     if (odoo('update', { modules }) !== 0) throw new Error(`module update failed.\n--- ${prepLog} ---\n${tail(prepLog)}`)
     if (odoo('shell') !== 0) throw new Error(`seed failed.\n--- ${prepLog} ---\n${tail(prepLog)}`)
+  } else if (env.E2E_ODOO_SEED === '1') {
+    console.error(`e2e_isolated: E2E_ODOO_SEED=1, re-running the seed on ${db}`)
+    if (odoo('shell') !== 0) throw new Error(`seed failed.\n--- ${prepLog} ---\n${tail(prepLog)}`)
   }
   return { python, bin, conf, odooEnv, logFile, db }
 }

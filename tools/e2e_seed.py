@@ -15,7 +15,8 @@ import os
 DB_GUARD = 'nasq_scratch_e2e'
 ACCOUNTS = (
     # login, display name, groups, password env var, default password
-    ('e2e_admin', 'E2E Admin', ('base.group_user', 'base.group_system', 'nasq_core.group_employee', 'nasq_pmo.group_pmo_manager'),
+    ('e2e_admin', 'E2E Admin', ('base.group_user', 'base.group_system', 'nasq_core.group_employee', 'nasq_pmo.group_pmo_manager',
+      'nasq_hr.group_hr_manager', 'nasq_core.group_access_admin'),
      'E2E_USER_ADMIN_PASSWORD', 'nasq-e2e-admin-2026'),
     ('e2e_employee', 'E2E Employee', ('base.group_user', 'nasq_core.group_employee'),
      'E2E_USER_EMPLOYEE_PASSWORD', 'nasq-e2e-employee-2026'),
