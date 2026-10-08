@@ -147,12 +147,36 @@ export async function markReturned(pool: Pool, { order_id, adapter }: { order_id
   await lookup(pool, adapter, row)
   return paymentAttemptView((await pool.query('SELECT * FROM payment_attempts WHERE id=$1', [row.id])).rows[0])
 }
-export async function reconcileUnknownAttempts(pool: Pool, adapter: PaymentAdapter) {
-  const rows = (await pool.query("SELECT * FROM payment_attempts WHERE status='unknown' AND provider=$1 AND mode=$2 ORDER BY created_at", [adapter.provider,adapter.mode])).rows
-  const results: { id: string; outcome: string }[] = []
+export type ReconciliationOutcome = 'accepted' | 'ignored' | 'rejected' | 'unknown' | 'mismatch' | 'provider_unavailable' | 'provider_error' | 'lookup_failed'
+
+/** Lookup only: unresolved provider state never authorizes a replacement charge. */
+export async function reconcileUnknownAttempts(pool: Pool, adapter: PaymentAdapter,
+  options: { clock?: () => number; limit?: number } = {}) {
+  const now = new Date((options.clock ?? Date.now)())
+  const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(100, Math.floor(options.limit!))) : 20
+  // Rotate even failed lookups before leaving the database, so one unreachable
+  // invoice cannot monopolize every bounded batch. Recent reservations may still
+  // be in flight at the provider; only inspect created rows after a crash grace.
+  const rows = (await pool.query(`WITH candidates AS (
+    SELECT id FROM payment_attempts
+    WHERE status IN ('created','unknown','redirected','pending') AND provider=$1 AND mode=$2
+      AND (status<>'created' OR created_at<=$3::timestamptz - interval '5 minutes')
+    ORDER BY updated_at,created_at,id LIMIT $4 FOR UPDATE SKIP LOCKED
+  ) UPDATE payment_attempts AS attempt SET updated_at=$3
+    FROM candidates WHERE attempt.id=candidates.id RETURNING attempt.*`,
+  [adapter.provider, adapter.mode, now, limit])).rows
+  const results: { id: string; outcome: ReconciliationOutcome }[] = []
   for (const row of rows) {
     try { results.push({ id: row.id, outcome: await lookup(pool, adapter, row) }) }
-    catch { results.push({ id: row.id, outcome: 'unknown' }) }
+    catch (error) {
+      const code = (error as { code?: string } | null)?.code
+      const outcome: ReconciliationOutcome = code === 'payment_unknown' || code === 'not_found' ? 'unknown'
+        : code === 'payment_mismatch' || code === 'provider_mismatch' || code === 'event_mismatch' ? 'mismatch'
+          : code === 'timeout' || code === 'provider_unreachable' ? 'provider_unavailable'
+            : code === 'provider_error' || code === 'provider_not_configured' || code === 'key_mode_mismatch' ? 'provider_error'
+              : 'lookup_failed'
+      results.push({ id: row.id, outcome })
+    }
   }
   return results
 }
