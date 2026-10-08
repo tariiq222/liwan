@@ -55,3 +55,46 @@ it.each([{state:'unknown'},{state:'partial'},{state:'present',binding:job.bindin
   expect(writes[0]).toContain("stage='needs_intervention',error_code='readiness_recheck_failed'")
   expect(writes[1]).toContain("status='needs_intervention'")
 })
+
+import { mkdtempSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, vi } from 'vitest'
+import { onboardSharedTenant } from './onboarding.js'
+describe('Track A is retired for new shared onboarding (owner decision O1)',()=>{
+  const packageInput={request_id:input.request_id,name:'Example',package_revision_id:'11111111-1111-4111-8111-111111111111',admin_name:'Administrator',admin_login:'admin@example.test',reason:'Create first customer'}
+  let config:never
+  let previousMode:string|undefined
+  beforeEach(()=>{
+    const root=realpathSync(mkdtempSync(join(tmpdir(),'nasq-onboarding-test-')))
+    mkdirSync(join(root,'state'))
+    writeFileSync(join(root,'compose.yml'),'');writeFileSync(join(root,'runtime.env'),'')
+    const runtime=join(root,'runtime.json')
+    writeFileSync(runtime,JSON.stringify({schemaVersion:1,projectName:'nasq-saas-acceptance',composeFile:join(root,'compose.yml'),envFile:join(root,'runtime.env'),stateDir:join(root,'state'),domainSuffix:'local.test'}))
+    config={sharedRuntimeConfigPath:runtime,tenantRegistryPath:join(root,'registry.json'),repositoryRoot:root} as never
+    previousMode=process.env.NASQ_TENANCY_MODE;process.env.NASQ_TENANCY_MODE='shared'
+  })
+  afterEach(()=>{if(previousMode===undefined)delete process.env.NASQ_TENANCY_MODE;else process.env.NASQ_TENANCY_MODE=previousMode})
+  function fakePool(existing:unknown[]){
+    const sql:string[]=[]
+    const reply=async(text:string)=>{
+      sql.push(text)
+      if(text.includes('FROM vendor_memberships'))return {rowCount:1,rows:[{}]}
+      if(text.includes('SELECT * FROM shared_onboardings'))return {rowCount:existing.length,rows:existing}
+      return {rowCount:1,rows:[{tenant_id:input.request_id,job_id:'job-1',status:'provisioning',host:'h.local.test'}]}
+    }
+    const client={query:vi.fn(reply),release:vi.fn()}
+    return {sql,pool:{connect:async()=>client,query:vi.fn(reply)} as never}
+  }
+  it('refuses a new package_revision_id request with 410 package_retired before any write',async()=>{
+    const {pool,sql}=fakePool([])
+    await expect(onboardSharedTenant(pool,config,actor,packageInput)).rejects.toMatchObject({status:410,code:'package_retired',field:'package_revision_id'})
+    expect(sql.some(text=>/INSERT INTO|UPDATE \w+ SET/.test(text))).toBe(false)
+  })
+  it('still replays an already accepted request instead of answering 410',async()=>{
+    const identity=onboardingIdentity(packageInput,'local.test')
+    const {pool,sql}=fakePool([{issuer:actor.issuer,actor_uid:actor.actorUid,request_digest:identity.digest}])
+    await expect(onboardSharedTenant(pool,config,actor,packageInput)).resolves.toMatchObject({replay:true,tenant_id:input.request_id})
+    expect(sql.some(text=>text.includes('INSERT INTO tenants'))).toBe(false)
+  })
+})
