@@ -332,4 +332,3 @@ class TestEntitlements(TransactionCase):
     def test_granting_roles_needs_the_operator(self):
         with self.assertRaises(AccessError):
             self.record._nasq_grant_opened_admin_roles('enrolment_admin', [])
-
