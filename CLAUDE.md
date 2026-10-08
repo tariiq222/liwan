@@ -346,6 +346,9 @@ worktrees only after their content is preserved and no process is using them.
   only three registration files: `tools/arch_layers.json`,
   `deploy/catalog/solutions/platform_v3.json` and `packages/contracts/src/index.ts`
   (plus copies written by `python3 -B tools/catalog_check.py --sync-release-copies`).
+  It edits `platform_v3.json` in place only while that catalog is unpublished; after the
+  first publish a new application needs a new `platform_vN.json`, decided before the first
+  server deploy.
 
 ## Frontend and machine rules
 
@@ -410,6 +413,8 @@ ODOO_CONF=/absolute/path/to/scratch-only.conf
 WORKTREE=/absolute/path/to/nasq-worktree
 SCRATCH_ROOT=$(mktemp -d)
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
+export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+(cd "$WORKTREE" && python3 deploy/classification.py fixture --database nasq_scratch --mode saas --output "$NASQ_COMMERCIAL_CONFIG")
 # Set PGHOST, PGPORT, PGUSER, and PGPASSWORD in the environment as needed;
 # never put a password on the command line.
 PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
