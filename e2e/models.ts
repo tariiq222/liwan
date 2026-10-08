@@ -19,12 +19,12 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
  * Claude subscriptions, and we do not keep a separate Anthropic API key.
  */
 
-/** Read the XKIRO_API_KEY from the DSH credentials file without logging it. */
-function xkiroKeyFromCredentials(): string | undefined {
-  const file = path.join(
-    os.homedir(),
-    '.local/share/deepseek-harness/home/.credentials.yaml',
-  );
+/**
+ * Read a named entry from the `refs:` block of a DSH credentials file
+ * without logging it. Only lines indented under `refs:` count; a line not
+ * starting with two spaces is a new top-level key and ends the block.
+ */
+function readRefFromCredentials(file: string, name: string): string | undefined {
   try {
     const text = readFileSync(file, 'utf8');
     let inRefs = false;
@@ -33,19 +33,52 @@ function xkiroKeyFromCredentials(): string | undefined {
         inRefs = true;
         continue;
       }
-      if (inRefs) {
-        const m = line.match(/^  ([A-Za-z0-9_-]+):\s*(.*)$/);
-        if (m) {
-          if (m[1] === 'XKIRO_API_KEY') {
-            // `  XKIRO_API_KEY: <value>` inline under `refs:`.
-            return m[2].trim().replace(/^['"]|['"]$/g, '') || undefined;
-          }
-          // Another ref entry starts; keep scanning in case order changes.
-        }
+      if (!inRefs) continue;
+      if (!line.startsWith('  ')) {
+        // A top-level key: the `refs:` block has ended.
+        break;
       }
+      const m = line.match(/^  ([A-Za-z0-9_-]+):\s*(.*)$/);
+      if (m && m[1] === name) {
+        // `  <name>: <value>` inline under `refs:`.
+        return m[2].trim().replace(/^['"]|['"]$/g, '') || undefined;
+      }
+      // Another ref entry; keep scanning in case order changes.
     }
   } catch {
-    // File missing or unreadable: leave the key unresolved.
+    // File missing or unreadable: leave the ref unresolved.
+  }
+  return undefined;
+}
+
+/**
+ * Read the XKIRO_API_KEY from DSH credentials without logging it. DeepSeek
+ * Harness resolves its home as `$DSH_HOME`, else `~/.dsh`; candidate files
+ * are tried in order and the first key found wins.
+ */
+function xkiroKeyFromCredentials(): string | undefined {
+  const candidates: string[] = [];
+  if (process.env.E2E_DSH_CREDENTIALS) {
+    candidates.push(process.env.E2E_DSH_CREDENTIALS);
+  }
+  if (process.env.DSH_HOME?.trim()) {
+    candidates.push(path.join(process.env.DSH_HOME, '.credentials.yaml'));
+  }
+  // Local DSH dev checkout: its `deep` script runs the GUI with
+  // DSH_HOME=<home>/code/robban/.artifacts/auto-home, whose credentials file
+  // holds this machine's stored keys.
+  candidates.push(
+    path.join(os.homedir(), 'code/robban/.artifacts/auto-home/.credentials.yaml'),
+  );
+  candidates.push(path.join(os.homedir(), '.dsh/.credentials.yaml'));
+  candidates.push(
+    path.join(os.homedir(), '.local/share/deepseek-harness/home/.credentials.yaml'),
+  );
+  for (const file of candidates) {
+    const key = readRefFromCredentials(file, 'XKIRO_API_KEY');
+    if (key) {
+      return key;
+    }
   }
   return undefined;
 }
@@ -74,7 +107,9 @@ function lazyAuthFetch(resolveKey: () => string | undefined, keyName: string): t
     if (!key) {
       throw new Error(
         `e2e model auth: no API key for ${keyName}. ` +
-          `Set the ${keyName} environment variable or configure its stored credentials.`,
+          `Set the ${keyName} environment variable or configure its stored DSH ` +
+          `credentials ($DSH_HOME/.credentials.yaml, or a file selected via ` +
+          `E2E_DSH_CREDENTIALS).`,
       );
     }
     const headers = new Headers(init?.headers);

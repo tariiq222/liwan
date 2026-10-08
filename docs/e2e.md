@@ -23,7 +23,7 @@ Setup of the open-source [e2e](https://e2e.tester.army/docs) framework in this r
 
 | Agent | Model | Key source |
 | - | - | - |
-| `default` | xkiro `moonshotai/kimi-k3` (judge: xkiro `z-ai/glm-5.3`) | `XKIRO_API_KEY` env, else `~/.local/share/deepseek-harness/home/.credentials.yaml` → `refs.XKIRO_API_KEY` |
+| `default` | xkiro `moonshotai/kimi-k3` (judge: xkiro `z-ai/glm-5.3`) | `XKIRO_API_KEY` env, else DSH credentials (`E2E_DSH_CREDENTIALS`, `$DSH_HOME/.credentials.yaml`, or fallbacks) → `refs.XKIRO_API_KEY` |
 | `fast` | xkiro `z-ai/glm-5.3-flash` | same as `default` |
 | `deepseek` | commandcode `deepseek/deepseek-v4.1-flash` | `COMMANDCODE_API_KEY` env, else `~/.commandcode/auth.json` → `apiKey` |
 | `codex` | ChatGPT subscription `gpt-6.1-sol` | run `npx e2e login openai` once |
