@@ -111,7 +111,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   it('4 (API level): registered keys + a catalog tier appear in the release and in a bundle (module path and UI not proven)', async () => {
     const release = (await api('POST', '/catalog/releases', { catalog_version: state.version, reason })).body
     const probe = release.applications.find((a: any) => a.id === 'probe')
-    expect(probe).toMatchObject({ name_en: 'probe', selectable: true })
+    expect(probe).toMatchObject({ name_en: 'Probe', selectable: true })
     expect(probe.features.map((f: any) => f.key)).toEqual(['probe.enabled'])
     state.release = release
     const bundle = (id: string, keys: string[], limits: Record<string, number> = {}) => publish('bundles', { name: `${id} ${randomUUID()}`, description: id, audience: { kind: 'public' },
