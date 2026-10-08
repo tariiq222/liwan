@@ -1,8 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Pool } from 'pg'
 import { migrate } from '../db.js'
 import { acceptObservation, collectUsage, type UsageObserveRunner } from '../commercial/usage-collector.js'
+import { sharedRuntimeBusy } from '../commercial/scheduler.js'
 import { REGISTRY_ADVISORY_LOCK } from '../shared/registry-store.js'
 import { url } from './commercial-helpers.js'
 
@@ -33,6 +37,55 @@ describe('usage observation gate (no database)', () => {
     ['non-string gate names', ok(db, { limit_gates: { ...GATES, 'users.limit': [1] } })],
   ])('refuses %s', (_name, observed) => {
     expect(acceptObservation(observed, db, NOW)).toBeNull()
+  })
+})
+
+describe('usage collector yields to shared runtime jobs (no database)', () => {
+  const rows = ['t1', 't2', 't3'].map(id => ({ tenant_id: id, database_name: 'nasq_scratch_' + id.repeat(16).slice(0, 32).replace(/[^a-f0-9]/g, 'a'), registry_revision: '1' }))
+  const fakePool = () => ({
+    connect: async () => ({ query: async () => ({ rows: [{ ok: true }] }), release() {} }),
+    query: async (sql: string) => (String(sql).includes('SELECT x.tenant_id') ? { rows, rowCount: rows.length } : { rows: [], rowCount: 0 }),
+  })
+  it('observes nothing while busy and reports busy', async () => {
+    const seen: string[] = []
+    const result = await collectUsage(fakePool() as never, { runner: async i => { seen.push(i.tenant_id); return null }, busy: async () => true, log: () => {} })
+    expect(seen).toEqual([])
+    expect(result).toMatchObject({ busy: true, recorded: 0 })
+  })
+  it('stops before the next tenant once a job claims the runtime', async () => {
+    const seen: string[] = []
+    let busy = false
+    const result = await collectUsage(fakePool() as never, {
+      runner: async i => { seen.push(i.tenant_id); busy = true; return null }, busy: async () => busy, log: () => {} })
+    expect(seen).toEqual(['t1'])
+    expect(result.busy).toBe(true)
+  })
+  it('treats a failing busy check as busy and runs normally when idle', async () => {
+    const seen: string[] = []
+    const failing = await collectUsage(fakePool() as never, { runner: async i => { seen.push(i.tenant_id); return null }, busy: async () => { throw Error('x') }, log: () => {} })
+    expect(seen).toEqual([]); expect(failing.busy).toBe(true)
+    const idle = await collectUsage(fakePool() as never, { runner: async i => { seen.push(i.tenant_id); return null }, busy: async () => false, log: () => {} })
+    expect(seen).toEqual(['t1', 't2', 't3']); expect(idle.busy).toBeUndefined()
+  })
+  it('sharedRuntimeBusy: runtime-gate directory, a running shared job, otherwise idle', async () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'usage-busy-')))
+    try {
+      const state = join(dir, 'state'); mkdirSync(state)
+      writeFileSync(join(dir, 'compose.yml'), ''); writeFileSync(join(dir, 'env'), '')
+      const configPath = join(dir, 'runtime.json')
+      writeFileSync(configPath, JSON.stringify({ schemaVersion: 1, projectName: 'nasq-shared-test', composeFile: join(dir, 'compose.yml'), envFile: join(dir, 'env'), stateDir: state, domainSuffix: 'example.test' }))
+      let running = 0
+      const pool = { query: async (sql: string) => { expect(sql).toContain("state='running'"); return { rows: [], rowCount: running } } }
+      const busy = sharedRuntimeBusy(pool as never, { sharedRuntimeConfigPath: configPath } as never)
+      expect(await busy()).toBe(false)
+      mkdirSync(join(state, 'runtime-gate'))
+      expect(await busy()).toBe(true)
+      rmSync(join(state, 'runtime-gate'), { recursive: true })
+      expect(await busy()).toBe(false)
+      running = 1
+      expect(await busy()).toBe(true)
+      expect(await sharedRuntimeBusy(pool as never, {} as never)()).toBe(true) // no runtime config: the job check alone
+    } finally { rmSync(dir, { recursive: true, force: true }) }
   })
 })
 

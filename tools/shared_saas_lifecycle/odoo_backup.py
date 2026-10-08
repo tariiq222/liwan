@@ -289,6 +289,9 @@ print('{}')
         return manifest
 
     def capture(self):
+        # Refuse a busy project before anything is reserved or stopped (a usage observation opens
+        # DB sessions); the check after the stop below still closes the race with a late starter.
+        self.assert_no_effect_containers()
         permit('reserve')
         backups=self.root/'backups';backups.mkdir(mode=0o700,exist_ok=True);no_symlink(backups)
         self.artifact.mkdir(mode=0o700)

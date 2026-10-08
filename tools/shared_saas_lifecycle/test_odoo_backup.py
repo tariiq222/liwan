@@ -35,7 +35,7 @@ class BackupBoundaryTests(unittest.TestCase):
             runner.root = Path(raw).resolve()
             runner.request = {'attemptId':'one','fence':1,'payloadDigest':'a'*64}
             calls = []
-            runner.assert_no_effect_containers = lambda: calls.append('drained')
+            runner.assert_no_effect_containers = lambda **_: calls.append('drained')
             runner.apply = lambda: calls.append('effect')
             def permit(stage):
                 if stage == 'release': raise odoo_effect.EffectError('authority_lost')
@@ -45,6 +45,25 @@ class BackupBoundaryTests(unittest.TestCase):
             self.assertTrue((runner.root/'runtime-gate'/'owner.json').exists())
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.RuntimeGate(runner.root,{'attemptId':'second'}).acquire()
+
+    def test_capture_checks_writers_before_stopping_odoo(self):
+        self.assertTrue(odoo_backup)
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_backup.BackupRunner)
+            runner.root = Path(raw).resolve()
+            runner.config = {'projectName': 'nasq-shared-test'}
+            commands = []
+            def command(args, **_):
+                commands.append(args)
+                return 'nasq-shared-test-effect-12345678-observe-abcd1234' if args[:2] == ['docker', 'ps'] else ''
+            runner.command = command
+            stages = []
+            with patch.object(odoo_effect, 'permit', stages.append), patch.object(odoo_backup, 'permit', stages.append):
+                with self.assertRaises(odoo_effect.EffectError):
+                    runner.capture()
+            self.assertEqual(stages, [])
+            self.assertFalse(any('stop' in args for args in commands))
+            self.assertFalse((runner.root / 'backups').exists())
 
     def test_database_binary_corruption_fails_without_exposing_bytes(self):
         self.assertTrue(hasattr(odoo_backup, 'database_attachment_digest'))

@@ -352,5 +352,55 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
             parse_create_policy(json.dumps(policy).encode(), catalog_path=path,
                                 catalog_sha256='sha256:' + digest, commercial_mode='saas')
 
+class RuntimeWriterCheckOrderTests(unittest.TestCase):
+    """The writer check runs before the gate exists, so a busy project never wedges the lane."""
+    PROJECT = 'nasq-shared-test'
+
+    def runner(self, root, containers, calls):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.root = Path(root).resolve()
+        runner.config = {'projectName': self.PROJECT}
+        runner.request = {'attemptId': 'one', 'fence': 1, 'payloadDigest': 'a' * 64}
+        runner.command = lambda args, **_: '\n'.join(containers)
+        runner.apply = lambda: calls.append('effect')
+        return runner
+
+    def test_writer_found_before_acquire_leaves_no_gate_and_runs_no_effect(self):
+        for name in (self.PROJECT + '-effect-12345678-observe-abcd1234', self.PROJECT + '-effect-12345678-install'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as raw:
+                calls = []
+                runner = self.runner(raw, [name], calls)
+                stages = []
+                with unittest.mock.patch.object(odoo_effect, 'permit', stages.append), self.assertRaises(odoo_effect.EffectError) as caught:
+                    runner.apply_owned()
+                self.assertEqual(str(caught.exception), 'runtime_writer_present')
+                self.assertEqual(calls, [])
+                self.assertEqual(stages, ['runtime'])
+                self.assertFalse((runner.root / 'runtime-gate').exists())
+                # A retry after the container ended acquires normally.
+                runner.command = lambda args, **_: ''
+                with unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None):
+                    runner.apply_owned()
+                self.assertEqual(calls, ['effect'])
+                self.assertFalse((runner.root / 'runtime-gate').exists())
+
+    def test_release_check_ignores_a_lingering_observation_but_not_a_writer(self):
+        observe = self.PROJECT + '-effect-ffffffff-observe-abcd1234'
+        for containers, ok in (([observe], True), ([observe, self.PROJECT + '-effect-ffffffff-apply'], False)):
+            with self.subTest(containers=containers), tempfile.TemporaryDirectory() as raw:
+                calls = []
+                runner = self.runner(raw, [], calls)
+                # Containers appear only once the effect has run.
+                runner.apply = lambda: (calls.append('effect'), setattr(runner, 'command', lambda args, **_: '\n'.join(containers)))
+                with unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None):
+                    if ok:
+                        runner.apply_owned()
+                        self.assertFalse((runner.root / 'runtime-gate').exists())
+                    else:
+                        with self.assertRaises(odoo_effect.EffectError):
+                            runner.apply_owned()
+                        self.assertTrue((runner.root / 'runtime-gate').exists())
+
+
 if __name__ == '__main__':
     unittest.main()
