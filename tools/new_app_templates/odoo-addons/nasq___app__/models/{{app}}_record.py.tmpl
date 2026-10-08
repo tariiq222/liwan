@@ -5,6 +5,7 @@ from odoo import fields, models
 class Nasq{{App}}Record(models.Model):
     _name = 'nasq.{{app}}.record'
     _description = '{{name_en}} record'
+    _nasq_scope = 'company'
     _order = 'name, id'
 
     name = fields.Char(required=True)

@@ -181,6 +181,28 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(foreign_component_uses(text, 'pmo', WEB_APPS), 2)
         self.assertEqual(foreign_component_uses(text, 'hr', WEB_APPS), 1)
 
+    def test_relative_cross_app_module_import_is_flagged(self):
+        rel = 'apps/web/app/modules/pmo/manifest.ts'
+        for spec in ("import { m } from '../hr/manifest'", "export * from '../hr/manifest'",
+                     "const m = await import('../hr/manifest')", "import '../hr/manifest'",
+                     "import { m } from '~/modules/hr/manifest'"):
+            self.assertEqual(foreign_component_uses(spec, 'pmo', WEB_APPS, rel), 1, spec)
+
+    def test_module_mentions_in_comments_are_not_flagged(self):
+        rel = 'apps/web/app/modules/pmo/manifest.ts'
+        text = "// see modules/hr/manifest\n/* import x from '../hr/manifest' */\nconst u = 'http://a'; // ../hr/x\n"
+        self.assertEqual(foreign_component_uses(text, 'pmo', WEB_APPS, rel), 0)
+
+    def test_own_folder_imports_are_allowed(self):
+        rel = 'apps/web/app/modules/pmo/manifest.ts'
+        text = "import { a } from './helpers'\nimport { b } from '../pmo/other'\nimport { c } from '../registry'"
+        self.assertEqual(foreign_component_uses(text, 'pmo', WEB_APPS, rel), 0)
+
+    def test_glob_strings_are_not_import_specifiers(self):
+        rel = 'apps/web/app/modules/registry.ts'
+        text = "const all = import.meta.glob('./hr/manifest.ts')"
+        self.assertEqual(foreign_component_uses(text, 'pmo', WEB_APPS, rel), 0)
+
     def test_test_paths_are_recognised(self):
         self.assertTrue(is_test_path(Path('odoo-addons/nasq_pmo/tests/test_tasks.py')))
         self.assertTrue(is_test_path(Path('apps/web/app/utils/__tests__/a.ts')))
