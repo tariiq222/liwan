@@ -112,3 +112,12 @@ it('registers immutable branch quotes and revision guard in versions fifteen and
   expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(15)')
   expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(16)')
 })
+it('registers the idempotent customer creation key in version twenty-one once', async () => {
+  const applied = Array.from({length:20}, (_, i) => i+1)
+  const f=fixture(applied); await migrate(f.pool)
+  const sql=f.query.mock.calls.map(([s])=>s)
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(21)')
+  expect(sql.some(s=>s.includes('ADD COLUMN creation_request_id uuid UNIQUE'))).toBe(true)
+  const g=fixture([...applied,21]); await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(21)')
+})

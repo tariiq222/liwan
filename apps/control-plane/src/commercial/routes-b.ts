@@ -4,7 +4,7 @@ import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
 import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, type Principal } from '@nasq/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
-import { CommercialHttpError } from './lifecycle.js'
+import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createCustomerTerms } from './customer-terms.js'
 import { createQuoteForCustomer } from './quotes.js'
 import { getSubscription } from './subscriptions.js'
@@ -37,8 +37,16 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(m==='POST'){
       // A new customer is the start of plan-based tenant creation: its first order provisions a tenant.
       need(input,'vendor.tenants.manage','vendor.subscriptions.manage')
-      const body=parseBody(input.raw,z.strictObject({name:z.string().trim().min(1).max(200),tenant_id:z.uuid().nullable().optional(),admin_name:z.string().trim().min(1).max(120).optional(),admin_login:z.email().max(100).optional()}))
-      const r=await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5) RETURNING *',[randomUUID(),body.name,body.tenant_id??null,body.admin_name??null,body.admin_login??null]);return {status:201,data:r.rows[0]}
+      const body=parseBody(input.raw,z.strictObject({name:z.string().trim().min(1).max(200),tenant_id:z.uuid().nullable().optional(),admin_name:z.string().trim().min(1).max(120).optional(),admin_login:z.email().max(100).optional(),request_id:z.uuid().optional()}))
+      const {request_id:requestId,...fields}=body
+      // A retried creation (double submit, lost response, replay) with the same request_id returns the
+      // original customer; the same id with a different body is an idempotency conflict, as for orders.
+      const digest=requestId?digestOf(fields):null
+      const r=await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login,creation_request_id,creation_digest) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (creation_request_id) DO NOTHING RETURNING *',[randomUUID(),fields.name,fields.tenant_id??null,fields.admin_name??null,fields.admin_login??null,requestId??null,digest])
+      if(r.rowCount)return {status:201,data:r.rows[0]}
+      const existing=(await pool.query('SELECT * FROM customers WHERE creation_request_id=$1',[requestId])).rows[0]
+      if(!existing||existing.creation_digest!==digest)throw new CommercialHttpError('idempotency_conflict',409)
+      return {status:200,data:existing}
     }
   }
   const customerDetail=/^\/customers\/([^/]+)$/.exec(path)

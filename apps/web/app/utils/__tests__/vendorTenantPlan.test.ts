@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { planTenantCustomerBody, planTenantQuoteBody } from '../vendorTenantPlan'
 
 describe('a shared tenant starts from a plan, never from a Track A package', () => {
-  it('creates the customer with its first administrator only', () => {
-    expect(planTenantCustomerBody({ name: ' Acme ', admin_name: ' Sara ', admin_login: ' sara@acme.test ' })).toEqual({ name: 'Acme', admin_name: 'Sara', admin_login: 'sara@acme.test' })
+  it('creates the customer with its first administrator and a retry-stable request id', () => {
+    expect(planTenantCustomerBody({ name: ' Acme ', admin_name: ' Sara ', admin_login: ' sara@acme.test ' }, 'r1')).toEqual({ name: 'Acme', admin_name: 'Sara', admin_login: 'sara@acme.test', request_id: 'r1' })
   })
   it('quotes the plan with its included bundles and no extra branches', () => {
     const cadence = { unit: 'month' as const, count: 1 }

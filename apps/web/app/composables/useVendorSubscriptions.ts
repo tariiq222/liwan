@@ -9,7 +9,7 @@ export function useVendorSubscriptions() {
   const seg = encodeURIComponent
   return {
     listCustomers: (query: Record<string, unknown>) => request<VendorCustomerList>('commercial/customers', { query }),
-    createCustomer: (body: { name: string; tenant_id?: string; admin_name?: string; admin_login?: string }) => request<VendorCustomer>('commercial/customers', { method: 'POST', body }),
+    createCustomer: (body: { name: string; tenant_id?: string; admin_name?: string; admin_login?: string; request_id?: string }) => request<VendorCustomer>('commercial/customers', { method: 'POST', body }),
     customer: async (id: string) => {
       try { return await request<VendorCustomer>(`commercial/customers/${seg(id)}`) }
       catch (cause) { if (commercialFailure(cause).status === 404) return null; throw cause }
