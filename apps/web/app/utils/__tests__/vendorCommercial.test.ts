@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  actionBlockedReason, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, cadenceLabel, commercialFailure, commercialErrorKey,
-  commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, formatVendorMoney, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, minorToInput,
+  actionBlockedReason, appName, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, cadenceLabel, commercialFailure, commercialErrorKey,
+  commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, formatVendorMoney, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput,
   parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody,
 } from '../vendorCommercial'
 
@@ -154,5 +154,14 @@ describe('error codes', () => {
     const { COMMERCIAL_ERROR_CODES } = await import('../vendorCommercial')
     const ar = (await import('../../../i18n/locales/ar/vendor.json')).default as any, en = (await import('../../../i18n/locales/en/vendor.json')).default as any
     for (const code of COMMERCIAL_ERROR_CODES) { expect(ar.vendor.pricing.errors[code], code).toBeTruthy(); expect(en.vendor.pricing.errors[code], code).toBeTruthy(); expect(commercialErrorKey({ code })).toBe(`vendor.pricing.errors.${code}`) }
+  })
+  it('shows an application that only registered its keys and got a catalog tier (spec 3.6 acceptance 4)', () => {
+    const release = { id: 'r', version: 'v', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: [
+      { id: 'probe', name_ar: 'Probe', name_en: 'Probe', modules: ['nasq_registry_probe'], requires_apps: [], conflicts_with_apps: [], selectable: true,
+        features: [{ key: 'probe.enabled', kind: 'boolean', selectable: true, requires: [], enforcement_refs: [] }, { key: 'probe.max_items', kind: 'limit', selectable: false, requires: [], enforcement_refs: [] }] },
+    ] } as never
+    expect(appName((release as { applications: never[] }).applications[0]!, 'ar')).toBe('Probe')
+    expect(bundleLimitKeys(release, ['probe'])).toEqual(['probe.max_items'])
+    expect(keyLabel('probe.enabled', k => k, () => false)).toBe('probe.enabled')
   })
 })

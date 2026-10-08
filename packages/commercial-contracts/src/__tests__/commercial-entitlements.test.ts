@@ -123,4 +123,11 @@ describe('commercial catalog and entitlement compiler', () => {
     input.plan.platform_limits = { 'users.limit': 20, 'storage.limit_mb': null }
     expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 20 })
   })
+  it('names an application unknown to the platform from its catalog tier', () => {
+    const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
+    v3.tiers.push({ id: 'probe', name: 'Probe', modules: ['nasq_registry_probe'], features: ['boolean:probe.enabled'] })
+    const probe = catalogApplicationsFromSolution(v3, 'v3').find(a => a.id === 'probe')!
+    expect([probe.name_ar, probe.name_en]).toEqual(['Probe', 'Probe'])
+    expect(probe.features.map(f => [f.key, f.selectable])).toEqual([['probe.enabled', true]])
+  })
 })
