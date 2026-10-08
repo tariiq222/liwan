@@ -113,7 +113,7 @@ describe('commercial catalog and entitlement compiler', () => {
   it('opens a non-selectable boolean of a core or included application', () => {
     const input = fixture()
     const core = input.release.applications.find(a => !a.selectable)!
-    core.features.push({ ...core.features[0]!, key: 'core.always', kind: 'boolean', selectable: false, ceiling: null })
+    core.features.push({ ...core.features[0]!, key: 'core.always', kind: 'boolean', selectable: false, ceiling: undefined })
     expect(compileEntitlements(input).features['core.always']).toBe(true)
   })
   it('compiles the real v3 catalog into exactly the eight policy keys', () => {
