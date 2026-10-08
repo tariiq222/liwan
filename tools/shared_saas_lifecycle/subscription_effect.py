@@ -16,7 +16,7 @@ import re
 import sys
 
 from tools.shared_saas_lifecycle import odoo_effect
-from tools.shared_saas_lifecycle.odoo_effect import EffectError, ALLOWED_MODULES, MAX_OUTPUT
+from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT
 
 UUID_RE = re.compile(r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}')
 DIGEST_RE = re.compile(r'[a-f0-9]{64}')

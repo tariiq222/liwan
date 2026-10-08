@@ -15,8 +15,12 @@ class PhysicalBoundaryTests(unittest.TestCase):
         for value in ['odoo19', 'postgres', 'nasq_scratch_prod', 'nasq_scratch_a;drop']:
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_database(value)
-        with self.assertRaises(odoo_effect.EffectError):
-            odoo_effect.validate_modules(['nasq_core', 'sale'])
+        for value in [['nasq_core', 'sale'], ['nasq_core', 'nasq_not_shipped'], [], ['nasq_core', 'nasq_core'], 'nasq_core']:
+            with self.subTest(value=value), self.assertRaises(odoo_effect.EffectError):
+                odoo_effect.validate_modules(value)
+        release = ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat']
+        self.assertEqual(odoo_effect.validate_modules(release), release)
+        self.assertFalse(hasattr(odoo_effect, 'ALLOWED_MODULES'))
 
     def test_permanent_reservation_refuses_reclaim_or_symlink(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -117,7 +121,10 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                     return SimpleNamespace(
                         _nasq_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
                         _nasq_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
+                        _nasq_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
                     )
+                if model == 'nasq.access.role':
+                    return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
                 raise AssertionError(model)
             def ref(self, xmlid):
                 if xmlid == 'base.user_admin':
@@ -148,6 +155,16 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             exec(compile(runner.admin_script('known-secret', snapshot=snapshot), '<generated-admin>', 'exec'), {'env': Environment()})
         result = json.loads(output.getvalue().strip().removeprefix('NASQ_SHARED_ADMIN:'))
         return result, writes, admin, roles
+
+    def test_admin_script_reads_roles_from_the_entitlement_not_modules(self):
+        script = object.__new__(odoo_effect.Runner)
+        script.database = 'nasq_scratch_' + 'a' * 32
+        script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C',
+                          'job': {'policy': {'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr']}}}
+        text = script.admin_script('known-secret', snapshot=False)
+        self.assertIn('_nasq_entitled_admin_roles()', text)
+        self.assertNotIn("'nasq_pmo' in values['modules']", text)
+        self.assertNotIn('"modules"', text.split('\n', 2)[1])
 
     def test_package_apply_removes_only_support_and_preserves_customer_roles(self):
         result, writes, admin, roles = self.run_script()

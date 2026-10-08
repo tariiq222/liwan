@@ -22,10 +22,9 @@ from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resol
 from tools.nasq_cli.managed_credentials import build_credentials_script, parse_credentials
 from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
 
-ALLOWED_MODULES = {
-    'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory',
-    'nasq_pmo', 'nasq_meetings', 'nasq_meetings_pmo', 'nasq_hr', 'nasq_chat',
-}
+from tools.nasq_cli.module_closure import REPO_ADDONS
+
+MODULE_ID = re.compile(r'(?:nasq|customer)_[a-z0-9_]+')
 MAX_OUTPUT = 65536
 
 class EffectError(ValueError):
@@ -39,8 +38,14 @@ def validate_database(value):
 
 
 def validate_modules(value):
+    """A non-empty list of distinct Nasq or customer addons shipped in this repository.
+
+    Which modules a policy installs comes from the trusted catalog; this only refuses
+    names that cannot be an addon of this release, so a new application needs no edit.
+    """
     if (not isinstance(value, list) or not value or len(set(value)) != len(value)
-            or not set(value) <= ALLOWED_MODULES):
+            or not all(isinstance(name, str) and MODULE_ID.fullmatch(name)
+                       and (REPO_ADDONS / name / '__manifest__.py').is_file() for name in value)):
         raise EffectError('modules_invalid')
     return value
 
@@ -310,7 +315,7 @@ class Runner:
 
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
-                  'companyName': self.request['companyName'], 'modules': self.request['job']['policy']['modules'],
+                  'companyName': self.request['companyName'],
                   'packageAdmin': self.request['job'].get('packageAuthority') is not None}
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
@@ -325,17 +330,15 @@ try:
     assert len(profile) == 1 and profile.policy_revision == 1
     admin = env.ref('base.user_admin')
     assert admin.id != 1 and admin.active and admin.company_id == profile.root_company_id
-    keys = ['system_admin']
-    if 'nasq_pmo' in values['modules']:
-        keys.append('pmo_manager')
-    if 'nasq_hr' in values['modules']:
-        keys.append('hr_manager')
+    # Every application is installed; the applied policy decides the roles.
+    keys = env['nasq.entitlement.service']._nasq_entitled_admin_roles()
     if not snapshot:
         assert admin.login == 'admin'
         admin._nasq_access_write({'login': values['login'], 'name': values['name']}, 'access.users.update')
         profile.root_company_id.write({'name': values['companyName']})
         for key in keys:
-            role = env.ref({'pmo_manager': 'nasq_pmo', 'hr_manager': 'nasq_hr'}.get(key, 'nasq_core') + '.role_' + key)
+            role = env['nasq.access.role'].search([('key', '=', key)], limit=1)
+            assert role
             assignment = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('role_id', '=', role.id), ('company_id', '=', profile.root_company_id.id)])
             if not assignment:
                 env['nasq.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})

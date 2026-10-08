@@ -538,6 +538,31 @@ class NasqEntitlementService(models.AbstractModel):
         return result
 
     @api.model
+    def _nasq_entitled_admin_roles(self):
+        """Administrator role keys the current policy opens.
+
+        A role holding any platform permission (a permission domain without a
+        registered ``<domain>.enabled`` boolean) is always open. A role made only
+        of application permissions opens when every one of those applications'
+        ``<domain>.enabled`` is granted. Installed modules never decide it: every
+        application of the release is installed in every tenant.
+        """
+        registry = self._nasq_registry()._nasq_feature_map()
+        payload = self._nasq_features_payload()
+        roles = self.env['nasq.access.role']
+        keys = []
+        for key in self.env['nasq.access.service']._nasq_legacy_admin_roles():
+            role = roles.search([('key', '=', key)], limit=1)
+            if not role:
+                continue
+            gates = {f'{domain}.enabled' for domain in role.permission_ids.mapped('domain')}
+            application = {gate for gate in gates if registry.get(gate, {}).get('type') == 'boolean'}
+            if application == gates and not all(payload.get(gate) is True for gate in gates):
+                continue
+            keys.append(key)
+        return keys
+
+    @api.model
     def _nasq_legacy_features_for(self, selected_modules):
         """One-shot legacy grants, derived from the feature registry.
 

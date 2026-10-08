@@ -73,3 +73,17 @@ class TestPackageChange(NasqPmoCase):
         self.assertIs(completed['pmo.enabled'], True)
         for key in ('users.limit', 'storage.limit_mb', 'branches.extra_limit'):
             self.assertNotIn(key, completed)
+
+    def test_administrator_roles_follow_the_entitlement(self):
+        service = self.env['nasq.entitlement.service']
+        self._write(service._nasq_close_unlisted_features({
+            **TARGET_WITHOUT_PMO, 'pmo.enabled': True, 'projects.max_projects': None,
+        }))
+        opened = service._nasq_entitled_admin_roles()
+        self.assertIn('system_admin', opened)
+        self.assertIn('pmo_manager', opened)
+        self.assertNotIn('hr_manager', opened)
+        self._write(service._nasq_close_unlisted_features(TARGET_WITHOUT_PMO))
+        closed = service._nasq_entitled_admin_roles()
+        self.assertIn('system_admin', closed)  # holds platform permissions next to meetings ones
+        self.assertNotIn('pmo_manager', closed)
