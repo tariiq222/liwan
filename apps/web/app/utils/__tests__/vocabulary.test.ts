@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -9,10 +9,14 @@ function strings(value: unknown, path = ''): Array<[string, string]> {
   if (value && typeof value === 'object') return Object.entries(value).flatMap(([k, v]) => strings(v, path ? `${path}.${k}` : k))
   return []
 }
-// Every locale file a customer sees (vendor.json is the vendor console).
-const CUSTOMER_FILES = ['subscription', 'common', 'settings', 'access', 'invite']
+// Every locale file a customer sees: all of them except vendor.json (the vendor console).
+const CUSTOMER_FILES = readdirSync(resolve(root, 'i18n/locales/en')).filter(f => f.endsWith('.json') && f !== 'vendor.json').map(f => f.replace(/\.json$/, ''))
 
 describe('owner decision O2: «باقة» is the plan, «حزمة» is a vendor-only bundle', () => {
+  it('scans every non-vendor locale file in both languages', () => {
+    expect(CUSTOMER_FILES.length).toBeGreaterThan(5)
+    expect(readdirSync(resolve(root, 'i18n/locales/ar')).filter(f => f.endsWith('.json') && f !== 'vendor.json').map(f => f.replace(/\.json$/, '')).sort()).toEqual([...CUSTOMER_FILES].sort())
+  })
   it('no customer string says «حزمة» or bundle/package', () => {
     const offending = CUSTOMER_FILES.flatMap(file => [
       ...strings(load('ar', file)).filter(([, v]) => /حزم/.test(v)).map(([k]) => `ar/${file}:${k}`),

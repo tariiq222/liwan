@@ -123,8 +123,7 @@
           "active": "Workspace ready",
           "needs_intervention": "Needs attention",
           "pending": "Setup is in progress"
-        },
-        "incomplete": "The installation was reserved but setup has not been queued. Submit again with the same details to resume this request."
+        }
       },
       "plan": {
         "field": "Plan",
@@ -327,11 +326,7 @@
       "sourceHash": "Source fingerprint",
       "revisionId": "Version identifier",
       "reasonRequired": "Enter a reason between 3 and 1,000 characters.",
-      "selectionMode": "Customer offering",
-      "publishedChoice": "Published package",
-      "legacyChoice": "Historical software composition",
       "legacyHint": "This compatibility path uses the historical catalog without an approved commercial package. Existing unspecified quotas stay unlimited.",
-      "selectPackage": "Select a published package",
       "status": {
         "all": "All states",
         "draft": "Draft",
@@ -536,7 +531,7 @@
         "platformLimits": "Platform limits",
         "branches": "Branches",
         "lifecycle": "Trial, grace and renewal",
-        "included": "What is included"
+        "included": "What the bundle includes"
       },
       "fields": {
         "name": "Name",
@@ -782,14 +777,6 @@
           "fresh": "Fresh",
           "stale": "Stale",
           "unavailable": "Unavailable"
-        },
-        "units": {
-          "users": "Users",
-          "projects": "Projects",
-          "attachment_bytes": "Attachment storage",
-          "extra_branches": "Extra branches",
-          "count": "Usage",
-          "mebibytes": "Attachment storage (MiB)"
         },
         "reasons": {
           "source_unreachable": "Source unreachable",
