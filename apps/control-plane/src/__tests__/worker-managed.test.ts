@@ -87,6 +87,7 @@ function verifiedReceipt(invocation: OperatorInvocation): Record<string, unknown
     policy_revision: 1, digest: journalDigest(invocation), fingerprint: invocation.fingerprint,
     profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1,
       status: 'active', valid_until: null, features: policy.features, modules: [...policy.modules, 'base', 'web'] },
+    expected_modules: [...policy.modules],
   })
 }
 
@@ -168,6 +169,9 @@ describe('executeClaimed lanes', () => {
     ['extra NASQ module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('nasq_unselected') }],
     ['duplicate module', (r: Record<string, unknown>) => { (returnedProfile(r).modules as string[]).push('nasq_core') }],
     ['malformed modules', (r: Record<string, unknown>) => { returnedProfile(r).modules = 'nasq_core' }],
+    ['missing expected modules', (r: Record<string, unknown>) => { delete r.expected_modules }],
+    ['expected modules without a policy module', (r: Record<string, unknown>) => { r.expected_modules = (r.expected_modules as string[]).filter(name => name !== 'nasq_api') }],
+    ['non-Nasq expected module', (r: Record<string, unknown>) => { r.expected_modules = [...(r.expected_modules as string[]), 'web'] }],
   ])('rejects truth flags with %s in the durable receipt', async (_name, corrupt) => {
     const claim = fakeClaim('tenant.create')
     const config = await managedConfig(async (invocation) => {
@@ -181,6 +185,21 @@ describe('executeClaimed lanes', () => {
     expect(terminal(pool)[2]).toMatchObject({ policy_verified: false, deployment_ready: false })
     expect(pool.finishQueries.some(({ sql }) => sql.includes('SET policy_revision=$1') || sql.includes('health_checked_at=now()'))).toBe(false)
     expectNotActivated(pool)
+  })
+
+  it('accepts the installation closure the Python readback reports (implied services and bridges)', async () => {
+    const claim = fakeClaim('tenant.create')
+    const config = await managedConfig(async (invocation) => {
+      const receipt = verifiedReceipt(invocation)
+      if (invocation.args[0] === 'status') {
+        ;(returnedProfile(receipt).modules as string[]).push('nasq_notify')
+        receipt.expected_modules = [...(receipt.expected_modules as string[]), 'nasq_notify']
+      }
+      return { code: 0, receipt }
+    })
+    const pool = fakePool(claim, await publishedCatalog())
+    await executeClaimed(pool, claim, config)
+    expect(terminal(pool).slice(0, 2)).toEqual(['succeeded', 'provisioned'])
   })
 
   it.each(['target', 'request_id', 'operation_id', 'fingerprint', 'digest', 'policy bytes'])('quarantines a durable %s mismatch even with verified flags and matching profile', async (field) => {

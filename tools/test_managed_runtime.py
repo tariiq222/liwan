@@ -448,6 +448,7 @@ class ManagedRuntimeCase(unittest.TestCase):
         self.assertEqual(runner.argv[-1][-2:], ['up', '-d'])
         self.assertIs(payload['policy_verified'], True)
         self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
+        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
         return code, payload, runner
 
     def failed_create(self, runner=None, request_id='req_0001'):
@@ -1123,6 +1124,7 @@ class StatusReceiptCase(ManagedRuntimeCase):
         self.assertIs(payload['policy_verified'], True)
         self.assertIs(payload['deployment_ready'], True)
         self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
+        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
         self.assertEqual(payload['profile']['policy_revision'], 1)
 
     def test_legacy_incomplete_receipt_stays_unverified_and_read_only(self):

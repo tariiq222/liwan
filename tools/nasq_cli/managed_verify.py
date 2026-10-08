@@ -95,6 +95,12 @@ def _expected_modules(policy):
         _fail('policy_invalid')
 
 
+def expected_modules(policy):
+    """The installation closure readback compares with; managed receipts carry it so
+    the control plane checks the same set (worker verifiedManagedCreate)."""
+    return _expected_modules(policy)
+
+
 def _object(pairs):
     result = {}
     for key, value in pairs:

@@ -61,7 +61,7 @@ const receipt = (invocation: OperatorInvocation) => {
   const policy = JSON.parse(invocation.policyBytes!.toString()) as { features: Record<string, unknown>; modules: string[] }
   return { schema_version: 1, status: 'ok', target, operation: 'tenant.create', request_id: requestId, operation_id: operationId,
     deployment_ready: true, policy_verified: true, policy_revision: 1, digest: 'c'.repeat(64), fingerprint: invocation.fingerprint,
-    profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1, features: policy.features, modules: [...policy.modules, 'base', 'web'] } }
+    profile: { commercial_mode: 'saas', entitlement_source: 'control_plane', policy_revision: 1, features: policy.features, modules: [...policy.modules, 'base', 'web'] }, expected_modules: [...policy.modules] }
 }
 
 async function published(name: string) {
