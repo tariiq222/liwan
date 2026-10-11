@@ -4,7 +4,7 @@ import re
 
 from odoo.addons.nasq_api.controllers.common import ApiError
 
-DEFAULT_PRIMARY_COLOR = '#18181b'
+DEFAULT_PRIMARY_COLOR = '#13234a'
 
 
 def parse_branding_vals(payload):
