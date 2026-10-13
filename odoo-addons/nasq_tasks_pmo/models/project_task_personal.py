@@ -24,6 +24,9 @@ PERSONAL_WRITE_FIELDS = frozenset({
     'state', 'date_end', 'date_last_stage_update', 'date_assign',
 })
 PERSONAL_STATES = frozenset({'01_in_progress', '1_done', '1_canceled'})
+# The personal contract knows normal and high only; PMO's other priorities would show as normal
+# in /my-tasks and be reset by its next write.
+PERSONAL_PRIORITIES = frozenset({'0', '1'})
 # PMO's whitelist already lists every personal field except these. A personal sub-task
 # points at its parent through nasq_parent_id: Odoo forbids parent_id without a project.
 PERSONAL_EXTRA_FIELDS = frozenset({'company_id', 'nasq_parent_id'})
@@ -106,6 +109,8 @@ class ProjectTaskPersonal(models.Model):
                 raise AccessError(self.env._('A personal task only takes its own fields.'))
             if 'state' in vals and vals['state'] not in PERSONAL_STATES:
                 raise AccessError(self.env._('A personal task is open, done or cancelled.'))
+            if 'priority' in vals and vals['priority'] not in PERSONAL_PRIORITIES:
+                raise AccessError(self.env._('A personal task has a normal or a high priority.'))
         result = super().write(vals)
         if personal and 'user_ids' in vals and not personal._nasq_in_convert_scope():
             for task in personal:

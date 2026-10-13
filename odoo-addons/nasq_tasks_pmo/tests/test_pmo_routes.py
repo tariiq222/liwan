@@ -63,6 +63,41 @@ class TestPersonalTaskThroughPmoRoutes(TasksRoutesCase):
         self.assertEqual(status, 200, payload)
         self.assertEqual(self.fresh().name, 'Renamed')
 
+    def test_pmo_patch_refuses_a_priority_the_personal_contract_cannot_show(self):
+        for priority in ('2', '3'):
+            with self.subTest(priority=priority):
+                self.refused('tasks_alice', 'PATCH', f'{PMO}/{self.task.id}', {'priority': priority})
+                self.assertEqual(self.fresh().priority, '0')
+                self.assertEqual(self.ok('tasks_alice', 'GET', f'{BASE}/{self.task.id}')['priority'], 'normal')
+        for priority, wire in (('1', 'high'), ('0', 'normal')):
+            with self.subTest(priority=priority):
+                status, payload = self.call('tasks_alice', 'PATCH', f'{PMO}/{self.task.id}', {'priority': priority})
+                self.assertEqual(status, 200, payload)
+                self.assertEqual(self.fresh().priority, priority)
+                self.assertEqual(self.ok('tasks_alice', 'GET', f'{BASE}/{self.task.id}')['priority'], wire)
+
+    def test_the_orm_guard_refuses_a_priority_outside_the_personal_two(self):
+        task = self.task.with_user(self.alice)
+        for priority in ('2', '3', False):
+            with self.subTest(priority=priority), self.assertRaises(AccessError):
+                task.write({'priority': priority})
+        self.assertEqual(self.fresh().priority, '0')
+
+    def test_pmo_transition_to_done_and_back_follows_the_guard(self):
+        # done and in_progress are two of the three personal states, so the guard lets both through.
+        path = f'{PMO}/{self.task.id}/transition'
+        for login in ('tasks_alice', 'tasks_bob'):
+            for state, stored, wire in (('done', '1_done', 'done'), ('in_progress', '01_in_progress', 'open')):
+                with self.subTest(login=login, state=state):
+                    status, payload = self.call(login, 'POST', path, {'state': state})
+                    self.assertEqual(status, 200, payload)
+                    self.assertEqual(self.fresh().state, stored)
+                    self.assertEqual(self.ok(login, 'GET', f'{BASE}/{self.task.id}')['state'], wire)
+                    # The parent and the sub-task (visible to alice, its creator) still answer.
+                    self.ok('tasks_alice', 'GET', f'{BASE}/{self.sub.id}')
+                    detail = self.ok('tasks_alice', 'GET', f'{BASE}/{self.task.id}')
+                    self.assertEqual([item['id'] for item in detail['subtasks']], [self.sub.id])
+
     def test_the_orm_guard_names_the_allowed_fields(self):
         task = self.task.with_user(self.alice)
         stage = self.env['project.task.type'].create({'name': 'Doing'})
