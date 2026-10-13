@@ -261,6 +261,26 @@ git add -A && git commit -m "feat(platform): add the nasq_tasks addon with acces
 
 ---
 
+### Task 1b: PMO create hook and the bridge skeleton (controller ruling, see ledger)
+
+Why: with `nasq_pmo` installed, `project.task.create` (`odoo-addons/nasq_pmo/models/project_task.py` ~line 565-590) rejects any non-admin create without a project ("Task fields are not allowed." / "A visible current-company project is required."), so employees could not create personal tasks. A `sudo()` create would add an undocumented sudo case (R7, spec §7) and make PMO treat the call as superuser. Ruling: one minimal, behaviour-neutral extension point in `nasq_pmo`, implemented by the bridge (cross-application code lives only in bridges, R3). This is the only `nasq_pmo` Python change besides spec §6.3's web manifest trim.
+
+**Files:**
+- Modify: `odoo-addons/nasq_pmo/models/project_task.py`: add `@api.model def _nasq_projectless_create_allowed(self, vals_list): return False` next to `_nasq_extra_create_fields` (line ~75) and, inside the `if not trusted:` loop of `create`, when `not project` (after the parent lookup) and `self._nasq_projectless_create_allowed(vals_list)` is true, skip only the project requirement and the project-scoped checks for that vals (the field whitelist check `set(vals) - allowed` stays and still raises; stock ORM ACLs and record rules still run in the caller's environment). Default `False` keeps PMO behaviour byte-identical.
+- Create: `odoo-addons/nasq_tasks_pmo/` skeleton: `__init__.py`, `__manifest__.py` (`depends: ['nasq_tasks', 'nasq_pmo']`, `auto_install: True`, `application: False`, `installable: True`, license/version/author per Global Constraints), `models/__init__.py`, `models/project_task_personal.py`, `tests/__init__.py`, `tests/test_personal_create.py`. Register `"nasq_tasks_pmo": 5` in `tools/arch_layers.json`.
+- Test: `odoo-addons/nasq_pmo/tests/` gets one test `test_projectless_create_still_rejected_by_default` (employee without the bridge hook, i.e. calling with the hook patched to the base implementation, gets AccessError exactly as before); `nasq_tasks_pmo/tests/test_personal_create.py`.
+
+**Interfaces:**
+- Produces `project.task._nasq_projectless_create_allowed(vals_list) -> bool` (PMO default `False`).
+- Bridge override `ProjectTask._nasq_projectless_create_allowed(self, vals_list)`: returns `True` only when the caller holds `tasks.tasks.create` (use `self.env['nasq.access.service']._nasq_require_capability`-style check without raising: reuse the access service's boolean check, copy what `nasq_meetings` does), every vals has no `project_id`, and any `parent_id` points to a `nasq_personal` task; otherwise `super()`.
+- Bridge override `_nasq_extra_create_fields(self)`: `super() | {'user_ids', 'date_deadline', 'priority', 'description', 'company_id', 'parent_id'}` limited to what the service of Task 2 writes (keep the set exactly the personal-task create fields; read `TASK_CREATE_FIELDS` first and add only what is missing).
+
+- [ ] **Step 1: Failing tests:** `test_employee_creates_personal_task_with_pmo_installed` (employee with `tasks.tasks.create` creates a project-less task with name, user_ids, date_deadline, priority, description, company_id; succeeds; `nasq_personal` true), `test_user_without_capability_cannot_create_projectless_task` (AccessError), `test_projectless_create_with_foreign_field_rejected` (e.g. `{'name': 'x', 'stage_id': 1}`-style unlisted field still raises "Task fields are not allowed."), `test_subtask_of_project_task_rejected` (parent in a project and no project_id → AccessError), PMO default-rejection test above. Plus the 4 previously erroring `TestPersonalTaskRules` tests of Task 1 must now pass in the full-release run.
+- [ ] **Step 2:** scratch Odoo, full release set → FAIL. **Step 3:** implement. **Step 4:** full release run: PASS (`/nasq_tasks,/nasq_tasks_pmo,/nasq_pmo`), standalone `-i nasq_tasks` run (no PMO) still PASS; `ruff`, `arch_policy --base main`, `catalog_check`.
+- [ ] **Step 5: Commits:** `feat(pmo): add the project-less create hook to project tasks`, `feat(platform): add the nasq_tasks_pmo bridge skeleton`
+
+---
+
 ### Task 2: Links hook and personal task service
 
 **Files:**
@@ -431,7 +451,7 @@ describe('tasks contracts', () => {
 ### Task 7: Bridge `nasq_tasks_pmo`
 
 **Files:**
-- Create: whole `odoo-addons/nasq_tasks_pmo/` (see File Structure); modify `tools/arch_layers.json` (`"nasq_tasks_pmo": 5`)
+- Create: the rest of `odoo-addons/nasq_tasks_pmo/` (the skeleton, manifest, arch rank and `models/project_task_personal.py` already exist from Task 1b; add `models/task_links_pmo.py`, controllers, tests)
 - Test: `tests/test_links.py`, `tests/test_convert.py`
 
 **Interfaces:**
