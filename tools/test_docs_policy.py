@@ -20,6 +20,13 @@ class TestDocsPolicy(unittest.TestCase):
     def test_accepts_addon_shorthand(self):
         self.assertEqual(find_missing('CLAUDE.md', '`nasq_hr/tests/common.py`', KNOWN), [])
 
+    def test_bare_name_does_not_match_by_shorthand(self):
+        self.assertEqual(find_missing('docs/x.md', '`common.py`', KNOWN), [(1, 'common.py')])
+
+    def test_strips_line_suffix(self):
+        text = '`tools/nope.py:3` `tools/nope2.py:3-9` `tools/real.py:12`'
+        self.assertEqual(find_missing('docs/x.md', text, KNOWN), [(1, 'tools/nope.py'), (1, 'tools/nope2.py')])
+
     def test_ignores_placeholders_globs_routes_and_commands(self):
         text = '`apps/web/app/modules/<app>/manifest.ts` `odoo-addons/*/x.py` `/api/v1/people` `npm -w apps/web run lint` `origin/main` `release/19.0.X.Y.Z`'
         self.assertEqual(find_missing('docs/x.md', text, KNOWN), [])
