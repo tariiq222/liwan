@@ -10,7 +10,8 @@
     "nasq_hr": 4,
     "nasq_chat": 4,
     "nasq_tasks": 4,
-    "nasq_meetings_pmo": 5
+    "nasq_meetings_pmo": 5,
+    "nasq_tasks_pmo": 5
   },
   "exempt": [
     "cyan_meeting_minutes",

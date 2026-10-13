@@ -60,7 +60,13 @@ class TestPersonalTaskRules(NasqTasksCase):
             self.assertEqual(other.env.company, self.other_company)
             self.assertIn(main_company, other.env.companies)
             self.assertFalse(other.has_access('read'), user.login)
-            self.assertFalse(other.search([('id', '=', task.id)]), user.login)
+            # With nasq_pmo installed its own search gate may refuse the whole search in a
+            # company where the user lacks pmo.tasks.read; a refusal also means "cannot read".
+            try:
+                found = other.search([('id', '=', task.id)])
+            except AccessError:
+                found = other.browse()
+            self.assertFalse(found, user.login)
             self.assertTrue(task.with_user(user).has_access('read'), user.login)
 
     def test_personal_task_without_company_is_invisible_to_creator_and_assignee(self):
