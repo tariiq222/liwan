@@ -5,8 +5,9 @@
 # The `image` field specifies the shell, not a container image.
 # All tools (node, python3, ruff, psql, docker, git) must exist on the host.
 #
-# Woodpecker substitutes every ${VAR} in this file before the shell runs it (an undefined name
-# becomes empty), so shell expansions are written $${VAR}; ${CI_*} names are Woodpecker's own.
+# Woodpecker substitutes every braced variable reference in this file before the shell runs it (an
+# undefined name becomes empty), so a shell brace expansion is written with a doubled dollar sign;
+# braced CI_-prefixed names are Woodpecker's own.
 #
 # Steps: static, control-plane, odoo, odoo-tasks-standalone, odoo-tasks-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories.
 #
@@ -116,10 +117,13 @@ steps:
         # --logfile keeps Odoo's log out of stdout, so the verdict is read from the logfile itself.
         grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/logs/odoo.log" \
           || { echo "odoo tests did not report 0 failures; last log lines:" >&2; tail -n 80 "$SCRATCH_ROOT/logs/odoo.log" >&2; exit 1; }
+        grep -E 'odoo.tests.result:' "$SCRATCH_ROOT/logs/odoo.log" | tail -n 1
         # The standalone proof is void if the PMO addons came along: nasq_tasks must not pull them in.
         pmo_installed="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT name FROM ir_module_module WHERE name IN ('nasq_pmo', 'nasq_tasks_pmo') AND state = 'installed' ORDER BY name")"
+        echo "PMO addons installed (expected empty): '$pmo_installed'"
         test -z "$pmo_installed" || { echo "nasq_tasks alone installed PMO addons: $pmo_installed" >&2; exit 1; }
         tasks_state="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT state FROM ir_module_module WHERE name = 'nasq_tasks'")"
+        echo "nasq_tasks state: $tasks_state"
         test "$tasks_state" = installed || { echo "nasq_tasks state is '$tasks_state', expected installed" >&2; exit 1; }
 
   # nasq_tasks with the PMO bridge only (nasq_tasks_pmo auto-installs; its dependencies come along).
@@ -151,8 +155,10 @@ steps:
         # --logfile keeps Odoo's log out of stdout, so the verdict is read from the logfile itself.
         grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/logs/odoo.log" \
           || { echo "odoo tests did not report 0 failures; last log lines:" >&2; tail -n 80 "$SCRATCH_ROOT/logs/odoo.log" >&2; exit 1; }
+        grep -E 'odoo.tests.result:' "$SCRATCH_ROOT/logs/odoo.log" | tail -n 1
         # The bridge must have auto-installed with its two parents.
         bridge_state="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT state FROM ir_module_module WHERE name = 'nasq_tasks_pmo'")"
+        echo "nasq_tasks_pmo state: $bridge_state"
         test "$bridge_state" = installed || { echo "nasq_tasks_pmo state is '$bridge_state', expected installed" >&2; exit 1; }
 
   - name: upgrade
