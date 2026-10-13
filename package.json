@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "npm -w apps/web run dev",
     "build": "npm -w packages/contracts run build && npm -w apps/web run build",
-    "test": "python3 -B -m unittest discover -s tools -p 'test_*.py' && python3 -B tools/secret_guard.py && python3 -B tools/no_external_refs.py && python3 -B tools/ui_policy.py && python3 -B tools/ui_inventory.py --check && node --test tools/test_e2e_isolated.mjs && node tools/ui_templates.mjs && node tools/ui_catalog.mjs --check && npm -w packages/contracts run test && npm -w apps/web run test",
+    "test": "python3 -B -m unittest discover -s tools -p 'test_*.py' && python3 -B tools/secret_guard.py && python3 -B tools/docs_policy.py && python3 -B tools/no_external_refs.py && python3 -B tools/ui_policy.py && python3 -B tools/ui_inventory.py --check && node --test tools/test_e2e_isolated.mjs && node tools/ui_templates.mjs && node tools/ui_catalog.mjs --check && npm -w packages/contracts run test && npm -w apps/web run test",
     "lint": "npm -w apps/web run lint && ruff check odoo-addons",
     "test:commercial": "npm -w packages/commercial-contracts run test && npm -w apps/control-plane run test",
     "e2e": "node tools/e2e_isolated.mjs",
