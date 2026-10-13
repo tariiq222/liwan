@@ -285,7 +285,15 @@ Why: with `nasq_pmo` installed, `project.task.create` (`odoo-addons/nasq_pmo/mod
 
 **Files:**
 - Create: `odoo-addons/nasq_tasks/models/task_links.py`, `models/my_task_service.py`; extend `models/__init__.py`
+- Modify: `odoo-addons/nasq_tasks/models/project_task.py` (new fields `nasq_parent_id`, `nasq_child_ids`); `odoo-addons/nasq_tasks_pmo/models/project_task_personal.py` and its tests (switch `parent_id` handling to `nasq_parent_id`); `odoo-addons/nasq_tasks/tests/test_rules.py` (reword the header comment at ~line 37: only the read tests guard one clause each; the write tests check combined behaviour)
 - Test: `odoo-addons/nasq_tasks/tests/test_service.py`
+
+**Controller rulings that bind this task (from the ledger):**
+1. Odoo 19 forbids `parent_id` on a project-less task (`project_task_private_task_has_no_parent`). Personal sub-tasks therefore use OWN fields on `project.task`: `nasq_parent_id = fields.Many2one('project.task', index=True, ondelete='cascade', copy=False)` and `nasq_child_ids = fields.One2many('project.task', 'nasq_parent_id')`. A personal sub-task is a full personal task row (same rule, same `nasq_personal`), depth 1. The wire contract is unchanged: the API field is still `parent_id`, stored into `nasq_parent_id`; `parent`/`subtasks` come from `nasq_parent_id`/`nasq_child_ids`. Sub-task rows (`nasq_parent_id != False`) are excluded from the unified list (they show inside their parent). Never write Odoo's `parent_id` on a personal task.
+2. The `project_todo` module gives `base.group_user` full CRUD on `project.task`, so the ORM does not enforce `tasks.tasks.*`: EVERY service method must first call the capability check (`tasks.tasks.read` for reads, `.create` for create, `.write` for update/transition) with the same access-service helper the meetings controllers use, and raise 403 `forbidden`.
+3. Every create path sets `company_id = self.env.company.id` explicitly (the global rule is fail-closed on a company-less task and the bridge hook rejects a missing `company_id`).
+4. Assignees must be in the `/api/v1/people` population (the PMO bridge hook does not validate `user_ids`).
+5. Bridge: in `nasq_tasks_pmo`, the hook and the create whitelist must use `nasq_parent_id` instead of `parent_id` (parent must be a `nasq_personal` task; add `nasq_parent_id` to the personal create fields and drop `parent_id`); update its tests accordingly, including one proving a sub-task can be created with PMO installed.
 
 **Interfaces:**
 - Produces `nasq.task.links` (AbstractModel, copy the `_nasq_scope` and style of `nasq_meetings/models/meeting_links.py`):
@@ -313,6 +321,8 @@ def test_create_sets_company_and_state(self):
 def test_subtask_depth_limit(self):
     parent = self.service(self.alice)._create_task({'name': 'p'})
     child = self.service(self.alice)._create_task({'name': 'c', 'parent_id': parent.id})
+    self.assertEqual(child.nasq_parent_id, parent)
+    self.assertFalse(child.parent_id)   # Odoo's own parent_id is never used
     with self.assertRaises(ApiError) as cm:
         self.service(self.alice)._create_task({'name': 'gc', 'parent_id': child.id})
     self.assertEqual((cm.exception.status, cm.exception.code), (422, 'invalid'))
@@ -351,10 +361,12 @@ def test_list_default_hook_lists_personal_only(self): ...  # a project task assi
 
 (`test_list_scopes_and_closed_split` and `test_list_default_hook_lists_personal_only` must be written out in full by the implementer using the same fixture; assert row ids, not just counts. The last one is skipped via `@skipIf` on `nasq_tasks_pmo` being installed, and is covered with the bridge installed in Task 8.)
 
+Additional tests to write in full (same fixture): `test_every_service_method_checks_its_capability` (a user without `tasks.tasks.write` gets 403 on `_update_task` and `_transition`; without `create` on `_create_task`; without `read` on `_search_list`/`_get_personal`), `test_subtask_creator_and_assignee_can_toggle_done` (creator and assignee of the sub-task can move it to done through the service), `test_subtasks_excluded_from_the_list_and_listed_on_the_parent`, `test_subtask_parent_in_other_company_rejected`, `test_create_without_pmo_and_with_pmo_both_work` (the same test runs in both configs).
+
 - [ ] **Step 2: Run, expect FAIL.**
 - [ ] **Step 3: Implement.** Key rules:
-  - `_create_task`: `vals` whitelist `name, description, date_deadline, priority, assignees, parent_id`; `name` stripped, 1–255 chars else 422 on `name`; `priority` maps `normal→'0'`, `high→'1'`; `description` plain text escaped into `<p>` (use `odoo.tools.html_escape`/`plaintext2html`); `company_id = self.env.company.id`; `project_id=False`; assignees validated against `self.env['nasq.directory']` population (use the same domain nasq_directory exposes; read `odoo-addons/nasq_directory/models` for the public method, do not copy its SQL); caller's own env, no `sudo()`.
-  - `_search_list` domain: `Domain.OR([personal_domain, links._nasq_project_task_domain(uid)])` where `personal_domain = [('nasq_personal','=',True), ('create_uid','!=', self.env.ref('base.user_root').id)]`; `assigned`/`created` flags AND-ed with `('user_ids','in',[uid])` / `('create_uid','=',uid)`, OR-ed when both are set; `closed` → `state in (1_done, 1_canceled)`; `q` → `name ilike`; sort keys `deadline` (default, nulls last), `created`, `name`; `limit = min(limit, 100)`.
+  - `_create_task`: `vals` whitelist `name, description, date_deadline, priority, assignees, parent_id` (stored as `nasq_parent_id`); `name` stripped, 1–255 chars else 422 on `name`; `priority` maps `normal→'0'`, `high→'1'`; `description` plain text escaped into `<p>` (use `odoo.tools.html_escape`/`plaintext2html`); `company_id = self.env.company.id`; `project_id=False`; assignees validated against `self.env['nasq.directory']` population (use the same domain nasq_directory exposes; read `odoo-addons/nasq_directory/models` for the public method, do not copy its SQL); caller's own env, no `sudo()`.
+  - `_search_list` domain: `Domain.OR([personal_domain, links._nasq_project_task_domain(uid)])` where `personal_domain = [('nasq_personal','=',True), ('nasq_parent_id','=',False), ('create_uid','!=', self.env.ref('base.user_root').id)]`; `assigned`/`created` flags AND-ed with `('user_ids','in',[uid])` / `('create_uid','=',uid)`, OR-ed when both are set; `closed` → `state in (1_done, 1_canceled)`; `q` → `name ilike`; sort keys `deadline` (default, nulls last), `created`, `name`; `limit = min(limit, 100)`.
   - `_transition`: allowed matrix open→done|cancel, done|cancelled→reopen; any other → `ApiError(403, 'transition_forbidden', ...)` is for capability failures, so use 422 `invalid` here (match `nasq_pmo` convention after reading its transition helper; pick whichever it uses for invalid-state transitions).
   - `_get_personal`: `task = env['project.task'].browse(id).exists()`; if not `task` or not `task.nasq_personal` or `not task.has_access('read')` → 404.
 - [ ] **Step 4: Run, expect PASS.**
