@@ -64,6 +64,9 @@ shared change must state the contract and the single writer before work starts.
 4. Set per-worktree `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, and
    `NUXT_PUBLIC_WS_URL`, and choose a distinct Nuxt `--port`.
 
+`npm run wt -- new <area>-<slug>` performs the worktree creation, steps 3 and 4 (ports and
+scratch database name go to the git-ignored `.env.worktree`) in one command (`tools/wt.py`).
+
 The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
 configuration, and Git state are read-only. Source inspection and read-only Git
 audits there are allowed. Authorized test or development commands may mutate an

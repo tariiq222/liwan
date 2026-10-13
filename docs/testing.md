@@ -9,6 +9,37 @@ nasq has four test layers. Pick the cheapest one that proves the change.
 | 3. Playwright mock specs | Page behaviour against the mock API, no model needed | `cd apps/web && npm run test:e2e` (CI step `e2e-mock`) |
 | 4. Agentic e2e | Whole user journeys through the real UI | `npm run e2e` / `npm run e2e:smoke` |
 
+## Fast local loop
+
+Use these while iterating; `npm test` and the Odoo/CI gates stay binding before a merge.
+
+| Command | What it does |
+| --- | --- |
+| `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
+| `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
+| `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
+
+`tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
+module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them
+changes) and only ever creates, clones or drops `nasq_scratch_*` databases. Stale
+`nasq_scratch_tpl_*` templates are small and can be dropped by hand.
+
+## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
+
+| Step | Time |
+| --- | --- |
+| `npm test` chain plus web type check, step by step | about 50 s |
+| `npm run check:fast` when only `tools/` changed | about 18 s |
+| `npm ci --ignore-scripts --prefer-offline` | 4.7 s |
+| `tools/wt.py new` (worktree, install, `nuxt prepare`) | about 10 s |
+| Odoo install of the 10 release modules | about 17 s |
+| `createdb -T` clone of the installed template | about 1.2 s |
+| `npm run test:odoo -- --addons nasq_hr` (80 tests), warm / cold template | 30 s / 43 s |
+| Full Odoo run (install and tests of all release modules, 658 tests) | 234 s |
+| CI `e2e-mock` locally (`nuxt build` 28.8 s, 7 Playwright tests 4.9 s) | about 35 s |
+
+Not measured: the agentic e2e runner (needs model credentials) and the Odoo-backed e2e stack.
+
 ## 1. Odoo tests
 
 Extend `NasqApiCase` (or `NasqPmoCase`) from `nasq_api/tests/common.py`. Every `test_*.py`
