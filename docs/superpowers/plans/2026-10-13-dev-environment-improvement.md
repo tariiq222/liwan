@@ -97,7 +97,7 @@ Review tools (details and URLs in the research report):
 | --- | --- | --- |
 | Claude Code `/code-review` | Yes | Use now, primary pre-merge reviewer. |
 | Semgrep CLI | Yes | Add to `static` (E1). |
-| CodeRabbit CLI/IDE | CLI yes (free tier with rate limits) | Optional second opinion; trial only. |
+| CodeRabbit CLI/IDE | CLI yes (free tier with rate limits) | Dropped by the owner (2026-10-13): it sends code to a third party. |
 | Qodo PR-Agent (open source) | Mostly PR-based | Only if the owner starts using PRs. |
 | Greptile, Graphite, Sourcery | PR-based, paid or weak Python fit | Skip. |
 | Qodana, SonarQube Community | Local but heavy / low value | Skip for now. |
@@ -140,7 +140,7 @@ Focused tests for each new tool (`tools/test_*.py`, wired into `npm test` by dis
 1. Are Gemini, Grok, opencode, Copilot used? (decides D3)
 2. May A1 drop old scratch databases (which age threshold)?
 3. Is `woodpecker-cli exec` acceptable as the local CI mirror (C2)?
-4. Is a CodeRabbit CLI trial acceptable (sends code to a third party)?
+4. ~~Is a CodeRabbit CLI trial acceptable?~~ Answered: no, dropped (it sends code to a third party).
 
 ## 11. Phase E result (2026-10-13)
 
@@ -155,4 +155,4 @@ Focused tests for each new tool (`tools/test_*.py`, wired into `npm test` by dis
   screenshots. Result: 366 passed, 2 fixme (`Shared/CreatePanel / form` does not render). No
   story had sideways page overflow or a page error. Pixel baselines and Chromatic were not
   adopted: this check needs no baseline files and no third party.
-- CodeRabbit CLI trial was not done (it sends code to a third party).
+- CodeRabbit CLI: dropped by the owner, not adopted and not installed.
