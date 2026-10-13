@@ -8,4 +8,5 @@ from . import (
     test_lifecycle,
     test_quotas,
     test_tenant_profile,
+    test_terminology_keys,
 )

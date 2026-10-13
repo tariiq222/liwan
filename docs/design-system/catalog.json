@@ -256,6 +256,67 @@
       ]
     },
     {
+      "name": "MyTasksMyTaskForm",
+      "file": "apps/web/app/components/my-tasks/MyTaskForm.vue",
+      "story": "apps/web/stories/my-tasks/MyTaskForm.stories.ts",
+      "title": "MyTasks/MyTaskForm",
+      "props": [
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "Error | null",
+          "required": false,
+          "default": "null"
+        }
+      ],
+      "events": [
+        {
+          "name": "cancel",
+          "payload": "[]"
+        },
+        {
+          "name": "submit",
+          "payload": "[payload: globalThis.MyTaskCreate]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Create",
+          "name": "إنشاء مهمة",
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
+        },
+        {
+          "id": "Pending",
+          "name": "أثناء الحفظ",
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
+        },
+        {
+          "id": "FieldError",
+          "name": "خطأ من الخادم تحت الحقل",
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
+        },
+        {
+          "id": "GeneralError",
+          "name": "خطأ عام",
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
+        }
+      ]
+    },
+    {
       "name": "ProjectDashboardChartPanel",
       "file": "apps/web/app/components/project/dashboard/DashboardChartPanel.vue",
       "story": "apps/web/stories/project/dashboard/DashboardChartPanel.stories.ts",

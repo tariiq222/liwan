@@ -338,6 +338,106 @@ class TestNewApp(unittest.TestCase):
         text = (self.root / 'odoo-addons/nasq_zzprobe_ops/models/access_service.py').read_text(encoding='utf-8')
         self.assertIn('class NasqZzprobeOpsAccessService', text)
 
+    def test_route_defaults_to_the_app_id(self):
+        code, _, err = run(self.root, *ARGS)
+        self.assertEqual(code, 0, err)
+        manifest = (self.root / 'apps/web/app/modules/zzprobe/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn("routePrefixes: ['/zzprobe']", manifest)
+        layers = json.loads((self.root / new_app.ARCH_LAYERS).read_text(encoding='utf-8'))
+        self.assertEqual(layers['web_apps']['zzprobe'], {'components': ['zzprobe'], 'pages': ['zzprobe']})
+        self.assertFalse(list(self.root.rglob('*__route__*')))
+
+    def test_route_drives_pages_manifest_and_arch_layers(self):
+        code, _, err = run(self.root, *ARGS, '--route', 'my-probe')
+        self.assertEqual(code, 0, err)
+        self.assertTrue((self.root / 'apps/web/app/pages/my-probe/index.vue').is_file())
+        self.assertFalse((self.root / 'apps/web/app/pages/zzprobe').exists())
+        manifest = (self.root / 'apps/web/app/modules/zzprobe/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn("routePrefixes: ['/my-probe']", manifest)
+        self.assertIn("to: '/my-probe'", manifest)
+        self.assertIn('/^\\/my-probe(?:\\/|$)/', manifest)
+        self.assertIn("feature: 'zzprobe.enabled'", manifest)
+        self.assertNotIn('{{route}}', manifest)
+        layers = json.loads((self.root / new_app.ARCH_LAYERS).read_text(encoding='utf-8'))
+        self.assertEqual(layers['web_apps']['zzprobe'], {'components': ['my-probe'], 'pages': ['my-probe']})
+        self.assertTrue((self.root / 'odoo-addons/nasq_zzprobe/__manifest__.py').is_file())
+
+    def test_reserved_route_id_needs_a_distinct_route(self):
+        # `tasks` is a shell route; `reports` is a page route taken by pages/reports.vue.
+        for app in ('tasks', 'reports'):
+            for extra in ((), ('--route', app)):
+                code, _, err = run(self.root, app, *extra, '--name-ar', 'س', '--name-en', 'S')
+                self.assertEqual(code, 1, (app, extra))
+                self.assertIn('NEW_APP_REFUSED', err)
+        code, _, err = run(self.root, 'reports', '--route', 'my-reports', '--name-ar', 'التقارير', '--name-en', 'Reports')
+        self.assertEqual(code, 0, err)
+        for relative in ('apps/web/app/modules/reports', 'odoo-addons/nasq_reports', 'apps/web/app/pages/my-reports'):
+            self.assertTrue((self.root / relative).is_dir(), relative)
+
+    def test_edge_proxy_routes_are_reserved(self):
+        # The edge sends /odoo and /websocket to Odoo, so no application page may use them.
+        for app in ('odoo', 'websocket'):
+            for extra in ((), ('--route', app)):
+                code, _, err = run(self.root, app, *extra, '--name-ar', 'س', '--name-en', 'S')
+                self.assertEqual(code, 1, (app, extra))
+                self.assertIn('NEW_APP_REFUSED', err)
+        code, _, err = run(self.root, *ARGS, '--route', 'odoo')
+        self.assertEqual(code, 1, err)
+        self.assertIn('NEW_APP_REFUSED', err)
+
+    def test_route_colliding_with_an_existing_page_is_refused(self):
+        code, _, err = run(self.root, *ARGS, '--route', 'projects')
+        self.assertEqual(code, 1)
+        self.assertIn('NEW_APP_REFUSED', err)
+        self.assertFalse((self.root / 'odoo-addons/nasq_zzprobe').exists())
+
+    def test_invalid_route_slug_is_refused(self):
+        for route in ('My_Tasks', '-x', '', 'a--b', 'x-', '1x'):
+            code, _, err = run(self.root, *ARGS, f'--route={route}')
+            self.assertEqual(code, 1, route)
+            self.assertIn('NEW_APP_REFUSED', err)
+        self.assertFalse((self.root / 'odoo-addons/nasq_zzprobe').exists())
+
+    def test_the_new_application_with_a_route_passes_the_policies(self):
+        code, _, err = run(self.root, 'reports', '--route', 'my-reports', '--name-ar', 'التقارير', '--name-en', 'Reports')
+        self.assertEqual(code, 0, err)
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            code = arch_policy.main(
+                [], root=self.root, layers_file=self.root / new_app.ARCH_LAYERS,
+                baseline_file=self.root / 'tools/arch_baseline.json',
+            )
+        self.assertEqual(code, 0, err.getvalue())
+        self.assertEqual(catalog_check.check_catalog(self.root), [])
+
+    def test_route_drives_the_locale_file_and_namespace(self):
+        code, _, err = run(self.root, 'reports', '--route', 'my-reports', '--name-ar', 'التقارير', '--name-en', 'Reports')
+        self.assertEqual(code, 0, err)
+        locales = self.root / 'apps/web/i18n/locales'
+        for lang in ('ar', 'en'):
+            self.assertTrue((locales / lang / 'my-reports.json').is_file(), lang)
+            self.assertFalse((locales / lang / 'reports.json').exists(), lang)
+            data = json.loads((locales / lang / 'my-reports.json').read_text(encoding='utf-8'))
+            self.assertEqual(list(data), ['myReports'])
+        manifest = (self.root / 'apps/web/app/modules/reports/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn("labelKey: 'myReports.title'", manifest)
+        self.assertIn("labelKey: 'myReports.nav.records'", manifest)
+        self.assertIn("capability: 'reports.records.read'", manifest)
+        self.assertNotIn("labelKey: 'reports.", manifest)
+
+    def test_locale_files_define_every_key_with_a_route(self):
+        run(self.root, *ARGS, '--route', 'my-probe')
+        keys = set()
+        for relative in ('apps/web/app/modules/zzprobe/manifest.ts', 'apps/web/app/pages/my-probe/index.vue'):
+            keys |= set(re.findall(r"(?:labelKey: |\bt\()'(myProbe\.[a-zA-Z.]+)'", (self.root / relative).read_text(encoding='utf-8')))
+        self.assertTrue(keys)
+        for lang in ('ar', 'en'):
+            data = json.loads((self.root / f'apps/web/i18n/locales/{lang}/my-probe.json').read_text(encoding='utf-8'))
+            for key in keys:
+                node = data
+                for part in key.split('.'):
+                    node = node[part]
+                self.assertIsInstance(node, str, key)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -53,7 +53,7 @@ steps:
         docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" \
           -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
           -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
-          -d nasq_image_scratch -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init
+          -d nasq_image_scratch -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo --without-demo=all --http-port=8169 --stop-after-init
         docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
         docker rm -fv db || true
         docker network rm t || true

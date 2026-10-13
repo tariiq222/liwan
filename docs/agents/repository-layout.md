@@ -57,7 +57,17 @@ limits describe implementation stages, not permanent product exclusions.
   columns of meetings, series and recommendations, the task origin columns and
   their unique index, recommendation-to-task conversion and its route, and the
   project/task implementation of `nasq.meeting.links`.
-- `packages/contracts/src/common`, `src/access`, `src/pmo`, and `src/hr` hold the Zod wire
+- `odoo-addons/nasq_tasks` (application, rank 4) owns personal tasks (a `project.task` without a
+  project, with `nasq_parent_id` for sub-tasks), `/api/v1/my-tasks` (the unified list, CRUD,
+  transitions, comments, attachments), `tasks.enabled`, the three `tasks.*` capabilities, their
+  groups, the global personal-task record rule and the `tasks.assigned` notification kind. It
+  knows no other application: project rows and conversion go through the `nasq.task.links` hooks,
+  which answer "none" by default.
+- `odoo-addons/nasq_tasks_pmo` (bridge, rank 5, `auto_install`) is installed whenever `nasq_tasks`
+  and `nasq_pmo` both are. It lets PMO create and read personal tasks, holds every write of a
+  personal task (also through PMO's own routes) to the personal fields, adds the project rows of
+  the list, and owns the convert route (`/api/v1/my-tasks/<id>/convert`, `convert-targets`).
+- `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, and `src/tasks` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.

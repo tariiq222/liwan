@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_nasq_tasks_task_read,nasq.tasks.task.read,project.model_project_task,group_cap_tasks_tasks_read,1,0,0,0
+access_nasq_tasks_task_create,nasq.tasks.task.create,project.model_project_task,group_cap_tasks_tasks_create,1,0,1,0
+access_nasq_tasks_task_write,nasq.tasks.task.write,project.model_project_task,group_cap_tasks_tasks_write,1,1,0,0

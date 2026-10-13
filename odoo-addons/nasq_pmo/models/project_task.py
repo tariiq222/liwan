@@ -81,6 +81,38 @@ class ProjectTask(models.Model):
         """
         return frozenset()
 
+    def _nasq_extra_write_fields(self):
+        """Fields a checked internal flow may write besides TASK_WRITABLE_FIELDS.
+
+        None here, so a client write is limited to TASK_WRITABLE_FIELDS. A bridge
+        (nasq_tasks_pmo) adds the project assignment fields only while its
+        cursor-local marker covers these very tasks; the write is still bound by
+        the visibility and ``pmo.tasks.write`` checks of ``write``.
+        """
+        return frozenset()
+
+    @api.model
+    def _nasq_personal_read_domain(self):
+        """Extension point: the tasks a caller without ``pmo.tasks.read`` may still read.
+
+        None here, so PMO keeps requiring the capability. A bridge (nasq_tasks_pmo)
+        answers a domain that matches personal (project-less) tasks only, after its own
+        capability check. Like the template boundary, it narrows every search, fetch and
+        access check; stock ACLs and record rules still run on top.
+        """
+        return
+
+    @api.model
+    def _nasq_projectless_create_allowed(self, vals_list):
+        """Extension point: may these values create tasks that have no project?
+
+        False here, so every non-admin create needs a visible project. A bridge
+        addon (nasq_tasks_pmo) answers True only for its own project-less
+        tasks after its own capability check; the field whitelist and the
+        stock ORM ACLs and record rules still apply to the values.
+        """
+        return False
+
     @api.model
     def _nasq_template_population_domain(self):
         """Return only the fresh project's boundary, never a capability grant.
@@ -112,6 +144,8 @@ class ProjectTask(models.Model):
             if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
                 boundary = self._nasq_template_population_domain()
                 if boundary is None:
+                    boundary = self._nasq_personal_read_domain()
+                if boundary is None:
                     service._nasq_require_capability('pmo.tasks.read')
                 else:
                     # Constrain every search/fetch/count, including an empty or
@@ -135,6 +169,10 @@ class ProjectTask(models.Model):
             if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
                 try:
                     boundary = self._nasq_template_population_domain()
+                    scope = 'template'
+                    if boundary is None:
+                        boundary = self._nasq_personal_read_domain()
+                        scope = 'personal'
                     if boundary is None:
                         return self, lambda: AccessError('forbidden')
                     if self:
@@ -147,9 +185,12 @@ class ProjectTask(models.Model):
                         )
                         forbidden = self - self.browse(query)
                         if forbidden:
-                            return forbidden, lambda: AccessError(self.env._(
-                                "Only tasks in the new template project may be read during application.",
-                            ))
+                            return forbidden, lambda: AccessError(
+                                self.env._(
+                                    "Only tasks in the new template project may be read during application.",
+                                )
+                                if scope == 'template' else 'forbidden',
+                            )
                 except AccessError as error:
                     # Scope validation and stock search may raise; this hook
                     # must instead let its caller choose raising or filtering.
@@ -583,6 +624,8 @@ class ProjectTask(models.Model):
                 if not project and parent:
                     project = parent.project_id
                 if not project:
+                    if self._nasq_projectless_create_allowed(vals_list):
+                        continue
                     raise AccessError(self.env._("A visible current-company project is required."))
                 project._nasq_check_visible_current()
                 if parent and parent.project_id != project:
@@ -689,7 +732,7 @@ class ProjectTask(models.Model):
         )
         if not trusted:
             self._nasq_check_visible_current()
-            if set(vals) - TASK_WRITABLE_FIELDS:
+            if set(vals) - (TASK_WRITABLE_FIELDS | self._nasq_extra_write_fields()):
                 raise AccessError(self.env._("Task fields are not allowed."))
             if 'active' in vals and any(not task._nasq_can_archive() for task in self):
                 raise AccessError(self.env._(

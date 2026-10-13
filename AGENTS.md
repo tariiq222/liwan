@@ -226,7 +226,7 @@ files.
 ## Authorization model
 
 
-Authorization uses the 28 capabilities in `nasq.access.service`, built-in and
+Authorization uses the 31 capabilities in `nasq.access.service`, built-in and
 custom roles, and company-scoped assignments. `system_admin` manages access
 and settings without implicitly granting HR/PMO write access. Project ownership
 contributes contextual PMO capabilities. Legacy groups are migration/ORM support,

@@ -109,6 +109,15 @@ describe('contextual module links', () => {
 const TODAY = ['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'management', 'vendor']
 const today = (ids: string[]) => ids.filter(id => TODAY.includes(id))
 
+describe('tasks app navigation', () => {
+  const taskUser = { role: 'employee', capabilities: ['tasks.tasks.read'] }
+  it('shows /my-tasks in the nav and the rail for tasks.tasks.read', () => {
+    expect(useNav(taskUser).map(item => item.to)).toContain('/my-tasks')
+    expect(visibleShellModules(taskUser).find(item => item.id === 'tasks')?.to).toBe('/my-tasks')
+    expect(useNav(employee).map(item => item.to)).not.toContain('/my-tasks')
+  })
+})
+
 describe('module rail', () => {
   it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
     expect(today(visibleShellModules(full).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
@@ -193,11 +202,14 @@ describe('navigation built from app manifests', () => {
   })
   it('lists the rail in order from the manifests', () => {
     const ids = shellModuleList().map(module => module.id as string)
-    // Today's modules keep their relative order; any additional application sits between hr and the foundation modules.
+    // Today's modules keep their relative order; the tasks module (order 15) sits between home and projects,
+    // and any other additional application sits between hr and the foundation modules.
     expect(today(ids)).toEqual(TODAY)
     expect(new Set(ids).size).toBe(ids.length)
+    expect(ids.indexOf('tasks')).toBe(ids.indexOf('home') + 1)
+    expect(ids.indexOf('projects')).toBe(ids.indexOf('tasks') + 1)
     const firstFoundation = ids.indexOf('settings')
-    for (const id of ids.filter(id => !TODAY.includes(id))) {
+    for (const id of ids.filter(id => !TODAY.includes(id) && id !== 'tasks')) {
       expect(ids.indexOf(id)).toBeGreaterThan(ids.indexOf('hr'))
       expect(ids.indexOf(id)).toBeLessThan(firstFoundation)
     }

@@ -1,0 +1,143 @@
+{
+  "myTasks": {
+    "title": "My tasks",
+    "new": "New task",
+    "created": "Task created",
+    "list": {
+      "tabs": {
+        "open": "Open",
+        "done": "Done"
+      },
+      "filters": {
+        "all": "All",
+        "assigned": "Assigned to me",
+        "created": "Created by me"
+      },
+      "search": "Search my tasks",
+      "project": "Project: {name}",
+      "personal": "Personal task",
+      "noDeadline": "No deadline",
+      "empty": {
+        "open": "No open tasks. Start by adding a new task.",
+        "done": "No completed tasks yet.",
+        "search": "No tasks match your search."
+      },
+      "total": "{count} tasks",
+      "scope": "Show",
+      "sort": {
+        "label": "Sort by",
+        "deadline": "Nearest deadline",
+        "created": "Newest",
+        "name": "Name"
+      },
+      "loadMore": "Load more",
+      "overdue": "Overdue",
+      "assignees": "Assignees",
+      "loadError": "Could not load more tasks. Try again."
+    },
+    "form": {
+      "createTitle": "New task",
+      "name": "Task title",
+      "namePlaceholder": "What needs to get done?",
+      "description": "Description",
+      "deadline": "Deadline",
+      "priority": "Priority",
+      "assignees": "Assignees",
+      "assigneesPlaceholder": "Search for a person",
+      "submit": "Create task",
+      "save": "Save changes",
+      "cancel": "Cancel",
+      "nameRequired": "The task title is required",
+      "nameTooLong": "The task title must not exceed {max} characters"
+    },
+    "priority": {
+      "normal": "Normal",
+      "high": "High"
+    },
+    "state": {
+      "open": "Open",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "detail": {
+      "description": "Description",
+      "noDescription": "No description",
+      "deadline": "Deadline",
+      "priority": "Priority",
+      "assignees": "Assignees",
+      "creator": "Created by",
+      "createdAt": "Created",
+      "updatedAt": "Last updated",
+      "notFound": "This task does not exist or you cannot view it.",
+      "back": "Back to my tasks",
+      "noAssignees": "No assignees",
+      "noDeadline": "No deadline"
+    },
+    "actions": {
+      "done": "Mark done",
+      "reopen": "Reopen",
+      "cancel": "Cancel task",
+      "edit": "Edit"
+    },
+    "cancelConfirm": {
+      "title": "Cancel this task?",
+      "body": "The task moves to the done list as cancelled, and you can reopen it later.",
+      "confirm": "Yes, cancel the task",
+      "keep": "Keep the task"
+    },
+    "subtasks": {
+      "title": "Sub-tasks",
+      "empty": "No sub-tasks",
+      "add": "Add a sub-task",
+      "namePlaceholder": "Sub-task title",
+      "label": "Sub-tasks",
+      "parentOf": "Sub-task of"
+    },
+    "comments": {
+      "title": "Comments",
+      "empty": "No comments yet",
+      "placeholder": "Write a comment",
+      "post": "Post comment",
+      "unknownAuthor": "Unknown user",
+      "errors": {
+        "tooLong": "The comment is longer than 5000 characters."
+      }
+    },
+    "attachments": {
+      "title": "Attachments",
+      "empty": "No attachments",
+      "upload": "Add an attachment",
+      "delete": "Delete attachment",
+      "deleteConfirm": "Delete this attachment permanently?",
+      "count": "{count} attachments",
+      "help": "Allowed types: PDF, PNG, JPEG, text, DOCX and XLSX, up to 10 MiB.",
+      "confirm": "Yes, delete the attachment",
+      "keep": "Keep the attachment",
+      "errors": {
+        "tooLarge": "The file is larger than 10 MiB.",
+        "type": "This file type is not allowed. Allowed: PDF, PNG, JPEG, text, DOCX and XLSX.",
+        "empty": "The file is empty."
+      },
+      "deleteError": "The attachment could not be deleted. Try again."
+    },
+    "convert": {
+      "title": "Convert to a project task",
+      "description": "The task becomes part of the project you choose, with its assignees, deadline, description, sub-tasks and attachments.",
+      "irreversible": "This conversion cannot be undone.",
+      "search": "Search for a project",
+      "empty": "There are no projects you can add tasks to.",
+      "project": "Project",
+      "submit": "Convert task",
+      "confirm": "Yes, convert the task",
+      "keep": "Keep it as is",
+      "choose": "Choose a project"
+    },
+    "errors": {
+      "save": "Could not save the task. Try again.",
+      "transition": "Could not change the task status. Try again.",
+      "comment": "Could not post the comment. Try again.",
+      "attachment": "Could not upload the attachment. Check its type and size.",
+      "convert": "Could not convert the task. Try again."
+    }
+  }
+}
