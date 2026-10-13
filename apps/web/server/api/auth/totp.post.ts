@@ -1,16 +1,17 @@
 import { tenantTransport } from '../../utils/tenantTransport'
-import { tenantRequest, tenantUpstreamHeaders } from '../../utils/tenantRequest'
+import { tenantRequest } from '../../utils/tenantRequest'
+import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
   const { code } = await readBody<{ code?: string }>(event)
-  const { odooUrl } = useRuntimeConfig(event)
+  const { odooUrl, authProxyClientIpHeader } = useRuntimeConfig(event)
 
   const cookie = getHeader(event, 'cookie') ?? ''
   const send = tenantRequest(event) ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/api/v1/auth/totp', options) : (options: RequestInit) => fetch(`${odooUrl}/api/v1/auth/totp`, options)
   const upstream = await send({
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', cookie, ...tenantUpstreamHeaders(event) },
+    headers: { 'Content-Type': 'application/json', cookie, ...authUpstreamHeaders(event, authProxyClientIpHeader) },
     body: JSON.stringify({ code }),
   })
 

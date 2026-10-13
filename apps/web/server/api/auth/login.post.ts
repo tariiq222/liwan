@@ -1,5 +1,6 @@
 import { tenantTransport } from '../../utils/tenantTransport'
-import { tenantRequest, tenantUpstreamHeaders } from '../../utils/tenantRequest'
+import { tenantRequest } from '../../utils/tenantRequest'
+import { authUpstreamHeaders } from '../../utils/authUpstreamHeaders'
 
 export default defineEventHandler(async (event) => {
   assertSameSiteJson(event)
@@ -7,13 +8,13 @@ export default defineEventHandler(async (event) => {
   if (!login || !password) {
     throw createError({ statusCode: 400, data: { code: 'missing_credentials' } })
   }
-  const { odooUrl, odooDb } = useRuntimeConfig(event)
+  const { odooUrl, odooDb, authProxyClientIpHeader } = useRuntimeConfig(event)
   const tenant = tenantRequest(event)
 
   const send = tenant ? (options: { method: string; headers: Record<string, string>; body: string }) => tenantTransport(event, odooUrl, '/web/session/authenticate', options) : (options: RequestInit) => fetch(`${odooUrl}/web/session/authenticate`, options)
   const upstream = await send({
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...tenantUpstreamHeaders(event) },
+    headers: { 'Content-Type': 'application/json', ...authUpstreamHeaders(event, authProxyClientIpHeader) },
     body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: tenant?.database ?? odooDb, login, password } }),
   })
   const body = await upstream.json() as { result?: { uid?: number | null }; error?: unknown }

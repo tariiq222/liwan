@@ -1,73 +1,68 @@
-# Edge policy for one customer deployment. Limits are per client IP and are
-# the abuse boundary; they are not a billing quota. WebSockets are not counted.
-# Health probes are exempt so an upstream check cannot exhaust a customer's
-# interactive budget. Tune the four zone sizes per deployment; do not remove
-# the zones. A request matches exactly one zone.
-{
-	# Caddy sees the customer edge directly. Do not add another trusted proxy
-	# unless this Caddy sits behind one.
-	servers {
-		trusted_proxies static private_ranges
-		client_ip_headers X-Forwarded-For
-	}
-}
-
+# Direct dedicated edge: only the socket peer is client authority.
+# Apply one aggregate credential budget before choosing Nuxt or Odoo.
 {$DOMAIN} {
 	encode zstd gzip
 
-	# */static/* (not /*/static/*): Caddy's path matcher does not let * cross / in multi-wildcard patterns
-	# /api/commercial/v1 is intentionally absent: Nuxt rejects it before any upstream.
 	@odoo path /api/v1/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*
 
-	handle @odoo {
-		route {
-			rate_limit {
-				zone nasq_auth {
-					match {
-						path /api/v1/auth/* /web/session/* /web/login
-					}
-					key {client_ip}
-					events 20
-					window 1m
-					ipv6_prefix 64
+	route {
+		rate_limit {
+			zone nasq_auth {
+				match {
+					path /api/auth/* /api/v1/auth/* /web/session/* /web/login /web/login/*
+					not path /web/session/get_session_info
 				}
-				zone nasq_api {
-					match {
-						path /api/v1/*
-						not path /api/v1/auth/*
-					}
-					key {client_ip}
-					events 300
-					window 1m
-					ipv6_prefix 64
-				}
-				zone nasq_odoo {
-					match {
-						not path /api/v1/* /web/health
-					}
-					key {client_ip}
-					events 600
-					window 1m
-					ipv6_prefix 64
-				}
+				key {remote_host}
+				events 20
+				window 1m
+				ipv6_prefix 64
 			}
+			zone nasq_api {
+				match {
+					path /api/v1/*
+					not path /api/v1/auth/*
+				}
+				key {remote_host}
+				events 300
+				window 1m
+				ipv6_prefix 64
+			}
+			zone nasq_odoo {
+				match {
+					path /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*
+					not path /web/session/* /web/login /web/login/* /web/health
+				}
+				match {
+					path /web/session/get_session_info
+				}
+				key {remote_host}
+				events 600
+				window 1m
+				ipv6_prefix 64
+			}
+			zone nasq_web {
+				match {
+					not path /api/auth/* /api/v1/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/* /websocket*
+				}
+				key {remote_host}
+				events 600
+				window 1m
+				ipv6_prefix 64
+			}
+		}
+		handle @odoo {
 			reverse_proxy odoo:8069
 		}
-	}
-	handle /websocket* {
-		reverse_proxy odoo:8072
-	}
-	handle {
-		route {
-			rate_limit {
-				zone nasq_web {
-					key {client_ip}
-					events 600
-					window 1m
-					ipv6_prefix 64
-				}
+		handle /websocket* {
+			reverse_proxy odoo:8072
+		}
+		handle {
+			reverse_proxy web:3000 {
+				# Set after Connection-nominated fields are stripped; never append.
+				header_up X-Nasq-Client-IP {remote_host}
+				header_up X-Nasq-Client-Host {hostport}
+				header_up X-Nasq-Client-Proto {scheme}
 			}
-			reverse_proxy web:3000
 		}
 	}
 }

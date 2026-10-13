@@ -151,7 +151,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         for zone in DEDICATED_ZONES:
             with self.subTest(zone=zone):
                 self.assertEqual(declared.count(zone), 1)
-        self.assertIn('key {client_ip}', text)
+        self.assertIn('key {remote_host}', text)
         self.assertIn('ipv6_prefix 64', text)
         self.assertNotIn('caddy:2', COMPOSE.read_text(encoding='utf-8'))
 
