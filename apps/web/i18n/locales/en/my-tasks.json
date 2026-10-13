@@ -22,7 +22,18 @@
         "done": "No completed tasks yet.",
         "search": "No tasks match your search."
       },
-      "total": "{count} tasks"
+      "total": "{count} tasks",
+      "scope": "Show",
+      "sort": {
+        "label": "Sort by",
+        "deadline": "Nearest deadline",
+        "created": "Newest",
+        "name": "Name"
+      },
+      "loadMore": "Load more",
+      "overdue": "Overdue",
+      "assignees": "Assignees",
+      "searchValue": "Search: {value}"
     },
     "form": {
       "createTitle": "New task",

@@ -22,7 +22,18 @@
         "done": "لا توجد مهام منجزة بعد.",
         "search": "لا توجد مهام تطابق بحثك."
       },
-      "total": "{count} مهمة"
+      "total": "{count} مهمة",
+      "scope": "العرض",
+      "sort": {
+        "label": "الترتيب",
+        "deadline": "الأقرب موعدًا",
+        "created": "الأحدث",
+        "name": "الاسم"
+      },
+      "loadMore": "تحميل المزيد",
+      "overdue": "متأخرة",
+      "assignees": "المكلّفون",
+      "searchValue": "بحث: {value}"
     },
     "form": {
       "createTitle": "مهمة جديدة",
