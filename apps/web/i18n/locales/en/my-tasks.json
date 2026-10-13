@@ -1,9 +1,125 @@
 {
   "myTasks": {
-    "title": "Tasks",
-    "empty": "No records yet",
+    "title": "My tasks",
+    "new": "New task",
+    "empty": "No tasks yet",
     "nav": {
-      "records": "Records"
+      "records": "Tasks"
+    },
+    "list": {
+      "tabs": {
+        "open": "Open",
+        "done": "Done"
+      },
+      "filters": {
+        "all": "All",
+        "assigned": "Assigned to me",
+        "created": "Created by me"
+      },
+      "search": "Search my tasks",
+      "project": "Project: {name}",
+      "personal": "Personal task",
+      "noDeadline": "No deadline",
+      "empty": {
+        "open": "No open tasks. Start by adding a new task.",
+        "done": "No completed tasks yet.",
+        "search": "No tasks match your search."
+      },
+      "total": "{count} tasks"
+    },
+    "form": {
+      "createTitle": "New task",
+      "name": "Task title",
+      "namePlaceholder": "What needs to get done?",
+      "description": "Description",
+      "deadline": "Deadline",
+      "priority": "Priority",
+      "assignees": "Assignees",
+      "assigneesPlaceholder": "Search for a person",
+      "parent": "Parent task",
+      "submit": "Create task",
+      "save": "Save changes",
+      "cancel": "Cancel",
+      "nameRequired": "The task title is required"
+    },
+    "priority": {
+      "normal": "Normal",
+      "high": "High"
+    },
+    "state": {
+      "open": "Open",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "detail": {
+      "description": "Description",
+      "noDescription": "No description",
+      "deadline": "Deadline",
+      "priority": "Priority",
+      "state": "Status",
+      "assignees": "Assignees",
+      "creator": "Created by",
+      "parent": "Parent task",
+      "createdAt": "Created",
+      "updatedAt": "Last updated",
+      "notFound": "This task does not exist or you cannot view it.",
+      "back": "Back to my tasks"
+    },
+    "actions": {
+      "done": "Mark done",
+      "reopen": "Reopen",
+      "cancel": "Cancel task",
+      "edit": "Edit",
+      "convert": "Convert to a project task"
+    },
+    "cancelConfirm": {
+      "title": "Cancel this task?",
+      "body": "The task moves to the done list as cancelled, and you can reopen it later.",
+      "confirm": "Yes, cancel the task",
+      "keep": "Keep the task"
+    },
+    "subtasks": {
+      "title": "Sub-tasks",
+      "empty": "No sub-tasks",
+      "add": "Add a sub-task",
+      "namePlaceholder": "Sub-task title"
+    },
+    "comments": {
+      "title": "Comments",
+      "empty": "No comments yet",
+      "placeholder": "Write a comment",
+      "post": "Post comment",
+      "unknownAuthor": "Unknown user"
+    },
+    "attachments": {
+      "title": "Attachments",
+      "empty": "No attachments",
+      "upload": "Add an attachment",
+      "delete": "Delete attachment",
+      "deleteConfirm": "Delete this attachment permanently?",
+      "count": "{count} attachments"
+    },
+    "convert": {
+      "title": "Convert to a project task",
+      "description": "The task becomes part of the project you choose, with its assignees, deadline, description, sub-tasks and attachments.",
+      "irreversible": "This conversion cannot be undone.",
+      "search": "Search for a project",
+      "empty": "There are no projects you can add tasks to.",
+      "project": "Project",
+      "submit": "Convert task",
+      "success": "The task was converted to a project task"
+    },
+    "errors": {
+      "load": "Could not load tasks. Try again.",
+      "save": "Could not save the task. Try again.",
+      "transition": "Could not change the task status. Try again.",
+      "comment": "Could not post the comment. Try again.",
+      "attachment": "Could not upload the attachment. Check its type and size.",
+      "convert": "Could not convert the task. Try again.",
+      "forbidden": "You do not have permission for this action."
+    },
+    "bell": {
+      "assigned": "A task was assigned to you"
     }
   }
 }

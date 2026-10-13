@@ -193,11 +193,14 @@ describe('navigation built from app manifests', () => {
   })
   it('lists the rail in order from the manifests', () => {
     const ids = shellModuleList().map(module => module.id as string)
-    // Today's modules keep their relative order; any additional application sits between hr and the foundation modules.
+    // Today's modules keep their relative order; the tasks module (order 15) sits between home and projects,
+    // and any other additional application sits between hr and the foundation modules.
     expect(today(ids)).toEqual(TODAY)
     expect(new Set(ids).size).toBe(ids.length)
+    expect(ids.indexOf('tasks')).toBe(ids.indexOf('home') + 1)
+    expect(ids.indexOf('projects')).toBe(ids.indexOf('tasks') + 1)
     const firstFoundation = ids.indexOf('settings')
-    for (const id of ids.filter(id => !TODAY.includes(id))) {
+    for (const id of ids.filter(id => !TODAY.includes(id) && id !== 'tasks')) {
       expect(ids.indexOf(id)).toBeGreaterThan(ids.indexOf('hr'))
       expect(ids.indexOf(id)).toBeLessThan(firstFoundation)
     }
