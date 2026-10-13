@@ -99,6 +99,26 @@ Reference implementations to copy (read first): `odoo-addons/nasq_meetings` (mod
 
 ---
 
+### Task 0b: Move terminology keys out of `nasq_platform` (R2 root-cause fix, owner-approved)
+
+Why: `odoo-addons/nasq_platform/models/entitlement_service.py` hardcodes the 20-key `TERMINOLOGY_KEYS` allowlist of application i18n keys (`tasks.title`, `hr.*`, `chat.title`, nav keys). Registering `nasq_tasks` would add an R2 hit (`tasks.title`) and `new_app.py` refuses it; the baseline never grows. The owner chose the root-cause fix: each application registers its own keys. The owner thereby approves touching `nasq_pmo`, `nasq_meetings`, `nasq_hr`, `nasq_chat` for this hook only (beyond spec §6.3).
+
+**Files:**
+- Modify: `odoo-addons/nasq_platform/models/entitlement_service.py` (remove `TERMINOLOGY_KEYS`; add `@api.model _nasq_terminology_keys(self) -> frozenset[str]` returning `frozenset()`; `_nasq_validate_terminology` at line ~491/515 checks `key in self._nasq_terminology_keys()`)
+- Modify/Create: one `_inherit = 'nasq.entitlement.service'` model per owning addon overriding `_nasq_terminology_keys` as `return super()._nasq_terminology_keys() | frozenset({...})`: `nasq_pmo` (`nav.projects`, `nav.allProjects`, `nav.myProjects`, `nav.projectTemplates`, `nav.projectTasks`, `nav.tasks`, `projects.title`, `tasks.title`; the file `nasq_pmo/models/entitlement_service.py` already exists, extend it), `nasq_meetings` (`nav.meetings`, `nav.meetingCalendar`, `nav.meetingSeries`), `nasq_hr` (`nav.organization`, `nav.employees`, `nav.departments`, `nav.documents`, `hr.directory.title`, `hr.depts.title`, `hr.docs.title`), `nasq_chat` (`nav.chat`, `chat.title`). Register each new model file in its `models/__init__.py`.
+- Modify: `odoo-addons/nasq_api/controllers/common.py` docstring near line 170: reword "in tasks.py" so it no longer contains the token `tasks.` followed by a letter (e.g. "in the PMO task controller module").
+- Modify: `tools/arch_baseline.json` ONLY via `python3 -B tools/arch_policy.py --write-baseline` (the R2 count for `entitlement_service.py` shrinks from 4 to 0).
+- Test: `odoo-addons/nasq_platform/tests/` (new `test_terminology_keys.py`, imported in `tests/__init__.py`), plus one assertion per owning addon in its existing tests.
+
+**Interfaces:** produces `nasq.entitlement.service._nasq_terminology_keys()`; the 20-key union with all four applications installed is byte-equal to the old constant (test asserts the exact set). Validation behaviour, limits (`TERMINOLOGY_MAX_KEYS`, `TERMINOLOGY_MAX_CHARS`, forbidden chars/segments) and the `/api/v1/me` shape are unchanged.
+
+- [ ] **Step 1: Failing tests:** `test_base_hook_returns_empty_set` (platform alone), `test_union_equals_legacy_set_with_all_apps` (assert the exact 20 keys), `test_each_app_registers_only_its_keys` (per addon), `test_unknown_key_still_rejected_422`, `test_registered_key_accepted` (validator via `_nasq_validate_terminology`, as the existing tenant-profile tests call it).
+- [ ] **Step 2:** scratch Odoo run (skill `nasq-odoo-test`, release module set) → FAIL.
+- [ ] **Step 3:** implement. **Step 4:** the same run → PASS, including existing `nasq_platform`, `nasq_pmo`, `nasq_hr`, `nasq_meetings`, `nasq_chat`, `nasq_api` terminology/me tests. `ruff check odoo-addons`, `python3 -B tools/arch_policy.py --base main` pass; run `--write-baseline` and commit the shrunk baseline in the same commit.
+- [ ] **Step 5: Commit** `refactor(platform): let applications register their terminology keys`
+
+---
+
 ### Task 1: Scaffold `nasq_tasks`, capabilities, groups, global record rule, `nasq_personal`
 
 **Files:**
