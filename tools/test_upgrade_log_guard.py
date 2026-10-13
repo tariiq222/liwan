@@ -57,6 +57,16 @@ class UpgradeLogGuardTests(unittest.TestCase):
             path.write_text('INFO odoo.modules.loading: modules loaded\n', encoding='utf-8')
             self.assertEqual(upgrade_log_guard.main([str(path)]), 0)
 
+    def test_empty_log_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'upgrade.log'
+            path.write_text('\n  \n', encoding='utf-8')
+            output = io.StringIO()
+            with contextlib.redirect_stderr(output):
+                result = upgrade_log_guard.main([str(path)])
+            self.assertEqual(result, 1)
+            self.assertIn('empty', output.getvalue())
+
     def test_missing_log_fails_closed_and_prints_reason(self):
         output = io.StringIO()
         with contextlib.redirect_stderr(output):
