@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Scaffold a new nasq application.
 
-    python3 -B tools/new_app.py <app> --name-ar <ar> --name-en <en> [--root DIR] [--dry-run]
+    python3 -B tools/new_app.py <app> --name-ar <ar> --name-en <en> [--route SLUG] [--root DIR] [--dry-run]
 
 Creates the application's own folders from tools/new_app_templates, makes the three
 registration edits (tools/arch_layers.json, the platform_v3 catalog tier,
@@ -27,19 +27,22 @@ FORBIDDEN_PREFIXES = ('nasq_', 'customer')
 # interpolation (`{}`, `$`) or message syntax (`|`, `@`, `%`).
 SAFE_NAME = re.compile(r"^[^'\"\\<>&{}|@%$\r\n]+$")
 HEADER = '# Part of Odoo. See LICENSE file for full copyright and licensing details.'
-# Names an application may not take: git areas, foundation and shared-service
-# names, and web routes owned by the shell.
 # Single-key shortcuts that components handle themselves (GlobalSearch Ctrl/Cmd+K, list
 # navigation j/k, zero for reset, and +/- are outside the shortcut charset), so a nav item
 # must not take them.
 HARD_WIRED_SHORTCUTS = frozenset({'j', 'k', '0'})
-# Static names; the pages and contracts folders add every route and namespace already taken.
-RESERVED = frozenset({
+# Application ids an application may never take: git areas, foundation and shared-service
+# names and contracts namespaces. The pages and contracts folders add every name already taken.
+RESERVED_IDS = frozenset({
     'core', 'platform', 'api', 'web', 'cp', 'deploy', 'tools', 'docs', 'ci',
-    'notify', 'directory', 'common', 'access', 'settings', 'vendor', 'subscription',
-    'invite', 'account', 'admin', 'login', 'logout', 'home', 'management', 'people',
-    'projects', 'tasks', 'search', 'notifications', 'me', 'new', 'index',
+    'notify', 'directory', 'common', 'access',
 })
+# Web routes owned by the shell. An id in this set is accepted only together with a different --route.
+SHELL_ROUTES = frozenset({
+    'settings', 'vendor', 'subscription', 'invite', 'account', 'admin', 'login', 'logout', 'home',
+    'management', 'people', 'projects', 'tasks', 'search', 'notifications', 'me', 'new', 'index',
+})
+ROUTE_SLUG = re.compile(r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$')
 ARCH_LAYERS = 'tools/arch_layers.json'
 PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v3.json'
 CONTRACTS_INDEX = 'packages/contracts/src/index.ts'
@@ -95,7 +98,8 @@ def planned_files(root, tokens):
     files = {}
     for template in sorted(TEMPLATES.rglob('*.tmpl')):
         relative = template.relative_to(TEMPLATES).as_posix()
-        target = render(relative.removesuffix('.tmpl').replace('__app__', tokens['app']), tokens)
+        target = relative.removesuffix('.tmpl').replace('__app__', tokens['app']).replace('__route__', tokens['route'])
+        target = render(target, tokens)
         text = render(template.read_text(encoding='utf-8'), tokens)
         if target.endswith('.py') and not text.startswith(HEADER + '\n'):
             msg = f'template {relative} does not start with the Odoo header'
@@ -144,7 +148,8 @@ def registration_edits(root, tokens):
     if not placed:
         rebuilt[addon] = APPLICATION_RANK
     layers['ranks'] = rebuilt
-    layers.setdefault('web_apps', {})[app] = {'components': [app], 'pages': [app]}
+    route = tokens['route']
+    layers.setdefault('web_apps', {})[app] = {'components': [route], 'pages': [route]}
 
     solution = _load_exact(root, PLATFORM_SOLUTION)
     tiers = solution.get('tiers')
@@ -178,25 +183,42 @@ def registration_edits(root, tokens):
     }
 
 
-def taken_names(root):
-    """Route and namespace stems already used by pages and contracts (``-`` and ``_`` are alike)."""
-    names = set()
-    for folder in (Path(root) / 'apps/web/app/pages', Path(root) / 'packages/contracts/src'):
-        if folder.is_dir():
-            names |= {path.name.removesuffix('.vue').removesuffix('.ts').replace('-', '_') for path in folder.iterdir()}
-    return names
+def _stems(folder):
+    """Route and namespace stems used in a folder (``-`` and ``_`` are alike)."""
+    if not folder.is_dir():
+        return set()
+    return {path.name.removesuffix('.vue').removesuffix('.ts').replace('-', '_') for path in folder.iterdir()}
 
 
-def validate(root, app, name_ar, name_en):
+def taken_pages(root):
+    return _stems(Path(root) / 'apps/web/app/pages')
+
+
+def taken_contracts(root):
+    return _stems(Path(root) / 'packages/contracts/src')
+
+
+def validate(root, app, name_ar, name_en, route=None):
     if not APP_ID.fullmatch(app) or not 2 <= len(app) <= MAX_APP_ID:
         msg = f'application id {app!r} must match {APP_ID.pattern} and be at most {MAX_APP_ID} characters'
         raise ScaffoldError(msg)
     if app.startswith(FORBIDDEN_PREFIXES):
         msg = f'application id {app!r} may not start with {" or ".join(FORBIDDEN_PREFIXES)}'
         raise ScaffoldError(msg)
-    if app in RESERVED or app in taken_names(root):
-        msg = f'{app!r} is reserved (git area, foundation, shared service, page route or contracts namespace)'
+    if app in RESERVED_IDS or app in taken_contracts(root):
+        msg = f'{app!r} is reserved (git area, foundation, shared service or contracts namespace)'
         raise ScaffoldError(msg)
+    if route is None:
+        if app in SHELL_ROUTES or app in taken_pages(root):
+            msg = f'{app!r} is a page route already taken; pass --route <slug> to give the application another route'
+            raise ScaffoldError(msg)
+    else:
+        if not ROUTE_SLUG.fullmatch(route):
+            msg = f'route {route!r} must match {ROUTE_SLUG.pattern}'
+            raise ScaffoldError(msg)
+        if route in SHELL_ROUTES or route in RESERVED_IDS or route.replace('-', '_') in taken_pages(root) | _stems(Path(root) / 'apps/web/app/components'):
+            msg = f'route {route!r} is reserved or already used by a page or component folder'
+            raise ScaffoldError(msg)
     for label, value in (('--name-ar', name_ar), ('--name-en', name_en)):
         if not value.strip() or not SAFE_NAME.fullmatch(value):
             msg = f"{label} must be non-empty and contain none of ' \" \\ < > & {{ }} | @ % $ or a newline"
@@ -253,12 +275,12 @@ def _write_all(root, files, edits, catalog, created):
     return synced
 
 
-def scaffold(root, app, name_ar, name_en, dry_run=False):
+def scaffold(root, app, name_ar, name_en, dry_run=False, route=None):
     root = Path(root).resolve()
-    validate(root, app, name_ar, name_en)
+    validate(root, app, name_ar, name_en, route)
     order, shortcut = web_slots(root)
     tokens = {
-        'app': app, 'App': pascal(app), 'name_ar': name_ar.strip(), 'name_en': name_en.strip(),
+        'app': app, 'route': app if route is None else route, 'App': pascal(app), 'name_ar': name_ar.strip(), 'name_en': name_en.strip(),
         'order': str(order), 'shortcut': shortcut,
     }
     files = planned_files(root, tokens)
@@ -299,11 +321,12 @@ def main(argv=None):
     parser.add_argument('app', help='application id, e.g. sales (addon nasq_sales)')
     parser.add_argument('--name-ar', required=True, help='Arabic display name')
     parser.add_argument('--name-en', required=True, help='English display name')
+    parser.add_argument('--route', default=None, help='web route slug (kebab-case); defaults to the application id')
     parser.add_argument('--root', default=str(DEFAULT_ROOT), help='repository root (default: this repository)')
     parser.add_argument('--dry-run', action='store_true', help='print the planned files and edits, write nothing')
     args = parser.parse_args(argv)
     try:
-        created, edited, synced = scaffold(args.root, args.app, args.name_ar, args.name_en, args.dry_run)
+        created, edited, synced = scaffold(args.root, args.app, args.name_ar, args.name_en, args.dry_run, args.route)
     except ScaffoldError as error:
         print(f'NEW_APP_REFUSED {error}', file=sys.stderr)
         return 1
