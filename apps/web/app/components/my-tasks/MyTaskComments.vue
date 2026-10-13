@@ -17,15 +17,22 @@ const error = ref('')
 const comments = computed(() => oldestFirst(data.value?.items ?? []))
 const problem = computed(() => (body.value ? commentProblem(body.value) : null))
 
+// `isPending` of the mutation reaches this guard a macrotask late: a plain flag, set before the
+// first await, is what keeps a second click from sending a second comment.
+let inFlight = false
+
 async function submit() {
   const text = body.value.trim()
-  if (!hydrated.value || isPending.value || commentProblem(text)) return
+  if (inFlight || !hydrated.value || isPending.value || commentProblem(text)) return
+  inFlight = true
   error.value = ''
   try {
     await post({ id: props.taskId, body: text })
     body.value = ''
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('myTasks.errors.comment')
+  } finally {
+    inFlight = false
   }
 }
 </script>

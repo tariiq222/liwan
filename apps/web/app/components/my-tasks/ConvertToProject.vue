@@ -40,14 +40,20 @@ function choose(value: unknown) {
   error.value = ''
 }
 
+// Set before the first await and kept after a success: the task is gone once converted, so a
+// second submit while the page leaves could only fail.
+let submitted = false
+
 async function submit() {
-  if (projectId.value === null || isPending.value) return
+  if (submitted || projectId.value === null || isPending.value) return
+  submitted = true
   error.value = ''
   try {
     const { href } = await convert({ id: props.taskId, projectId: projectId.value })
     emit('converted')
     await navigateTo(href)
   } catch (e) {
+    submitted = false
     confirming.value = false
     error.value = e instanceof ApiError ? e.message : t('myTasks.errors.convert')
   }

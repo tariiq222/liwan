@@ -37,6 +37,7 @@ export const SSR_TASKS = {
   10: personalTask(10, { name: 'اطبع القائمة', parent: { id: 7, name: 'اشترِ الورق' } }),
   11: personalTask(11, { name: 'اطبع القائمة', parent: { id: 7, name: 'اشترِ الورق' } }),
   12: personalTask(12, { name: 'مهمة بتعليقات' }),
+  13: personalTask(13, { name: 'موعد عند منتصف الليل', date_deadline: '2026-10-13T00:00:00Z' }),
 }
 
 // Comments the upstream serves for the first paint, by task id (the others have none).

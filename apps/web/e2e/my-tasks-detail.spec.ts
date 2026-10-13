@@ -1,11 +1,13 @@
-import { expect, test, type Page, type Route } from '@playwright/test'
+import { expect as baseExpect, test, type Locator, type Page, type Route } from '@playwright/test'
 import { ADMIN, SARA, CONVERT_TARGETS, SSR_COMMENTS, SSR_TASKS, closedActions, openActions, personalTask } from './my-tasks-fixtures.mjs'
 
 // Isolated stack only (apps/web/e2e/my-tasks-upstream.mjs in front of internal-ui-audit-mock.mjs):
 //   E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:<nuxt> npx playwright test e2e/my-tasks-detail.spec.ts
 // The first paint is served by the upstream's fixtures; every browser call to /api/v1/my-tasks is faked here.
 test.skip(process.env.E2E_MY_TASKS !== '1', 'Requires the isolated my-tasks upstream (see header)')
-test.describe.configure({ timeout: 45_000 })
+test.describe.configure({ timeout: 60_000 })
+// Controls stay disabled until hydration; a busy machine hydrates slowly.
+const expect = baseExpect.configure({ timeout: 15_000 })
 
 type Json = Record<string, any>
 interface Call { method: string; path: string; body: Json | null }
@@ -23,7 +25,7 @@ const PEOPLE = [ADMIN, SARA]
 const ENVELOPE = (items: unknown[]) => ({ items, total: items.length })
 
 // A small stateful fake of the personal task API, starting from the shared fixtures.
-async function fakeApi(page: Page, options: { convertHref?: string } = {}) {
+async function fakeApi(page: Page, options: { convertHref?: string; writeDelayMs?: number } = {}) {
   const tasks = new Map<number, Json>(Object.entries(SSR_TASKS).map(([id, task]) => [Number(id), structuredClone(task) as Json]))
   const commentRows = new Map<number, Json[]>(Object.entries(SSR_COMMENTS).map(([id, rows]) => [Number(id), structuredClone(rows) as Json[]]))
   const attachmentRows = new Map<number, Json[]>()
@@ -42,6 +44,8 @@ async function fakeApi(page: Page, options: { convertHref?: string } = {}) {
     const path = url.pathname.replace('/api/v1/my-tasks', '') || '/'
     const body = request.postData() ? JSON.parse(request.postData()!) : null
     calls.push({ method, path, body })
+    // A slow server keeps the first write in flight while a second one is attempted.
+    if (method !== 'GET' && options.writeDelayMs) await new Promise(resolve => setTimeout(resolve, options.writeDelayMs))
 
     if (path === '/' && method === 'GET') return reply(route, 200, ENVELOPE([]))
     if (path === '/' && method === 'POST') {
@@ -231,7 +235,7 @@ test('attachments: upload, download link, delete only after the inline confirmat
   const section = page.getByTestId('my-task-attachments')
   await expect(section.getByText('لا توجد مرفقات')).toBeVisible()
 
-  await expect(section.getByRole('button', { name: 'إضافة مرفق' })).toBeEnabled()
+  await expect(section.getByRole('button', { name: 'إضافة مرفق' })).toBeEnabled({ timeout: 15_000 })
   await section.locator('input[type=file]').setInputFiles({ name: 'ملاحظات.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') })
   const link = section.getByRole('link', { name: 'ملاحظات.txt' })
   await expect(link).toBeVisible()
@@ -253,7 +257,7 @@ test('attachments: a wrong type or an oversized file is refused before any reque
   const api = await fakeApi(page)
   await page.goto('/my-tasks/7')
   const section = page.getByTestId('my-task-attachments')
-  await expect(section.getByRole('button', { name: 'إضافة مرفق' })).toBeEnabled()
+  await expect(section.getByRole('button', { name: 'إضافة مرفق' })).toBeEnabled({ timeout: 15_000 })
   await section.locator('input[type=file]').setInputFiles({ name: 'virus.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('x') })
   await expect(section.getByRole('alert')).toContainText('نوع الملف غير مسموح')
   await section.locator('input[type=file]').setInputFiles({ name: 'big.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(10 * 1024 * 1024 + 1) })
@@ -317,6 +321,148 @@ test('first-click safety: every action is disabled until hydration, then the fir
   await expect(page.getByTestId('my-task-state')).toHaveText('منجزة')
   expect(api.writes().map(call => call.path)).toEqual(['/7/done'])
 })
+
+// Two clicks in the same task: `isPending` of the mutation only reaches the guards on a later
+// macrotask, so only a synchronous in-flight flag keeps the second click from a second request.
+async function clickTwice(locator: Locator) {
+  await expect(locator).toBeEnabled({ timeout: 15_000 })
+  await locator.evaluate((element: HTMLElement) => { element.click(); element.click() })
+}
+
+test.describe('a double click sends exactly one write', () => {
+  test('post comment', async ({ page }) => {
+    const api = await fakeApi(page, { writeDelayMs: 600 })
+    await page.goto('/my-tasks/7')
+    const section = page.getByTestId('my-task-comments')
+    await expect(section.getByLabel('اكتب تعليقًا')).toBeEnabled({ timeout: 15_000 })
+    await section.getByLabel('اكتب تعليقًا').fill('تعليق واحد')
+    await clickTwice(section.getByRole('button', { name: 'نشر التعليق' }))
+    await expect(section.getByText('تعليق واحد')).toBeVisible()
+    expect(api.writes()).toHaveLength(1)
+  })
+
+  test('add sub-task', async ({ page }) => {
+    const api = await fakeApi(page, { writeDelayMs: 600 })
+    await page.goto('/my-tasks/7')
+    const section = page.getByTestId('my-task-subtasks')
+    await expect(section.getByLabel('عنوان المهمة الفرعية')).toBeEnabled({ timeout: 15_000 })
+    await section.getByLabel('عنوان المهمة الفرعية').fill('مهمة فرعية واحدة')
+    await clickTwice(section.getByRole('button', { name: 'إضافة مهمة فرعية' }))
+    await expect(section.getByRole('link', { name: 'مهمة فرعية واحدة' })).toBeVisible()
+    expect(api.writes()).toHaveLength(1)
+  })
+
+  test('done', async ({ page }) => {
+    const api = await fakeApi(page, { writeDelayMs: 600 })
+    await page.goto('/my-tasks/7')
+    await clickTwice(page.getByRole('button', { name: 'إنجاز', exact: true }))
+    await expect(page.getByTestId('my-task-state')).toHaveText('منجزة')
+    expect(api.writes().map(call => call.path)).toEqual(['/7/done'])
+  })
+
+  test('cancel confirmation', async ({ page }) => {
+    const api = await fakeApi(page, { writeDelayMs: 600 })
+    await page.goto('/my-tasks/7')
+    await page.getByRole('button', { name: 'إلغاء المهمة', exact: true }).click()
+    await clickTwice(page.getByTestId('inline-confirm-action'))
+    await expect(page.getByTestId('my-task-state')).toHaveText('ملغاة')
+    expect(api.writes().map(call => call.path)).toEqual(['/7/cancel'])
+  })
+
+  test('convert confirmation', async ({ page }) => {
+    const api = await fakeApi(page, { writeDelayMs: 600 })
+    await page.goto('/my-tasks/8')
+    const panel = page.getByTestId('my-task-convert')
+    await expect(panel.getByRole('button', { name: 'المشروع' })).toBeEnabled()
+    await panel.getByRole('button', { name: 'المشروع' }).click()
+    await page.getByRole('option', { name: 'مشروع الأتمتة' }).click()
+    await panel.getByRole('button', { name: 'تحويل المهمة' }).click()
+    await clickTwice(panel.getByTestId('inline-confirm-action'))
+    await expect(page).toHaveURL(/\/projects\/1\/tasks\/9$/)
+    expect(api.writes().map(call => call.path)).toEqual(['/8/convert'])
+  })
+
+  test('attachment upload and delete confirmation', async ({ page }) => {
+    const api = await fakeApi(page, { writeDelayMs: 600 })
+    await page.goto('/my-tasks/7')
+    const section = page.getByTestId('my-task-attachments')
+    await expect(section.getByRole('button', { name: 'إضافة مرفق' })).toBeEnabled({ timeout: 15_000 })
+    const input = section.locator('input[type=file]')
+    // Two change events in the same task: the second one must not start a second upload.
+    await input.evaluate((element: HTMLInputElement) => {
+      const transfer = new DataTransfer()
+      transfer.items.add(new File(['hello'], 'a.txt', { type: 'text/plain' }))
+      element.files = transfer.files
+      element.dispatchEvent(new Event('change', { bubbles: true }))
+      element.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect(section.getByRole('link', { name: 'a.txt' })).toBeVisible()
+    expect(api.writes().filter(call => call.method === 'POST')).toHaveLength(1)
+
+    await section.getByRole('button', { name: 'حذف المرفق' }).click()
+    await clickTwice(section.getByTestId('inline-confirm-action'))
+    await expect(section.getByText('لا توجد مرفقات')).toBeVisible()
+    expect(api.writes().filter(call => call.method === 'DELETE')).toHaveLength(1)
+  })
+})
+
+test('focus follows the control that replaces the one just used', async ({ page }) => {
+  await fakeApi(page)
+  await page.goto('/my-tasks/7')
+  await expect(page.getByRole('button', { name: 'إنجاز', exact: true })).toBeEnabled()
+  await expect(page.getByTestId('my-task-state-live')).toHaveAttribute('aria-live', 'polite')
+
+  await page.getByRole('button', { name: 'إلغاء المهمة', exact: true }).click()
+  await expect(page.getByTestId('inline-confirm-cancel')).toBeFocused()
+  await page.getByTestId('inline-confirm-cancel').click()
+  await expect(page.getByRole('button', { name: 'إلغاء المهمة', exact: true })).toBeFocused()
+
+  await page.getByRole('button', { name: 'إنجاز', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'إعادة فتح', exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'إعادة فتح', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'إنجاز', exact: true })).toBeFocused()
+
+  await page.getByRole('button', { name: 'إلغاء المهمة', exact: true }).click()
+  await page.getByTestId('inline-confirm-action').click()
+  await expect(page.getByTestId('my-task-state')).toHaveText('ملغاة')
+  // Nothing primary is left but «reopen»: it takes the focus.
+  await expect(page.getByRole('button', { name: 'إعادة فتح', exact: true })).toBeFocused()
+})
+
+test('a failed attachment delete says so specifically', async ({ page }) => {
+  await fakeApi(page)
+  await page.route('**/api/v1/my-tasks/7/attachments/**', async (route) => {
+    if (route.request().method() !== 'DELETE') return route.fallback()
+    await route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+  })
+  await page.goto('/my-tasks/7')
+  const section = page.getByTestId('my-task-attachments')
+  await expect(section.getByRole('button', { name: 'إضافة مرفق' })).toBeEnabled({ timeout: 15_000 })
+  await section.locator('input[type=file]').setInputFiles({ name: 'a.txt', mimeType: 'text/plain', buffer: Buffer.from('x') })
+  await section.getByRole('button', { name: 'حذف المرفق' }).click()
+  await section.getByTestId('inline-confirm-action').click()
+  await expect(section.getByRole('alert').filter({ hasText: 'تعذر حذف المرفق' })).toBeVisible()
+})
+
+for (const timezoneId of ['America/Argentina/Buenos_Aires', 'Pacific/Kiritimati']) {
+  test.describe(`deadline day does not shift in ${timezoneId}`, () => {
+    test.use({ timezoneId })
+
+    test('midnight UTC renders as 13 October and an edit sends the date only', async ({ page }) => {
+      const api = await fakeApi(page)
+      await page.goto('/my-tasks/13')
+      await expect(page.getByTestId('my-task-deadline')).toHaveText(/13\W+10\W+2026/)
+
+      await page.goto('/my-tasks/7')
+      await page.getByRole('button', { name: 'تعديل', exact: true }).click()
+      await page.getByRole('button', { name: /الموعد النهائي/ }).click()
+      await page.locator('[data-value="2026-10-13"]').first().click()
+      await page.getByRole('button', { name: 'حفظ التغييرات' }).click()
+      await expect(page.getByTestId('my-task-deadline')).toHaveText(/13\W+10\W+2026/)
+      expect(api.writes().map(call => call.body)).toEqual([{ date_deadline: '2026-10-13' }])
+    })
+  })
+}
 
 // Visual proof only: E2E_MY_TASKS_SHOTS=<absolute dir> writes the screenshots, otherwise skipped.
 test('screenshots of the detail page (desktop and mobile, RTL)', async ({ page }) => {

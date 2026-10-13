@@ -22,20 +22,28 @@ const returnTo = computed(() => ({ returnTo: route.fullPath }))
 const canWrite = computed(() => props.task.allowed_actions.write)
 const failure = (e: unknown) => (e instanceof ApiError ? e.message : t('myTasks.errors.save'))
 
+// Plain flags set before the first await: `isPending` of a mutation reaches a guard a macrotask late.
+let adding = false
+let switching = false
+
 async function add() {
   const title = name.value.trim()
-  if (!title || creating.value) return
+  if (adding || !title || creating.value) return
+  adding = true
   error.value = ''
   try {
     await create({ name: title, parent_id: props.task.id })
     name.value = ''
   } catch (e) {
     error.value = failure(e)
+  } finally {
+    adding = false
   }
 }
 
 async function toggle(sub: PersonalTask['subtasks'][number]) {
-  if (toggling.value) return
+  if (switching || toggling.value) return
+  switching = true
   error.value = ''
   busyId.value = sub.id
   try {
@@ -44,6 +52,7 @@ async function toggle(sub: PersonalTask['subtasks'][number]) {
     error.value = e instanceof ApiError ? e.message : t('myTasks.errors.transition')
   } finally {
     busyId.value = null
+    switching = false
   }
 }
 </script>

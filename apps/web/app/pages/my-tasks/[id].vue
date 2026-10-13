@@ -63,9 +63,11 @@ function stopEdit() {
   draft.value = null
 }
 
+let savingNow = false
+
 async function save() {
   const current = task.value
-  if (!current || !draft.value || saving.value) return
+  if (savingNow || !current || !draft.value || saving.value) return
   fieldErrors.value = {}
   formError.value = ''
   if (!draft.value.name.trim()) {
@@ -77,12 +79,15 @@ async function save() {
     stopEdit()
     return
   }
+  savingNow = true
   try {
     await update({ id: current.id, body })
     stopEdit()
   } catch (e) {
     if (e instanceof ApiError && e.field) fieldErrors.value = { [e.field]: e.message }
     else formError.value = e instanceof ApiError ? e.message : t('myTasks.errors.save')
+  } finally {
+    savingNow = false
   }
 }
 
@@ -90,16 +95,52 @@ async function save() {
 const confirmingCancel = ref(false)
 const actionError = ref('')
 
+// A plain flag, set before the first await: `isPending` of the mutation reaches a guard a
+// macrotask late, so it alone cannot stop a second click from sending a second transition.
+let inFlight = false
+// The controls swap with the state: focus follows to the new primary control (or the heading)
+// once the server's state is on the page and the mutation has settled.
+const focusAfterState = ref(false)
+
+function focusPrimary() {
+  const target = document.querySelector<HTMLElement>('[data-primary-action]') ?? document.querySelector<HTMLElement>('h1')
+  if (!target) return
+  if (!target.matches('button, a, input, textarea, select')) target.tabIndex = -1
+  target.focus()
+}
+
+// A pending button is disabled and cannot take focus, so this waits for the mutation to settle.
+watch(transitioning, async (busy) => {
+  if (busy || !focusAfterState.value) return
+  focusAfterState.value = false
+  await nextTick()
+  focusPrimary()
+}, { flush: 'post' })
+
+function askCancel() {
+  confirmingCancel.value = true
+  nextTick(() => document.querySelector<HTMLElement>('[data-testid="inline-confirm-cancel"]')?.focus())
+}
+
+function keepTask() {
+  confirmingCancel.value = false
+  nextTick(() => document.querySelector<HTMLElement>('[data-my-task-cancel]')?.focus())
+}
+
 async function run(action: MyTaskTransition) {
   const current = task.value
-  if (!current || transitioning.value) return
+  if (inFlight || !current || transitioning.value) return
+  inFlight = true
   actionError.value = ''
+  focusAfterState.value = true
   try {
     await transition({ id: current.id, action })
   } catch (e) {
+    focusAfterState.value = false
     actionError.value = e instanceof ApiError ? e.message : t('myTasks.errors.transition')
   } finally {
     confirmingCancel.value = false
+    inFlight = false
   }
 }
 
@@ -112,11 +153,13 @@ const panel = 'rounded-xl border border-default bg-default p-5'
   <SharedPageContainer width="detail" data-testid="my-task-detail">
     <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('myTasks.detail.back')">
       <template v-if="task" #actions>
-        <UBadge data-testid="my-task-state" variant="subtle" :color="STATE_COLOR[task.state]">{{ t(`myTasks.state.${task.state}`) }}</UBadge>
+        <span data-testid="my-task-state-live" aria-live="polite" aria-atomic="true">
+          <UBadge data-testid="my-task-state" variant="subtle" :color="STATE_COLOR[task.state]">{{ t(`myTasks.state.${task.state}`) }}</UBadge>
+        </span>
         <UButton v-if="task.allowed_actions.write && !editing" type="button" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('myTasks.actions.edit')" :disabled="!hydrated || saving" @click="startEdit" />
-        <UButton v-if="task.allowed_actions.done" type="button" icon="i-lucide-check" :label="t('myTasks.actions.done')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('done')" />
-        <UButton v-if="task.allowed_actions.reopen" type="button" color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('myTasks.actions.reopen')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('reopen')" />
-        <UButton v-if="task.allowed_actions.cancel && !confirmingCancel" type="button" color="error" variant="ghost" icon="i-lucide-ban" :label="t('myTasks.actions.cancel')" :disabled="!hydrated || transitioning" @click="confirmingCancel = true" />
+        <UButton v-if="task.allowed_actions.done" type="button" data-primary-action icon="i-lucide-check" :label="t('myTasks.actions.done')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('done')" />
+        <UButton v-if="task.allowed_actions.reopen" type="button" data-primary-action color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('myTasks.actions.reopen')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('reopen')" />
+        <UButton v-if="task.allowed_actions.cancel && !confirmingCancel" type="button" data-my-task-cancel color="error" variant="ghost" icon="i-lucide-ban" :label="t('myTasks.actions.cancel')" :disabled="!hydrated || transitioning" @click="askCancel" />
       </template>
     </SharedPageHeader>
 
@@ -132,7 +175,7 @@ const panel = 'rounded-xl border border-default bg-default p-5'
         :cancel-label="t('myTasks.cancelConfirm.keep')"
         :pending="transitioning"
         @confirm="run('cancel')"
-        @cancel="confirmingCancel = false"
+        @cancel="keepTask"
       />
       <p v-if="actionError" role="alert" class="text-sm text-error">{{ actionError }}</p>
 
