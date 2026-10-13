@@ -81,6 +81,8 @@ export default defineNuxtConfig({
     customerCommercialTenantId: '',
     odooUrl: odoo,
     odooDb: shared ? '' : (process.env.NUXT_ODOO_DB ?? 'odoo19'),
+    // Opt-in only behind the dedicated edge that overwrites private identity fields.
+    authProxyClientIpHeader: '',
     public: {
       vendorWorkspaceEnabled: false,
       customerCommercialEnabled: false,

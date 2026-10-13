@@ -20,6 +20,7 @@ services:
     environment:
       NUXT_ODOO_URL: http://odoo:8069
       NUXT_ODOO_DB: "${DB_NAME}"
+      NUXT_AUTH_PROXY_CLIENT_IP_HEADER: x-nasq-client-ip
     expose: ["3000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
