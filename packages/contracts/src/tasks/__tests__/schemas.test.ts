@@ -2,6 +2,7 @@ import golden from './personal-task.golden.json'
 import {
   ConvertResultSchema,
   ConvertTargetSchema,
+  MyTaskCollectionSchema,
   MyTaskListItemSchema,
   MyTaskListPageSchema,
   PersonalTaskAttachmentSchema,
@@ -92,5 +93,23 @@ describe('the other tasks shapes', () => {
     expect(ConvertTargetSchema.parse({ id: 3, name: 'P' })).toEqual({ id: 3, name: 'P' })
     expect(ConvertResultSchema.parse({ href: '/projects/3/tasks/1' })).toEqual({ href: '/projects/3/tasks/1' })
     expect(() => ConvertResultSchema.parse({})).toThrow()
+  })
+})
+
+describe('MyTaskCollectionSchema', () => {
+  const Comments = MyTaskCollectionSchema(PersonalTaskCommentSchema)
+  const comment = { id: 1, body: 'hi', author: null, created_at: '2026-10-13' }
+
+  it('parses the standard items/total envelope', () => {
+    expect(Comments.parse({ items: [comment], total: 1 })).toEqual({ items: [comment], total: 1 })
+    expect(MyTaskCollectionSchema(ConvertTargetSchema).parse({ items: [{ id: 2, name: 'P' }], total: 1 }).total).toBe(1)
+  })
+
+  it('rejects a bare array, a bad item, a missing total and extra keys', () => {
+    expect(() => Comments.parse([comment])).toThrow()
+    expect(() => Comments.parse({ items: [{ id: 1 }], total: 1 })).toThrow()
+    expect(() => Comments.parse({ items: [comment] })).toThrow()
+    expect(() => Comments.parse({ items: [], total: 0.5 })).toThrow()
+    expect(() => Comments.parse({ items: [], total: 0, extra: 1 })).toThrow()
   })
 })

@@ -71,6 +71,10 @@ export const PersonalTaskAttachmentSchema = z.object({
   url: z.string(),
 }).strict()
 
+// The standard collection envelope of every my-tasks collection endpoint.
+export const MyTaskCollectionSchema = <T extends z.ZodType>(item: T) =>
+  z.object({ items: z.array(item), total: z.number().int().nonnegative() }).strict()
+
 export const ConvertTargetSchema = TaskRefSchema
 export const ConvertResultSchema = z.object({ href: z.string().min(1) }).strict()
 

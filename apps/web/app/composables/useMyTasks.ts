@@ -1,10 +1,10 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/vue-query'
-import { z } from 'zod'
 import {
   ConvertResultSchema,
   ConvertTargetSchema,
+  MyTaskCollectionSchema,
   MyTaskListPageSchema,
   PersonalTaskAttachmentSchema,
   PersonalTaskCommentSchema,
@@ -84,6 +84,18 @@ export async function convertMyTask($api: Api, qc: QueryClient, { id, projectId 
   return result
 }
 
+const CommentsSchema = MyTaskCollectionSchema(PersonalTaskCommentSchema)
+const AttachmentsSchema = MyTaskCollectionSchema(PersonalTaskAttachmentSchema)
+const ConvertTargetsSchema = MyTaskCollectionSchema(ConvertTargetSchema)
+
+// Collection reads answer `{ items, total }`; the hooks below expose that envelope as `data`.
+export const fetchMyTaskComments = ($api: Api, id: number | null) =>
+  $api(`/api/v1/my-tasks/${id}/comments`, { schema: CommentsSchema })
+export const fetchMyTaskAttachments = ($api: Api, id: number | null) =>
+  $api(`/api/v1/my-tasks/${id}/attachments`, { schema: AttachmentsSchema })
+export const fetchConvertTargets = ($api: Api, q: string) =>
+  $api('/api/v1/my-tasks/convert-targets', { query: { q: q.trim() || undefined }, schema: ConvertTargetsSchema })
+
 const validId = (id: MaybeRefOrGetter<number | null>) => computed(() => Number.isInteger(toValue(id)))
 
 export function useMyTaskList(params: MaybeRefOrGetter<MyTaskListParams>) {
@@ -126,7 +138,7 @@ export function useMyTaskComments(id: MaybeRefOrGetter<number | null>) {
   return useQuery({
     queryKey: computed(() => myTaskKeys.comments(toValue(id))),
     enabled: validId(id),
-    queryFn: () => $api(`/api/v1/my-tasks/${toValue(id)}/comments`, { schema: z.array(PersonalTaskCommentSchema) }),
+    queryFn: () => fetchMyTaskComments($api, toValue(id)),
   })
 }
 
@@ -145,7 +157,7 @@ export function useMyTaskAttachments(id: MaybeRefOrGetter<number | null>) {
   return useQuery({
     queryKey: computed(() => myTaskKeys.attachments(toValue(id))),
     enabled: validId(id),
-    queryFn: () => $api(`/api/v1/my-tasks/${toValue(id)}/attachments`, { schema: z.array(PersonalTaskAttachmentSchema) }),
+    queryFn: () => fetchMyTaskAttachments($api, toValue(id)),
   })
 }
 
@@ -182,10 +194,7 @@ export function useConvertTargets(q: MaybeRefOrGetter<string>, options: { enable
   return useQuery({
     queryKey: computed(() => myTaskKeys.convertTargets(toValue(q))),
     enabled: computed(() => toValue(options.enabled) ?? true),
-    queryFn: () => $api('/api/v1/my-tasks/convert-targets', {
-      query: { q: toValue(q).trim() || undefined },
-      schema: z.array(ConvertTargetSchema),
-    }),
+    queryFn: () => fetchConvertTargets($api, toValue(q)),
   })
 }
 

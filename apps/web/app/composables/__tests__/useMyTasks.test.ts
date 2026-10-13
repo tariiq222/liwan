@@ -5,6 +5,9 @@ import { myTaskKeys } from '../myTaskKeys'
 import {
   convertMyTask,
   createMyTask,
+  fetchConvertTargets,
+  fetchMyTaskAttachments,
+  fetchMyTaskComments,
   myTaskListQuery,
   transitionMyTask,
   updateMyTask,
@@ -102,5 +105,26 @@ describe('personal task writes', () => {
     // The converted task is no longer a personal task: drop its detail instead of keeping a stale copy.
     expect(qc.getQueryData(myTaskKeys.detail(7))).toBeUndefined()
     expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'list'] })
+  })
+})
+
+describe('collection envelopes', () => {
+  // A fake $api that applies the schema the composable passes, like the real one.
+  const apiReturning = (data: unknown) =>
+    vi.fn(async (_path: string, opts: { schema?: { parse: (v: unknown) => unknown } }) => opts.schema ? opts.schema.parse(data) : data)
+
+  it('parses comments, attachments and convert targets as { items, total }', async () => {
+    const comment = { id: 1, body: 'hi', author: null, created_at: 'x' }
+    const att = { id: 2, name: 'a.pdf', mimetype: 'application/pdf', url: '/web/content/2' }
+    const c = await fetchMyTaskComments(apiReturning({ items: [comment], total: 1 }) as never, 7)
+    expect(c).toEqual({ items: [comment], total: 1 })
+    expect((await fetchMyTaskAttachments(apiReturning({ items: [att], total: 1 }) as never, 7)).items).toEqual([att])
+    const api = apiReturning({ items: [{ id: 3, name: 'P' }], total: 1 })
+    expect((await fetchConvertTargets(api as never, ' p ')).total).toBe(1)
+    expect(api).toHaveBeenCalledWith('/api/v1/my-tasks/convert-targets', expect.objectContaining({ query: { q: 'p' } }))
+  })
+
+  it('rejects a bare array', async () => {
+    await expect(fetchMyTaskComments(apiReturning([]) as never, 7)).rejects.toThrow()
   })
 })
