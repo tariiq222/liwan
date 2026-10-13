@@ -76,7 +76,9 @@ steps:
           -i "$MODULES" \
           --test-tags "$TAGS" \
           --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init --log-level=test 2>&1 | tee "$SCRATCH_ROOT/odoo-test.log"
-        grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/odoo-test.log"
+        # --logfile keeps Odoo's log out of stdout, so the verdict is read from the logfile itself.
+        grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/logs/odoo.log" \
+          || { echo "odoo tests did not report 0 failures; last log lines:" >&2; tail -n 80 "$SCRATCH_ROOT/logs/odoo.log" >&2; exit 1; }
 
   - name: upgrade
     image: bash
@@ -116,7 +118,7 @@ steps:
           --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/odoo-addons" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/upgrade.log" \
           -d "$SCRATCH_DB" -u "$MODULES" -i "$MODULES" --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init 2>&1 | tee "$SCRATCH_ROOT/upgrade-output.log"
-        python3 -B tools/upgrade_log_guard.py "$SCRATCH_ROOT/upgrade-output.log"
+        python3 -B tools/upgrade_log_guard.py "$SCRATCH_ROOT/logs/upgrade.log"
         # Post-upgrade smoke
         "$ODOO_PYTHON" "$SCRATCH_ROOT/_odoo/odoo-bin" shell $ODOO_DB_ARGS \
           --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/odoo-addons" \
@@ -188,6 +190,9 @@ steps:
       - |
         set -euo pipefail
         export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+        # The runner may change HOME; without ~/.docker/cli-plugins Docker falls back to the legacy
+        # builder, which leaves TARGETARCH empty and breaks the wkhtmltox COPY.
+        export DOCKER_CONFIG="$(eval echo "~$(id -un)")/.docker"
         docker info
         docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg NASQ_REVISION="${CI_COMMIT_SHA:0:12}" -t nasq-odoo:ci .
         SCRATCH_DB="nasq_image_scratch"
