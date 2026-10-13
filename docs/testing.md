@@ -54,11 +54,16 @@ local policy runs in AGENTS.md stay the binding gate.
 
 CI is Woodpecker (`.woodpecker.yml`, with the image gate in
 `deploy/woodpecker/image.yml`); GitHub
-Actions is not used. The main pipeline has eight steps—`static`,
-`control-plane`, `odoo`, `upgrade`, `restore-drill`, `image`, `e2e-mock`, and `rtl-stories`—and each is
+Actions is not used. The main pipeline has ten steps—`static`,
+`control-plane`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`,
+`e2e-mock`, and `rtl-stories`—and each is
 runnable locally with the same command block in that file: static checks, the
 control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
-commands, the backup and restore drill, and the mock Playwright run. The
+commands, the backup and restore drill, and the mock Playwright run. `odoo` installs the whole release;
+`odoo-tasks-standalone` (`-i nasq_tasks` only, then asserts `nasq_pmo` and `nasq_tasks_pmo` are not installed)
+and `odoo-tasks-bridge` (`-i nasq_tasks,nasq_pmo,nasq_tasks_pmo`, then asserts the bridge is installed) prove
+the tasks application's non-release configurations with hard-coded module lists, their own scratch databases
+and HTTP ports 8193/8194. The
 control-plane live suites run serially by design: its `test` script sets
 `--no-file-parallelism --hookTimeout=60000` because they share one scratch
 control database and TRUNCATE the same tables. The `image` step
