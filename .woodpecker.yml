@@ -5,7 +5,7 @@
 # The `image` field specifies the shell, not a container image.
 # All tools (node, python3, ruff, psql, docker, git) must exist on the host.
 #
-# Steps: static, control-plane, odoo, upgrade, restore-drill, image, e2e-mock.
+# Steps: static, control-plane, odoo, upgrade, restore-drill, image, e2e-mock, rtl-stories.
 #
 # The control-plane live-PG suites run serially by design (apps/control-plane `test`
 # sets --no-file-parallelism and a 60s hook timeout); parallel runs conflict because
@@ -237,3 +237,16 @@ steps:
         done
         curl -fs http://localhost:4097/login >/dev/null
         npx playwright test $(sed 's#^#e2e/#' e2e/ci-mock-specs.txt | tr '\n' ' ')
+
+  # Every Storybook story must render in Arabic (RTL) at desktop and mobile width with no page
+  # error and no sideways page scroll (apps/web/e2e-rtl). Builds Storybook; needs no server.
+  - name: rtl-stories
+    image: bash
+    commands:
+      - |
+        set -euo pipefail
+        export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+        npm -w apps/web run postinstall
+        cd apps/web
+        npx playwright install chromium
+        STORYBOOK_RTL_PORT=6097 npm run test:rtl
