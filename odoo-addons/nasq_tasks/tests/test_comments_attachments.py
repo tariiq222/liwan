@@ -170,6 +170,17 @@ class TestMyTaskAttachments(TasksFilesCase):
         self.assertEqual(self.ok('tasks_alice', 'GET', path), {'items': [image], 'total': 1})
         self.assertEqual(self.ok('tasks_alice', 'GET', self.task_path(task['id']))['attachment_count'], 1)
 
+    def test_attachment_count_matches_the_list_and_skips_non_binary_rows(self):
+        task = self.make_task()
+        self.ok('tasks_alice', 'POST', self.attachments_path(task['id']), upload())
+        self.env['ir.attachment'].create({
+            'name': 'link', 'type': 'url', 'url': 'https://example.com',
+            'res_model': 'project.task', 'res_id': task['id'],
+        })
+        listed = self.ok('tasks_alice', 'GET', self.attachments_path(task['id']))
+        detail = self.ok('tasks_alice', 'GET', self.task_path(task['id']))
+        self.assertEqual((listed['total'], detail['attachment_count']), (1, 1))
+
     def test_assignee_uploads_and_stranger_cannot_see_or_touch(self):
         task = self.make_task(assignees=[self.bob.id])
         path = self.attachments_path(task['id'])

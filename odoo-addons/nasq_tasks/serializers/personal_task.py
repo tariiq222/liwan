@@ -45,7 +45,7 @@ def _readable_parent(task):
 
 def dump_personal_task(task):
     attachments = task.env['ir.attachment'].search_count([
-        ('res_model', '=', 'project.task'), ('res_id', '=', task.id)])
+        ('res_model', '=', 'project.task'), ('res_id', '=', task.id), ('type', '=', 'binary')])
     return {
         'id': task.id,
         'name': task.name,
