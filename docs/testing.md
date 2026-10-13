@@ -19,6 +19,12 @@ Use these while iterating; `npm test` and the Odoo/CI gates stay binding before 
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
 
+Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
+architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
+`type(scope): subject` rule) into the shared `.git/hooks`, so every worktree gets them. It leaves
+`core.hooksPath` and the existing Git LFS hooks alone, refuses to overwrite a hook that is not
+its own, and `git commit --no-verify` still bypasses it. The merge gates stay binding.
+
 `tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
 module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them
 changes) and only ever creates, clones or drops `nasq_scratch_*` databases. Stale
