@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PersonalTask } from '@nasq/contracts'
 import {
-  attachmentProblem, changedFields, commentProblem, deadlineDay, draftFromTask, MAX_ATTACHMENT_BYTES, oldestFirst,
+  attachmentProblem, changedFields, commentProblem, draftFromTask, MAX_ATTACHMENT_BYTES, oldestFirst,
 } from '../myTaskDetail'
 
 const task: PersonalTask = {
@@ -12,13 +12,6 @@ const task: PersonalTask = {
   created_at: '2026-10-01T08:00:00Z', updated_at: '2026-10-01T08:00:00Z',
   allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: false },
 }
-
-describe('deadlineDay', () => {
-  it('keeps the UTC calendar day even late in the evening', () => {
-    expect(deadlineDay('2026-10-20T21:30:00Z')).toBe('2026-10-20')
-    expect(deadlineDay(null)).toBeNull()
-  })
-})
 
 describe('changedFields', () => {
   it('is empty for an untouched draft', () => {

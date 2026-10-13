@@ -8,7 +8,8 @@ import MyTaskAttachments from '@/components/my-tasks/MyTaskAttachments.vue'
 import MyTaskComments from '@/components/my-tasks/MyTaskComments.vue'
 import MyTaskSubtasks from '@/components/my-tasks/MyTaskSubtasks.vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
-import { changedFields, deadlineDay, draftFromTask, type DetailDraft } from '@/utils/myTaskDetail'
+import { changedFields, draftFromTask, type DetailDraft } from '@/utils/myTaskDetail'
+import { deadlineDay } from '@/utils/myTaskList'
 
 const route = useRoute()
 const { t, locale } = useI18n()

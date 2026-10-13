@@ -1,6 +1,7 @@
 import type { PersonalTask } from '@nasq/contracts'
+import { deadlineDay } from './myTaskList'
 
-// Pure helpers of the personal task detail page: draft diffing, deadline rendering and
+// Pure helpers of the personal task detail page: draft diffing and
 // client-side attachment / comment checks. The server stays the authority for every rule.
 
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
@@ -23,11 +24,6 @@ export interface DetailDraft {
   date_deadline: string | null
   priority: PersonalTask['priority']
   assignees: number[]
-}
-
-/** The calendar day of a UTC deadline. Never goes through `Date`, so the day cannot shift. */
-export function deadlineDay(iso: string | null): string | null {
-  return iso ? iso.slice(0, 10) : null
 }
 
 export function draftFromTask(task: PersonalTask): DetailDraft {

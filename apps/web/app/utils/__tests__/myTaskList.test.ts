@@ -39,6 +39,7 @@ describe('my-tasks deadline rendering', () => {
   it('keeps the UTC date part without a day shift', () => {
     expect(deadlineDay('2026-10-14T00:00:00Z')).toBe('2026-10-14')
     expect(deadlineDay('2026-01-01T00:00:00Z')).toBe('2026-01-01')
+    expect(deadlineDay('2026-10-20T21:30:00Z')).toBe('2026-10-20')
     expect(deadlineDay(null)).toBeNull()
   })
 
