@@ -21,7 +21,7 @@ class NasqNotifyService(models.AbstractModel):
     """Bell rows: a ``mail.message`` flagged ``nasq_notification`` plus one inbox
     ``mail.notification`` per recipient.
 
-    Documented elevated operations (CLAUDE.md, R7): delivery creates the
+    Documented elevated operations (AGENTS.md, R7): delivery creates the
     message and its inbox row as superuser, because the recipient, not the
     actor, owns the row; reads are elevated because a user cannot read other
     partners' ``mail.notification`` rows, so every elevated search carries

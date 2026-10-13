@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import unittest
 
-from semgrep_gate import blocking, select_files
+from semgrep_gate import blocking, select_files, unjustified_suppressions
 
 
 class TestSemgrepGate(unittest.TestCase):
@@ -12,6 +12,28 @@ class TestSemgrepGate(unittest.TestCase):
             'apps/web/.nuxt/x.ts', 'docs/a.md', 'deploy/x.sh', 'e2e/tests/a.e2e.ts', 'a.json',
         ]
         self.assertEqual(select_files(paths), ['apps/web/app/a.vue', 'deploy/x.sh', 'odoo-addons/nasq_hr/models/a.py'])
+
+    def test_select_files_filters_by_path_component_not_substring(self):
+        paths = [
+            'odoo-addons/foo_docs/models/x.py', 'odoo-addons/mytests/models/y.py',
+            'apps/web/app/pages/tests/index.vue', 'apps/web/app/pages/docs/index.vue',
+            'docs/tools/x.py', 'apps/web/.output/server/x.mjs',
+        ]
+        self.assertEqual(select_files(paths), [
+            'apps/web/app/pages/docs/index.vue', 'odoo-addons/foo_docs/models/x.py', 'odoo-addons/mytests/models/y.py',
+        ])
+
+    def test_select_files_accepts_more_suffixes(self):
+        paths = ['a/x.tsx', 'a/x.jsx', 'a/x.cjs', 'a/x.mts', 'a/x.cts', 'a/x.bash', 'a/x.md']
+        self.assertEqual(select_files(paths), sorted(paths[:-1]))
+
+    def test_suppression_needs_rule_id_and_reason(self):
+        good = '    # nosemgrep: python.lang.x.y -- fixed argv list\n'
+        self.assertEqual(unjustified_suppressions('a.py', good), [])
+        self.assertEqual(unjustified_suppressions('a.py', 'x = 1  # nosemgrep\n'), [1])
+        self.assertEqual(unjustified_suppressions('a.py', 'ok\n# nosemgrep: rule.id\n'), [2])
+        self.assertEqual(unjustified_suppressions('a.py', '# nosemgrep: rule.id --\n'), [1])
+        self.assertEqual(unjustified_suppressions('a.py', '# nosemgrep: rule.id --  \n'), [1])
 
     def test_blocking_is_error_severity_or_secrets(self):
         findings = [

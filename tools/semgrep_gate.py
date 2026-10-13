@@ -1,10 +1,21 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Semgrep gate for the files changed against the base branch.
 
-Runs the registry rulesets in RULESETS on the changed source files (tests and
-generated files excluded). ERROR findings and any finding from a secrets rule
-fail the gate; WARNING findings are listed but do not. Findings are suppressed
-only by an inline ``# nosemgrep: <rule-id>`` with a reason on the same line.
+Scope: files changed against ``--base`` (committed, staged, unstaged and
+untracked) whose suffix is in SUFFIXES. A path is skipped when its first
+component is ``docs`` or any component is in SKIP_COMPONENTS (``node_modules``,
+``tests``, ``fixtures`` and similar), or when its name matches TEST_NAME.
+
+Enforced, exit code 1:
+* any Semgrep finding of severity ERROR, from the registry rulesets in RULESETS;
+* any finding from a secrets rule;
+* any line of a scanned file that carries the Semgrep inline-ignore marker (MARKER)
+  but not in the form ``<marker>: <rule-id> -- <reason>``, i.e. a bare or
+  reason-less suppression.
+
+Reported but not failing: WARNING findings (``warn``) and files Semgrep could
+not fully parse (``warn parse``); such files may be only partly scanned.
+
 Needs network access to download the rulesets (``--metrics=off``: no usage data
 is sent); when semgrep or the registry is unreachable the gate fails closed with
 exit code 3 unless ``--allow-offline`` is given.
@@ -21,9 +32,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 RULESETS = ('p/python', 'p/typescript', 'p/secrets')
-SUFFIXES = ('.py', '.ts', '.js', '.mjs', '.vue', '.sh')
-SKIP_PARTS = ('node_modules/', '.nuxt/', '.output/', 'storybook-static/', '/__tests__/', '/tests/', '/fixtures/', 'docs/')
+SUFFIXES = ('.py', '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.mts', '.cts', '.vue', '.sh', '.bash')
+SKIP_COMPONENTS = frozenset({'node_modules', '.nuxt', '.output', 'storybook-static', '__tests__', 'tests', 'fixtures'})
 TEST_NAME = re.compile(r'(^|/)(test_[^/]*\.py|[^/]*\.(test|spec)\.[jt]s|[^/]*\.e2e\.ts)$')
+MARKER = 'nosem' + 'grep'  # spelled in two parts so this file does not carry the marker itself
+SUPPRESSION_OK = re.compile(MARKER + r':\s*\S+\s+--\s+\S')
 EXIT_UNAVAILABLE = 3
 
 
@@ -33,7 +46,8 @@ def select_files(paths):
     for path in paths:
         if not path.endswith(SUFFIXES) or TEST_NAME.search(path):
             continue
-        if any(part in '/' + path for part in SKIP_PARTS):
+        parts = path.split('/')
+        if parts[0] == 'docs' or SKIP_COMPONENTS.intersection(parts):
             continue
         chosen.append(path)
     return sorted(set(chosen))
@@ -47,9 +61,17 @@ def blocking(findings):
     ]
 
 
+def unjustified_suppressions(path, text):
+    """Line numbers in ``text`` that carry MARKER without a rule id and a reason."""
+    return [
+        number for number, line in enumerate(text.splitlines(), 1)
+        if MARKER in line and not SUPPRESSION_OK.search(line)
+    ]
+
+
 def changed_paths(base):
     def lines(*args):
-        out = subprocess.run(['git', *args], cwd=REPO, capture_output=True, text=True, check=True)
+        out = subprocess.run(['git', '-c', 'core.quotepath=off', *args], cwd=REPO, capture_output=True, text=True, check=True)
         return out.stdout.splitlines()
 
     merge_base = lines('merge-base', base, 'HEAD')[0]
@@ -86,11 +108,24 @@ def main(argv=None):
         return 0 if args.allow_offline else EXIT_UNAVAILABLE
     findings = data.get('results', [])
     failing = blocking(findings)
+    parse_errors = [e for e in data.get('errors', []) if e.get('path')]
+    for error in parse_errors:
+        sys.stdout.write('warn parse %s\n' % error['path'])
+    bad_suppressions = 0
+    for path in files:
+        try:
+            text = (REPO / path).read_text(encoding='utf-8', errors='replace')
+        except OSError:
+            continue
+        for number in unjustified_suppressions(path, text):
+            bad_suppressions += 1
+            sys.stdout.write('FAIL suppression %s:%d\n' % (path, number))
     for finding in findings:
         mark = 'FAIL' if finding in failing else 'warn'
         sys.stdout.write('%s %s:%d %s\n' % (mark, finding['path'], finding['start']['line'], finding['check_id'].split('.')[-1]))
-    sys.stdout.write('semgrep_gate: %d files, %d findings, %d blocking\n' % (len(files), len(findings), len(failing)))
-    return 1 if failing else 0
+    sys.stdout.write('semgrep_gate: %d files, %d findings, %d blocking, %d bad suppressions, %d parse warnings\n' % (
+        len(files), len(findings), len(failing), bad_suppressions, len(parse_errors)))
+    return 1 if failing or bad_suppressions else 0
 
 
 if __name__ == '__main__':

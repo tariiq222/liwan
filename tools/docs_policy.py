@@ -4,6 +4,9 @@
 Checks the path-like `backtick` references and relative markdown links of the
 instruction documents listed in DOCS. Placeholders, globs, routes, URLs and
 commands are ignored; only tokens that look like repository files are checked.
+A trailing `:<line>` or `:<line>-<line>` is ignored. A code span broken across
+two lines is not checked. A bare file name such as `common.py` is only looked up
+relative to the document; the addon shorthand needs a slash (`nasq_hr/x.py`).
 """
 from __future__ import annotations
 
@@ -26,12 +29,18 @@ ALLOWED_MISSING = frozenset({
     'deploy/branding.json',
     'platform_vN.json',
 })
+# File names the instruction documents mention without a directory because the
+# directory differs per application or addon; a bare name is not resolved by suffix.
+BARE_NAMES = frozenset({
+    '__init__.py', 'common.json', 'hr.json', 'tasks.json', 'projects.json', 'settings.json',
+    'platform_v3.json', 'nuxt.config.ts',
+})
 # Directories whose slashed, suffix-less tokens are repository paths.
 TOP_DIRS = ('apps/', 'odoo-addons/', 'packages/', 'docs/', 'tools/', 'deploy/', 'e2e/', '.claude/')
 
 
 def _candidate(token: str) -> str | None:
-    token = token.strip()
+    token = re.sub(r':\d+(-\d+)?$', '', token.strip())
     if not token or token.startswith(('/', '~')) or any(c in SKIP_CHARS for c in token) or '://' in token:
         return None
     token = token.rstrip('/')
@@ -58,7 +67,7 @@ def _exists(token: str, base: str, known: set[str]) -> bool:
     if token in known or posixpath.normpath(posixpath.join(base, token)) in known:
         return True
     # Shorthand relative to an addon or package, e.g. `nasq_hr/tests/x.py`.
-    return any(path.endswith('/' + token) for path in known)
+    return '/' in token and any(path.endswith('/' + token) for path in known)
 
 
 def find_missing(doc: str, text: str, known: set[str]) -> list[tuple[int, str]]:
@@ -70,7 +79,7 @@ def find_missing(doc: str, text: str, known: set[str]) -> list[tuple[int, str]]:
             token = raw.rstrip('/') if is_link and not raw.startswith(('http://', 'https://', 'mailto:', '/')) else None
             if not is_link:
                 token = _candidate(raw)
-            if not token or token in ALLOWED_MISSING:
+            if not token or token in ALLOWED_MISSING or token in BARE_NAMES:
                 continue
             if not _exists(token, base, known):
                 missing.append((number, token))
