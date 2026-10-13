@@ -36,8 +36,12 @@ const ROWS: Row[] = [
 
 const toItem = ({ roles: _roles, ...row }: Row) => row
 
+// `meDelay.ms` slows every /me refresh, which every client navigation awaits: it keeps a navigation pending.
+const meDelay = { ms: 0 }
+
 async function mockMe(page: Page) {
   await page.route('**/api/v1/me', async route => {
+    if (meDelay.ms) await new Promise(resolve => setTimeout(resolve, meDelay.ms))
     const response = await route.fetch()
     const me = await response.json()
     const features = [...new Set([...(me.platform?.readable_features ?? []), 'tasks.enabled'])]
@@ -105,6 +109,7 @@ async function open(page: Page, path: string) {
 }
 
 test.beforeEach(async ({ page }) => {
+  meDelay.ms = 0
   await mockMe(page)
   await login(page)
 })
@@ -155,6 +160,24 @@ test('the scope filter and the search live in the URL and refetch', async ({ pag
   expect(requests.at(-1)!.get('q')).toBe('الأرشيف')
 })
 
+test('typing keeps the whole text while an earlier search navigation is still pending', async ({ page }) => {
+  const requests = await mockList(page, fixtureList)
+  await open(page, '/my-tasks')
+  await expect(rows(page)).toHaveCount(3)
+  const input = page.getByLabel('ابحث في مهامي')
+  // The debounce (250 ms) pushes 'تر'; its navigation is held 600 ms by the slow /me and lands at
+  // ~850 ms. The rest is typed at ~700 ms: before the landing, and before the next debounce fires.
+  meDelay.ms = 600
+  await input.pressSequentially('تر')
+  await page.waitForTimeout(700)
+  await input.pressSequentially('تيب')
+  await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 10_000 }).toBe('ترتيب')
+  await expect(input).toHaveValue('ترتيب')
+  meDelay.ms = 0
+  await expect(rows(page)).toHaveCount(1)
+  expect(requests.at(-1)!.get('q')).toBe('ترتيب')
+})
+
 test('a project row links to its href and a personal row to its detail page', async ({ page }) => {
   await mockList(page, fixtureList)
   await open(page, '/my-tasks')
@@ -165,7 +188,11 @@ test('a project row links to its href and a personal row to its detail page', as
   await expect(personalLink).toHaveAttribute('href', /^\/my-tasks\/102\?returnTo=/)
 })
 
-test('going back from a task restores the tab, scope and search', async ({ page }) => {
+// What this proves: the list state lives in the URL, so history back to the list restores the tab, the
+// scope and the search, and every personal row carries the list URL as `returnTo`. It does NOT prove that
+// the task detail page's own back button honours `returnTo`: that is covered by the detail slice. It
+// leaves through an existing page (/account) so it does not depend on the detail page being there.
+test('the list state comes back from history and rows carry returnTo', async ({ page }) => {
   await mockList(page, fixtureList)
   await open(page, '/my-tasks?tab=done&scope=created&q=حجز')
   await expect(rows(page)).toHaveCount(1)
@@ -176,8 +203,8 @@ test('going back from a task restores the tab, scope and search', async ({ page 
   expect(new URL(returnTo, 'http://nasq.local').searchParams.get('scope')).toBe('created')
   expect(new URL(returnTo, 'http://nasq.local').searchParams.get('q')).toBe('حجز')
 
-  await link.click()
-  await expect(page).toHaveURL(/\/my-tasks\/104/)
+  await open(page, '/account')
+  await expect(page).toHaveURL(/\/account/)
   await page.goBack()
   await expect(page).toHaveURL(/\/my-tasks\?/)
   const url = new URL(page.url())

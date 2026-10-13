@@ -35,10 +35,22 @@ function update(patch: Partial<MyTaskListState>) {
   void router.replace({ query: listPatch(route.query, patch) })
 }
 
-watch(() => state.value.q, value => { if (value !== search.value.trim()) search.value = value })
+// The last search this page wrote to the URL. Its navigation lands later than the keystrokes typed
+// meanwhile, so a landing of that very value must not overwrite the input: only an external change
+// (back/forward, a link) differs from both the input and `lastPushed` and is copied into the input.
+let lastPushed: string | null = null
+watch(() => state.value.q, value => {
+  if (value === lastPushed) {
+    lastPushed = null
+    return
+  }
+  if (value !== search.value.trim()) search.value = value
+})
 watch(debouncedSearch, value => {
   const next = value.trim()
-  if (next !== state.value.q) update({ q: next })
+  if (next === state.value.q) return
+  lastPushed = next
+  update({ q: next })
 })
 
 const tabItems = computed(() => MY_TASK_TABS.map(value => ({
