@@ -19,3 +19,16 @@ class NasqPmoEntitlementService(models.AbstractModel):
     @api.model
     def _nasq_claim_projects(self, delta):
         return self._nasq_claim('projects.max_projects', self._nasq_count_projects(), delta)
+
+    @api.model
+    def _nasq_terminology_keys(self):
+        return super()._nasq_terminology_keys() | frozenset({
+            'nav.projects',
+            'nav.allProjects',
+            'nav.myProjects',
+            'nav.projectTemplates',
+            'nav.projectTasks',
+            'nav.tasks',
+            'projects.title',
+            'tasks.title',
+        })

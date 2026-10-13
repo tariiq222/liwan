@@ -167,7 +167,7 @@ def get_record(model, rec_id):
     The int(rec_id) cast looks redundant at call sites like get_task(task_id)
     where task_id comes from a `<int:...>` route converter, but get_record is
     also called with ids taken straight from a JSON POST/PATCH body (e.g.
-    create_task's project_id/parent_id in tasks.py), which carry no such
+    create_task's project_id/parent_id in the PMO task controller module), which carry no such
     guarantee - keeping the cast here makes the helper safe for every caller
     without each one having to remember to coerce first.
     """

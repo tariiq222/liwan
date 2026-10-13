@@ -17,14 +17,6 @@ OPERATOR_CONTEXT = 'nasq_platform.operator_policy'
 TERMINOLOGY_LOCALES = ('ar', 'en')
 TERMINOLOGY_MAX_KEYS = 64
 TERMINOLOGY_MAX_CHARS = 120
-TERMINOLOGY_KEYS = frozenset({
-    'nav.projects', 'nav.allProjects', 'nav.myProjects', 'nav.projectTemplates',
-    'nav.projectTasks', 'nav.tasks', 'projects.title', 'tasks.title',
-    'nav.meetings', 'nav.meetingCalendar', 'nav.meetingSeries',
-    'nav.organization', 'nav.employees', 'nav.departments', 'nav.documents',
-    'hr.directory.title', 'hr.depts.title', 'hr.docs.title',
-    'nav.chat', 'chat.title',
-})
 FORBIDDEN_TERM_CHARS = frozenset('{}@|')
 FORBIDDEN_TERM_SEGMENTS = frozenset({'__proto__', 'constructor', 'prototype'})
 
@@ -488,12 +480,18 @@ class NasqEntitlementService(models.AbstractModel):
         return cleaned
 
     @api.model
+    def _nasq_terminology_keys(self):
+        """Terminology keys applications allow; each application extends this."""
+        return frozenset()
+
+    @api.model
     def _nasq_validate_terminology(self, terminology):
         if not terminology:
             return {}
         if not isinstance(terminology, dict):
             raise ValidationError(self.env._('nasq_platform: terminology must be an object'))
         cleaned = {}
+        allowed_keys = self._nasq_terminology_keys()
         for locale, mapping in terminology.items():
             if locale not in TERMINOLOGY_LOCALES:
                 raise ValidationError(self.env._(
@@ -512,7 +510,7 @@ class NasqEntitlementService(models.AbstractModel):
                 ))
             locale_map = {}
             for key, value in mapping.items():
-                if key not in TERMINOLOGY_KEYS:
+                if key not in allowed_keys:
                     raise ValidationError(self.env._(
                         'nasq_platform: unknown terminology key %(key)s',
                         key=key,

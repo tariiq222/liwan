@@ -6,6 +6,19 @@ from .common import NasqHrCase
 
 @tagged('post_install', '-at_install', 'nasq')
 class TestHrAccessSeparation(NasqHrCase):
+    def test_registers_its_terminology_keys(self):
+        owned = frozenset({
+            'nav.organization',
+            'nav.employees',
+            'nav.departments',
+            'nav.documents',
+            'hr.directory.title',
+            'hr.depts.title',
+            'hr.docs.title',
+        })
+        registered = self.env['nasq.entitlement.service']._nasq_terminology_keys()
+        self.assertLessEqual(owned, registered)
+
     """HR owns employee records; account mutations stay behind core access."""
 
     @classmethod
