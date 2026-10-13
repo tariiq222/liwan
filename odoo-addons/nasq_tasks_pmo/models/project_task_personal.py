@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Personal (project-less) task creation while nasq_pmo is installed."""
 from odoo import api, models
+from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Domain
 
 # The only fields a personal task is created with. Everything else, including
@@ -13,6 +14,16 @@ CONVERT_MARKER = 'nasq_tasks_pmo.convert_scope'
 # The only fields the checked convert writes beyond PMO's whitelist: the project of the task and the
 # move of its personal sub-tasks from nasq_parent_id to Odoo's parent_id.
 CONVERT_WRITE_FIELDS = frozenset({'project_id', 'nasq_parent_id', 'parent_id'})
+# What a write of a personal task may carry, whoever sends it (the /my-tasks service or one of
+# PMO's own routes): the personal fields, the three states of a personal task and the date
+# bookkeeping Odoo keeps next to a state change. Stages, tags, milestones, hours, deliverables,
+# archiving and every project-flavoured state stay out, so a PMO route cannot put a personal
+# task in a shape /my-tasks cannot show or restore.
+PERSONAL_WRITE_FIELDS = frozenset({
+    'name', 'description', 'date_deadline', 'priority', 'user_ids',
+    'state', 'date_end', 'date_last_stage_update', 'date_assign',
+})
+PERSONAL_STATES = frozenset({'01_in_progress', '1_done', '1_canceled'})
 # PMO's whitelist already lists every personal field except these. A personal sub-task
 # points at its parent through nasq_parent_id: Odoo forbids parent_id without a project.
 PERSONAL_EXTRA_FIELDS = frozenset({'company_id', 'nasq_parent_id'})
@@ -53,6 +64,16 @@ class ProjectTaskPersonal(models.Model):
                 return super()._nasq_projectless_create_allowed(vals_list)
         return True
 
+    def _nasq_in_convert_scope(self):
+        """True while the checked convert runs for exactly these tasks (same caller and company)."""
+        scope = self.env.cr.precommit.data.get(CONVERT_MARKER)
+        return bool(
+            scope
+            and self.ids
+            and scope[:2] == (self.env.uid, self.env.company.id)
+            and set(self.ids) <= scope[2],
+        )
+
     def _nasq_extra_write_fields(self):
         """Open the project assignment fields for the tasks of the running convert only.
 
@@ -61,15 +82,31 @@ class ProjectTaskPersonal(models.Model):
         still run on those tasks.
         """
         extra = super()._nasq_extra_write_fields()
-        scope = self.env.cr.precommit.data.get(CONVERT_MARKER)
-        if (
-            scope
-            and self.ids
-            and scope[:2] == (self.env.uid, self.env.company.id)
-            and set(self.ids) <= scope[2]
-        ):
+        if self._nasq_in_convert_scope():
             extra = extra | CONVERT_WRITE_FIELDS
         return extra
+
+    def write(self, vals):
+        """Hold every write of a personal task to the values /my-tasks itself writes.
+
+        PMO's routes reach personal tasks too (``_nasq_can_write`` below answers for them), so
+        the values are the guard: the service only writes allowed ones, and anything else is
+        refused here before PMO's own checks. Internal (``sudo``) writes and the checked
+        convert are not held to it.
+        """
+        personal = self.filtered('nasq_personal') if not self.env.su else self.browse()
+        if personal and not personal._nasq_in_convert_scope():
+            if set(vals) - PERSONAL_WRITE_FIELDS:
+                raise AccessError(self.env._('A personal task only takes its own fields.'))
+            if 'state' in vals and vals['state'] not in PERSONAL_STATES:
+                raise AccessError(self.env._('A personal task is open, done or cancelled.'))
+        result = super().write(vals)
+        if personal and 'user_ids' in vals and not personal._nasq_in_convert_scope():
+            for task in personal:
+                ids = task.user_ids.ids
+                if len(self.env['nasq.directory']._nasq_people(ids)) != len(ids):
+                    raise ValidationError(self.env._('Assignees must be active people of this company.'))
+        return result
 
     @api.model
     def _nasq_personal_read_domain(self):
@@ -90,6 +127,13 @@ class ProjectTaskPersonal(models.Model):
         ):
             return True
         return super()._nasq_can_write()
+
+    def _nasq_can_archive(self):
+        """A personal task is never archived: no route of /my-tasks could restore it."""
+        self.ensure_one()
+        if self.nasq_personal:
+            return False
+        return super()._nasq_can_archive()
 
     def _nasq_emit_comment_notification(self, message):
         """A personal task has no PMO audience: its comments never create a PMO bell row.

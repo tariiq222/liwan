@@ -232,7 +232,7 @@ class TestMyTaskConvert(NasqTasksCase):
     def test_convert_rehomes_a_subtask_of_another_assignee_and_archived_ones(self):
         parent, child = self._shared_parent()
         archived = self._service(self.alice)._create_task({'name': 'Archived child', 'parent_id': parent.id})
-        archived.write({'active': False})
+        archived.sudo().write({'active': False})
         self._login(self.alice)
         self.assertEqual(self._convert(parent).status_code, 200)
         for record in (child, archived):

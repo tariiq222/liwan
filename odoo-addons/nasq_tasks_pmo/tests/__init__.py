@@ -6,4 +6,5 @@ from . import (
     test_links,
     test_personal_create,
     test_personal_read,
+    test_pmo_routes,
 )

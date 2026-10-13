@@ -194,7 +194,7 @@ class TestTaskSerializers(NasqTasksCase):
         parent = service._create_task({'name': 'Parent'})
         visible = service._create_task({'name': 'Visible', 'parent_id': parent.id})
         archived = service._create_task({'name': 'Archived', 'parent_id': parent.id})
-        archived.write({'active': False})
+        archived.sudo().write({'active': False})
         hidden = self.env['project.task'].with_user(self.bob).create({
             'name': 'Hidden', 'company_id': self.bob.company_id.id,
             'user_ids': [Command.set(self.bob.ids)],

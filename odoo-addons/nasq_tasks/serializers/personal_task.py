@@ -8,15 +8,15 @@ from odoo.exceptions import AccessError
 from odoo.tools import html2plaintext
 
 from odoo.addons.nasq_api.serializers.common import iso
-from odoo.addons.nasq_tasks.models.my_task_service import STATE_TO_WIRE
 
 PRIORITY_TO_WIRE = {'0': 'normal', '1': 'high'}
 CLOSED_WIRE = {'1_done': 'done', '1_canceled': 'cancelled'}
 
 
 def list_state(state):
-    """Wire state of a list row. Other applications' tasks carry states of their own
-    (PMO: changes requested, approved, waiting...); every non-closed one reads as open."""
+    """Wire state of a task. Other applications' tasks carry states of their own
+    (PMO: changes requested, approved, waiting...); every non-closed one reads as open.
+    The detail uses it too: a stored value outside the three personal states never fails a read."""
     return CLOSED_WIRE.get(state, 'open')
 
 
@@ -50,14 +50,14 @@ def dump_personal_task(task):
         'id': task.id,
         'name': task.name,
         'description': html2plaintext(task.description or '').strip(),
-        'state': STATE_TO_WIRE[task.state],
-        'priority': PRIORITY_TO_WIRE[task.priority or '0'],
+        'state': list_state(task.state),
+        'priority': list_priority(task.priority),
         'date_deadline': iso(task.date_deadline),
         'assignees': [_person(user) for user in task.user_ids],
         'creator': _person(task.create_uid),
         'parent': _readable_parent(task),
         'subtasks': [
-            {**_task_ref(child), 'state': STATE_TO_WIRE[child.state]}
+            {**_task_ref(child), 'state': list_state(child.state)}
             for child in task.nasq_child_ids.filtered(lambda child: child.active and child.has_access('read'))
         ],
         'attachment_count': attachments,
