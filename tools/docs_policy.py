@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ('CLAUDE.md', 'AGENTS.md', 'docs/parallel-work.md')
+DOCS = ('CLAUDE.md', 'AGENTS.md', 'docs/agents/odoo-rules.md', 'docs/agents/web-rules.md', 'docs/parallel-work.md')
 FILE_SUFFIXES = ('.py', '.ts', '.vue', '.md', '.json', '.yml', '.yaml', '.sh', '.mjs', '.js')
 CODE_RE = re.compile(r'`([^`\n]+)`')
 LINK_RE = re.compile(r'\]\(([^)\s#]+)(?:#[^)]*)?\)')
