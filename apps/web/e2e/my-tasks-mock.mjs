@@ -43,6 +43,8 @@ http.createServer((req, res) => {
     upstreamRes.on('end', () => {
       const body = JSON.stringify(withTasks(JSON.parse(Buffer.concat(chunks).toString('utf8'))))
       const headers = { ...upstreamRes.headers, 'content-length': Buffer.byteLength(body) }
+      // The body was re-encoded: a chunked upstream must not also announce a length.
+      delete headers['transfer-encoding']
       res.writeHead(200, headers)
       res.end(body)
     })
