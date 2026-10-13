@@ -26,3 +26,20 @@ class TestProjectlessCreateHook(NasqPmoCase):
         self.assertFalse(ProjectTask._nasq_projectless_create_allowed(
             self.env['project.task'], [{'name': 'x'}],
         ))
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestExtraWriteFieldsHook(NasqPmoCase):
+    def test_hook_default_is_empty(self):
+        """PMO's own implementation adds nothing to the write whitelist."""
+        self.assertEqual(
+            ProjectTask._nasq_extra_write_fields(self.env['project.task']), frozenset(),
+        )
+
+    def test_employee_cannot_write_the_project_of_a_task(self):
+        """Without a bridge marker, project_id is never a client-writable task field."""
+        other = self.env['project.project'].create({
+            'name': 'Other', 'company_id': self.env.company.id,
+        })
+        with self.assertRaisesRegex(AccessError, 'Task fields are not allowed'):
+            self.task_overdue.with_user(self.employee).write({'project_id': other.id})

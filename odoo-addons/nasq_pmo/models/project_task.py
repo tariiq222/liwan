@@ -81,6 +81,16 @@ class ProjectTask(models.Model):
         """
         return frozenset()
 
+    def _nasq_extra_write_fields(self):
+        """Fields a checked internal flow may write besides TASK_WRITABLE_FIELDS.
+
+        None here, so a client write is limited to TASK_WRITABLE_FIELDS. A bridge
+        (nasq_tasks_pmo) adds the project assignment fields only while its
+        cursor-local marker covers these very tasks; the write is still bound by
+        the visibility and ``pmo.tasks.write`` checks of ``write``.
+        """
+        return frozenset()
+
     @api.model
     def _nasq_projectless_create_allowed(self, vals_list):
         """Extension point: may these values create tasks that have no project?
@@ -702,7 +712,7 @@ class ProjectTask(models.Model):
         )
         if not trusted:
             self._nasq_check_visible_current()
-            if set(vals) - TASK_WRITABLE_FIELDS:
+            if set(vals) - (TASK_WRITABLE_FIELDS | self._nasq_extra_write_fields()):
                 raise AccessError(self.env._("Task fields are not allowed."))
             if 'active' in vals and any(not task._nasq_can_archive() for task in self):
                 raise AccessError(self.env._(
