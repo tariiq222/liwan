@@ -5,7 +5,6 @@ import {
   ConvertResultSchema,
   ConvertTargetSchema,
   MyTaskCollectionSchema,
-  MyTaskListPageSchema,
   PersonalTaskAttachmentSchema,
   PersonalTaskCommentSchema,
   PersonalTaskSchema,
@@ -116,14 +115,6 @@ export const retryMyTask = (failureCount: number, error: unknown) =>
   !(error instanceof ApiError && [403, 404].includes(error.status)) && failureCount < 1
 
 const validId = (id: MaybeRefOrGetter<number | null>) => computed(() => Number.isInteger(toValue(id)))
-
-export function useMyTaskList(params: MaybeRefOrGetter<MyTaskListParams>) {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: computed(() => myTaskKeys.list(myTaskListQuery(toValue(params)))),
-    queryFn: () => $api('/api/v1/my-tasks', { query: myTaskListQuery(toValue(params)), schema: MyTaskListPageSchema }),
-  })
-}
 
 export function useMyTask(id: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()

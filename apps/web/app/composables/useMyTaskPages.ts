@@ -6,7 +6,7 @@ import { myTaskListQuery, type MyTaskListParams } from './useMyTasks'
 import { myTaskKeys } from './myTaskKeys'
 import { MY_TASK_PAGE_SIZE, nextOffset } from '@/utils/myTaskList'
 
-// The paged variant of `useMyTaskList`: it lives under the `lists` key prefix, so every write that
+// The paged list of my tasks: it lives under the `lists` key prefix, so every write that
 // invalidates the lists refreshes it too. Pages are fetched by `offset + limit`, never by row count.
 export function useMyTaskPages(params: MaybeRefOrGetter<Omit<MyTaskListParams, 'limit' | 'offset'>>) {
   const { $api } = useApi()

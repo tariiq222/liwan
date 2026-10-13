@@ -3,7 +3,6 @@
     "title": "My tasks",
     "new": "New task",
     "created": "Task created",
-    "empty": "No tasks yet",
     "list": {
       "tabs": {
         "open": "Open",
@@ -45,7 +44,6 @@
       "priority": "Priority",
       "assignees": "Assignees",
       "assigneesPlaceholder": "Search for a person",
-      "parent": "Parent task",
       "submit": "Create task",
       "save": "Save changes",
       "cancel": "Cancel",
@@ -66,24 +64,20 @@
       "noDescription": "No description",
       "deadline": "Deadline",
       "priority": "Priority",
-      "state": "Status",
       "assignees": "Assignees",
       "creator": "Created by",
-      "parent": "Parent task",
       "createdAt": "Created",
       "updatedAt": "Last updated",
       "notFound": "This task does not exist or you cannot view it.",
       "back": "Back to my tasks",
       "noAssignees": "No assignees",
-      "noDeadline": "No deadline",
-      "saving": "Saving"
+      "noDeadline": "No deadline"
     },
     "actions": {
       "done": "Mark done",
       "reopen": "Reopen",
       "cancel": "Cancel task",
-      "edit": "Edit",
-      "convert": "Convert to a project task"
+      "edit": "Edit"
     },
     "cancelConfirm": {
       "title": "Cancel this task?",
@@ -105,7 +99,6 @@
       "placeholder": "Write a comment",
       "post": "Post comment",
       "unknownAuthor": "Unknown user",
-      "label": "Comment",
       "errors": {
         "tooLong": "The comment is longer than 5000 characters."
       }
@@ -135,22 +128,16 @@
       "empty": "There are no projects you can add tasks to.",
       "project": "Project",
       "submit": "Convert task",
-      "success": "The task was converted to a project task",
       "confirm": "Yes, convert the task",
       "keep": "Keep it as is",
       "choose": "Choose a project"
     },
     "errors": {
-      "load": "Could not load tasks. Try again.",
       "save": "Could not save the task. Try again.",
       "transition": "Could not change the task status. Try again.",
       "comment": "Could not post the comment. Try again.",
       "attachment": "Could not upload the attachment. Check its type and size.",
-      "convert": "Could not convert the task. Try again.",
-      "forbidden": "You do not have permission for this action."
-    },
-    "bell": {
-      "assigned": "A task was assigned to you"
+      "convert": "Could not convert the task. Try again."
     }
   }
 }
