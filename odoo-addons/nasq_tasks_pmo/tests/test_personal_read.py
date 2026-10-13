@@ -3,6 +3,10 @@ from odoo.exceptions import AccessError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
+from odoo.addons.nasq_tasks.serializers.personal_task import (
+    dump_list_item,
+    dump_personal_task,
+)
 from odoo.addons.nasq_tasks.tests.common import NasqTasksCase
 
 
@@ -89,6 +93,49 @@ class TestPersonalReadWithoutPmoCapability(NasqTasksCase):
         self.assertEqual(service._get_personal(child.id).nasq_parent_id.id, parent.id)
         self.env.invalidate_all()
         self.assertEqual(self._fields_of(service._get_personal(child.id))[0][0], 'step')
+
+    def test_serializers_read_from_a_cold_cache(self):
+        service = self._service()
+        parent = service._create_task({
+            'name': 'parent', 'description': 'some text', 'priority': 'high',
+            'date_deadline': '2026-12-01T09:00:00Z',
+            'assignees': [self.tasks_only.id, self.alice.id]})
+        child = service._create_task({'name': 'step', 'parent_id': parent.id})
+        self.env['ir.attachment'].with_user(self.tasks_only).create({
+            'name': 'a.txt', 'res_model': 'project.task', 'res_id': parent.id,
+            'raw': b'x', 'mimetype': 'text/plain'})
+        self.env.flush_all()
+        self.env.invalidate_all()
+        rows, _total = self._list()
+        self.env.invalidate_all()
+        item = dump_list_item(rows)
+        self.assertEqual(
+            (item['id'], item['name'], item['state'], item['priority'], item['source'], item['project']),
+            (parent.id, 'parent', 'open', 'high', 'personal', None))
+        self.assertEqual(item['date_deadline'], '2026-12-01T09:00:00Z')
+        self.assertCountEqual(
+            [person['id'] for person in item['assignees']], [self.tasks_only.id, self.alice.id])
+        self.env.invalidate_all()
+        detail = dump_personal_task(service._get_personal(parent.id))
+        self.assertEqual((detail['name'], detail['description'], detail['attachment_count']),
+                         ('parent', 'some text', 1))
+        self.assertEqual(detail['creator']['id'], self.tasks_only.id)
+        self.assertEqual(detail['subtasks'], [{'id': child.id, 'name': 'step', 'state': 'open'}])
+        self.assertTrue(detail['allowed_actions']['write'])
+        self.env.invalidate_all()
+        sub_detail = dump_personal_task(service._get_personal(child.id))
+        self.assertEqual(sub_detail['parent'], {'id': parent.id, 'name': 'parent'})
+        self.assertRegex(sub_detail['created_at'], r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$')
+
+    def test_a_pmo_tasks_reader_without_projects_read_still_lists_personal_tasks(self):
+        user = self._role_user('tasks_pmo_tasks_reader', [
+            'tasks.tasks.read', 'tasks.tasks.create', 'tasks.tasks.write', 'pmo.tasks.read'])
+        personal = self.make_personal_task(user, 'p')
+        self.env.invalidate_all()
+        rows, total = self._service().with_user(user)._search_list(
+            closed=False, q=None, assigned=True, created=True, sort='deadline', limit=50, offset=0)
+        self.assertEqual((rows, total), (personal.with_user(user), 1))
+        self.assertNotIn(self.project_task, rows)
 
     def test_project_tasks_stay_out_of_reach(self):
         Task = self.env['project.task'].with_user(self.tasks_only)

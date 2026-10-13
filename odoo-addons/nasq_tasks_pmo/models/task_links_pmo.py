@@ -17,11 +17,14 @@ class NasqTaskLinksPmo(models.AbstractModel):
     def _nasq_project_task_domain(self, uid):
         """Project tasks assigned to ``uid`` in an active project, while the PMO feature is readable."""
         domain = super()._nasq_project_task_domain(uid)
-        # PMO's search gate wants pmo.tasks.read: without it the personal branch must stay
-        # alone (a tasks-only role), or the whole list would be refused.
+        # PMO's search gate wants pmo.tasks.read, and the ``project_id.active`` leaf below
+        # searches projects, which wants pmo.projects.read: without either the personal
+        # branch must stay alone (a tasks-only role), or the whole list would be refused.
+        access = self.env['nasq.access.service']
         if not (
             self.env['nasq.entitlement.service']._nasq_feature_read('pmo.enabled')
-            and self.env['nasq.access.service']._nasq_has_capability(self.env.user, 'pmo.tasks.read')
+            and access._nasq_has_capability(self.env.user, 'pmo.tasks.read')
+            and access._nasq_has_capability(self.env.user, 'pmo.projects.read')
         ):
             return domain
         return Domain.OR([domain, Domain([
