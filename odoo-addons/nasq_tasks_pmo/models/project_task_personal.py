@@ -5,10 +5,11 @@ from odoo import api, models
 # The only fields a personal task is created with. Everything else, including
 # the project-flavoured state and stage, stays a PMO project-task field.
 PERSONAL_CREATE_FIELDS = frozenset({
-    'name', 'user_ids', 'date_deadline', 'priority', 'description', 'company_id', 'parent_id',
+    'name', 'user_ids', 'date_deadline', 'priority', 'description', 'company_id', 'nasq_parent_id',
 })
-# PMO's whitelist already lists every personal field except these.
-PERSONAL_EXTRA_FIELDS = frozenset({'company_id'})
+# PMO's whitelist already lists every personal field except these. A personal sub-task
+# points at its parent through nasq_parent_id: Odoo forbids parent_id without a project.
+PERSONAL_EXTRA_FIELDS = frozenset({'company_id', 'nasq_parent_id'})
 
 
 class ProjectTaskPersonal(models.Model):
@@ -41,7 +42,7 @@ class ProjectTaskPersonal(models.Model):
                 or vals.get('company_id') != company.id
             ):
                 return super()._nasq_projectless_create_allowed(vals_list)
-            parent_id = vals.get('parent_id')
+            parent_id = vals.get('nasq_parent_id')
             if parent_id and not self.browse(parent_id).exists().nasq_personal:
                 return super()._nasq_projectless_create_allowed(vals_list)
         return True

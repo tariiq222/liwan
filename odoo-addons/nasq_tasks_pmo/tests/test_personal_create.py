@@ -52,21 +52,31 @@ class TestPersonalCreateWithPmo(NasqTasksCase):
         })
         parent = self.env['project.task'].create({'name': 'parent', 'project_id': project.id})
         Task = self.env['project.task'].with_user(self.alice)
-        # The hook never waives the project requirement for a project task's child ...
+        # A project task is never the parent of a personal sub-task: the hook refuses ...
+        self.assertFalse(Task._nasq_projectless_create_allowed(
+            [self._vals(self.alice, nasq_parent_id=parent.id)]))
+        # ... so PMO's project requirement stands and the create is refused.
+        with self.assertRaises(AccessError):
+            Task.create(self._vals(self.alice, nasq_parent_id=parent.id))
+        # Odoo's own parent_id on a project-less create is not a personal field.
         self.assertFalse(Task._nasq_projectless_create_allowed(
             [self._vals(self.alice, parent_id=parent.id)]))
-        # ... so PMO binds the child to the parent's project; it never becomes personal.
+        # A child of a project task through parent_id still binds to the parent's project.
         child = Task.create(self._vals(self.alice, parent_id=parent.id))
         self.assertEqual(child.project_id, project)
         self.assertFalse(child.nasq_personal)
 
-    def test_hook_accepts_a_personal_parent(self):
-        # Odoo's project_task_private_task_has_no_parent constraint stops the INSERT of a
-        # personal subtask, so this only documents the hook's answer.
+    def test_personal_subtask_can_be_created_with_pmo_installed(self):
         parent = self.make_personal_task(self.alice, 'parent')
         Task = self.env['project.task'].with_user(self.alice)
-        self.assertTrue(Task._nasq_projectless_create_allowed(
-            [self._vals(self.alice, parent_id=parent.id)]))
+        vals = self._vals(self.alice, nasq_parent_id=parent.id)
+        self.assertTrue(Task._nasq_projectless_create_allowed([vals]))
+        child = Task.create(vals)
+        self.assertTrue(child.nasq_personal)
+        self.assertEqual(child.nasq_parent_id, parent)
+        self.assertFalse(child.parent_id)
+        self.assertEqual(parent.nasq_child_ids, child)
+        self.assertTrue(child.with_user(self.alice).has_access('read'))
 
     def test_other_company_create_rejected(self):
         with self.assertRaises(AccessError):
