@@ -98,7 +98,7 @@ describe('the other tasks shapes', () => {
 
 describe('MyTaskCollectionSchema', () => {
   const Comments = MyTaskCollectionSchema(PersonalTaskCommentSchema)
-  const comment = { id: 1, body: 'hi', author: null, created_at: '2026-10-13' }
+  const comment = { id: 1, body: 'hi', author: null, created_at: '2026-10-13T00:00:00Z' }
 
   it('parses the standard items/total envelope', () => {
     expect(Comments.parse({ items: [comment], total: 1 })).toEqual({ items: [comment], total: 1 })

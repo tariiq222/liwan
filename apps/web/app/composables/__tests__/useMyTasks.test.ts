@@ -18,7 +18,7 @@ function task(over: Partial<PersonalTask> = {}): PersonalTask {
   return {
     id: 7, name: 'T', description: '', state: 'open', priority: 'normal', date_deadline: null,
     assignees: [person], creator: person, parent: null, subtasks: [], attachment_count: 0,
-    created_at: '2026-10-13', updated_at: '2026-10-13',
+    created_at: '2026-10-13T00:00:00Z', updated_at: '2026-10-13T00:00:00Z',
     allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: true },
     ...over,
   } as PersonalTask
@@ -167,7 +167,7 @@ describe('collection envelopes', () => {
     vi.fn(async (_path: string, opts: { schema?: { parse: (v: unknown) => unknown } }) => opts.schema ? opts.schema.parse(data) : data)
 
   it('parses comments, attachments and convert targets as { items, total }', async () => {
-    const comment = { id: 1, body: 'hi', author: null, created_at: 'x' }
+    const comment = { id: 1, body: 'hi', author: null, created_at: '2026-10-13T00:00:00Z' }
     const att = { id: 2, name: 'a.pdf', mimetype: 'application/pdf', url: '/web/content/2' }
     const c = await fetchMyTaskComments(apiReturning({ items: [comment], total: 1 }) as never, 7)
     expect(c).toEqual({ items: [comment], total: 1 })
