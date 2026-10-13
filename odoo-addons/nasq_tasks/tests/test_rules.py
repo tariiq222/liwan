@@ -34,8 +34,9 @@ class TestPersonalTaskRules(NasqTasksCase):
         self.assertFalse(task.nasq_personal)
         self.assertTrue(task.with_user(self.carol).has_access('read'))  # Odoo/PMO rules decide, ours passes
 
-    # The tests below each guard one clause of rule_personal_task_visible: loosening
-    # that clause (and nothing else) must turn the matching test red.
+    # The read tests below each guard one clause of rule_personal_task_visible: loosening
+    # that clause (and nothing else) must turn the matching test red. The write tests
+    # check combined behaviour (Odoo's own edition rule also applies), not one clause.
 
     def test_creator_who_is_not_assignee_reads_through_create_uid(self):
         task = self.make_personal_task(self.alice, assignees=[self.bob.id])
