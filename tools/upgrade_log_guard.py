@@ -34,6 +34,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f'upgrade log unreadable: {args.log_path}: {error}', file=sys.stderr)
         return 1
 
+    if not text.strip():
+        print(f'upgrade log is empty: {args.log_path}', file=sys.stderr)
+        return 1
+
     problems = find_problems(text)
     for line_number, line in problems:
         print(f'upgrade log rejected: {args.log_path}:{line_number}: {line}', file=sys.stderr)

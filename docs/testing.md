@@ -4,10 +4,86 @@ nasq has four test layers. Pick the cheapest one that proves the change.
 
 | Layer | Use it for | Run |
 | --- | --- | --- |
-| 1. Odoo `TransactionCase` / `HttpCase` | Models, access rules, API routes, migrations | Odoo test run on a fresh scratch DB (see CLAUDE.md "Check commands") |
+| 1. Odoo `TransactionCase` / `HttpCase` | Models, access rules, API routes, migrations | Odoo test run on a fresh scratch DB (see `docs/agents/odoo-rules.md` "Check commands"; `npm run test:odoo` wraps it) |
 | 2. Contracts + web unit tests | Zod contracts, composables, pure UI logic | `npm test`, `npm -w apps/web run lint` |
 | 3. Playwright mock specs | Page behaviour against the mock API, no model needed | `cd apps/web && npm run test:e2e` (CI step `e2e-mock`) |
 | 4. Agentic e2e | Whole user journeys through the real UI | `npm run e2e` / `npm run e2e:smoke` |
+
+## Fast local loop
+
+Use these while iterating; `npm test` and the Odoo/CI gates stay binding before a merge.
+
+| Command | What it does |
+| --- | --- |
+| `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
+| `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
+| `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
+| `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` step. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` step. |
+
+Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
+architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
+`type(scope): subject` rule) into the shared `.git/hooks`, so every worktree gets them. It leaves
+`core.hooksPath` and the existing Git LFS hooks alone, refuses to overwrite a hook that is not
+its own, and `git commit --no-verify` still bypasses it. The merge gates stay binding.
+
+`tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
+module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them
+changes) and only ever creates, clones or drops `nasq_scratch_*` databases. Stale
+`nasq_scratch_tpl_*` templates are small and can be dropped by hand.
+
+## Running a CI step locally
+
+`woodpecker-cli exec` (Homebrew `woodpecker-cli`) runs `.woodpecker.yml` steps on the local
+backend with no server. Verified for the `static` step (197.6 s, passed):
+
+```sh
+# 1. a throwaway clone, because the step runs `npm ci` and writes into its workspace
+git clone --local --no-hardlinks /Users/tariq/code/nasq /tmp/nasq-ci && cd /tmp/nasq-ci
+# 2. a pipeline file holding only the wanted step (exec cannot select one)
+#    copy `when:` plus the `static` block of .woodpecker.yml into /tmp/static-only.yaml
+woodpecker-cli exec --local --repo-path /tmp/nasq-ci --backend-engine local \
+  --commit-branch main /tmp/static-only.yaml
+```
+
+Other steps need extra local services (PostgreSQL role `nasq_test`, the Odoo checkout, a Docker
+daemon for `image`) and were not run this way. This mirrors CI for a branch before merge; the
+local policy runs in AGENTS.md stay the binding gate.
+
+## CI pipeline notes
+
+CI is Woodpecker (`.woodpecker.yml`, with the image gate in
+`deploy/woodpecker/image.yml`); GitHub
+Actions is not used. The main pipeline has eight steps—`static`,
+`control-plane`, `odoo`, `upgrade`, `restore-drill`, `image`, `e2e-mock`, and `rtl-stories`—and each is
+runnable locally with the same command block in that file: static checks, the
+control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
+commands, the backup and restore drill, and the mock Playwright run. The
+control-plane live suites run serially by design: its `test` script sets
+`--no-file-parallelism --hookTimeout=60000` because they share one scratch
+control database and TRUNCATE the same tables. The `image` step
+needs a Docker daemon on the agent; `deploy/woodpecker/image.yml` is the separate opt-in pipeline for
+agents whose engine can start a privileged dind service. The
+migration policy is [`docs/migrations.md`](migrations.md), and the pinned
+Odoo source commit is [`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT).
+
+## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
+
+| Step | Time |
+| --- | --- |
+| `npm test` chain plus web type check, step by step | about 50 s |
+| `npm run check:fast` when only `tools/` changed | about 18 s |
+| `npm ci --ignore-scripts --prefer-offline` | 4.7 s |
+| `tools/wt.py new` (worktree, install, `nuxt prepare`) | about 10 s |
+| Odoo install of the 10 release modules | about 17 s |
+| `createdb -T` clone of the installed template | about 1.2 s |
+| `npm run test:odoo -- --addons nasq_hr` (80 tests), warm / cold template | 30 s / 43 s |
+| Full Odoo run (install and tests of all release modules, 658 tests) | 234 s |
+| CI `e2e-mock` locally (`nuxt build` 28.8 s, 7 Playwright tests 4.9 s) | about 35 s |
+| `npm run test:rtl` (Storybook build 7.6 s, 184 stories x 2 viewports, 4 workers) | about 2.4 min |
+| Semgrep gate on a few changed files | about 7 s |
+
+Not measured: the agentic e2e runner (needs model credentials) and the Odoo-backed e2e stack.
 
 ## 1. Odoo tests
 

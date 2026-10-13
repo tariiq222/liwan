@@ -45,8 +45,19 @@ it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mo
   expect(JSON.stringify(s.web.healthcheck)).not.toContain('/login')
 })
 function nuxt(mode: string) {
-  const source = readFileSync(resolve(root, 'apps/web/nuxt.config.ts'), 'utf8').replace('export default defineNuxtConfig(', 'globalThis.result = defineNuxtConfig(')
-  const context = { process: { env: { NASQ_TENANCY_MODE: mode, NODE_ENV: 'production' } }, defineNuxtConfig: (v: unknown) => v, result: undefined as any }
+  // The config is evaluated as a plain script, so its ES imports and import.meta are replaced by stubs.
+  const source = readFileSync(resolve(root, 'apps/web/nuxt.config.ts'), 'utf8')
+    .replace(/^import .*$/gm, '')
+    .replaceAll('import.meta.url', "'file:///synthetic/nuxt.config.ts'")
+    .replace('export default defineNuxtConfig(', 'globalThis.result = defineNuxtConfig(')
+  const context = {
+    process: { env: { NASQ_TENANCY_MODE: mode, NODE_ENV: 'production' } },
+    URL,
+    fileURLToPath: (u: URL) => u.pathname,
+    discoverLocaleFiles: () => ({ ar: [], en: [] }),
+    defineNuxtConfig: (v: unknown) => v,
+    result: undefined as any,
+  }
   runInNewContext(source, context)
   return context.result
 }

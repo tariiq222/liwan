@@ -21,25 +21,29 @@ own institution identity. PMO collaboration preserves record and company guards.
 
 | Surface | Shared | PMO | HR |
 | --- | --- | --- | --- |
-| Odoo addon | `nasq_api`, `nasq_notify`, `nasq_directory`, plus `nasq_core` system/access groups and branding; each app owns its capability groups | `nasq_pmo`; meetings `nasq_meetings`; bridge `nasq_meetings_pmo` | `nasq_hr` |
+| Odoo addon | `nasq_core` (access, system groups), `nasq_platform`, `nasq_api`, `nasq_notify` (bell), `nasq_directory` (people picker); each app owns its capability groups | `nasq_pmo`; meetings `nasq_meetings`; bridge `nasq_meetings_pmo` | `nasq_hr` |
 | Controllers and serializers | `nasq_api` common/auth/branding/me/attachment, `nasq_notify` bell routes, `nasq_directory` people route | `nasq_pmo/**`, `nasq_meetings/**`, `nasq_meetings_pmo/**` | `nasq_hr/**` |
 | Tests | shared fixture, `nasq_api`, `nasq_notify` and `nasq_directory` tests | `nasq_pmo/tests/**`, `nasq_meetings/tests/**`, `nasq_meetings_pmo/tests/**` | `nasq_hr/tests/**` |
 | Contracts | `packages/contracts/src/common/**` | `packages/contracts/src/pmo/**` | `packages/contracts/src/hr/**` |
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
 | Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and components | `/hr`, HR composables/components |
 
-The PMO pillar owns `/api/v1/people` because it is the task assignee picker.
-Its `id` is a `res.users` id. HR owns `/api/v1/hr/*`, where employee records
-use `hr.employee` ids. Keep these contracts separate.
+`nasq_directory` owns `/api/v1/people` (the user-id picker; its `id` is a
+`res.users` id) and its feature keys are registered by the applications that
+pick people. HR owns `/api/v1/hr/*`, where employee records use `hr.employee`
+ids. Keep these contracts separate.
 
 ## Shared-file protocol
 
-Only the orchestrator edits these shared integration points, or coordinates a
-single one-line addition from the owning team:
+Application web surfaces and locale files are discovered automatically
+(`apps/web/app/modules/<app>/manifest.ts`, `apps/web/i18n/locales/{ar,en}/<name>.json`),
+so adding an application edits no navigation or `nuxt.config.ts` file. Only the
+orchestrator edits these shared integration points, or coordinates a single
+one-line addition from the owning team:
 
+- `tools/arch_layers.json` — the addon rank (weakening it needs the owner's approval).
+- `deploy/catalog/solutions/platform_v3.json` — the application in the catalog.
 - `packages/contracts/src/index.ts` — one pillar barrel export.
-- `apps/web/nuxt.config.ts` — one locale file entry per pillar.
-- `apps/web/app/composables/useNav.ts` — the pillar navigation item.
 - `deploy/provision.sh` — the pillar addon in the install list.
 - `apps/web/i18n/locales/{ar,en}/common.json` — shared navigation labels.
 
@@ -59,6 +63,9 @@ shared change must state the contract and the single writer before work starts.
    Never symlink dependency or generated-state directories between worktrees.
 4. Set per-worktree `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, and
    `NUXT_PUBLIC_WS_URL`, and choose a distinct Nuxt `--port`.
+
+`npm run wt -- new <area>-<slug>` performs the worktree creation, steps 3 and 4 (ports and
+scratch database name go to the git-ignored `.env.worktree`) in one command (`tools/wt.py`).
 
 The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
 configuration, and Git state are read-only. Source inspection and read-only Git
