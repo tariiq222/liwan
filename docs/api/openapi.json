@@ -12162,6 +12162,9 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "is_subtask": {
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -12250,6 +12253,7 @@
           "assignees",
           "creator",
           "parent",
+          "is_subtask",
           "subtasks",
           "attachment_count",
           "created_at",
