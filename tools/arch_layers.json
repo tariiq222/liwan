@@ -9,6 +9,7 @@
     "nasq_meetings": 4,
     "nasq_hr": 4,
     "nasq_chat": 4,
+    "nasq_tasks": 4,
     "nasq_meetings_pmo": 5
   },
   "exempt": [
@@ -50,6 +51,14 @@
       ],
       "pages": [
         "chat"
+      ]
+    },
+    "tasks": {
+      "components": [
+        "my-tasks"
+      ],
+      "pages": [
+        "my-tasks"
       ]
     }
   },

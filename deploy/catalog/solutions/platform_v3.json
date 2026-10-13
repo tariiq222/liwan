@@ -57,6 +57,17 @@
       "features": [
         "boolean:chat.enabled"
       ]
+    },
+    {
+      "id": "tasks",
+      "name": "Tasks",
+      "description": "Personal and team tasks that need no project.",
+      "modules": [
+        "nasq_tasks"
+      ],
+      "features": [
+        "boolean:tasks.enabled"
+      ]
     }
   ]
 }
