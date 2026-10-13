@@ -4,12 +4,12 @@ const manifest: AppManifest = {
   id: '{{app}}',
   feature: '{{app}}.enabled',
   routePrefixes: ['/{{route}}'],
-  rail: [{ id: '{{app}}', labelKey: '{{app}}.title', icon: 'i-lucide-layout-grid', to: '/{{route}}', order: {{order}} }],
+  rail: [{ id: '{{app}}', labelKey: '{{ns}}.title', icon: 'i-lucide-layout-grid', to: '/{{route}}', order: {{order}} }],
   nav: [
-    { to: '/{{route}}', labelKey: '{{app}}.nav.records', icon: 'i-lucide-layout-grid', shortcut: '{{shortcut}}', capability: '{{app}}.records.read' },
+    { to: '/{{route}}', labelKey: '{{ns}}.nav.records', icon: 'i-lucide-layout-grid', shortcut: '{{shortcut}}', capability: '{{app}}.records.read' },
   ],
   contextLinks: () => [
-    { id: '{{app}}-records', labelKey: '{{app}}.nav.records', icon: 'i-lucide-layout-grid', to: '/{{route}}', capability: '{{app}}.records.read' },
+    { id: '{{app}}-records', labelKey: '{{ns}}.nav.records', icon: 'i-lucide-layout-grid', to: '/{{route}}', capability: '{{app}}.records.read' },
   ],
   landing: [{ path: '/{{route}}', capability: '{{app}}.records.read' }],
   routeCapabilities: [{ pattern: /^\/{{route}}(?:\/|$)/, capability: '{{app}}.records.read' }],

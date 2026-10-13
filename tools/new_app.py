@@ -64,6 +64,11 @@ def pascal(app):
     return ''.join(part.capitalize() for part in app.split('_'))
 
 
+def camel(slug):
+    head, *rest = slug.split('-')
+    return head + ''.join(part.capitalize() for part in rest)
+
+
 def render(text, tokens):
     for key, value in tokens.items():
         text = text.replace('{{' + key + '}}', value)
@@ -99,6 +104,7 @@ def planned_files(root, tokens):
     for template in sorted(TEMPLATES.rglob('*.tmpl')):
         relative = template.relative_to(TEMPLATES).as_posix()
         target = relative.removesuffix('.tmpl').replace('__app__', tokens['app']).replace('__route__', tokens['route'])
+        target = target.replace('__locale__', tokens['locale'])
         target = render(target, tokens)
         text = render(template.read_text(encoding='utf-8'), tokens)
         if target.endswith('.py') and not text.startswith(HEADER + '\n'):
@@ -280,7 +286,8 @@ def scaffold(root, app, name_ar, name_en, dry_run=False, route=None):
     validate(root, app, name_ar, name_en, route)
     order, shortcut = web_slots(root)
     tokens = {
-        'app': app, 'route': app if route is None else route, 'App': pascal(app), 'name_ar': name_ar.strip(), 'name_en': name_en.strip(),
+        'app': app, 'route': app if route is None else route,
+        'locale': app if route is None else route, 'ns': app if route is None else camel(route), 'App': pascal(app), 'name_ar': name_ar.strip(), 'name_en': name_en.strip(),
         'order': str(order), 'shortcut': shortcut,
     }
     files = planned_files(root, tokens)

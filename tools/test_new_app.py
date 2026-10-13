@@ -361,7 +361,6 @@ class TestNewApp(unittest.TestCase):
         layers = json.loads((self.root / new_app.ARCH_LAYERS).read_text(encoding='utf-8'))
         self.assertEqual(layers['web_apps']['zzprobe'], {'components': ['my-probe'], 'pages': ['my-probe']})
         self.assertTrue((self.root / 'odoo-addons/nasq_zzprobe/__manifest__.py').is_file())
-        self.assertTrue((self.root / 'apps/web/i18n/locales/en/zzprobe.json').is_file())
 
     def test_reserved_route_id_needs_a_distinct_route(self):
         # `tasks` is a shell route; `reports` is a page route taken by pages/reports.vue.
@@ -399,14 +398,29 @@ class TestNewApp(unittest.TestCase):
         self.assertEqual(code, 0, err.getvalue())
         self.assertEqual(catalog_check.check_catalog(self.root), [])
 
+    def test_route_drives_the_locale_file_and_namespace(self):
+        code, _, err = run(self.root, 'reports', '--route', 'my-reports', '--name-ar', 'التقارير', '--name-en', 'Reports')
+        self.assertEqual(code, 0, err)
+        locales = self.root / 'apps/web/i18n/locales'
+        for lang in ('ar', 'en'):
+            self.assertTrue((locales / lang / 'my-reports.json').is_file(), lang)
+            self.assertFalse((locales / lang / 'reports.json').exists(), lang)
+            data = json.loads((locales / lang / 'my-reports.json').read_text(encoding='utf-8'))
+            self.assertEqual(list(data), ['myReports'])
+        manifest = (self.root / 'apps/web/app/modules/reports/manifest.ts').read_text(encoding='utf-8')
+        self.assertIn("labelKey: 'myReports.title'", manifest)
+        self.assertIn("labelKey: 'myReports.nav.records'", manifest)
+        self.assertIn("capability: 'reports.records.read'", manifest)
+        self.assertNotIn("labelKey: 'reports.", manifest)
+
     def test_locale_files_define_every_key_with_a_route(self):
         run(self.root, *ARGS, '--route', 'my-probe')
         keys = set()
         for relative in ('apps/web/app/modules/zzprobe/manifest.ts', 'apps/web/app/pages/my-probe/index.vue'):
-            keys |= set(re.findall(r"(?:labelKey: |\bt\()'(zzprobe\.[a-zA-Z.]+)'", (self.root / relative).read_text(encoding='utf-8')))
+            keys |= set(re.findall(r"(?:labelKey: |\bt\()'(myProbe\.[a-zA-Z.]+)'", (self.root / relative).read_text(encoding='utf-8')))
         self.assertTrue(keys)
         for lang in ('ar', 'en'):
-            data = json.loads((self.root / f'apps/web/i18n/locales/{lang}/zzprobe.json').read_text(encoding='utf-8'))
+            data = json.loads((self.root / f'apps/web/i18n/locales/{lang}/my-probe.json').read_text(encoding='utf-8'))
             for key in keys:
                 node = data
                 for part in key.split('.'):
