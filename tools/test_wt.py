@@ -9,6 +9,7 @@ from unittest import mock
 import wt
 from wt import (
     WorktreeError,
+    clean_env,
     create,
     database_name,
     env_content,
@@ -179,6 +180,15 @@ class TestWt(unittest.TestCase):
                     mock.patch.object(wt, 'install_dependencies', side_effect=failing_install):
                 with self.assertRaises(WorktreeError):
                     create('tools-x', 'main', True, True)
+
+
+class TestCleanEnv(unittest.TestCase):
+    def test_drops_npm_run_variables_and_keeps_the_rest(self):
+        env = {
+            'PATH': '/usr/bin', 'HOME': '/h', 'INIT_CWD': '/x', 'npm_command': 'run',
+            'npm_config_local_prefix': '/x', 'npm_lifecycle_event': 'wt', 'NPM_TOKEN_NOT_NPM_PREFIX': '1',
+        }
+        self.assertEqual(clean_env(env), {'PATH': '/usr/bin', 'HOME': '/h', 'NPM_TOKEN_NOT_NPM_PREFIX': '1'})
 
 
 if __name__ == '__main__':

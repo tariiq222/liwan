@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import socket
 import subprocess
@@ -36,10 +37,20 @@ class WorktreeError(Exception):
     """A refused or failed step; the message is shown to the user."""
 
 
+def clean_env(environ):
+    """``environ`` without the npm variables a parent ``npm run`` sets.
+
+    A nested ``npm ci`` that inherits ``npm_command=run``, ``npm_config_local_prefix`` and
+    friends fails with exit 1 and no output, so ``npm run wt`` could not install dependencies.
+    """
+    return {k: v for k, v in environ.items() if not k.startswith('npm_') and k != 'INIT_CWD'}
+
+
 def run(argv, cwd):
     """``(returncode, combined output)``; a missing program is code 127."""
     try:
-        result = subprocess.run(argv, cwd=cwd, check=False, text=True, capture_output=True)
+        result = subprocess.run(
+            argv, cwd=cwd, check=False, text=True, capture_output=True, env=clean_env(os.environ))
     except OSError as exc:
         return 127, 'cannot run %s: %s' % (argv[0], exc)
     return result.returncode, result.stdout + result.stderr
