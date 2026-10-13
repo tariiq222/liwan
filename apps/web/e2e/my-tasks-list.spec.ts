@@ -2,12 +2,11 @@ import { expect, test, type Page } from '@playwright/test'
 
 // Mock-stack spec for the /my-tasks list. It is deliberately NOT in `ci-mock-specs.txt`: the repo mock API
 // (`internal-ui-audit-mock.mjs`) does not know the tasks app, so its /me has no `tasks.*` capability or
-// `tasks.enabled` feature and the server-rendered access check would refuse the page. Every /me refresh
-// and every my-tasks response used here is therefore mocked in the page, and the page is entered through
-// the client router (never `page.goto`). Run it locally as described in docs/testing.md. It uses the same
-// opt-in flag as the other mock specs and talks to an isolated mock only: no production/default port or
-// real database.
-test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Requires the isolated mock server (E2E_PROJECT_POPUPS=1)')
+// `tasks.enabled` feature and the server-rendered access check would refuse the page. It therefore runs
+// against the wrapper `e2e/my-tasks-mock.mjs` (which adds the tasks capabilities to /me on the server)
+// with E2E_MY_TASKS=1, as described in docs/testing.md; the my-tasks responses are mocked per test with
+// page.route. It talks to an isolated mock only: no production/default port or real database.
+test.skip(process.env.E2E_MY_TASKS !== '1', 'Requires the isolated e2e/my-tasks-mock.mjs server (E2E_MY_TASKS=1)')
 test.describe.configure({ timeout: 60_000 })
 
 const person = { id: 2, name: 'Admin', user_id: 2 }
@@ -41,24 +40,14 @@ const ROWS: Row[] = [
 
 const toItem = ({ roles: _roles, ...row }: Row) => row
 
-// `meDelay.ms` slows every /me refresh, which every client navigation awaits: it keeps a navigation pending.
+// `meDelay.ms` slows every client-side /me refresh, which every client navigation awaits: it keeps a
+// navigation pending. The response itself is untouched (the wrapper already adds the tasks access).
 const meDelay = { ms: 0 }
 
-async function mockMe(page: Page) {
+async function delayMe(page: Page) {
   await page.route('**/api/v1/me', async route => {
     if (meDelay.ms) await new Promise(resolve => setTimeout(resolve, meDelay.ms))
-    const response = await route.fetch()
-    const me = await response.json()
-    const features = [...new Set([...(me.platform?.readable_features ?? []), 'tasks.enabled'])]
-    await route.fulfill({
-      response,
-      json: {
-        ...me,
-        capabilities: [...new Set([...me.capabilities, 'tasks.tasks.read', 'tasks.tasks.create', 'tasks.tasks.write'])],
-        entitlements: { ...me.entitlements, 'tasks.enabled': true },
-        platform: { ...me.platform, readable_features: features, writable_features: features },
-      },
-    })
+    await route.continue()
   })
 }
 
@@ -105,9 +94,7 @@ async function login(page: Page) {
   await expect(page).not.toHaveURL(/\/login/)
 }
 
-// The server render checks access with the real mock /me, which does not know the tasks app. After
-// the first client navigation every /me refresh goes through the mocked response, so the app is
-// entered through the client router (never `page.goto`, which would render on the server again).
+// The app is entered through the client router, so the page does not render on the server again.
 async function open(page: Page, path: string) {
   await page.evaluate(target => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } })
     .useNuxtApp().$router.push(target), path)
@@ -115,7 +102,7 @@ async function open(page: Page, path: string) {
 
 test.beforeEach(async ({ page }) => {
   meDelay.ms = 0
-  await mockMe(page)
+  await delayMe(page)
   await login(page)
 })
 

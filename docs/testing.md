@@ -25,18 +25,20 @@ Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
 
-### Running the my-tasks list spec
+### Running the my-tasks specs
 
-`e2e/my-tasks-list.spec.ts` is not in `ci-mock-specs.txt` because the mock's `/me` does not know the
-tasks app; the spec patches `/me` and the `/api/v1/my-tasks` routes in the page. Run it against a
-mock and a Nuxt dev server on free ports (never 3000, 8069 or the `odoo19` database):
+`e2e/my-tasks-*.spec.ts` are not in `ci-mock-specs.txt`: the shared mock's `/me` does not know the
+tasks app, and the SSR route guard fetches `/me` on the server where `page.route` cannot reach. They run
+through one wrapper, `e2e/my-tasks-mock.mjs`, which starts the audit mock on `MOCK_PORT + 1000` and adds
+the tasks capabilities to `GET /api/v1/me` only; each spec mocks the `/api/v1/my-tasks` routes itself.
+Use free ports (never 3000, 8069 or the `odoo19` database) and `localhost` for Nuxt, not `127.0.0.1`:
 
 ```sh
-PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4302 node apps/web/e2e/internal-ui-audit-mock.mjs
+MOCK_PORT=4401 node apps/web/e2e/my-tasks-mock.mjs
 cd apps/web
-NUXT_ODOO_URL=http://127.0.0.1:4302 NUXT_ODOO_DB=nasq_ui_mock_only \
-  NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4302/websocket npx nuxt dev --port 4202
-E2E_BASE_URL=http://localhost:4202 E2E_PROJECT_POPUPS=1 npx playwright test e2e/my-tasks-list.spec.ts
+NUXT_ODOO_URL=http://127.0.0.1:4401 NUXT_ODOO_DB=nasq_ui_mock_only \
+  NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4401/websocket npx nuxt dev --port 4301
+E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:4301 npx playwright test e2e/my-tasks-*.spec.ts
 ```
 
 ## 4. Agentic e2e
