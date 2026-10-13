@@ -83,3 +83,44 @@ class TestPersonalCreateWithPmo(NasqTasksCase):
         # Project tasks keep PMO's own gates: an approved state needs pmo.tasks.approve.
         with self.assertRaises(AccessError):
             Task.create({'name': 'x', 'project_id': project.id, 'state': '03_approved'})
+
+    def test_mixed_vals_list_rejected_as_a_whole(self):
+        project = self.env['project.project'].create({
+            'name': 'p', 'company_id': self.env.company.id,
+        })
+        mixed = [self._vals(self.alice), {'name': 'in project', 'project_id': project.id}]
+        Task = self.env['project.task'].with_user(self.alice)
+        self.assertFalse(Task._nasq_projectless_create_allowed(mixed))
+        with self.assertRaises(AccessError):
+            Task.create(mixed)
+
+    def test_default_company_context_cannot_choose_the_company(self):
+        # alice may create in her own company only; the other company is merely allowed.
+        self.alice.sudo().company_ids = [Command.link(self.other_company.id)]
+        Task = self.env['project.task'].with_user(self.alice).with_context(
+            allowed_company_ids=[self.env.company.id, self.other_company.id],
+            default_company_id=self.other_company.id,
+        )
+        self.assertEqual(Task.env.company, self.env.company)
+        vals = {'name': 'sneaky', 'user_ids': [Command.set([self.alice.id])]}
+        self.assertFalse(Task._nasq_projectless_create_allowed([vals]))
+        with self.assertRaises(AccessError):
+            Task.create(vals)
+
+    def test_default_state_context_cannot_ride_on_a_personal_create(self):
+        Task = self.env['project.task'].with_user(self.alice).with_context(
+            default_state='03_approved')
+        with self.assertRaises(AccessError):
+            Task.create(self._vals(self.alice))
+
+    def test_default_project_context_binds_the_task_to_that_project(self):
+        project = self.env['project.project'].create({
+            'name': 'p', 'company_id': self.env.company.id,
+        })
+        Task = self.env['project.task'].with_user(self.alice).with_context(
+            default_project_id=project.id)
+        # PMO merges the default before the hook runs, so the hook never sees a project-less
+        # personal create and the task goes through PMO's project path.
+        task = Task.create(self._vals(self.alice))
+        self.assertEqual(task.project_id, project)
+        self.assertFalse(task.nasq_personal)

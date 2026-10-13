@@ -35,7 +35,10 @@ class ProjectTaskPersonal(models.Model):
             if (
                 vals.get('project_id')
                 or set(vals) - PERSONAL_CREATE_FIELDS
-                or vals.get('company_id', company.id) != company.id
+                # Required, not defaulted: stock create fills a missing company_id from the
+                # context (default_company_id) after PMO's checks, which would pick a company
+                # where the caller holds no capability.
+                or vals.get('company_id') != company.id
             ):
                 return super()._nasq_projectless_create_allowed(vals_list)
             parent_id = vals.get('parent_id')

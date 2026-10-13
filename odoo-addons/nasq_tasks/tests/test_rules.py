@@ -51,8 +51,17 @@ class TestPersonalTaskRules(NasqTasksCase):
     def test_user_whose_current_company_differs_cannot_read(self):
         task = self.make_personal_task(self.alice, assignees=[self.alice.id, self.bob.id])
         main_company = task.company_id
+        # With nasq_pmo installed its search gate wants pmo.tasks.read in the current
+        # company, so give both users the employee role in both companies: only the
+        # personal-task rule can then refuse. (Any assignment makes the user "managed",
+        # so the main company needs its own assignment too.)
+        role = self.env.ref('nasq_core.role_employee')
         for user in (self.alice, self.bob):
             user.sudo().company_ids = [Command.link(self.other_company.id)]
+            for company in (main_company, self.other_company):
+                self.env['nasq.access.assignment'].create({
+                    'user_id': user.id, 'role_id': role.id, 'company_id': company.id})
+        for user in (self.alice, self.bob):
             # Both companies stay allowed, so Odoo's own multi-company rule passes;
             # only the personal-task rule sees the other company as the current one.
             other = task.with_user(user).with_context(
@@ -60,13 +69,7 @@ class TestPersonalTaskRules(NasqTasksCase):
             self.assertEqual(other.env.company, self.other_company)
             self.assertIn(main_company, other.env.companies)
             self.assertFalse(other.has_access('read'), user.login)
-            # With nasq_pmo installed its own search gate may refuse the whole search in a
-            # company where the user lacks pmo.tasks.read; a refusal also means "cannot read".
-            try:
-                found = other.search([('id', '=', task.id)])
-            except AccessError:
-                found = other.browse()
-            self.assertFalse(found, user.login)
+            self.assertFalse(other.search([('id', '=', task.id)]), user.login)
             self.assertTrue(task.with_user(user).has_access('read'), user.login)
 
     def test_personal_task_without_company_is_invisible_to_creator_and_assignee(self):
