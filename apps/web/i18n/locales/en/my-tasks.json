@@ -1,0 +1,9 @@
+{
+  "myTasks": {
+    "title": "Tasks",
+    "empty": "No records yet",
+    "nav": {
+      "records": "Records"
+    }
+  }
+}
