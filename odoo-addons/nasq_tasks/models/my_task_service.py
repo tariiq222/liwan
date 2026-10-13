@@ -54,6 +54,11 @@ def _parse_deadline(value, key='date_deadline'):
         _reject(message, key)
 
 
+def _has_nul(value):
+    """PostgreSQL text cannot hold NUL, so it would surface as a 500."""
+    return isinstance(value, str) and '\x00' in value
+
+
 def _is_id(value):
     return isinstance(value, int) and not isinstance(value, bool) and 0 < value < MAX_ID
 
@@ -131,6 +136,8 @@ class NasqMyTaskService(models.AbstractModel):
         domain &= Domain.OR(scopes)
         state_domain = Domain('state', 'in', CLOSED_STATES)
         domain &= ~state_domain if not closed else state_domain
+        if _has_nul(q):
+            _reject('q must not contain NUL', 'q')
         if q:
             # Odoo's ilike keeps % and _ as wildcards; search the text literally.
             literal = q.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
@@ -155,13 +162,13 @@ class NasqMyTaskService(models.AbstractModel):
         if creating or 'name' in vals:
             name = vals.get('name')
             name = name.strip() if isinstance(name, str) else None
-            if not name or len(name) > MAX_NAME_LENGTH:
-                _reject(f'name is required and at most {MAX_NAME_LENGTH} characters', 'name')
+            if not name or len(name) > MAX_NAME_LENGTH or _has_nul(name):
+                _reject(f'name is required, at most {MAX_NAME_LENGTH} characters and without NUL', 'name')
             out['name'] = name
         if 'description' in vals:
             description = vals['description']
-            if description is not None and not isinstance(description, str):
-                _reject('description must be plain text', 'description')
+            if description is not None and (not isinstance(description, str) or _has_nul(description)):
+                _reject('description must be plain text without NUL', 'description')
             out['description'] = plaintext2html(description) if description else False
         if 'date_deadline' in vals:
             out['date_deadline'] = _parse_deadline(vals['date_deadline'])

@@ -108,7 +108,7 @@ class TestMyTasksRoutes(TasksRoutesCase):
     def test_route_rejects_malformed_bodies(self):
         created = self.create_as('tasks_alice')
         path = self.task_path(created['id'])
-        for body in ([], ['name'], 'name', 5, None):
+        for body in ([], ['name'], 'name', 5):
             with self.subTest(body=body):
                 status, payload = self.call('tasks_alice', 'POST', BASE, body)
                 self.assertEqual(status, 422, payload)
@@ -131,6 +131,24 @@ class TestMyTasksRoutes(TasksRoutesCase):
                 self.assertError(self.call('tasks_alice', 'POST', BASE, body), 422, 'invalid', field)
                 if field != 'parent_id':  # create-only, covered by test_unknown_keys_rejected
                     self.assertError(self.call('tasks_alice', 'PATCH', path, body), 422, 'invalid', field)
+
+    def test_json_null_body_is_422(self):
+        created = self.create_as('tasks_alice')
+        for method, path in (('POST', BASE), ('PATCH', self.task_path(created['id']))):
+            with self.subTest(method=method):
+                status, payload = self.call_raw('tasks_alice', method, path, 'null')
+                self.assertEqual(status, 422, payload)
+                self.assertEqual((payload['code'], payload.get('field')), ('invalid', 'body'))
+
+    def test_nul_characters_are_rejected(self):
+        created = self.create_as('tasks_alice')
+        path = self.task_path(created['id'])
+        for field in ('name', 'description'):
+            body = {'name': 'ok', field: 'a\x00b'}
+            with self.subTest(field=field):
+                self.assertError(self.call('tasks_alice', 'POST', BASE, body), 422, 'invalid', field)
+                self.assertError(self.call('tasks_alice', 'PATCH', path, body), 422, 'invalid', field)
+        self.assertError(self.call('tasks_alice', 'GET', f'{BASE}?q=a%00b'), 422, 'invalid', 'q')
 
     def test_unknown_keys_rejected(self):
         created = self.create_as('tasks_alice')
@@ -207,6 +225,56 @@ class TestMyTasksRoutes(TasksRoutesCase):
         self.assertEqual([i['name'] for i in found], ['Cherry 100%'])
         self.assertEqual(self.ok('tasks_alice', 'GET', f'{BASE}?q=%25')['items'][0]['name'], 'Cherry 100%')
 
+    def test_huge_numbers_in_the_query_are_422_or_clamped(self):
+        self.create_as('tasks_alice')
+        for field in ('offset', 'limit'):
+            for value in ('99999999999999999999', '9' * 5000, '12345678901'):
+                with self.subTest(field=field, digits=len(value)):
+                    self.assertError(
+                        self.call('tasks_alice', 'GET', f'{BASE}?{field}={value}'), 422, 'invalid', field)
+        # ten digits still parse and are clamped to a value PostgreSQL accepts
+        for query in ('offset=9999999999', 'limit=9999999999'):
+            with self.subTest(query=query):
+                page = self.ok('tasks_alice', 'GET', f'{BASE}?{query}')
+                self.assertEqual(page['total'], 1)
+                self.assertEqual(len(page['items']), 0 if query.startswith('offset') else 1)
+
+    def test_capability_is_checked_before_the_parameters(self):
+        self.managed_user('tasks_nocap', [])
+        reader = self.managed_user(
+            'tasks_readonly', ['tasks.tasks.read', *self.pmo_read_keys()])
+        created = self.create_as('tasks_alice', assignees=[reader.id])
+        path = self.task_path(created['id'])
+        for login, method, target, body in (
+            ('tasks_nocap', 'GET', f'{BASE}?limit=abc&closed=7', None),
+            ('tasks_nocap', 'POST', BASE, []),
+            ('tasks_nocap', 'POST', BASE, {'name': ''}),
+            ('tasks_nocap', 'PATCH', path, []),
+            ('tasks_nocap', 'PATCH', path, {}),
+            ('tasks_readonly', 'POST', BASE, []),
+            ('tasks_readonly', 'POST', BASE, {'name': ''}),
+            ('tasks_readonly', 'PATCH', path, []),
+            ('tasks_readonly', 'PATCH', path, {}),
+            ('tasks_readonly', 'PATCH', path, {'bogus': 1}),
+        ):
+            with self.subTest(login=login, method=method, body=body):
+                self.assertError(self.call(login, method, target, body), 403, 'forbidden')
+        self.assertError(self.call('tasks_readonly', 'GET', f'{BASE}?limit=abc'), 422, 'invalid', 'limit')
+
+    def test_sort_orders(self):
+        for name, deadline in (
+            ('A', '2026-12-03T00:00:00Z'), ('B', '2026-12-01T00:00:00Z'),
+            ('C', None), ('D', '2026-12-02T00:00:00Z'),
+        ):
+            self.create_as('tasks_alice', name=name, date_deadline=deadline)
+
+        def names(sort):
+            return [i['name'] for i in self.ok('tasks_alice', 'GET', f'{BASE}?sort={sort}')['items']]
+
+        self.assertEqual(names('deadline'), ['B', 'D', 'A', 'C'])
+        self.assertEqual(names('created'), ['D', 'C', 'B', 'A'])
+        self.assertEqual(names('name'), ['A', 'B', 'C', 'D'])
+
     def test_limit_clamped_and_offset_past_total(self):
         for index in range(3):
             self.create_as('tasks_alice', name=f'Task {index}')
@@ -216,8 +284,15 @@ class TestMyTasksRoutes(TasksRoutesCase):
         self.assertEqual((len(rest['items']), rest['total']), (1, 3))
         past = self.ok('tasks_alice', 'GET', f'{BASE}?offset=1000')
         self.assertEqual((past['items'], past['total']), ([], 3))
-        huge = self.ok('tasks_alice', 'GET', f'{BASE}?limit=100000')
-        self.assertEqual(len(huge['items']), 3)
+
+    def test_limit_is_capped_at_100_and_defaults_to_50(self):
+        service = self.env['nasq.my.task.service'].with_user(self.alice)
+        for index in range(101):
+            service._create_task({'name': f'Bulk {index}'})
+        for query, count in (('', 50), ('?limit=100000', 100), ('?limit=100', 100), ('?limit=7', 7)):
+            with self.subTest(query=query):
+                page = self.ok('tasks_alice', 'GET', f'{BASE}{query}')
+                self.assertEqual((len(page['items']), page['total']), (count, 101))
 
     # transitions
 
@@ -249,9 +324,7 @@ class TestMyTasksRoutes(TasksRoutesCase):
         self.managed_user('tasks_nocap', [])
         # With nasq_pmo installed its project.task search additionally demands pmo.tasks.read
         # of anyone, so a reader who holds only tasks.tasks.read sees no task at all (404).
-        pmo_read = self.env['nasq.access.permission'].search_count([('key', '=', 'pmo.tasks.read')])
-        reader = self.managed_user(
-            'tasks_readonly', ['tasks.tasks.read', *(['pmo.tasks.read'] if pmo_read else [])])
+        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read', *self.pmo_read_keys()])
         created = self.create_as('tasks_alice', assignees=[reader.id])
         path = self.task_path(created['id'])
         for login in ('tasks_nocap', 'tasks_readonly'):

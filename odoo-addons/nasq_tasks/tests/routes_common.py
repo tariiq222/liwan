@@ -27,6 +27,16 @@ class TasksRoutesCase(NasqTasksCase):
             body = None
         return response.status_code, body
 
+    def call_raw(self, login, method, path, data):
+        """Like ``call`` with a raw string body (to send a JSON ``null`` or other odd body)."""
+        self.authenticate(login, self.password_of(login))
+        response = self.url_open(path, data=data, headers={'Content-Type': 'application/json'}, method=method)
+        try:
+            body = response.json()
+        except ValueError:
+            body = None
+        return response.status_code, body
+
     def ok(self, login, method, path, json=None):
         """Like ``call`` but asserts a 200 and returns only the body."""
         status, body = self.call(login, method, path, json=json)
@@ -57,6 +67,11 @@ class TasksRoutesCase(NasqTasksCase):
             'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id,
         })
         return user
+
+    def pmo_read_keys(self):
+        """``['pmo.tasks.read']`` when nasq_pmo is installed (its task search demands it), else ``[]``."""
+        found = self.env['nasq.access.permission'].search_count([('key', '=', 'pmo.tasks.read')])
+        return ['pmo.tasks.read'] if found else []
 
     def make_project_task(self, name='Project task'):
         project = self.env['project.project'].create({'name': 'Routes project'})

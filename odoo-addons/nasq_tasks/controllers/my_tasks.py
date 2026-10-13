@@ -13,13 +13,14 @@ from odoo.addons.nasq_api.controllers.common import (
     api_handler,
     requires_feature,
 )
-from odoo.addons.nasq_tasks.models.my_task_service import MAX_LIMIT
+from odoo.addons.nasq_tasks.models.my_task_service import MAX_ID, MAX_LIMIT
 from odoo.addons.nasq_tasks.serializers.personal_task import (
     dump_list_item,
     dump_personal_task,
 )
 
 DEFAULT_LIMIT = 50
+MAX_DIGITS = 10  # the digits of 2**31 - 1: longer strings are rejected before int() runs
 
 
 def _invalid(message, field):
@@ -37,9 +38,10 @@ def _body():
 
 
 def _digits(value, field, *, minimum):
-    if not (isinstance(value, str) and value.isascii() and value.isdigit()) or int(value) < minimum:
+    """A decimal digit string as an int in ``minimum..2**31-1`` (longer or non-numeric input is a 422)."""
+    if not (value.isascii() and value.isdigit()) or len(value) > MAX_DIGITS or int(value) < minimum:
         _invalid(f'{field} must be an integer of at least {minimum}', field)
-    return int(value)
+    return min(int(value), MAX_ID - 1)
 
 
 def _flag(args, field, allowed):
@@ -68,6 +70,11 @@ def _list_params(args):
     }
 
 
+def _require(key):
+    """The capability check runs first, so a caller without it never learns what is valid."""
+    request.env['nasq.my.task.service']._require(key)
+
+
 def _task_for(task_id):
     """An unchecked record handle: the service decides whether the caller may see or write it."""
     return request.env['project.task'].browse(task_id)
@@ -79,6 +86,7 @@ class MyTasksController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', operation='read')
     def list_my_tasks(self, **_):
+        _require('tasks.tasks.read')
         params = _list_params(request.httprequest.args)
         tasks, total = request.env['nasq.my.task.service']._search_list(**params)
         return {'items': [dump_list_item(task) for task in tasks], 'total': total}
@@ -87,6 +95,7 @@ class MyTasksController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', operation='write')
     def create_my_task(self, **_):
+        _require('tasks.tasks.create')
         task = request.env['nasq.my.task.service']._create_task(_body())
         return dump_personal_task(task)
 
@@ -100,6 +109,7 @@ class MyTasksController(http.Controller):
     @api_handler
     @requires_feature('tasks.enabled', operation='write')
     def update_my_task(self, task_id, **_):
+        _require('tasks.tasks.write')
         body = _body()
         if not body:
             _invalid('nothing to update', 'body')
