@@ -462,6 +462,12 @@ describe('tasks contracts', () => {
 
 ### Task 7: Bridge `nasq_tasks_pmo`
 
+**Controller rulings that bind this task (ledger):**
+- Personal sub-tasks are rows linked by `nasq_parent_id` (Odoo forbids `parent_id` on project-less tasks) and `_check_nasq_parent` forbids a project task from having `nasq_parent_id`. Convert must, in ONE write in the caller's env, set `project_id` on the parent and re-home every child: set the child's `project_id` to the same project, clear its `nasq_parent_id` and set Odoo's `parent_id` to the converted task (the constraint must not fire mid-way: write children first clearing `nasq_parent_id`, or write all in a single `write` per recordset — pick what the ORM allows and prove with the test).
+- The bridge already exists from Task 1b/2 (`models/project_task_personal.py` with the create hook); this task only adds the links implementation and the convert routes. No `sudo()`.
+- `_nasq_project_task_domain(uid)` for project rows must keep PMO's visibility (ordinary ACL/record rules); `_nasq_can_convert` must also be False for sub-tasks (`nasq_parent_id` set) and non-open tasks.
+- Every service-style check is explicit: capability `tasks.tasks.write` on the task via the access service, `pmo.tasks.create` on the target project.
+
 **Files:**
 - Create: the rest of `odoo-addons/nasq_tasks_pmo/` (the skeleton, manifest, arch rank and `models/project_task_personal.py` already exist from Task 1b; add `models/task_links_pmo.py`, controllers, tests)
 - Test: `tests/test_links.py`, `tests/test_convert.py`
