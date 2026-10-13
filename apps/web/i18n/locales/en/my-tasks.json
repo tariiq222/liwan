@@ -73,7 +73,10 @@
       "createdAt": "Created",
       "updatedAt": "Last updated",
       "notFound": "This task does not exist or you cannot view it.",
-      "back": "Back to my tasks"
+      "back": "Back to my tasks",
+      "noAssignees": "No assignees",
+      "noDeadline": "No deadline",
+      "saving": "Saving"
     },
     "actions": {
       "done": "Mark done",
@@ -92,14 +95,20 @@
       "title": "Sub-tasks",
       "empty": "No sub-tasks",
       "add": "Add a sub-task",
-      "namePlaceholder": "Sub-task title"
+      "namePlaceholder": "Sub-task title",
+      "label": "Sub-tasks",
+      "parentOf": "Sub-task of"
     },
     "comments": {
       "title": "Comments",
       "empty": "No comments yet",
       "placeholder": "Write a comment",
       "post": "Post comment",
-      "unknownAuthor": "Unknown user"
+      "unknownAuthor": "Unknown user",
+      "label": "Comment",
+      "errors": {
+        "tooLong": "The comment is longer than 5000 characters."
+      }
     },
     "attachments": {
       "title": "Attachments",
@@ -107,7 +116,15 @@
       "upload": "Add an attachment",
       "delete": "Delete attachment",
       "deleteConfirm": "Delete this attachment permanently?",
-      "count": "{count} attachments"
+      "count": "{count} attachments",
+      "help": "Allowed types: PDF, PNG, JPEG, text, DOCX and XLSX, up to 10 MiB.",
+      "confirm": "Yes, delete the attachment",
+      "keep": "Keep the attachment",
+      "errors": {
+        "tooLarge": "The file is larger than 10 MiB.",
+        "type": "This file type is not allowed. Allowed: PDF, PNG, JPEG, text, DOCX and XLSX.",
+        "empty": "The file is empty."
+      }
     },
     "convert": {
       "title": "Convert to a project task",
@@ -117,7 +134,10 @@
       "empty": "There are no projects you can add tasks to.",
       "project": "Project",
       "submit": "Convert task",
-      "success": "The task was converted to a project task"
+      "success": "The task was converted to a project task",
+      "confirm": "Yes, convert the task",
+      "keep": "Keep it as is",
+      "choose": "Choose a project"
     },
     "errors": {
       "load": "Could not load tasks. Try again.",
