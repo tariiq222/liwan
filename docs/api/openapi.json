@@ -457,7 +457,7 @@
                   "anyOf": [
                     {
                       "format": "email",
-                      "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                      "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                       "type": "string"
                     },
                     {
@@ -553,7 +553,7 @@
             "anyOf": [
               {
                 "format": "email",
-                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                 "type": "string"
               },
               {
@@ -3093,6 +3093,39 @@
         ],
         "type": "object"
       },
+      "ConvertResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "href": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "href"
+        ],
+        "type": "object"
+      },
+      "ConvertTargetSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "CurrencyRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -4902,7 +4935,7 @@
             "anyOf": [
               {
                 "format": "email",
-                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                 "type": "string"
               },
               {
@@ -5116,7 +5149,7 @@
             "anyOf": [
               {
                 "format": "email",
-                "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
                 "type": "string"
               },
               {
@@ -10403,6 +10436,254 @@
         ],
         "type": "object"
       },
+      "MyTaskListItemSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignees": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "user_id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "date_deadline": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "href": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "normal",
+              "high"
+            ],
+            "type": "string"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "enum": [
+              "personal",
+              "project"
+            ],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "done",
+              "cancelled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "state",
+          "priority",
+          "date_deadline",
+          "assignees",
+          "source",
+          "project",
+          "href"
+        ],
+        "type": "object"
+      },
+      "MyTaskListPageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "assignees": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "user_id": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "user_id"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "date_deadline": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "href": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "priority": {
+                  "enum": [
+                    "normal",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "project": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "source": {
+                  "enum": [
+                    "personal",
+                    "project"
+                  ],
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "open",
+                    "done",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "state",
+                "priority",
+                "date_deadline",
+                "assignees",
+                "source",
+                "project",
+                "href"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "NasqError": {
         "description": "Contract error shape returned by api_handler with a real HTTP status.",
         "properties": {
@@ -11649,6 +11930,342 @@
           "fold"
         ],
         "type": "object"
+      },
+      "PersonalTaskActionsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cancel": {
+            "type": "boolean"
+          },
+          "convert": {
+            "type": "boolean"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "reopen": {
+            "type": "boolean"
+          },
+          "write": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "write",
+          "done",
+          "reopen",
+          "cancel",
+          "convert"
+        ],
+        "type": "object"
+      },
+      "PersonalTaskAttachmentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "mimetype": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mimetype",
+          "url"
+        ],
+        "type": "object"
+      },
+      "PersonalTaskCommentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "user_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body",
+          "author",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "PersonalTaskPrioritySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "normal",
+          "high"
+        ],
+        "type": "string"
+      },
+      "PersonalTaskSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "allowed_actions": {
+            "additionalProperties": false,
+            "properties": {
+              "cancel": {
+                "type": "boolean"
+              },
+              "convert": {
+                "type": "boolean"
+              },
+              "done": {
+                "type": "boolean"
+              },
+              "reopen": {
+                "type": "boolean"
+              },
+              "write": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "write",
+              "done",
+              "reopen",
+              "cancel",
+              "convert"
+            ],
+            "type": "object"
+          },
+          "assignees": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "user_id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "user_id"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "attachment_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "created_at": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            "type": "string"
+          },
+          "creator": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "user_id": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "user_id"
+            ],
+            "type": "object"
+          },
+          "date_deadline": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priority": {
+            "enum": [
+              "normal",
+              "high"
+            ],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "done",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "subtasks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "open",
+                    "done",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "state"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "updated_at": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "state",
+          "priority",
+          "date_deadline",
+          "assignees",
+          "creator",
+          "parent",
+          "subtasks",
+          "attachment_count",
+          "created_at",
+          "updated_at",
+          "allowed_actions"
+        ],
+        "type": "object"
+      },
+      "PersonalTaskStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "open",
+          "done",
+          "cancelled"
+        ],
+        "type": "string"
       },
       "ProjectCharterCatalogResourceSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -25201,6 +25818,711 @@
         }
       }
     },
+    "/api/v1/my-tasks": {
+      "get": {
+        "operationId": "nasq_tasks.MyTasksController.list_my_tasks.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_my_tasks",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_my_tasks",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "nasq_tasks.MyTasksController.create_my_task.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_my_task",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_my_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/convert-targets": {
+      "get": {
+        "operationId": "nasq_tasks_pmo.MyTaskConvertController.convert_targets.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "convert_targets",
+        "tags": [
+          "nasq_tasks_pmo"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks_pmo",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTaskConvertController",
+          "feature_keys": [
+            "tasks.enabled",
+            "pmo.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "convert_targets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}": {
+      "get": {
+        "operationId": "nasq_tasks.MyTasksController.get_my_task.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_my_task",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_my_task",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "nasq_tasks.MyTasksController.update_my_task.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_my_task",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "update_my_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/attachments": {
+      "get": {
+        "operationId": "nasq_tasks.MyTaskAttachmentsController.list_my_task_attachments.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_my_task_attachments",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTaskAttachmentsController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_my_task_attachments",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "nasq_tasks.MyTaskAttachmentsController.upload_my_task_attachment.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "upload_my_task_attachment",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTaskAttachmentsController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "upload_my_task_attachment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/attachments/{att_id}": {
+      "delete": {
+        "operationId": "nasq_tasks.MyTaskAttachmentsController.delete_my_task_attachment.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "att_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_my_task_attachment",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTaskAttachmentsController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_my_task_attachment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/cancel": {
+      "post": {
+        "operationId": "nasq_tasks.MyTasksController.cancel_my_task.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "cancel_my_task",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "cancel_my_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/comments": {
+      "get": {
+        "operationId": "nasq_tasks.MyTaskCommentsController.list_my_task_comments.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_my_task_comments",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTaskCommentsController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_my_task_comments",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "nasq_tasks.MyTaskCommentsController.post_my_task_comment.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "post_my_task_comment",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTaskCommentsController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "post_my_task_comment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/convert": {
+      "post": {
+        "operationId": "nasq_tasks_pmo.MyTaskConvertController.convert_task.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "convert_task",
+        "tags": [
+          "nasq_tasks_pmo"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks_pmo",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTaskConvertController",
+          "feature_keys": [
+            "tasks.enabled",
+            "pmo.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "convert_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/done": {
+      "post": {
+        "operationId": "nasq_tasks.MyTasksController.done_my_task.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "done_my_task",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "done_my_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/my-tasks/{task_id}/reopen": {
+      "post": {
+        "operationId": "nasq_tasks.MyTasksController.reopen_my_task.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "reopen_my_task",
+        "tags": [
+          "nasq_tasks"
+        ],
+        "x-nasq": {
+          "addon": "nasq_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "MyTasksController",
+          "feature_keys": [
+            "tasks.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "reopen_my_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/notification-digests/{notification_id}": {
       "get": {
         "operationId": "nasq_pmo.NotificationController.get_digest.get",
@@ -29737,6 +31059,8 @@
     "nasq_meetings",
     "nasq_meetings_pmo",
     "nasq_notify",
-    "nasq_pmo"
+    "nasq_pmo",
+    "nasq_tasks",
+    "nasq_tasks_pmo"
   ]
 }
