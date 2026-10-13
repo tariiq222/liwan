@@ -218,7 +218,7 @@ class NasqMyTaskService(models.AbstractModel):
     def _notify_assigned(self, task, previous):
         """Tell every user newly added to ``task`` (other than the actor) through the bell.
 
-        Delivery is idempotent per (task, recipient). The elevated create lives in
+        Only real additions notify, and a repeat replaces the user's earlier row (key per task and recipient). The elevated create lives in
         ``nasq.notify.service`` (spec section 7); nothing here uses ``sudo()``.
         """
         if not self.env['nasq.entitlement.service'].get('tasks.enabled'):
@@ -230,6 +230,7 @@ class NasqMyTaskService(models.AbstractModel):
                 self.env._('%(actor)s assigned you the task %(task)s', actor=self.env.user.name, task=task.name),
                 key=f'tasks.assigned:{task.id}:{user.partner_id.id}',
                 values={'nasq_tasks_task_id': task.id, 'nasq_tasks_task_name': task.name},
+                replace=True,
             )
 
     # transitions

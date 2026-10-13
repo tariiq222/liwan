@@ -2,6 +2,7 @@
 from odoo.fields import Command
 from odoo.tests import tagged
 
+from odoo.addons.nasq_api.tests.common import set_probe_feature
 from odoo.addons.nasq_tasks.tests.common import NasqTasksCase
 
 KEY = 'tasks.assigned:{}:{}'
@@ -43,6 +44,35 @@ class TestTaskNotifications(NasqTasksCase):
         self.service(self.alice)._update_task(task, {'assignees': [self.bob.id, self.alice.id]})
         self.assertEqual(len(self.rows(task, self.bob)), 1)
         self.assertEqual(len(self.bell(self.bob)), 1)
+
+    def test_readd_after_removal_sends_a_fresh_unread_row(self):
+        task = self.service(self.alice)._create_task({'name': 'T', 'assignees': [self.bob.id]})
+        old = self.rows(task, self.bob)
+        old.notification_ids.sudo().write({'is_read': True})
+        old.sudo().write({'date': '2020-01-01 00:00:00'})
+        self.service(self.alice)._update_task(task, {'assignees': [self.alice.id]})
+        self.service(self.alice)._update_task(task, {'assignees': [self.alice.id, self.bob.id]})
+        rows = self.rows(task, self.bob)
+        self.assertEqual(len(rows), 1)
+        self.assertFalse(rows.notification_ids.is_read)
+        self.assertGreater(str(rows.date), '2020-01-01 00:00:00')
+        self.assertEqual(rows.author_id, self.alice.partner_id)
+        items = self.bell(self.bob)
+        self.assertEqual((len(items), items[0]['is_read'], items[0]['title']), (1, False, 'T'))
+
+    def test_resave_with_unchanged_assignees_sends_nothing_new(self):
+        task = self.service(self.alice)._create_task({'name': 'T', 'assignees': [self.bob.id]})
+        first = self.rows(task, self.bob)
+        first.notification_ids.sudo().write({'is_read': True})
+        self.service(self.alice)._update_task(task, {'assignees': [self.bob.id], 'name': 'T2'})
+        self.assertEqual(self.rows(task, self.bob), first)
+        self.assertTrue(first.notification_ids.is_read)
+
+    def test_feature_off_sends_nothing(self):
+        set_probe_feature(self, 'tasks.enabled', enabled=False)
+        task = self.make_personal_task(self.alice, assignees=[self.bob.id])
+        self.service(self.alice)._notify_assigned(task, task.user_ids.browse())
+        self.assertFalse(self.rows(task, self.bob))
 
     def test_update_notifies_only_new_assignees(self):
         task = self.service(self.alice)._create_task({'name': 'T', 'assignees': [self.bob.id]})

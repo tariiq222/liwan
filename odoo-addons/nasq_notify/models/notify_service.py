@@ -40,12 +40,14 @@ class NasqNotifyService(models.AbstractModel):
         ))
 
     @api.model
-    def _nasq_deliver(self, model, res_id, kind, partners, body, key=None, values=None):
+    def _nasq_deliver(self, model, res_id, kind, partners, body, key=None, values=None, replace=False):
         """Create one bell row per partner on ``model``/``res_id`` and return the new messages.
 
         ``key`` makes delivery idempotent. It is stored verbatim, so it names
         its single recipient: a key with several partners is refused. A key
-        that exists, or that a concurrent worker inserts first, creates nothing.
+        that exists, or that a concurrent worker inserts first, creates nothing,
+        unless ``replace`` is set: the existing row of that key is then deleted and a
+        fresh, unread one is created (new date, author and body).
         """
         if kind not in self.env['nasq.notify.registry']._nasq_notification_type_map():
             msg = f'nasq_notify: notification kind {kind!r} is not registered'
@@ -60,7 +62,9 @@ class NasqNotifyService(models.AbstractModel):
             raise ValueError(msg)
         Message = self.env['mail.message'].sudo()
         created = Message.browse()
-        if key and self._nasq_key_taken(key):
+        if key and replace:
+            Message.search([('nasq_notification_key', '=', key)]).unlink()
+        elif key and self._nasq_key_taken(key):
             return created
         for partner in partners:
             try:

@@ -85,6 +85,19 @@ class TestNotifyService(NotifyProbe, TransactionCase):
         self.assertFalse(second)
         self.assertEqual(self.env['mail.message'].sudo().search_count([('nasq_notification_key', '=', key)]), 1)
 
+    def test_replace_swaps_the_row_of_a_key_for_a_fresh_unread_one(self):
+        key = f'probe-replace:{self.reader.partner_id.id}'
+        first = self._deliver(self.sources[0], self.reader.partner_id, key=key)
+        first.notification_ids.sudo().write({'is_read': True})
+        service = self.env['nasq.notify.service']
+        again = service._nasq_deliver(
+            'res.partner', self.sources[0].id, 'probe_ping', self.reader.partner_id, 'Again', key=key, replace=True)
+        self.assertEqual(len(again), 1)
+        self.assertNotEqual(again.id, first.id)
+        self.assertFalse(first.exists())
+        self.assertFalse(again.notification_ids.is_read)
+        self.assertEqual(self.env['mail.message'].sudo().search_count([('nasq_notification_key', '=', key)]), 1)
+
     @mute_logger('odoo.sql_db')
     def test_a_concurrent_duplicate_key_is_skipped(self):
         key = f'probe-race:{self.reader.partner_id.id}'

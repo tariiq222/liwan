@@ -12,17 +12,21 @@ from odoo.addons.nasq_api.serializers.common import iso
 KIND = 'tasks.assigned'
 
 
-def readable_assigned_task_ids(env):
-    """Ids of the readable, active personal tasks of this company that are assigned to the caller."""
+def readable_assigned_tasks(env):
+    """Subquery of the readable, active personal tasks of this company assigned to the caller.
+
+    Returned as a ``Query`` so the bell poll never builds an id list; ``None`` when the
+    caller may not read tasks.
+    """
     Task = env['project.task']
     if not env['nasq.access.service']._nasq_has_capability(env.user, 'tasks.tasks.read') or not Task.has_access('read'):
-        return []
-    return Task.search([
+        return None
+    return Task._search([
         ('nasq_personal', '=', True),
         ('active', '=', True),
         ('company_id', '=', env.company.id),
         ('user_ids', 'in', [env.uid]),
-    ]).ids
+    ])
 
 
 class NasqTasksNotificationTypes(models.AbstractModel):
@@ -37,7 +41,8 @@ class NasqTasksNotificationTypes(models.AbstractModel):
 
     @api.model
     def _nasq_notify_visible_domain(self):
-        task_ids = readable_assigned_task_ids(self.env)
+        tasks = readable_assigned_tasks(self.env)
+        task_ids = tasks if tasks is not None else []
         return [
             *super()._nasq_notify_visible_domain(),
             [
@@ -56,6 +61,7 @@ class NasqTasksNotificationTypes(models.AbstractModel):
                 'id': row.id,
                 'kind': KIND,
                 'task_id': message.nasq_tasks_task_id,
+                'title': message.nasq_tasks_task_name or '',
                 'task_name': message.nasq_tasks_task_name or '',
                 'created_at': iso(message.date),
                 'is_read': bool(row.is_read),
