@@ -22,7 +22,8 @@ class MyTaskConvertController(http.Controller):
         convert._require('pmo.projects.read')
         # type='json2' routes do not pass the query string as kwargs; read it directly.
         projects = convert._targets(request.httprequest.args.get('q'))
-        return [{'id': project.id, 'name': project.name} for project in projects]
+        items = [{'id': project.id, 'name': project.name} for project in projects]
+        return {'items': items, 'total': len(items)}
 
     @http.route('/api/v1/my-tasks/<int:task_id>/convert', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

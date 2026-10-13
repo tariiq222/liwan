@@ -67,7 +67,7 @@ class TestMyTaskConvert(NasqTasksCase):
     def _target_names(self, q=''):
         response = self.api('GET', f'{TARGETS_URL}?q={q}')
         self.assertEqual(response.status_code, 200, response.text)
-        return [item['name'] for item in response.json()]
+        return [item['name'] for item in response.json()['items']]
 
     # convert
 
@@ -240,16 +240,18 @@ class TestMyTaskConvert(NasqTasksCase):
         self._login(self.alice)
         response = self.api('GET', TARGETS_URL)
         self.assertEqual(response.status_code, 200, response.text)
-        names = [item['name'] for item in response.json()]
+        body = response.json()
+        self.assertEqual(body['total'], len(body['items']))
+        names = [item['name'] for item in body['items']]
         self.assertIn('Convert target', names)
         self.assertNotIn('Archived target', names)
         self.assertNotIn('Foreign target', names)
-        self.assertEqual(set(response.json()[0]), {'id', 'name'})
+        self.assertEqual(set(body['items'][0]), {'id', 'name'})
         # The limited user cannot create tasks in any project: nothing to offer.
         self._login(self.limited)
         response = self.api('GET', TARGETS_URL)
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(response.json(), [])
+        self.assertEqual(response.json(), {'items': [], 'total': 0})
 
     def test_convert_targets_search_is_literal_and_capped(self):
         Project = self.env['project.project']
@@ -264,6 +266,7 @@ class TestMyTaskConvert(NasqTasksCase):
         self.assertEqual(self._target_names('zeta_a'), ['Zeta_a'])
         Project.create([{'name': f'Bulk {index:02}', 'company_id': self.env.company.id} for index in range(25)])
         self.assertEqual(len(self._target_names()), 20)
+        self.assertEqual(self.api('GET', TARGETS_URL).json()['total'], 20)
 
     def test_convert_targets_requires_pmo_projects_read(self):
         user = new_test_user(self.env, login='tasks_noproj', password='tasks_noproj_pass_123',
