@@ -71,7 +71,8 @@ States: `open | done | cancelled` ↔ `01_in_progress | 1_done | 1_canceled`.
 
 ```
 id, name, description (plain text), state, priority ('normal'|'high'),
-date_deadline (ISO date|null), assignees: PersonRef[], creator: PersonRef,
+date_deadline (ISO 8601 UTC datetime string `YYYY-MM-DDTHH:MM:SSZ`|null; a bare date is accepted on input),
+assignees: PersonRef[], creator: PersonRef,
 parent: {id, name}|null, subtasks: [{id, name, state}], attachment_count,
 created_at, updated_at, allowed_actions: {write, done, reopen, cancel, convert}
 ```
@@ -87,7 +88,11 @@ source: 'personal'|'project', project: {id, name}|null, href
 value the bridge supplies (`/projects/{project_id}/tasks/{id}`). The web
 never builds a project URL itself.
 
-`TaskComment`: `id, body (plain text), author: PersonRef, created_at`.
+`PersonRef` is the `/api/v1/people` shape `{id, name, user_id}` (`res.users` ids); comment `author`
+is null when the author has no user. Personal sub-tasks use `nasq_parent_id` (Odoo forbids `parent_id`
+on project-less tasks), and `subtasks` lists active, readable children only.
+
+`TaskComment`: `id, body (plain text), author: PersonRef|null, created_at`.
 
 ## 5. API (`nasq_tasks`, all `type='json2'`, `auth='user'`, `@api_handler`, gated by `tasks.enabled`)
 

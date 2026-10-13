@@ -11,6 +11,17 @@ from odoo.addons.nasq_api.serializers.common import iso
 from odoo.addons.nasq_tasks.models.my_task_service import STATE_TO_WIRE
 
 PRIORITY_TO_WIRE = {'0': 'normal', '1': 'high'}
+CLOSED_WIRE = {'1_done': 'done', '1_canceled': 'cancelled'}
+
+
+def list_state(state):
+    """Wire state of a list row. Other applications' tasks carry states of their own
+    (PMO: changes requested, approved, waiting...); every non-closed one reads as open."""
+    return CLOSED_WIRE.get(state, 'open')
+
+
+def list_priority(priority):
+    return PRIORITY_TO_WIRE.get(priority or '0', 'normal')
 
 
 def _person(user):
@@ -33,7 +44,6 @@ def _readable_parent(task):
 
 
 def dump_personal_task(task):
-    task = task.with_env(task.env)
     attachments = task.env['ir.attachment'].search_count([
         ('res_model', '=', 'project.task'), ('res_id', '=', task.id)])
     return {
@@ -48,7 +58,7 @@ def dump_personal_task(task):
         'parent': _readable_parent(task),
         'subtasks': [
             {**_task_ref(child), 'state': STATE_TO_WIRE[child.state]}
-            for child in task.nasq_child_ids
+            for child in task.nasq_child_ids.filtered(lambda child: child.active and child.has_access('read'))
         ],
         'attachment_count': attachments,
         'created_at': iso(task.create_date),
@@ -58,18 +68,23 @@ def dump_personal_task(task):
 
 
 def dump_list_item(task):
-    links = task.env['nasq.task.links']
-    project = links._nasq_project_ref(task) if not task.nasq_personal else None
+    if task.nasq_personal:
+        source, project, href = 'personal', None, f'/my-tasks/{task.id}'
+    else:
+        ref = task.env['nasq.task.links']._nasq_project_ref(task)
+        if not ref:
+            raise ValueError(f'task {task.id} is listed without a project ref')
+        source, project, href = 'project', {'id': ref['id'], 'name': ref['name']}, ref['href']
     return {
         'id': task.id,
         'name': task.name,
-        'state': STATE_TO_WIRE[task.state],
-        'priority': PRIORITY_TO_WIRE[task.priority or '0'],
+        'state': list_state(task.state),
+        'priority': list_priority(task.priority),
         'date_deadline': iso(task.date_deadline),
         'assignees': [_person(user) for user in task.user_ids],
-        'source': 'personal' if task.nasq_personal else 'project',
-        'project': {'id': project['id'], 'name': project['name']} if project else None,
-        'href': f'/my-tasks/{task.id}' if task.nasq_personal else (project or {}).get('href', ''),
+        'source': source,
+        'project': project,
+        'href': href,
     }
 
 

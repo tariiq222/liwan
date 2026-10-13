@@ -43,6 +43,14 @@ describe('PersonalTaskSchema', () => {
     expect(() => PersonalTaskSchema.parse({ ...DETAIL, allowed_actions: { write: true } })).toThrow()
   })
 
+  it('rejects datetimes that are not UTC ISO strings with a Z', () => {
+    for (const bad of ['2026-10-13', '2026-10-13 08:00:00', '2026-10-13T08:00:00+03:00', 'tomorrow']) {
+      expect(() => PersonalTaskSchema.parse({ ...DETAIL, created_at: bad })).toThrow()
+      expect(() => PersonalTaskSchema.parse({ ...DETAIL, date_deadline: bad })).toThrow()
+    }
+    expect(() => MyTaskListItemSchema.parse({ ...ROW, date_deadline: '2026-10-13' })).toThrow()
+  })
+
   it('lists exactly the three wire states', () => {
     expect(PersonalTaskStateSchema.options).toEqual(['open', 'done', 'cancelled'])
   })

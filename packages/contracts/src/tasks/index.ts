@@ -4,6 +4,9 @@ import { PersonRefSchema } from '../common/person'
 export const PersonalTaskStateSchema = z.enum(['open', 'done', 'cancelled'])
 export const PersonalTaskPrioritySchema = z.enum(['normal', 'high'])
 
+// Odoo's iso(): UTC, second precision, always a trailing Z.
+const UtcDateTimeSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/)
+
 const TaskRefSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
 
 export const PersonalTaskActionsSchema = z.object({
@@ -21,14 +24,14 @@ export const PersonalTaskSchema = z.object({
   description: z.string(),
   state: PersonalTaskStateSchema,
   priority: PersonalTaskPrioritySchema,
-  date_deadline: z.string().nullable(),
+  date_deadline: UtcDateTimeSchema.nullable(),
   assignees: z.array(PersonRefSchema),
   creator: PersonRefSchema,
   parent: TaskRefSchema.nullable(),
   subtasks: z.array(TaskRefSchema.extend({ state: PersonalTaskStateSchema }).strict()),
   attachment_count: z.number().int().nonnegative(),
-  created_at: z.string(),
-  updated_at: z.string(),
+  created_at: UtcDateTimeSchema,
+  updated_at: UtcDateTimeSchema,
   allowed_actions: PersonalTaskActionsSchema,
 }).strict()
 
@@ -38,7 +41,7 @@ export const MyTaskListItemSchema = z.object({
   name: z.string(),
   state: PersonalTaskStateSchema,
   priority: PersonalTaskPrioritySchema,
-  date_deadline: z.string().nullable(),
+  date_deadline: UtcDateTimeSchema.nullable(),
   assignees: z.array(PersonRefSchema),
   source: z.enum(['personal', 'project']),
   project: TaskRefSchema.nullable(),
@@ -58,7 +61,7 @@ export const PersonalTaskCommentSchema = z.object({
   id: z.number().int().positive(),
   body: z.string(),
   author: PersonRefSchema.nullable(),
-  created_at: z.string(),
+  created_at: UtcDateTimeSchema,
 }).strict()
 
 export const PersonalTaskAttachmentSchema = z.object({

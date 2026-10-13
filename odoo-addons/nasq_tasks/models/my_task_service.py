@@ -138,6 +138,9 @@ class NasqMyTaskService(models.AbstractModel):
         Task = self.env['project.task']
         limit = max(1, min(limit, MAX_LIMIT))
         tasks = Task.search(domain, order=SORTS[sort], limit=limit, offset=max(0, offset))
+        # A row of another application without a project ref has no valid wire shape: drop it.
+        # The page may then hold fewer than ``limit`` rows; ``total`` stays the domain count.
+        tasks = tasks.filtered(lambda task: task.nasq_personal or links._nasq_project_ref(task))
         return tasks, Task.search_count(domain)
 
     # create and update
