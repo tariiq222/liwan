@@ -16,6 +16,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 PY = 'python3'
+FULL_TEST_FILES = ('package.json', 'package-lock.json', '.woodpecker.yml')
+
+
+class BaseError(Exception):
+    """The base ref cannot be resolved."""
 
 
 def plan(changed, base):
@@ -38,8 +43,20 @@ def plan(changed, base):
     if touched('packages/contracts/'):
         steps.append(('contracts_test', ['npm', '-w', 'packages/contracts', 'run', 'test']))
     if touched('apps/web/', 'packages/contracts/'):
+        steps.append(('ui_inventory', [PY, '-B', 'tools/ui_inventory.py', '--check']))
+        steps.append(('ui_catalog', ['node', 'tools/ui_catalog.mjs', '--check']))
+        steps.append(('ui_templates', ['node', 'tools/ui_templates.mjs']))
         steps.append(('web_test_changed', ['npm', '-w', 'apps/web', 'run', 'test', '--', '--changed', base]))
         steps.append(('web_typecheck', ['npm', '-w', 'apps/web', 'run', 'lint']))
+    if any(path.startswith('tools/') and path.endswith('.mjs') for path in changed):
+        steps.append(('e2e_isolated_test', ['node', '--test', 'tools/test_e2e_isolated.mjs']))
+    if touched('deploy/'):
+        steps.append(('catalog_check', [PY, '-B', 'tools/catalog_check.py']))
+        steps.append(('deploy_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'deploy', '-p', 'test_*.py']))
+    if touched('packages/commercial-contracts/'):
+        steps.append(('commercial_contracts_test', ['npm', '-w', 'packages/commercial-contracts', 'run', 'test']))
+    if any(path in FULL_TEST_FILES for path in changed):
+        steps.append(('npm_test_full', ['npm', 'test']))
     return steps
 
 
@@ -48,14 +65,20 @@ def changed_paths(base):
         out = subprocess.run(['git', *args], cwd=REPO, capture_output=True, text=True, check=True)
         return out.stdout.splitlines()
 
-    merge_base = lines('merge-base', base, 'HEAD')[0]
-    return lines('diff', '--name-only', merge_base) + lines('ls-files', '-o', '--exclude-standard')
+    try:
+        merge_base = lines('merge-base', base, 'HEAD')[0]
+    except (subprocess.CalledProcessError, IndexError):
+        raise BaseError('unknown base %r: no merge base with HEAD' % base) from None
+    return lines('diff', '--name-only', '--no-renames', merge_base) + lines('ls-files', '-o', '--exclude-standard')
 
 
 def run_step(step):
     name, argv = step
     start = time.time()
-    result = subprocess.run(argv, cwd=REPO, capture_output=True, text=True, check=False)
+    try:
+        result = subprocess.run(argv, cwd=REPO, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        return name, 127, time.time() - start, 'tool not found: %s (%s)' % (argv[0], exc)
     return name, result.returncode, time.time() - start, result.stdout + result.stderr
 
 
@@ -64,13 +87,18 @@ def main(argv=None):
     parser.add_argument('--base', default='main')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args(argv)
-    steps = plan(changed_paths(args.base), args.base)
+    try:
+        changed = changed_paths(args.base)
+    except BaseError as exc:
+        sys.stderr.write('check_fast: %s\n' % exc)
+        return 2
+    steps = plan(changed, args.base)
     if args.dry_run:
         for name, cmd in steps:
             sys.stdout.write('%s: %s\n' % (name, ' '.join(cmd)))
         return 0
     started = time.time()
-    with ThreadPoolExecutor(max_workers=len(steps)) as pool:
+    with ThreadPoolExecutor(max_workers=min(len(steps), 6)) as pool:
         results = list(pool.map(run_step, steps))
     failed = 0
     for name, code, seconds, output in results:

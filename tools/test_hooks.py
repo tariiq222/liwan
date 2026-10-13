@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import io
 import unittest
+from unittest import mock
 
+import hooks
 from hooks import check_message, plan_pre_commit
 
 
@@ -29,6 +32,25 @@ class TestHooks(unittest.TestCase):
         self.assertIsNotNone(check_message('wip stuff\n'))
         self.assertIsNotNone(check_message('feat(unknown): nope\n'))
         self.assertIsNotNone(check_message('\n'))
+
+    def test_revert_is_validated_by_the_subject_policy(self):
+        self.assertIsNone(check_message('Revert "feat(tools): add a thing"\n'))
+        self.assertIsNotNone(check_message('Revert "wip stuff"\n'))
+        self.assertIsNotNone(check_message('Revert "bad subject"\n'))
+
+    def test_autosquash_subjects_ask_for_a_reword(self):
+        for subject in (
+            'fixup! feat(tools): x', 'squash! feat(tools): x', 'amend! feat(tools): x',
+            'Squashed commit of the following:',
+        ):
+            self.assertIn('type(scope): subject', check_message(subject + '\n'))
+
+    def test_missing_tool_is_a_failing_step_without_traceback(self):
+        with mock.patch.object(hooks, 'staged_paths', return_value=[]), \
+                mock.patch.object(hooks.subprocess, 'run', side_effect=FileNotFoundError('python3')), \
+                mock.patch.object(hooks.sys, 'stderr', io.StringIO()) as err:
+            self.assertEqual(hooks.pre_commit(), 1)
+        self.assertIn('tool not found: python3', err.getvalue())
 
 
 if __name__ == '__main__':
