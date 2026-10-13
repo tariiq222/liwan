@@ -11,4 +11,5 @@ from . import (
     test_serializers,
     test_service,
     test_tasks_access_composition,
+    test_tasks_only_routes,
 )

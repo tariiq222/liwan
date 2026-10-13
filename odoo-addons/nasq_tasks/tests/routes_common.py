@@ -68,11 +68,6 @@ class TasksRoutesCase(NasqTasksCase):
         })
         return user
 
-    def pmo_read_keys(self):
-        """``['pmo.tasks.read']`` when nasq_pmo is installed (its task search demands it), else ``[]``."""
-        found = self.env['nasq.access.permission'].search_count([('key', '=', 'pmo.tasks.read')])
-        return ['pmo.tasks.read'] if found else []
-
     def make_project_task(self, name='Project task'):
         project = self.env['project.project'].create({'name': 'Routes project'})
         return self.env['project.task'].create({

@@ -150,6 +150,15 @@ class TestMyTasksRoutes(TasksRoutesCase):
                 self.assertError(self.call('tasks_alice', 'PATCH', path, body), 422, 'invalid', field)
         self.assertError(self.call('tasks_alice', 'GET', f'{BASE}?q=a%00b'), 422, 'invalid', 'q')
 
+    def test_lone_surrogates_in_name_and_description_are_rejected(self):
+        created = self.create_as('tasks_alice')
+        path = self.task_path(created['id'])
+        for field in ('name', 'description'):
+            body = {'name': 'ok', field: 'a\ud800b'}
+            with self.subTest(field=field):
+                self.assertError(self.call('tasks_alice', 'POST', BASE, body), 422, 'invalid', field)
+                self.assertError(self.call('tasks_alice', 'PATCH', path, body), 422, 'invalid', field)
+
     def test_unknown_keys_rejected(self):
         created = self.create_as('tasks_alice')
         path = self.task_path(created['id'])
@@ -241,8 +250,7 @@ class TestMyTasksRoutes(TasksRoutesCase):
 
     def test_capability_is_checked_before_the_parameters(self):
         self.managed_user('tasks_nocap', [])
-        reader = self.managed_user(
-            'tasks_readonly', ['tasks.tasks.read', *self.pmo_read_keys()])
+        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read'])
         created = self.create_as('tasks_alice', assignees=[reader.id])
         path = self.task_path(created['id'])
         for login, method, target, body in (
@@ -322,9 +330,7 @@ class TestMyTasksRoutes(TasksRoutesCase):
 
     def test_missing_capability_403(self):
         self.managed_user('tasks_nocap', [])
-        # With nasq_pmo installed its project.task search additionally demands pmo.tasks.read
-        # of anyone, so a reader who holds only tasks.tasks.read sees no task at all (404).
-        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read', *self.pmo_read_keys()])
+        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read'])
         created = self.create_as('tasks_alice', assignees=[reader.id])
         path = self.task_path(created['id'])
         for login in ('tasks_nocap', 'tasks_readonly'):

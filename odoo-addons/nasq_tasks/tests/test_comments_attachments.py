@@ -62,7 +62,7 @@ class TestMyTaskComments(TasksFilesCase):
 
     def test_comment_requires_write_capability(self):
         self.managed_user('tasks_nocap', [])
-        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read', *self.pmo_read_keys()])
+        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read'])
         task = self.make_task(assignees=[reader.id])
         path = self.comments_path(task['id'])
         self.assertError(self.call('tasks_nocap', 'GET', path), 403, 'forbidden')
@@ -185,7 +185,7 @@ class TestMyTaskAttachments(TasksFilesCase):
 
     def test_attachment_requires_capabilities(self):
         self.managed_user('tasks_nocap', [])
-        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read', *self.pmo_read_keys()])
+        reader = self.managed_user('tasks_readonly', ['tasks.tasks.read'])
         task = self.make_task(assignees=[reader.id])
         made = self.ok('tasks_alice', 'POST', self.attachments_path(task['id']), upload())
         path = self.attachments_path(task['id'])
