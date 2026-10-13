@@ -124,7 +124,8 @@
         "tooLarge": "The file is larger than 10 MiB.",
         "type": "This file type is not allowed. Allowed: PDF, PNG, JPEG, text, DOCX and XLSX.",
         "empty": "The file is empty."
-      }
+      },
+      "deleteError": "The attachment could not be deleted. Try again."
     },
     "convert": {
       "title": "Convert to a project task",

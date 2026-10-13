@@ -11,6 +11,7 @@ import {
   PersonalTaskSchema,
   type PersonalTask,
 } from '@nasq/contracts'
+import { ApiError } from './useApi'
 import { myTaskKeys } from './myTaskKeys'
 
 type Api = ReturnType<typeof useApi>['$api']
@@ -109,6 +110,11 @@ export const fetchMyTaskAttachments = ($api: Api, id: number | null) =>
 export const fetchConvertTargets = ($api: Api, q: string) =>
   $api('/api/v1/my-tasks/convert-targets', { query: { q: q.trim() || undefined }, schema: ConvertTargetsSchema })
 
+// A missing or foreign personal task answers 404 (403 for a withdrawn permission) and stays so:
+// retrying only delays the not-found state. Anything else is retried once, as everywhere.
+export const retryMyTask = (failureCount: number, error: unknown) =>
+  !(error instanceof ApiError && [403, 404].includes(error.status)) && failureCount < 1
+
 const validId = (id: MaybeRefOrGetter<number | null>) => computed(() => Number.isInteger(toValue(id)))
 
 export function useMyTaskList(params: MaybeRefOrGetter<MyTaskListParams>) {
@@ -124,6 +130,7 @@ export function useMyTask(id: MaybeRefOrGetter<number | null>) {
   return useQuery({
     queryKey: computed(() => myTaskKeys.detail(toValue(id))),
     enabled: validId(id),
+    retry: retryMyTask,
     queryFn: () => $api(`/api/v1/my-tasks/${toValue(id)}`, { schema: PersonalTaskSchema }),
   })
 }

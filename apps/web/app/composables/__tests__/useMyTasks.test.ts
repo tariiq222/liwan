@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/vue-query'
 import type { PersonalTask } from '@nasq/contracts'
+import { ApiError } from '../useApi'
 import { myTaskKeys } from '../myTaskKeys'
 import {
   convertMyTask,
@@ -9,6 +10,7 @@ import {
   fetchMyTaskAttachments,
   fetchMyTaskComments,
   myTaskListQuery,
+  retryMyTask,
   transitionMyTask,
   updateMyTask,
 } from '../useMyTasks'
@@ -179,5 +181,15 @@ describe('collection envelopes', () => {
 
   it('rejects a bare array', async () => {
     await expect(fetchMyTaskComments(apiReturning([]) as never, 7)).rejects.toThrow()
+  })
+})
+
+describe('retryMyTask', () => {
+  it('never retries a 403 or 404 but retries other failures once', () => {
+    expect(retryMyTask(0, new ApiError(404, 'not_found', 'x'))).toBe(false)
+    expect(retryMyTask(0, new ApiError(403, 'forbidden', 'x'))).toBe(false)
+    expect(retryMyTask(0, new ApiError(500, 'server', 'x'))).toBe(true)
+    expect(retryMyTask(0, new Error('network'))).toBe(true)
+    expect(retryMyTask(1, new ApiError(500, 'server', 'x'))).toBe(false)
   })
 })
