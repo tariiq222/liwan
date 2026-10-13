@@ -27,6 +27,7 @@ from . import (
     test_project_status,
     test_project_templates,
     test_project_updates,
+    test_projectless_create,
     test_projects,
     test_settings,
     test_tags,

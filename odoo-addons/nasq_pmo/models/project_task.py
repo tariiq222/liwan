@@ -82,6 +82,17 @@ class ProjectTask(models.Model):
         return frozenset()
 
     @api.model
+    def _nasq_projectless_create_allowed(self, vals_list):
+        """Extension point: may these values create tasks that have no project?
+
+        False here, so every non-admin create needs a visible project. A bridge
+        addon (nasq_tasks_pmo) answers True only for its own project-less
+        tasks after its own capability check; the field whitelist and the
+        stock ORM ACLs and record rules still apply to the values.
+        """
+        return False
+
+    @api.model
     def _nasq_template_population_domain(self):
         """Return only the fresh project's boundary, never a capability grant.
 
@@ -583,6 +594,8 @@ class ProjectTask(models.Model):
                 if not project and parent:
                     project = parent.project_id
                 if not project:
+                    if self._nasq_projectless_create_allowed(vals_list):
+                        continue
                     raise AccessError(self.env._("A visible current-company project is required."))
                 project._nasq_check_visible_current()
                 if parent and parent.project_id != project:
