@@ -200,15 +200,37 @@ class NasqMyTaskService(models.AbstractModel):
         # Odoo leaves company_id empty on a project-less task, which the personal-task rule
         # hides from everyone; project_id is left out so PMO's create gate sees a personal create.
         out['company_id'] = self.env.company.id
-        return self.env['project.task'].create(out)
+        task = self.env['project.task'].create(out)
+        self._notify_assigned(task, task.user_ids.browse())
+        return task
 
     @api.model
     def _update_task(self, task, vals):
         task = self._writable_personal(task.with_env(self.env))
         out = self._clean_vals(vals, UPDATE_FIELDS, creating=False)
         if out:
+            previous = task.user_ids
             task.write(out)
+            self._notify_assigned(task, previous)
         return task
+
+    @api.model
+    def _notify_assigned(self, task, previous):
+        """Tell every user newly added to ``task`` (other than the actor) through the bell.
+
+        Delivery is idempotent per (task, recipient). The elevated create lives in
+        ``nasq.notify.service`` (spec section 7); nothing here uses ``sudo()``.
+        """
+        if not self.env['nasq.entitlement.service'].get('tasks.enabled'):
+            return
+        service = self.env['nasq.notify.service']
+        for user in task.user_ids - previous - self.env.user:
+            service._nasq_deliver(
+                task._name, task.id, 'tasks.assigned', user.partner_id,
+                self.env._('%(actor)s assigned you the task %(task)s', actor=self.env.user.name, task=task.name),
+                key=f'tasks.assigned:{task.id}:{user.partner_id.id}',
+                values={'nasq_tasks_task_id': task.id, 'nasq_tasks_task_name': task.name},
+            )
 
     # transitions
 

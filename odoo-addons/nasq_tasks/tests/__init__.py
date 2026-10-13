@@ -2,6 +2,7 @@
 from . import (
     common,
     test_access,
+    test_notifications,
     test_rules,
     test_serializers,
     test_service,
