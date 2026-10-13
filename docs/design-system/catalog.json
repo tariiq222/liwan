@@ -262,18 +262,6 @@
       "title": "MyTasks/MyTaskForm",
       "props": [
         {
-          "name": "mode",
-          "type": "\"create\" | \"edit\"",
-          "required": false,
-          "default": "\"create\""
-        },
-        {
-          "name": "initial",
-          "type": "MyTaskFormInitial | null",
-          "required": false,
-          "default": "null"
-        },
-        {
           "name": "pending",
           "type": "boolean",
           "required": false,
@@ -284,12 +272,6 @@
           "type": "Error | null",
           "required": false,
           "default": "null"
-        },
-        {
-          "name": "submitLabel",
-          "type": "string",
-          "required": false,
-          "default": "undefined"
         }
       ],
       "events": [
@@ -315,27 +297,22 @@
         {
           "id": "Create",
           "name": "إنشاء مهمة",
-          "context": "apps/web/app/pages/my-tasks/new.vue:31"
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
         },
         {
           "id": "Pending",
           "name": "أثناء الحفظ",
-          "context": "apps/web/app/pages/my-tasks/new.vue:31"
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
         },
         {
           "id": "FieldError",
           "name": "خطأ من الخادم تحت الحقل",
-          "context": "apps/web/app/pages/my-tasks/new.vue:31"
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
         },
         {
           "id": "GeneralError",
           "name": "خطأ عام",
-          "context": "apps/web/app/pages/my-tasks/new.vue:31"
-        },
-        {
-          "id": "Edit",
-          "name": "تعديل مهمة موجودة",
-          "context": "unused"
+          "context": "apps/web/app/pages/my-tasks/new.vue:43"
         }
       ]
     },

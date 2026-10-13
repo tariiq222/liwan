@@ -51,7 +51,7 @@ async function fakeApi(page: Page, options: { convertHref?: string; writeDelayMs
     if (path === '/' && method === 'GET') return reply(route, 200, ENVELOPE([]))
     if (path === '/' && method === 'POST') {
       const parent = tasks.get(body.parent_id)
-      const created = personalTask(nextId++, { name: body.name, parent: parent ? { id: parent.id, name: parent.name } : null })
+      const created = personalTask(nextId++, { name: body.name, is_subtask: Boolean(parent), parent: parent ? { id: parent.id, name: parent.name } : null })
       tasks.set(created.id, created)
       if (parent) parent.subtasks.push({ id: created.id, name: created.name, state: 'open' })
       return reply(route, 201, created)
@@ -209,6 +209,23 @@ test('sub-tasks: add by name and toggle done; a sub-task page links to its paren
   await expect(page.getByRole('heading', { name: 'اطبع القائمة', level: 1 })).toBeVisible()
   await expect(page.getByRole('link', { name: 'اشترِ الورق' })).toHaveAttribute('href', /\/my-tasks\/7/)
   await expect(page.getByTestId('my-task-subtasks')).toHaveCount(0)
+})
+
+test('a sub-task whose parent the viewer cannot read offers no sub-tasks and no parent link', async ({ page }) => {
+  await fakeApi(page)
+  await page.goto('/my-tasks/14')
+  await expect(page.getByRole('heading', { name: 'مهمة فرعية بأب مخفي', level: 1 })).toBeVisible()
+  await expect(page.getByTestId('my-task-subtasks')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'إضافة مهمة فرعية' })).toHaveCount(0)
+})
+
+test('a read-only viewer sees the comments but gets no comment form', async ({ page }) => {
+  await fakeApi(page)
+  await page.goto('/my-tasks/9')
+  const section = page.getByTestId('my-task-comments')
+  await expect(section).toBeVisible()
+  await expect(section.getByLabel('اكتب تعليقًا')).toHaveCount(0)
+  await expect(section.getByRole('button', { name: 'نشر التعليق' })).toHaveCount(0)
 })
 
 test('comments: post plain text, oldest first, unknown author gets a neutral label', async ({ page }) => {

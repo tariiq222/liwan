@@ -5,7 +5,7 @@ import { useMyTaskComments, usePostMyTaskComment } from '@/composables/useMyTask
 import { COMMENT_MAX_LENGTH, commentProblem, oldestFirst } from '@/utils/myTaskDetail'
 
 // Plain text only: the body is rendered as text and sent as typed (no markup, no mentions).
-const props = defineProps<{ taskId: number }>()
+const props = defineProps<{ taskId: number; canWrite: boolean }>()
 
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -52,7 +52,7 @@ async function submit() {
       </ul>
     </SharedPageState>
 
-    <form class="grid gap-2 border-t border-default pt-3" @submit.prevent="submit">
+    <form v-if="props.canWrite" class="grid gap-2 border-t border-default pt-3" @submit.prevent="submit">
       <UTextarea
         v-model="body"
         :placeholder="t('myTasks.comments.placeholder')"

@@ -250,9 +250,9 @@ const panel = 'rounded-xl border border-default bg-default p-5'
         </dl>
       </section>
 
-      <div v-if="!task.parent" :class="panel"><MyTaskSubtasks :task="task" /></div>
+      <div v-if="!task.is_subtask" :class="panel"><MyTaskSubtasks :task="task" /></div>
       <div :class="panel"><MyTaskAttachments :task-id="task.id" :count="task.attachment_count" :can-write="task.allowed_actions.write" /></div>
-      <div :class="panel"><MyTaskComments :task-id="task.id" /></div>
+      <div :class="panel"><MyTaskComments :task-id="task.id" :can-write="task.allowed_actions.write" /></div>
       <div v-if="task.allowed_actions.convert" :class="panel"><ConvertToProject :task-id="task.id" @converted="converted = true" /></div>
     </template>
     <SharedUnsavedChanges :dirty="dirty" />
