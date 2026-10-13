@@ -15,8 +15,7 @@ describe('access policy navigation', () => {
     expect(firstAllowedPath({ capabilities: ['meetings.read'] })).toBe('/meetings')
     expect(firstAllowedPath({ capabilities: ['pmo.projects.read', 'pmo.tasks.read'] })).toBe('/projects/dashboard')
     expect(firstAllowedPath({ capabilities: ['pmo.projects.read'] })).toBe('/projects/dashboard')
-    // /tasks left the landing list with the tasks app split; a PMO task reader alone has no landing.
-    expect(firstAllowedPath({ capabilities: ['pmo.tasks.read'] })).toBe('/account')
+    expect(firstAllowedPath({ capabilities: ['pmo.tasks.read'] })).toBe('/tasks')
     expect(firstAllowedPath({ capabilities: ['tasks.tasks.read'] })).toBe('/my-tasks')
     expect(firstAllowedPath({ capabilities: ['hr.employees.read'] })).toBe('/hr')
     expect(firstAllowedPath({ capabilities: ['access.users.read'] })).toBe('/settings/users')
@@ -33,7 +32,7 @@ describe('access policy navigation', () => {
     expect(postLoginPath({ capabilities: [] }, '/notifications')).toBe('/account')
     expect(postLoginPath({ role: 'admin' }, '/notifications')).toBe('/account')
     expect(postLoginPath(meetingReader, '/archived-tasks')).toBe('/meetings')
-    expect(postLoginPath(taskReader, '/meetings')).toBe('/account')
+    expect(postLoginPath(taskReader, '/meetings')).toBe('/tasks')
   })
   it('honors only local, accessible post-login destinations', () => {
     const admin = { capabilities: ['access.users.read'] }

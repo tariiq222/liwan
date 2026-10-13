@@ -28,7 +28,7 @@ describe('module registry', () => {
   it('does not hide modules when the payload has no tenant policy', () => {
     expect(useNav({ capabilities: caps }).map(item => item.to)).toContain('/projects')
   })
-  it('lands a parsed task-reader identity with pmo enabled on the account page (no /tasks landing)', () => {
+  it('lands a parsed task-reader identity with pmo enabled on /tasks', () => {
     const me = MeSchema.parse({
       id: 1, name: 'Admin', login: 'admin', email: '', lang: 'ar_001', tz: '',
       role: 'admin', company: { id: 1, name: 'nasq' },
@@ -42,8 +42,8 @@ describe('module registry', () => {
       },
       terminology: { ar: {}, en: {} },
     })
-    expect(firstAllowedPath(me)).toBe('/account')
-    expect(postLoginPath(me, undefined)).toBe('/account')
+    expect(firstAllowedPath(me)).toBe('/tasks')
+    expect(postLoginPath(me, undefined)).toBe('/tasks')
   })
   it('maps write routes to the owning feature', () => {
     expect(featureForPath('/projects/new')).toBe('pmo.enabled')

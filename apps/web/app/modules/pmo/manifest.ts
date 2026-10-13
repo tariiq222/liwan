@@ -16,6 +16,7 @@ const manifest: AppManifest = {
   nav: [
     { to: '/projects/dashboard', labelKey: 'nav.home', icon: 'i-lucide-house', shortcut: 'h', capability: 'pmo.projects.read', module: 'home' },
     { to: '/projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', shortcut: '2', capability: 'pmo.projects.read', module: 'projects' },
+    { to: '/tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', shortcut: '1', capability: 'pmo.tasks.read', module: 'projects' },
     { to: '/project-templates', labelKey: 'nav.projectTemplates', icon: 'i-lucide-layout-template', shortcut: 't', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/projects/settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', shortcut: '4', capability: 'pmo.settings.manage', module: 'projects' },
   ],
@@ -31,6 +32,7 @@ const manifest: AppManifest = {
   ],
   landing: [
     { path: '/projects/dashboard', capability: 'pmo.projects.read' },
+    { path: '/tasks', capability: 'pmo.tasks.read' },
     { path: '/projects', capability: 'pmo.projects.read' },
     { path: '/project-templates', capability: 'pmo.projects.read' },
     { path: '/reports', capability: 'pmo.projects.read' },
@@ -43,8 +45,6 @@ const manifest: AppManifest = {
     { pattern: /^\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/[^/]+\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/new$/, capability: 'pmo.projects.create' },
-    // /tasks left nav and landing (tasks app split), which used to supply this gate for /tasks and /tasks/<id>.
-    { pattern: /^\/tasks(?:\/|$)/, capability: 'pmo.tasks.read' },
   ],
   bell: {
     capabilities: ['pmo.tasks.read'],
