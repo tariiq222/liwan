@@ -11,7 +11,7 @@ from odoo.addons.nasq_tasks.controllers.my_tasks import (
     _require,
     _task_for,
 )
-from odoo.addons.nasq_tasks.models.my_task_service import _has_nul
+from odoo.addons.nasq_tasks.models.my_task_service import _bad_text
 from odoo.addons.nasq_tasks.serializers.personal_task import dump_comment
 
 MAX_COMMENT_LENGTH = 5000
@@ -24,8 +24,8 @@ def _comment_text(body):
             _invalid(f'{key} is not supported', key)
     text = body.get('body')
     text = text.strip() if isinstance(text, str) else None
-    if not text or len(text) > MAX_COMMENT_LENGTH or _has_nul(text):
-        _invalid(f'body is required, at most {MAX_COMMENT_LENGTH} characters and without NUL', 'body')
+    if not text or len(text) > MAX_COMMENT_LENGTH or _bad_text(text):
+        _invalid(f'body is required, at most {MAX_COMMENT_LENGTH} characters and without NUL or unpaired surrogates', 'body')
     return text
 
 
@@ -46,8 +46,8 @@ class MyTaskCommentsController(http.Controller):
     @requires_feature('tasks.enabled', operation='write')
     def post_my_task_comment(self, task_id, **_):
         _require('tasks.tasks.write')
-        text = _comment_text(_body())
         task = request.env['nasq.my.task.service']._writable_personal(_task_for(task_id))
+        text = _comment_text(_body())
         # v1: no mentions, no task references, no notification of its own.
         message = task.message_post(
             body=plaintext2html(text), message_type='comment', subtype_xmlid='mail.mt_comment')

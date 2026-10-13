@@ -54,9 +54,18 @@ def _parse_deadline(value, key='date_deadline'):
         _reject(message, key)
 
 
-def _has_nul(value):
-    """PostgreSQL text cannot hold NUL, so it would surface as a 500."""
-    return isinstance(value, str) and '\x00' in value
+def _bad_text(value):
+    """True for a string PostgreSQL cannot store: a NUL or a lone surrogate (JSON accepts both,
+    so either would surface as a 500). Non-strings are the caller's type check."""
+    if not isinstance(value, str):
+        return False
+    if '\x00' in value:
+        return True
+    try:
+        value.encode('utf-8')
+    except UnicodeEncodeError:
+        return True
+    return False
 
 
 def _is_id(value):
@@ -136,8 +145,8 @@ class NasqMyTaskService(models.AbstractModel):
         domain &= Domain.OR(scopes)
         state_domain = Domain('state', 'in', CLOSED_STATES)
         domain &= ~state_domain if not closed else state_domain
-        if _has_nul(q):
-            _reject('q must not contain NUL', 'q')
+        if _bad_text(q):
+            _reject('q must not contain NUL or unpaired surrogates', 'q')
         if q:
             # Odoo's ilike keeps % and _ as wildcards; search the text literally.
             literal = q.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
@@ -162,13 +171,13 @@ class NasqMyTaskService(models.AbstractModel):
         if creating or 'name' in vals:
             name = vals.get('name')
             name = name.strip() if isinstance(name, str) else None
-            if not name or len(name) > MAX_NAME_LENGTH or _has_nul(name):
-                _reject(f'name is required, at most {MAX_NAME_LENGTH} characters and without NUL', 'name')
+            if not name or len(name) > MAX_NAME_LENGTH or _bad_text(name):
+                _reject(f'name is required, at most {MAX_NAME_LENGTH} characters and without NUL or unpaired surrogates', 'name')
             out['name'] = name
         if 'description' in vals:
             description = vals['description']
-            if description is not None and (not isinstance(description, str) or _has_nul(description)):
-                _reject('description must be plain text without NUL', 'description')
+            if description is not None and (not isinstance(description, str) or _bad_text(description)):
+                _reject('description must be plain text without NUL or unpaired surrogates', 'description')
             out['description'] = plaintext2html(description) if description else False
         if 'date_deadline' in vals:
             out['date_deadline'] = _parse_deadline(vals['date_deadline'])

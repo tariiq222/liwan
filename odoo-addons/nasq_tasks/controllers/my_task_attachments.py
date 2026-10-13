@@ -16,7 +16,13 @@ from odoo.addons.nasq_api.serializers.attachment import (
     dump_attachment,
     parse_attachment_upload,
 )
-from odoo.addons.nasq_tasks.controllers.my_tasks import _body, _require, _task_for
+from odoo.addons.nasq_tasks.controllers.my_tasks import (
+    _body,
+    _invalid,
+    _require,
+    _task_for,
+)
+from odoo.addons.nasq_tasks.models.my_task_service import _bad_text
 
 
 def _task_attachments(task):
@@ -40,8 +46,12 @@ class MyTaskAttachmentsController(http.Controller):
     @requires_feature('tasks.enabled', operation='write')
     def upload_my_task_attachment(self, task_id, **_):
         _require('tasks.tasks.write')
-        values = parse_attachment_upload(_body())
+        # The task is resolved before the upload is decoded: a stranger's 404 never costs a base64 decode.
         task = request.env['nasq.my.task.service']._writable_personal(_task_for(task_id))
+        payload = _body()
+        if _bad_text(payload.get('name')):
+            _invalid('name must not contain NUL or unpaired surrogates', 'name')
+        values = parse_attachment_upload(payload)
         attachment = request.env['ir.attachment'].create({
             'name': values['name'],
             'raw': values['raw'],

@@ -1,8 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
+from unittest.mock import patch
 
 from odoo.tests import tagged
 
+from odoo.addons.nasq_api.controllers.common import ApiError
 from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
 from odoo.addons.nasq_tasks.tests.routes_common import BASE, TasksRoutesCase
 
@@ -101,6 +103,23 @@ class TestMyTaskComments(TasksFilesCase):
         self.assertError(self.call('tasks_alice', 'POST', path, []), 422, 'invalid', 'body')
         self.assertEqual(self.ok('tasks_alice', 'GET', path)['total'], 0)
         self.assertEqual(self.ok('tasks_alice', 'POST', path, {'body': 'x' * 5000})['body'], 'x' * 5000)
+
+    def test_comment_lone_surrogate_422(self):
+        task = self.make_task()
+        path = self.comments_path(task['id'])
+        for text in ('a\ud800b', '\udfff', 'ok \ude00'):
+            with self.subTest(text=ascii(text)):
+                self.assertError(self.call('tasks_alice', 'POST', path, {'body': text}), 422, 'invalid', 'body')
+        self.assertEqual(self.ok('tasks_alice', 'GET', path)['total'], 0)
+        # A well-formed surrogate pair is an ordinary astral character.
+        self.assertEqual(self.ok('tasks_alice', 'POST', path, {'body': '\ud83d\ude00'})['body'], '\U0001f600')
+
+    def test_comment_stranger_gets_404_before_body_validation(self):
+        task = self.make_task(assignees=[])
+        path = self.comments_path(task['id'])
+        for body in ({'body': ''}, {'body': 'a\ud800'}, {'nope': 1}, []):
+            with self.subTest(body=body):
+                self.assertError(self.call('tasks_carol', 'POST', path, body), 404, 'not_found')
 
     def test_subtask_comments_are_its_own(self):
         parent = self.make_task()
@@ -262,11 +281,47 @@ class TestMyTaskAttachments(TasksFilesCase):
         self.assertError(self.call('tasks_alice', 'DELETE',
                                    self.attachments_path(parent['id'], made['id'])), 404, 'not_found')
 
+    def test_attachment_name_lone_surrogate_422(self):
+        task = self.make_task()
+        path = self.attachments_path(task['id'])
+        self.assertError(self.call('tasks_alice', 'POST', path, upload('a\ud800.txt')), 422, 'invalid', 'name')
+        self.assertEqual(self.ok('tasks_alice', 'GET', path)['total'], 0)
+
+    def test_stranger_upload_is_refused_before_the_file_is_decoded(self):
+        task = self.make_task(assignees=[])
+        path = self.attachments_path(task['id'])
+        target = 'odoo.addons.nasq_tasks.controllers.my_task_attachments.parse_attachment_upload'
+        with patch(target) as parse:
+            for body in (upload(), {'name': 'x.txt', 'data': '!!!'}, {}, []):
+                with self.subTest(body=str(body)[:20]):
+                    self.assertError(self.call('tasks_carol', 'POST', path, body), 404, 'not_found')
+            parse.assert_not_called()
+        self.managed_user('tasks_nocap', [])
+        with patch(target) as parse:
+            self.assertError(self.call('tasks_nocap', 'POST', path, upload()), 403, 'forbidden')
+            parse.assert_not_called()
+
     def test_attachment_upload_failure_leaves_nothing_behind(self):
         task = self.make_task()
         before = self.env['ir.attachment'].search_count([('res_model', '=', 'project.task')])
         self.assertEqual(self.call('tasks_alice', 'POST', self.attachments_path(task['id']), {})[0], 422)
         self.assertEqual(self.env['ir.attachment'].search_count([('res_model', '=', 'project.task')]), before)
+
+
+@tagged('post_install', '-at_install', 'nasq', 'nasq_tasks')
+class TestMyTaskSearchText(TasksFilesCase):
+    def test_search_text_with_a_lone_surrogate_is_422(self):
+        service = self.env['nasq.my.task.service'].with_user(self.alice)
+        for q in ('a\ud800', 'a\x00b'):
+            with self.subTest(q=ascii(q)), self.assertRaises(ApiError) as caught:
+                service._search_list(closed=False, q=q, assigned=True, created=True,
+                                     sort='deadline', limit=5, offset=0)
+            self.assertEqual((caught.exception.status, caught.exception.field), (422, 'q'))
+
+    def test_search_text_over_http_never_500s(self):
+        for q in ('%ED%A0%80', '%00', 'ok'):
+            with self.subTest(q=q):
+                self.assertLess(self.call('tasks_alice', 'GET', f'{BASE}?q={q}')[0], 500)
 
 
 @tagged('post_install', '-at_install', 'nasq', 'nasq_tasks')
