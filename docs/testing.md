@@ -30,6 +30,24 @@ module list and the base `odoo-addons` tree form its name, so it is rebuilt when
 changes) and only ever creates, clones or drops `nasq_scratch_*` databases. Stale
 `nasq_scratch_tpl_*` templates are small and can be dropped by hand.
 
+## Running a CI step locally
+
+`woodpecker-cli exec` (Homebrew `woodpecker-cli`) runs `.woodpecker.yml` steps on the local
+backend with no server. Verified for the `static` step (197.6 s, passed):
+
+```sh
+# 1. a throwaway clone, because the step runs `npm ci` and writes into its workspace
+git clone --local --no-hardlinks /Users/tariq/code/nasq /tmp/nasq-ci && cd /tmp/nasq-ci
+# 2. a pipeline file holding only the wanted step (exec cannot select one)
+#    copy `when:` plus the `static` block of .woodpecker.yml into /tmp/static-only.yaml
+woodpecker-cli exec --local --repo-path /tmp/nasq-ci --backend-engine local \
+  --commit-branch main /tmp/static-only.yaml
+```
+
+Other steps need extra local services (PostgreSQL role `nasq_test`, the Odoo checkout, a Docker
+daemon for `image`) and were not run this way. This mirrors CI for a branch before merge; the
+local policy runs in CLAUDE.md stay the binding gate.
+
 ## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
 
 | Step | Time |
