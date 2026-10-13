@@ -62,6 +62,28 @@ describe('personal task writes', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'list'] })
   })
 
+  it('also invalidates the parent detail when the written task is a sub-task', async () => {
+    const parent = { id: 3, name: 'P' }
+    for (const run of [
+      (api: never, qc: QueryClient) => createMyTask(api, qc, { name: 'T', parent_id: 3 }),
+      (api: never, qc: QueryClient) => updateMyTask(api, qc, { id: 7, body: { name: 'x' } }),
+      (api: never, qc: QueryClient) => transitionMyTask(api, qc, { id: 7, action: 'done' }),
+    ]) {
+      const qc = new QueryClient()
+      const spy = vi.spyOn(qc, 'invalidateQueries')
+      await run(vi.fn().mockResolvedValue(task({ parent })) as never, qc)
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'list'] })
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'detail', 3] })
+    }
+  })
+
+  it('does not touch any other detail for a top-level task', async () => {
+    const qc = new QueryClient()
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    await updateMyTask(vi.fn().mockResolvedValue(task()) as never, qc, { id: 7, body: {} })
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
   it('seeds the detail cache on create', async () => {
     const qc = new QueryClient()
     const server = task({ id: 9 })
@@ -95,16 +117,47 @@ describe('personal task writes', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('converts through the server and refreshes the task caches', async () => {
+  it('converts through the server and drops every cached copy of the task', async () => {
     const qc = new QueryClient()
     qc.setQueryData(myTaskKeys.detail(7), task())
+    qc.setQueryData(myTaskKeys.comments(7), { items: [], total: 0 })
+    qc.setQueryData(myTaskKeys.attachments(7), { items: [], total: 0 })
     const spy = vi.spyOn(qc, 'invalidateQueries')
     const api = vi.fn().mockResolvedValue({ href: '/projects/3/tasks/7' })
     await expect(convertMyTask(api, qc, { id: 7, projectId: 3 })).resolves.toEqual({ href: '/projects/3/tasks/7' })
     expect(api).toHaveBeenCalledWith('/api/v1/my-tasks/7/convert', expect.objectContaining({ method: 'POST', body: { project_id: 3 } }))
-    // The converted task is no longer a personal task: drop its detail instead of keeping a stale copy.
     expect(qc.getQueryData(myTaskKeys.detail(7))).toBeUndefined()
+    expect(qc.getQueryData(myTaskKeys.comments(7))).toBeUndefined()
+    expect(qc.getQueryData(myTaskKeys.attachments(7))).toBeUndefined()
     expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'list'] })
+  })
+
+  it('cancels in-flight reads before removing, so the 404 detail is never refetched', async () => {
+    const qc = new QueryClient()
+    qc.setQueryData(myTaskKeys.detail(7), task())
+    const order: string[] = []
+    vi.spyOn(qc, 'cancelQueries').mockImplementation(async () => { order.push('cancel') })
+    vi.spyOn(qc, 'removeQueries').mockImplementation(() => { order.push('remove') })
+    await convertMyTask(vi.fn().mockResolvedValue({ href: '/x' }) as never, qc, { id: 7, projectId: 3 })
+    expect(order).toEqual(['cancel', 'cancel', 'cancel', 'remove', 'remove', 'remove'])
+    expect(qc.cancelQueries).toHaveBeenCalledWith({ queryKey: myTaskKeys.detail(7), exact: true })
+    expect(qc.removeQueries).toHaveBeenCalledWith({ queryKey: myTaskKeys.detail(7), exact: true })
+  })
+
+  it('invalidates the parent detail when a converted task was a sub-task', async () => {
+    const qc = new QueryClient()
+    qc.setQueryData(myTaskKeys.detail(7), task({ parent: { id: 3, name: 'P' } }))
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    await convertMyTask(vi.fn().mockResolvedValue({ href: '/x' }) as never, qc, { id: 7, projectId: 3 })
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['my-tasks', 'detail', 3] })
+  })
+
+  it('does not invalidate any parent when the converted task had none', async () => {
+    const qc = new QueryClient()
+    qc.setQueryData(myTaskKeys.detail(7), task())
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    await convertMyTask(vi.fn().mockResolvedValue({ href: '/x' }) as never, qc, { id: 7, projectId: 3 })
+    expect(spy).toHaveBeenCalledTimes(1)
   })
 })
 

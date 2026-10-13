@@ -109,6 +109,15 @@ describe('contextual module links', () => {
 const TODAY = ['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'management', 'vendor']
 const today = (ids: string[]) => ids.filter(id => TODAY.includes(id))
 
+describe('tasks app navigation', () => {
+  const taskUser = { role: 'employee', capabilities: ['tasks.tasks.read'] }
+  it('shows /my-tasks in the nav and the rail for tasks.tasks.read', () => {
+    expect(useNav(taskUser).map(item => item.to)).toContain('/my-tasks')
+    expect(visibleShellModules(taskUser).find(item => item.id === 'tasks')?.to).toBe('/my-tasks')
+    expect(useNav(employee).map(item => item.to)).not.toContain('/my-tasks')
+  })
+})
+
 describe('module rail', () => {
   it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
     expect(today(visibleShellModules(full).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])

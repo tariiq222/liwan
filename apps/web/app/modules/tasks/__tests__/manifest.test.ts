@@ -21,7 +21,7 @@ describe('tasks manifest', () => {
   })
 
   it('uses a nav shortcut no other manifest uses', () => {
-    const shortcut = manifest.nav?.[0]?.shortcut
+    const shortcut = 'a'
     expect(manifest.nav).toEqual([
       { to: '/my-tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', shortcut, capability: 'tasks.tasks.read' },
     ])

@@ -17,6 +17,7 @@ describe('access policy navigation', () => {
     expect(firstAllowedPath({ capabilities: ['pmo.projects.read'] })).toBe('/projects/dashboard')
     // /tasks left the landing list with the tasks app split; a PMO task reader alone has no landing.
     expect(firstAllowedPath({ capabilities: ['pmo.tasks.read'] })).toBe('/account')
+    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read'] })).toBe('/my-tasks')
     expect(firstAllowedPath({ capabilities: ['hr.employees.read'] })).toBe('/hr')
     expect(firstAllowedPath({ capabilities: ['access.users.read'] })).toBe('/settings/users')
     expect(firstAllowedPath({ capabilities: [] })).toBe('/account')

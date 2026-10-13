@@ -3,9 +3,6 @@
     "title": "My tasks",
     "new": "New task",
     "empty": "No tasks yet",
-    "nav": {
-      "records": "Tasks"
-    },
     "list": {
       "tabs": {
         "open": "Open",

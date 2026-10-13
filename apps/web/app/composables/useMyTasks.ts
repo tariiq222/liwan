@@ -52,10 +52,14 @@ export function myTaskListQuery(p: MyTaskListParams) {
 
 const refreshLists = (qc: QueryClient) => qc.invalidateQueries({ queryKey: myTaskKeys.lists })
 
-// A write answers with the full detail shape: replace the cache entry, then refresh the lists.
+// A write answers with the full detail shape: replace the cache entry, then refresh the lists. A
+// sub-task is also listed in its parent's `subtasks`, so the cached parent detail is refreshed too.
 async function replaceDetail(qc: QueryClient, task: PersonalTask) {
   qc.setQueryData(myTaskKeys.detail(task.id), task)
-  await refreshLists(qc)
+  await Promise.all([
+    refreshLists(qc),
+    task.parent ? qc.invalidateQueries({ queryKey: myTaskKeys.detail(task.parent.id) }) : undefined,
+  ])
   return task
 }
 
@@ -72,15 +76,24 @@ export async function transitionMyTask($api: Api, qc: QueryClient, { id, action 
   return replaceDetail(qc, await $api(`/api/v1/my-tasks/${id}/${action}`, { method: 'POST', schema: PersonalTaskSchema }))
 }
 
+// Sequence: read the parent id from the cached detail first, then cancel in-flight reads of the task,
+// then remove its detail/comments/attachments entries, then invalidate lists and the parent. Cancelling
+// before removing keeps a mounted page from refetching the now-404 personal detail.
 export async function convertMyTask($api: Api, qc: QueryClient, { id, projectId }: { id: number; projectId: number }) {
+  const parentId = qc.getQueryData<PersonalTask>(myTaskKeys.detail(id))?.parent?.id
   const result = await $api(`/api/v1/my-tasks/${id}/convert`, {
     method: 'POST',
     body: { project_id: projectId },
     schema: ConvertResultSchema,
   })
-  // The task is a project task now: its personal detail would be a stale copy.
-  qc.removeQueries({ queryKey: myTaskKeys.detail(id) })
-  await refreshLists(qc)
+  // The task is a project task now: its personal copies would be stale.
+  const keys = [myTaskKeys.detail(id), myTaskKeys.comments(id), myTaskKeys.attachments(id)]
+  await Promise.all(keys.map(queryKey => qc.cancelQueries({ queryKey, exact: true })))
+  for (const queryKey of keys) qc.removeQueries({ queryKey, exact: true })
+  await Promise.all([
+    refreshLists(qc),
+    parentId ? qc.invalidateQueries({ queryKey: myTaskKeys.detail(parentId) }) : undefined,
+  ])
   return result
 }
 
