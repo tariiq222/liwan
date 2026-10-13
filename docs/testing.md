@@ -50,6 +50,23 @@ Other steps need extra local services (PostgreSQL role `nasq_test`, the Odoo che
 daemon for `image`) and were not run this way. This mirrors CI for a branch before merge; the
 local policy runs in AGENTS.md stay the binding gate.
 
+## CI pipeline notes
+
+CI is Woodpecker (`.woodpecker.yml`, with the image gate in
+`deploy/woodpecker/image.yml`); GitHub
+Actions is not used. The main pipeline has eight steps—`static`,
+`control-plane`, `odoo`, `upgrade`, `restore-drill`, `image`, `e2e-mock`, and `rtl-stories`—and each is
+runnable locally with the same command block in that file: static checks, the
+control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
+commands, the backup and restore drill, and the mock Playwright run. The
+control-plane live suites run serially by design: its `test` script sets
+`--no-file-parallelism --hookTimeout=60000` because they share one scratch
+control database and TRUNCATE the same tables. The `image` step
+needs a Docker daemon on the agent; `deploy/woodpecker/image.yml` is the separate opt-in pipeline for
+agents whose engine can start a privileged dind service. The
+migration policy is [`docs/migrations.md`](migrations.md), and the pinned
+Odoo source commit is [`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT).
+
 ## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
 
 | Step | Time |
