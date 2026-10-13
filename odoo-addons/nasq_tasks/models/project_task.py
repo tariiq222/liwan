@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 
 
 class ProjectTask(models.Model):
@@ -41,3 +41,34 @@ class ProjectTask(models.Model):
             ):
                 raise ValidationError(self.env._(
                     'A personal sub-task needs a personal parent task of its own company, and neither side may have a further level.'))
+
+    def _nasq_participant_partners(self):
+        """The partners who may read this personal task: its creator, its assignees and, for a
+        sub-task, the creator and assignees of its parent (what the personal-task rules allow).
+
+        A caller who cannot read the parent (a sub-task assignee outside the parent's people) gets the
+        task's own people only; the parent's people are never followers of a sub-task by default.
+        """
+        self.ensure_one()
+        people = self.create_uid | self.user_ids
+        try:
+            parent = self.nasq_parent_id
+            people |= parent.create_uid | parent.user_ids
+        except AccessError:
+            pass
+        return people.partner_id
+
+    def _notify_get_recipients(self, message, msg_vals=False, **kwargs):
+        """A comment on a personal task reaches the people who can read it, never a removed assignee.
+
+        Odoo makes every assignee a follower and keeps them after they leave the task; the
+        personal-task rule removes their read access but ``message_post`` would still mail
+        them the comment. Project tasks are untouched.
+        """
+        recipients = super()._notify_get_recipients(message, msg_vals=msg_vals, **kwargs)
+        if not self or not all(self.mapped('nasq_personal')):
+            return recipients
+        allowed = set()
+        for task in self:
+            allowed.update(task._nasq_participant_partners().ids)
+        return [recipient for recipient in recipients if recipient.get('id') in allowed]

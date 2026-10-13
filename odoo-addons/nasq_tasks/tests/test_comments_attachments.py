@@ -309,6 +309,64 @@ class TestMyTaskAttachments(TasksFilesCase):
 
 
 @tagged('post_install', '-at_install', 'nasq', 'nasq_tasks')
+class TestMyTaskCommentRecipients(TasksFilesCase):
+    """A comment reaches the people who can read the task, never a removed assignee."""
+
+    def notified(self, comment_id):
+        message = self.env['mail.message'].browse(comment_id)
+        return message.notification_ids.res_partner_id
+
+    def test_removed_assignee_is_not_notified_of_a_comment(self):
+        task = self.make_task(assignees=[self.alice.id, self.bob.id, self.carol.id])
+        self.ok('tasks_alice', 'PATCH', self.task_path(task['id']), {'assignees': [self.alice.id, self.carol.id]})
+        posted = self.ok('tasks_alice', 'POST', self.comments_path(task['id']), {'body': 'for the team'})
+        notified = self.notified(posted['id'])
+        self.assertNotIn(self.bob.partner_id, notified)
+        self.assertEqual(notified, self.carol.partner_id)
+        record = self.env['project.task'].browse(task['id'])
+        self.assertNotIn(self.bob.partner_id, record.message_partner_ids)
+
+    def test_a_readded_assignee_is_notified_again(self):
+        task = self.make_task(assignees=[self.alice.id, self.bob.id])
+        self.ok('tasks_alice', 'PATCH', self.task_path(task['id']), {'assignees': [self.alice.id]})
+        self.ok('tasks_alice', 'PATCH', self.task_path(task['id']), {'assignees': [self.alice.id, self.bob.id]})
+        posted = self.ok('tasks_alice', 'POST', self.comments_path(task['id']), {'body': 'back'})
+        self.assertEqual(self.notified(posted['id']), self.bob.partner_id)
+
+    def test_a_follower_added_by_odoo_is_not_notified(self):
+        task = self.make_task(assignees=[self.alice.id])
+        record = self.env['project.task'].browse(task['id'])
+        record.message_subscribe(partner_ids=self.carol.partner_id.ids)
+        posted = self.ok('tasks_alice', 'POST', self.comments_path(task['id']), {'body': 'private'})
+        self.assertNotIn(self.carol.partner_id, self.notified(posted['id']))
+
+    def test_the_creator_stays_notified_after_leaving_the_assignees(self):
+        task = self.make_task(assignees=[self.bob.id])
+        record = self.env['project.task'].browse(task['id'])
+        record.message_subscribe(partner_ids=self.alice.partner_id.ids)
+        posted = self.ok('tasks_bob', 'POST', self.comments_path(task['id']), {'body': 'hello'})
+        self.assertEqual(self.notified(posted['id']), self.alice.partner_id)
+
+    def test_a_sub_task_comment_skips_a_removed_assignee_and_keeps_parent_participants(self):
+        parent = self.make_task(assignees=[self.alice.id, self.carol.id])
+        sub = self.make_task(parent_id=parent['id'], assignees=[self.alice.id, self.bob.id])
+        self.env['project.task'].browse(sub['id']).message_subscribe(partner_ids=self.carol.partner_id.ids)
+        self.ok('tasks_alice', 'PATCH', self.task_path(sub['id']), {'assignees': [self.alice.id]})
+        posted = self.ok('tasks_alice', 'POST', self.comments_path(sub['id']), {'body': 'sub'})
+        self.assertEqual(self.notified(posted['id']), self.carol.partner_id)
+
+    def test_a_project_task_still_notifies_its_followers(self):
+        task = self.make_project_task()
+        task.message_subscribe(partner_ids=self.bob.partner_id.ids)
+        message = task.with_user(self.alice).message_post(
+            body='hi', message_type='comment', subtype_xmlid='mail.mt_comment')
+        self.assertEqual(
+            set(message.notification_ids.res_partner_id.ids),
+            {self.bob.partner_id.id},
+        )
+
+
+@tagged('post_install', '-at_install', 'nasq', 'nasq_tasks')
 class TestMyTaskSearchText(TasksFilesCase):
     def test_search_text_with_a_lone_surrogate_is_422(self):
         service = self.env['nasq.my.task.service'].with_user(self.alice)

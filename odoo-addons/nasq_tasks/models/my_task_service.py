@@ -227,8 +227,16 @@ class NasqMyTaskService(models.AbstractModel):
         if out:
             previous = task.user_ids
             task.write(out)
+            self._unsubscribe_removed(task, previous)
             self._notify_assigned(task, previous)
         return task
+
+    @api.model
+    def _unsubscribe_removed(self, task, previous):
+        """Odoo keeps a removed assignee as a follower: drop them unless they still read the task."""
+        removed = (previous - task.user_ids).partner_id - task._nasq_participant_partners()
+        if removed:
+            task.message_unsubscribe(partner_ids=removed.ids)
 
     @api.model
     def _notify_assigned(self, task, previous):
