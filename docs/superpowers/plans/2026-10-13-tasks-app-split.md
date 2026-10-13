@@ -14,7 +14,7 @@
 
 - Branch `codex/platform-tasks-app`, worktree `.worktrees/tasks-app`. No merge, no push, no deletion of anything.
 - Never touch `:3000`, `:8069` or the `odoo19` database. Odoo runs only against a fresh scratch DB with `--addons-path` pointing at this worktree, cleaned up afterwards (skill `nasq-odoo-test`).
-- `nasq_tasks` never imports `nasq_pmo` (R3). `nasq_pmo` changes are limited to §6.3 (web manifest `nav` and `landing` entries only).
+- `nasq_tasks` never imports `nasq_pmo` (R3). `nasq_pmo` changes are limited to documented extension points; PMO manifest: unchanged (owner decision 2026-10-13: projects keep their tasks entry; §6.3 reversed).
 - `sudo()` only in the two cases of §7: `tasks.assigned` bell delivery and the recipient-owned bell candidate lookup.
 - Do not edit `tools/arch_baseline.json` by hand. Run `--write-baseline` only if a count shrinks. Agents never add an `Architecture-approved-by:` trailer.
 - No change to `/api/v1/tasks`, `/api/v1/people` or any existing contract. `PersonRef` is reused, never redefined.
@@ -68,7 +68,7 @@ apps/web/i18n/locales/{ar,en}/my-tasks.json  (namespace myTasks)
 apps/web/e2e/my-tasks.spec.ts
 ```
 
-Registration edits (only these outside the new folders, plus the Task 0 tooling change in `tools/new_app.py`, its templates and tests, the §6.3 PMO manifest trim and `common.json` `nav.myTasks`): `tools/arch_layers.json`, `deploy/catalog/solutions/platform_v3.json` (+ `catalog_check.py --sync-release-copies`), `packages/contracts/src/index.ts`, `tools/ui_policy.py` (`STORYBOOK_COMPONENTS`), `docs/design-system/components.md`.
+Registration edits (only these outside the new folders, plus the Task 0 tooling change in `tools/new_app.py`, its templates and tests, `common.json` `nav.myTasks`): `tools/arch_layers.json`, `deploy/catalog/solutions/platform_v3.json` (+ `catalog_check.py --sync-release-copies`), `packages/contracts/src/index.ts`, `tools/ui_policy.py` (`STORYBOOK_COMPONENTS`), `docs/design-system/components.md`.
 
 Reference implementations to copy (read first): `odoo-addons/nasq_meetings` (models, security, data, controllers, tests), `odoo-addons/nasq_meetings_pmo` (bridge, hook override, convert route), `nasq_api/controllers/common.py` (`requires_feature`, `api_handler`, `get_record`), `nasq_api/serializers/attachment.py`, `nasq_notify/models/notify_service.py:43` (`_nasq_deliver`), `apps/web/app/modules/meetings/manifest.ts`, `apps/web/app/pages/projects/new.vue`, `apps/web/app/composables/useMeetings.ts`, `apps/web/e2e/hydration.spec.ts`.
 
@@ -263,7 +263,7 @@ git add -A && git commit -m "feat(platform): add the nasq_tasks addon with acces
 
 ### Task 1b: PMO create hook and the bridge skeleton (controller ruling, see ledger)
 
-Why: with `nasq_pmo` installed, `project.task.create` (`odoo-addons/nasq_pmo/models/project_task.py` ~line 565-590) rejects any non-admin create without a project ("Task fields are not allowed." / "A visible current-company project is required."), so employees could not create personal tasks. A `sudo()` create would add an undocumented sudo case (R7, spec §7) and make PMO treat the call as superuser. Ruling: one minimal, behaviour-neutral extension point in `nasq_pmo`, implemented by the bridge (cross-application code lives only in bridges, R3). This is the only `nasq_pmo` Python change besides spec §6.3's web manifest trim.
+Why: with `nasq_pmo` installed, `project.task.create` (`odoo-addons/nasq_pmo/models/project_task.py` ~line 565-590) rejects any non-admin create without a project ("Task fields are not allowed." / "A visible current-company project is required."), so employees could not create personal tasks. A `sudo()` create would add an undocumented sudo case (R7, spec §7) and make PMO treat the call as superuser. Ruling: one minimal, behaviour-neutral extension point in `nasq_pmo`, implemented by the bridge (cross-application code lives only in bridges, R3). This is the only `nasq_pmo` change (spec §6.3: the PMO web manifest is unchanged, owner decision 2026-10-13).
 
 **Files:**
 - Modify: `odoo-addons/nasq_pmo/models/project_task.py`: add `@api.model def _nasq_projectless_create_allowed(self, vals_list): return False` next to `_nasq_extra_create_fields` (line ~75) and, inside the `if not trusted:` loop of `create`, when `not project` (after the parent lookup) and `self._nasq_projectless_create_allowed(vals_list)` is true, skip only the project requirement and the project-scoped checks for that vals (the field whitelist check `set(vals) - allowed` stays and still raises; stock ORM ACLs and record rules still run in the caller's environment). Default `False` keeps PMO behaviour byte-identical.
@@ -494,14 +494,14 @@ describe('tasks contracts', () => {
 
 **Files:**
 - Create: `apps/web/app/modules/tasks/manifest.ts`, `apps/web/app/composables/useMyTasks.ts`, `apps/web/app/composables/myTaskKeys.ts`, `apps/web/i18n/locales/{ar,en}/my-tasks.json`, tests `apps/web/app/modules/tasks/__tests__/manifest.test.ts`, `apps/web/app/composables/__tests__/useMyTasks.test.ts`
-- Modify: `apps/web/i18n/locales/{ar,en}/common.json` (`nav.myTasks`: «مهامي» / "My tasks"), `apps/web/app/modules/pmo/manifest.ts` (remove the `tasks` nav entry at line 19 and landing entry at line 35 only; keep `routePrefixes`, `contextLinks`, `routeCapabilities`, bell, search, `isNavActive`)
+- Modify: `apps/web/i18n/locales/{ar,en}/common.json` (`nav.myTasks`: «مهامي» / "My tasks"), `apps/web/app/modules/pmo/manifest.ts` is NOT modified (owner decision 2026-10-13: projects keep their tasks entry; spec §6.3 reversed)
 
 **Interfaces:**
 - `manifest.ts` (shape from `modules/meetings/manifest.ts`): `id: 'tasks'`, `feature: 'tasks.enabled'`, `routePrefixes: ['/my-tasks']`, rail entry label key `nav.myTasks`, `order: 15`, nav `/my-tasks` capability `tasks.tasks.read`, `contextLinks` `new-task` → `/my-tasks/new` (`tasks.tasks.create`, `pinned: true`), `landing: [{ path: '/my-tasks', capability: 'tasks.tasks.read' }]`, `routeCapabilities: [{ pattern: /^\/my-tasks\/new$/, capability: 'tasks.tasks.create' }]`, `bell: { capabilities: ['tasks.tasks.read'], kinds: [{ kind: 'tasks.assigned', href: row => `/my-tasks/${row.task_id}`, title: row => String(row.task_name) }] }`.
 - `myTaskKeys`: `all: ['my-tasks']`, `list: p => ['my-tasks', 'list', p]`, `detail: id => ['my-tasks', 'detail', id]`, `comments: id => ['my-tasks','comments',id]`, `attachments: id => [...]`, `convertTargets: q => [...]`.
 - `useMyTasks.ts` exports `useMyTaskList(params)`, `useMyTask(id)`, `useCreateMyTask()`, `useUpdateMyTask()`, `useMyTaskTransition()` (`done|reopen|cancel`, stays pending until the server answers), `useMyTaskComments(id)`, `usePostMyTaskComment()`, `useMyTaskAttachments(id)`, `useUploadMyTaskAttachment()`, `useDeleteMyTaskAttachment()`, `useConvertTargets(q)`, `useConvertMyTask()`. Every write does `qc.setQueryData(myTaskKeys.detail(id), serverShape)` then invalidates only `myTaskKeys.list` (the list rows are a different shape); `useCreateMyTask` seeds the detail cache from the response.
 
-- [ ] **Step 1: Failing vitest:** manifest test asserts id, feature, prefixes, rail order 15, landing, `/my-tasks/new` capability, `tasks.assigned` href/title, and that no other manifest contains `/my-tasks`; a PMO manifest test asserts nav/landing no longer contain `/tasks` and `routePrefixes` still does; composable test (mock `useApi`) asserts query key shapes, cache replacement on PATCH, and that a failed transition leaves the cached detail unchanged.
+- [ ] **Step 1: Failing vitest:** manifest test asserts id, feature, prefixes, rail order 15, landing, `/my-tasks/new` capability, `tasks.assigned` href/title, and that no other manifest contains `/my-tasks`; a PMO manifest test asserts nav/landing still contain `/tasks` (and `routePrefixes` too); composable test (mock `useApi`) asserts query key shapes, cache replacement on PATCH, and that a failed transition leaves the cached detail unchanged.
 - [ ] **Step 2:** `npm test` → FAIL. **Step 3:** implement; write both locale files with the same key set (list tabs, filters, empty states, fields, actions, cancel confirmation, convert, errors), Arabic first. **Step 4:** `npm test` PASS, `npm -w apps/web run lint` PASS.
 - [ ] **Step 5: Commit** `feat(web): add the tasks module manifest and data layer`
 
@@ -538,7 +538,7 @@ Expected: all exit 0. If `arch_policy` reports a new violation, fix the code; ne
 
 - [ ] **Step 2: Scratch Odoo, full release set** per `CLAUDE.md` "Check commands": fresh DB, `-i "$MODULES"` (the catalog's release modules, which now include `nasq_tasks` and the auto-installed bridge) with `--test-tags "/nasq_tasks,/nasq_tasks_pmo,/nasq_pmo,/nasq_meetings"`; a second run installs only `nasq_tasks` to prove it works without `nasq_pmo`. Remove the scratch DBs, data dirs, logs and config afterwards and confirm with `psql -l`.
 - [ ] **Step 3: Review pass** with the `reviewer` agent (skill `odoo-code-review`) on `git diff main...HEAD`: R1–R10, the `sudo()` list, contract parity (Zod vs serializer fields), the global rule, ACL minimality. Fix every finding, re-run the affected tests, commit as `fix(platform): …` / `fix(web): …`.
-- [ ] **Step 4: Report** (Arabic, simple): changed files, fresh command output, residual risks (the four decisions above, the `new_app.py --route` tooling change, `odoo-reviewer` unavailable, PMO manifest trim hides the `/tasks` nav entry for PMO-only tenants whose base bundle lacks `tasks.enabled`).
+- [ ] **Step 4: Report** (Arabic, simple): changed files, fresh command output, residual risks (the four decisions above, the `new_app.py --route` tooling change, `odoo-reviewer` unavailable, PMO manifest unchanged: owner decision 2026-10-13, projects keep their tasks entry, so PMO-only tenants still reach `/tasks`).
 
 ---
 

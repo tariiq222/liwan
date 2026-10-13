@@ -37,7 +37,7 @@ then the bridge by hand following `nasq_meetings_pmo`.
 
 `nasq_pmo` is not refactored. Its `/api/v1/tasks/*` routes, `/tasks` web
 routes, bell kinds and locale `tasks.json` stay as they are. The only PMO
-change is in §6.3.
+change is limited to the documented extension points (§6.3: the web manifest is unchanged).
 
 ## 3. Data
 
@@ -152,10 +152,13 @@ the caller's environment after both checks; no `sudo()`.
 
 ### 6.3 PMO change
 
-Remove the `tasks` entry from `modules/pmo/manifest.ts` `nav` and `landing`
-(the unified list replaces it). Keep `routePrefixes`, `/tasks/*` pages,
-`/archived-tasks`, bell hrefs and context links unchanged. Everything else in
-`nasq_pmo` is untouched.
+PMO manifest: unchanged (owner decision 2026-10-13: projects keep their tasks
+entry). A tenant that buys PMO without the tasks tier still reaches the PMO
+tasks list from the navigation, so `nav`, `landing`, `routePrefixes`, the
+`/tasks/*` pages, `/archived-tasks`, bell hrefs and context links all stay as
+they were. «مهامي» (`/my-tasks`) coexists with PMO's «المهام» entry; both show
+when both applications are enabled and nothing hides either. Everything else in
+`nasq_pmo` is untouched. (This reverses the earlier plan to drop the entry.)
 
 ## 7. Security
 
@@ -288,7 +291,7 @@ Static: `ruff check odoo-addons`, `python3 -B tools/arch_policy.py --base main`,
    groups, rules; `nasq_personal`; service + tests (no routes yet).
 2. Routes, serializers, contracts, comments, attachments, notification.
 3. Bridge addon with hook, routes, tests.
-4. Web module, pages, composable, locale, stories, tests; PMO manifest trim.
+4. Web module, pages, composable, locale, stories, tests; no PMO manifest change (§6.3).
 5. Catalog tier, arch baseline (`--write-baseline` only if a count shrinks),
    full gates, `odoo-reviewer` pass, report with evidence.
 
