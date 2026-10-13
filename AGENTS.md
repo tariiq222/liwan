@@ -54,6 +54,7 @@ changing `apps/web` read `docs/agents/web-rules.md` and DESIGN.md.
 - Read `docs/WORKSPACE.md` for the checkout map and current delivery records.
   Verify branch and dirty state live. Dated integration/recovery reports and
   older WIP describe their own checkpoints, not the current source state.
+- When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
 - Never run tests on `odoo19`. Do not commit, merge, push, deploy, remove
   worktrees/branches, or discard work without authorization for that action.
 - Local verification does not prove production deployment. Report fresh test
