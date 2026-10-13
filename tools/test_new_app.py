@@ -374,6 +374,17 @@ class TestNewApp(unittest.TestCase):
         for relative in ('apps/web/app/modules/reports', 'odoo-addons/nasq_reports', 'apps/web/app/pages/my-reports'):
             self.assertTrue((self.root / relative).is_dir(), relative)
 
+    def test_edge_proxy_routes_are_reserved(self):
+        # The edge sends /odoo and /websocket to Odoo, so no application page may use them.
+        for app in ('odoo', 'websocket'):
+            for extra in ((), ('--route', app)):
+                code, _, err = run(self.root, app, *extra, '--name-ar', 'س', '--name-en', 'S')
+                self.assertEqual(code, 1, (app, extra))
+                self.assertIn('NEW_APP_REFUSED', err)
+        code, _, err = run(self.root, *ARGS, '--route', 'odoo')
+        self.assertEqual(code, 1, err)
+        self.assertIn('NEW_APP_REFUSED', err)
+
     def test_route_colliding_with_an_existing_page_is_refused(self):
         code, _, err = run(self.root, *ARGS, '--route', 'projects')
         self.assertEqual(code, 1)

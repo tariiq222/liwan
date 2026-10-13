@@ -41,6 +41,8 @@ RESERVED_IDS = frozenset({
 SHELL_ROUTES = frozenset({
     'settings', 'vendor', 'subscription', 'invite', 'account', 'admin', 'login', 'logout', 'home',
     'management', 'people', 'projects', 'tasks', 'search', 'notifications', 'me', 'new', 'index',
+    # Paths the edge proxy sends to Odoo (deploy/Caddyfile), never to the web app.
+    'odoo', 'websocket',
 })
 ROUTE_SLUG = re.compile(r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$')
 ARCH_LAYERS = 'tools/arch_layers.json'
