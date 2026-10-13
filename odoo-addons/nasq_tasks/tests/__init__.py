@@ -3,6 +3,7 @@ from . import (
     common,
     test_access,
     test_rules,
+    test_serializers,
     test_service,
     test_tasks_access_composition,
 )

@@ -1,0 +1,16 @@
+{
+  "id": 11,
+  "name": "Write the report",
+  "description": "First line\nSecond line",
+  "state": "open",
+  "priority": "high",
+  "date_deadline": "2026-12-01T09:30:00Z",
+  "assignees": [{ "id": 7, "name": "Alice", "user_id": 7 }],
+  "creator": { "id": 7, "name": "Alice", "user_id": 7 },
+  "parent": null,
+  "subtasks": [{ "id": 12, "name": "Child task", "state": "done" }],
+  "attachment_count": 2,
+  "created_at": "2026-10-13T08:00:00Z",
+  "updated_at": "2026-10-13T09:15:00Z",
+  "allowed_actions": { "write": true, "done": true, "reopen": false, "cancel": true, "convert": false }
+}

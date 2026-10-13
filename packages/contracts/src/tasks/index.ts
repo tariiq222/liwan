@@ -1,14 +1,82 @@
 import { z } from 'zod'
+import { PersonRefSchema } from '../common/person'
 
-export const TasksRecordSchema = z.object({
-  id: z.number().int().positive(),
-  name: z.string(),
+export const PersonalTaskStateSchema = z.enum(['open', 'done', 'cancelled'])
+export const PersonalTaskPrioritySchema = z.enum(['normal', 'high'])
+
+const TaskRefSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
+
+export const PersonalTaskActionsSchema = z.object({
+  write: z.boolean(),
+  done: z.boolean(),
+  reopen: z.boolean(),
+  cancel: z.boolean(),
+  convert: z.boolean(),
 }).strict()
 
-export const TasksRecordListSchema = z.object({
-  items: z.array(TasksRecordSchema),
+// Detail shape: returned by every personal task read and write.
+export const PersonalTaskSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  description: z.string(),
+  state: PersonalTaskStateSchema,
+  priority: PersonalTaskPrioritySchema,
+  date_deadline: z.string().nullable(),
+  assignees: z.array(PersonRefSchema),
+  creator: PersonRefSchema,
+  parent: TaskRefSchema.nullable(),
+  subtasks: z.array(TaskRefSchema.extend({ state: PersonalTaskStateSchema }).strict()),
+  attachment_count: z.number().int().nonnegative(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  allowed_actions: PersonalTaskActionsSchema,
+}).strict()
+
+// Unified list row: `href` is supplied by the server, the web never builds a project URL.
+export const MyTaskListItemSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  state: PersonalTaskStateSchema,
+  priority: PersonalTaskPrioritySchema,
+  date_deadline: z.string().nullable(),
+  assignees: z.array(PersonRefSchema),
+  source: z.enum(['personal', 'project']),
+  project: TaskRefSchema.nullable(),
+  href: z.string().min(1),
+}).strict().superRefine((row, ctx) => {
+  if ((row.source === 'project') !== (row.project !== null)) {
+    ctx.addIssue({ code: 'custom', path: ['project'], message: 'project is set exactly on project rows' })
+  }
+})
+
+export const MyTaskListPageSchema = z.object({
+  items: z.array(MyTaskListItemSchema),
   total: z.number().int().nonnegative(),
 }).strict()
 
-export type TasksRecord = z.infer<typeof TasksRecordSchema>
-export type TasksRecordList = z.infer<typeof TasksRecordListSchema>
+export const PersonalTaskCommentSchema = z.object({
+  id: z.number().int().positive(),
+  body: z.string(),
+  author: PersonRefSchema.nullable(),
+  created_at: z.string(),
+}).strict()
+
+export const PersonalTaskAttachmentSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  mimetype: z.string(),
+  url: z.string(),
+}).strict()
+
+export const ConvertTargetSchema = TaskRefSchema
+export const ConvertResultSchema = z.object({ href: z.string().min(1) }).strict()
+
+export type PersonalTaskState = z.infer<typeof PersonalTaskStateSchema>
+export type PersonalTaskActions = z.infer<typeof PersonalTaskActionsSchema>
+export type PersonalTask = z.infer<typeof PersonalTaskSchema>
+export type MyTaskListItem = z.infer<typeof MyTaskListItemSchema>
+export type MyTaskListPage = z.infer<typeof MyTaskListPageSchema>
+export type PersonalTaskComment = z.infer<typeof PersonalTaskCommentSchema>
+export type PersonalTaskAttachment = z.infer<typeof PersonalTaskAttachmentSchema>
+export type ConvertTarget = z.infer<typeof ConvertTargetSchema>
+export type ConvertResult = z.infer<typeof ConvertResultSchema>
