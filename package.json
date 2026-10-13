@@ -13,6 +13,7 @@
     "test:odoo": "python3 -B tools/odoo_test.py",
     "check:fast": "python3 -B tools/check_fast.py",
     "check:semgrep": "python3 -B tools/semgrep_gate.py",
+    "test:rtl": "npm -w apps/web run test:rtl",
     "wt": "python3 -B tools/wt.py",
     "hooks:install": "python3 -B tools/hooks.py install",
     "test:commercial": "npm -w packages/commercial-contracts run test && npm -w apps/control-plane run test",

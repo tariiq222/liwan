@@ -141,3 +141,18 @@ Focused tests for each new tool (`tools/test_*.py`, wired into `npm test` by dis
 2. May A1 drop old scratch databases (which age threshold)?
 3. Is `woodpecker-cli exec` acceptable as the local CI mirror (C2)?
 4. Is a CodeRabbit CLI trial acceptable (sends code to a third party)?
+
+## 11. Phase E result (2026-10-13)
+
+- E1: `tools/semgrep_gate.py` (changed source files, ERROR and secrets findings fail) is wired into
+  the CI `static` step and `npm run check:semgrep`. Baseline scan of `tools/` and `odoo-addons/`
+  found 6 findings, all in `tools/` (none in addons); the one ERROR (`subprocess.call` with a fixed
+  argv) carries an inline `nosemgrep` with its reason. TypeScript scan found 0 findings (5 test
+  files only partially parsed).
+- E2: `REVIEW.md` added and referenced from `AGENTS.md`; the local `odoo-reviewer` agent now reads
+  `AGENTS.md`, `docs/agents/odoo-rules.md` and `REVIEW.md` (it pointed at the old `CLAUDE.md`).
+- E3: `npm run test:rtl` opens every Storybook story in Arabic at two widths without stored
+  screenshots. Result: 366 passed, 2 fixme (`Shared/CreatePanel / form` does not render). No
+  story had sideways page overflow or a page error. Pixel baselines and Chromatic were not
+  adopted: this check needs no baseline files and no third party.
+- CodeRabbit CLI trial was not done (it sends code to a third party).

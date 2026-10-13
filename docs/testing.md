@@ -18,6 +18,8 @@ Use these while iterating; `npm test` and the Odoo/CI gates stay binding before 
 | `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
+| `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` step. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. |
 
 Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
@@ -61,6 +63,8 @@ local policy runs in CLAUDE.md stay the binding gate.
 | `npm run test:odoo -- --addons nasq_hr` (80 tests), warm / cold template | 30 s / 43 s |
 | Full Odoo run (install and tests of all release modules, 658 tests) | 234 s |
 | CI `e2e-mock` locally (`nuxt build` 28.8 s, 7 Playwright tests 4.9 s) | about 35 s |
+| `npm run test:rtl` (Storybook build 7.6 s, 184 stories x 2 viewports, 4 workers) | about 2.4 min |
+| Semgrep gate on a few changed files | about 7 s |
 
 Not measured: the agentic e2e runner (needs model credentials) and the Odoo-backed e2e stack.
 
