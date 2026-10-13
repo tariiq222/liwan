@@ -13,7 +13,6 @@ const stories = Object.values(JSON.parse(readFileSync(indexPath, 'utf8')).entrie
 // Stories that do not render at all today (found by this suite on 2026-10-13). Each is a
 // fixme with the reason; the list may only shrink. Fix the story, then delete its line.
 const KNOWN_BROKEN: Record<string, string> = {
-  'shared-createpanel--form': "story throws \"Cannot read properties of undefined (reading 'value')\" and renders nothing",
 }
 
 // Every story renders in Arabic (RTL) without a page error and without making the page scroll sideways.
