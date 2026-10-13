@@ -36,11 +36,9 @@ class TestExtraWriteFieldsHook(NasqPmoCase):
             ProjectTask._nasq_extra_write_fields(self.env['project.task']), frozenset(),
         )
 
-    def test_personal_read_hook_default_is_false(self):
-        """PMO's own implementation never waives pmo.tasks.read."""
-        Task = self.env['project.task']
-        self.assertFalse(ProjectTask._nasq_personal_read_allowed(Task, domain=[('nasq_personal', '=', True)]))
-        self.assertFalse(ProjectTask._nasq_personal_read_allowed(Task, records=self.task_overdue))
+    def test_personal_read_domain_hook_default_is_none(self):
+        """PMO's own implementation names no boundary: pmo.tasks.read stays required."""
+        self.assertIsNone(ProjectTask._nasq_personal_read_domain(self.env['project.task']))
 
     def test_employee_cannot_write_the_project_of_a_task(self):
         """Without a bridge marker, project_id is never a client-writable task field."""

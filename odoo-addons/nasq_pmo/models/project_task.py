@@ -92,17 +92,15 @@ class ProjectTask(models.Model):
         return frozenset()
 
     @api.model
-    def _nasq_personal_read_allowed(self, domain=None, records=None):
-        """Extension point: may this caller read these tasks without ``pmo.tasks.read``?
+    def _nasq_personal_read_domain(self):
+        """Extension point: the tasks a caller without ``pmo.tasks.read`` may still read.
 
-        False here, so PMO keeps requiring the capability. A bridge (nasq_tasks_pmo)
-        answers True only when the search ``domain`` can match personal (project-less)
-        tasks alone, or every one of ``records`` is a personal task, after its own
-        capability check. An empty ``records`` is the model-level check that stock
-        ``_search`` makes after the domain gate. Record rules still apply to what is
-        returned.
+        None here, so PMO keeps requiring the capability. A bridge (nasq_tasks_pmo)
+        answers a domain that matches personal (project-less) tasks only, after its own
+        capability check. Like the template boundary, it narrows every search, fetch and
+        access check; stock ACLs and record rules still run on top.
         """
-        return False
+        return
 
     @api.model
     def _nasq_projectless_create_allowed(self, vals_list):
@@ -143,11 +141,10 @@ class ProjectTask(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
         ):
             service = self.env['nasq.access.service']
-            if (
-                not service._nasq_has_capability(self.env.user, 'pmo.tasks.read')
-                and not self._nasq_personal_read_allowed(domain=domain)
-            ):
+            if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
                 boundary = self._nasq_template_population_domain()
+                if boundary is None:
+                    boundary = self._nasq_personal_read_domain()
                 if boundary is None:
                     service._nasq_require_capability('pmo.tasks.read')
                 else:
@@ -169,12 +166,13 @@ class ProjectTask(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
         ):
             service = self.env['nasq.access.service']
-            if (
-                not service._nasq_has_capability(self.env.user, 'pmo.tasks.read')
-                and not self._nasq_personal_read_allowed(records=self)
-            ):
+            if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
                 try:
                     boundary = self._nasq_template_population_domain()
+                    scope = 'template'
+                    if boundary is None:
+                        boundary = self._nasq_personal_read_domain()
+                        scope = 'personal'
                     if boundary is None:
                         return self, lambda: AccessError('forbidden')
                     if self:
@@ -187,9 +185,12 @@ class ProjectTask(models.Model):
                         )
                         forbidden = self - self.browse(query)
                         if forbidden:
-                            return forbidden, lambda: AccessError(self.env._(
-                                "Only tasks in the new template project may be read during application.",
-                            ))
+                            return forbidden, lambda: AccessError(
+                                self.env._(
+                                    "Only tasks in the new template project may be read during application.",
+                                )
+                                if scope == 'template' else 'forbidden',
+                            )
                 except AccessError as error:
                     # Scope validation and stock search may raise; this hook
                     # must instead let its caller choose raising or filtering.

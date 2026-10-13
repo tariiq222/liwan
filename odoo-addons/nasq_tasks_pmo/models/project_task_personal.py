@@ -2,7 +2,6 @@
 """Personal (project-less) task creation while nasq_pmo is installed."""
 from odoo import api, models
 from odoo.fields import Domain
-from odoo.orm.domains import DomainAnd, DomainCondition
 
 # The only fields a personal task is created with. Everything else, including
 # the project-flavoured state and stage, stays a PMO project-task field.
@@ -73,28 +72,15 @@ class ProjectTaskPersonal(models.Model):
         return extra
 
     @api.model
-    def _nasq_personal_read_allowed(self, domain=None, records=None):
-        """Let a caller with ``tasks.tasks.read`` but no ``pmo.tasks.read`` reach personal tasks only.
+    def _nasq_personal_read_domain(self):
+        """A caller with ``tasks.tasks.read`` but no ``pmo.tasks.read`` reaches personal tasks only.
 
-        A search domain counts only when personal tasks are anchored at its top level
-        (an AND containing ``nasq_personal = True``): an OR or an unanchored domain
-        falls back to PMO's gate. For records, every one must be a personal task the
-        record rules show to the caller.
+        PMO narrows every search, cold-field fetch and access check of that caller to this
+        domain; the personal-task record rules still decide which personal tasks they see.
         """
-        if not self.env['nasq.access.service']._nasq_has_capability(self.env.user, 'tasks.tasks.read'):
-            return super()._nasq_personal_read_allowed(domain=domain, records=records)
-        if domain is not None:
-            if _anchors_personal(domain):
-                return True
-        elif not records:
-            # The model-level check stock _search makes after the domain gate above.
-            return True
-        elif all(isinstance(record_id, int) for record_id in records.ids):
-            personal = self.browse(self._search(
-                [('id', 'in', records.ids), ('nasq_personal', '=', True)], active_test=False))
-            if personal == records:
-                return True
-        return super()._nasq_personal_read_allowed(domain=domain, records=records)
+        if self.env['nasq.access.service']._nasq_has_capability(self.env.user, 'tasks.tasks.read'):
+            return Domain('nasq_personal', '=', True)
+        return super()._nasq_personal_read_domain()
 
     def _nasq_can_write(self):
         """A personal task is written under ``tasks.tasks.write``; project tasks keep PMO's rule."""
@@ -104,21 +90,3 @@ class ProjectTaskPersonal(models.Model):
         ):
             return True
         return super()._nasq_can_write()
-
-
-def _anchors_personal(domain):
-    """Whether ``domain`` is an AND (or one condition) that includes ``nasq_personal = True``."""
-    try:
-        domain = Domain(domain)
-    except (TypeError, ValueError):
-        return False
-    conditions = domain.children if isinstance(domain, DomainAnd) else (domain,)
-    return any(
-        isinstance(condition, DomainCondition)
-        and condition.field_expr == 'nasq_personal'
-        and (
-            (condition.operator == '=' and condition.value is True)
-            or (condition.operator == 'in' and list(condition.value) == [True])
-        )
-        for condition in conditions
-    )
