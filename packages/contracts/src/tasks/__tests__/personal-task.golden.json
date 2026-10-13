@@ -8,6 +8,7 @@
   "assignees": [{ "id": 7, "name": "Alice", "user_id": 7 }],
   "creator": { "id": 7, "name": "Alice", "user_id": 7 },
   "parent": null,
+  "is_subtask": false,
   "subtasks": [{ "id": 12, "name": "Child task", "state": "done" }],
   "attachment_count": 2,
   "created_at": "2026-10-13T08:00:00Z",

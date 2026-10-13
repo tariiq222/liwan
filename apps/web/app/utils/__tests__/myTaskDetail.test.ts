@@ -8,7 +8,7 @@ const task: PersonalTask = {
   id: 7, name: 'اشترِ الورق', description: 'ورق A4', state: 'open', priority: 'normal',
   date_deadline: '2026-10-20T21:30:00Z',
   assignees: [{ id: 5, name: 'سارة', user_id: 5 }, { id: 2, name: 'Admin', user_id: 2 }],
-  creator: { id: 2, name: 'Admin', user_id: 2 }, parent: null, subtasks: [], attachment_count: 0,
+  creator: { id: 2, name: 'Admin', user_id: 2 }, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,
   created_at: '2026-10-01T08:00:00Z', updated_at: '2026-10-01T08:00:00Z',
   allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: false },
 }

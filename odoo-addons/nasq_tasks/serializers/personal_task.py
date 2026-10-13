@@ -56,6 +56,8 @@ def dump_personal_task(task):
         'assignees': [_person(user) for user in task.user_ids],
         'creator': _person(task.create_uid),
         'parent': _readable_parent(task),
+        # True for every sub-task, even when its parent is not readable by the caller.
+        'is_subtask': bool(task.nasq_parent_id),
         'subtasks': [
             {**_task_ref(child), 'state': list_state(child.state)}
             for child in task.nasq_child_ids.filtered(lambda child: child.active and child.has_access('read'))

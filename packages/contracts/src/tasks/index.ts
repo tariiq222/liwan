@@ -28,6 +28,8 @@ export const PersonalTaskSchema = z.object({
   assignees: z.array(PersonRefSchema),
   creator: PersonRefSchema,
   parent: TaskRefSchema.nullable(),
+  // True for every sub-task, also when its parent is not readable by the caller (then `parent` is null).
+  is_subtask: z.boolean(),
   subtasks: z.array(TaskRefSchema.extend({ state: PersonalTaskStateSchema }).strict()),
   attachment_count: z.number().int().nonnegative(),
   created_at: UtcDateTimeSchema,

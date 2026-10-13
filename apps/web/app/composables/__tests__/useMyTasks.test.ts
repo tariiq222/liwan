@@ -19,7 +19,7 @@ const person = { id: 1, name: 'A' }
 function task(over: Partial<PersonalTask> = {}): PersonalTask {
   return {
     id: 7, name: 'T', description: '', state: 'open', priority: 'normal', date_deadline: null,
-    assignees: [person], creator: person, parent: null, subtasks: [], attachment_count: 0,
+    assignees: [person], creator: person, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,
     created_at: '2026-10-13T00:00:00Z', updated_at: '2026-10-13T00:00:00Z',
     allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: true },
     ...over,

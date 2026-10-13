@@ -17,6 +17,7 @@ export function personalTask(id, overrides = {}) {
     assignees: [ADMIN],
     creator: ADMIN,
     parent: null,
+    is_subtask: false,
     subtasks: [],
     attachment_count: 0,
     created_at: '2026-10-01T08:00:00Z',
@@ -34,10 +35,11 @@ export const SSR_TASKS = {
   7: personalTask(7, { subtasks: [{ id: 11, name: 'اطبع القائمة', state: 'open' }] }),
   8: personalTask(8, { allowed_actions: { ...OPEN_ACTIONS, convert: true } }),
   9: personalTask(9, { state: 'done', allowed_actions: CLOSED_ACTIONS }),
-  10: personalTask(10, { name: 'اطبع القائمة', parent: { id: 7, name: 'اشترِ الورق' } }),
-  11: personalTask(11, { name: 'اطبع القائمة', parent: { id: 7, name: 'اشترِ الورق' } }),
+  10: personalTask(10, { name: 'اطبع القائمة', is_subtask: true, parent: { id: 7, name: 'اشترِ الورق' } }),
+  11: personalTask(11, { name: 'اطبع القائمة', is_subtask: true, parent: { id: 7, name: 'اشترِ الورق' } }),
   12: personalTask(12, { name: 'مهمة بتعليقات' }),
   13: personalTask(13, { name: 'موعد عند منتصف الليل', date_deadline: '2026-10-13T00:00:00Z' }),
+  14: personalTask(14, { name: 'مهمة فرعية بأب مخفي', is_subtask: true, parent: null }),
 }
 
 // Comments the wrapper serves for the first paint, by task id (the others have none).

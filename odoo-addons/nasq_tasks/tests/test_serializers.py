@@ -19,7 +19,7 @@ from odoo.addons.nasq_tasks.tests.common import NasqTasksCase
 
 DETAIL_KEYS = {
     'id', 'name', 'description', 'state', 'priority', 'date_deadline', 'assignees', 'creator',
-    'parent', 'subtasks', 'attachment_count', 'created_at', 'updated_at', 'allowed_actions',
+    'parent', 'is_subtask', 'subtasks', 'attachment_count', 'created_at', 'updated_at', 'allowed_actions',
 }
 LIST_KEYS = {
     'id', 'name', 'state', 'priority', 'date_deadline', 'assignees', 'source', 'project', 'href',
@@ -71,6 +71,7 @@ class TestTaskSerializers(NasqTasksCase):
             'assignees': [self._person(self.alice)],
             'creator': self._person(self.alice),
             'parent': None,
+            'is_subtask': False,
             'subtasks': [{'id': child.id, 'name': 'Child task', 'state': 'done'}],
             'attachment_count': 2,
             'created_at': '2026-10-13T08:00:00Z',
@@ -123,6 +124,9 @@ class TestTaskSerializers(NasqTasksCase):
         # Bob is assigned to the child only; the parent is private to Alice.
         seen = dump_personal_task(child.with_user(self.bob))
         self.assertIsNone(seen['parent'])
+        self.assertTrue(seen['is_subtask'])
+        self.assertTrue(dump_personal_task(child)['is_subtask'])
+        self.assertFalse(dump_personal_task(parent)['is_subtask'])
         self.assertEqual(seen['name'], 'Child')
 
     # list rows of other applications

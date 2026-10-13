@@ -9,7 +9,7 @@ test.describe.configure({ timeout: 60_000 })
 const PERSON = { id: 5, name: 'نورة الحربي', user_id: 5 }
 const CREATED = {
   id: 42, name: 'كتابة التقرير', description: '', state: 'open', priority: 'normal', date_deadline: null,
-  assignees: [], creator: { id: 2, name: 'Admin', user_id: 2 }, parent: null, subtasks: [], attachment_count: 0,
+  assignees: [], creator: { id: 2, name: 'Admin', user_id: 2 }, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,
   created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z',
   allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: true },
 }

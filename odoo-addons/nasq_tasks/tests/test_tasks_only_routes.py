@@ -19,7 +19,7 @@ LIST_KEYS = {
 }
 DETAIL_KEYS = {
     'id', 'name', 'description', 'state', 'priority', 'date_deadline', 'assignees', 'creator',
-    'parent', 'subtasks', 'attachment_count', 'created_at', 'updated_at', 'allowed_actions',
+    'parent', 'is_subtask', 'subtasks', 'attachment_count', 'created_at', 'updated_at', 'allowed_actions',
 }
 ACTION_KEYS = {'write', 'done', 'reopen', 'cancel', 'convert'}
 

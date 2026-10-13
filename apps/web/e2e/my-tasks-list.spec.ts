@@ -66,7 +66,7 @@ async function mockList(page: Page, serve: (query: URLSearchParams) => { items: 
 function detail(id: number) {
   return {
     id, name: 'شراء هدايا العملاء', description: '', state: 'open', priority: 'normal', date_deadline: null,
-    assignees: [person], creator: person, parent: null, subtasks: [], attachment_count: 0,
+    assignees: [person], creator: person, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,
     created_at: '2030-01-01T00:00:00Z', updated_at: '2030-01-01T00:00:00Z',
     allowed_actions: { write: true, done: true, reopen: false, cancel: true, convert: false },
   }

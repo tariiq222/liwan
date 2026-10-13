@@ -15,7 +15,7 @@ const PERSON = { id: 2, name: 'x', user_id: 2 }
 const ACTIONS = { write: true, done: true, reopen: false, cancel: true, convert: false }
 const DETAIL = {
   id: 1, name: 'a', description: '', state: 'open', priority: 'normal', date_deadline: null,
-  assignees: [], creator: PERSON, parent: null, subtasks: [], attachment_count: 0,
+  assignees: [], creator: PERSON, parent: null, is_subtask: false, subtasks: [], attachment_count: 0,
   created_at: '2026-10-13T00:00:00Z', updated_at: '2026-10-13T00:00:00Z', allowed_actions: ACTIONS,
 }
 const ROW = {

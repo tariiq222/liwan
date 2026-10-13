@@ -73,7 +73,7 @@ States: `open | done | cancelled` ↔ `01_in_progress | 1_done | 1_canceled`.
 id, name, description (plain text), state, priority ('normal'|'high'),
 date_deadline (ISO 8601 UTC datetime string `YYYY-MM-DDTHH:MM:SSZ`|null; a bare date is accepted on input),
 assignees: PersonRef[], creator: PersonRef,
-parent: {id, name}|null, subtasks: [{id, name, state}], attachment_count,
+parent: {id, name}|null, is_subtask: bool (true for every sub-task, also when `parent` is null because the parent is unreadable), subtasks: [{id, name, state}], attachment_count,
 created_at, updated_at, allowed_actions: {write, done, reopen, cancel, convert}
 ```
 
