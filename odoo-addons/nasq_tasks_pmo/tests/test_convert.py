@@ -214,6 +214,107 @@ class TestMyTaskConvert(NasqTasksCase):
             self.env['project.task'].with_user(self.bob).browse(mine.id)._nasq_extra_write_fields(),
             frozenset())
 
+    def _shared_parent(self, **extra):
+        """alice's parent shared with bob, plus a sub-task bob made for himself alone."""
+        role = self.env.ref('nasq_core.role_employee')
+        for user in (self.alice, self.bob):
+            if not self.env['nasq.access.assignment'].search_count([
+                    ('user_id', '=', user.id), ('role_id', '=', role.id)]):
+                self.env['nasq.access.assignment'].create({
+                    'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id})
+        parent = self._service(self.alice)._create_task({
+            'name': 'Shared parent', 'assignees': [self.alice.id, self.bob.id], **extra})
+        child = self._service(self.bob)._create_task({
+            'name': 'Bob child', 'parent_id': parent.id, 'assignees': [self.bob.id]})
+        self.assertNotIn(self.alice, child.user_ids)
+        return parent, child
+
+    def test_convert_rehomes_a_subtask_of_another_assignee_and_archived_ones(self):
+        parent, child = self._shared_parent()
+        archived = self._service(self.alice)._create_task({'name': 'Archived child', 'parent_id': parent.id})
+        archived.write({'active': False})
+        self._login(self.alice)
+        self.assertEqual(self._convert(parent).status_code, 200)
+        for record in (child, archived):
+            record = record.with_context(active_test=False)
+            record.invalidate_recordset()
+            self.assertEqual(record.project_id, self.project, record.name)
+            self.assertEqual(record.parent_id, parent, record.name)
+            self.assertFalse(record.nasq_parent_id, record.name)
+        self.assertFalse(archived.active)
+        # No personal row is left pointing at the converted parent.
+        self.assertFalse(self.env['project.task'].with_context(active_test=False).search_count(
+            [('nasq_parent_id', '=', parent.id)]))
+
+    def test_convert_refuses_a_subtask_the_caller_cannot_write(self):
+        parent, child = self._shared_parent()
+        # Take the parent clause out of the write rule: alice still reads bob's sub-task
+        # (read rule) but nothing lets her write it any more.
+        rule = self.env.ref('nasq_tasks.rule_personal_task_creator_write')
+        rule.domain_force = "[('nasq_personal', '=', True), '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id])]"
+        self.assertTrue(child.with_user(self.alice).has_access('read'))
+        self.assertFalse(child.with_user(self.alice).has_access('write'))
+        self._login(self.alice)
+        self._error(self._convert(parent), 422, 'invalid', 'parent_id')
+        parent.invalidate_recordset()
+        child.invalidate_recordset()
+        self.assertTrue(parent.nasq_personal)
+        self.assertEqual(child.nasq_parent_id, parent)
+
+    def test_convert_done_subtask_needs_approval_in_the_target_project(self):
+        parent, child = self._shared_parent()
+        self._service(self.bob)._transition(child, 'done')
+        approving = self.env['project.project'].create({
+            'name': 'Approving project', 'company_id': self.env.company.id,
+            'user_id': self.alice.id, 'nasq_completion_approval': 'project_manager',
+        })
+        self._login(self.alice)
+        self._error(self._convert(parent, project=approving), 422, 'invalid', 'state')
+        parent.invalidate_recordset()
+        child.invalidate_recordset()
+        self.assertTrue(parent.nasq_personal)
+        self.assertEqual(child.nasq_parent_id, parent)
+        self.assertEqual(child.state, '1_done')
+        # A project without approval takes the done sub-task as it is.
+        self.assertEqual(self._convert(parent).status_code, 200)
+        child.invalidate_recordset()
+        self.assertEqual((child.project_id, child.state), (self.project, '1_done'))
+
+    def test_convert_rejects_ids_beyond_the_integer_range(self):
+        task = self.make_personal_task(self.alice, 'ids')
+        self._login(self.alice)
+        self._error(self.api('POST', CONVERT_URL % 2 ** 31, json={'project_id': self.project.id}), 404, 'not_found')
+        self._error(self.api('POST', CONVERT_URL % 10 ** 30, json={'project_id': self.project.id}), 404, 'not_found')
+        for project_id in (2 ** 31, 10 ** 30):
+            self._error(self.api('POST', CONVERT_URL % task.id, json={'project_id': project_id}),
+                        422, 'invalid', 'project_id')
+
+    def test_pmo_tasks_write_is_needed_to_convert(self):
+        user = new_test_user(self.env, login='tasks_nowrite', password='tasks_nowrite_pass_123',
+                             groups='base.group_user')
+        keys = [key for key in ROLE_KEYS if key != 'pmo.tasks.write'] + ['pmo.tasks.create']
+        permissions = self.env['nasq.access.permission'].search([('key', 'in', keys)])
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'nowrite', 'permission_ids': [Command.set(permissions.ids)]})
+        self.env['nasq.access.assignment'].create({
+            'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id})
+        task = self.make_personal_task(user, 'cannot move')
+        self.assertFalse(self._service(user)._allowed_actions(task)['convert'])
+        self._login(user)
+        self.assertEqual(self.api('GET', TARGETS_URL).json(), {'items': [], 'total': 0})
+        self._error(self._convert(task), 403, 'forbidden')
+
+    def test_tasks_feature_gate_closes_both_routes(self):
+        profile = self.env.ref('nasq_platform.tenant_profile')
+        retained = [key for key in (profile.retained_read_features or []) if key != 'tasks.enabled']
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({
+            'features': {**profile.features, 'tasks.enabled': False}, 'retained_read_features': retained})
+        task = self.make_personal_task(self.alice, 'gated by tasks')
+        self._login(self.alice)
+        for response in (self.api('GET', TARGETS_URL), self._convert(task)):
+            self._error(response, 403, 'feature_not_included')
+            self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': 'tasks.enabled'})
+
     # allowed actions
 
     def test_allowed_actions_convert_flag_true_only_with_bridge_and_capability(self):
