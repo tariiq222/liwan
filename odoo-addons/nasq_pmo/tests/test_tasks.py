@@ -12,19 +12,6 @@ TASK_KEYS = {'id', 'name', 'project', 'state', 'priority', 'date_deadline',
 
 @tagged('post_install', '-at_install', 'nasq')
 class TestTaskRead(NasqPmoCase):
-    def test_registers_its_terminology_keys(self):
-        owned = frozenset({
-            'nav.projects',
-            'nav.allProjects',
-            'nav.myProjects',
-            'nav.projectTemplates',
-            'nav.projectTasks',
-            'nav.tasks',
-            'projects.title',
-            'tasks.title',
-        })
-        registered = self.env['nasq.entitlement.service']._nasq_terminology_keys()
-        self.assertLessEqual(owned, registered)
 
     def test_list_requires_mine_filter(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

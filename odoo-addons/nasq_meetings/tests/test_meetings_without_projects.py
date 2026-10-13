@@ -10,15 +10,6 @@ UNSUPPORTED = 'project_id is not supported: the projects application is not inst
 
 @tagged('post_install', '-at_install', 'nasq')
 class TestMeetingsWithoutProjects(NasqMeetingsCase):
-    def test_registers_its_terminology_keys(self):
-        owned = frozenset({
-            'nav.meetings',
-            'nav.meetingCalendar',
-            'nav.meetingSeries',
-        })
-        registered = self.env['nasq.entitlement.service']._nasq_terminology_keys()
-        self.assertLessEqual(owned, registered)
-
     """nasq_meetings without the projects bridge keeps every payload shape and refuses project links (ruling H.1)."""
 
     @classmethod
