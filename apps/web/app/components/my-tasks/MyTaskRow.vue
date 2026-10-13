@@ -10,8 +10,8 @@ const props = defineProps<{
   task: MyTaskListItem
   /** The list's own full path (path + query). */
   returnTo: string
-  /** Local `YYYY-MM-DD`, passed in so the row stays pure. */
-  today: string
+  /** Local `YYYY-MM-DD`, or null before the page is mounted (no overdue styling then). */
+  today: string | null
 }>()
 
 const { t, locale } = useI18n()
@@ -23,13 +23,13 @@ const to = computed(() => props.task.source === 'project'
   ? props.task.href
   : { path: `/my-tasks/${props.task.id}`, query: { returnTo: props.returnTo } })
 const day = computed(() => deadlineDay(props.task.date_deadline))
-const overdue = computed(() => isOverdue(props.task.date_deadline, props.task.state, props.today))
+const overdue = computed(() => props.today !== null && isOverdue(props.task.date_deadline, props.task.state, props.today))
 const shown = computed(() => props.task.assignees.slice(0, MAX_AVATARS))
 const hidden = computed(() => props.task.assignees.length - shown.value.length)
 
+// One letter: two joined Arabic letters do not fit an extra-small avatar and clip.
 function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  return parts.length ? parts.slice(0, 2).map(part => part[0]!.toUpperCase()).join('') : '?'
+  return name.trim().charAt(0).toUpperCase() || '?'
 }
 </script>
 
@@ -81,7 +81,7 @@ function initials(name: string): string {
         :alt="person.name"
         :title="person.name"
         size="xs"
-        class="-ms-2 border-2 border-default first:ms-0"
+        class="-ms-1 border-2 border-default first:ms-0"
       />
       <span v-if="hidden > 0" class="ms-1 text-xs text-muted" dir="ltr">+{{ hidden }}</span>
     </div>

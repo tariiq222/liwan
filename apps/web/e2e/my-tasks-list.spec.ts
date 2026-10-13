@@ -1,8 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
 
-// Opt-in local UI fixture only: the repo mock API does not know the tasks app, so every my-tasks and
-// /me response used here is mocked in the page. No production/default port or real database.
-test.skip(process.env.E2E_MY_TASKS_LIST !== '1', 'Requires the isolated mock server (E2E_MY_TASKS_LIST=1)')
+// Mock-stack spec for the /my-tasks list. It is deliberately NOT in `ci-mock-specs.txt`: the repo mock API
+// (`internal-ui-audit-mock.mjs`) does not know the tasks app, so its /me has no `tasks.*` capability or
+// `tasks.enabled` feature and the server-rendered access check would refuse the page. Every /me refresh
+// and every my-tasks response used here is therefore mocked in the page, and the page is entered through
+// the client router (never `page.goto`). Run it locally as described in docs/testing.md. It uses the same
+// opt-in flag as the other mock specs and talks to an isolated mock only: no production/default port or
+// real database.
+test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'Requires the isolated mock server (E2E_PROJECT_POPUPS=1)')
 test.describe.configure({ timeout: 60_000 })
 
 const person = { id: 2, name: 'Admin', user_id: 2 }
@@ -237,6 +242,28 @@ test('paging continues by offset against the total and tolerates a short page', 
   await expect(more).toHaveCount(0)
   expect(requests.map(query => query.get('offset'))).toEqual(['0', '50', '100'])
   expect(new Set(requests.map(query => query.get('limit')))).toEqual(new Set(['50']))
+})
+
+test('a failed next page keeps the rows and offers a retry', async ({ page }) => {
+  let fail = true
+  const make = (from: number, count: number) => Array.from({ length: count }, (_, i) => toItem(personal(2000 + from + i, `مهمة ${from + i}`)))
+  await page.route('**/api/v1/my-tasks?**', route => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset'))
+    if (offset === 0) return route.fulfill({ json: { items: make(0, 50), total: 60 } })
+    return fail
+      ? route.fulfill({ status: 500, json: { code: 'server_error', message: 'x' } })
+      : route.fulfill({ json: { items: make(50, 10), total: 60 } })
+  })
+  await open(page, '/my-tasks')
+  await expect(rows(page)).toHaveCount(50)
+  await page.getByRole('button', { name: 'تحميل المزيد' }).click()
+  const alert = page.getByRole('alert').filter({ hasText: 'تعذّر تحميل المزيد من المهام' })
+  await expect(alert).toBeVisible({ timeout: 20_000 })
+  await expect(rows(page)).toHaveCount(50)
+  fail = false
+  await alert.getByRole('button', { name: 'إعادة المحاولة' }).click()
+  await expect(rows(page)).toHaveCount(60)
+  await expect(alert).toHaveCount(0)
 })
 
 test('an empty list shows the empty state for each tab and for a search', async ({ page }) => {

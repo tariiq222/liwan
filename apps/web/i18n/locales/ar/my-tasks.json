@@ -33,7 +33,7 @@
       "loadMore": "تحميل المزيد",
       "overdue": "متأخرة",
       "assignees": "المكلّفون",
-      "searchValue": "بحث: {value}"
+      "loadError": "تعذّر تحميل المزيد من المهام. حاول مرة أخرى."
     },
     "form": {
       "createTitle": "مهمة جديدة",

@@ -5,6 +5,7 @@ import MyTaskRow from '@/components/my-tasks/MyTaskRow.vue'
 import { sectionTabsUi } from '@/utils/sectionTabs'
 import { useMyTaskPages } from '@/composables/useMyTaskPages'
 import {
+  dedupeById,
   listPatch,
   localToday,
   MY_TASK_SCOPES,
@@ -27,9 +28,28 @@ const search = ref(state.value.q)
 const debouncedSearch = refDebounced(search, 250)
 
 const query = useMyTaskPages(computed(() => toListParams(state.value)))
-const items = computed(() => (query.data.value?.pages ?? []).flatMap(page => page.items))
-const total = computed(() => query.data.value?.pages[0]?.total ?? 0)
-const today = localToday()
+const items = computed(() => dedupeById((query.data.value?.pages ?? []).flatMap(page => page.items)))
+// The last loaded page carries the freshest total. It can exceed the rows shown: the server may drop
+// rows the caller cannot read while still counting them.
+const total = computed(() => query.data.value?.pages.at(-1)?.total ?? 0)
+
+// The local date is unknown on the server and can differ from the browser's: it is read after mount (so
+// hydration matches, with no overdue styling during SSR) and again when the tab becomes visible.
+const today = ref<string | null>(null)
+function refreshToday() { today.value = localToday() }
+onMounted(() => {
+  refreshToday()
+  document.addEventListener('visibilitychange', onVisible)
+})
+onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible))
+function onVisible() { if (document.visibilityState === 'visible') refreshToday() }
+
+// A failed next page or background refetch must not hide the rows already loaded.
+const inlineError = computed(() => items.value.length > 0 && (query.isFetchNextPageError.value || query.isRefetchError.value))
+function retryInline() {
+  if (query.isFetchNextPageError.value) void query.fetchNextPage()
+  else void query.refetch()
+}
 
 function update(patch: Partial<MyTaskListState>) {
   void router.replace({ query: listPatch(route.query, patch) })
@@ -134,6 +154,19 @@ function clearFilters() {
       :empty-text="emptyText"
       @retry="query.refetch()"
     >
+      <UAlert
+        v-if="inlineError"
+        role="alert"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        :title="t('myTasks.list.loadError')"
+        class="mb-3"
+      >
+        <template #actions>
+          <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated" @click="retryInline">{{ t('app.retry') }}</UButton>
+        </template>
+      </UAlert>
       <UCard :ui="{ body: 'p-0 sm:p-0' }">
         <ul class="divide-y divide-default">
           <MyTaskRow v-for="task in items" :key="task.id" :task="task" :return-to="route.fullPath" :today="today" />

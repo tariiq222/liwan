@@ -33,7 +33,7 @@
       "loadMore": "Load more",
       "overdue": "Overdue",
       "assignees": "Assignees",
-      "searchValue": "Search: {value}"
+      "loadError": "Could not load more tasks. Try again."
     },
     "form": {
       "createTitle": "New task",

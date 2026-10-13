@@ -85,3 +85,12 @@ export function nextOffset({ offset, limit, total, received }: { offset: number;
   const next = offset + limit
   return next < total ? next : undefined
 }
+
+/**
+ * Pages are fetched by offset, so a write between two page loads can shift a row onto the next page
+ * and list it twice; keep the first occurrence of each id.
+ */
+export function dedupeById<T extends { id: number }>(items: readonly T[]): T[] {
+  const seen = new Set<number>()
+  return items.filter(item => !seen.has(item.id) && seen.add(item.id))
+}

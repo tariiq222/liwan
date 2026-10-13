@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  dedupeById,
   deadlineDay,
   isOverdue,
   listPatch,
@@ -59,5 +60,13 @@ describe('my-tasks paging', () => {
     expect(nextOffset({ offset: 100, limit: 50, total: 120, received: 20 })).toBeUndefined()
     expect(nextOffset({ offset: 50, limit: 50, total: 120, received: 0 })).toBeUndefined()
     expect(nextOffset({ offset: 0, limit: 50, total: 50, received: 50 })).toBeUndefined()
+  })
+})
+
+describe('my-tasks row de-duplication', () => {
+  it('keeps the first occurrence of an id and the order', () => {
+    const rows = [{ id: 1, n: 'a' }, { id: 2, n: 'b' }, { id: 1, n: 'c' }, { id: 3, n: 'd' }]
+    expect(dedupeById(rows)).toEqual([{ id: 1, n: 'a' }, { id: 2, n: 'b' }, { id: 3, n: 'd' }])
+    expect(dedupeById([])).toEqual([])
   })
 })
