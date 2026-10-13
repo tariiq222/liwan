@@ -4,18 +4,27 @@ For anyone reviewing a diff in this repository: `/code-review`, the `odoo-review
 The rules themselves live in `AGENTS.md`, `docs/agents/odoo-rules.md` and `docs/agents/web-rules.md`;
 this file says what to report and what not to.
 
-## Already automated: do not re-report
+## Already automated: do not re-report what is covered
 
-| Check | Tool |
-| --- | --- |
-| Architecture rules R1-R10, baseline growth, `arch_layers.json` weakening | `tools/arch_policy.py` |
-| Branch name, commit subject format, `wip` commits | `tools/git_policy.py` |
-| Secrets in the tree, external runtime hosts, doc file references | `tools/secret_guard.py`, `tools/no_external_refs.py`, `tools/docs_policy.py` |
-| UI policy (physical `ml-`/`pl-`/`left-` classes, Storybook components) | `tools/ui_policy.py` |
-| Ruff on `odoo-addons`, Semgrep ERROR and secrets findings on changed source | `ruff`, `tools/semgrep_gate.py` |
+| Tool | Covers | Does not cover |
+| --- | --- | --- |
+| `tools/arch_policy.py` | Architecture rules R1-R10, baseline growth, `tools/arch_layers.json` weakening | Anything outside those rules |
+| `tools/git_policy.py` | Branch name, commit subject format, `wip` commits | Commit content or message body quality |
+| `tools/secret_guard.py` | Tracked secret-bearing paths (env files, key files, deploy data); literal secrets in tracked conf, yml, yaml, env.example, sh and json files under `deploy/` and `.github/` | Secrets in any other file or folder, other file types, secrets that do not match the `password/secret/token/api_key = value` pattern |
+| `tools/no_external_refs.py` | Third-party hosts in `apps/web/app`, `apps/web/public`, `apps/web/server` and `nuxt.config.ts` (`.vue .ts .js .mjs .css .scss .html`) | Other folders, other file types, hosts built at runtime |
+| `tools/docs_policy.py` | Missing file paths in code spans and relative links of the instruction documents it lists | Other documents, code spans broken across two lines, bare file names |
+| `tools/ui_policy.py` | Under `apps/web/app` (vue and ts files): physical edge classes (`ml-`, `mr-`, `pl-`, `pr-`, `left-`, ...), Storybook coverage of listed components | Negative physical margins such as `-ml-2`, inline styles, anything outside `apps/web/app` |
+| `ruff check odoo-addons` | Python lint and import errors in `odoo-addons` | Behavior, security, other folders |
+| `tools/semgrep_gate.py` | ERROR and secrets findings of the `p/python`, `p/typescript`, `p/secrets` rulesets in changed `.py .ts .tsx .js .jsx .mjs .cjs .mts .cts .vue .sh .bash` files outside tests and `docs/`; every `nosemgrep` must read `nosemgrep: <rule-id> -- <reason>` | WARNING findings (listed, not failing), test files, unchanged files, JSON/YAML/Markdown, files Semgrep could only partly parse (`warn parse`) |
 
-Report one of these only when the tool could not have seen it (for example a rule bypassed by
-an inline suppression that has no reason).
+Report an item above only when the tool could not have seen it (for example a rule bypassed in a
+file the tool does not scan).
+
+### Not covered, check by eye
+
+- Secrets in tracked files outside `deploy/` and `.github/`, or in file types the guard does not scan.
+- JSON and YAML under `apps/` (locale files, configs): no policy tool reads them for content.
+- Negative physical margins (`-ml-2`, `-mr-2`) and other physical offsets in new `-` forms.
 
 ## Report, in this order
 

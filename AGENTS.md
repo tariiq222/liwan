@@ -364,8 +364,8 @@ worktrees only after their content is preserved and no process is using them.
 
 ## Check commands
 
-The Odoo scratch-database command block and the CI notes are in `docs/agents/odoo-rules.md`.
-Web checks and general commands:
+Only the Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. The CI notes
+and the web and general commands below stay in this file.
 
 CI is Woodpecker (`.woodpecker.yml`, with the image gate in
 `deploy/woodpecker/image.yml`); GitHub

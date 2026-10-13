@@ -48,7 +48,7 @@ woodpecker-cli exec --local --repo-path /tmp/nasq-ci --backend-engine local \
 
 Other steps need extra local services (PostgreSQL role `nasq_test`, the Odoo checkout, a Docker
 daemon for `image`) and were not run this way. This mirrors CI for a branch before merge; the
-local policy runs in CLAUDE.md stay the binding gate.
+local policy runs in AGENTS.md stay the binding gate.
 
 ## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
 
