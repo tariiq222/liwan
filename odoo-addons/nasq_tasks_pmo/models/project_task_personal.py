@@ -101,3 +101,9 @@ class ProjectTaskPersonal(models.Model):
         if self.nasq_personal:
             return None
         return super()._nasq_emit_comment_notification(message)
+
+    def _nasq_emit_assignment_notifications(self, users):
+        """Assigning a personal task sends only nasq_tasks' own ``tasks.assigned`` row, never PMO's."""
+        if self.nasq_personal:
+            return None
+        return super()._nasq_emit_assignment_notifications(users)
