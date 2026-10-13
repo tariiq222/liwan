@@ -369,8 +369,8 @@ Web checks and general commands:
 
 CI is Woodpecker (`.woodpecker.yml`, with the image gate in
 `deploy/woodpecker/image.yml`); GitHub
-Actions is not used. The main pipeline has seven steps—`static`,
-`control-plane`, `odoo`, `upgrade`, `restore-drill`, `image`, and `e2e-mock`—and each is
+Actions is not used. The main pipeline has eight steps—`static`,
+`control-plane`, `odoo`, `upgrade`, `restore-drill`, `image`, `e2e-mock`, and `rtl-stories`—and each is
 runnable locally with the same command block in that file: static checks, the
 control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
 commands, the backup and restore drill, and the mock Playwright run. The
