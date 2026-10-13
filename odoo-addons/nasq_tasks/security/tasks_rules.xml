@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- A project-less task without company_id fails closed: nobody sees it, so every
+         create path (the Task 3 service) must set company_id. -->
     <!-- A GLOBAL rule (no groups), on purpose. Odoo's task_visibility_rule lets a
          follower read a task and group rules are OR-ed, so only a global rule, which
          is AND-ed with them, keeps a follower who is neither creator nor assignee out
