@@ -143,7 +143,9 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   configuration exists; the optional local git hooks come from `npm run hooks:install`
   (`tools/hooks.py`). Do not introduce another convention.
 - Authorized module tests: use the **Check commands** block below
-  and `.woodpecker.yml` **odoo** step (including its classification fixture),
+  and `.woodpecker.yml` **odoo** step (including its classification fixture; the
+  **odoo-tasks-standalone** and **odoo-tasks-bridge** steps run the same shape for
+  `nasq_tasks` alone and with the PMO bridge),
   with the selected checkout's explicit addons path, `-i` modules,
   `--test-tags /<addon>` and `--stop-after-init`. Require a nonzero test count;
   preserve isolation/cleanup. These are documented commands, not run by setup.
