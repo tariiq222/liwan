@@ -13,6 +13,11 @@ class ProjectTask(models.Model):
     # (a checklist item, depth 1) points at its parent through these own fields.
     # bypass_search_access: the personal-task rules follow this field to the parent's creator and
     # assignees; without it that path would apply the same rules to the parent again, without end.
+    # Cost, accepted: an ORM caller can probe a parent through a domain such as
+    # ``nasq_parent_id.name`` on the sub-tasks it may read, so the creator and assignees of a
+    # sub-task can learn facts about its parent's columns. They are people the parent's
+    # participants chose to work with, no route exposes such a domain, and the parent's own
+    # record rules still guard reading the parent.
     nasq_parent_id = fields.Many2one('project.task', string='Personal parent task',
                                      index=True, ondelete='cascade', copy=False,
                                      bypass_search_access=True)
@@ -27,6 +32,9 @@ class ProjectTask(models.Model):
     def _check_nasq_parent(self):
         for task in self.filtered('nasq_parent_id'):
             parent = task.nasq_parent_id
+            # A parent loaded earlier in the transaction may have gained a project since (a
+            # convert in another request): read the project fresh.
+            parent.invalidate_recordset(['project_id'])
             if (
                 task.project_id or parent.project_id or parent == task or parent.nasq_parent_id
                 or task.nasq_child_ids or parent.company_id != task.company_id

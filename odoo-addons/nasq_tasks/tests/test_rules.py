@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 from odoo.tests import tagged
 
@@ -157,3 +157,13 @@ class TestPersonalTaskRules(NasqTasksCase):
         parent, child = self._subtask_of_another_assignee()
         (parent | child).sudo().company_id = self.other_company
         self.assertFalse(child.with_user(self.alice).has_access('read'))
+
+    def test_a_parent_that_gained_a_project_behind_the_cache_is_not_a_valid_parent(self):
+        parent = self.make_personal_task(self.alice, 'parent')
+        project = self.env['project.project'].create({'name': 'p', 'company_id': self.env.company.id})
+        self.assertFalse(parent.project_id)  # the parent's project is now cached empty
+        # Another request converts the parent: the cached value is stale.
+        self.env.cr.execute('UPDATE project_task SET project_id = %s WHERE id = %s', [project.id, parent.id])
+        with self.assertRaises(ValidationError):
+            self.env['project.task'].create({
+                'name': 'late child', 'company_id': self.env.company.id, 'nasq_parent_id': parent.id})
