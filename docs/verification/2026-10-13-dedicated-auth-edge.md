@@ -1,6 +1,6 @@
 # Dedicated authentication edge — local verification
 
-The three reported dedicated-deployment defects are repaired in `codex/deploy-auth-edge`, based on `f0d70282`. This is an uncommitted worktree change, not a merge, push, deployment, or institutional release acceptance.
+The three reported dedicated-deployment defects are repaired in `codex/deploy-auth-edge`, based on `f0d70282`. At the initial 2026-10-13 verification checkpoint this was an uncommitted worktree change. The owner-authorized integration checkpoint below supersedes that Git status; no deployment or institutional release acceptance is claimed.
 
 ## Behavior
 
@@ -33,8 +33,14 @@ Detailed safe runtime evidence: `/tmp/nasq-auth-edge-live-20261013/acceptance.js
 
 The edge configuration, new compiled web server, and Compose environment must be adopted together. Only Caddy may expose a port when the private-header opt-in is enabled. A separate upstream proxy needs a reviewed trust setup; clients behind one NAT still share an IP budget.
 
-No full Odoo application suite, institution host/LAN/AMD64/load test, production adoption, or shared-mode client-identity redesign is claimed. No commit, merge, push, or deployment was performed. Independent read-only review found no actionable findings; its real-Caddy diagnostics additionally covered thirteen alternate credential URLs and duplicate case-varied private fields with Connection nomination. Live IPv6 socket `/64` behavior remains unverified. The reviewer report is `/tmp/nasq-auth-edge-independent-review.md`.
+No full Odoo application suite, institution host/LAN/AMD64/load test, production adoption, or shared-mode client-identity redesign is claimed. No commit, merge, push, or deployment was included in the initial verification checkpoint. Independent read-only review found no actionable findings; its real-Caddy diagnostics additionally covered thirteen alternate credential URLs and duplicate case-varied private fields with Connection nomination. Live IPv6 socket `/64` behavior remains unverified. The reviewer report is `/tmp/nasq-auth-edge-independent-review.md`.
 
 Policy `sol61-all-v1`: one inline coordinator and one read-only reviewer. Measurement began after initial diagnosis/bootstrap, so whole-task token attribution remains incomplete; no savings claim.
 
-During the task, local `main` advanced to `7df64f57` with CI-only changes in `.woodpecker.yml`; the isolated repair remains on its original `f0d70282` base and has no overlapping changes. Latest-main integration is a separate authorized action.
+During the task, local `main` advanced to `7df64f57` with CI-only changes in `.woodpecker.yml`; the isolated repair remains on its original `f0d70282` base and has no overlapping changes. The owner subsequently authorized local commit, merge and task-scoped cleanup on 2026-10-14.
+
+## Owner-authorized integration checkpoint — 2026-10-14
+
+Source fix committed as `845db804a703c2cef6d2d33a800c94702c50d5fb` and refreshed with latest `main` (`7df64f575988c52997d0ee9cd942498a79d79e3c`) at `3b24d96201dd90cebc75fbe3dd7f75e1c86535dd`. The combined candidate was prepared in a separate isolated worktree based on that current main. No conflicts occurred. The latest CI configuration was preserved byte for byte; runtime/web/deployment files are identical to the independently reviewed fix.
+
+On this combined candidate, `npm test` passed again (743 tools, 194 contracts, 1360 web tests, plus the isolated-runner/policy checks). The deployment suite passed 83/83. Architecture and Git policy checks passed against the current main. Promotion uses `git merge --no-ff` only if main still matches the recorded baseline. Cleanup is restricted to these two task worktrees/branches and the three owned scratch volumes; the four unrelated finance-document changes and other tasks are preserved. No remote push or deployment is part of this integration.

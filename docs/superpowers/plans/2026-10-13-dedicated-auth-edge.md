@@ -4,7 +4,7 @@
 
 **Design:** Caddy uses the socket peer as its client authority and overwrites private `X-Nasq-Client-IP/Host/Proto` fields on the Nuxt hop. The dedicated Compose deployment opts in to consuming those fields. Login and TOTP forward validated values to stock Odoo ProxyFix; local Nuxt without the opt-in keeps its existing behavior. One edge handler applies a 20/minute aggregate credential budget before choosing Nuxt or Odoo.
 
-**Constraints:** Preserve unrelated changes, stock Odoo, shared-mode `proxy_mode=False`, cookies, CSRF checks, and tenant routing. No commit, merge, push, or deployment is authorized. Only the edge publishes ports. Clients sharing a real NAT address still share its budget.
+**Constraints:** Preserve unrelated changes, stock Odoo, shared-mode `proxy_mode=False`, cookies, CSRF checks, and tenant routing. Initial implementation scope did not authorize commit, merge, push or deployment; the later owner authorization and integration checkpoint are recorded below. Only the edge publishes ports. Clients sharing a real NAT address still share its budget.
 
 **Ownership:** Inline coordinator owns auth handlers/helper, Nuxt configuration, dedicated Caddy/Compose, deployment tests and documentation. The shared deployment is a regression boundary, not an identity redesign. Final reviewer is read-only.
 
@@ -44,3 +44,4 @@
 - Integrated gates: npm test passes (743 tool, 194 contract, 1360 web tests), deployment suite 83/83, shared Node boundary tests 29/29; build and web type check pass. Nuxt prepare was rerun after the build to refresh generated typing paths. Architecture/Git policy and diff check pass.
 - Review: independent read-only review found no actionable issues and verified 13 additional exhausted-budget aliases plus duplicate private-header overwrite. No integration or delivery authorization inferred.
 - Concurrent main advancement: only `.woodpecker.yml` changed since the task baseline; no overlapping auth/edge edits. No integration was performed.
+- 2026-10-14: owner authorized local commit, latest-main integration and task-scoped cleanup. Source fix `845db804`, refreshed candidate `3b24d962`; combined npm test and deployment/policy gates passed. Push/deployment remain outside this authorization.
