@@ -1,10 +1,11 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route } from '@playwright/test'
 import { ADMIN, SARA, CONVERT_TARGETS, SSR_COMMENTS, SSR_TASKS, closedActions, openActions, personalTask } from './my-tasks-fixtures.mjs'
 
-// Isolated stack only (apps/web/e2e/my-tasks-upstream.mjs in front of internal-ui-audit-mock.mjs):
+// Isolated stack only: not in ci-mock-specs.txt because the shared mock's /me does not know the tasks
+// application. Run it behind the wrapper e2e/my-tasks-mock.mjs (see docs/testing.md):
 //   E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:<nuxt> npx playwright test e2e/my-tasks-detail.spec.ts
-// The first paint is served by the upstream's fixtures; every browser call to /api/v1/my-tasks is faked here.
-test.skip(process.env.E2E_MY_TASKS !== '1', 'Requires the isolated my-tasks upstream (see header)')
+// The wrapper serves the first paint from my-tasks-fixtures.mjs; every browser call to /api/v1/my-tasks is faked here.
+test.skip(process.env.E2E_MY_TASKS !== '1', 'Requires the isolated e2e/my-tasks-mock.mjs server (E2E_MY_TASKS=1)')
 test.describe.configure({ timeout: 60_000 })
 // Controls stay disabled until hydration; a busy machine hydrates slowly.
 const expect = baseExpect.configure({ timeout: 15_000 })

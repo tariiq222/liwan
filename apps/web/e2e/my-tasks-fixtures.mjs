@@ -1,4 +1,4 @@
-// Personal task fixtures shared by the my-tasks upstream (server-rendered first paint) and the specs
+// Personal task fixtures shared by the my-tasks mock wrapper (server-rendered first paint) and the specs
 // (browser-side `page.route` fakes), so both start from the same shapes.
 export const ADMIN = { id: 2, name: 'Admin', user_id: 2 }
 export const SARA = { id: 5, name: 'سارة محمد', user_id: 5 }
@@ -29,7 +29,7 @@ export function personalTask(id, overrides = {}) {
 export const closedActions = () => ({ ...CLOSED_ACTIONS })
 export const openActions = () => ({ ...OPEN_ACTIONS })
 
-// Ids the upstream answers while rendering on the server.
+// Ids the wrapper answers while rendering on the server.
 export const SSR_TASKS = {
   7: personalTask(7, { subtasks: [{ id: 11, name: 'اطبع القائمة', state: 'open' }] }),
   8: personalTask(8, { allowed_actions: { ...OPEN_ACTIONS, convert: true } }),
@@ -40,7 +40,7 @@ export const SSR_TASKS = {
   13: personalTask(13, { name: 'موعد عند منتصف الليل', date_deadline: '2026-10-13T00:00:00Z' }),
 }
 
-// Comments the upstream serves for the first paint, by task id (the others have none).
+// Comments the wrapper serves for the first paint, by task id (the others have none).
 export const SSR_COMMENTS = {
   12: [{ id: 1, body: 'تعليق قديم <b>نص</b>', author: null, created_at: '2026-10-02T09:00:00Z' }],
 }
