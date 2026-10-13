@@ -28,11 +28,7 @@ This file is the single source of repository instructions for every coding agent
 مكوّنات الواجهة تؤخذ من Storybook (`apps/web/stories/**`، `npm -w apps/web run storybook`)؛ مكوّن مشترك بلا قصة ليس لبنة معتمدة، ولا نسخة محلية من مكوّن له قصة.
 اتبع [UPDATE_POLICY.md](docs/UPDATE_POLICY.md).
 
-Read `docs/WORKSPACE.md` for the workspace and recovery map. Read
-`docs/parallel-work.md` before parallel work or changing shared files.
-These are repository instructions for every coding agent, regardless of tool.
-Before changing `odoo-addons/` or Odoo tests read `docs/agents/odoo-rules.md`; before
-changing `apps/web` read `docs/agents/web-rules.md` and DESIGN.md.
+Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/nasq` on `main`.
@@ -59,18 +55,6 @@ changing `apps/web` read `docs/agents/web-rules.md` and DESIGN.md.
   worktrees/branches, or discard work without authorization for that action.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.
-
-nasq (نَسَق) is an Arabic-first unified business platform whose vision is to
-be the shared foundation for all of a company's business applications, with
-connected data, workflows, and permissions. Its breadth of ambition is
-comparable to Odoo: replace fragmented systems and subscriptions with one
-coherent platform that companies can adopt progressively, aiming to reduce
-total subscription, integration, and operating cost. PMO and HR are initial
-applications, not the full product definition. Sales, finance, purchasing,
-inventory, and other company functions are part of the broader vision, not
-claims of currently delivered functionality. See the owner-approved
-[product definition](apps/web/PRODUCT.md) dated 2026-09-30. Current delivery
-limits describe implementation stages, not permanent product exclusions.
 
 Odoo 19 Community is the engine and `apps/web` (Nuxt 4) is the customer UI,
 with Nasq's own identity and experience. The current
@@ -159,38 +143,8 @@ integrate it into the latest local `main`, preserving previously approved
 behavior and adding the requested changes. It does not authorize undoing an
 earlier decision, merging unrelated worktrees, or deleting recovery material.
 
-Before every integration, including from an older worktree:
-
-1. Read this policy from the canonical `/Users/tariq/code/nasq/AGENTS.md` and
-   the latest committed `main`, not only the incoming worktree's older copy.
-   Inspect and preserve dirty changes in both checkouts. Record the current
-   `main` commit and incoming commit as the integration baseline.
-2. Prepare the combined result in an isolated integration worktree based on
-   that current `main`. A branch that started earlier has no priority over
-   later approved work. Do not replace whole files from the incoming tree,
-   use blanket `ours`/`theirs` conflict resolution, reset `main` to that tree,
-   or treat an ancestor commit's presence as proof its behavior survives.
-3. Review the candidate diff against the recorded current `main`, including
-   deletions, shared components, design decisions, navigation, permissions,
-   contracts and regression tests affected by the incoming work. Reconcile
-   changes so both compatible sets of approved behavior remain. Resolve
-   accidental regressions without asking the user to reapprove old decisions.
-4. Run applicable checks on the combined result. Retain the regression
-   requirements from the recorded `main`; an incoming branch must not make
-   its own regression pass by silently removing or weakening those checks.
-   A failing check requires diagnosis: distinguish a reproduced baseline
-   failure from a new regression and report the actual result. No new
-   regression may be accepted as a completed merge.
-5. If the new request genuinely conflicts with a prior approved behavior,
-   preserve that behavior and ask for the specific decision needed. General
-   permission to commit and merge does not authorize that reversal. Explicit
-   user approval to replace the old behavior permits the corresponding code
-   and regression-test update.
-6. Before updating `main`, verify it still points to the recorded baseline.
-   If another task advanced it, rebuild and verify the candidate against the
-   new tip. Promote only the verified candidate with `git merge --no-ff` (see Git workflow), then
-   verify the resulting commit and working-tree state. Preserve other active
-   worktrees; cleanup still needs separate authorization.
+Before every integration, including from an older worktree, follow the six steps in
+`docs/agents/integration-rules.md`. They are mandatory.
 
 These are mandatory agent workflow instructions. They are not a Git hook or
 server-enforced branch protection; do not claim automated merge protection
@@ -203,79 +157,11 @@ implementation agents must use GPT-5.6 Luna with high reasoning effort
 (`luna-high`); read-only review agents may use Astra. Do not substitute another
 implementation model there without a new user instruction.
 
-## Repository layout
+## Repository layout and product state
 
-- `odoo-addons/nasq_core` depends on `base` only. It owns the access service, the nine system capabilities, the
-  built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
-  protection. Applications add their capabilities to the catalog through `nasq.access.service` hooks.
-- `odoo-addons/nasq_platform` owns the tenant profile singleton and `root_company_id`.
-- `odoo-addons/nasq_api` owns shared `/api/v1` plumbing, common serializers,
-  authentication, branding, and the shared test fixture. It does not import a
-  pillar.
-- `odoo-addons/nasq_notify` (shared service, rank 3) owns the notification bell:
-  the generic `mail.message` columns `nasq_notification`, `nasq_notification_kind`
-  and `nasq_notification_key` with its unique index, the `nasq.notify.registry`
-  where applications register their notification kinds, delivery
-  (`nasq.notify.service._nasq_deliver`) and `/api/v1/notifications`. It names no
-  application.
-- `odoo-addons/nasq_directory` (shared service, rank 3) owns `/api/v1/people`
-  (the user-id picker, whose ids are `res.users` ids) and its population of
-  active internal users of the current company; applications that pick people
-  register their feature keys in `nasq.directory`.
-- `odoo-addons/nasq_pmo` owns projects, tasks, timelines, project settings,
-  attachments, dependencies, archive/restore, its task and digest notification
-  kinds, producers and `/api/v1/notification-digests`, and the eight `pmo.*`
-  capabilities, their groups and the `pmo_manager` role. It does not depend on
-  the meeting engine.
-- `odoo-addons/nasq_hr` owns the HR directory, departments, documents, HR
-  serializers/controllers, `/api/v1/hr/*` (employee ids are
-  `hr.employee` ids), and the eight `hr.*` capabilities, their groups and the
-  `hr_manager` role.
-- `odoo-addons/cyan_meeting_minutes` provides the preserved LGPL meeting engine.
-- `odoo-addons/nasq_meetings` (application, rank 4) extends it: the meeting,
-  series, minutes and recommendation routes (`/api/v1/meetings`,
-  `/api/v1/meeting-series`), their serializers, the seven meeting notification
-  kinds, `meetings.enabled`, the three `meetings.*` capabilities, their groups
-  and the meeting record rules. It knows no other application: links to other
-  records go through the `nasq.meeting.links` hooks, which answer "no project,
-  no linked task" by default.
-- `odoo-addons/nasq_meetings_pmo` (bridge, rank 5, `auto_install`) is installed
-  whenever `nasq_meetings` and `nasq_pmo` both are. It owns the `project_id`
-  columns of meetings, series and recommendations, the task origin columns and
-  their unique index, recommendation-to-task conversion and its route, and the
-  project/task implementation of `nasq.meeting.links`.
-- `packages/contracts/src/common`, `src/access`, `src/pmo`, and `src/hr` hold the Zod wire
-  contracts; each namespace has a barrel re-exported from `src/index.ts`.
-- `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
-  files. `/hr` is the shipped HR directory; `/people` is not the HR route.
-- `odoo-addons/web_theme_shadcn` holds the vendor-console theme.
-- `deploy` holds per-customer Docker, Caddy, provisioning, and branding
-  templates.
-
-## Unified product state
-
-The unified checkout brings together Phase 3b, routed internal pages, capability
-administration, the design system, HR hierarchy/documents, and PMO collaboration.
-The checkout map and delivery records are linked from `docs/WORKSPACE.md`.
-Confirm the selected branch and working tree before reading implementation
-guidance; dated delivery/recovery reports are historical snapshots and do not
-override the capability policy below.
-
-HR manages employee records and archival. Account grants, role assignments,
-password resets and reactivation belong to `/settings/users` and the
-`/api/v1/admin/users` API. Archiving an employee disables linked access;
-unarchiving does not reactivate the login. `/account` changes one's own password.
-Nasq branding settings edit only `primary_color`. Institution name and logo
-are managed in Odoo by `base.group_system`, with company, related partner and
-attachment guards against indirect identity changes.
-
-The Odoo upstream checkout is `/Users/tariq/code/odoo`, branch `19.0`. Its
-source, configuration, and Git state are read-only for this project; source
-inspection and read-only Git audits are allowed. Authorized Odoo commands may
-create or update an explicitly isolated test/development database, but never
-operate arbitrarily on a database or run tests against the dev `odoo19`
-database. Always pass the selected Nasq worktree's `odoo-addons` path
-explicitly; do not assume an Odoo config points at a particular Nasq checkout.
+The addon-by-addon layout, the unified checkout state and the English product background are in
+`docs/agents/repository-layout.md`. Read it before changing addon boundaries, ownership or
+cross-addon links.
 
 ## Product contracts
 
@@ -364,23 +250,11 @@ worktrees only after their content is preserved and no process is using them.
 
 ## Check commands
 
-Only the Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. The CI notes
-and the web and general commands below stay in this file.
-
-CI is Woodpecker (`.woodpecker.yml`, with the image gate in
-`deploy/woodpecker/image.yml`); GitHub
-Actions is not used. The main pipeline has eight steps—`static`,
-`control-plane`, `odoo`, `upgrade`, `restore-drill`, `image`, `e2e-mock`, and `rtl-stories`—and each is
-runnable locally with the same command block in that file: static checks, the
-control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
-commands, the backup and restore drill, and the mock Playwright run. The
-control-plane live suites run serially by design: its `test` script sets
-`--no-file-parallelism --hookTimeout=60000` because they share one scratch
-control database and TRUNCATE the same tables. The `image` step
-needs a Docker daemon on the agent; `deploy/woodpecker/image.yml` is the separate opt-in pipeline for
-agents whose engine can start a privileged dind service. The
-migration policy is [`docs/migrations.md`](docs/migrations.md), and the pinned
-Odoo source commit is [`deploy/odoo/ODOO_COMMIT`](deploy/odoo/ODOO_COMMIT).
+The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is Woodpecker
+(`.woodpecker.yml`, eight steps, each runnable locally); its notes and the local `woodpecker-cli exec`
+recipe are in `docs/testing.md` ("CI pipeline notes"). Fast local loop: `npm run check:fast`,
+`npm run test:odoo`, `npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
+Web checks and general commands:
 
 Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`
 (that is `vue-tsc --build --noEmit`) for the web type check, and
