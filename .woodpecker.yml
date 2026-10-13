@@ -7,9 +7,10 @@
 #
 # Steps: static, control-plane, odoo, upgrade, restore-drill, image, e2e-mock.
 #
-# The control-plane live-PG suites share one scratch database. They run serially
-# by design (apps/control-plane `test` sets --no-file-parallelism and a 60s hook
-# timeout); parallel runs conflict because the suites TRUNCATE the same tables.
+# The control-plane live-PG suites run serially by design (apps/control-plane `test`
+# sets --no-file-parallelism and a 60s hook timeout); parallel runs conflict because
+# the suites TRUNCATE the same tables. Three suites pin their own database name, so
+# deploy/control-plane/ci-test.sh provisions nasq_control_scratch_{ci,payfinal,restorec}.
 when:
   event: [push, manual, pull_request]
   branch: main
@@ -42,13 +43,9 @@ steps:
       - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
       # plugin-git may produce a shallow clone on the local backend; ui_policy needs full history.
       - if git rev-parse --is-shallow-repository | grep -q true; then git fetch --unshallow origin; fi
-      - export CONTROL_TEST_DATABASE_URL="postgres://nasq_test:odoo@127.0.0.1:5432/nasq_control_scratch_ci"
-      - PGPASSWORD=odoo dropdb -h 127.0.0.1 -U nasq_test --if-exists nasq_control_scratch_ci || true
-      - PGPASSWORD=odoo createdb -h 127.0.0.1 -U nasq_test nasq_control_scratch_ci
-      - npm -w packages/commercial-contracts run test
-      - npm -w apps/control-plane test
-      - npm -w packages/commercial-contracts run build
-      - npm -w apps/control-plane run build
+      # Creates the three scratch databases the live suites pin by name, runs them in
+      # two groups, builds, and drops the databases (see the script header).
+      - PGUSER=nasq_test PGPASSWORD=odoo deploy/control-plane/ci-test.sh
 
   - name: odoo
     image: bash
