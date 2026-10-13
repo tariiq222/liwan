@@ -15,13 +15,13 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
+    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/project-templates', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     // Account and appearance live in the header, so an employee has no settings module.
     expect(nav.filter(item => item.group === 'settings')).toEqual([])
     expect(visibleShellModules(employee).map(module => module.id)).not.toContain('settings')
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/project-templates'])
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/project-templates'])
     expect(nav.map(item => item.to)).not.toContain('/projects/settings')
     expect(nav.find(item => item.to === '/projects/dashboard')?.module).toBe('home')
     expect(nav.find(item => item.to === '/projects')?.module).toBe('projects')
@@ -122,8 +122,8 @@ describe('module rail', () => {
 
   it('selects permitted module destinations without legacy group leakage', () => {
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
-    expect(today(taskOnly.map(item => item.id))).toEqual(['projects', 'chat'])
-    expect(taskOnly.find(item => item.id === 'projects')?.to).toBe('/tasks')
+    // /tasks is no longer a PMO nav item, so a task-only reader sees no projects module.
+    expect(today(taskOnly.map(item => item.id))).toEqual(['chat'])
     const departmentOnly = visibleShellModules({ capabilities: ['hr.departments.read'] })
     expect(departmentOnly.find(item => item.id === 'hr')?.to).toBe('/hr/departments')
     expect(visibleShellModules(undefined)).toEqual([])
