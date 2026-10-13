@@ -21,6 +21,7 @@ def main() -> int:
     cmd = ["npm", "-w", "apps/control-plane", "run", "admin", "--", "migrate-saas-commercial", "--run" if a.run else "--dry-run"]
     if a.report: cmd += ["--report", a.report]
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args -- fixed argv list; env carries only the validated database URL
     return subprocess.call(cmd, cwd=root, env=env)
 
 if __name__ == "__main__":
