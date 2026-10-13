@@ -60,8 +60,14 @@ class ProjectTaskPersonal(models.Model):
             ):
                 return super()._nasq_projectless_create_allowed(vals_list)
             parent_id = vals.get('nasq_parent_id')
-            if parent_id and not self.browse(parent_id).exists().nasq_personal:
-                return super()._nasq_projectless_create_allowed(vals_list)
+            if parent_id:
+                try:
+                    is_personal = self.browse(parent_id).exists().nasq_personal
+                except AccessError:
+                    # A parent the caller cannot read is not an answer to raise: PMO refuses the create.
+                    is_personal = False
+                if not is_personal:
+                    return super()._nasq_projectless_create_allowed(vals_list)
         return True
 
     def _nasq_in_convert_scope(self):

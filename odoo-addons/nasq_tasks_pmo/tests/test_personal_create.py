@@ -134,3 +134,13 @@ class TestPersonalCreateWithPmo(NasqTasksCase):
         task = Task.create(self._vals(self.alice))
         self.assertEqual(task.project_id, project)
         self.assertFalse(task.nasq_personal)
+
+    def test_unreadable_parent_is_answered_false_not_raised(self):
+        hidden = self.make_personal_task(self.bob, name='bob only', assignees=[self.bob.id])
+        Task = self.env['project.task'].with_user(self.alice)
+        self.assertFalse(hidden.with_user(self.alice).has_access('read'))
+        self.env.invalidate_all()  # a cold cache, as in a request: reading the parent checks access
+        self.assertFalse(Task._nasq_projectless_create_allowed(
+            [self._vals(self.alice, nasq_parent_id=hidden.id)]))
+        with self.assertRaises(AccessError):
+            Task.create(self._vals(self.alice, nasq_parent_id=hidden.id))
