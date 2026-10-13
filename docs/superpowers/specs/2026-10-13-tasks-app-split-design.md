@@ -46,14 +46,24 @@ Personal task = `project.task` with `project_id = False` (Odoo's own
 
 - `nasq_personal` — stored boolean, computed `not project_id`, indexed.
   Used by rules and domains so the two populations never overlap.
-- Nothing else. Name, description, `user_ids`, `date_deadline`, `priority`,
-  `parent_id`/`child_ids` (sub-tasks as the checklist), `state`,
+- `nasq_parent_id` / `nasq_child_ids` — a personal sub-task points at its parent through these
+  own fields (many2one with `ondelete='cascade'` and one2many), not Odoo's `parent_id`/`child_ids`:
+  Odoo forbids `parent_id` on a project-less task. The convert (section 6) moves the sub-tasks of
+  a converted task to Odoo's `parent_id` once the parent has a project.
+- Nothing else. Name, description, `user_ids`, `date_deadline`, `priority`, `state`,
   `company_id`, `create_uid`, attachments and `mail.message` are Odoo's.
+
+Visibility is one **global** record rule (no groups, so it is AND-ed with Odoo's own task rules and a
+follower who is neither creator nor assignee cannot read a personal task): a personal task is readable
+by its company's creator and assignees and, for a sub-task, by the creator and assignees of its parent;
+a group rule per capability adds the read of sub-tasks for parent participants and the write for the
+creator. Project tasks pass through the rule untouched. A removed assignee loses read access at once,
+and is also dropped from the task's followers so a comment never reaches them (section 9).
 
 Constraints enforced in the service layer:
 
 - A personal task's `company_id` is the caller's current company.
-- A personal sub-task's parent is a readable personal task in the same
+- A personal sub-task's parent (`nasq_parent_id`) is a readable personal task in the same
   company; depth 1 only (a sub-task has no sub-tasks).
 - Assignees come from the `/api/v1/people` population (active internal
   users of the current company); `nasq_tasks` registers its feature keys in
@@ -159,10 +169,13 @@ Groups and records in `nasq_tasks/security/`: three capability groups, ACLs
 on `project.task` for those groups (read/create/write, no unlink), and
 record rules:
 
-- `rule_personal_task_visible` (group `tasks.tasks.read`):
-  `[('nasq_personal','=',True), ('company_id','=',company_id),
-    '|', ('create_uid','=',user.id), ('user_ids','in',[user.id])]`
-- Write rule on the same domain for group `tasks.tasks.write`.
+- `rule_personal_task_visible`, a **global** rule (no groups, so it narrows Odoo's own task rules
+  instead of being OR-ed with them):
+  `['|', ('nasq_personal','=',False), '&', ('company_id','=',company_id),
+    '|', '|', ('create_uid','=',user.id), ('user_ids','in',[user.id]),
+    '|', ('nasq_parent_id.create_uid','=',user.id), ('nasq_parent_id.user_ids','in',[user.id])]`
+- Two group rules OR the extra access in: read of sub-tasks for the participants of the parent
+  (group `tasks.tasks.read`) and write for the creator or an assignee (group `tasks.tasks.write`).
 
 The implementer verifies Odoo 19's own private-task rules on `project.task`
 in `/Users/tariq/code/odoo/addons/project/security/` and keeps the Nasq rule
@@ -195,6 +208,11 @@ candidate lookup, exactly as PMO's notification cases. Nothing else.
 sent when a user other than the recipient adds them to a personal task's
 assignees. One row per (task, recipient), replaced on re-assignment. Bell
 href `/my-tasks/{task_id}`. The web manifest lists it under `bell.kinds`.
+
+A comment on a personal task (`mail.mt_comment`) is delivered only to people who can read the task:
+its creator, its current assignees and the creator and assignees of its parent. The service also
+unsubscribes a removed assignee (Odoo keeps assignees as followers), and `_notify_get_recipients`
+filters the rest.
 
 ## 10. Web
 
