@@ -5,6 +5,9 @@
 # The `image` field specifies the shell, not a container image.
 # All tools (node, python3, ruff, psql, docker, git) must exist on the host.
 #
+# Woodpecker substitutes every ${VAR} in this file before the shell runs it (an undefined name
+# becomes empty), so shell expansions are written $${VAR}; ${CI_*} names are Woodpecker's own.
+#
 # Steps: static, control-plane, odoo, upgrade, restore-drill, image, e2e-mock, rtl-stories.
 #
 # The control-plane live-PG suites run serially by design (apps/control-plane `test`
@@ -59,7 +62,7 @@ steps:
         ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
         SCRATCH_DB="nasq_ci_scratch_${CI_PIPELINE_NUMBER}"
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
-        TAGS="/${MODULES//,/,/}"
+        TAGS="/$${MODULES//,/,/}"
         SCRATCH_ROOT="$(mktemp -d)"
         mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
         cleanup() { PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; }
@@ -71,7 +74,7 @@ steps:
         "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \
           --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" \
           --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
-          -d "$SCRATCH_DB" --db-filter="^${SCRATCH_DB}$" \
+          -d "$SCRATCH_DB" --db-filter="^$${SCRATCH_DB}$" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
           -i "$MODULES" \
           --test-tags "$TAGS" \
@@ -102,7 +105,7 @@ steps:
         ODOO_DB_ARGS="--db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo"
         git worktree add _baseline "$BASE_TAG"
         # Install the previous release
-        if [ -n "${NASQ_COMMERCIAL_CONFIG:-}" ]; then
+        if [ -n "$${NASQ_COMMERCIAL_CONFIG:-}" ]; then
           echo "previous release must not inherit a commercial classification" >&2
           exit 1
         fi
@@ -141,7 +144,7 @@ steps:
         RST2_DB="nasq_drill_restored2_scratch"
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         cleanup() {
-          if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
+          if [ -n "$${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
           for db in "$SRC_DB" "$RST_DB" "$RST2_DB"; do PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$db" 2>/dev/null || true; done
           rm -rf "$W"
         }
@@ -228,7 +231,7 @@ steps:
         node e2e/internal-ui-audit-mock.mjs > mock.log 2>&1 &
         MOCK_PID=$!
         cleanup() {
-          if [ -n "${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
+          if [ -n "$${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
           kill "$MOCK_PID" 2>/dev/null || true; wait "$MOCK_PID" 2>/dev/null || true
         }
         trap cleanup EXIT
