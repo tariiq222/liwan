@@ -45,3 +45,15 @@ export function validateMyTaskName(name: string): 'required' | 'tooLong' | null 
   if (!trimmed) return 'required'
   return trimmed.length > MY_TASK_NAME_MAX ? 'tooLong' : null
 }
+
+// The fields the personal task form shows. A server error that names one of them belongs under it;
+// `user_ids` is the storage name of `assignees`.
+const FORM_FIELDS = ['name', 'description', 'date_deadline', 'priority', 'assignees'] as const
+const FIELD_ALIASES: Record<string, string> = { user_ids: 'assignees' }
+
+/** The form field a server error names, or null for no field or one the form does not show. */
+export function myTaskFormField(field: string | null | undefined): string | null {
+  if (!field) return null
+  const resolved = FIELD_ALIASES[field] ?? field
+  return (FORM_FIELDS as readonly string[]).includes(resolved) ? resolved : null
+}

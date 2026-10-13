@@ -5,6 +5,7 @@ import {
   buildMyTaskPayload,
   deadlineToDateInput,
   MY_TASK_NAME_MAX,
+  myTaskFormField,
   validateMyTaskName,
   type MyTaskFormValues,
 } from '@/utils/myTaskPayload'
@@ -55,6 +56,12 @@ const dirty = computed(() => isDirtySnapshot(baseline.value, JSON.stringify(valu
 // The parent calls this once the server confirmed the write, before it navigates away.
 defineExpose({ markSaved: () => { saved.value = true } })
 
+// The name input is disabled until hydration, so it takes focus only once it is live.
+const nameInput = ref<{ inputRef?: HTMLInputElement | null } | null>(null)
+function focusName() { nameInput.value?.inputRef?.focus() }
+onMounted(() => { if (hydrated.value) focusName() })
+watch(hydrated, async live => { if (live) { await nextTick(); focusName() } })
+
 const priorityItems = computed(() => (['normal', 'high'] as const).map(value => ({ value, label: t(`myTasks.priority.${value}`) })))
 
 const attempted = ref(false)
@@ -65,17 +72,12 @@ const localNameError = computed(() => attempted.value && nameProblem.value
     : t('myTasks.form.nameTooLong', { max: MY_TASK_NAME_MAX })
   : undefined)
 
-// Server errors belong under the field they name; `user_ids` is the storage name of `assignees`.
-const FIELD_ALIASES: Record<string, string> = { user_ids: 'assignees' }
-const serverField = computed(() => {
-  const field = props.error instanceof ApiError ? props.error.field : undefined
-  return field ? FIELD_ALIASES[field] ?? field : null
-})
-const FIELDS = ['name', 'description', 'date_deadline', 'priority', 'assignees']
+// Server errors belong under the field they name; anything else is a form-level alert.
+const serverField = computed(() => props.error instanceof ApiError ? myTaskFormField(props.error.field) : null)
 function serverError(field: string): string | undefined {
   return props.error && serverField.value === field ? props.error.message : undefined
 }
-const generalError = computed(() => props.error && !(serverField.value && FIELDS.includes(serverField.value)) ? props.error.message : null)
+const generalError = computed(() => props.error && !serverField.value ? props.error.message : null)
 
 function submit() {
   if (!hydrated.value || props.pending) return
@@ -92,10 +94,10 @@ function submit() {
     <UFormField :label="t('myTasks.form.name')" name="name" required :error="localNameError ?? serverError('name')">
       <UInput
         id="my-task-name"
+        ref="nameInput"
         v-model="values.name"
         class="w-full"
         required
-        autofocus
         :maxlength="MY_TASK_NAME_MAX + 1"
         :placeholder="t('myTasks.form.namePlaceholder')"
         :disabled="!hydrated || pending"

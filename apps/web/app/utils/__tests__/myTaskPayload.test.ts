@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMyTaskPayload, deadlineToDateInput, validateMyTaskName, type MyTaskFormValues } from '../myTaskPayload'
+import { buildMyTaskPayload, deadlineToDateInput, myTaskFormField, validateMyTaskName, type MyTaskFormValues } from '../myTaskPayload'
 
 const values = (over: Partial<MyTaskFormValues> = {}): MyTaskFormValues => ({
   name: '  Write report ', description: '', deadline: null, priority: 'normal', assignees: [], ...over,
@@ -39,5 +39,17 @@ describe('validateMyTaskName', () => {
     expect(validateMyTaskName('   ')).toBe('required')
     expect(validateMyTaskName('a'.repeat(256))).toBe('tooLong')
     expect(validateMyTaskName('a'.repeat(255))).toBeNull()
+  })
+})
+
+describe('myTaskFormField', () => {
+  it('names the shown field of a server error and resolves the user_ids alias', () => {
+    for (const field of ['name', 'description', 'date_deadline', 'priority', 'assignees']) expect(myTaskFormField(field)).toBe(field)
+    expect(myTaskFormField('user_ids')).toBe('assignees')
+  })
+  it('returns null for no field or a field the form does not show', () => {
+    expect(myTaskFormField(undefined)).toBeNull()
+    expect(myTaskFormField(null)).toBeNull()
+    expect(myTaskFormField('parent_id')).toBeNull()
   })
 })
