@@ -87,6 +87,10 @@ class TestMyTaskService(NasqTasksCase):
             ({'name': 'x' * 256}, 'name'),
             ({'name': 123}, 'name'),
             ({'name': 'a', 'priority': 'urgent'}, 'priority'),
+            ({'name': 'a', 'priority': []}, 'priority'),
+            ({'name': 'a', 'priority': {}}, 'priority'),
+            ({'name': 'a', 'assignees': [2 ** 31]}, 'assignees'),
+            ({'name': 'a', 'parent_id': 2 ** 31}, 'parent_id'),
             ({'name': 'a', 'date_deadline': 'tomorrow'}, 'date_deadline'),
             ({'name': 'a', 'date_deadline': '2026-12-01T09:00:00+03:00'}, 'date_deadline'),
             ({'name': 'a', 'description': 5}, 'description'),
@@ -165,6 +169,15 @@ class TestMyTaskService(NasqTasksCase):
         project = self.env['project.project'].create({'name': 'p', 'company_id': self.env.company.id})
         with self.assertRaises(ValidationError):
             child.sudo().project_id = project
+        # A parent in another company, and a task that already has sub-tasks, are refused too.
+        foreign = self.env['project.task'].with_company(self.other_company).create(
+            {'name': 'abroad', 'company_id': self.other_company.id})
+        with self.assertRaises(ValidationError):
+            self.env['project.task'].create({
+                'name': 'x', 'company_id': self.env.company.id, 'nasq_parent_id': foreign.id})
+        other_parent = self.create(self.alice, 'other parent')
+        with self.assertRaises(ValidationError):
+            parent.sudo().nasq_parent_id = other_parent  # parent already has a child
         # A project task cannot become a sub-task of a personal task.
         project_task = self.env['project.task'].create({'name': 'pt', 'project_id': project.id})
         with self.assertRaises(ValidationError):
@@ -207,6 +220,8 @@ class TestMyTaskService(NasqTasksCase):
         task = self.create(self.alice)
         self.assertApiError(422, 'invalid', service._transition, task, 'reopen')
         self.assertApiError(422, 'invalid', service._transition, task, 'explode', field='action')
+        self.assertApiError(422, 'invalid', service._transition, task, [], field='action')
+        self.assertApiError(422, 'invalid', service._transition, task, {}, field='action')
         task = service._transition(task, 'cancel')
         self.assertEqual(task.state, '1_canceled')
         self.assertEqual(service._allowed_actions(task),
@@ -218,23 +233,60 @@ class TestMyTaskService(NasqTasksCase):
         task = service._transition(task, 'done')
         self.assertEqual(service._transition(task, 'reopen').state, '01_in_progress')
 
-    def test_allowed_actions_follow_the_write_access_of_a_creator_who_is_not_assignee(self):
-        # Odoo lets only assignees write a personal task; with nasq_pmo installed the creator
-        # may write too. Either way the flags and the mutators agree with the ORM answer.
+    def _creator_only_task(self):
+        """A task alice created and then handed to bob alone: alice is creator, not assignee.
+
+        The three users get the employee role: the write rule of the creator belongs to the
+        tasks.tasks.write capability group, which the role assignment syncs onto the user.
+        """
+        role = self.env.ref('nasq_core.role_employee')
+        for user in (self.alice, self.bob, self.carol):
+            self.env['nasq.access.assignment'].create({
+                'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id})
+            self.assertTrue(user.has_group('nasq_tasks.group_cap_tasks_tasks_write'))
         task = self.create(self.alice, 'a', assignees=[self.bob.id])
         task = self.service(self.alice)._update_task(task, {'assignees': [self.bob.id]})
         self.assertNotIn(self.alice, task.user_ids)
-        can_write = task.with_user(self.alice).has_access('write')
-        actions = self.service(self.alice)._allowed_actions(task)
-        self.assertEqual(actions, {'write': can_write, 'done': can_write, 'reopen': False,
-                                   'cancel': can_write, 'convert': False})
-        if can_write:
-            self.assertEqual(self.service(self.alice)._transition(task, 'done').state, '1_done')
-        else:
-            self.assertApiError(403, 'forbidden', self.service(self.alice)._transition, task, 'done')
-        # The assignee can always write.
-        bob_actions = self.service(self.bob)._allowed_actions(task)
-        self.assertEqual(bob_actions['write'], True)
+        self.assertEqual(task.create_uid, self.alice)
+        return task
+
+    def test_creator_who_is_not_assignee_can_write_in_both_configs(self):
+        task = self._creator_only_task()
+        service = self.service(self.alice)
+        self.assertTrue(task.with_user(self.alice).has_access('write'))
+        self.assertEqual(service._allowed_actions(task), {
+            'write': True, 'done': True, 'reopen': False, 'cancel': True, 'convert': False})
+        task = service._update_task(task, {'name': 'renamed'})
+        self.assertEqual(task.name, 'renamed')
+        self.assertEqual(service._transition(task, 'done').state, '1_done')
+        self.assertTrue(service._allowed_actions(task)['reopen'])
+        self.assertEqual(service._transition(task, 'reopen').state, '01_in_progress')
+        # The assignee still writes.
+        self.assertTrue(self.service(self.bob)._allowed_actions(task)['write'])
+
+    def test_creator_who_is_not_assignee_can_add_a_subtask(self):
+        parent = self._creator_only_task()
+        child = self.create(self.alice, 'c', parent_id=parent.id)
+        self.assertEqual(child.nasq_parent_id, parent)
+
+    def test_stranger_and_follower_still_cannot_write(self):
+        task = self._creator_only_task()
+        task.sudo().message_subscribe(partner_ids=[self.carol.partner_id.id])
+        service = self.service(self.carol)
+        self.assertFalse(task.with_user(self.carol).has_access('read'))
+        self.assertApiError(404, 'not_found', service._update_task, task, {'name': 'x'})
+        self.assertApiError(404, 'not_found', service._transition, task, 'done')
+        self.assertEqual(service._allowed_actions(task)['write'], False)
+        self.assertEqual(task.name, 'a')
+
+    def test_allowed_actions_of_a_project_task_are_all_false(self):
+        if not self.bridge_installed():
+            self.skipTest('only the nasq_tasks_pmo bridge lists project tasks')
+        project = self.env['project.project'].create({'name': 'p', 'company_id': self.env.company.id})
+        project_task = self.env['project.task'].create(
+            {'name': 'pt', 'project_id': project.id, 'user_ids': [Command.set([self.alice.id])]})
+        self.assertEqual(self.service(self.alice)._allowed_actions(project_task), {
+            'write': False, 'done': False, 'reopen': False, 'cancel': False, 'convert': False})
 
     def test_update(self):
         task = self.create(self.alice, 'a', priority='high')
@@ -297,6 +349,8 @@ class TestMyTaskService(NasqTasksCase):
         ):
             with self.subTest(user='nobody', method=func.__name__):
                 self.assertApiError(403, 'forbidden', func, *args)
+        with self.subTest(user='nobody', method='_transition with an unknown action'):
+            self.assertApiError(403, 'forbidden', self.service(nobody)._transition, task, 'explode')
         with self.subTest(user='nobody', method='_search_list'):
             self.assertApiError(
                 403, 'forbidden', self.service(nobody)._search_list,
@@ -358,6 +412,24 @@ class TestMyTaskService(NasqTasksCase):
         self.assertEqual(total, 3)
         self.assertApiError(422, 'invalid', service._search_list, closed=False, q=None, assigned=True,
                             created=True, sort='bogus', limit=5, offset=0, field='sort')
+
+    def test_list_search_is_literal_and_paging_is_clamped(self):
+        percent = self.create(self.alice, 'a%b')
+        underscore = self.create(self.alice, 'a_b')
+        self.create(self.alice, 'axb')
+        self.create(self.alice, 'azzb')
+
+        def rows(**kwargs):
+            args = {'closed': False, 'q': None, 'assigned': True, 'created': True,
+                    'sort': 'name', 'limit': 50, 'offset': 0, **kwargs}
+            return self.service(self.alice)._search_list(**args)
+
+        self.assertEqual(rows(q='a%b')[0], percent)
+        self.assertEqual(rows(q='a_b')[0], underscore)
+        for limit in (0, -5):
+            page, total = rows(limit=limit)
+            self.assertEqual((len(page), total), (1, 4))
+        self.assertEqual(rows(offset=-3), rows(offset=0))
 
     def test_list_limit_is_capped(self):
         self.env['project.task'].with_user(self.alice).create([{

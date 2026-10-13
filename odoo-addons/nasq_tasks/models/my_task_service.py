@@ -31,6 +31,7 @@ SORTS = {
 }
 MAX_LIMIT = 100
 MAX_NAME_LENGTH = 255
+MAX_ID = 2 ** 31  # PostgreSQL integer ids
 CREATE_FIELDS = frozenset({'name', 'description', 'date_deadline', 'priority', 'assignees', 'parent_id'})
 UPDATE_FIELDS = CREATE_FIELDS - {'parent_id'}
 
@@ -54,7 +55,7 @@ def _parse_deadline(value, key='date_deadline'):
 
 
 def _is_id(value):
-    return isinstance(value, int) and not isinstance(value, bool)
+    return isinstance(value, int) and not isinstance(value, bool) and 0 < value < MAX_ID
 
 
 class NasqMyTaskService(models.AbstractModel):
@@ -131,7 +132,9 @@ class NasqMyTaskService(models.AbstractModel):
         state_domain = Domain('state', 'in', CLOSED_STATES)
         domain &= ~state_domain if not closed else state_domain
         if q:
-            domain &= Domain('name', 'ilike', q)
+            # Odoo's ilike keeps % and _ as wildcards; search the text literally.
+            literal = q.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+            domain &= Domain('name', '=ilike', f'%{literal}%')
         Task = self.env['project.task']
         limit = max(1, min(limit, MAX_LIMIT))
         tasks = Task.search(domain, order=SORTS[sort], limit=limit, offset=max(0, offset))
@@ -160,7 +163,7 @@ class NasqMyTaskService(models.AbstractModel):
         if 'date_deadline' in vals:
             out['date_deadline'] = _parse_deadline(vals['date_deadline'])
         if 'priority' in vals:
-            if vals['priority'] not in PRIORITY_TO_STORED:
+            if not isinstance(vals['priority'], str) or vals['priority'] not in PRIORITY_TO_STORED:
                 _reject(f'priority must be one of {sorted(PRIORITY_TO_STORED)}', 'priority')
             out['priority'] = PRIORITY_TO_STORED[vals['priority']]
         if 'assignees' in vals:
@@ -208,9 +211,9 @@ class NasqMyTaskService(models.AbstractModel):
 
     @api.model
     def _transition(self, task, action):
-        if action not in TRANSITIONS:
-            _reject(f'action must be one of {sorted(TRANSITIONS)}', 'action')
         task = self._writable_personal(task.with_env(self.env))
+        if not isinstance(action, str) or action not in TRANSITIONS:
+            _reject(f'action must be one of {sorted(TRANSITIONS)}', 'action')
         sources, target = TRANSITIONS[action]
         if task.state not in sources:
             _reject(f'a {STATE_TO_WIRE.get(task.state, task.state)} task cannot be moved by {action}', 'action')
@@ -220,6 +223,10 @@ class NasqMyTaskService(models.AbstractModel):
     @api.model
     def _allowed_actions(self, task):
         task = task.with_env(self.env)
+        if not (task.has_access('read') and task.nasq_personal):
+            # Rows of other applications (the bridge's project tasks) and rows the caller
+            # cannot read offer no personal action.
+            return dict.fromkeys(('write', 'done', 'reopen', 'cancel', 'convert'), False)
         can_write = self._has_capability('tasks.tasks.write') and task.has_access('write')
         is_open = task.state == '01_in_progress'
         return {

@@ -13,4 +13,18 @@
             '&amp;', ('company_id', '=', company_id),
             '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id])]</field>
     </record>
+    <!-- Group rules are OR-ed with Odoo's own edition rule (assignees only), so a creator
+         who is no longer an assignee can still write what they made, in every config.
+         The global rule above keeps AND-ing: company and privacy are unchanged. -->
+    <record id="rule_personal_task_creator_write" model="ir.rule">
+        <field name="name">Tasks: the creator or an assignee writes a personal task</field>
+        <field name="model_id" ref="project.model_project_task"/>
+        <field name="domain_force">[('nasq_personal', '=', True),
+            '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id])]</field>
+        <field name="groups" eval="[(4, ref('group_cap_tasks_tasks_write'))]"/>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="perm_write" eval="True"/>
+    </record>
 </odoo>

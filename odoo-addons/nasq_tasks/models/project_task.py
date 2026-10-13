@@ -20,10 +20,13 @@ class ProjectTask(models.Model):
         for task in self:
             task.nasq_personal = not task.project_id
 
-    @api.constrains('nasq_parent_id', 'project_id')
+    @api.constrains('nasq_parent_id', 'project_id', 'company_id')
     def _check_nasq_parent(self):
         for task in self.filtered('nasq_parent_id'):
             parent = task.nasq_parent_id
-            if task.project_id or parent.project_id or parent == task or parent.nasq_parent_id:
+            if (
+                task.project_id or parent.project_id or parent == task or parent.nasq_parent_id
+                or task.nasq_child_ids or parent.company_id != task.company_id
+            ):
                 raise ValidationError(self.env._(
-                    'A personal sub-task needs a personal parent task that is not itself a sub-task.'))
+                    'A personal sub-task needs a personal parent task of its own company, and neither side may have a further level.'))
