@@ -11,7 +11,25 @@
         <field name="model_id" ref="project.model_project_task"/>
         <field name="domain_force">['|', ('nasq_personal', '=', False),
             '&amp;', ('company_id', '=', company_id),
-            '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id])]</field>
+            '|', '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id]),
+            '|', ('nasq_parent_id.create_uid', '=', user.id), ('nasq_parent_id.user_ids', 'in', [user.id])]</field>
+    </record>
+    <!-- A personal sub-task belongs to the participants of its parent (creator and assignees),
+         so both rules also accept them through nasq_parent_id. The field bypasses search
+         access: the path is a plain join, otherwise the parent's own rules would nest
+         without end. -->
+    <!-- Odoo's own visibility rules do not know nasq_parent_id, and a global rule can only
+         narrow. This group rule is the OR that lets a parent participant read the sub-task. -->
+    <record id="rule_personal_subtask_parent_read" model="ir.rule">
+        <field name="name">Tasks: the participants of a parent read its personal sub-tasks</field>
+        <field name="model_id" ref="project.model_project_task"/>
+        <field name="domain_force">[('nasq_personal', '=', True),
+            '|', ('nasq_parent_id.create_uid', '=', user.id), ('nasq_parent_id.user_ids', 'in', [user.id])]</field>
+        <field name="groups" eval="[(4, ref('group_cap_tasks_tasks_read'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
     </record>
     <!-- Group rules are OR-ed with Odoo's own edition rule (assignees only), so a creator
          who is no longer an assignee can still write what they made, in every config.
@@ -20,7 +38,8 @@
         <field name="name">Tasks: the creator or an assignee writes a personal task</field>
         <field name="model_id" ref="project.model_project_task"/>
         <field name="domain_force">[('nasq_personal', '=', True),
-            '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id])]</field>
+            '|', '|', ('create_uid', '=', user.id), ('user_ids', 'in', [user.id]),
+            '|', ('nasq_parent_id.create_uid', '=', user.id), ('nasq_parent_id.user_ids', 'in', [user.id])]</field>
         <field name="groups" eval="[(4, ref('group_cap_tasks_tasks_write'))]"/>
         <field name="perm_read" eval="False"/>
         <field name="perm_create" eval="False"/>

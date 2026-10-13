@@ -360,6 +360,21 @@ class TestMyTaskService(NasqTasksCase):
 
     # list
 
+    def test_parent_assignee_updates_and_closes_a_subtask_made_by_another_assignee(self):
+        role = self.env.ref('nasq_core.role_employee')
+        for user in (self.alice, self.bob):
+            self.env['nasq.access.assignment'].create({
+                'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id})
+        parent = self.create(self.alice, 'parent', assignees=[self.alice.id, self.bob.id])
+        child = self.create(self.bob, 'child', parent_id=parent.id, assignees=[self.bob.id])
+        self.assertNotIn(self.alice, child.user_ids)
+        alice = self.service(self.alice)
+        self.assertEqual(alice._get_personal(child.id), child)
+        self.assertEqual(alice._update_task(child, {'name': 'by alice'}).name, 'by alice')
+        self.assertEqual(alice._transition(child, 'done').state, '1_done')
+        self.assertTrue(alice._allowed_actions(child)['write'])
+        self.assertApiError(404, 'not_found', self.service(self.carol)._get_personal, child.id)
+
     def test_welcome_todo_excluded(self):
         self.env['project.task'].with_user(SUPERUSER_ID).create(
             {'name': 'Welcome!', 'company_id': self.alice.company_id.id,

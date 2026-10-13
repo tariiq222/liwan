@@ -99,3 +99,61 @@ class TestPersonalTaskRules(NasqTasksCase):
         for user in (self.alice, self.bob):
             task.with_user(user).write({'name': f'by {user.login}'})
             self.assertEqual(task.name, f'by {user.login}')
+
+    # A personal sub-task belongs to the participants of its parent: creator and assignees
+    # of the parent read and write it, whoever made it. Nobody gains access to the parent.
+
+    def _employees_with_role(self):
+        role = self.env.ref('nasq_core.role_employee')
+        for user in (self.alice, self.bob, self.carol):
+            self.env['nasq.access.assignment'].create({
+                'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id})
+
+    def _subtask_of_another_assignee(self):
+        """alice and bob share a parent; bob alone makes (and is assigned to) the sub-task."""
+        self._employees_with_role()
+        parent = self.make_personal_task(self.alice, 'parent', assignees=[self.alice.id, self.bob.id])
+        child = self.env['project.task'].with_user(self.bob).create({
+            'name': 'bob child', 'company_id': self.env.company.id,
+            'user_ids': [Command.set([self.bob.id])], 'nasq_parent_id': parent.id,
+        })
+        self.assertNotIn(self.alice, child.user_ids)
+        self.assertNotEqual(child.create_uid, self.alice)
+        return parent, child
+
+    def test_parent_assignee_reads_and_writes_subtask_created_by_another_assignee(self):
+        _parent, child = self._subtask_of_another_assignee()
+        self.assertTrue(child.with_user(self.alice).has_access('read'))
+        self.assertEqual(
+            self.env['project.task'].with_user(self.alice).search([('id', '=', child.id)]), child)
+        child.with_user(self.alice).write({'name': 'renamed by alice'})
+        self.assertEqual(child.name, 'renamed by alice')
+
+    def test_parent_creator_who_is_not_assignee_reads_and_writes_the_subtask(self):
+        parent, child = self._subtask_of_another_assignee()
+        parent.sudo().user_ids = [Command.set([self.bob.id])]
+        self.assertNotIn(self.alice, parent.user_ids)
+        self.assertEqual(parent.create_uid, self.alice)
+        self.assertTrue(child.with_user(self.alice).has_access('read'))
+        child.with_user(self.alice).write({'name': 'by the parent creator'})
+        self.assertEqual(child.name, 'by the parent creator')
+
+    def test_stranger_and_parent_follower_cannot_reach_the_subtask(self):
+        parent, child = self._subtask_of_another_assignee()
+        parent.sudo().message_subscribe(partner_ids=[self.carol.partner_id.id])
+        child.sudo().message_subscribe(partner_ids=[self.carol.partner_id.id])
+        self.assertFalse(child.with_user(self.carol).has_access('read'))
+        self.assertFalse(self.env['project.task'].with_user(self.carol).search([('id', '=', child.id)]))
+        with self.assertRaises(AccessError):
+            child.with_user(self.carol).write({'name': 'hijacked'})
+
+    def test_subtask_participant_gains_nothing_on_the_parent(self):
+        parent, child = self._subtask_of_another_assignee()
+        child.sudo().user_ids = [Command.set([self.bob.id, self.carol.id])]
+        self.assertTrue(child.with_user(self.carol).has_access('read'))
+        self.assertFalse(parent.with_user(self.carol).has_access('read'))
+
+    def test_parent_participation_stops_with_the_company_clause(self):
+        parent, child = self._subtask_of_another_assignee()
+        (parent | child).sudo().company_id = self.other_company
+        self.assertFalse(child.with_user(self.alice).has_access('read'))

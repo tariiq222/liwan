@@ -11,8 +11,11 @@ class ProjectTask(models.Model):
     nasq_personal = fields.Boolean(compute='_compute_nasq_personal', store=True, index=True)
     # Odoo 19 forbids ``parent_id`` on a project-less task, so a personal sub-task
     # (a checklist item, depth 1) points at its parent through these own fields.
+    # bypass_search_access: the personal-task rules follow this field to the parent's creator and
+    # assignees; without it that path would apply the same rules to the parent again, without end.
     nasq_parent_id = fields.Many2one('project.task', string='Personal parent task',
-                                     index=True, ondelete='cascade', copy=False)
+                                     index=True, ondelete='cascade', copy=False,
+                                     bypass_search_access=True)
     nasq_child_ids = fields.One2many('project.task', 'nasq_parent_id', string='Personal sub-tasks')
 
     @api.depends('project_id')
