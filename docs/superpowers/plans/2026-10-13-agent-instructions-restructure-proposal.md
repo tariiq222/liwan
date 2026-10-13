@@ -73,3 +73,30 @@ the task touches those layers.
 3. `python3 -B tools/docs_policy.py` (extend its `DOCS` to the new files) and `npm test` pass.
 4. One commit per file group; no change to R1-R10 wording, `tools/arch_layers.json` or the baseline.
 5. The owner reviews the coverage report before merge.
+
+## 7. Result (2026-10-13)
+
+Owner answers: C1 `--no-ff`, C2 "a new addon starts at `19.0.1.0.0`; later bumps follow
+`docs/migrations.md`", C5 OpenCode paragraph removed (Codex routing kept), structure approved.
+
+Implemented as a verbatim move plus the edits above. Measured line counts (old to new):
+
+| File | Before | After |
+| --- | --- | --- |
+| `CLAUDE.md` | 469 | 7 (imports `@AGENTS.md`) |
+| `AGENTS.md` | 216 | 405 |
+| `docs/agents/odoo-rules.md` | - | 184 |
+| `docs/agents/web-rules.md` | - | 49 |
+| Total | 685 | 645 |
+
+The estimate in section 4 (about 400 total) was too low: text was moved without rewording, so
+only exact duplicates were removed. A Claude session now always loads 412 lines (469 before);
+Odoo and web rules load on demand. Shrinking `AGENTS.md` further (for example moving the
+"Repository layout" section out) is a separate, optional step.
+
+Sentence coverage check (345 unique sentences of the old files): 15 are absent from the new
+files, all intentional: the Tailwind logical-properties bullet and the five "Python and API
+conventions" sentences (each already stated in the Odoo and web rules), and the C1-C5 rewrites
+(fast-forward wording, version numbers, pre-commit note, test-authorization note, OpenCode
+paragraph, the `CLAUDE.md`-pointing sentences). The `sudo()` bullet was kept in `AGENTS.md`
+because it complements, rather than repeats, the elevated-operations bullet in the Odoo rules.
