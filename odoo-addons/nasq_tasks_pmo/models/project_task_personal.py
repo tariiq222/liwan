@@ -90,3 +90,14 @@ class ProjectTaskPersonal(models.Model):
         ):
             return True
         return super()._nasq_can_write()
+
+    def _nasq_emit_comment_notification(self, message):
+        """A personal task has no PMO audience: its comments never create a PMO bell row.
+
+        Without this, ``message_post`` on a personal task would reach nasq_pmo's
+        ``_message_post_after_hook`` and write an invisible ``comment`` row per assignee that
+        would surface in the bell if the task were later converted to a project task.
+        """
+        if self.nasq_personal:
+            return None
+        return super()._nasq_emit_comment_notification(message)
