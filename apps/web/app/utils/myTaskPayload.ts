@@ -12,32 +12,15 @@ export interface MyTaskFormValues {
   assignees: number[]
 }
 
-/**
- * The request body of a personal task form. A create omits empty optionals and never carries
- * `parent_id` (sub-tasks are added from the detail page); an edit sends every field so that a
- * cleared description, deadline or assignee list is really emptied.
- */
-export function buildMyTaskPayload(values: MyTaskFormValues, mode: 'create' | 'edit'): MyTaskCreate {
+/** The request body of the create form: empty optionals are omitted and `parent_id` is never sent (sub-tasks are added from the detail page). */
+export function buildMyTaskPayload(values: MyTaskFormValues): MyTaskCreate {
   const name = values.name.trim()
   const description = values.description.trim()
-  if (mode === 'edit') {
-    return { name, description, date_deadline: values.deadline || null, priority: values.priority, assignees: [...values.assignees] }
-  }
   const body: MyTaskCreate = { name, priority: values.priority }
   if (description) body.description = description
   if (values.deadline) body.date_deadline = values.deadline
   if (values.assignees.length) body.assignees = [...values.assignees]
   return body
-}
-
-/**
- * The API returns a deadline as a UTC instant (`...T00:00:00Z`) and accepts a bare date on input,
- * which it stores as that day's UTC midnight. Reading the UTC calendar day back keeps the round trip
- * stable in every viewer zone; converting to the local zone would shift the day west of UTC.
- */
-export function deadlineToDateInput(value: string | null | undefined): string | null {
-  const match = value ? /^(\d{4}-\d{2}-\d{2})T/.exec(value) : null
-  return match ? match[1]! : null
 }
 
 export function validateMyTaskName(name: string): 'required' | 'tooLong' | null {

@@ -3,32 +3,19 @@ import { ApiError } from '@/composables/useApi'
 import { isDirtySnapshot } from '@/lib/formDirty'
 import {
   buildMyTaskPayload,
-  deadlineToDateInput,
   MY_TASK_NAME_MAX,
   myTaskFormField,
   validateMyTaskName,
   type MyTaskFormValues,
 } from '@/utils/myTaskPayload'
 
-// One form for a personal task: the create page (`mode="create"`, empty) and the detail page's
-// inline edit (`mode="edit"`, seeded from `initial`). It emits the exact request body and owns no
-// request: the parent runs the mutation and passes `pending` and the failure back as `error`.
-export interface MyTaskFormInitial {
-  name: string
-  description: string
-  /** The wire value: a UTC instant `...Z` or null. */
-  date_deadline: string | null
-  priority: 'normal' | 'high'
-  assignees: { id: number; name: string; user_id: number }[]
-}
-
+// The create form of a personal task (`/my-tasks/new`). It emits the exact request body and owns
+// no request: the parent runs the mutation and passes `pending` and the failure back as `error`.
+// The detail page edits in place with its own changed-fields form.
 const props = withDefaults(defineProps<{
-  mode?: 'create' | 'edit'
-  initial?: MyTaskFormInitial | null
   pending?: boolean
   error?: Error | null
-  submitLabel?: string
-}>(), { mode: 'create', initial: null, pending: false, error: null, submitLabel: undefined })
+}>(), { pending: false, error: null })
 const emit = defineEmits<{
   submit: [payload: ReturnType<typeof buildMyTaskPayload>]
   cancel: []
@@ -37,19 +24,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-function seed(): MyTaskFormValues {
-  const initial = props.initial
-  return {
-    name: initial?.name ?? '',
-    description: initial?.description ?? '',
-    deadline: deadlineToDateInput(initial?.date_deadline),
-    priority: initial?.priority ?? 'normal',
-    assignees: (initial?.assignees ?? []).map(person => person.user_id),
-  }
-}
-
-const values = reactive<MyTaskFormValues>(seed())
-const known = computed(() => (props.initial?.assignees ?? []).map(person => ({ id: person.user_id, name: person.name })))
+const values = reactive<MyTaskFormValues>({
+  name: '', description: '', deadline: null, priority: 'normal', assignees: [],
+})
 const baseline = ref(JSON.stringify(values))
 const saved = ref(false)
 const dirty = computed(() => isDirtySnapshot(baseline.value, JSON.stringify(values), saved.value))
@@ -83,7 +60,7 @@ function submit() {
   if (!hydrated.value || props.pending) return
   attempted.value = true
   if (nameProblem.value) return
-  emit('submit', buildMyTaskPayload(values, props.mode))
+  emit('submit', buildMyTaskPayload(values))
 }
 </script>
 
@@ -120,7 +97,6 @@ function submit() {
         v-model="values.assignees"
         multiple
         value-key="user_id"
-        :known="known"
         :placeholder="t('myTasks.form.assigneesPlaceholder')"
         :aria-label="t('myTasks.form.assignees')"
         :disabled="pending"
@@ -131,7 +107,7 @@ function submit() {
         {{ t('myTasks.form.cancel') }}
       </UButton>
       <UButton type="submit" :loading="pending" :disabled="!hydrated || pending" data-testid="my-task-form-submit">
-        {{ submitLabel ?? (mode === 'edit' ? t('myTasks.form.save') : t('myTasks.form.submit')) }}
+        {{ t('myTasks.form.submit') }}
       </UButton>
     </div>
   </form>

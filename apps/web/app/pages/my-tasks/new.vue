@@ -40,6 +40,6 @@ async function create(payload: Parameters<typeof mutateAsync>[0]) {
 
 <template>
   <SharedCreatePanel :title="t('myTasks.form.createTitle')" :back-to="returnTo">
-    <MyTaskForm ref="form" mode="create" :pending="isPending" :error="error" @submit="create" @cancel="router.push(returnTo)" />
+    <MyTaskForm ref="form" :pending="isPending" :error="error" @submit="create" @cancel="router.push(returnTo)" />
   </SharedCreatePanel>
 </template>
