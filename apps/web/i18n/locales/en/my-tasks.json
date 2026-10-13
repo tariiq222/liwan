@@ -2,6 +2,7 @@
   "myTasks": {
     "title": "My tasks",
     "new": "New task",
+    "created": "Task created",
     "empty": "No tasks yet",
     "list": {
       "tabs": {
@@ -48,7 +49,8 @@
       "submit": "Create task",
       "save": "Save changes",
       "cancel": "Cancel",
-      "nameRequired": "The task title is required"
+      "nameRequired": "The task title is required",
+      "nameTooLong": "The task title must not exceed {max} characters"
     },
     "priority": {
       "normal": "Normal",

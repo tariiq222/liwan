@@ -256,6 +256,90 @@
       ]
     },
     {
+      "name": "MyTasksMyTaskForm",
+      "file": "apps/web/app/components/my-tasks/MyTaskForm.vue",
+      "story": "apps/web/stories/my-tasks/MyTaskForm.stories.ts",
+      "title": "MyTasks/MyTaskForm",
+      "props": [
+        {
+          "name": "mode",
+          "type": "\"create\" | \"edit\"",
+          "required": false,
+          "default": "\"create\""
+        },
+        {
+          "name": "initial",
+          "type": "MyTaskFormInitial | null",
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "Error | null",
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "submitLabel",
+          "type": "string",
+          "required": false,
+          "default": "undefined"
+        }
+      ],
+      "events": [
+        {
+          "name": "cancel",
+          "payload": "[]"
+        },
+        {
+          "name": "submit",
+          "payload": "[payload: globalThis.MyTaskCreate]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Create",
+          "name": "إنشاء مهمة",
+          "context": "apps/web/app/pages/my-tasks/new.vue:31"
+        },
+        {
+          "id": "Pending",
+          "name": "أثناء الحفظ",
+          "context": "apps/web/app/pages/my-tasks/new.vue:31"
+        },
+        {
+          "id": "FieldError",
+          "name": "خطأ من الخادم تحت الحقل",
+          "context": "apps/web/app/pages/my-tasks/new.vue:31"
+        },
+        {
+          "id": "GeneralError",
+          "name": "خطأ عام",
+          "context": "apps/web/app/pages/my-tasks/new.vue:31"
+        },
+        {
+          "id": "Edit",
+          "name": "تعديل مهمة موجودة",
+          "context": "unused"
+        }
+      ]
+    },
+    {
       "name": "ProjectDashboardChartPanel",
       "file": "apps/web/app/components/project/dashboard/DashboardChartPanel.vue",
       "story": "apps/web/stories/project/dashboard/DashboardChartPanel.stories.ts",
