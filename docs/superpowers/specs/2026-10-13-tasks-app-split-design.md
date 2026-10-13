@@ -187,6 +187,14 @@ Documented `sudo()` cases in `nasq_tasks`: (1) the `tasks.assigned` bell
 delivery through `nasq.notify.service`, (2) the recipient-owned bell
 candidate lookup, exactly as PMO's notification cases. Nothing else.
 
+PMO's own routes (`PATCH/transition/archive /api/v1/tasks/<id>`) can reach a personal task once the
+bridge is installed. The bridge therefore holds every ORM write of a personal task to the personal fields
+(`name`, `description`, `date_deadline`, `priority`, `user_ids`), the three personal states and the date
+bookkeeping Odoo writes next to a state change; stages, tags, milestones, hours, archiving and the PMO
+states are refused, and assignees written that way must be people of the company. Only the checked
+convert (cursor-local marker) and internal `sudo` writes are exempt. The personal serializers read a
+stored state outside the three personal ones as `open`, so a detail never fails on such a row.
+
 ## 8. Entitlements and catalog
 
 - `nasq_tasks/models/feature_registry.py`: `tasks.enabled` (boolean, owner
