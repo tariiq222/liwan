@@ -92,6 +92,19 @@ class ProjectTask(models.Model):
         return frozenset()
 
     @api.model
+    def _nasq_personal_read_allowed(self, domain=None, records=None):
+        """Extension point: may this caller read these tasks without ``pmo.tasks.read``?
+
+        False here, so PMO keeps requiring the capability. A bridge (nasq_tasks_pmo)
+        answers True only when the search ``domain`` can match personal (project-less)
+        tasks alone, or every one of ``records`` is a personal task, after its own
+        capability check. An empty ``records`` is the model-level check that stock
+        ``_search`` makes after the domain gate. Record rules still apply to what is
+        returned.
+        """
+        return False
+
+    @api.model
     def _nasq_projectless_create_allowed(self, vals_list):
         """Extension point: may these values create tasks that have no project?
 
@@ -130,7 +143,10 @@ class ProjectTask(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
         ):
             service = self.env['nasq.access.service']
-            if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
+            if (
+                not service._nasq_has_capability(self.env.user, 'pmo.tasks.read')
+                and not self._nasq_personal_read_allowed(domain=domain)
+            ):
                 boundary = self._nasq_template_population_domain()
                 if boundary is None:
                     service._nasq_require_capability('pmo.tasks.read')
@@ -153,7 +169,10 @@ class ProjectTask(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
         ):
             service = self.env['nasq.access.service']
-            if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
+            if (
+                not service._nasq_has_capability(self.env.user, 'pmo.tasks.read')
+                and not self._nasq_personal_read_allowed(records=self)
+            ):
                 try:
                     boundary = self._nasq_template_population_domain()
                     if boundary is None:
