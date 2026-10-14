@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { useDeleteFinanceEntry, useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
@@ -43,14 +44,8 @@ const notFound = computed(() =>
   || (query.error.value instanceof ApiError && [403, 404].includes(query.error.value.status))
   || (access.error.value instanceof ApiError && [403, 404].includes(access.error.value.status)),
 )
-// The ledger this entry hangs off is fixed by the route, so the return trip is
-// literal and carries only the state the ledger was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the ledger URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: projectId.value ? `/projects/${projectId.value}/finance` : '/projects', query: listQuery }
-})
+const backTo = computed(() => owningListBack(route.query, [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'], route.hash))
+const editTo = computed(() => recordChildTo(`/projects/${projectId.value}/finance/${entryId.value}/edit`, route.query, [`/projects/${projectId.value}/finance`], route.hash))
 const confirmDelete = ref(false)
 const deleteError = ref<string | null>(null)
 const { mutateAsync: remove, isPending: deleting } = useDeleteFinanceEntry()
@@ -79,60 +74,52 @@ async function confirmRemoval() {
 </script>
 
 <template>
-  <SharedPageContainer v-if="isDetailRoute" width="detail" data-testid="finance-entry-detail">
-    <SharedPageHeader :title="entry?.title || t('projects.finance.detailTitle')" :back-to="backTo" :back-label="t('projects.finance.backToLedger')">
-      <template #actions>
-        <div v-if="entry && canManage && projectId && entryId" class="flex flex-wrap gap-2">
-        <UButton icon="i-lucide-pencil" :disabled="!hydrated" :to="`/projects/${projectId}/finance/${entryId}/edit`">{{ t('app.edit') }}</UButton>
-        <UButton color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
-        </div>
-      </template>
-    </SharedPageHeader>
-
-    <template v-if="projectId === null || entryId === null">
-      <p class="text-muted">{{ t('projects.invalidId') }}</p>
+  <SharedRecordPage
+    v-if="isDetailRoute"
+    data-testid="finance-entry-detail"
+    :title="entry?.title || t('projects.finance.detailTitle')"
+    :back-to="backTo"
+    :back-label="t('projects.finance.backToLedger')"
+    :loading="(query.isLoading.value || access.isLoading.value) && !entry"
+    :error="notFound || projectId === null || entryId === null ? null : query.error.value || access.error.value"
+    @retry="() => { void query.refetch(); void access.refetch() }"
+  >
+    <template v-if="entry && canManage && projectId && entryId" #actions>
+      <UButton icon="i-lucide-pencil" :disabled="!hydrated" :to="editTo">{{ t('app.edit') }}</UButton>
+      <UButton color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || deleting" @click="confirmDelete = !confirmDelete">{{ t('projects.finance.delete') }}</UButton>
     </template>
-    <SharedPageState
-      v-else
-      :loading="(query.isLoading.value || access.isLoading.value) && !entry"
-      :error="notFound ? null : query.error.value || access.error.value"
-      @retry="() => { void query.refetch(); void access.refetch() }"
-    >
-      <p v-if="notFound && !query.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
-      <template v-else-if="entry && currency">
-        <SharedInlineConfirm
-          v-if="confirmDelete"
-          data-testid="finance-delete-confirm"
-          :title="entry.kind === 'budget' ? t('projects.finance.deleteBudgetConfirm') : t('projects.finance.deleteExpenseConfirm')"
-          :confirm-label="t('projects.finance.delete')"
-          :pending="deleting"
-          :disabled="!canManage"
-          @cancel="confirmDelete = false"
-          @confirm="confirmRemoval"
-        >
-          <p v-if="deleteError" class="text-error">{{ deleteError }}</p>
-        </SharedInlineConfirm>
-        <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="finance-entry-summary-title">
-          <div class="border-b border-default px-5 py-4">
-            <h2 id="finance-entry-summary-title" class="text-lg font-semibold text-highlighted">{{ t('projects.finance.detailTitle') }}</h2>
-          </div>
-          <div class="p-5 space-y-5">
-            <div>
-            <p class="text-sm text-muted">{{ t('projects.finance.fields.amount') }}</p>
-            <p dir="ltr" class="mt-1 text-2xl font-semibold tabular-nums">{{ formatMoney(entry.amount, currency) }}</p>
-            </div>
-            <dl class="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-            <div><dt class="text-muted">{{ t('projects.finance.fields.kind') }}</dt><dd class="mt-1 font-medium">{{ t(`projects.finance.kind.${entry.kind}`) }}</dd></div>
-            <div v-if="entry.kind === 'expense'"><dt class="text-muted">{{ t('projects.finance.fields.expense_date') }}</dt><dd class="mt-1">{{ entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : '—' }}</dd></div>
-            <div><dt class="text-muted">{{ t('projects.finance.fields.reference') }}</dt><dd class="mt-1">{{ entry.reference || '—' }}</dd></div>
-            <div v-if="entry.kind === 'expense'"><dt class="text-muted">{{ t('projects.finance.fields.budget_entry_id') }}</dt><dd class="mt-1"><NuxtLink v-if="entry.budget_entry_id" :to="`/projects/${projectId}/finance/${entry.budget_entry_id}`" class="underline underline-offset-4">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink><span v-else>{{ t('projects.finance.budgetNone') }}</span></dd></div>
-            <div class="sm:col-span-2"><dt class="text-muted">{{ t('projects.finance.fields.notes') }}</dt><dd class="mt-1 whitespace-pre-wrap">{{ entry.notes || '—' }}</dd></div>
-            </dl>
-          </div>
-        </section>
-      </template>
-    </SharedPageState>
-  </SharedPageContainer>
+    <p v-if="projectId === null || entryId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
+    <p v-else-if="notFound" class="text-muted">{{ t('projects.notFound') }}</p>
+    <template v-else-if="entry && currency">
+      <SharedInlineConfirm
+        v-if="confirmDelete"
+        data-testid="finance-delete-confirm"
+        :title="entry.kind === 'budget' ? t('projects.finance.deleteBudgetConfirm') : t('projects.finance.deleteExpenseConfirm')"
+        :confirm-label="t('projects.finance.delete')"
+        :pending="deleting"
+        :disabled="!canManage"
+        @cancel="confirmDelete = false"
+        @confirm="confirmRemoval"
+      >
+        <p v-if="deleteError" class="text-error">{{ deleteError }}</p>
+      </SharedInlineConfirm>
+      <SharedRecordSection id="finance-entry-amount" :title="t('projects.finance.fields.amount')">
+        <p dir="ltr" class="text-2xl font-semibold tabular-nums">{{ formatMoney(entry.amount, currency) }}</p>
+        <p v-if="entry.notes" class="whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
+      </SharedRecordSection>
+    </template>
+    <template v-if="entry && currency" #aside>
+      <SharedPropertiesPanel>
+        <SharedPropertyRow :label="t('projects.finance.fields.kind')" :value="t(`projects.finance.kind.${entry.kind}`)" />
+        <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.expense_date')" :value="entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : null" />
+        <SharedPropertyRow :label="t('projects.finance.fields.reference')" :value="entry.reference" />
+        <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.budget_entry_id')">
+          <NuxtLink v-if="entry.budget_entry_id" :to="`/projects/${projectId}/finance/${entry.budget_entry_id}`" class="underline underline-offset-4">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink>
+          <span v-else>{{ t('projects.finance.budgetNone') }}</span>
+        </SharedPropertyRow>
+      </SharedPropertiesPanel>
+    </template>
+  </SharedRecordPage>
   <KeepAlive v-else>
     <NuxtPage :page-key="editPageKey" />
   </KeepAlive>

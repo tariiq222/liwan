@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { invoiceStatusBadge } from '@/utils/commercialBadges'
 import { formatVendorMoney } from '@/utils/vendorCommercial'
-import { cancellationErrorKey, branchSummaryText, customersReturnTo, invoiceStatusColor, isNotAvailable } from '@/utils/vendorSubscriptions'
+import { cancellationErrorKey, branchSummaryText, customersReturnTo, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { entitledSelections } from '@/utils/entitlementApps'
@@ -68,19 +69,18 @@ async function cancelPendingOrder() {
 </script>
 <template>
   <NuxtPage v-if="isChild" />
-  <SharedPageContainer v-else width="list">
-    <SharedPageHeader :title="customer?.name ?? t('vendor.customers.details')" :back-to="backTo">
+
+    <SharedRecordPage v-else :title="customer?.name ?? t('vendor.customers.details')" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
       <template #actions>
         <UButton v-if="customer && canTerms && view" :to="{ path: `/vendor/customers/${encodeURIComponent(id)}/terms/new`, ...selfTo }" color="neutral" variant="outline" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton>
         <UButton v-if="customer && canChange" :to="{ path: `/vendor/customers/${encodeURIComponent(id)}/change`, ...selfTo }" icon="i-lucide-repeat">{{ t('vendor.customers.changeSubscription') }}</UButton>
       </template>
-    </SharedPageHeader>
-    <SharedPageState :loading="pending" :error="error" @retry="refresh">
+
       <div v-if="customer" class="space-y-6">
         <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
-        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.subscription') }}</h2></template>
-          <VendorSubscriptionSummary v-if="view" :subscription="view" :plan-name="planName" />
-          <p v-else class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
+        <SharedRecordSection :title="t('vendor.customers.sections.subscription')">
+
+          <p v-if="!view" class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
           <div v-if="canCancel || cancelFailure" class="mt-4 space-y-3">
             <UAlert v-if="cancelFailure" color="error" variant="subtle" :title="cancelFailure" />
             <SharedInlineConfirm v-if="cancelOpen && canCancel" :title="t('vendor.customers.cancelOrder.title')" :description="t('vendor.customers.cancelOrder.description')" :confirm-label="t('vendor.customers.cancelOrder.action')" :pending="cancelBusy" :disabled="!hydrated || cancelBusy || !validCancelReason" @confirm="cancelPendingOrder" @cancel="cancelOpen = false; cancelReason = ''; cancelFailure = undefined">
@@ -89,12 +89,12 @@ async function cancelPendingOrder() {
             <UButton v-else-if="canCancel" color="error" variant="outline" :disabled="!hydrated || cancelBusy" @click="cancelOpen = true">{{ t('vendor.customers.cancelOrder.action') }}</UButton>
           </div>
           <UAlert v-if="extra?.full.failed" class="mt-3" color="error" variant="subtle" :title="t('vendor.customers.cancelOrder.refreshFailed')"><template #actions><UButton color="neutral" variant="outline" :disabled="!hydrated || cancelBusy" @click="refreshCancellationState">{{ t('app.retry') }}</UButton></template></UAlert>
-          <NuxtLink v-if="customer.tenant_id" :to="{ path: `/vendor/tenants/${encodeURIComponent(customer.tenant_id)}` }" class="mt-3 inline-block text-sm text-primary">{{ t('vendor.customers.openTenant') }}</NuxtLink>
-        </UCard>
-        <UCard v-if="view?.applied"><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.services') }}</h2></template>
+
+        </SharedRecordSection>
+        <SharedRecordSection v-if="view?.applied" :title="t('vendor.customers.sections.services')">
           <VendorEntitlementSummary :release="release" :selections="selections" include-core />
-        </UCard>
-        <UCard v-if="view"><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.branches') }}</h2></template>
+        </SharedRecordSection>
+        <SharedRecordSection v-if="view" :title="t('vendor.customers.sections.branches')">
           <p v-if="extra?.branches.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
           <dl v-else-if="branchText" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 tabular-nums" data-testid="branch-summary">
             <div><dt class="text-sm text-muted">{{ t('vendor.customers.branchesHq') }}</dt><dd class="font-semibold">{{ t('vendor.customers.included') }}</dd></div>
@@ -103,35 +103,36 @@ async function cancelPendingOrder() {
             <div><dt class="text-sm text-muted">{{ t('vendor.customers.branchesLimit') }}</dt><dd class="font-semibold">{{ branchText.limit === null ? t('vendor.pricing.limit.unlimited') : branchText.limit }}</dd></div>
           </dl>
           <p v-else class="text-sm text-muted">{{ t('vendor.customers.usage.none') }}</p>
-        </UCard>
-        <UCard v-if="view"><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.usage') }}</h2></template>
+        </SharedRecordSection>
+        <SharedRecordSection v-if="view" :title="t('vendor.customers.sections.usage')">
           <p v-if="extra?.usage.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
           <VendorUsageMeters v-else :usage="extra?.usage.value" />
-        </UCard>
-        <UCard v-if="canBilling"><template #header><div class="flex items-center justify-between gap-3"><h2 class="font-semibold">{{ t('vendor.customers.sections.invoices') }}</h2><UButton :to="{ path: '/vendor/invoices', query: { customer_id: id } }" color="neutral" variant="link">{{ t('vendor.customers.allInvoices') }}</UButton></div></template>
+        </SharedRecordSection>
+        <SharedRecordSection v-if="canBilling" :title="t('vendor.customers.sections.invoices')">
           <p v-if="extra?.invoices.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
           <p v-else-if="!invoices.length" class="text-sm text-muted">{{ t('vendor.invoices.empty') }}</p>
           <ul v-else class="divide-y divide-default">
             <li v-for="i in invoices" :key="i.id" class="flex flex-wrap items-center justify-between gap-3 py-2" data-testid="customer-invoice">
               <NuxtLink :to="{ path: `/vendor/invoices/${encodeURIComponent(i.id)}`, query: { returnTo: route.fullPath } }">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink>
-              <span class="tabular-nums">{{ formatVendorMoney(i.total, locale) }}</span>
-              <UBadge :color="invoiceStatusColor(i.status)" variant="subtle">{{ t(`vendor.invoices.status.${i.status}`) }}</UBadge>
+              <bdi dir="ltr" class="tabular-nums">{{ formatVendorMoney(i.total, locale) }}</bdi>
+              <SharedStatusBadge :tone="invoiceStatusBadge(i.status, 'vendor.invoices.status').tone" :label="t(invoiceStatusBadge(i.status, 'vendor.invoices.status').labelKey)" />
             </li>
           </ul>
-        </UCard>
-        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.terms') }}</h2></template>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('vendor.customers.sections.terms')">
           <p v-if="view?.applied?.terms_revision_id" class="text-sm">{{ t('vendor.customers.terms.active') }}</p>
           <p v-else class="text-sm text-muted">{{ t('vendor.customers.terms.noneActive') }}</p>
           <p class="mt-2 text-sm text-muted">{{ t('vendor.customers.terms.isolation') }}</p>
-        </UCard>
-        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.customers.sections.audit') }}</h2></template>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('vendor.customers.sections.audit')">
           <UButton to="/vendor/audit" color="neutral" variant="link">{{ t('vendor.customers.openAudit') }}</UButton>
-        </UCard>
+        </SharedRecordSection>
         <details v-if="view" class="text-sm"><summary class="cursor-pointer text-muted">{{ t('vendor.customers.technical') }}</summary>
           <dl class="mt-3 space-y-2"><div><dt>{{ t('vendor.customers.techSubscription') }}</dt><dd dir="ltr">{{ view.id }}</dd></div><div><dt>{{ t('vendor.customers.techRevision') }}</dt><dd dir="ltr">{{ view.revision }}</dd></div><div v-if="view.applied"><dt>{{ t('vendor.customers.techDigest') }}</dt><dd class="break-all" dir="ltr">{{ view.applied.entitlement.digest }}</dd></div></dl>
         </details>
       </div>
-    </SharedPageState>
-    <SharedUnsavedChanges :dirty="Boolean(cancelReason.trim())" guard-route-updates />
-  </SharedPageContainer>
+
+  <template #aside><VendorSubscriptionSummary v-if="view" :subscription="view" :plan-name="planName"><SharedPropertyRow v-if="customer?.tenant_id" :label="t('vendor.customers.openTenant')"><NuxtLink v-if="customer.tenant_id" :to="{ path: `/vendor/tenants/${encodeURIComponent(customer.tenant_id)}` }" class="mt-3 inline-block text-sm text-primary">{{ t('vendor.customers.openTenant') }}</NuxtLink></SharedPropertyRow></VendorSubscriptionSummary><SharedPropertiesPanel v-else-if="customer?.tenant_id"><SharedPropertyRow v-if="customer?.tenant_id" :label="t('vendor.customers.openTenant')"><NuxtLink v-if="customer.tenant_id" :to="{ path: `/vendor/tenants/${encodeURIComponent(customer.tenant_id)}` }" class="mt-3 inline-block text-sm text-primary">{{ t('vendor.customers.openTenant') }}</NuxtLink></SharedPropertyRow></SharedPropertiesPanel></template>
+</SharedRecordPage>
+  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim())" guard-route-updates />
 </template>

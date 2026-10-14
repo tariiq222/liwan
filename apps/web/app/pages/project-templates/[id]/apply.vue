@@ -47,4 +47,24 @@ async function apply() {
 }
 </script>
 
-<template><SharedPageContainer width="form"><SharedPageHeader :title="t('projects.templates.applyTitle')" :description="template?.name" :back-to="backTo" /><SharedUnsavedChanges :dirty="dirty" /><SharedPageState :loading="isLoading && !template" :error="template ? null : error" :empty="!isLoading && !error && !template" :empty-text="t('projects.templates.notFound')" @retry="refetch"><p v-if="template && !template.can_apply" class="text-muted">{{ t('projects.forbidden') }}</p><UCard v-else-if="template" class="space-y-6"><form novalidate class="grid max-w-xl gap-4" @submit.prevent="apply"><UAlert v-if="mutation.error.value" role="alert" color="error" variant="subtle" :title="t('projects.templates.applyError')" /><p class="text-sm text-muted">{{ t('projects.templates.applyHint') }}</p><UFormField :label="t('projects.templates.fields.projectName')" required :error="fieldErrors.name"><UInput v-model="name" name="project-name" :disabled="!hydrated || mutation.isPending.value" required maxlength="255" class="w-full" /></UFormField><UFormField :label="t('projects.templates.fields.startDate')" required :error="fieldErrors.start_date"><SharedDateField v-model="startDate" name="project-start-date" :aria-label="t('projects.templates.fields.startDate')" :disabled="!hydrated || mutation.isPending.value" aria-required="true" class="w-full" /></UFormField><div class="flex justify-end gap-2"><UButton color="neutral" variant="outline" type="button" :disabled="!hydrated || mutation.isPending.value" @click="router.push(templatePath(template.id))">{{ t('app.cancel') }}</UButton><UButton type="submit" :disabled="!hydrated || mutation.isPending.value" :loading="mutation.isPending.value">{{ mutation.isPending.value ? t('app.save') : t('projects.templates.actions.apply') }}</UButton></div></form></UCard></SharedPageState></SharedPageContainer></template>
+<template>
+  <SharedPageContainer width="form">
+    <SharedPageHeader :title="t('projects.templates.applyTitle')" :description="template?.name" :back-to="backTo" />
+    <SharedUnsavedChanges :dirty="dirty" />
+    <SharedPageState :loading="isLoading && !template" :error="template ? null : error" :empty="!isLoading && !error && !template" :empty-text="t('projects.templates.notFound')" @retry="refetch">
+      <p v-if="template && !template.can_apply" class="text-muted">{{ t('projects.forbidden') }}</p>
+      <SharedFormSection panel v-else-if="template">
+        <form novalidate class="grid max-w-xl gap-4" @submit.prevent="apply">
+          <UAlert v-if="mutation.error.value" role="alert" color="error" variant="subtle" :title="t('projects.templates.applyError')" />
+          <p class="text-sm text-muted">{{ t('projects.templates.applyHint') }}</p>
+          <UFormField :label="t('projects.templates.fields.projectName')" required :error="fieldErrors.name"><UInput v-model="name" name="project-name" :disabled="!hydrated || mutation.isPending.value" required maxlength="255" class="w-full" /></UFormField>
+          <UFormField :label="t('projects.templates.fields.startDate')" required :error="fieldErrors.start_date"><SharedDateField v-model="startDate" name="project-start-date" :aria-label="t('projects.templates.fields.startDate')" :disabled="!hydrated || mutation.isPending.value" aria-required="true" class="w-full" /></UFormField>
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated || mutation.isPending.value" @click="router.push(templatePath(template.id))">{{ t('app.cancel') }}</UButton>
+            <UButton type="submit" :disabled="!hydrated || mutation.isPending.value" :loading="mutation.isPending.value">{{ mutation.isPending.value ? t('app.save') : t('projects.templates.actions.apply') }}</UButton>
+          </div>
+        </form>
+      </SharedFormSection>
+    </SharedPageState>
+  </SharedPageContainer>
+</template>

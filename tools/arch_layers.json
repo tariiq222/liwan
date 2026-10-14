@@ -10,8 +10,11 @@
     "nasq_hr": 4,
     "nasq_chat": 4,
     "nasq_tasks": 4,
+    "nasq_operations": 4,
     "nasq_meetings_pmo": 5,
-    "nasq_tasks_pmo": 5
+    "nasq_tasks_pmo": 5,
+    "base_tier_validation": 3,
+    "nasq_operations_pmo": 5
   },
   "exempt": [
     "cyan_meeting_minutes",
@@ -60,6 +63,14 @@
       ],
       "pages": [
         "my-tasks"
+      ]
+    },
+    "operations": {
+      "components": [
+        "operations"
+      ],
+      "pages": [
+        "operations"
       ]
     }
   },

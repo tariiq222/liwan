@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { inject } from 'vue'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/project/governance/state'
-import { STATUS_COLOR } from '@/utils/statusTone'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
@@ -13,7 +11,6 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isListRoute = computed(() => {
   const rest = normalizedPath.value.replace(/^\/projects\/[^/]+\/register/, '')
@@ -29,10 +26,24 @@ const error = ref<string | null>(null)
 function setFilter(key: string, value: string) {
   router.replace({ query: { ...route.query, [key]: value || undefined, offset: undefined } })
 }
-const q = computed({
-  get: () => typeof route.query.q === 'string' ? route.query.q : '',
-  set: value => setFilter('q', value),
+const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
+watch(search, value => setFilter('q', value), { flush: 'sync' })
+watch(() => route.query.q, value => { search.value = typeof value === 'string' ? value : '' })
+const q = search
+const PAGE = 50
+const pageNumber = computed(() => Math.floor((parsed.value.offset ?? 0) / PAGE) + 1)
+const pages = computed(() => Math.max(1, pageNumber.value, Math.ceil((list.data.value?.total ?? 0) / PAGE)))
+function setPage(next: number) {
+  if (!hydrated.value || list.isFetching.value || next < 1 || next > pages.value) return
+  void router.push({ query: { ...route.query, offset: next === 1 ? undefined : String((next - 1) * PAGE) } })
+}
+// A link out of the list carries the list's own state, with the search being typed; a referrer's returnTo is dropped.
+const liveQuery = computed(() => {
+  const { returnTo: _referrer, ...rest } = route.query
+  return { ...rest, q: search.value.trim() || undefined }
 })
+const itemTo = (item: { id: number }) => ({ path: `/projects/${id.value}/register/${item.id}`, query: liveQuery.value })
+const createTo = computed(() => list.data.value?.can_manage ? { path: `/projects/${id.value}/register/new`, query: liveQuery.value } : undefined)
 const kind = computed(() => parsed.value.kind ?? 'all')
 const status = computed(() => parsed.value.status ?? 'all')
 const priority = computed(() => parsed.value.priority ?? 'all')
@@ -52,9 +63,7 @@ const activeFilterCount = computed(() => Number(Boolean(q.value.trim())) + Numbe
 function clearFilters() {
   router.replace({ query: { ...route.query, q: undefined, kind: undefined, status: undefined, priority: undefined, offset: undefined } })
 }
-function page(delta: number) {
-  router.push({ query: { ...route.query, offset: String(Math.max(0, (parsed.value.offset ?? 0) + delta * 50)) } })
-}
+
 const kindItems = computed(() => [
   { value: 'all', label: t('projects.clarity.allKinds') },
   { value: 'risk', label: t('projects.governance.register.risk') },
@@ -81,7 +90,7 @@ const columns = computed(() => [
   { accessorKey: 'priority', header: t('projects.governance.register.priority') },
   { accessorKey: 'status', header: t('projects.governance.register.status') },
   { accessorKey: 'score', header: t('projects.clarity.riskScore') },
-  { id: 'actions', header: t('app.actions') },
+  { id: 'actions', header: t('app.actions'), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } },
 ])
 async function deleteItem(item: { id: number }) {
   error.value = null
@@ -118,69 +127,43 @@ function cancelDelete() {
   confirmDeleteId.value = null
   error.value = null
 }
+function openLiveItem(event: MouseEvent, item: { id: number }) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  void router.push(itemTo(item))
+}
 </script>
 
 <template>
-  <SharedPageContainer v-if="isListRoute" width="list">
-    <SharedPageHeader
-      v-if="!isProjectOverlay"
-      :title="t('projects.refresh.workspace.registerTitle')"
-    >
-      <template #actions>
-        <UButton
-          v-if="list.data.value?.can_manage && hydrated"
-          data-testid="register-create"
-          icon="i-lucide-plus"
-          :to="`/projects/${id}/register/new`"
-        >
-          {{ t('projects.clarity.addRegister') }}
-        </UButton>
-      </template>
-    </SharedPageHeader>
-    <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-      <template #search>
-        <UInput
-          v-model="q"
-          :aria-label="t('projects.clarity.registerSearch')"
-          :disabled="!hydrated"
-          :placeholder="t('projects.clarity.registerSearch')"
-          icon="i-lucide-search"
-          class="w-full min-w-52"
-        />
-      </template>
-      <template #default>
-        <SharedFilterChoice
-          layout="segment"
-          :label="t('projects.governance.register.kind')"
-          :items="kindItems"
-          :model-value="kind"
-          :disabled="!hydrated"
-          @update:model-value="setKind($event)"
-        />
-        <SharedFilterChoice
-          :label="t('projects.governance.register.status')"
-          :items="statusItems"
-          :model-value="status"
-          :disabled="!hydrated"
-          @update:model-value="setStatus($event)"
-        />
-        <SharedFilterChoice
-          :label="t('projects.governance.register.priority')"
-          :items="priorityItems"
-          :model-value="priority"
-          :disabled="!hydrated"
-          @update:model-value="setPriority($event)"
-        />
-      </template>
-      <template #active>
-        <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-          <SharedFilterChip v-if="q.trim()" :label="`${t('projects.clarity.registerSearch')}: ${q}`" @remove="q = ''" />
-          <SharedFilterChip v-if="parsed.kind" :label="itemLabel(kindItems, kind)" @remove="setKind('all')" />
-          <SharedFilterChip v-if="parsed.status" :label="itemLabel(statusItems, status)" @remove="setStatus('all')" />
-          <SharedFilterChip v-if="parsed.priority" :label="itemLabel(priorityItems, priority)" @remove="setPriority('all')" />
-        </div>
-      </template>
-    </FilterBar>
+  <SharedListPage
+    v-if="isListRoute"
+    hide-header
+    :title="t('projects.refresh.workspace.registerTitle')"
+    :create-to="createTo"
+    :create-label="t('projects.clarity.addRegister')"
+    create-test-id="register-create"
+  >
+    <template #filters>
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <template #search>
+          <UInput v-model="search" :aria-label="t('projects.clarity.registerSearch')" :disabled="!hydrated" :placeholder="t('projects.clarity.registerSearch')" icon="i-lucide-search" class="w-full min-w-52" />
+        </template>
+        <template #default>
+          <SharedFilterChoice layout="segment" :label="t('projects.governance.register.kind')" :items="kindItems" :model-value="kind" :disabled="!hydrated" @update:model-value="setKind($event)" />
+          <SharedFilterChoice :label="t('projects.governance.register.status')" :items="statusItems" :model-value="status" :disabled="!hydrated" @update:model-value="setStatus($event)" />
+          <SharedFilterChoice :label="t('projects.governance.register.priority')" :items="priorityItems" :model-value="priority" :disabled="!hydrated" @update:model-value="setPriority($event)" />
+        </template>
+        <template #active>
+          <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
+            <SharedFilterChip v-if="search.trim()" :label="`${t('projects.clarity.registerSearch')}: ${search}`" @remove="search = ''" />
+            <SharedFilterChip v-if="parsed.kind" :label="itemLabel(kindItems, kind)" @remove="setKind('all')" />
+            <SharedFilterChip v-if="parsed.status" :label="itemLabel(statusItems, status)" @remove="setStatus('all')" />
+            <SharedFilterChip v-if="parsed.priority" :label="itemLabel(priorityItems, priority)" @remove="setPriority('all')" />
+          </div>
+        </template>
+      </FilterBar>
+    </template>
+
     <SharedInlineConfirm
       v-if="confirmItem"
       data-testid="register-delete-confirm"
@@ -193,79 +176,44 @@ function cancelDelete() {
       <p v-if="error" class="text-error">{{ error }}</p>
     </SharedInlineConfirm>
     <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-    <SharedPageState
-      :loading="list.isLoading.value"
-      :error="list.error.value"
-      :empty="!list.isLoading.value && !list.data.value?.items.length"
-      :empty-text="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')"
-      @retry="list.refetch"
-    />
-    <section v-if="list.data?.value?.items.length" class="rounded-lg ring ring-default bg-default overflow-hidden" :aria-label="t('projects.refresh.workspace.registerTitle')">
-      <div class="hidden overflow-x-auto md:block">
-        <UTable :data="list.data.value.items" :columns="columns">
-          <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-          <template #title-cell="{ row }">
-            <NuxtLink
-              class="font-medium underline"
-              :to="`/projects/${id}/register/${row.original.id}`"
-            >
-              {{ row.original.title }}
-            </NuxtLink>
-          </template>
-          <template #kind-cell="{ row }">{{ t(`projects.governance.register.${row.original.kind}`) }}</template>
-          <template #priority-cell="{ row }"><UBadge variant="subtle" :color="STATUS_COLOR[REGISTER_PRIORITY_TONE[row.original.priority]]">{{ t(`projects.governance.register.${row.original.priority}`) }}</UBadge></template>
-          <template #status-cell="{ row }"><UBadge variant="subtle" :color="STATUS_COLOR[REGISTER_STATUS_TONE[row.original.status]]">{{ t(`projects.governance.register.${row.original.status}`) }}</UBadge></template>
-          <template #score-cell="{ row }"><UBadge variant="subtle" :color="STATUS_COLOR[registerScoreTone(row.original.score)]">{{ row.original.score ?? '—' }}</UBadge></template>
-          <template #actions-cell="{ row }">
-            <div v-if="list.data.value?.can_manage" class="flex justify-end">
-              <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.title })" :disabled="!hydrated" />
+
+    <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
+    <SharedEmptyState v-else-if="!list.isLoading.value && !list.data.value?.items.length" :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')" />
+    <SharedDataTable v-else :rows="list.data.value?.items ?? []" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.refresh.workspace.registerTitle')">
+      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+      <template #title-cell="{ row }">
+        <NuxtLink :to="itemTo(row.original)" @click="openLiveItem($event, row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
+      </template>
+      <template #kind-cell="{ row }">{{ t(`projects.governance.register.${row.original.kind}`) }}</template>
+      <template #priority-cell="{ row }"><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[row.original.priority]" :label="t(`projects.governance.register.${row.original.priority}`)" /></template>
+      <template #status-cell="{ row }"><SharedStatusBadge :tone="REGISTER_STATUS_TONE[row.original.status]" :label="t(`projects.governance.register.${row.original.status}`)" /></template>
+      <template #score-cell="{ row }"><SharedStatusBadge :tone="registerScoreTone(row.original.score)" :label="String(row.original.score ?? '—')" /></template>
+      <template #actions-cell="{ row }">
+        <div v-if="list.data.value?.can_manage" class="flex justify-end">
+          <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.title })" :disabled="!hydrated" />
+        </div>
+      </template>
+      <template #mobile-row="{ row: item }">
+        <div class="space-y-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 space-y-1">
+              <RecordNumber :value="item.id" />
+              <NuxtLink :to="itemTo(item)" @click="openLiveItem($event, item)" class="block font-medium text-highlighted hover:underline">{{ item.title }}</NuxtLink>
             </div>
-          </template>
-        </UTable>
-      </div>
-      <ul class="grid gap-3 p-3 md:hidden" :aria-label="t('projects.refresh.workspace.registerTitle')">
-        <li v-for="item in list.data.value.items" :key="`mobile-register-${item.id}`">
-          <UCard>
-            <div class="space-y-3">
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0 space-y-1">
-                  <RecordNumber :value="item.id" />
-                  <NuxtLink
-                    class="block font-medium underline"
-                    :to="`/projects/${id}/register/${item.id}`"
-                  >
-                    {{ item.title }}
-                  </NuxtLink>
-                </div>
-                <div class="flex shrink-0 items-center gap-1">
-                  <UBadge variant="subtle" :color="STATUS_COLOR[REGISTER_STATUS_TONE[item.status]]">{{ t(`projects.governance.register.${item.status}`) }}</UBadge>
-                  <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.title })" :disabled="!hydrated" />
-                </div>
-              </div>
-              <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                <div>
-                  <dt class="text-xs text-muted">{{ t('projects.governance.register.kind') }}</dt>
-                  <dd>{{ t(`projects.governance.register.${item.kind}`) }}</dd>
-                </div>
-                <div>
-                  <dt class="text-xs text-muted">{{ t('projects.governance.register.priority') }}</dt>
-                  <dd><UBadge variant="subtle" :color="STATUS_COLOR[REGISTER_PRIORITY_TONE[item.priority]]">{{ t(`projects.governance.register.${item.priority}`) }}</UBadge></dd>
-                </div>
-                <div>
-                  <dt class="text-xs text-muted">{{ t('projects.clarity.riskScore') }}</dt>
-                  <dd><UBadge variant="subtle" :color="STATUS_COLOR[registerScoreTone(item.score)]">{{ item.score ?? '—' }}</UBadge></dd>
-                </div>
-              </dl>
+            <div class="flex shrink-0 items-center gap-1">
+              <SharedStatusBadge :tone="REGISTER_STATUS_TONE[item.status]" :label="t(`projects.governance.register.${item.status}`)" />
+              <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.title })" :disabled="!hydrated" />
             </div>
-          </UCard>
-        </li>
-      </ul>
-    </section>
-    <nav v-if="list.data.value && (list.data.value.total > 50 || parsed.offset)" class="flex items-center gap-3" :aria-label="t('projects.governance.pagination')">
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || list.isFetching.value || !parsed.offset" :label="t('projects.governance.previous')" @click="page(-1)" />
-      <span>{{ t('projects.governance.total', { total: list.data.value.total }) }}</span>
-      <UButton color="neutral" variant="ghost" :disabled="!hydrated || list.isFetching.value || (parsed.offset ?? 0) + 50 >= list.data.value.total" :label="t('projects.governance.next')" @click="page(1)" />
-    </nav>
-  </SharedPageContainer>
+          </div>
+          <dl class="grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
+            <div><dt class="text-xs text-muted">{{ t('projects.governance.register.kind') }}</dt><dd>{{ t(`projects.governance.register.${item.kind}`) }}</dd></div>
+            <div><dt class="text-xs text-muted">{{ t('projects.governance.register.priority') }}</dt><dd><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[item.priority]" :label="t(`projects.governance.register.${item.priority}`)" /></dd></div>
+            <div><dt class="text-xs text-muted">{{ t('projects.clarity.riskScore') }}</dt><dd><SharedStatusBadge :tone="registerScoreTone(item.score)" :label="String(item.score ?? '—')" /></dd></div>
+          </dl>
+        </div>
+      </template>
+    </SharedDataTable>
+    <SharedPagination v-if="list.data.value" :page="pageNumber" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
+  </SharedListPage>
   <NuxtPage />
 </template>

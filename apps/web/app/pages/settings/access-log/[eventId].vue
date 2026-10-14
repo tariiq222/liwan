@@ -1,46 +1,49 @@
 <script setup lang="ts">
 import type { AuditAction } from '@nasq/contracts'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const id = computed(() => Number(route.params.eventId))
+const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
 const returnTo = computed(() => {
   return adminPathWithQuery('/settings/access-log', adminListQuery(route.query, ['from', 'to', 'actor_id', 'target_type', 'target_id', 'action', 'offset']))
 })
 const forbidden = computed(() => !can('access.audit.read'))
-const event = useAdminAuditEvent(id, computed(() => !forbidden.value))
+const event = useAdminAuditEvent(computed(() => validId.value ? id.value : null), computed(() => !forbidden.value))
+const pageError = computed(() => event.error.value ?? (validId.value || forbidden.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const actionLabels: Record<AuditAction, string> = {
   'user.granted': 'access.audit.actions.userGranted', 'user.roles_changed': 'access.audit.actions.userRolesChanged', 'user.disabled': 'access.audit.actions.userDisabled', 'user.reactivated': 'access.audit.actions.userReactivated', 'user.password_reset': 'access.audit.actions.userPasswordReset', 'employee.archived_access_disabled': 'access.audit.actions.employeeArchived', 'role.created': 'access.audit.actions.roleCreated', 'role.updated': 'access.audit.actions.roleUpdated', 'role.disabled': 'access.audit.actions.roleDisabled', 'role.enabled': 'access.audit.actions.roleEnabled', 'role.deleted': 'access.audit.actions.roleDeleted', 'migration.legacy_admin_preserved': 'access.audit.actions.legacyAdminPreserved',
 }
 </script>
 
 <template>
-  <SettingsLayout width="detail">
-    <SharedPageHeader :title="t('access.audit.detailTitle')" :back-to="returnTo" />
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <SharedPageState v-else :loading="event.isLoading.value" :error="event.error.value" :empty="!event.data.value" :empty-text="t('access.notFound')" @retry="event.refetch">
+  <SharedRecordPage
+    data-testid="settings-layout"
+    :title="t('access.audit.detailTitle')"
+    :back-to="returnTo"
+    :loading="event.isLoading.value"
+    :error="pageError"
+    @retry="event.refetch"
+  >
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
+    <SharedPageState v-else :empty="!event.data.value" :empty-text="t('access.notFound')">
       <template v-if="event.data.value">
-        <div class="nasq-settings-detail space-y-6">
-          <UCard id="event" class="rounded-lg ring ring-default bg-default overflow-hidden nasq-settings-anchor" :ui="{ header: '' }">
-            <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.audit.detailTitle') }}</h2></template>
-            <dl class="grid gap-4 sm:grid-cols-2">
-              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.time') }}</dt><dd class="mt-1 font-medium" dir="ltr">{{ event.data.value.occurred_at }}</dd></div>
-              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.actor') }}</dt><dd class="mt-1 font-medium">{{ event.data.value.actor?.name ?? t('access.audit.system') }}</dd></div>
-              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.action') }}</dt><dd class="mt-1 font-medium">{{ t(actionLabels[event.data.value.action]) }}</dd></div>
-              <div><dt class="text-sm text-muted">{{ t('access.audit.columns.target') }}</dt><dd class="mt-1 font-medium">{{ event.data.value.target.name }}</dd></div>
-              <div v-if="event.data.value.reason"><dt class="text-sm text-muted">{{ t('access.audit.reason') }}</dt><dd class="mt-1 font-medium">{{ event.data.value.reason }}</dd></div>
-            </dl>
-          </UCard>
-          <UCard v-for="side in (['before', 'after'] as const)" :id="side" :key="side" class="rounded-lg ring ring-default bg-default overflow-hidden nasq-settings-anchor" :ui="{ header: '' }">
-            <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t(`access.audit.${side}`) }}</h2></template>
-            <div class="rounded-lg ring ring-default bg-default overflow-hidden">
-              <pre class="overflow-x-auto p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre>
-            </div>
-          </UCard>
-        </div>
+        <SharedRecordSection v-for="side in (['before', 'after'] as const)" :id="side" :key="side" :title="t(`access.audit.${side}`)">
+          <div class="overflow-hidden rounded-lg bg-default ring ring-default">
+            <pre class="overflow-x-auto p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre>
+          </div>
+        </SharedRecordSection>
       </template>
     </SharedPageState>
-  </SettingsLayout>
+    <template v-if="event.data.value && !forbidden" #aside>
+      <SharedPropertiesPanel id="event" :title="t('access.audit.detailTitle')">
+        <SharedPropertyRow :label="t('access.audit.columns.time')"><bdi dir="ltr">{{ event.data.value.occurred_at }}</bdi></SharedPropertyRow>
+        <SharedPropertyRow :label="t('access.audit.columns.actor')" :value="event.data.value.actor?.name ?? t('access.audit.system')" />
+        <SharedPropertyRow :label="t('access.audit.columns.action')" :value="t(actionLabels[event.data.value.action])" />
+        <SharedPropertyRow :label="t('access.audit.columns.target')" :value="event.data.value.target.name" />
+        <SharedPropertyRow v-if="event.data.value.reason" :label="t('access.audit.reason')" :value="event.data.value.reason" />
+      </SharedPropertiesPanel>
+    </template>
+  </SharedRecordPage>
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { appName, commercialReturnTo, formatVendorMoney, cadenceLabel, isStatusFilter, keyLabel, limitLabel, STATUS_FILTERS, type BundleView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
@@ -23,29 +25,41 @@ const limits = (b: BundleView) => Object.entries(b.domain_limits).map(([k, v]) =
 const nextKey = (b: BundleView) => (b.status === 'draft' ? 'validate' : b.status === 'validated' ? 'publish' : b.available ? 'view' : 'restore')
 const path = (b: BundleView) => ({ path: `/vendor/bundles/${encodeURIComponent(b.id)}`, query: { returnTo: listTo.value } })
 const statusItems = computed(() => STATUS_FILTERS.map(value => ({ value, label: t(`vendor.pricing.filter.${value}`) })))
+
+const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
+  { id: 'name', header: t('vendor.bundles.title') },
+  { id: 'status', header: t('vendor.common.status') },
+  { id: 'apps', header: t('vendor.pricing.sections.included') },
+  { id: 'limits', header: t('vendor.pricing.sections.limits') },
+  { id: 'prices', header: t('vendor.pricing.sections.prices') },
+  { id: 'customers', header: t('vendor.customers.title') },
+])
 </script>
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('vendor.bundles.title')" :description="t('vendor.bundles.description')"><template #actions><UButton v-if="can('vendor.catalog.manage')" :to="{ path: '/vendor/bundles/new', query: { returnTo: listTo } }" icon="i-lucide-plus">{{ t('vendor.bundles.create') }}</UButton></template></SharedPageHeader>
-    <SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/vendor/bundles')">
+<SharedListPage :title="t('vendor.bundles.title')" :description="t('vendor.bundles.description')" :create-to="can('vendor.catalog.manage') ? { path: '/vendor/bundles/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.bundles.create')" create-test-id="vendor-bundle-new">
+
+<template #filters><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/vendor/bundles')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.bundles.search')" :placeholder="t('vendor.bundles.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.pricing.filter.${status}`)" @remove="patch({ status: undefined })" /></template>
-    </SharedFilterBar>
-    <SharedPageState :loading="pending" :error="error" :empty="!pending && !error && !items.length" :empty-text="t(q || status !== 'all' ? 'vendor.bundles.noResults' : 'vendor.bundles.empty')" @retry="refresh">
-      <div class="space-y-4">
-        <UCard v-for="b in items" :key="b.id" data-testid="bundle-row">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="min-w-0"><h2 class="text-lg font-semibold"><NuxtLink :to="path(b)">{{ b.name }}</NuxtLink> <SharedRecordNumber :value="`v${b.version}`" /></h2><p class="mt-1 text-sm text-muted">{{ b.description }}</p></div>
-            <VendorLifecycleBadge :status="b.status" :available="b.available" />
+    </SharedFilterBar></template>
+<p v-if="data" class="text-sm text-muted" data-testid="bundles-result-count">{{ t('vendor.pagination.total', { count: data.bundles.total }) }}</p>
+
+<SharedDataTable  :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t(q || status !== 'all' ? 'vendor.bundles.noResults' : 'vendor.bundles.empty')" :caption="t('vendor.bundles.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
+  <template #name-cell="{ row: { original: b } }"><NuxtLink :to="path(b)" data-testid="bundle-row" class="font-medium hover:underline">{{ b.name }}</NuxtLink> <SharedRecordNumber :value="`v${b.version}`" /></template>
+  <template #status-cell="{ row: { original: b } }"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(b).tone" :label="lifecycleBadge(b).labelKey ? t(lifecycleBadge(b).labelKey) : b.status" /></template>
+  <template #apps-cell="{ row: { original: b } }"><div class="flex flex-wrap gap-1"><UBadge v-for="a in apps(b)" :key="a" color="neutral" variant="subtle">{{ a }}</UBadge></div></template>
+  <template #limits-cell="{ row: { original: b } }">{{ limits(b).join(' · ') }}</template>
+  <template #prices-cell="{ row: { original: b } }"><ul><li v-for="p in b.prices" :key="`${p.cadence.unit}${p.cadence.count}`">{{ cadenceLabel(p.cadence,t) }}: <bdi dir="ltr">{{ formatVendorMoney(p.amount,locale) }}</bdi></li></ul></template>
+  <template #customers-cell="{ row: { original: b } }">{{ t('vendor.pricing.customers', {count:b.customer_count}) }}</template>
+  <template #mobile-row="{ row: b }"><div class="flex flex-wrap items-start justify-between gap-4">
+            <div class="min-w-0"><h2 class="text-lg font-semibold"><NuxtLink data-testid="bundle-row" :to="path(b)">{{ b.name }}</NuxtLink> <SharedRecordNumber :value="`v${b.version}`" /></h2><p class="mt-1 text-sm text-muted">{{ b.description }}</p></div>
+            <SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(b).tone" :label="t(lifecycleBadge(b).labelKey)" />
           </div>
           <div class="mt-3 flex flex-wrap gap-2"><UBadge v-for="a in apps(b)" :key="a" color="neutral" variant="subtle">{{ a }}</UBadge><span v-if="!b.selections.length" class="text-sm text-muted">{{ t('vendor.pricing.summary.noApps') }}</span></div>
           <ul v-if="limits(b).length" class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted"><li v-for="l in limits(b)" :key="l">{{ l }}</li></ul>
           <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums"><li v-for="p in b.prices" :key="`${p.cadence.unit}${p.cadence.count}`">{{ cadenceLabel(p.cadence, t) }}: <span class="font-medium">{{ formatVendorMoney(p.amount, locale) }}</span></li><li v-if="!b.prices.length" class="text-warning">{{ t('vendor.pricing.prices.none') }}</li></ul>
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><p class="text-sm text-muted">{{ t('vendor.pricing.customers', { count: b.customer_count }) }}</p><UButton :to="path(b)" color="neutral" variant="link">{{ t(`vendor.pricing.next.${nextKey(b)}`) }}</UButton></div>
-        </UCard>
-      </div>
-      <div v-if="data" class="mt-4 grid gap-3"><p class="text-sm text-muted">{{ t('vendor.pagination.total', { count: data.bundles.total }) }}</p><SharedPagination :page="page" :pages="pages" @update:page="value => patch({ page: value })" /></div>
-    </SharedPageState>
-  </SharedPageContainer>
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><p class="text-sm text-muted">{{ t('vendor.pricing.customers', { count: b.customer_count }) }}</p><UButton :to="path(b)" color="neutral" variant="link">{{ t(`vendor.pricing.next.${nextKey(b)}`) }}</UButton></div></template>
+</SharedDataTable>
+</SharedListPage>
 </template>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { deadlineLabel, deadlineTone } from '@/composables/taskState'
 import type { Task } from '@nasq/contracts'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
-import DeadlineBadge from './DeadlineBadge.vue'
 
 const props = withDefaults(defineProps<{ task: Task; stages: BoardStage[]; currentStageId: number | null; showProject?: boolean }>(), {
   showProject: true,
@@ -85,7 +85,7 @@ function onCardKeydown(event: KeyboardEvent) {
 
     <div class="flex items-center justify-between gap-2 pt-1">
       <div class="flex items-center gap-2">
-        <DeadlineBadge :deadline="task.date_deadline" :days-remaining="task.days_remaining" :is-closed="task.is_closed" />
+        <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(task.days_remaining, task.is_closed)" :label="deadlineLabel(task.days_remaining, t)" />
         <UIcon
           name="i-lucide-flag"
           v-if="PRIORITY_TONE[task.priority]"

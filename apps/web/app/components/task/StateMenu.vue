@@ -1,13 +1,15 @@
 <script setup lang="ts">
+import { taskStateBadge } from '@/composables/taskState'
+import { badgeLabel } from '@/utils/statusBadge'
 import type { Task, TaskState } from '@nasq/contracts'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import { useTransitionTask } from '@/composables/useTasks'
-import StateBadge from './StateBadge.vue'
 
 const props = defineProps<{ task: Task; canApprove?: boolean }>()
 
 const { t } = useI18n()
+const stateBadge = (state: TaskState) => { const entry = taskStateBadge(state); return { tone: entry.tone, label: badgeLabel(entry, state, t) } }
 const { mutate, isPending } = useTransitionTask()
 const hydrated = useHydrated()
 const toast = useToast()
@@ -31,11 +33,11 @@ const items = computed(() => states.value.map((s) => ({ label: t(STATE_LABEL_KEY
 </script>
 
 <template>
-  <StateBadge v-if="!states.length" :state="task.state" />
+  <SharedStatusBadge v-if="!states.length" v-bind="stateBadge(task.state)" />
   <UDropdownMenu v-else :items="items" :content="{ align: 'start' }">
     <UButton type="button" color="neutral" variant="ghost" class="inline-flex items-center disabled:opacity-60" :disabled="isPending || !hydrated">
       <UIcon v-if="isPending" name="i-lucide-loader-2" class="size-4 animate-spin text-muted" aria-hidden="true" />
-      <StateBadge v-else :state="task.state" />
+      <SharedStatusBadge v-else v-bind="stateBadge(task.state)" />
     </UButton>
   </UDropdownMenu>
 </template>

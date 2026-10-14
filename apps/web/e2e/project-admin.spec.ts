@@ -212,7 +212,7 @@ test('a milestone created on the project can be linked from the task detail page
   await expect(page).toHaveURL(new RegExp(`/projects/${id}/milestones/\\d+/edit\\?returnTo=`))
   await page.goto(`/projects/${id}?tab=milestones`)
   await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toBeVisible()
-  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toContainText('0 من 0')
+  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toContainText('0 من 0')
 
   await page.goto(`/projects/${id}/tasks/${taskId}?tab=milestones`)
   const taskDetail = page.getByTestId('task-detail-page')
@@ -225,7 +225,7 @@ test('a milestone created on the project can be linked from the task detail page
   await page.keyboard.press('Escape')
 
   await page.goto(`/projects/${id}?tab=milestones`)
-  await expect(page.getByTestId('milestone-row').filter({ hasText: milestoneName })).toContainText('0 من 1')
+  await expect(page.getByRole('row').filter({ hasText: milestoneName })).toContainText('0 من 1')
 })
 
 test('posting a project update keeps the status set in settings', async ({ page }) => {

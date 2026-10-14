@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import FinanceEntryForm from '@/components/project/finance/FinanceEntryForm.vue'
@@ -34,14 +35,7 @@ const notFound = computed(() =>
 const initialLoading = computed(() => !keepForm.value && access.isLoading.value && !access.data.value)
 const pageError = computed(() => keepForm.value ? null : (notFound.value ? null : access.error.value))
 const refreshError = computed(() => keepForm.value ? access.error.value : null)
-// The ledger this entry hangs off is fixed by the route, so the return trip is
-// literal and carries only the state the ledger was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the ledger URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: projectId.value ? `/projects/${projectId.value}/finance` : '/projects', query: listQuery }
-})
+const backTo = computed(() => owningListBack(route.query, [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'], route.hash))
 const defaultKind = computed(() => {
   const kind = parseFinanceKind(route.query.kind)
   return kind === 'all' ? 'budget' : kind

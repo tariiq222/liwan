@@ -1,15 +1,18 @@
 <script setup lang="ts">
+import type { TaskState } from '@nasq/contracts'
+import { taskStateBadge } from '@/composables/taskState'
+import { badgeLabel } from '@/utils/statusBadge'
 import type { TaskDetail } from '@nasq/contracts'
 import { useQueryClient } from '@tanstack/vue-query'
 import { ApiError } from '@/composables/useApi'
 import { taskKeys, useCreateTask } from '@/composables/useTasks'
-import StateBadge from './StateBadge.vue'
 
 const props = withDefaults(defineProps<{ task: TaskDetail; basePath?: string }>(), {
   basePath: '/tasks',
 })
 
 const { t } = useI18n()
+const stateBadge = (state: TaskState) => { const entry = taskStateBadge(state); return { tone: entry.tone, label: badgeLabel(entry, state, t) } }
 const { can } = useAccess()
 const hydrated = useHydrated()
 const router = useRouter()
@@ -43,7 +46,7 @@ function openSubtask(id: number) {
     <ul v-if="task.subtasks.length" class="grid gap-1">
       <li v-for="sub in task.subtasks" :key="sub.id" class="flex min-w-0 items-center gap-2 rounded-lg border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
         <UButton type="button" color="neutral" variant="ghost" class="flex min-w-0 flex-1 items-center justify-start gap-2 rounded-lg text-start" :disabled="!hydrated" @click="openSubtask(sub.id)">
-          <StateBadge :state="sub.state" />
+          <SharedStatusBadge v-bind="stateBadge(sub.state)" />
           <span class="flex-1 truncate text-sm">{{ sub.name }}</span>
         </UButton>
       </li>

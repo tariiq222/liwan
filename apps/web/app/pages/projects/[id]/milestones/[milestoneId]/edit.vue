@@ -60,7 +60,7 @@ async function confirmDelete() {
     >
       <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
       <template v-else-if="milestone && projectId">
-      <section class="rounded-lg ring ring-default bg-default overflow-hidden"><div class="p-5 space-y-5">
+      <SharedFormSection panel class="space-y-5">
         <MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" :milestone="milestone" @saved="router.push(backTo)" @cancel="router.push(backTo)" />
         <div v-if="milestone.task_count > 0" class="rounded-md border border-default p-3 text-sm text-muted">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
         <SharedInlineConfirm
@@ -75,7 +75,7 @@ async function confirmDelete() {
           <p v-if="mutationError" role="alert" class="text-error">{{ mutationError }}</p>
         </SharedInlineConfirm>
         <UButton v-else-if="milestone.task_count === 0" data-testid="milestone-delete" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated" @click="deleteOpen = true">{{ t('projects.milestones.delete') }}</UButton>
-      </div></section>
+      </SharedFormSection>
       </template>
     </SharedPageState>
   </SharedPageContainer>

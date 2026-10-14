@@ -21,14 +21,10 @@ async function login(page: Page, baseURL: string | undefined) {
   await expect(page).not.toHaveURL(/\/login/)
 }
 
-async function setShellState(page: Page, state: { railExpanded: boolean; contextExpanded: boolean }) {
-  const railToggle = page.getByTestId('module-rail-toggle')
+async function setShellState(page: Page, state: { contextExpanded: boolean }) {
   const contextToggle = page.getByTestId('context-sidebar-toggle')
-  await expect(railToggle).toBeEnabled()
   await expect(contextToggle).toBeEnabled()
-  if ((await railToggle.getAttribute('aria-expanded')) !== String(state.railExpanded)) await railToggle.click()
   if ((await contextToggle.getAttribute('aria-expanded')) !== String(state.contextExpanded)) await contextToggle.click()
-  await expect(railToggle).toHaveAttribute('aria-expanded', String(state.railExpanded))
   await expect(contextToggle).toHaveAttribute('aria-expanded', String(state.contextExpanded))
 }
 
@@ -51,7 +47,7 @@ async function expectDrawnIcon(icon: Locator) {
 test('shell follows the approved neutral frame and independent desktop collapse', async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await login(page, baseURL)
-  await setShellState(page, { railExpanded: false, contextExpanded: true })
+  await setShellState(page, { contextExpanded: true })
 
   const header = page.getByTestId('shell-header')
   const rail = page.getByTestId('module-rail')
@@ -59,31 +55,41 @@ test('shell follows the approved neutral frame and independent desktop collapse'
   const main = page.getByTestId('shell-main')
   await expect(page.locator('main h1')).toHaveCount(1)
   await expect(header.locator('h1')).toHaveCount(0)
-  await expect(header).toHaveCSS('height', '64px')
-  await expect(rail).toHaveCSS('width', '76px')
-  await expect(context).toHaveCSS('width', '236px')
-  await expect(page.locator('main [data-slot="root"].nasq-elevation-1').first()).toBeVisible()
+  await expect(header).toHaveCSS('height', '48px')
+  await expect(rail).toHaveCSS('width', '64px')
+  await expect(context).toHaveCSS('width', '232px')
+  await expect(page.locator('main [data-slot="root"][class*="ring-default"]').first()).toBeVisible()
   await expect(page.getByTestId('context-link-new-project')).toBeVisible()
 
   const surfaces = await page.evaluate(() => {
     const header = document.querySelector<HTMLElement>('[data-testid="shell-header"]')!
     const main = document.querySelector<HTMLElement>('[data-testid="shell-main"]')!
-    const card = document.querySelector<HTMLElement>('main [data-slot="root"].nasq-elevation-1')
+    const card = document.querySelector<HTMLElement>('main [data-slot="root"][class*="ring-default"]')
     const create = document.querySelector<HTMLElement>('[data-testid="context-link-new-project"]')
     const css = (element: HTMLElement) => {
       const styles = getComputedStyle(element)
-      return { background: styles.backgroundColor, color: styles.color }
+      return { background: styles.backgroundColor, color: styles.color, shadow: styles.boxShadow }
     }
+    // Resolve --ui-border through a probe so the comparison is computed-colour to computed-colour.
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--ui-border)'
+    document.body.appendChild(probe)
+    const uiBorder = getComputedStyle(probe).color
+    probe.remove()
+    const headerStyles = getComputedStyle(header)
     return {
-      header: css(header),
+      header: { ...css(header), borderWidth: parseFloat(headerStyles.borderBlockEndWidth), borderColor: headerStyles.borderBlockEndColor, uiBorder },
       canvas: css(main).background,
       card: card ? css(card) : null,
       create: create ? css(create) : null,
     }
   })
-  expect(surfaces.header.background).not.toBe(surfaces.canvas)
+  // Tasmim: the header and the canvas share one neutral surface; the header is set apart by its bottom border.
+  expect(surfaces.header.borderWidth).toBeGreaterThanOrEqual(1)
+  expect(surfaces.header.borderColor).toBe(surfaces.header.uiBorder)
   expect(surfaces.card).not.toBeNull()
-  expect(surfaces.card!.background).not.toBe(surfaces.canvas)
+  // Tasmim cards share the canvas colour and are set apart by the hairline ring (a box-shadow ring), not a fill.
+  expect(surfaces.card!.shadow).not.toBe('none')
   expect(surfaces.create).not.toBeNull()
   expect(surfaces.create!.color).not.toBe(surfaces.create!.background)
 
@@ -95,28 +101,22 @@ test('shell follows the approved neutral frame and independent desktop collapse'
     await expectDrawnIcon(icon)
   }
 
-  const railToggle = page.getByTestId('module-rail-toggle')
+  // One rail width (Tasmim spec §5); only the context sidebar collapses.
+  await expect(page.getByTestId('module-rail-toggle')).toHaveCount(0)
   const contextToggle = page.getByTestId('context-sidebar-toggle')
-  await railToggle.click()
-  await expect(rail).toHaveCSS('width', '172px')
-  await expect(context).toHaveCSS('width', '236px')
-
   await contextToggle.click()
-  await expect(context).toHaveCSS('width', '64px')
-  await expect(rail).toHaveCSS('width', '172px')
+  await expect(context).toHaveCSS('width', '48px')
+  await expect(rail).toHaveCSS('width', '64px')
   await contextToggle.click()
-  await expect(context).toHaveCSS('width', '236px')
-
-  await railToggle.click()
-  await expect(rail).toHaveCSS('width', '76px')
-  await expect(context).toHaveCSS('width', '236px')
+  await expect(context).toHaveCSS('width', '232px')
+  await expect(rail).toHaveCSS('width', '64px')
   await expect(context).toBeVisible()
 })
 
 test('module context follows direct routes and refresh', async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await login(page, baseURL)
-  await setShellState(page, { railExpanded: false, contextExpanded: true })
+  await setShellState(page, { contextExpanded: true })
 
   await page.goto('/projects')
   const context = page.getByTestId('context-sidebar')
@@ -180,23 +180,18 @@ for (const width of [390, 768, 1440]) {
     } else {
       await expect(rail).toBeVisible()
       await expect(context).toBeVisible()
-      await setShellState(page, { railExpanded: false, contextExpanded: true })
+      await setShellState(page, { contextExpanded: true })
     }
 
-    for (const mode of ['light', 'cream', 'dark']) {
+    for (const mode of ['light', 'dark']) {
       // The preference is per user on the server; the header menu writes the same endpoint.
       await page.request.patch('/api/v1/me/appearance', { data: { mode, font_size: 'large' } })
       await page.goto('/tasks')
       await expect(page.locator('html')).toHaveAttribute('data-font-size', 'large')
       if (mode === 'dark') {
         await expect(page.locator('html')).toHaveClass(/dark/)
-        await expect(page.locator('html')).not.toHaveClass(/cream/)
-      } else if (mode === 'cream') {
-        await expect(page.locator('html')).toHaveClass(/cream/)
-        await expect(page.locator('html')).not.toHaveClass(/dark/)
       } else {
         await expect(page.locator('html')).not.toHaveClass(/dark/)
-        await expect(page.locator('html')).not.toHaveClass(/cream/)
       }
       await expect(page.locator('main h1')).toHaveCount(1)
       await expect(page.getByRole('button', { name: 'بحث', exact: true })).toBeVisible()

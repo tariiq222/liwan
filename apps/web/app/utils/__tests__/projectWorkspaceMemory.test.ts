@@ -2,6 +2,18 @@ import { describe, it, expect } from 'vitest'
 import { savedProjectLocation, projectEntryLocation } from '../projectWorkspaceMemory'
 
 describe('project workspace memory', () => {
+  it('remembers a task section opened with an accepted trailing slash', () => {
+    expect(projectEntryLocation(7, '/projects', savedProjectLocation('/projects/7/tasks/', { view: 'board', q: 'review' }))).toEqual({
+      path: '/projects/7/tasks', query: { view: 'board', q: 'review', returnTo: '/projects', projectListReturnTo: '/projects' },
+    })
+  })
+  it.each(['tasks', 'milestones'])('remembers the canonical %s section and its filters', section => {
+    const saved = savedProjectLocation(`/projects/7/${section}`, { view: 'board', q: 'review', state: 'in_progress' })
+    expect(projectEntryLocation(7, '/projects?mine=1', saved)).toEqual({
+      path: `/projects/7/${section}`,
+      query: { view: 'board', q: 'review', state: 'in_progress', returnTo: '/projects?mine=1', projectListReturnTo: '/projects?mine=1' },
+    })
+  })
   it('retains both searches and pages of the responsibility matrix', () => {
     const query = { task_q: 'review', stakeholder_q: 'manager', task_page: '2', stakeholder_page: '3' }
     expect(savedProjectLocation('/projects/7/raci', query)?.query).toEqual(query)

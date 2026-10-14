@@ -5,23 +5,19 @@ import { buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleDatePo
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const BAR_TONE: Record<StateTone, string> = {
-  info: 'nasq-gantt-bar-info',
-  success: 'nasq-gantt-bar-success',
-  warning: 'nasq-gantt-bar-warning',
-  destructive: 'nasq-gantt-bar-danger',
-  neutral: 'nasq-gantt-bar-muted',
+  info: 'schedule-gantt-bar-info',
+  success: 'schedule-gantt-bar-success',
+  warning: 'schedule-gantt-bar-warning',
+  destructive: 'schedule-gantt-bar-danger',
+  neutral: 'schedule-gantt-bar-muted',
 }
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   schedule: ProjectSchedule
   scale: ScheduleScale
   projectStart?: string | null
   projectEnd?: string | null
-  embedded?: boolean
-}>(), {
-  embedded: false,
-})
-const emit = defineEmits<{ 'update:scale': [ScheduleScale] }>()
+}>()
 const { t, locale } = useI18n()
 const route = useRoute()
 const hydrated = useHydrated()
@@ -59,7 +55,7 @@ async function scrollToFocus() {
   const container = scroller.value
   const anchor = focusAnchor.value
   if (!container || !anchor) return
-  const nameWidth = container.querySelector<HTMLElement>('.nasq-gantt-corner')?.offsetWidth ?? 0
+  const nameWidth = container.querySelector<HTMLElement>('.schedule-gantt-corner')?.offsetWidth ?? 0
   const box = container.getBoundingClientRect()
   const visibleLeft = box.left + (getComputedStyle(container).direction === 'ltr' ? nameWidth : 0)
   // A quarter of the visible track stays before the focus date for context.
@@ -69,24 +65,20 @@ async function scrollToFocus() {
 watch([hydrated, () => props.scale, () => axis.value.start, () => axis.value.end], () => {
   if (hydrated.value) void scrollToFocus()
 }, { immediate: true, flush: 'post' })
+function scrollPage(direction: 1 | -1) {
+  const container = scroller.value
+  if (container) container.scrollBy({ left: direction * container.clientWidth * 0.8 })
+}
+defineExpose({ scrollPage, scrollToToday: scrollToFocus })
 </script>
 
 <template>
   <UCard class="overflow-hidden" :ui="{ body: 'p-0' }">
-    <template v-if="!embedded" #header>
-      <div class="flex w-full flex-row flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold text-highlighted">{{ t('projects.schedule.timeline') }}</h2>
-        <div class="flex rounded-lg border border-default p-0.5" role="group" :aria-label="t('projects.schedule.scale')">
-          <UButton type="button" size="sm" :color="scale === 'week' ? 'primary' : 'neutral'" :variant="scale === 'week' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="emit('update:scale', 'week')">{{ t('projects.schedule.week') }}</UButton>
-          <UButton type="button" size="sm" :color="scale === 'month' ? 'primary' : 'neutral'" :variant="scale === 'month' ? 'solid' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="emit('update:scale', 'month')">{{ t('projects.schedule.month') }}</UButton>
-        </div>
-      </div>
-    </template>
-      <div ref="scroller" class="nasq-gantt" data-testid="schedule-gantt-scroller">
-        <div class="nasq-gantt-grid" :style="gridStyle">
-          <div class="nasq-gantt-name nasq-gantt-corner">{{ t('projects.schedule.task') }}</div>
-          <div class="nasq-gantt-head" role="row">
-            <span ref="focusAnchor" class="nasq-gantt-focus" :style="datePosition(focusDate)" aria-hidden="true" />
+      <div ref="scroller" class="schedule-gantt" data-testid="schedule-gantt-scroller">
+        <div class="schedule-gantt-grid" :style="gridStyle">
+          <div class="schedule-gantt-name schedule-gantt-corner">{{ t('projects.schedule.task') }}</div>
+          <div class="schedule-gantt-head" role="row">
+            <span ref="focusAnchor" class="schedule-gantt-focus" :style="datePosition(focusDate)" aria-hidden="true" />
             <span
               v-for="date in axis.dates"
               :key="date"
@@ -95,12 +87,12 @@ watch([hydrated, () => props.scale, () => axis.value.start, () => axis.value.end
           </div>
 
           <template v-if="datedMilestones.length">
-            <div class="nasq-gantt-name">{{ t('projects.schedule.milestones') }}</div>
-            <div class="nasq-gantt-track">
+            <div class="schedule-gantt-name">{{ t('projects.schedule.milestones') }}</div>
+            <div class="schedule-gantt-track">
               <NuxtLink
                 v-for="milestone in datedMilestones"
                 :key="milestone.id"
-                class="nasq-gantt-mark nasq-status-dot-warning"
+                class="schedule-gantt-mark nasq-status-dot-warning"
                 :style="markerPosition(milestone.deadline!)"
                 :title="`${milestone.name} · ${milestone.deadline}`"
                 :data-milestone-id="milestone.id"
@@ -110,20 +102,20 @@ watch([hydrated, () => props.scale, () => axis.value.start, () => axis.value.end
             </div>
           </template>
 
-          <div v-if="!schedule.tasks.length" class="nasq-gantt-empty">{{ t('projects.schedule.empty') }}</div>
+          <div v-if="!schedule.tasks.length" class="schedule-gantt-empty">{{ t('projects.schedule.empty') }}</div>
 
           <template v-for="task in schedule.tasks" :key="task.id">
-            <NuxtLink class="nasq-gantt-name nasq-gantt-task" :to="taskLink(task.id)" :title="task.name">
+            <NuxtLink class="schedule-gantt-name schedule-gantt-task" :to="taskLink(task.id)" :title="task.name">
               <span class="min-w-0 w-full">
                 <span class="block truncate">{{ task.name }}</span>
                 <span class="block text-xs font-normal text-muted">{{ stateLabel(task.state) }}</span>
               </span>
             </NuxtLink>
-            <div class="nasq-gantt-track">
-              <span v-if="showToday" class="nasq-gantt-today" :style="datePosition(today)" aria-hidden="true" />
+            <div class="schedule-gantt-track">
+              <span v-if="showToday" class="schedule-gantt-today" :style="datePosition(today)" aria-hidden="true" />
               <div
                 v-if="task.start && task.end"
-                class="nasq-gantt-bar"
+                class="schedule-gantt-bar"
                 :class="barClass(task.state)"
                 :style="scheduleBarStyle(task, axis)"
                 :title="`${task.name}: ${task.start} – ${task.end}`"
@@ -131,11 +123,11 @@ watch([hydrated, () => props.scale, () => axis.value.start, () => axis.value.end
               />
               <span
                 v-else-if="task.end"
-                class="nasq-gantt-mark nasq-status-dot-warning"
+                class="schedule-gantt-mark nasq-status-dot-warning"
                 :style="markerPosition(task.end)"
                 :title="t('projects.schedule.endOnly', { date: task.end })"
               />
-              <span class="nasq-gantt-dates">
+              <span class="schedule-gantt-dates">
                 <template v-if="task.start && task.end">{{ formatScheduleDate(task.start, locale) }} – {{ formatScheduleDate(task.end, locale) }}</template>
                 <template v-else-if="task.end">{{ t('projects.schedule.endOnly', { date: formatScheduleDate(task.end, locale) }) }}</template>
                 <template v-else>{{ t('projects.schedule.undated') }}</template>
@@ -144,14 +136,14 @@ watch([hydrated, () => props.scale, () => axis.value.start, () => axis.value.end
           </template>
         </div>
       </div>
-      <ul v-if="legendStates.length" class="nasq-gantt-legend">
-        <li v-if="showToday"><span class="nasq-gantt-today-key" aria-hidden="true" />{{ t('projects.schedule.today') }} · {{ formatScheduleDate(today, locale) }}</li>
+      <ul v-if="legendStates.length" class="schedule-gantt-legend">
+        <li v-if="showToday"><span class="schedule-gantt-today-key" aria-hidden="true" />{{ t('projects.schedule.today') }} · {{ formatScheduleDate(today, locale) }}</li>
         <li v-for="state in legendStates" :key="state">
-          <span class="nasq-gantt-swatch" :class="barClass(state)" aria-hidden="true" />
+          <span class="schedule-gantt-swatch" :class="barClass(state)" aria-hidden="true" />
           {{ stateLabel(state) }}
         </li>
       </ul>
-      <ul v-if="datedMilestones.length" class="nasq-gantt-legend" :aria-label="t('projects.schedule.milestones')">
+      <ul v-if="datedMilestones.length" class="schedule-gantt-legend" :aria-label="t('projects.schedule.milestones')">
         <li v-for="milestone in datedMilestones" :key="milestone.id">{{ milestone.name }} · {{ formatScheduleDate(milestone.deadline!, locale) }}</li>
       </ul>
   </UCard>

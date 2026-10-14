@@ -29,21 +29,14 @@ function onDrafted(id: number, step: CharterWizardStep) {
 
 <template>
   <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo" width="wide">
-    <p v-if="isLoading" role="status" class="text-muted">
-      {{ t('projects.loading') }}
-    </p>
-    <p v-else-if="listError" role="alert" class="text-error">
-      {{ t('projects.loadError') }}
-    </p>
-    <p v-else-if="!canCreate" class="text-muted">
-      {{ t('projects.createForbidden') }}
-    </p>
-    <ProjectCreateForm
-      v-else
-      @created="onCreated"
-      @drafted="onDrafted"
-      @cancel="router.push(returnTo)"
-    />
+    <SharedPageState
+      :loading="isLoading"
+      :error="listError"
+      :empty="!isLoading && !listError && !canCreate"
+      :empty-text="t('projects.createForbidden')"
+    >
+      <ProjectCreateForm @created="onCreated" @drafted="onDrafted" @cancel="router.push(returnTo)" />
+    </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('app.loading') }}</p>
   </SharedCreatePanel>
 </template>

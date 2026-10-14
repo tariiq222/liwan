@@ -24,9 +24,15 @@ export function isSchemaError(error: unknown): boolean {
 
 export function useMe() {
   const headers = useRequestHeaders(['cookie'])
+  // Nuxt's default SSR initial cache reads static data, so later consumers can
+  // fetch again after middleware resolved this request's identity. Reuse only
+  // this SSR app's public data; client refresh/cancellation stays unchanged.
+  const initialMe = import.meta.server ? useNuxtData<Me | null>('me').data.value : undefined
   const request = useFetch<Me | null>('/api/v1/me', {
     key: 'me',
     headers,
+    immediate: initialMe === undefined,
+    dedupe: import.meta.server ? 'defer' : 'cancel',
     // 403 = not logged in: the request still errors, and `me` resolves to null below.
     transform: (raw) => (raw ? MeSchema.parse(raw) : null),
   })

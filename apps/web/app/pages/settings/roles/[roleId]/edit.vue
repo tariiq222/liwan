@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import RolePermissionForm from '@/components/access/roles/RolePermissionForm.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminPermissionCatalog, useAdminRole } from '@/composables/useAdminRoles'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
@@ -20,11 +19,11 @@ const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
 </script>
 
 <template>
-  <SettingsLayout width="form">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('access.roles.editTitle')" :back-to="backTo" />
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
-      <UCard v-if="role.data.value" class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }"><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" @saved="navigateTo(backTo)" /></UCard>
+      <SharedFormSection v-if="role.data.value" panel><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" @saved="navigateTo(backTo)" /></SharedFormSection>
     </SharedPageState>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

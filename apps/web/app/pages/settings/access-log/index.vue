@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { AuditAction } from '@nasq/contracts'
 import AuditTable from '@/components/access/audit/AuditTable.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import { useAdminAuditLog, type AdminAuditListParams } from '@/composables/useAdminAudit'
 import { useAdminUsers } from '@/composables/useAdminUsers'
@@ -47,12 +46,9 @@ function clearDate(key: 'from' | 'to') { setDate(key, null) }
 </script>
 
 <template>
-  <SettingsLayout>
-    <SharedPageHeader :title="t('access.audit.title')" />
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <div v-else class="space-y-6">
-      <p class="text-sm leading-6 text-muted">{{ t('access.audit.description') }}</p>
-      <div id="filters" class="nasq-settings-anchor w-full min-w-0">
+  <SharedListPage data-testid="settings-layout" :title="t('access.audit.title')" :description="forbidden ? undefined : t('access.audit.description')">
+    <template v-if="!forbidden" #filters>
+      <div id="filters" class="w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #default>
             <SharedFilterField :label="t('access.audit.filters.from')" for="access-log-from"><SharedDateField id="access-log-from" :model-value="filters.from ?? null" :max-value="filters.to ?? null" :disabled="!hydrated" @update:model-value="setDate('from', $event)" /></SharedFilterField>
@@ -74,10 +70,20 @@ function clearDate(key: 'from' | 'to') { setDate(key, null) }
           </template>
         </FilterBar>
       </div>
-      <div id="results" class="nasq-settings-anchor">
-        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.audit.empty')" @retry="query.refetch"><AuditTable :events="query.data.value?.items ?? []" :to-for="auditTo" @open="(id) => navigateTo(auditTo(id))" /></SharedPageState>
-        <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
-      </div>
+    </template>
+
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
+    <div v-else class="grid gap-3">
+      <AuditTable
+        id="results"
+        :events="query.data.value?.items ?? []"
+        :loading="query.isLoading.value"
+        :error="query.error.value"
+        :empty-text="t('access.audit.empty')"
+        :to-for="auditTo"
+        @retry="query.refetch"
+      />
+      <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
     </div>
-  </SettingsLayout>
+  </SharedListPage>
 </template>

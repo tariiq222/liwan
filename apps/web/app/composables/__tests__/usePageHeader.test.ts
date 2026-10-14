@@ -1,6 +1,6 @@
 import { computed, createRenderer, defineComponent, h, nextTick, reactive, ref, type App, type Component } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { usePageHeader } from '../usePageHeader'
+import { usePageHeader, usePageHeaderTitle } from '../usePageHeader'
 
 interface HostNode {
   children: HostNode[]
@@ -138,5 +138,16 @@ describe('usePageHeader', () => {
     showIncoming.value = false
     await nextTick()
     expect(shell?.title.value).toBeUndefined()
+  })
+
+  it('reads the registered title for the current route only', () => {
+    const route = reactive({ path: '/tasks' })
+    const pageState = ref<{ owner: string; route: string; title: string } | null>({ owner: 'x', route: '/tasks', title: 'مهامي' })
+    vi.stubGlobal('useRoute', () => route)
+    vi.stubGlobal('useState', () => pageState)
+    const title = usePageHeaderTitle()
+    expect(title.value).toBe('مهامي')
+    route.path = '/projects'
+    expect(title.value).toBeNull()
   })
 })

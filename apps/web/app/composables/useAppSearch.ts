@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/vue-query'
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue'
 import { computed, toValue } from 'vue'
+import type { ZodType } from 'zod'
 import { searchProviders } from '../modules/surfaces'
 import type { AppSearchApi, AppSearchProvider, AppSearchRow } from '../modules/types'
 
@@ -18,6 +19,12 @@ export interface AppSearchSection {
   refetch: () => unknown
   fetchNext: () => unknown
   visible: ComputedRef<boolean>
+}
+
+/** The provider's fetcher with vue-query's abort signal, so a superseded term's request is cancelled. */
+function withSignal(api: AppSearchApi, signal: AbortSignal): AppSearchApi {
+  return <T>(url: string, options: { query?: Record<string, unknown>; schema: ZodType<T>; signal?: AbortSignal }) =>
+    api(url, { ...options, signal })
 }
 
 /**
@@ -41,7 +48,7 @@ export function useAppSearch(options: {
     const query = useInfiniteQuery({
       queryKey: computed(() => provider.queryKey(provider.serverSearch ? debounced.value : '')),
       enabled: computed(() => toValue(options.gate) && can(provider.capability) && (!options.requireTerm || !!debounced.value)),
-      queryFn: ({ pageParam }) => provider.search(api, provider.serverSearch ? debounced.value : '', pageParam),
+      queryFn: ({ pageParam, signal }) => provider.search(withSignal(api, signal), provider.serverSearch ? debounced.value : '', pageParam),
       initialPageParam: 0,
       getNextPageParam: (last, pages) => {
         if (last.total === undefined) return undefined

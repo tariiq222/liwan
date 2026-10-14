@@ -82,7 +82,7 @@ describe('locale parity for vendor.bundles/plans/pricing', () => {
   it('storage is labelled as counted attachments, not database', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.plan.storageHint).toContain('قاعدة البيانات') })
   it('every t() key used by the new pages exists', () => {
     const files = ['bundles/index.vue', 'bundles/new.vue', 'bundles/[id].vue', 'bundles/[id]/edit.vue', 'plans/index.vue', 'plans/new.vue', 'plans/[id].vue', 'plans/[id]/edit.vue'].map(page)
-      .concat(['BundleForm.vue', 'PlanForm.vue', 'PriceBreakdown.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue', 'LifecycleBadge.vue'].map(comp))
+      .concat(['BundleForm.vue', 'PlanForm.vue', 'PriceBreakdown.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue'].map(comp))
     const en = json('en'); const have = new Set(flat({ vendor: en }))
     const missing: string[] = []
     for (const src of files) for (const m of src.matchAll(/\bt\('(vendor\.[a-zA-Z0-9_.]+)'/g)) if (!have.has(m[1]!)) missing.push(m[1]!)

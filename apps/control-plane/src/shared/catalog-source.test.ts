@@ -24,6 +24,11 @@ describe('catalog source resolution by sha256', () => {
     expect((await resolveCatalogSource(repo, sha('platform_v3.json'))).name).toBe('platform_v3.json')
     expect((await readKnownSource(repo, 'platform_v3.json')).name).toBe('platform_v3.json')
   })
+  it('resolves the v4 operations catalog without replacing older sources', async () => {
+    expect((await resolveCatalogSource(repo, sha('platform_v4.json'))).name).toBe('platform_v4.json')
+    expect((await readKnownSource(repo, 'platform_v4.json')).name).toBe('platform_v4.json')
+  })
+
   it('rejects zero matches', async () => {
     await expect(resolveCatalogSource(repo, '0'.repeat(64))).rejects.toThrow('catalog_source_unavailable')
   })

@@ -1,27 +1,28 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Project } from '@nasq/contracts'
-import ProjectCards from './ProjectCards.vue'
-import ProjectMenu from './ProjectMenu.vue'
-import ProjectProgress from './ProjectProgress.vue'
-import ProjectStatusBadge from './ProjectStatusBadge.vue'
-import EmptyState from '@/components/shared/EmptyState.vue'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
+import type { Project, ProjectStatus } from '@nasq/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import { formatCalendarDate } from '@/composables/calendarDate'
+import { projectStatusBadge } from '@/composables/projectStatus'
+import { badgeLabel } from '@/utils/statusBadge'
+import RecordNumber from '@/components/shared/RecordNumber.vue'
+import ProjectCardBody from './ProjectCardBody.vue'
+import ProjectMenu from './ProjectMenu.vue'
+import ProjectProgress from './ProjectProgress.vue'
 
+// The table view of /projects on SharedDataTable. A background click and Enter on a row open the
+// project through `toFor`; the name link's plain click goes through `open`, so the page can first
+// commit the search being typed. Empty, error and pagination belong to the page.
 type ProjectListItem = Project & { manager?: { id: number; name: string } | null; date_end?: string | null }
-const props = defineProps<{
+defineProps<{
   items: ProjectListItem[]
   isLoading: boolean
-  archived: boolean
-  capped: boolean
-  filtered: boolean
   toFor: (project: ProjectListItem) => RouteLocationRaw
 }>()
 const emit = defineEmits<{ open: [id: number] }>()
 
 const { t, locale } = useI18n()
+const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const hydrated = useHydrated()
 
 const columns = computed<TableColumn<ProjectListItem>[]>(() => [
@@ -41,69 +42,37 @@ function openLink(project: ProjectListItem, event: MouseEvent) {
   event.preventDefault()
   emit('open', project.id)
 }
-
-function onSelectRow(_event: Event, row: { original: ProjectListItem }) {
-  if (!hydrated.value) return
-  emit('open', row.original.id)
-}
 </script>
 
 <template>
-  <div class="min-w-0 space-y-2">
-    <!-- Desktop: real UTable. Mobile: readable record cards via ProjectCards. -->
-    <div class="hidden md:block">
-      <div v-if="isLoading" class="rounded-lg ring ring-default bg-default overflow-hidden divide-y divide-default" role="status" :aria-label="t('app.loading')">
-        <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
-          <USkeleton class="h-5 w-10" />
-          <USkeleton class="h-5 flex-1" />
-          <USkeleton class="h-5 w-24" />
-          <USkeleton class="h-5 w-20" />
-          <USkeleton class="h-5 w-24" />
-          <USkeleton class="h-5 w-32" />
-          <USkeleton class="h-5 w-8" />
-        </div>
-      </div>
-      <div v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden p-6">
-        <EmptyState
-          :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
-          :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
-        />
-      </div>
-      <div v-else class="rounded-lg ring ring-default bg-default overflow-hidden">
-        <div class="overflow-x-auto">
-          <UTable :data="items" :columns="columns" :caption="t('projects.title')" :ui="{ caption: 'sr-only', thead: '' }" @select="onSelectRow">
-            <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-            <template #name-cell="{ row }">
-              <NuxtLink
-                :to="toFor(row.original)"
-                data-testid="project-row"
-                class="block min-w-0 truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                @click="openLink(row.original, $event)"
-              >{{ row.original.name }}</NuxtLink>
-            </template>
-            <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
-            <template #status-cell="{ row }"><ProjectStatusBadge :status="row.original.status" /></template>
-            <template #date_end-cell="{ row }">{{ row.original.date_end ? formatCalendarDate(row.original.date_end, locale) : '—' }}</template>
-            <template #progress-cell="{ row }">
-              <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" compact />
-            </template>
-            <template #menu-cell="{ row }">
-              <ProjectMenu :project="row.original" hide-settings @click.stop />
-            </template>
-          </UTable>
-        </div>
-      </div>
-    </div>
-    <ProjectCards
-      class="md:hidden"
-      :items="items"
-      :is-loading="isLoading"
-      :archived="archived"
-      :filtered="filtered"
-      :capped="false"
-      :to-for="toFor"
-      @open="emit('open', $event)"
-    />
-    <p v-if="capped" class="text-xs text-muted">{{ t('projects.capped') }}</p>
-  </div>
+  <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="toFor" :loading="isLoading" :caption="t('projects.title')">
+    <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+    <template #name-cell="{ row }">
+      <NuxtLink
+        v-slot="{ href }"
+        :to="toFor(row.original)"
+        custom
+      >
+        <!-- One plain-click owner flushes the search; the real href keeps native modified clicks. -->
+        <a
+          :href="href ?? undefined"
+          data-testid="project-row"
+          class="block min-w-0 truncate font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          @click="openLink(row.original, $event)"
+        >{{ row.original.name }}</a>
+      </NuxtLink>
+    </template>
+    <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
+    <template #status-cell="{ row }"><SharedStatusBadge v-bind="projectBadge(row.original.status)" data-testid="project-status" /></template>
+    <template #date_end-cell="{ row }">{{ row.original.date_end ? formatCalendarDate(row.original.date_end, locale) : '—' }}</template>
+    <template #progress-cell="{ row }">
+      <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" compact />
+    </template>
+    <template #menu-cell="{ row }">
+      <ProjectMenu :project="row.original" hide-settings @click.stop />
+    </template>
+    <template #mobile-row="{ row }">
+      <ProjectCardBody :project="row" :to-for="toFor" />
+    </template>
+  </SharedDataTable>
 </template>

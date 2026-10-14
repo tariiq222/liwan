@@ -5,12 +5,16 @@ import { renderToString } from '@vue/server-renderer'
 import * as Vue from 'vue'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
+import { returnToQuery } from '../../../utils/safeReturnTo'
 import * as hrNavigation from '../../../utils/hrReturnTo'
 
 const shared = 'components/hr/DocumentCreateForm.vue'
 const pages = ['pages/hr/documents/new.vue', 'pages/hr/departments/[departmentId]/documents/new.vue']
 async function load(file = shared, allowed = true, selected = true) {
   const root = resolve(import.meta.dirname, '../../..'), filename = resolve(root, file)
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/hr/departments/:departmentId/documents/new', component: {} }, { path: '/:pathMatch(.*)*', component: {} }] })
+  await router.push({ path: file.includes('[departmentId]') ? '/hr/departments/4/documents/new' : '/hr/documents/new', query: { department_id: selected ? '4' : undefined, returnTo: '/hr/departments/4?returnTo=%2Fhr%2Fdepartments%3Fview%3Dcanvas%23chart' } })
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'document-create-feedback' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
@@ -22,7 +26,7 @@ async function load(file = shared, allowed = true, selected = true) {
   const bindings = {
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, nextTick: Vue.nextTick,
     useI18n: () => ({ t }), useHydrated: () => hydrated, useToast: () => ({ add: vi.fn() }), useAccess: () => ({ can: () => allowed }),
-    useRoute: () => ({ params: { departmentId: '4' }, query: { department_id: selected ? '4' : undefined, returnTo: '/hr/departments/4?returnTo=%2Fhr%2Fdepartments%3Fview%3Dcanvas%23chart' }, hash: '' }),
+    useRoute: () => router.currentRoute.value, useRouter: () => router, returnToQuery,
     useCreateDocument: () => ({ mutateAsync: mutate, isPending: pending }),
     useHrDepartments: () => ({ data: Vue.ref({ items: [{ id: 4, name: 'Department' }] }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
     navigateTo: navigate, ApiError: class extends Error {}, DocumentEditor: {}, DocumentCreateForm: {}, ...hrNavigation,

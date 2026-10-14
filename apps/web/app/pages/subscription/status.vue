@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@nasq/commercial-contracts'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
@@ -28,16 +28,16 @@ async function continuePayment() {
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
-  <SettingsLayout width="form">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('subscription.status.title')" :description="t('subscription.status.description')" back-to="/subscription" />
-    <p v-if="!allowed" class="text-muted">{{ t('subscription.forbidden') }}</p>
+    <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
       <div class="space-y-4">
-        <SubscriptionStateBadge v-if="display" :state="display" />
-        <dl v-if="order" class="space-y-2 rounded-lg p-3 ring ring-default" data-testid="order-status">
-          <div class="flex justify-between gap-3"><dt class="text-muted">{{ t('subscription.status.payment') }}</dt><dd>{{ t(`subscription.status.payments.${order.payment_state}`) }}</dd></div>
-          <div class="flex justify-between gap-3"><dt class="text-muted">{{ t('subscription.status.fulfillment') }}</dt><dd>{{ t(`subscription.status.fulfillments.${order.fulfillment_state}`) }}</dd></div>
-        </dl>
+        <SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" />
+        <SharedPropertiesPanel v-if="order" data-testid="order-status">
+          <SharedPropertyRow :label="t('subscription.status.payment')" :value="t(`subscription.status.payments.${order.payment_state}`)" />
+          <SharedPropertyRow :label="t('subscription.status.fulfillment')" :value="t(`subscription.status.fulfillments.${order.fulfillment_state}`)" />
+        </SharedPropertiesPanel>
         <p v-else-if="settled" class="text-sm text-muted" role="status">{{ t('subscription.status.missing') }}</p>
         <div class="flex gap-2">
           <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
@@ -45,5 +45,5 @@ definePageMeta({ middleware: 'customer-commercial' })
         </div>
       </div>
     </SharedPageState>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

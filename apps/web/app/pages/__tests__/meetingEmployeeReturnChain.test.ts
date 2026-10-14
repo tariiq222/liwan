@@ -5,6 +5,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-router'
+import { createHooks } from 'hookable'
 import { describe, expect, it, vi } from 'vitest'
 import { returnToQuery } from '../../utils/safeReturnTo'
 import * as tabs from '../../utils/meetingTabs'
@@ -19,6 +20,8 @@ async function load(file: string, url: RouteLocationRaw) {
     ...['/meetings/series/:id/edit', '/meetings/series/:id', '/meetings/:id/resolutions/:resolutionId/edit', '/meetings/:id/resolutions/new', '/meetings/:id/:child', '/meetings/:id', '/hr/employees/:employeeId/edit', '/hr/employees/:employeeId', '/:pathMatch(.*)*'].map(path => ({ path, component: {} })),
   ] })
   await router.push(url)
+  const hooks = createHooks()
+  router.beforeEach(to => hooks.callHook('nasq:navigation:start', to))
   const descriptor = parse(read(file), { filename: file }).descriptor
   const code = compileScript(descriptor, { id: 'return-chain' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', 'false').replace('export default', 'return')
   const js = ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
@@ -28,7 +31,8 @@ async function load(file: string, url: RouteLocationRaw) {
     // Namespace metadata such as Node's `module.exports` is not a Function parameter.
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick,
     ...tabs, ...filters, parseOffset, firstQuery, returnToQuery, _defineComponent: Vue.defineComponent,
-    onMounted: () => {}, onBeforeUnmount: () => {}, onUnmounted: () => {},
+    onMounted: () => {}, onBeforeUnmount: () => {}, onUnmounted: () => {}, onScopeDispose: Vue.onScopeDispose,
+    useNuxtApp: () => ({ hook: hooks.hook }),
     useRoute: () => router.currentRoute.value, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true),
     useAccess: () => ({ can: () => true }), useMe: () => ({ me: Vue.ref({}) }), useToast: () => ({ add: vi.fn() }),
@@ -105,7 +109,7 @@ describe('meeting and employee owning-list return context', () => {
   it('preserves series-list context through series settings', async () => {
     const origin = '/meetings/series?q=weekly&offset=25#series'
     const list = await load('pages/meetings/series.vue', origin)
-    const detail = await load(series, templateTo(list, 'path: `/meetings/series/${series.id}`', { series: { id: 12 } }))
+    const detail = await load(series, templateTo(list, 'seriesTo(series)', { series: { id: 12 } }))
     expect(target(detail).fullPath).toBe(origin)
     const edit = await load('pages/meetings/series/[id]/edit.vue', templateTo(detail, "t('meetingsUx.seriesSettingsLink')"))
     expect(target(edit).path).toBe('/meetings/series/12')

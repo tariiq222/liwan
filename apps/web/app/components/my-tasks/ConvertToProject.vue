@@ -61,9 +61,7 @@ async function submit() {
 </script>
 
 <template>
-  <section data-testid="my-task-convert" class="space-y-3" :aria-label="t('myTasks.convert.title')">
-    <h2 class="text-lg font-semibold text-highlighted">{{ t('myTasks.convert.title') }}</h2>
-    <p class="text-sm text-muted">{{ t('myTasks.convert.description') }}</p>
+  <SharedRecordSection data-testid="my-task-convert" :title="t('myTasks.convert.title')" :description="t('myTasks.convert.description')">
     <USelectMenu
       v-model:search-term="q"
       :model-value="projectId ?? undefined"
@@ -92,5 +90,5 @@ async function submit() {
       <UButton type="button" :disabled="!hydrated || projectId === null" :label="t('myTasks.convert.submit')" @click="confirming = true" />
     </div>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-  </section>
+  </SharedRecordSection>
 </template>

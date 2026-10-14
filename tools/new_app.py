@@ -4,7 +4,7 @@
     python3 -B tools/new_app.py <app> --name-ar <ar> --name-en <en> [--route SLUG] [--root DIR] [--dry-run]
 
 Creates the application's own folders from tools/new_app_templates, makes the three
-registration edits (tools/arch_layers.json, the platform_v3 catalog tier,
+registration edits (tools/arch_layers.json, the platform_v4 catalog tier,
 packages/contracts/src/index.ts) and runs catalog_check.py --sync-release-copies.
 Nothing is written when any target already exists or any check fails.
 """
@@ -27,10 +27,11 @@ FORBIDDEN_PREFIXES = ('nasq_', 'customer')
 # interpolation (`{}`, `$`) or message syntax (`|`, `@`, `%`).
 SAFE_NAME = re.compile(r"^[^'\"\\<>&{}|@%$\r\n]+$")
 HEADER = '# Part of Odoo. See LICENSE file for full copyright and licensing details.'
-# Single-key shortcuts that components handle themselves (GlobalSearch Ctrl/Cmd+K, list
-# navigation j/k, zero for reset, and +/- are outside the shortcut charset), so a nav item
-# must not take them.
-HARD_WIRED_SHORTCUTS = frozenset({'j', 'k', '0'})
+# Keys the shell keymap (apps/web/app/composables/shortcuts/keymap.ts) and list navigation own:
+# c (create), g (go-to chord) and j/k (rows); `/`, `?` and `[` are outside the charset. This is the
+# letter/digit part of SHELL_RESERVED_KEYS there (tools/test_new_app.py keeps them equal).
+# A /search one-key nav shortcut must not take them.
+HARD_WIRED_SHORTCUTS = frozenset({'c', 'g', 'j', 'k'})
 # Application ids an application may never take: git areas, foundation and shared-service
 # names and contracts namespaces. The pages and contracts folders add every name already taken.
 RESERVED_IDS = frozenset({
@@ -46,7 +47,7 @@ SHELL_ROUTES = frozenset({
 })
 ROUTE_SLUG = re.compile(r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$')
 ARCH_LAYERS = 'tools/arch_layers.json'
-PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v3.json'
+PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v4.json'
 CONTRACTS_INDEX = 'packages/contracts/src/index.ts'
 APPLICATION_RANK = 4
 

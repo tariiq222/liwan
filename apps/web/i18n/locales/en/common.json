@@ -33,10 +33,10 @@
     "projects": "Projects",
     "toggleNavigation": "Toggle navigation",
     "modules": "Modules",
+    "breadcrumb": "Breadcrumb",
+    "consoleBadge": "Console",
     "header": "Application header",
     "home": "Home",
-    "expandModules": "Expand module rail",
-    "collapseModules": "Collapse module rail",
     "collapseContext": "Collapse sidebar",
     "expandContext": "Expand sidebar",
     "context": "Context navigation",
@@ -143,11 +143,63 @@
   "search": {
     "description": "Search pages, projects and tasks…",
     "close": "Close search",
-    "tasks": "Tasks"
+    "tasks": "Tasks",
+    "actions": "Actions",
+    "loading": "Searching…",
+    "error": "Search failed. Select to try again.",
+    "footerMove": "Move",
+    "footerOpen": "Open",
+    "footerClose": "Close"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "filter": "Filter shortcuts…",
+    "backToCommands": "Back to commands",
+    "layoutNote": "Letters follow a Latin keyboard; on Arabic the same keys work by position.",
+    "palette": "Open the command palette",
+    "search": "Search the current list",
+    "create": "Create in the current section",
+    "go": "Go to a page: G, then its letter",
+    "goTo": "Go to {name}",
+    "rows": "Next or previous row",
+    "open": "Open the selected row",
+    "sidebar": "Collapse or expand the sidebar",
+    "escape": "Back or close",
+    "help": "Show shortcuts"
   },
   "filterCard": {
     "title": "Search and filters",
     "clear": "Clear filters",
     "remove": "Remove filter"
+  },
+  "brand": {
+    "name": "Nasq"
+  },
+  "states": {
+    "view": "View",
+    "forbiddenHint": "Ask your system administrator for access if you need this page.",
+    "notFoundHint": "The record may have been deleted, or its link changed.",
+    "metrics": "Key figures",
+    "chartEmpty": "There is not enough data to draw this chart.",
+    "noValue": "No value",
+    "untitled": "Untitled",
+    "properties": "Properties",
+    "previous": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "period": "Move between periods",
+    "scale": "Scale",
+    "details": "Details",
+    "invoice": {
+      "description": "Description",
+      "amount": "Amount",
+      "lines": "Invoice lines",
+      "totals": "Totals"
+    },
+    "selectAll": "Select all rows",
+    "selectRow": "Select row",
+    "selectedCount": "Selected: {count}",
+    "clearSelection": "Clear selection",
+    "bulkActions": "Actions on selected rows"
   }
 }

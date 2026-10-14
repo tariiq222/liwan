@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
+import { h } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import { useProjectTemplateList, useProjectTemplateNavigation } from '@/composables/useProjectTemplates'
+import { useProjectTemplateList } from '@/composables/useProjectTemplates'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,13 +17,50 @@ const offset = computed(() => {
   const value = Number(route.query.offset)
   return Number.isSafeInteger(value) && value >= 0 ? value : 0
 })
-watch(q, value => { if ((route.path.replace(/\/+$/, '') || '/') !== '/project-templates' || value.trim() === (route.query.q ?? '')) return; router.replace({ query: value.trim() ? { q: value.trim() } : {} }) })
-watch(() => route.query.q, value => { search.value = typeof value === 'string' ? value : '' })
+let pendingSearch: string | null = null
+let pendingNavigation: RouteLocationNormalized | null = null
+let lastPushed: string | null = null
+let writesInFlight = 0
+let lastWrite = 0
+let disposed = false
+function isCurrentList() { return (router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/project-templates' }
+const stopNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => { pendingNavigation = to })
+function settleNavigation(to: RouteLocationNormalized) {
+  if (to !== pendingNavigation) return
+  pendingNavigation = null
+  if (!writesInFlight) queueMicrotask(flushSearch)
+}
+const stopAfterEach = router.afterEach(to => settleNavigation(to))
+const stopOnError = router.onError((_error, to) => settleNavigation(to))
+onScopeDispose(() => { disposed = true; stopNavigationStart(); stopAfterEach(); stopOnError() })
+function writeListQuery(query: LocationQueryRaw, replace = true) {
+  if (!isCurrentList() || disposed) return
+  const write = ++lastWrite
+  lastPushed = typeof query.q === 'string' ? query.q : ''
+  writesInFlight++
+  const target = { query, hash: router.currentRoute.value.hash }
+  void (replace ? router.replace(target) : router.push(target))
+    .then(failure => { if (failure && write === lastWrite) lastPushed = null })
+    .catch(() => { if (write === lastWrite) lastPushed = null })
+    .finally(() => { writesInFlight--; flushSearch() })
+}
+function flushSearch() {
+  if (disposed || pendingNavigation || writesInFlight || !isCurrentList() || pendingSearch === null) return
+  const next = pendingSearch
+  pendingSearch = null
+  if (next === (route.query.q ?? '')) return
+  writeListQuery({ ...router.currentRoute.value.query, q: next || undefined, offset: undefined })
+}
+watch(q, value => { pendingSearch = value.trim(); flushSearch() })
+watch(() => route.query.q, value => {
+  const next = typeof value === 'string' ? value : ''
+  if (next === lastPushed) { lastPushed = null; return }
+  pendingSearch = null
+  search.value = next
+})
 const list = useProjectTemplateList(computed(() => ({ q: typeof route.query.q === 'string' ? route.query.q : '', limit: pageSize, offset: offset.value })))
 const total = computed(() => list.data.value?.total ?? 0)
-const { templatePath } = useProjectTemplateNavigation()
-const detailPath = (id?: number) => templatePath(id, id ? undefined : 'new')
-function goPage(next: number) { router.push({ query: { ...route.query, offset: next || undefined } }) }
+function goPage(next: number) { writeListQuery({ ...route.query, q: search.value.trim() || undefined, offset: next || undefined }, false) }
 const items = computed(() => list.data.value?.items ?? [])
 const canManage = computed(() => list.data.value?.can_manage ?? false)
 const canApply = computed(() => list.data.value?.can_apply ?? false)
@@ -28,14 +68,34 @@ const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
 function clearFilters() {
   search.value = ''
 }
+// The list URL as it will be once the debounced search lands: every row link carries it.
+const liveQuery = computed(() => ({ ...(search.value.trim() ? { q: search.value.trim() } : {}), ...(offset.value ? { offset: String(offset.value) } : {}) }))
+const itemTo = (item: { id: number }) => ({ path: `/project-templates/${item.id}`, query: liveQuery.value })
+const createTo = computed(() => canManage.value ? { path: '/project-templates/new', query: liveQuery.value } : undefined)
+const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
+  { id: 'name', header: t('projects.templates.fields.name') },
+  { id: 'description', header: t('projects.templates.fields.description') },
+  { id: 'summary', header: t('projects.templates.title') },
+  { id: 'apply', header: () => h('span', { class: 'sr-only' }, t('projects.templates.canApply')) },
+])
+const PAGE = pageSize
+const pageNumber = computed(() => Math.floor(offset.value / PAGE) + 1)
+const pages = computed(() => Math.max(1, pageNumber.value, Math.ceil(total.value / PAGE)))
+function openLiveItem(event: MouseEvent, item: { id: number }) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  void router.push(itemTo(item)).catch(() => undefined)
+}
 </script>
 
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('projects.templates.title')" :description="t('projects.templates.description')">
-      <template #actions><UButton v-if="canManage" icon="i-lucide-plus" :disabled="!hydrated" @click="router.push(detailPath())">{{ t('projects.templates.actions.new') }}</UButton></template>
-    </SharedPageHeader>
-    <div class="w-full min-w-0">
+  <SharedListPage
+    :title="t('projects.templates.title')"
+    :description="t('projects.templates.description')"
+    :create-to="createTo"
+    :create-label="t('projects.templates.actions.new')"
+  >
+    <template #filters>
       <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>
           <UInput v-model="search" name="template-search" :aria-label="t('projects.templates.filters.search')" icon="i-lucide-search" :disabled="!hydrated" :placeholder="t('projects.templates.filters.search')" class="w-full min-w-52" />
@@ -46,18 +106,37 @@ function clearFilters() {
           </div>
         </template>
       </FilterBar>
-    </div>
-    <SharedPageState :loading="list.isLoading.value" :error="list.error.value" :empty="!list.isLoading.value && !list.error.value && !items.length" :empty-text="t('projects.templates.empty')" @retry="list.refetch">
-      <div class="grid gap-3 md:grid-cols-2">
-        <NuxtLink v-for="item in items" :key="item.id" :to="detailPath(item.id)" class="rounded-lg ring ring-default bg-default overflow-hidden p-4 text-start transition-colors hover:bg-elevated/30">
-          <div class="flex items-start justify-between gap-3"><div><h2 class="font-medium">{{ item.name }}</h2><p class="mt-1 text-sm text-muted">{{ item.description }}</p></div><span v-if="item.can_apply && canApply" class="text-xs text-muted">{{ t('projects.templates.canApply') }}</span></div>
-          <p class="mt-3 text-xs text-muted">{{ t('projects.templates.summary', { stages: item.definition.stages.length, tasks: item.definition.tasks.length, milestones: item.definition.milestones.length }) }}</p>
-        </NuxtLink>
-      </div>
-    </SharedPageState>
-    <nav v-if="!list.isLoading.value && !list.error.value && (total > pageSize || offset > 0)" class="flex flex-wrap items-center justify-between gap-3" :aria-label="t('projects.templates.pagination.label')">
-      <p role="status" class="text-sm text-muted">{{ t('projects.templates.pagination.count', { from: items.length ? offset + 1 : 0, to: offset + items.length, total }) }}</p>
-      <div class="flex gap-2"><UButton color="neutral" variant="outline" :disabled="!hydrated || list.isFetching.value || offset === 0" @click="goPage(Math.max(0, offset - pageSize))">{{ t('projects.templates.pagination.previous') }}</UButton><UButton color="neutral" variant="outline" :disabled="!hydrated || list.isFetching.value || offset + pageSize >= total" @click="goPage(offset + pageSize)">{{ t('projects.templates.pagination.next') }}</UButton></div>
-    </nav>
-  </SharedPageContainer>
+    </template>
+    <SharedDataTable
+      :rows="items"
+      :columns="columns"
+      row-key="id"
+      :row-to="itemTo"
+      :loading="list.isLoading.value"
+      :error="list.error.value"
+      :empty-text="t('projects.templates.empty')"
+      :page="pageNumber"
+      :pages="pages"
+      :caption="t('projects.templates.title')"
+      @update:page="goPage((($event as number) - 1) * PAGE)"
+      @retry="list.refetch"
+    >
+      <template #name-cell="{ row }">
+        <NuxtLink :to="itemTo(row.original)" @click.capture="openLiveItem($event, row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+      </template>
+      <template #description-cell="{ row }">{{ row.original.description || '—' }}</template>
+      <template #summary-cell="{ row }">{{ t('projects.templates.summary', { stages: row.original.definition.stages.length, tasks: row.original.definition.tasks.length, milestones: row.original.definition.milestones.length }) }}</template>
+      <template #apply-cell="{ row }"><SharedStatusBadge v-if="row.original.can_apply && canApply" tone="success" :label="t('projects.templates.canApply')" /></template>
+      <template #mobile-row="{ row: item }">
+        <div class="space-y-1">
+          <div class="flex items-start justify-between gap-3">
+            <NuxtLink :to="itemTo(item)" @click.capture="openLiveItem($event, item)" class="font-medium text-highlighted hover:underline">{{ item.name }}</NuxtLink>
+            <SharedStatusBadge v-if="item.can_apply && canApply" tone="success" :label="t('projects.templates.canApply')" />
+          </div>
+          <p class="text-sm text-muted">{{ item.description }}</p>
+          <p class="text-xs text-muted">{{ t('projects.templates.summary', { stages: item.definition.stages.length, tasks: item.definition.tasks.length, milestones: item.definition.milestones.length }) }}</p>
+        </div>
+      </template>
+    </SharedDataTable>
+  </SharedListPage>
 </template>

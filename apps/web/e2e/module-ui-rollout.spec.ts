@@ -36,7 +36,7 @@ for (const width of [1440, 1024, 390]) {
       await expect(page.getByTestId('notification-bell')).toBeEnabled()
       await expect(page.locator('main h1'), path).toHaveCount(1)
       await expect(page.locator('main h1')).toBeVisible()
-      await expect(page.locator('html')).toHaveAttribute('data-workspace-theme', 'true')
+      await expect(page.locator('html')).not.toHaveAttribute('data-workspace-theme')
       await expect(page.getByRole('dialog')).toHaveCount(0)
       expect(await page.locator('main h1').evaluate(e=>parseFloat(getComputedStyle(e).fontSize)), path).toBeCloseTo(20,1)
       expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth), path).toBe(true)
@@ -98,7 +98,7 @@ test('nested edit refresh retains list filters',async({page})=>{
   await expect(page).toHaveURL(/\/hr\?department_id=1$/)
 })
 
-for(const [mode,fontSize,root] of [['light','small',14],['cream','medium',16],['dark','large',18]] as const){
+for(const [mode,fontSize,root] of [['light','small',14],['light','medium',16],['dark','large',18]] as const){
   test('shared appearance '+mode+'/'+fontSize,async({page})=>{
     await page.context().addCookies([{name:'nasq-appearance',value:encodeURIComponent(JSON.stringify({mode,fontSize})),url:page.url()}])
     for(const path of ['/hr','/meetings','/settings/users','/notifications']){

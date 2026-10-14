@@ -6,8 +6,8 @@ import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@/components/shared/FilterBar.vue'
 
-const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; view?: 'table' | 'board'; embedded?: boolean; collapsible?: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; 'update:view': ['table' | 'board'] }>()
+const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; embedded?: boolean; collapsible?: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [TaskListParams] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
@@ -125,17 +125,6 @@ const projectItems = computed(() => [
         size="sm"
         @update:model-value="(v) => patch({ closed: v === 'closed' })"
       />
-      <slot name="view" />
-      <div v-if="view" class="hidden md:block">
-      <div role="group" class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default bg-elevated/40" :aria-label="t('projects.filters.view')">
-        <UButton data-testid="project-tasks-view-table" type="button" color="neutral" square size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="emit('update:view', 'table')">
-          <UIcon name="i-lucide-list" class="size-4.5" aria-hidden="true" />
-        </UButton>
-        <UButton data-testid="project-tasks-view-board" type="button" color="neutral" square size="sm" :variant="view === 'board' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-label="t('projects.filters.boardView')" :aria-pressed="view === 'board'" @click="emit('update:view', 'board')">
-          <UIcon name="i-lucide-layout-grid" class="size-4.5" aria-hidden="true" />
-        </UButton>
-      </div>
-      </div>
     </template>
   </FilterBar>
   </div>

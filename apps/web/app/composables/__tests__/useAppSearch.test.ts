@@ -92,4 +92,24 @@ describe('useAppSearch', () => {
     allowed.gate.value = false
     expect(toValue(allowed.query.options.enabled)).toBe(false)
   })
+  it('passes the vue-query abort signal to every provider request', async () => {
+    const { useAppSearch } = await import('../useAppSearch')
+    const api = vi.fn(async () => [])
+    const calling: AppManifest = {
+      ...sales(true),
+      search: [{
+        ...provider(true),
+        search: async (fetcher, q) => {
+          await fetcher('/api/v1/sales', { query: { q }, schema: { parse: (value: unknown) => value } as never })
+          return { rows: [] }
+        },
+      }],
+    }
+    withManifests([calling], () => useAppSearch({
+      surface: 'dialog', term: ref('a'), debounced: ref('a'), gate: true, requireTerm: true, can: () => true, api: api as never,
+    }))
+    const controller = new AbortController()
+    await fake.queries[0]!.options.queryFn({ pageParam: 0, signal: controller.signal })
+    expect(api).toHaveBeenCalledWith('/api/v1/sales', expect.objectContaining({ query: { q: 'a' }, signal: controller.signal }))
+  })
 })

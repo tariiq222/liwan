@@ -83,8 +83,7 @@ onBeforeUnmount(clearSecrets)
 </script>
 
 <template>
-  <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
-    <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.users.securityTitle') }}</h2></template>
+  <SharedFormSection panel :title="t('access.users.securityTitle')">
     <div class="space-y-5">
       <p v-if="props.user.protected" class="text-sm text-muted">{{ t('access.protectedUser') }}</p>
       <template v-else>
@@ -112,5 +111,5 @@ onBeforeUnmount(clearSecrets)
       </template>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey" />
     </div>
-  </UCard>
+  </SharedFormSection>
 </template>

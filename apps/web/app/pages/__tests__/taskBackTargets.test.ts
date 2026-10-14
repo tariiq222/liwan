@@ -83,13 +83,10 @@ describe('task detail back targets — runtime round trip', () => {
     const router = makeRouter()
     await router.push('/tasks?view=board')
     await router.isReady()
-    // openTask navigates rather than returning a location, so record the push.
-    let pushed: RouteLocationRaw | undefined
-    const recorder = { ...router, currentRoute: router.currentRoute, push: (to: RouteLocationRaw) => { pushed = to; return Promise.resolve() }, replace: () => Promise.resolve() }
-    const list = loadSetupState('app/pages/tasks.vue', router, { useRouter: () => recorder })
-    ;(list.openTask as (id: number) => void)(5)
+    const list = loadSetupState('app/pages/tasks.vue', router)
+    const to = (list.taskTo as (id: number) => RouteLocationRaw)(5)
 
-    const detail = router.resolve(pushed!)
+    const detail = router.resolve(to)
     expect(detail.path).toBe('/tasks/5')
     expect(detail.query.returnTo, 'no returnTo may ride on a detail URL').toBeUndefined()
 

@@ -21,9 +21,7 @@ const props = withDefaults(defineProps<{
 }>(), { loading: false, total: 0, page: 1, pageSize: 25 })
 const emit = defineEmits<{ retry: []; page: [page: number] }>()
 const { t, te, locale } = useI18n()
-const hydrated = useHydrated()
 const pages = computed(() => Math.max(1, Math.ceil((props.total ?? 0) / props.pageSize)))
-const errorText = computed(() => props.error instanceof Error ? props.error.message : t('errors.generic'))
 const genericSummaries = new Set([
   'meeting created',
   'meeting updated',
@@ -56,15 +54,9 @@ function hasInformativeSummary(event: MeetingEvent) {
 </script>
 
 <template>
-  <UCard data-testid="meeting-event-list">
-    <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('meetingMinutesForm.history') }}</h2></template>
-    <div class="grid gap-3">
-      <div v-if="loading" class="grid gap-2" role="status" aria-busy="true" :aria-label="t('app.loading')"><USkeleton v-for="row in 4" :key="row" class="h-12 w-full" /></div>
-      <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="errorText">
-        <template #actions><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingMinutesForm.retry')" @click="emit('retry')" /></template>
-      </UAlert>
-      <SharedEmptyState v-else-if="!events.length" :title="t('meetingMinutesForm.noHistory')" />
-      <ol v-else class="grid gap-2">
+  <SharedRecordSection :title="t('meetingMinutesForm.history')" data-testid="meeting-event-list">
+    <SharedPageState :loading="loading" :error="error" :empty="!events.length" :empty-text="t('meetingMinutesForm.noHistory')" @retry="emit('retry')">
+      <ol class="grid gap-2">
         <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-lg bg-default p-3 ring ring-default">
           <div class="flex min-w-0 flex-wrap items-center justify-between gap-2"><span class="font-medium text-highlighted">{{ kindLabel(event.kind) }}</span><time class="text-xs text-muted" :datetime="event.occurred_at">{{ occurredAt(event.occurred_at) }}</time></div>
           <span v-if="event.meeting_name" class="text-xs text-muted">{{ event.meeting_name }}</span>
@@ -72,7 +64,7 @@ function hasInformativeSummary(event: MeetingEvent) {
           <span class="text-xs text-muted">{{ event.actor?.name || t('meetingMinutesForm.systemActor') }}</span>
         </li>
       </ol>
-      <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
-    </div>
-  </UCard>
+    </SharedPageState>
+    <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
+  </SharedRecordSection>
 </template>

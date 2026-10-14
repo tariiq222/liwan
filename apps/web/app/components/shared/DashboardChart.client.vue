@@ -35,12 +35,12 @@ function token(name: string, fallback: string) {
 }
 
 const chartColors = computed(() => [
-  token('--chart-1', '#18181b'),
-  token('--chart-2', '#313136'),
-  token('--chart-3', '#4a4a50'),
-  token('--chart-4', '#63636a'),
-  token('--chart-5', '#7b7b83'),
-  token('--chart-6', '#94949c'),
+  token('--chart-1', '#13234a'),
+  token('--chart-2', '#3a5191'),
+  token('--chart-3', '#6b7fb8'),
+  token('--chart-4', '#9ab0d8'),
+  token('--chart-5', '#5b6b8c'),
+  token('--chart-6', '#8b97b1'),
 ])
 
 function colorsFor(_kind: DashboardChart['kind'], chartPalette: ChartPalette, count: number) {
@@ -247,94 +247,3 @@ watch([mode, fontSize], () => { void nextTick(readTokens) }, { flush: 'post' })
     </ChartContainer>
   </div>
 </template>
-
-<style scoped>
-.chart-donut-container {
-  height: auto !important;
-}
-
-.chart-donut-body {
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.chart-donut-svg {
-  min-height: 0;
-  animation: nasq-chart-in 220ms ease-out;
-}
-
-@keyframes nasq-chart-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.chart-donut-svg :deep(path[class*="-segment"]),
-.chart-bar-plot :deep(path[class*="-bar"]) {
-  transition: fill var(--chart-motion-duration, 0ms) ease, filter 160ms ease !important;
-}
-
-.chart-donut-svg :deep(path[class*="-segment"]:hover),
-.chart-bar-plot :deep(path[class*="-bar"]:hover) {
-  filter: brightness(1.12);
-}
-
-.chart-donut-legend {
-  display: flex;
-  width: 100%;
-  min-height: 0;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  justify-content: center;
-  gap: 0.4rem 1rem;
-  padding: 0 0.5rem;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
-}
-
-.chart-donut-legend-item {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.chart-donut-legend-swatch {
-  width: 0.5rem;
-  height: 0.5rem;
-  flex: 0 0 auto;
-  border-radius: 9999px;
-}
-
-.chart-bar-stack {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-}
-
-.chart-bar-plot {
-  min-height: 0;
-  flex: 0 0 auto;
-}
-
-.chart-bar-legend {
-  min-height: 2rem;
-  flex: 0 0 auto;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chart-donut-svg { animation: none; }
-  .chart-donut-svg :deep(path[class*="-segment"]),
-  .chart-bar-plot :deep(path[class*="-bar"]) {
-    transition: none !important;
-  }
-
-  .chart-donut-svg :deep(path[class*="-segment"]:hover),
-  .chart-bar-plot :deep(path[class*="-bar"]:hover) {
-    filter: none !important;
-  }
-}
-</style>

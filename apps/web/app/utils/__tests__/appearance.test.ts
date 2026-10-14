@@ -8,8 +8,12 @@ describe('saved appearance preferences', () => {
 
   it('keeps a valid preference when the other field is invalid', () => {
     expect(normalizeAppearance({ mode: 'dark', fontSize: 'huge' })).toEqual({ mode: 'dark', fontSize: 'small' })
-    expect(normalizeAppearance({ mode: 'cream', fontSize: 'medium' })).toEqual({ mode: 'cream', fontSize: 'medium' })
     expect(normalizeAppearance({ mode: 'system', fontSize: 'large' })).toEqual({ mode: 'light', fontSize: 'large' })
+  })
+
+  it('treats a stored cream preference as light', () => {
+    expect(normalizeAppearance({ mode: 'cream', fontSize: 'medium' })).toEqual({ mode: 'light', fontSize: 'medium' })
+    expect(appearanceFromWire({ mode: 'cream', font_size: 'large' })).toEqual({ mode: 'light', fontSize: 'large' })
   })
 
   it.each(['small', 'medium', 'large'])('restores the chosen %s font with dark mode and drops unknown attributes', (fontSize) => {
@@ -21,9 +25,13 @@ describe('document attributes for an appearance', () => {
   it.each([
     ['light', ''],
     ['dark', 'dark'],
-    ['cream', 'cream'],
   ] as const)('maps %s mode to the html class %j', (mode, expected) => {
     expect(htmlAttrsFor({ mode, fontSize: 'small' }).class).toBe(expected)
+  })
+
+  it('only emits light or dark html classes', () => {
+    expect(htmlAttrsFor({ mode: 'light', fontSize: 'small' }).class).toBe('')
+    expect(htmlAttrsFor({ mode: 'dark', fontSize: 'small' }).class).toBe('dark')
   })
 
   it('carries font size, lang and dir through unchanged', () => {
@@ -53,7 +61,7 @@ describe('per-user appearance on the wire', () => {
     expect(appearanceFromWire(undefined)).toEqual({ mode: 'light', fontSize: 'small' })
   })
   it('sends only the changed key with its wire name', () => {
-    expect(appearancePatchBody({ mode: 'cream' })).toEqual({ mode: 'cream' })
+    expect(appearancePatchBody({ mode: 'dark' })).toEqual({ mode: 'dark' })
     expect(appearancePatchBody({ fontSize: 'medium' })).toEqual({ font_size: 'medium' })
     expect(appearancePatchBody({})).toEqual({})
   })

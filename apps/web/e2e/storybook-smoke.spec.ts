@@ -1,70 +1,63 @@
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
-import { createServer, type Server } from 'node:http'
-import { extname, isAbsolute, join, normalize, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
+import { requireStorybook, startStorybookServer, storybookEntries } from './support/storybookServer'
 
-const root = fileURLToPath(new URL('../storybook-static', import.meta.url))
-const indexFile = join(root, 'index.json')
-const built = existsSync(indexFile)
-const entries = built
-  ? Object.values(JSON.parse(readFileSync(indexFile, 'utf8')).entries as Record<string, { id: string; type: string }>)
-  : []
+const entries = storybookEntries()
 const stories = entries.filter(entry => entry.type === 'story')
 const docsEntries = entries.filter(entry => entry.type === 'docs')
-const combos = ['locale:ar;appearance:light', 'locale:en;appearance:dark', 'locale:ar;appearance:cream']
-const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.png': 'image/png' }
+const combos = ['locale:ar;appearance:light', 'locale:en;appearance:dark', 'locale:ar;appearance:dark']
 
-let server: Server
 let base = ''
+let close: () => Promise<void> = async () => {}
 
 test.describe('Storybook stories render without errors', () => {
-  test.skip(!built, 'Run `npm -w apps/web run build-storybook` first.')
+  requireStorybook()
 
-  test.beforeAll(async () => {
-    server = createServer((request, response) => {
-      let decoded: string
-      try {
-        decoded = decodeURIComponent((request.url ?? '/').split('?')[0]!)
-      } catch {
-        // decodeURIComponent throws URIError on a malformed % escape.
-        response.writeHead(400).end()
-        return
-      }
-      const requestPath = normalize(decoded).replace(/^([/\\])+/, '')
-      const file = join(root, requestPath || 'index.html')
-      // A plain `file.startsWith(root)` would also match a sibling directory
-      // that merely shares the root's path as a prefix (e.g. `${root}-evil`);
-      // path.relative + an absolute/".." check is the safe containment test.
-      const rel = relative(root, file)
-      const inRoot = rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
-      if (!inRoot || !existsSync(file) || statSync(file).isDirectory()) {
-        response.writeHead(404).end()
-        return
-      }
-      response.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' })
-      createReadStream(file).pipe(response)
-    })
-    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-    const address = server.address()
-    base = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`
-  })
+  test.beforeAll(async () => { ({ base, close } = await startStorybookServer()) })
 
-  test.afterAll(() => new Promise<void>(resolve => server.close(() => resolve())))
+  test.afterAll(async () => { await close() })
 
   for (const story of stories) {
     test(story.id, async ({ page }) => {
       const errors: string[] = []
       page.on('pageerror', error => errors.push(`pageerror ${error.message}`))
-      page.on('console', message => { if (message.type() === 'error') errors.push(`console ${message.text()}`) })
+      const failedRequests: { url: string, method: string, status: number }[] = []
+      const consoleErrors: { text: string, url: string }[] = []
+      const isExpectedFailure = (request: { url: string, method: string, status: number }) => {
+        const url = new URL(request.url)
+        return story.id === 'shell-globalsearch--palette-error'
+          && url.origin === base && url.pathname === '/api/v1/tasks'
+          && request.method === 'GET' && request.status === 500
+          && url.searchParams.get('filter') === 'mine' && url.searchParams.get('q') === 'مشروع'
+          && url.searchParams.get('limit') === '20' && url.searchParams.get('offset') === '0'
+      }
+      page.on('response', response => {
+        if (response.status() >= 400) failedRequests.push({ url: response.url(), method: response.request().method(), status: response.status() })
+      })
+      page.on('console', message => {
+        if (message.type() === 'error') consoleErrors.push({ text: message.text(), url: message.location().url })
+      })
       for (const globals of combos) {
         await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story&globals=${globals}`)
         // `toBeEmpty()` checks text content, so icon-only or skeleton-only stories
         // (no visible text, real DOM) would be misreported as empty; a rendered
         // child element is the right signal that the story actually painted.
-        await expect(page.locator('#storybook-root').locator(':scope > *').first()).toBeVisible({ timeout: 10_000 })
+        // A route-backed panel (SharedCreatePanel's USlideover) teleports its dialog
+        // to <body>, leaving only a comment in the root; that open dialog is then the
+        // painted element. Every other story still needs an element in its root.
+        await expect(page.locator('#storybook-root > *, body > [role="dialog"][data-state="open"]').first()).toBeVisible({ timeout: 10_000 })
+        if (story.id === 'shell-globalsearch--palette-error') {
+          const recovery = page.getByText(globals.includes('locale:en') ? 'Search failed. Select to try again.' : 'تعذّر البحث. اختر للمحاولة مجددًا.', { exact: true })
+          await expect(recovery).toBeVisible()
+          const retry = page.waitForResponse(response => isExpectedFailure({ url: response.url(), method: response.request().method(), status: response.status() }))
+          await recovery.click()
+          await retry
+          await expect(recovery).toBeVisible()
+        }
       }
-      expect(errors).toEqual([])
+      expect(failedRequests.filter(request => !isExpectedFailure(request))).toEqual([])
+      const unexpectedConsole = consoleErrors.filter(error => !(error.text === 'Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
+        && failedRequests.some(request => request.url === error.url && isExpectedFailure(request))))
+      expect([...errors, ...unexpectedConsole.map(error => `console ${error.text} (${error.url})`)]).toEqual([])
     })
   }
 

@@ -18,6 +18,9 @@ const meetingQuery = useMeeting(id)
 const versionQuery = useMeetingVersion(id, versionId)
 // Child pages always return to their current record; only normalized list context follows.
 const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+// The page header used to give the shell its title and Escape its target; this page has none.
+usePageHeader(() => t('meetingMinutesForm.printTitle'))
+useEscapeBack(() => backTo.value)
 
 const versionSnapshot = computed(() => (versionQuery.data.value as unknown as { snapshot?: MeetingMinutesSnapshotLike } | undefined)?.snapshot ?? null)
 const source = computed(() => {
@@ -48,70 +51,46 @@ function printPage() {
   if (!hydrated.value || !import.meta.client) return
   window.print()
 }
+
+const facts = computed(() => [
+  { key: 'date', label: t('meetingMinutesForm.date'), value: formatMeetingDate(printableDate.value, locale.value), ltr: true },
+  { key: 'weekday', label: t('meetingMinutesForm.weekday'), value: dateLabels.value.weekday || '—', ltr: false },
+  { key: 'hijri', label: t('meetingMinutesForm.hijriDate'), value: dateLabels.value.hijri || '—', ltr: false },
+  ...(versionId.value ? [{ key: 'version', label: t('meetingMinutesForm.version'), value: versionNumber.value ? t('meetingMinutesForm.versionNumber', { number: versionNumber.value }) : '—', ltr: false }] : []),
+])
+const signatures = computed(() => [t('meetingMinutesForm.chairperson'), t('meetingMinutesForm.approverName'), t('meetingMinutesForm.signature')])
 </script>
 
 <template>
-  <SharedPageContainer width="detail">
-    <div class="meeting-print-page">
-      <div class="meeting-print-header">
-        <SharedPageHeader :title="t('meetingMinutesForm.printTitle')" :back-to="backTo">
-          <template #actions>
-            <UButton type="button" :disabled="!hydrated || !printReady || meetingQuery.isLoading.value || versionQuery.isLoading.value" :label="t('meetingMinutesForm.print')" @click="printPage" />
-          </template>
-        </SharedPageHeader>
-      </div>
-      <SharedPageState :loading="meetingQuery.isLoading.value || versionQuery.isLoading.value" :error="printError" :empty-text="t('meetingMinutesForm.printEmpty')" :empty="!meetingQuery.isLoading.value && !versionQuery.isLoading.value && !printReady" @retry="() => { meetingQuery.refetch(); versionQuery.refetch() }">
-        <article v-if="meetingQuery.data.value && printReady" class="meeting-print-sheet">
-        <header class="meeting-print-brand">
-          <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="branding.name" class="meeting-print-logo">
-          <div><p class="meeting-print-company">{{ branding?.name || t('app.productName') }}</p><p class="meeting-print-kicker">{{ t('meetingMinutesForm.printKicker') }}</p></div>
+  <SharedStandalonePage variant="print" class="nasq-print-landscape">
+    <h1 class="sr-only">{{ t('meetingMinutesForm.printTitle') }}</h1>
+    <SharedPageState :loading="meetingQuery.isLoading.value || versionQuery.isLoading.value" :error="printError" :empty-text="t('meetingMinutesForm.printEmpty')" :empty="!meetingQuery.isLoading.value && !versionQuery.isLoading.value && !printReady" @retry="() => { meetingQuery.refetch(); versionQuery.refetch() }">
+      <div v-if="meetingQuery.data.value && printReady" class="grid min-w-0 gap-4.5 print:gap-[10mm]" data-testid="meeting-print-sheet">
+        <header class="flex min-w-0 items-center gap-3 border-b-2 border-primary pb-3">
+          <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="branding.name" class="size-13 object-contain">
+          <div>
+            <p class="text-xl font-bold">{{ branding?.name || t('app.productName') }}</p>
+            <p class="text-sm text-muted">{{ t('meetingMinutesForm.printKicker') }}</p>
+          </div>
         </header>
-        <div class="meeting-print-meta">
-        <div><span>{{ t('meetingMinutesForm.date') }}</span><strong dir="ltr">{{ formatMeetingDate(printableDate, locale) }}</strong></div>
-          <div><span>{{ t('meetingMinutesForm.weekday') }}</span><strong>{{ dateLabels.weekday || '—' }}</strong></div>
-          <div><span>{{ t('meetingMinutesForm.hijriDate') }}</span><strong>{{ dateLabels.hijri || '—' }}</strong></div>
-          <div v-if="versionId"><span>{{ t('meetingMinutesForm.version') }}</span><strong>{{ versionNumber ? t('meetingMinutesForm.versionNumber', { number: versionNumber }) : '—' }}</strong></div>
+        <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
+          <div v-for="fact in facts" :key="fact.key" class="grid gap-0.5 rounded-lg border border-default px-2.5 py-2">
+            <span class="text-xs text-muted">{{ fact.label }}</span>
+            <strong :dir="fact.ltr ? 'ltr' : undefined">{{ fact.value }}</strong>
+          </div>
         </div>
         <MeetingMinutesDocument :meeting="meetingQuery.data.value" :snapshot="snapshot" :form="form" :recommendations="recommendations" :legacy-agenda="legacyAgenda" :legacy-minutes="legacyMinutes" :legacy-recommendations="recommendations" :title="t('meetingMinutesForm.documentTitle')" />
-        <footer class="meeting-print-signatures">
-          <div><span>{{ t('meetingMinutesForm.chairperson') }}</span><span class="meeting-print-signature-line" /></div>
-          <div><span>{{ t('meetingMinutesForm.approverName') }}</span><span class="meeting-print-signature-line" /></div>
-          <div><span>{{ t('meetingMinutesForm.signature') }}</span><span class="meeting-print-signature-line" /></div>
+        <footer class="grid grid-cols-3 gap-7 pt-5">
+          <div v-for="label in signatures" :key="label" class="grid gap-4.5">
+            <span>{{ label }}</span>
+            <span class="block min-h-7 border-b border-default" />
+          </div>
         </footer>
-        </article>
-      </SharedPageState>
-    </div>
-  </SharedPageContainer>
+      </div>
+    </SharedPageState>
+    <template #footer>
+      <UButton color="neutral" variant="outline" :to="backTo" :label="t('app.back')" data-testid="meeting-print-back" />
+      <UButton type="button" :disabled="!hydrated || !printReady || meetingQuery.isLoading.value || versionQuery.isLoading.value" :label="t('meetingMinutesForm.print')" data-testid="meeting-print-action" @click="printPage" />
+    </template>
+  </SharedStandalonePage>
 </template>
-
-<style>
-.meeting-print-sheet { min-width: 0; display: grid; gap: 18px; }
-.meeting-print-brand { display: flex; min-width: 0; align-items: center; gap: 12px; border-block-end: 2px solid var(--ui-primary); padding-block-end: 12px; }
-.meeting-print-logo { width: 52px; height: 52px; object-fit: contain; }
-.meeting-print-company { font-size: 1.25rem; font-weight: 700; }
-.meeting-print-kicker { color: var(--ui-text-muted); font-size: .875rem; }
-.meeting-print-meta { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.meeting-print-meta > div { display: grid; gap: 3px; border: 1px solid var(--ui-border); border-radius: 8px; padding: 8px 10px; }
-.meeting-print-meta span { color: var(--ui-text-muted); font-size: .75rem; }
-.meeting-print-signatures { display: grid; gap: 28px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-block-start: 20px; }
-.meeting-print-signatures > div { display: grid; gap: 18px; }
-.meeting-print-signature-line { display: block; min-height: 28px; border-block-end: 1px solid var(--ui-border); }
-@media print {
-  @page { size: A4 landscape; margin: 12mm; }
-  body { background: white !important; }
-  body > * { visibility: hidden; }
-  .meeting-print-page, .meeting-print-page * { visibility: visible; }
-  .meeting-print-page { position: absolute; inset: 0; width: 100%; max-width: none; padding: 0; }
-  .meeting-print-page .meeting-print-header { display: none !important; }
-  .meeting-print-page [data-slot="page-header"] { display: none; }
-  .meeting-print-page .meeting-print-sheet { gap: 10mm; }
-  .meeting-print-page [data-testid="meeting-minutes-document"] { border: 0; box-shadow: none; }
-  .meeting-print-page [data-testid="meeting-minutes-document"] [data-slot="header"] { padding-inline: 0; }
-  .meeting-print-page [data-testid="meeting-minutes-document"] [data-slot="body"] { padding-inline: 0; }
-  .meeting-print-page .overflow-x-auto { overflow: visible !important; }
-  .meeting-print-page .meeting-minutes-topic-table { min-width: 0 !important; width: 100%; table-layout: fixed; }
-  .meeting-print-page .meeting-minutes-topic-table th { white-space: normal; }
-  .meeting-print-page table thead { display: table-header-group; }
-  .meeting-print-page table tr { break-inside: avoid; page-break-inside: avoid; }
-}
-</style>

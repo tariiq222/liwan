@@ -1,23 +1,17 @@
 <script setup lang="ts">
 import type { Project } from '@nasq/contracts'
-import ProjectMenu from './ProjectMenu.vue'
-import ProjectStatusBadge from './ProjectStatusBadge.vue'
-import EmptyState from '@/components/shared/EmptyState.vue'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
 import type { RouteLocationRaw } from 'vue-router'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import ProjectCardBody from './ProjectCardBody.vue'
 
+// The cards view of /projects. Empty and error states belong to the page; this draws the cards
+// or, while loading, the shared card skeleton.
 type ProjectListItem = Project & { manager?: { id: number; name: string } | null; date_end?: string | null }
-const props = defineProps<{
+defineProps<{
   items: ProjectListItem[]
   isLoading: boolean
-  archived: boolean
-  filtered: boolean
-  capped?: boolean
   toFor: (project: ProjectListItem) => RouteLocationRaw
 }>()
 const emit = defineEmits<{ open: [id: number] }>()
-const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
 function open(project: Project, event: MouseEvent) {
@@ -33,56 +27,19 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
 </script>
 
 <template>
-  <div v-if="isLoading" class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-    <USkeleton v-for="n in 6" :key="n" class="h-44 rounded-lg" />
-  </div>
-  <div v-else-if="items.length === 0" class="rounded-lg ring ring-default bg-default overflow-hidden p-6">
-    <EmptyState
-      :title="t(filtered ? 'projects.filteredEmpty' : archived ? 'projects.archivedEmpty' : 'projects.empty')"
-      :description="t(filtered ? 'projects.filteredEmptyHint' : archived ? 'projects.archivedEmptyHint' : 'projects.emptyHint')"
-    />
-  </div>
-  <div v-else class="space-y-2">
-    <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-      <article
-        v-for="project in items"
-        :key="project.id"
-        class="flex cursor-pointer flex-col gap-4 rounded-lg ring ring-default bg-default overflow-hidden p-5 transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        data-testid="project-card"
-        tabindex="0"
-        :aria-labelledby="`project-card-${project.id}`"
-        @click="open(project, $event)"
-        @keydown="openWithKeyboard(project, $event)"
-      >
-        <div class="-mx-5 -mt-5 flex items-start justify-between gap-3 border-b border-default px-5 py-4">
-          <div class="min-w-0">
-            <RecordNumber :value="project.id" />
-            <h2 :id="`project-card-${project.id}`" class="mt-1 truncate text-base font-semibold text-highlighted"><NuxtLink :to="toFor(project)" class="hover:underline">{{ project.name }}</NuxtLink></h2>
-          </div>
-          <ProjectStatusBadge :status="project.status" class="shrink-0" />
-        </div>
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-3 text-xs text-muted">
-            <span>{{ t('projects.progressOf', { closed: project.closed_task_count, total: project.task_count }) }}</span>
-            <span class="tabular-nums font-medium text-highlighted">{{ project.progress }}%</span>
-          </div>
-          <UProgress :model-value="project.progress" size="sm" :aria-label="t('projects.columns.progress')" />
-        </div>
-        <div class="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
-          <span class="inline-flex min-w-0 flex-1 items-center gap-1.5">
-            <UIcon name="i-lucide-user-round" class="size-4 shrink-0" aria-hidden="true" />
-            <span class="sr-only">{{ t('projects.columns.manager') }}: </span>
-            <span class="truncate">{{ project.manager?.name ?? '—' }}</span>
-          </span>
-          <span class="inline-flex shrink-0 items-center gap-1.5">
-            <UIcon name="i-lucide-calendar-days" class="size-4" aria-hidden="true" />
-            <span class="sr-only">{{ t('projects.columns.dateEnd') }}: </span>
-            <span>{{ project.date_end ? formatCalendarDate(project.date_end, locale) : '—' }}</span>
-          </span>
-          <ProjectMenu :project="project" hide-settings />
-        </div>
-      </article>
-    </div>
-    <p v-if="capped" class="text-xs text-muted">{{ t('projects.capped') }}</p>
+  <SharedLoadingSkeleton v-if="isLoading" variant="cards" :count="6" />
+  <div v-else class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+    <article
+      v-for="project in items"
+      :key="project.id"
+      class="cursor-pointer rounded-lg bg-default p-5 ring ring-default transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      data-testid="project-card"
+      tabindex="0"
+      :aria-labelledby="`project-card-${project.id}`"
+      @click="open(project, $event)"
+      @keydown="openWithKeyboard(project, $event)"
+    >
+      <ProjectCardBody :project="project" :to-for="toFor" />
+    </article>
   </div>
 </template>

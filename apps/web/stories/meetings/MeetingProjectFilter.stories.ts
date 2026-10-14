@@ -27,7 +27,7 @@ export const InFormField: Story = {
 
 export const WithLabel: Story = {
   name: 'بعنوان ظاهر في الفلاتر',
-  parameters: storyContext('apps/web/app/pages/meetings/series.vue:102'),
+  parameters: storyContext('apps/web/app/pages/meetings/series.vue:118'),
   args: { modelValue: 2 },
   render: args => ({
     components: { MeetingProjectFilter, PageContainer },

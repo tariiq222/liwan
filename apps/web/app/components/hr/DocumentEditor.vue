@@ -101,7 +101,7 @@ function applyLink() {
       editor has focus. Keep the capture listener so page-level keyboard
       handling can still observe Escape before it reaches contenteditable.
     -->
-    <div class="rounded-lg border border-default bg-default" @keydown.esc.capture="emit('escape')">
+    <div data-editor="document" class="rounded-lg border border-default bg-default" @keydown.esc.capture="emit('escape')">
       <div class="flex items-center gap-1 border-b p-1">
         <UButton :color="editor?.isActive('bold') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('bold')" :aria-label="t('tasks.detail.bold')" icon="i-lucide-bold" @click="toggleBold" />
         <UButton :color="editor?.isActive('italic') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('italic')" :aria-label="t('tasks.detail.italic')" icon="i-lucide-italic" @click="toggleItalic" />
@@ -121,21 +121,3 @@ function applyLink() {
     </template>
   </ClientOnly>
 </template>
-
-<style scoped>
-:deep(.tiptap p) {
-  margin: 0 0 0.5em;
-}
-:deep(.tiptap ul) {
-  list-style: disc;
-  padding-inline-start: 1.5em;
-}
-:deep(.tiptap ol) {
-  list-style: decimal;
-  padding-inline-start: 1.5em;
-}
-:deep(.tiptap a) {
-  color: var(--brand-link);
-  text-decoration: underline;
-}
-</style>

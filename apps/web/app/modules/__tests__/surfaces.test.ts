@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { activeManifests, withManifests } from '../manifests'
-import { bellKindFor, manifestRoutePrefixes, searchProviders } from '../surfaces'
+import { bellKindFor, manifestRoutePrefixes, searchProviders, sidebarPanelFor } from '../surfaces'
 import { projectsSearch, tasksSearch } from '../pmo/search'
 import type { AppManifest, AppSearchApi } from '../types'
 
@@ -70,6 +70,21 @@ describe('manifest bell kinds', () => {
       const kind = bellKindFor('sales_order_assigned')
       expect(kind?.href({ order_id: 5 })).toBe('/sales/5')
       expect(kind?.title?.({ title: 'SO-0005' }, key => key)).toBe('SO-0005')
+    })
+  })
+})
+
+describe('manifest sidebar panels', () => {
+  it('gives chat a wide panel and no other module one', () => {
+    expect(sidebarPanelFor('chat')?.width).toBe('wide')
+    expect(typeof sidebarPanelFor('chat')?.load).toBe('function')
+    expect(sidebarPanelFor('projects')).toBeUndefined()
+    expect(sidebarPanelFor(null)).toBeUndefined()
+  })
+  it('finds a panel a newer application registers', () => {
+    const panel = { module: 'sales', width: 'default' as const, load: async () => ({ default: {} }) }
+    withManifests([...activeManifests(), { ...sales, sidebarPanel: panel }], () => {
+      expect(sidebarPanelFor('sales')).toBe(panel)
     })
   })
 })

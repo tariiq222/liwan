@@ -18,8 +18,8 @@ const manifest: AppManifest = {
   routePrefixes: ['/hr'],
   rail: [{ id: 'hr', labelKey: 'nav.organization', icon: 'i-lucide-users', to: '/hr', order: 50 }],
   nav: [
-    { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', capability: 'hr.employees.read' },
-    { to: '/hr/departments', labelKey: 'nav.departments', icon: 'i-lucide-network', shortcut: '5', capability: 'hr.departments.read' },
+    { to: '/hr', labelKey: 'nav.employees', icon: 'i-lucide-users', shortcut: '3', goKey: 'e', capability: 'hr.employees.read' },
+    { to: '/hr/departments', labelKey: 'nav.departments', icon: 'i-lucide-network', shortcut: '5', goKey: 'd', capability: 'hr.departments.read' },
     { to: '/hr/documents', labelKey: 'nav.documents', icon: 'i-lucide-files', shortcut: '6', capability: 'hr.documents.read' },
   ],
   // The pinned create follows the page: documents, departments, otherwise employees.
@@ -33,6 +33,11 @@ const manifest: AppManifest = {
     { path: '/hr', capability: 'hr.employees.read' },
     { path: '/hr/departments', capability: 'hr.departments.read' },
     { path: '/hr/documents', capability: 'hr.documents.read' },
+  ],
+  commands: [
+    { id: 'hr.new-employee', labelKey: 'hr.directory.newEmployee', icon: 'i-lucide-users', to: '/hr/employees/new', capability: 'hr.employees.manage' },
+    { id: 'hr.new-department', labelKey: 'hr.depts.new', icon: 'i-lucide-network', to: '/hr/departments/new', capability: 'hr.departments.manage' },
+    { id: 'hr.new-document', labelKey: 'hr.docs.new', icon: 'i-lucide-files', to: '/hr/documents/new', capability: 'hr.documents.manage' },
   ],
   routeCapabilities: [
     { pattern: /^\/hr\/documents\/new$/, capability: 'hr.documents.manage' },

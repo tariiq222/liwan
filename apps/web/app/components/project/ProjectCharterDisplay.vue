@@ -62,11 +62,8 @@ function budgetAmount(): string {
       </template>
     </UAlert>
 
-    <UCard aria-labelledby="project-charter-essentials-title">
-      <template #header>
-        <div class="flex items-center justify-between gap-3">
-          <h2 id="project-charter-essentials-title" class="text-lg font-semibold text-highlighted">{{ t('projects.charter.sections.essentials') }}</h2>
-          <UButton
+    <SharedRecordSection id="project-charter-essentials" :title="t('projects.charter.sections.essentials')">
+      <template #actions><UButton
             type="button"
             color="neutral"
             variant="outline"
@@ -76,9 +73,7 @@ function budgetAmount(): string {
             :title="!milestonesReady ? t('projects.charter.printUnavailable') : undefined"
             :label="t('projects.charter.print')"
             @click="printCharter"
-          />
-        </div>
-      </template>
+          /></template>
       <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
         <div data-testid="charter-display-name"><dt class="text-sm text-muted">{{ t('projects.charter.fields.name') }}</dt><dd class="mt-1 text-lg font-semibold text-highlighted">{{ draft.name }}</dd></div>
         <div v-if="draft.code" data-testid="charter-display-code"><dt class="text-sm text-muted">{{ t('projects.charter.fields.code') }}</dt><dd class="mt-1 font-mono text-sm" dir="ltr">{{ draft.code }}</dd></div>
@@ -87,19 +82,13 @@ function budgetAmount(): string {
         <div v-if="draft.dateStart"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_start') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateStart) }}</dd></div>
         <div v-if="draft.dateEnd"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_end') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateEnd) }}</dd></div>
       </dl>
-    </UCard>
+    </SharedRecordSection>
 
-    <UCard v-if="draft.rationale.trim()" aria-labelledby="project-charter-purpose-title">
-      <template #header>
-        <h2 id="project-charter-purpose-title" class="text-lg font-semibold text-highlighted">{{ t('projects.charter.sections.purpose') }}</h2>
-      </template>
+    <SharedRecordSection v-if="draft.rationale.trim()" id="project-charter-purpose" :title="t('projects.charter.sections.purpose')">
       <p class="whitespace-pre-wrap text-sm">{{ draft.rationale }}</p>
-    </UCard>
+    </SharedRecordSection>
 
-    <UCard v-if="visibleObjectives.length" aria-labelledby="project-charter-objectives-title">
-      <template #header>
-        <h2 id="project-charter-objectives-title" class="text-lg font-semibold text-highlighted">{{ t('projects.charter.fields.objectives') }}</h2>
-      </template>
+    <SharedRecordSection v-if="visibleObjectives.length" id="project-charter-objectives" :title="t('projects.charter.fields.objectives')">
       <ul class="grid gap-3 sm:grid-cols-2">
         <li v-for="row in visibleObjectives" :key="row.key" class="rounded-md bg-elevated/50 p-3">
           <dl class="grid gap-2 text-sm">
@@ -109,22 +98,16 @@ function budgetAmount(): string {
           </dl>
         </li>
       </ul>
-    </UCard>
+    </SharedRecordSection>
 
-    <UCard v-if="draft.scope.trim() || draft.exclusions.trim()" aria-labelledby="project-charter-scope-title">
-      <template #header>
-        <h2 id="project-charter-scope-title" class="text-lg font-semibold text-highlighted">{{ t('projects.charter.sections.scope') }}</h2>
-      </template>
+    <SharedRecordSection v-if="draft.scope.trim() || draft.exclusions.trim()" id="project-charter-scope" :title="t('projects.charter.sections.scope')">
       <dl class="grid gap-4 sm:grid-cols-2">
         <div v-if="draft.scope.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.scope') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.scope }}</dd></div>
         <div v-if="draft.exclusions.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.exclusions') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.exclusions }}</dd></div>
       </dl>
-    </UCard>
+    </SharedRecordSection>
 
-    <UCard v-if="milestoneOutputs.length" data-testid="charter-milestone-outputs" aria-labelledby="charter-milestone-outputs-title">
-      <template #header>
-        <h2 id="charter-milestone-outputs-title" class="text-lg font-semibold text-highlighted">{{ t('projects.charter.milestoneOutputs') }}</h2>
-      </template>
+    <SharedRecordSection v-if="milestoneOutputs.length" data-testid="charter-milestone-outputs" id="charter-milestone-outputs" :title="t('projects.charter.milestoneOutputs')">
       <ul class="grid gap-2 rounded-md bg-elevated/50 p-3">
         <li v-for="(output, index) in milestoneOutputs" :key="`${output.milestoneId}-${index}`" class="flex flex-wrap items-center gap-2 text-sm">
           <label class="flex min-w-0 items-center gap-2">
@@ -134,17 +117,14 @@ function budgetAmount(): string {
           <span class="text-muted">{{ output.milestoneName }}</span>
         </li>
       </ul>
-    </UCard>
+    </SharedRecordSection>
 
-    <UCard aria-labelledby="project-charter-budget-title">
-      <template #header>
-        <h2 id="project-charter-budget-title" class="text-lg font-semibold text-highlighted">{{ t('projects.charter.sections.planning') }}</h2>
-      </template>
+    <SharedRecordSection id="project-charter-budget" :title="t('projects.charter.sections.planning')">
       <dl class="grid gap-4 sm:grid-cols-2">
         <div><dt class="text-sm text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
         <div v-if="budgetAmount()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm">{{ budgetAmount() }}<span v-if="draft.currencyLabel"> {{ draft.currencyLabel }}</span></dd></div>
       </dl>
-    </UCard>
+    </SharedRecordSection>
 
     <details v-if="hasLegacyDetails" class="rounded-lg border border-default p-4">
       <summary class="cursor-pointer font-semibold text-highlighted">{{ t('projects.charter.legacyDetails') }}</summary>

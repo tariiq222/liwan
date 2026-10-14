@@ -6,9 +6,9 @@ import type { AppearanceMode, FontSize } from '@/utils/appearance'
 const { t } = useI18n()
 const { mode, fontSize, setMode, setFontSize } = useAppearance()
 const hydrated = useHydrated()
-const modes: AppearanceMode[] = ['light', 'cream', 'dark']
+const modes: AppearanceMode[] = ['light', 'dark']
 const sizes: FontSize[] = ['small', 'medium', 'large']
-const modeIcons: Record<AppearanceMode, string> = { light: 'i-lucide-sun', cream: 'i-lucide-coffee', dark: 'i-lucide-moon' }
+const modeIcons: Record<AppearanceMode, string> = { light: 'i-lucide-sun', dark: 'i-lucide-moon' }
 
 const items = computed(() => [
   [

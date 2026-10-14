@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 const settled = () => new Promise<void>(resolve => setTimeout(resolve, 0))
 import { buildDepartmentTree } from '../../../lib/departmentTree'
+import { listViewQuery } from '../../../utils/listView'
 
 // The departments list is the one HR surface with three presentations behind a
 // single route. Its real <script setup> is evaluated against a real router, and
@@ -98,6 +99,12 @@ const Slotted = defineComponent({
     return () => h('div', attrs, [slots.search?.(), slots.view?.(), slots.active?.(), slots.default?.()])
   },
 })
+const ListPage = defineComponent({
+  inheritAttrs: false,
+  setup(_, { slots, attrs }) {
+    return () => h('div', { 'data-list-page': '', 'data-views': JSON.stringify(attrs.views) }, [slots.filters?.(), slots.default?.()])
+  },
+})
 const Named = (name: string) => defineComponent({
   inheritAttrs: false,
   setup(_, { attrs }) { return () => h('div', { 'data-child': name, ...attrs }) },
@@ -115,7 +122,7 @@ async function render(url: string, options?: Parameters<typeof evaluate>[1]) {
   }).outputText)(Vue) as RenderFunction
   const app = createSSRApp({ render: () => h(defineComponent({ setup: () => ({ ...state }), render: renderFn })) })
   for (const [name, stub] of [
-    ['SharedPageContainer', Slotted], ['SharedPageHeader', Slotted], ['FilterBar', Slotted],
+    ['SharedListPage', ListPage], ['FilterBar', Slotted],
     ['SharedPageState', Slotted], ['SharedInlineConfirm', Named('confirm')], ['SharedFilterChip', Named('chip')],
     ['UInput', Named('search')], ['DepartmentTree', Named('tree')], ['DepartmentTable', Named('table')],
     ['DepartmentOrgChart', Named('canvas')],
@@ -138,24 +145,21 @@ describe('the departments list chooses its presentation from the URL', () => {
     for (const other of ['table', 'tree', 'canvas'].filter(name => name !== child)) {
       expect(html, other).not.toContain(`data-child="${other}"`)
     }
-    expect(html).toMatch(new RegExp(`aria-pressed="true"[^>]*data-testid="${pressed}"`))
-    expect((html.match(/aria-pressed="true"/g) ?? []).length, 'exactly one view is current').toBe(1)
+    const views = JSON.parse(/data-views="([^"]*)"/.exec(html)![1]!.replaceAll('&quot;', '"'))
+    expect(views.map((v: { value: string }) => v.value)).toEqual(['list', 'tree', 'canvas'])
+    expect(views.map((v: { testId: string }) => v.testId)).toContain(pressed)
   })
 
   it('switches presentation without losing the filter, and drops the parameter for the default', async () => {
     const list = await at('/hr/departments?q=تقن')
-    list.state.setView(true)
-    await settled()
-    expect(list.router.currentRoute.value.query).toEqual({ q: 'تقن', view: 'tree' })
-
-    list.state.setCanvasView()
-    await settled()
-    expect(list.router.currentRoute.value.query.view).toBe('canvas')
-
-    list.state.setView(false)
-    await settled()
-    expect(list.router.currentRoute.value.query.view, 'the list is the default, not a value').toBeUndefined()
-    expect(list.router.currentRoute.value.query.q).toBe('تقن')
+    const views = list.state.views.value
+    expect(listViewQuery(list.router.currentRoute.value.query, 'tree', views)).toEqual({ q: 'تقن', view: 'tree' })
+    expect(listViewQuery(list.router.currentRoute.value.query, 'canvas', views).view).toBe('canvas')
+    const back = listViewQuery({ q: 'تقن', view: 'canvas' }, 'list', views)
+    expect(back.view, 'the list is the default, not a value').toBeUndefined()
+    expect(back.q).toBe('تقن')
+    expect((await at('/hr/departments?view=tree&view=canvas')).state.view.value).toBe('tree')
+    expect((await at('/hr/departments?view=gantt')).state.view.value).toBe('list')
   })
 
   it('filters the table by name or manager and counts the active filter', async () => {

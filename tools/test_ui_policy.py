@@ -276,8 +276,8 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_unreviewed_storybook_addon_still_needs_review(self):
         self.assertEqual(
-            self.errors(self.with_dev_dependencies(["@storybook/addon-a11y"])),
-            ["dependency needs review: @storybook/addon-a11y"],
+            self.errors(self.with_dev_dependencies(["@storybook/addon-vitest"])),
+            ["dependency needs review: @storybook/addon-vitest"],
         )
 
     def test_cli_exit_codes_and_missing_history(self):
@@ -394,20 +394,25 @@ class StaticGateTest(unittest.TestCase):
             APP + "app.vue": "<template><NuxtPage /></template>",
             APP + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
                                    "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
-            APP + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.5rem;\n"
+            APP + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.285714rem;\n"
+                                           "  --nasq-midnight: #13234a; --nasq-lime: #c8f031;\n"
                                            "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
                                            "  --status-danger: red; --status-danger-foreground: white;\n"
                                            "  --unread-count-foreground: white;\n"
                                            "  font-family: 'IBM Plex Sans Arabic'; }\n"
-                                           ":root.cream { color: #000; }\n.dark { color: #fff; }",
+                                           "\n.dark { color: #fff; }",
             APP + "assets/css/components.css": ".nasq-status-text-warning { color: var(--status-warning); }\n"
                                                ".nasq-unread-count { color: var(--unread-count-foreground); }",
-            APP + "assets/css/shell.css": ".nasq-page-width-list { max-width: 100rem; }\n"
+            APP + "assets/css/shell.css": ".nasq-page-width-list { max-width: none; }\n"
                                           ".nasq-page-width-detail { max-width: 68rem; }\n"
                                           ".nasq-page-width-form { max-width: 58rem; }",
         }
         snapshot.update(files)
         return snapshot
+
+    def test_cream_mode_is_retired(self):
+        snapshot = self.whole(**{APP + "assets/css/tokens.css": self.whole()[APP + "assets/css/tokens.css"] + "\n:root.cream { color: #000; }"})
+        self.assertIn(APP + "assets/css/tokens.css: retired token :root.cream", policy.theme_errors(snapshot))
 
     # --- auto-import namespace -------------------------------------------------
 
@@ -441,8 +446,20 @@ class StaticGateTest(unittest.TestCase):
         self.assertTrue(policy.overlay_errors({self.COMPONENTS + "x.vue": 'if (confirm("sure")) {}'}))
 
     def test_header_search_keeps_its_approved_dialog(self):
-        search = self.COMPONENTS + "GlobalSearch.vue"
+        search = self.COMPONENTS + "shell/GlobalSearch.vue"
         self.assertEqual(policy.overlay_errors({search: "<template><Dialog /></template>"}), [])
+
+    def test_command_palette_and_define_shortcuts_have_one_owner(self):
+        palette = "<template><UCommandPalette :groups='g' /></template>"
+        self.assertEqual(policy.keyboard_layer_errors({self.COMPONENTS + "shell/GlobalSearch.vue": palette}), [])
+        self.assertTrue(policy.keyboard_layer_errors({self.PAGES + "x.vue": palette}))
+        for tag in ("UDashboardSearch", "u-dashboard-search", "UContentSearch", "u-content-search",
+                    "LazyUCommandPalette", "lazy-u-command-palette", "LazyUDashboardSearch", "lazy-u-content-search"):
+            other = f"<template><{tag} :groups='g' /></template>"
+            self.assertTrue(policy.keyboard_layer_errors({self.PAGES + "x.vue": other}), tag)
+            self.assertEqual(policy.keyboard_layer_errors({self.COMPONENTS + "shell/GlobalSearch.vue": other}), [], tag)
+        self.assertTrue(policy.keyboard_layer_errors({self.COMPONENTS + "x.vue": "defineShortcuts({ g: () => {} })"}))
+        self.assertEqual(policy.keyboard_layer_errors({self.COMPONENTS + "x.vue": "/* defineShortcuts(x) */"}), [])
 
     def test_overlay_named_in_a_comment_is_not_a_finding(self):
         self.assertEqual(policy.overlay_errors({
@@ -483,6 +500,12 @@ class StaticGateTest(unittest.TestCase):
         shelled = self.whole(**{self.PAGES + "probe.vue": '<SharedPageContainer width="list" />'})
         self.assertEqual([e for e in policy.page_shell_errors(shelled) if "approved shells" in e], [])
 
+    def test_template_pages_count_as_approved_shells(self):
+        for tag in ('SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
+                    'SharedConversationLayout', 'SharedStandalonePage'):
+            page = self.whole(**{self.PAGES + "probe.vue": f'<{tag} title="x" />'})
+            self.assertEqual([e for e in policy.page_shell_errors(page) if "approved shells" in e], [], tag)
+
     def test_route_parent_exemption_holds(self):
         parent = self.whole(**{self.PAGES + "projects.vue": "<template><NuxtPage /></template>"})
         self.assertEqual([e for e in policy.page_shell_errors(parent) if "approved shells" in e], [])
@@ -493,7 +516,7 @@ class StaticGateTest(unittest.TestCase):
 
     def test_page_width_probe_tolerates_minified_css(self):
         minified = self.whole()
-        minified[APP + "assets/css/shell.css"] = (".nasq-page-width-list{max-width:100rem}"
+        minified[APP + "assets/css/shell.css"] = (".nasq-page-width-list{max-width:none}"
                                                   ".nasq-page-width-detail{max-width:68rem}"
                                                   ".nasq-page-width-form{max-width:58rem}")
         self.assertEqual([e for e in policy.page_shell_errors(minified) if "page width" in e], [])
@@ -517,16 +540,34 @@ class StaticGateTest(unittest.TestCase):
 
     # --- shell, styles, button ranks ------------------------------------------
 
-    def test_breadcrumb_in_the_shell_is_reported_but_a_comment_is_not(self):
-        layout = APP + "layouts/default.vue"
-        self.assertTrue(policy.breadcrumb_errors({layout: "<ShellBreadcrumb />"}))
-        self.assertEqual(policy.breadcrumb_errors({layout: "// the breadcrumb is gone\n<div />"}), [])
+    def test_breadcrumb_is_owned_by_the_shell(self):
+        owner = APP + 'components/shell/ShellBreadcrumb.vue'
+        page = APP + 'pages/tasks.vue'
+        trail = '<template><UBreadcrumb :items="items" /></template>'
+        self.assertEqual(policy.breadcrumb_errors({owner: trail}), [])
+        self.assertEqual(policy.breadcrumb_errors({page: trail}),
+                         [page + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)'])
+        self.assertEqual(policy.breadcrumb_errors({page: '<!-- <UBreadcrumb /> -->'}), [])
 
-    def test_new_scoped_style_is_reported_and_a_listed_owner_is_not(self):
+    def test_breadcrumb_check_covers_the_shell_component_and_kebab_tags(self):
+        header = APP + 'components/shell/ShellHeader.vue'
+        page = APP + 'pages/tasks.vue'
+        self.assertEqual(policy.breadcrumb_errors({header: '<template><ShellBreadcrumb :items="items" /></template>'}), [])
+        for tag in ('<ShellBreadcrumb />', '<shell-breadcrumb />', '<u-breadcrumb />', '<ubreadcrumb />'):
+            self.assertEqual(policy.breadcrumb_errors({page: '<template>' + tag + '</template>'}),
+                             [page + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)'], tag)
+
+    def test_the_header_may_mount_only_shell_breadcrumb(self):
+        header = APP + 'components/shell/ShellHeader.vue'
+        for tag in ('<UBreadcrumb :items="items" />', '<u-breadcrumb />', '<ubreadcrumb />'):
+            self.assertEqual(policy.breadcrumb_errors({header: '<template>' + tag + '</template>'}),
+                             [header + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)'], tag)
+
+    def test_component_styles_have_no_remaining_private_owner(self):
         self.assertTrue(policy.scoped_style_errors({self.COMPONENTS + "task/New.vue": "<style scoped>.a{}</style>"}))
         owner = self.COMPONENTS + "shared/RichText.vue"
-        self.assertIn(owner, policy.STYLE_OWNERS)
-        self.assertEqual(policy.scoped_style_errors({owner: "<style scoped>.a{}</style>"}), [])
+        self.assertEqual(policy.STYLE_OWNERS, frozenset())
+        self.assertTrue(policy.scoped_style_errors({owner: "<style scoped>.a{}</style>"}))
 
     def test_filled_secondary_button_is_reported_and_quiet_variants_are_not(self):
         self.assertTrue(policy.button_rank_errors({
@@ -598,6 +639,43 @@ class StaticGateTest(unittest.TestCase):
     def test_the_search_page_itself_is_exempt(self):
         search = self.whole(**{self.PAGES + "search.vue": '<UInput icon="i-lucide-search" />'})
         self.assertEqual(policy.toolbar_errors(search), [])
+
+    # --- templates and merges (Tasmim Plan 4) ----------------------------------
+
+    def test_a_per_app_badge_is_reported_and_the_shared_one_is_not(self):
+        for path in ("task/StateBadge.vue", "project/ProjectStatusBadge.vue", "vendor/OrderStateBadge.vue",
+                     "access/AccessStateBadge.vue", "meetings/StatusBadge.vue", "task/DeadlineBadge.vue",
+                     "plan/LifecycleBadge.vue"):
+            errors = policy.template_errors({self.COMPONENTS + path: "<template><UBadge /></template>"})
+            self.assertTrue(any("StatusBadge" in error for error in errors), path)
+        self.assertEqual(policy.template_errors({
+            policy.STATUS_BADGE_OWNER: "<template><UBadge /></template>",
+            self.COMPONENTS + "task/taskStateTone.ts": "export const TONES = {}",
+        }), [])
+
+    def test_filter_card_file_and_tag_are_reported(self):
+        self.assertTrue(policy.template_errors({policy.FILTER_CARD_FILE: "<template><div /></template>"}))
+        for markup in ("<FilterCard />", "<SharedFilterCard :active-count='1' />", "<shared-filter-card />",
+                       "<LazySharedFilterCard />"):
+            self.assertTrue(policy.template_errors({self.PAGES + "x.vue": f"<template>{markup}</template>"}), markup)
+        for markup in ("<SharedFilterBar /><!-- FilterCard folded in here -->",
+                       "<SharedFilterBar :content-id=\"'filter-card-' + id\" />"):
+            self.assertEqual(policy.template_errors({self.PAGES + "x.vue": f"<template>{markup}</template>"}), [], markup)
+
+    def test_every_contract_template_must_be_listed_in_storybook(self):
+        whole = self.whole()
+        missing = policy.CONTRACT_TEMPLATES[0]
+        with patch("ui_policy.STORYBOOK_COMPONENTS", policy.CONTRACT_TEMPLATES[1:]):
+            self.assertEqual(policy.template_errors(whole),
+                             [missing + ": contract template must be listed in STORYBOOK_COMPONENTS"])
+        with patch("ui_policy.STORYBOOK_COMPONENTS", policy.CONTRACT_TEMPLATES):
+            self.assertEqual(policy.template_errors(whole), [])
+        # A partial snapshot says nothing about the list.
+        with patch("ui_policy.STORYBOOK_COMPONENTS", ()):
+            self.assertEqual(policy.template_errors({self.PAGES + "x.vue": "<template />"}), [])
+
+    def test_the_real_list_names_every_contract_template(self):
+        self.assertEqual([path for path in policy.CONTRACT_TEMPLATES if path not in policy.STORYBOOK_COMPONENTS], [])
 
 if __name__ == '__main__':
     unittest.main()

@@ -11614,6 +11614,893 @@
           }
         ]
       },
+      "OperationActionsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "approve": {
+            "type": "boolean"
+          },
+          "edit": {
+            "type": "boolean"
+          },
+          "reject": {
+            "type": "boolean"
+          },
+          "return": {
+            "type": "boolean"
+          },
+          "submit": {
+            "type": "boolean"
+          },
+          "withdraw": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "edit",
+          "submit",
+          "approve",
+          "reject",
+          "return",
+          "withdraw"
+        ],
+        "type": "object"
+      },
+      "OperationExecutionKindsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "OperationProcessListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "type": "string"
+                },
+                "execution_kind": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "revision": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "state": {
+                  "enum": [
+                    "draft",
+                    "published",
+                    "archived"
+                  ],
+                  "type": "string"
+                },
+                "steps": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "reviewer_ids": {
+                        "items": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "type": "array"
+                      },
+                      "reviewers": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "user_id": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "user_id"
+                          ],
+                          "type": "object"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "reviewer_ids",
+                      "reviewers"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "description",
+                "state",
+                "revision",
+                "execution_kind",
+                "steps"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "OperationProcessSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "execution_kind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "published",
+              "archived"
+            ],
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "reviewer_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "reviewers": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "user_id": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "user_id"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "reviewer_ids",
+                "reviewers"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "state",
+          "revision",
+          "execution_kind",
+          "steps"
+        ],
+        "type": "object"
+      },
+      "OperationRequestListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "created_at": {
+                  "type": "string"
+                },
+                "cycle": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "execution_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "process": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "process_revision": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "requester": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "user_id"
+                  ],
+                  "type": "object"
+                },
+                "revision": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "state": {
+                  "enum": [
+                    "draft",
+                    "pending",
+                    "returned",
+                    "rejected",
+                    "withdrawn",
+                    "done"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "process",
+                "process_revision",
+                "state",
+                "revision",
+                "cycle",
+                "requester",
+                "created_at",
+                "execution_count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "OperationRequestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "allowed_actions": {
+            "additionalProperties": false,
+            "properties": {
+              "approve": {
+                "type": "boolean"
+              },
+              "edit": {
+                "type": "boolean"
+              },
+              "reject": {
+                "type": "boolean"
+              },
+              "return": {
+                "type": "boolean"
+              },
+              "submit": {
+                "type": "boolean"
+              },
+              "withdraw": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "edit",
+              "submit",
+              "approve",
+              "reject",
+              "return",
+              "withdraw"
+            ],
+            "type": "object"
+          },
+          "attachments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "mimetype": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "mimetype",
+                "url"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "cycle": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "actor": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "user_id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "user_id"
+                  ],
+                  "type": "object"
+                },
+                "comment": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "cycle": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "actor",
+                "comment",
+                "cycle",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "execution_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "process": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "process_revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requester": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "user_id": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "user_id"
+            ],
+            "type": "object"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "pending",
+              "returned",
+              "rejected",
+              "withdrawn",
+              "done"
+            ],
+            "type": "string"
+          },
+          "steps": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "reviewers": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "user_id": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "user_id"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "sequence": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "status": {
+                  "enum": [
+                    "waiting",
+                    "pending",
+                    "approved",
+                    "rejected",
+                    "cancel"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sequence",
+                "name",
+                "reviewers",
+                "status"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "href": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "href"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "process",
+          "process_revision",
+          "state",
+          "revision",
+          "cycle",
+          "requester",
+          "created_at",
+          "execution_count",
+          "description",
+          "target",
+          "steps",
+          "events",
+          "attachments",
+          "allowed_actions"
+        ],
+        "type": "object"
+      },
+      "OperationRequestSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "cycle": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "execution_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "process": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "process_revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "requester": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "user_id": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "user_id"
+            ],
+            "type": "object"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "pending",
+              "returned",
+              "rejected",
+              "withdrawn",
+              "done"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "process",
+          "process_revision",
+          "state",
+          "revision",
+          "cycle",
+          "requester",
+          "created_at",
+          "execution_count"
+        ],
+        "type": "object"
+      },
+      "OperationStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft",
+          "pending",
+          "returned",
+          "rejected",
+          "withdrawn",
+          "done"
+        ],
+        "type": "string"
+      },
+      "OperationTargetSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "href": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "href"
+        ],
+        "type": "object"
+      },
+      "OperationTargetsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "href": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "href"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "PasswordChangeSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -26709,6 +27596,699 @@
         }
       }
     },
+    "/api/v1/operations/execution-kinds": {
+      "get": {
+        "operationId": "nasq_operations.OperationsController.execution_kinds.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "execution_kinds",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "execution_kinds",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/processes": {
+      "get": {
+        "operationId": "nasq_operations.OperationsController.list_processes.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_processes",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_processes",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "nasq_operations.OperationsController.create_process.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_process",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "create_process",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/processes/{process_id}": {
+      "get": {
+        "operationId": "nasq_operations.OperationsController.get_process.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "process_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_process",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_process",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "nasq_operations.OperationsController.update_process.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "process_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_process",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "update_process",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/processes/{process_id}/targets": {
+      "get": {
+        "operationId": "nasq_operations.OperationsController.process_targets.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "process_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "process_targets",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "process_targets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/processes/{process_id}/{action}": {
+      "post": {
+        "operationId": "nasq_operations.OperationsController.transition_process.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "process_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "transition_process",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "transition_process",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/requests": {
+      "get": {
+        "operationId": "nasq_operations.OperationsController.list_requests.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_requests",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_requests",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "nasq_operations.OperationsController.create_request.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_request",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "create_request",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/requests/{request_id}": {
+      "get": {
+        "operationId": "nasq_operations.OperationsController.get_request.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_request",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_request",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "nasq_operations.OperationsController.update_request.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_request",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "update_request",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/requests/{request_id}/attachments": {
+      "post": {
+        "operationId": "nasq_operations.OperationsController.upload_attachment.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "upload_attachment",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "upload_attachment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/requests/{request_id}/attachments/{attachment_id}": {
+      "delete": {
+        "operationId": "nasq_operations.OperationsController.delete_attachment.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_attachment",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "delete_attachment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/operations/requests/{request_id}/{action}": {
+      "post": {
+        "operationId": "nasq_operations.OperationsController.transition_request.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "transition_request",
+        "tags": [
+          "nasq_operations"
+        ],
+        "x-nasq": {
+          "addon": "nasq_operations",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "operations",
+          "controller": "OperationsController",
+          "feature_keys": [
+            "operations.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "transition_request",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/people": {
       "get": {
         "operationId": "nasq_directory.PeopleController.list_people.get",
@@ -31063,6 +32643,7 @@
     "nasq_meetings",
     "nasq_meetings_pmo",
     "nasq_notify",
+    "nasq_operations",
     "nasq_pmo",
     "nasq_tasks",
     "nasq_tasks_pmo"

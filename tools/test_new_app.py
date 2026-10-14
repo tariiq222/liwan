@@ -241,7 +241,7 @@ class TestNewApp(unittest.TestCase):
     def test_success_prints_the_catalog_warning(self):
         code, out, err = run(self.root, *ARGS)
         self.assertEqual(code, 0, err)
-        self.assertIn('platform_v3.json was edited in place', out)
+        self.assertIn('platform_v4.json was edited in place', out)
         self.assertIn('platform_vN.json', out)
 
     def test_existing_page_or_contracts_entry_blocks_the_id(self):
@@ -279,12 +279,31 @@ class TestNewApp(unittest.TestCase):
         for path in modules.glob('*/manifest.ts'):
             path.unlink()
         (self.root / 'apps/web/app/composables/nav/shellModules.ts').unlink()
-        letters = ''.join(c for c in 'abcdefghijklmnopqrstuvwxyz0123456789' if c not in 'jk0')
+        letters = ''.join(c for c in 'abcdefghijklmnopqrstuvwxyz0123456789' if c not in 'cgjk')
         (modules / 'full').mkdir(exist_ok=True)
         (modules / 'full/manifest.ts').write_text(
             'export default { order: 1, nav: [' + ','.join(f"{{ shortcut: '{c}' }}" for c in letters[:-1]) + '] }\n', encoding='utf-8',
         )
         self.assertEqual(new_app.web_slots(self.root)[1], letters[-1])
+
+    def test_hard_wired_keys_match_the_shell_keymap(self):
+        keymap = (Path(new_app.__file__).resolve().parents[1] / 'apps/web/app/composables/shortcuts/keymap.ts').read_text(encoding='utf-8')
+        declared = re.search(r'SHELL_RESERVED_KEYS[^=]*=\s*\[([^\]]*)\]', keymap).group(1)
+        keys = set(re.findall(r"'([^']+)'", declared))
+        self.assertEqual({key for key in keys if re.fullmatch('[a-z0-9]', key)}, set(new_app.HARD_WIRED_SHORTCUTS))
+
+    def test_shell_keymap_letters_are_never_chosen(self):
+        modules = self.root / 'apps/web/app/modules'
+        for path in modules.glob('*/manifest.ts'):
+            path.unlink()
+        (self.root / 'apps/web/app/composables/nav/shellModules.ts').unlink()
+        (modules / 'hi').mkdir(exist_ok=True)
+        (modules / 'hi/manifest.ts').write_text(
+            "export default { rail: [{ id: 'hi', order: 990 }], nav: ["
+            "{ shortcut: 'a' }, { shortcut: 'b' }, { shortcut: 'd' }, { shortcut: 'e' }, { shortcut: 'f' }] }\n",
+            encoding='utf-8',
+        )
+        self.assertEqual(new_app.web_slots(self.root)[1], 'h')
 
     def test_missing_order_or_shortcut_fails_loudly(self):
         for path in (self.root / 'apps/web/app/modules').glob('*/manifest.ts'):

@@ -64,7 +64,7 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   expect((await descriptionSaved).status()).toBe(200)
   await expect(detail.getByTestId('task-description-editor')).toHaveCount(0)
   await page.reload()
-  await expect(detail.getByTestId('task-description').locator('.nasq-rich-text')).toHaveText('وصف تجريبي للمهمة')
+  await expect(detail.getByTestId('task-description').locator('.rich-text-content')).toHaveText('وصف تجريبي للمهمة')
 
   // 5. sub-task — assert the URL lands on the exact id the create response returned,
   // not merely "some other id"
@@ -207,7 +207,7 @@ test('a description edit made just before navigating away is not lost', async ({
   expect((await other.json()).description_html).not.toContain(text)
 
   await page.goto(`/tasks/${id1}`)
-  await expect(detail.getByTestId('task-description').locator('.nasq-rich-text')).toHaveText(text)
+  await expect(detail.getByTestId('task-description').locator('.rich-text-content')).toHaveText(text)
   await detail.getByTestId('task-description-edit').click()
   await expect(page.getByRole('textbox', { name: 'الوصف', exact: true })).toHaveText(text)
 })

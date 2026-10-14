@@ -53,7 +53,7 @@ describe('permission gating', () => {
     expect(s).toMatch(/continuePayment/)
   })
   it('invoice page labels non-official invoices and has no physical RTL classes', () => {
-    expect(read('app/components/subscription/InvoiceLines.vue')).toContain('subscription.invoices.notOfficial')
+    expect(read('app/utils/subscription.ts')).toContain('subscription.invoices.notOfficial')
     for (const f of ['index.vue', 'change.vue', 'status.vue', 'branches.vue', 'branches/new.vue', 'invoices/index.vue', 'invoices/[id].vue']) expect(page(f)).not.toMatch(/\b(ml|mr|pl|pr)-\d/)
   })
 })

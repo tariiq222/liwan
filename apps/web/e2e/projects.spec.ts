@@ -62,7 +62,7 @@ test('projects table shows status and progress, and a row opens the project', as
   await page.request.post('/api/v1/tasks', { data: { name: `${name} b`, project_id: id } })
   await page.request.post(`/api/v1/tasks/${a}/transition`, { data: { state: 'done' } })
 
-  await page.goto('/projects')
+  await page.goto('/projects?view=table')
   await expect(page.getByRole('heading', { name: 'المشاريع' })).toBeVisible()
   const search = page.getByPlaceholder('ابحث باسم المشروع…')
   await expect(search).toBeEnabled()

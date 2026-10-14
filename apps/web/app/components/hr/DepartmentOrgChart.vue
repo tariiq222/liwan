@@ -259,15 +259,3 @@ onUnmounted(() => {
     <p v-else class="py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
   </section>
 </template>
-
-<style scoped>
-.hr-org-chart-expanded {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  width: 100vw;
-  height: 100vh;
-  border-radius: 0;
-  background: var(--background);
-}
-</style>

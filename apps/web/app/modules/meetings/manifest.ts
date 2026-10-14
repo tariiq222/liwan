@@ -7,8 +7,8 @@ const manifest: AppManifest = {
   routePrefixes: ['/meetings'],
   rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30 }],
   nav: [
-    { to: '/meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', shortcut: 'm', capability: 'meetings.read' },
-    { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: 'i-lucide-calendar-days', shortcut: 'k', capability: 'meetings.read' },
+    { to: '/meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', shortcut: 'm', goKey: 'm', capability: 'meetings.read' },
+    { to: '/meetings/calendar', labelKey: 'nav.meetingCalendar', icon: 'i-lucide-calendar-days', shortcut: 'l', capability: 'meetings.read' },
     { to: '/meetings/series', labelKey: 'nav.meetingSeries', icon: 'i-lucide-repeat', shortcut: 'y', capability: 'meetings.read' },
   ],
   contextLinks: () => [
@@ -21,6 +21,10 @@ const manifest: AppManifest = {
     { path: '/meetings', capability: 'meetings.read' },
     { path: '/meetings/calendar', capability: 'meetings.read' },
     { path: '/meetings/series', capability: 'meetings.read' },
+  ],
+  commands: [
+    { id: 'meetings.new-meeting', labelKey: 'nav.newMeeting', icon: 'i-lucide-calendar-days', to: '/meetings/new', capability: 'meetings.create' },
+    { id: 'meetings.new-series', labelKey: 'meetingsUi.newSeries', icon: 'i-lucide-repeat', to: '/meetings/series/new', capability: 'meetings.create' },
   ],
   routeCapabilities: [
     { pattern: /^\/meetings\/new$/, capability: 'meetings.create' },

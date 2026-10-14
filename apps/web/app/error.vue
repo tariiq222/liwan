@@ -29,16 +29,13 @@ function goHome() {
 
 <template>
   <UApp :locale="locale === 'ar' ? ar : en">
-    <main class="grid min-h-dvh place-items-center bg-default px-4 py-12">
-      <div class="grid w-full max-w-md justify-items-center gap-6 text-center" data-testid="app-error">
+    <SharedStandalonePage data-testid="app-error" :title="title">
+      <div class="grid justify-items-center gap-4 text-center">
         <span class="text-sm font-semibold text-muted">{{ productName }}</span>
         <p class="font-mono text-5xl font-semibold text-highlighted" dir="ltr">{{ error.statusCode }}</p>
-        <div class="grid gap-2">
-          <h1 class="text-xl font-semibold text-highlighted">{{ title }}</h1>
-          <p class="text-sm text-muted">{{ description }}</p>
-        </div>
+        <p class="text-sm text-muted">{{ description }}</p>
         <UButton icon="i-lucide-house" :label="t('errors.goHome')" @click="goHome" />
       </div>
-    </main>
+    </SharedStandalonePage>
   </UApp>
 </template>

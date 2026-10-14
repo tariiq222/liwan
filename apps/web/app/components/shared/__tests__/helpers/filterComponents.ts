@@ -15,7 +15,6 @@ export function loadFilterComponent(name: string, hydrated = true): Vue.Componen
   const exports: { default?: Vue.Component } = {}
   const require = (path: string) => {
     if (path === 'vue') return Vue
-    if (path.endsWith('FilterCard.vue')) return { default: loadFilterComponent('FilterCard', hydrated), __esModule: true }
     throw new Error(`Unhandled component dependency ${path}`)
   }
   new Function('require', 'exports', 'ref', 'computed', 'useId', 'useI18n', 'useHydrated', code)(require, exports, Vue.ref, Vue.computed, Vue.useId, () => ({ t: (key: string) => ({ 'filterCard.title': 'Search and filters', 'filterCard.clear': 'Clear filters' }[key] ?? key) }), () => Vue.ref(hydrated))

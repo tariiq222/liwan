@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
+import { onScopeDispose } from 'vue'
+import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectTable from '@/components/project/ProjectTable.vue'
 import ProjectCards from '@/components/project/ProjectCards.vue'
@@ -30,6 +32,32 @@ const search = ref(filters.q)
 const debouncedSearch = refDebounced(search, 250)
 let applyingRoute = false
 let writeQuery: Promise<void> = Promise.resolve()
+let pendingDeparture: RouteLocationNormalized | null = null
+
+// A background row or create link may start a slow navigation before the
+// debounce commits. A later list replace would cancel that outgoing navigation.
+onBeforeRouteLeave(to => { pendingDeparture = to })
+function resumeListWrites() {
+  pendingDeparture = null
+  // A rejected or superseded departure keeps the list alive. Commit any
+  // filter write that was paused, and let subsequent edits update its URL.
+  if ((router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/projects') void scheduleQueryWrite()
+}
+const stopAfterEach = router.afterEach((to, _from, failure) => {
+  if (!pendingDeparture) return
+  // Two attempts can share a fullPath; only the current public route object
+  // can release the pause when its own navigation fails.
+  const failedDeparture = failure && to === pendingDeparture
+  const returnedToList = !failure && (to.path.replace(/\/+$/, '') || '/') === '/projects'
+  if (!failedDeparture && !returnedToList) return
+  resumeListWrites()
+})
+// Thrown guards and failed lazy imports reject through onError, skipping
+// afterEach. Release this departure's pause without consuming the error.
+const stopOnError = router.onError((_error, to) => {
+  if (to === pendingDeparture) resumeListWrites()
+})
+onScopeDispose(() => { stopAfterEach(); stopOnError() })
 
 function committedState(): ProjectListRouteState {
   return {
@@ -49,7 +77,7 @@ function applyPatch(patch: Partial<ProjectListRouteState>) {
 
 function scheduleQueryWrite(): Promise<void> {
   writeQuery = writeQuery.then(async () => {
-    if ((route.path.replace(/\/+$/, '') || '/') !== '/projects') return
+    if (pendingDeparture || (route.path.replace(/\/+$/, '') || '/') !== '/projects') return
     const query = serializeProjectListRoute(committedState())
     if (sameProjectListRoute(query, serializeProjectListRoute(parseProjectListRoute(route.query as Record<string, unknown>)))) return
     applyingRoute = true
@@ -115,6 +143,21 @@ watchCapability(projectList)
 // response may grant the action again. Refetches retain the current outcome so
 // an authorized button does not flicker while a request is in flight.
 const canCreate = computed(() => latestCapability.value.allowed)
+// The list URL as it will be once the debounced search lands. The create link and every project link
+// carry it as their return path, so a project opened inside the 250ms debounce still returns to the
+// filtered list. The route itself catches up on its own.
+// A changed search resets the offset exactly as the debounced commit will, so the live state is the
+// committed one patched with the typed search.
+const liveState = computed<ProjectListRouteState>(() => search.value.trim() === filters.q.trim()
+  ? committedState()
+  : { ...patchProjectListRoute(filters, { q: search.value }), archived: committedState().archived })
+const liveListPath = computed(() => router.resolve({ path: '/projects', query: serializeProjectListRoute(liveState.value) }).fullPath)
+const createTo = computed(() => canCreate.value ? { path: '/projects/new', query: returnToQuery(liveListPath.value) } : undefined)
+// The switch lives in SharedListPage and writes ?view= itself. Cards, the first option, is the bare URL.
+const views = computed(() => [
+  { value: 'cards', label: t('projects.filters.cardView'), icon: 'i-lucide-layout-grid', testId: 'projects-view-cards' },
+  { value: 'table', label: t('projects.filters.tableView'), icon: 'i-lucide-list', testId: 'projects-view-table' },
+])
 const total = computed(() => projectList.data.value?.total ?? 0)
 const page = computed(() => Math.floor(listOffset.value / PROJECT_PAGE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PROJECT_PAGE)))
@@ -134,7 +177,8 @@ watch(() => route.query, (query) => {
   const fromRoute = serializeProjectListRoute({ ...parsed, archived: canListArchived.value && parsed.archived })
   if (sameProjectListRoute(serializeProjectListRoute(committedState()), fromRoute)) return
   applyingRoute = true
-  search.value = parsed.q
+  // A view switch alone must not discard text typed inside the debounce window.
+  if (parsed.q.trim() !== filters.q.trim()) search.value = parsed.q
   Object.assign(filters, { sort: undefined, view: undefined }, parsed)
   queueMicrotask(() => { applyingRoute = false })
 })
@@ -147,7 +191,6 @@ function clearFilters() {
   applyPatch({ q: '', status: 'all', sort: 'default' })
 }
 const sort = computed(() => filters.sort ?? 'default')
-const view = computed(() => filters.view ?? 'cards')
 const activeFilterCount = computed(() => Number(Boolean(rawSearch.value.trim())) + Number(statusFilter.value !== 'all') + Number(sort.value !== 'default'))
 function onSortChange(value: unknown) {
   applyPatch({ sort: value === 'name' || value === 'progress' ? value : 'default' })
@@ -168,10 +211,12 @@ function clearSearch() {
   search.value = ''
   applyPatch({ q: '' })
 }
-function onViewChange(value: 'table' | 'cards') { applyPatch({ view: value }) }
 // Ordering belongs to the server, before pagination.
 const displayedItems = items
 const isLoading = computed(() => projectList.isLoading.value)
+// The empty state keeps its title and its hint, so the page draws it, not the table.
+const emptyKey = computed(() => (Boolean(rawSearch.value.trim()) || statusFilter.value !== 'all') ? 'filteredEmpty' : archived.value ? 'archivedEmpty' : 'empty')
+const showEmpty = computed(() => !isLoading.value && items.value.length === 0)
 
 function onFilterChange(v: unknown) {
   applyPatch({ archived: v === 'archived' })
@@ -186,107 +231,84 @@ async function flushPendingSearch() {
   await scheduleQueryWrite()
 }
 
-async function openCreate() {
-  await flushPendingSearch()
-  const returnPath = router.resolve({
-    path: '/projects',
-    query: serializeProjectListRoute(committedState()),
-  }).fullPath
-  router.push({ path: '/projects/new', query: returnToQuery(returnPath) })
-}
 const { entryTo } = useProjectWorkspaceMemory()
 function projectTo(project: { id: number; active: boolean }) {
-  return entryTo(project.id, route.fullPath, project.active)
+  return entryTo(project.id, liveListPath.value, project.active)
 }
 async function openProject(id: number) {
+  const origin = liveListPath.value
   await flushPendingSearch()
   const project = items.value.find(item => item.id === id)
-  router.push(entryTo(id, route.fullPath, project?.active ?? true))
+  router.push(entryTo(id, origin, project?.active ?? true))
 }
 </script>
 
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')">
-      <template #actions>
-        <UButton v-if="canCreate" data-testid="project-new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('projects.new')" @click="openCreate" />
-        <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
-      </template>
-    </SharedPageHeader>
+  <SharedListPage
+    :title="t(filters.mine ? 'nav.myProjects' : 'nav.allProjects')"
+    :create-to="createTo"
+    :create-label="t('projects.new')"
+    create-test-id="project-new"
+    :views="views"
+  >
+    <template #actions>
+      <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
+    </template>
 
-    <UAlert
-      v-if="activeList.error.value && !projectList.error.value"
-      role="alert"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-circle-alert"
-      :title="t('projects.loadError')"
-    >
-      <template #actions>
-        <UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('app.retry')" @click="activeList.refetch()" />
-      </template>
-    </UAlert>
-
-    <div class="w-full min-w-0" data-testid="projects-toolbar">
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-        <template #search>
-          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
-        </template>
-        <template #default>
-          <SharedFilterChoice data-testid="projects-status-filter" :label="t('projects.filters.statusLabel')" :items="statusOptions" :model-value="statusFilter" :disabled="!hydrated" @update:model-value="onStatusChange" />
-          <SharedFilterChoice data-testid="projects-sort" layout="segment" :label="t('projects.filters.sortLabel')" :items="sortOptions" :model-value="sort" :disabled="!hydrated" @update:model-value="onSortChange" />
-        </template>
-        <template #view>
-          <UTabs
-            v-if="canListArchived"
-            :model-value="archived ? 'archived' : 'active'"
-            :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
-            size="sm"
-            @update:model-value="onFilterChange"
-          />
-          <div class="hidden md:block">
-            <div role="group" class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default" :aria-label="t('projects.filters.view')">
-              <UButton data-testid="projects-view-table" type="button" square color="neutral" size="sm" :variant="view === 'table' ? 'soft' : 'ghost'" icon="i-lucide-list" :disabled="!hydrated" :aria-label="t('projects.filters.tableView')" :aria-pressed="view === 'table'" @click="onViewChange('table')" />
-              <UButton data-testid="projects-view-cards" type="button" square color="neutral" size="sm" :variant="view === 'cards' ? 'soft' : 'ghost'" icon="i-lucide-layout-grid" :disabled="!hydrated" :aria-label="t('projects.filters.cardView')" :aria-pressed="view === 'cards'" @click="onViewChange('cards')" />
+    <template #filters>
+      <div class="w-full min-w-0" data-testid="projects-toolbar">
+        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
+          </template>
+          <template #default>
+            <SharedFilterChoice data-testid="projects-status-filter" :label="t('projects.filters.statusLabel')" :items="statusOptions" :model-value="statusFilter" :disabled="!hydrated" @update:model-value="onStatusChange" />
+            <SharedFilterChoice data-testid="projects-sort" layout="segment" :label="t('projects.filters.sortLabel')" :items="sortOptions" :model-value="sort" :disabled="!hydrated" @update:model-value="onSortChange" />
+          </template>
+          <template #view>
+            <UTabs
+              v-if="canListArchived"
+              :model-value="archived ? 'archived' : 'active'"
+              :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
+              size="sm"
+              @update:model-value="onFilterChange"
+            />
+          </template>
+          <template #active>
+            <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
+              <SharedFilterChip v-if="rawSearch" :label="t('projects.filters.searchValue', { value: rawSearch })" @remove="clearSearch" />
+              <SharedFilterChip v-if="statusFilter !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
+              <SharedFilterChip v-if="sort !== 'default'" :label="sortLabel" @remove="onSortChange('default')" />
             </div>
-          </div>
-        </template>
-        <template #active>
-          <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
-            <SharedFilterChip v-if="rawSearch" :label="t('projects.filters.searchValue', { value: rawSearch })" @remove="clearSearch" />
-            <SharedFilterChip v-if="statusFilter !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
-            <SharedFilterChip v-if="sort !== 'default'" :label="sortLabel" @remove="onSortChange('default')" />
-          </div>
-        </template>
-      </FilterBar>
-    </div>
+          </template>
+        </FilterBar>
+      </div>
+    </template>
 
-    <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
-    <div v-else class="grid gap-3">
-      <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
-        {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
-      </p>
-      <ProjectTable
-        v-if="view === 'table'"
-        :items="displayedItems"
-        :capped="false"
-        :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
-        :is-loading="isLoading"
-        :archived="archived"
-        :to-for="projectTo"
-        @open="openProject"
-      />
-      <ProjectCards
-        v-else
-        :items="displayedItems"
-        :is-loading="isLoading"
-        :filtered="Boolean(rawSearch.trim()) || statusFilter !== 'all'"
-        :archived="archived"
-        :capped="false"
-        :to-for="projectTo"
-        @open="openProject"
-      />
-      <SharedPagination :page="page" :pages="pages" :disabled="projectList.isFetching.value" @update:page="setPage" />
-    </div>
-  </SharedPageContainer>
+    <template #default="{ view }">
+      <UAlert
+        v-if="activeList.error.value && !projectList.error.value"
+        role="alert"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        :title="t('projects.loadError')"
+      >
+        <template #actions>
+          <UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('app.retry')" @click="activeList.refetch()" />
+        </template>
+      </UAlert>
+
+      <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
+      <div v-else class="grid gap-3">
+        <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
+          {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
+        </p>
+        <SharedEmptyState v-if="showEmpty" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
+        <ProjectTable v-else-if="view === 'table'" :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
+        <ProjectCards v-else :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
+        <SharedPagination :page="page" :pages="pages" :disabled="projectList.isFetching.value" @update:page="setPage" />
+      </div>
+    </template>
+  </SharedListPage>
 </template>

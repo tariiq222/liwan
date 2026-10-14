@@ -4,9 +4,8 @@ import { useNotificationDigest } from '@/composables/useNotifications'
 
 const route = useRoute()
 const router = useRouter()
-const { t, localeProperties } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
-const isRtl = computed(() => localeProperties.value.dir === 'rtl')
 const id = computed(() => {
   const raw = Number(route.params.id)
   return Number.isInteger(raw) && raw > 0 ? raw : null
@@ -42,10 +41,6 @@ function openTask(taskId: number) {
   router.push(`/tasks/${taskId}`)
 }
 
-function goBack() {
-  router.push(backTo.value)
-}
-
 async function retryDigest() {
   if (isFetching.value) return
   await refetch()
@@ -62,48 +57,31 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <SharedPageContainer data-testid="notification-digest" width="detail" class="flex min-h-[calc(100vh-7rem)] flex-col">
-    <SharedPageHeader :title="t('tasks.digest.title')" :description="t('tasks.digest.count', { n: overdueCount })">
-      <template #back>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="gap-2 px-2 text-muted"
-          type="button"
-          data-testid="digest-back"
-          :disabled="!hydrated"
-          :aria-label="t('notifications.back')"
-          @click="goBack"
-          :label="t('notifications.back')"
-        >
-          <UIcon :name="isRtl ? 'i-lucide-arrow-right' : 'i-lucide-arrow-left'" class="size-4.5" aria-hidden="true" />
-          {{ t('notifications.back') }}
-        </UButton>
-      </template>
-      <template #actions>
-        <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
-      </template>
-    </SharedPageHeader>
-    <UCard class="overflow-hidden">
-      <div class="max-h-[calc(100vh-14rem)] overflow-y-auto p-4">
-        <div v-if="idInvalid" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-invalid">
-          <p class="text-sm text-error">{{ t('tasks.digest.invalid') }}</p>
-        </div>
-        <div v-else-if="isError && !items.length" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-error">
-          <p class="text-sm text-error">{{ queryErrorMessage }}</p>
-          <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
-        </div>
-        <p v-else-if="isLoading" class="py-8 text-center text-sm text-muted">{{ t('notifications.loading') }}</p>
-        <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted" data-testid="digest-empty">{{ t('tasks.digest.empty') }}</p>
-        <div v-else class="grid gap-2">
+  <SharedRecordPage
+    data-testid="notification-digest"
+    :title="t('tasks.digest.title')"
+    :description="t('tasks.digest.count', { n: overdueCount })"
+    :back-to="backTo"
+    :back-label="t('notifications.back')"
+    :loading="isLoading && !idInvalid && !items.length"
+  >
+    <template #actions>
+      <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
+    </template>
+    <div v-if="idInvalid" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-invalid">
+      <p class="text-sm text-error">{{ t('tasks.digest.invalid') }}</p>
+    </div>
+    <div v-else-if="isError && !items.length" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-error">
+      <p class="text-sm text-error">{{ queryErrorMessage }}</p>
+      <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
+    </div>
+    <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted" data-testid="digest-empty">{{ t('tasks.digest.empty') }}</p>
+    <div v-else class="overflow-hidden rounded-lg bg-default ring ring-default">
+      <ul class="divide-y divide-default">
+        <li v-for="task in items" :key="task.id">
           <UButton
-            v-for="task in items"
-            :key="task.id"
-            type="button"
-            color="neutral"
-            variant="ghost"
-            class="grid w-full gap-1 rounded-lg border border-default p-3 text-start hover:bg-elevated"
+            type="button" color="neutral" variant="ghost"
+            class="grid w-full gap-1 rounded-none p-3 text-start hover:bg-elevated"
             :disabled="!hydrated"
             :data-testid="`digest-task-${task.id}`"
             @click="openTask(task.id)"
@@ -111,8 +89,8 @@ async function retryNextPage() {
             <span class="font-medium">{{ task.name }}</span>
             <span class="text-sm text-muted">{{ task.project?.name }}</span>
           </UButton>
-        </div>
-      </div>
+        </li>
+      </ul>
       <div v-if="isFetchNextPageError" class="grid gap-2 border-t border-default p-4 text-center" role="alert" data-testid="digest-next-error">
         <p class="text-sm text-error">{{ t('tasks.digest.loadMoreError') }}</p>
         <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-retry-page" :label="t('notifications.retry')" @click="retryNextPage" />
@@ -120,6 +98,6 @@ async function retryNextPage() {
       <div v-else-if="hasNextPage" class="border-t border-default p-4 text-center">
         <UButton color="neutral" variant="outline" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-load-more" :label="t('app.loadMore')" @click="retryNextPage" />
       </div>
-    </UCard>
-  </SharedPageContainer>
+    </div>
+  </SharedRecordPage>
 </template>

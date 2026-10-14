@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest'
+import { projectStatusBadge } from '../../composables/projectStatus'
+import { deadlineTone, taskStateBadge } from '../../composables/taskState'
+import { accessStateBadge } from '../accessStateBadge'
+import { hrAccessBadge } from '../hrAccessBadge'
+import { badgeLabel, statusBadgeEntry } from '../statusBadge'
+import { subscriptionStateBadge } from '../subscription'
+import { lifecycleBadge } from '../vendorCommercial'
+import { orderFulfillmentBadge, orderPaymentBadge } from '../vendorSubscriptions'
+
+const t = (key: string) => `t:${key}`
+
+describe('status badge maps keep the colours and labels the old components had', () => {
+  it.each([
+    [projectStatusBadge('on_track'), 'success', 'projects.status.on_track'],
+    [projectStatusBadge('off_track'), 'destructive', 'projects.status.off_track'],
+    [taskStateBadge('changes_requested'), 'warning', 'tasks.state.changes_requested'],
+    [taskStateBadge('cancelled'), 'destructive', 'tasks.state.cancelled'],
+    [accessStateBadge({ active: true, protected: true }), 'success', 'access.protected'],
+    [accessStateBadge({ active: false, readOnly: true }), 'neutral', 'access.readOnly'],
+    [accessStateBadge({ active: false }), 'neutral', 'access.disabled'],
+    [hrAccessBadge(null), 'neutral', 'hr.directory.access.noAccount'],
+    [hrAccessBadge({ user_id: 9, login: 'm', role: 'employee', active: false }), 'neutral', 'hr.directory.access.stopped'],
+    [hrAccessBadge({ user_id: 2, login: 'a', role: 'admin', active: true }), 'neutral', 'hr.directory.access.admin'],
+    [subscriptionStateBadge('failed'), 'destructive', 'subscription.state.failed'],
+    [subscriptionStateBadge('awaiting_payment'), 'warning', 'subscription.state.awaitingPayment'],
+    [lifecycleBadge({ status: 'published', available: false }), 'warning', 'vendor.pricing.status.withdrawn'],
+    [lifecycleBadge({ status: 'validated' }), 'info', 'vendor.pricing.status.validated'],
+    [orderPaymentBadge({ payment_state: 'paid', fulfillment_state: 'applied' }), 'success', 'vendor.customers.payment.paid'],
+    [orderPaymentBadge({ payment_state: 'paid', fulfillment_state: 'needs_intervention' }), 'destructive', 'vendor.customers.payment.paid'],
+    [orderFulfillmentBadge({ fulfillment_state: 'queued' }), 'neutral', 'vendor.customers.fulfillment.queued'],
+  ] as const)('%o', (entry, tone, labelKey) => {
+    expect(entry).toEqual({ tone, labelKey })
+  })
+
+  it('labels a project without a status as unset', () => {
+    expect(projectStatusBadge(null).tone).toBe('neutral')
+    expect(projectStatusBadge(null).labelKey).toMatch(/^projects\.status\./)
+  })
+
+  it.each([
+    [null, false, 'neutral'], [-3, false, 'destructive'], [0, false, 'warning'], [2, false, 'warning'], [3, false, 'neutral'], [-3, true, 'neutral'],
+  ] as const)('a deadline %s days away (closed: %s) is %s', (days, closed, tone) => {
+    expect(deadlineTone(days, closed)).toBe(tone)
+  })
+
+  it('an unknown value falls back to a neutral badge that shows the value', () => {
+    const map = { done: { tone: 'success', labelKey: 'tasks.state.done' } } as const
+    const unknown = statusBadgeEntry(map, 'archived_by_server')
+    expect(unknown).toEqual({ tone: 'neutral', labelKey: '' })
+    expect(badgeLabel(unknown, 'archived_by_server', t)).toBe('archived_by_server')
+    expect(badgeLabel(statusBadgeEntry(map, 'done'), 'done', t)).toBe('t:tasks.state.done')
+    expect(badgeLabel(statusBadgeEntry(map, null), null, t)).toBe('—')
+    expect(taskStateBadge('new_server_state' as never)).toEqual({ tone: 'neutral', labelKey: '' })
+  })
+})

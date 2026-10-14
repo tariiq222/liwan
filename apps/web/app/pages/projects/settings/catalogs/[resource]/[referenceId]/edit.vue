@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import ProjectCharterReferenceForm from '@/components/settings/ProjectCharterReferenceForm.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { isCharterCatalogResource, useCharterCatalogItem } from '@/composables/useProjectCharterCatalogs'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 
@@ -34,7 +33,7 @@ function onSaved() {
 </script>
 
 <template>
-  <SettingsLayout width="form">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('settings.projects.catalogs.editTitle')" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <SharedPageState
@@ -45,9 +44,9 @@ function onSaved() {
       :empty-text="t('settings.projects.catalogs.notFound')"
       @retry="query.refetch"
     >
-      <section v-if="query.data.value && resource" class="rounded-lg ring ring-default bg-default overflow-hidden p-5">
+      <SharedFormSection v-if="query.data.value && resource" panel>
         <ProjectCharterReferenceForm :resource="resource" :reference="query.data.value" @saved="onSaved" @cancel="router.push(returnTo)" />
-      </section>
+      </SharedFormSection>
     </SharedPageState>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

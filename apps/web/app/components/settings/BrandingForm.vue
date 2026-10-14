@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { createBrandTheme } from '@/utils/brandTheme'
+import { createBrandTheme, DEFAULT_PRIMARY } from '@/utils/brandTheme'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
 import BrandingPreview from '@/components/settings/BrandingPreview.vue'
 
-const DEFAULT_COLOR = '#18181b'
 const PRESETS = [
-  { key: 'default', color: DEFAULT_COLOR, labelKey: 'settings.branding.presets.default' },
+  { key: 'default', color: DEFAULT_PRIMARY, labelKey: 'settings.branding.presets.default' },
   { key: 'blue', color: '#0055ff', labelKey: 'settings.branding.presets.blue' },
   { key: 'teal', color: '#0f766e', labelKey: 'settings.branding.presets.teal' },
   { key: 'amber', color: '#b45309', labelKey: 'settings.branding.presets.amber' },
@@ -20,13 +19,13 @@ const hydrated = useHydrated()
 const { data: branding, isLoading, error, refetch } = useBrandingAdmin()
 const update = useUpdateBranding()
 
-const color = ref(DEFAULT_COLOR)
-const savedColor = ref(DEFAULT_COLOR)
+const color = ref(DEFAULT_PRIMARY)
+const savedColor = ref(DEFAULT_PRIMARY)
 const dirty = ref(false)
 const validationError = ref('')
 
 function loadSaved(value: { primary_color: string }) {
-  savedColor.value = normalizeHex(value.primary_color) ?? DEFAULT_COLOR
+  savedColor.value = normalizeHex(value.primary_color) ?? DEFAULT_PRIMARY
   color.value = savedColor.value
   dirty.value = false
 }
@@ -64,7 +63,7 @@ function cancel() {
 function resetDefault() {
   validationError.value = ''
   dirty.value = true
-  color.value = DEFAULT_COLOR
+  color.value = DEFAULT_PRIMARY
 }
 
 async function retryLoad() {
@@ -96,9 +95,7 @@ onBeforeUnmount(() => update.reset())
 </script>
 
 <template>
-  <div v-if="!hydrated || isLoading" role="status" aria-live="polite" aria-busy="true" :aria-label="t('settings.branding.loading')">
-    <USkeleton class="h-80 w-full" />
-  </div>
+  <SharedLoadingSkeleton v-if="!hydrated || isLoading" variant="rows" :count="4" />
   <UAlert v-else-if="error" data-testid="branding-load-error" color="error" variant="subtle" :title="t('settings.branding.errors.load')">
     <template #actions>
       <UButton type="button" color="neutral" variant="outline" data-testid="branding-retry" :disabled="!hydrated" @click="retryLoad">{{ t('settings.branding.retry') }}</UButton>

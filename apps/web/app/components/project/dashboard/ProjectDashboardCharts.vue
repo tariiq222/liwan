@@ -17,6 +17,8 @@ import {
   type ChartLabels,
 } from '@/utils/projectChartData'
 
+// The six charts of the dashboard as chart panels. They render straight into SharedDashboardPage's grid
+// (two columns from 768px of the grid's own width); the progress and finance charts span both.
 const props = defineProps<{ rows: readonly ProjectReportRow[] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -46,107 +48,78 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
 </script>
 
 <template>
-  <div class="dashboard-chart-container min-w-0">
-    <div class="dashboard-chart-grid grid min-w-0 gap-5">
-    <DashboardChartPanel
-      test-id="chart-status"
-      title-id="chart-status-title"
-      :title="t('projects.dashboard.charts.statusTitle')"
-      :description="t('projects.dashboard.charts.statusDescription')"
-      :chart="statusChart"
-      variant="pie"
-      :has-data="statusHasData"
-      :empty-text="t('projects.dashboard.charts.noStatusData')"
-      :accessible-label="t('projects.dashboard.charts.statusTitle')"
-    />
-    <DashboardChartPanel
-      test-id="chart-tasks"
-      title-id="chart-tasks-title"
-      :title="t('projects.dashboard.charts.taskTitle')"
-      :description="t('projects.dashboard.charts.taskDescription')"
-      :chart="taskChart"
-      variant="donut-text"
-      :has-data="taskHasData"
-      :empty-text="taskEmptyText"
-      :accessible-label="t('projects.dashboard.charts.taskTitle')"
-    />
-    <DashboardChartPanel
-      test-id="chart-progress-bands"
-      title-id="chart-progress-bands-title"
-      :title="t('projects.dashboard.charts.progressBandsTitle')"
-      :description="t('projects.dashboard.charts.progressBandsDescription')"
-      :chart="progressBandsChart"
-      :has-data="progressBandsHasData"
-      :empty-text="t('projects.dashboard.charts.noProgressData')"
-      :accessible-label="t('projects.dashboard.charts.progressBandsTitle')"
-      height="240px"
-    />
-    <DashboardChartPanel
-      test-id="chart-budget-health"
-      title-id="chart-budget-health-title"
-      :title="t('projects.dashboard.charts.budgetHealthTitle')"
-      :description="t('projects.dashboard.charts.budgetHealthDescription')"
-      :chart="budgetChart"
-      variant="donut"
-      :has-data="budgetHasData"
-      :empty-text="t('projects.dashboard.charts.noBudgetData')"
-      :accessible-label="t('projects.dashboard.charts.budgetHealthTitle')"
-      height="240px"
-    />
-    <DashboardChartPanel
-      test-id="chart-project-progress"
-      title-id="chart-project-progress-title"
-      :title="t('projects.dashboard.charts.projectProgressTitle')"
-      :description="t('projects.dashboard.charts.projectProgressDescription')"
-      :chart="projectProgressChart"
-      :has-data="rows.length > 0"
-      :empty-text="t('projects.dashboard.charts.noProgressData')"
-      :accessible-label="t('projects.dashboard.charts.projectProgressTitle')"
-      height="360px"
-    />
-    <UCard data-testid="chart-project-finance" class="min-w-0 overflow-hidden" aria-labelledby="chart-project-finance-title">
-      <template #header>
-        <div class="flex w-full flex-wrap items-start justify-between gap-3">
-          <div class="min-w-0">
-            <h2 id="chart-project-finance-title" class="text-lg font-semibold leading-6 text-highlighted">{{ t('projects.dashboard.charts.financeTitle') }}</h2>
-            <p class="mt-1 text-sm leading-6 text-muted">{{ t('projects.dashboard.charts.financeDescription') }}</p>
-          </div>
-          <USelect
-            v-if="currencies.length"
-            data-testid="chart-currency-filter"
-            :model-value="selectedCurrency ? String(selectedCurrency.id) : undefined"
-            :items="currencies.map(currency => ({ value: String(currency.id), label: `${currency.name} (${currency.symbol})` }))"
-            :aria-label="t('projects.dashboard.charts.currency')"
-            :placeholder="t('projects.dashboard.charts.currency')"
-            class="w-full sm:w-44"
-            :disabled="!hydrated"
-            @update:model-value="value => { selectedCurrencyId = Number(value) }"
-          />
-        </div>
-      </template>
-      <div v-if="financeHasData" class="min-w-0">
-        <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
-      </div>
-      <p v-else class="flex min-h-[220px] items-center justify-center text-center text-sm text-muted">{{ t('projects.dashboard.charts.noFinanceData') }}</p>
-    </UCard>
-    </div>
-  </div>
+  <DashboardChartPanel
+    test-id="chart-status"
+    :title="t('projects.dashboard.charts.statusTitle')"
+    :description="t('projects.dashboard.charts.statusDescription')"
+    :chart="statusChart"
+    variant="pie"
+    :has-data="statusHasData"
+    :empty-text="t('projects.dashboard.charts.noStatusData')"
+    :accessible-label="t('projects.dashboard.charts.statusTitle')"
+  />
+  <DashboardChartPanel
+    test-id="chart-tasks"
+    :title="t('projects.dashboard.charts.taskTitle')"
+    :description="t('projects.dashboard.charts.taskDescription')"
+    :chart="taskChart"
+    variant="donut-text"
+    :has-data="taskHasData"
+    :empty-text="taskEmptyText"
+    :accessible-label="t('projects.dashboard.charts.taskTitle')"
+  />
+  <DashboardChartPanel
+    test-id="chart-progress-bands"
+    :title="t('projects.dashboard.charts.progressBandsTitle')"
+    :description="t('projects.dashboard.charts.progressBandsDescription')"
+    :chart="progressBandsChart"
+    :has-data="progressBandsHasData"
+    :empty-text="t('projects.dashboard.charts.noProgressData')"
+    :accessible-label="t('projects.dashboard.charts.progressBandsTitle')"
+    height="240px"
+  />
+  <DashboardChartPanel
+    test-id="chart-budget-health"
+    :title="t('projects.dashboard.charts.budgetHealthTitle')"
+    :description="t('projects.dashboard.charts.budgetHealthDescription')"
+    :chart="budgetChart"
+    variant="donut"
+    :has-data="budgetHasData"
+    :empty-text="t('projects.dashboard.charts.noBudgetData')"
+    :accessible-label="t('projects.dashboard.charts.budgetHealthTitle')"
+    height="240px"
+  />
+  <DashboardChartPanel
+    class="@min-[768px]:col-span-2"
+    test-id="chart-project-progress"
+    :title="t('projects.dashboard.charts.projectProgressTitle')"
+    :description="t('projects.dashboard.charts.projectProgressDescription')"
+    :chart="projectProgressChart"
+    :has-data="rows.length > 0"
+    :empty-text="t('projects.dashboard.charts.noProgressData')"
+    :accessible-label="t('projects.dashboard.charts.projectProgressTitle')"
+    height="360px"
+  />
+  <SharedChartPanel
+    class="@min-[768px]:col-span-2"
+    data-testid="chart-project-finance"
+    :title="t('projects.dashboard.charts.financeTitle')"
+    :description="t('projects.dashboard.charts.financeDescription')"
+    :empty="!financeHasData"
+    :empty-text="t('projects.dashboard.charts.noFinanceData')"
+  >
+    <template v-if="currencies.length" #actions>
+      <USelect
+        data-testid="chart-currency-filter"
+        :model-value="selectedCurrency ? String(selectedCurrency.id) : undefined"
+        :items="currencies.map(currency => ({ value: String(currency.id), label: `${currency.name} (${currency.symbol})` }))"
+        :aria-label="t('projects.dashboard.charts.currency')"
+        :placeholder="t('projects.dashboard.charts.currency')"
+        class="min-w-44 sm:w-44"
+        :disabled="!hydrated"
+        @update:model-value="value => { selectedCurrencyId = Number(value) }"
+      />
+    </template>
+    <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
+  </SharedChartPanel>
 </template>
-
-<style scoped>
-.dashboard-chart-container {
-  container-type: inline-size;
-}
-
-@container (min-width: 768px) {
-  .dashboard-chart-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dashboard-chart-grid > [data-testid="chart-project-progress"],
-  .dashboard-chart-grid > [data-testid="chart-project-finance"] {
-    grid-column: span 2;
-  }
-}
-
-</style>

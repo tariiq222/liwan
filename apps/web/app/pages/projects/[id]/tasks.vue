@@ -33,15 +33,6 @@ const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
 const canCreate = computed(() => can('pmo.tasks.create') && project.value?.active === true)
 
-// Register the shell title only while this list is on screen, so a task record
-// child can own the title without the parent overwriting it.
-const ListTitle = defineComponent({
-  setup() {
-    usePageHeader(() => t('nav.projectTasks'))
-    return () => null
-  },
-})
-
 // A link out of this list carries the list's own state through, `view`
 // included: the detail page hands these keys straight back, so the board
 // survives the round trip. A referrer's returnTo is dropped instead of
@@ -60,12 +51,12 @@ function taskTo(taskId: number) {
   return { path: `/projects/${projectId.value}/tasks/${taskId}`, query: filterQuery.value }
 }
 
-function viewTo(view: 'list' | 'board') {
-  const query: LocationQueryRaw = { ...route.query }
-  if (view === 'board') query.view = 'board'
-  else delete query.view
-  return { path: route.path, query }
-}
+// Table is the first option, so it is the bare URL; the switch writes ?view=board for the board.
+const views = computed(() => [
+  { value: 'table', label: t('projects.tabs.list'), icon: 'i-lucide-list', testId: 'project-tasks-view-table' },
+  { value: 'board', label: t('projects.tabs.board'), icon: 'i-lucide-layout-grid', testId: 'project-tasks-view-board' },
+])
+const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new`, query: filterQuery.value }))
 
 function openCreate() {
   router.push({ path: `/projects/${projectId.value}/tasks/new`, query: filterQuery.value })
@@ -73,41 +64,37 @@ function openCreate() {
 </script>
 
 <template>
-  <SharedPageContainer v-if="isListRoute" width="list">
-    <ListTitle />
-    <div v-if="notFound" class="flex flex-col items-start gap-3">
-      <p class="text-muted">{{ t('projects.notFound') }}</p>
-      <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
-    </div>
-
-    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-    <section v-else class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
-      <div v-if="canCreate" class="flex justify-end">
-        <UButton
-          icon="i-lucide-plus"
-          data-testid="project-header-create"
-          :disabled="!hydrated"
-          :label="t('tasks.new')"
-          @click="openCreate"
-        />
+  <template v-if="isListRoute">
+    <SharedPageContainer v-if="notFound || error" width="list">
+      <div v-if="notFound" class="flex flex-col items-start gap-3">
+        <p class="text-muted">{{ t('projects.notFound') }}</p>
+        <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
       </div>
-      <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams">
-        <template #view>
-          <nav class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default" :aria-label="t('projects.planning.views')">
-            <!-- Icon-only like every other view switch; the accessible name keeps the label. -->
-            <UButton color="neutral" size="sm" square icon="i-lucide-list" :variant="isBoard ? 'ghost' : 'soft'" :to="viewTo('list')" :aria-label="t('projects.tabs.list')" :title="t('projects.tabs.list')" :aria-current="isBoard ? undefined : 'page'" />
-            <UButton color="neutral" size="sm" square icon="i-lucide-layout-grid" :variant="isBoard ? 'soft' : 'ghost'" :to="viewTo('board')" :aria-label="t('projects.tabs.board')" :title="t('projects.tabs.board')" :aria-current="isBoard ? 'page' : undefined" />
-          </nav>
-        </template>
-      </TaskToolbar>
-      <div class="rounded-lg ring ring-default bg-default overflow-hidden">
-        <TaskTable v-if="!isBoard" :params="params" variant="project" embedded @open="(id: number) => router.push(taskTo(id))" @create="openCreate" />
-        <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="(id: number) => router.push(taskTo(id))" />
-      </div>
-      <div class="flex justify-end">
-        <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: projectId, returnTo: route.fullPath } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
-      </div>
-    </section>
-  </SharedPageContainer>
+      <SharedPageState v-else :error="error" @retry="refetch" />
+    </SharedPageContainer>
+    <!-- The frame is this page's h1: hide-header draws no heading, the create button stays in the header row. -->
+    <SharedListPage
+      v-else
+      hide-header
+      :title="t('nav.projectTasks')"
+      :create-to="canCreate ? createTo : undefined"
+      :create-label="t('tasks.new')"
+      create-test-id="project-header-create"
+      :views="views"
+    >
+      <template #filters>
+        <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams" />
+      </template>
+      <section class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
+        <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate" />
+        <div v-else class="overflow-hidden rounded-lg bg-default ring ring-default">
+          <TaskBoard :params="params" :stage-source="stageSource" embedded @open="(id: number) => router.push(taskTo(id))" />
+        </div>
+        <div class="flex justify-end">
+          <NuxtLink :to="{ path: '/archived-tasks', query: { project_id: projectId, returnTo: route.fullPath } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
+        </div>
+      </section>
+    </SharedListPage>
+  </template>
   <NuxtPage />
 </template>

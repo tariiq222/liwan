@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { ApiError } from '@/composables/useApi'
 import type { HrDepartment } from '@/composables/useHrDepartments'
 import { retryHrManagerQueries, useCreateHrEmployee, useHrEmployee, useHrEmployees, useUpdateHrEmployee, hrManagerOptions, type HrEmployee } from '@/composables/useHrEmployees'
 import { refDebounced } from '@vueuse/core'
 
-const props = defineProps<{ employee?: HrEmployee | null; departments: HrDepartment[]; employees: HrEmployee[] }>()
+const props = defineProps<{ employee?: HrEmployee | null; departments: HrDepartment[]; employees: HrEmployee[]; panel?: boolean }>()
 const emit = defineEmits<{ saved: [employee: HrEmployee] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const toast = useToast()
+const formError = ref<unknown>(null)
+const errorMessage = computed(() => formError.value instanceof ApiError ? formError.value.message : undefined)
+function fieldError(field: string) { return formError.value instanceof ApiError && formError.value.field === field ? formError.value.message : undefined }
 const canManage = computed(() => can('hr.employees.manage'))
 const name = ref(''); const email = ref(''); const originalEmail = ref(''); const phone = ref(''); const jobTitle = ref(''); const departmentId = ref<number | null>(null); const managerId = ref<number | null>(null)
 const managerSearch = ref('')
@@ -55,38 +59,40 @@ async function submit() {
       ? await update({ id: props.employee.id, patch: { name: name.value.trim(), work_email: email.value.trim(), work_phone: phone.value, job_title: jobTitle.value, department_id: departmentId.value, parent_id: managerId.value } })
       : await create({ name: name.value.trim(), work_email: email.value.trim(), work_phone: phone.value, job_title: jobTitle.value, department_id: departmentId.value, parent_id: managerId.value })
     savedState.value = state()
+    formError.value = null
     emit('saved', employee)
     toast.add({ title: t('hr.employee.saved'), color: 'success' })
-  } catch (error) { toast.add({ title: error instanceof Error ? error.message : t('errors.generic'), color: 'error' }) }
+  } catch (error) { formError.value = error }
 }
 </script>
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId }" class="nasq-form" method="post" @submit="submit">
-    <SharedFormSection :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
+    <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
+    <SharedFormSection :panel="props.panel" :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
       <div class="nasq-form-grid mt-4">
-        <UFormField :label="t('hr.employee.name')" name="hr-employee-name" required>
+        <UFormField :label="t('hr.employee.name')" name="hr-employee-name" required :error="fieldError('name')">
           <UInput id="hr-employee-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || isPending" required />
         </UFormField>
-        <UFormField :label="t('hr.employee.jobTitle')" name="hr-employee-job">
+        <UFormField :label="t('hr.employee.jobTitle')" name="hr-employee-job" :error="fieldError('job_title')">
           <UInput id="hr-employee-job" v-model="jobTitle" class="w-full" :disabled="!canManage || !hydrated || isPending" />
         </UFormField>
-        <UFormField :label="t('hr.employee.workEmail')" name="hr-employee-email">
+        <UFormField :label="t('hr.employee.workEmail')" name="hr-employee-email" :error="fieldError('work_email')">
           <UInput id="hr-employee-email" v-model="email" type="email" class="w-full" :disabled="!canManage || !hydrated || isPending" />
           <p v-if="props.employee?.access && emailChanged" class="mt-1 text-xs text-muted">{{ t('hr.employee.fixedLogin') }}</p>
         </UFormField>
-        <UFormField :label="t('hr.employee.workPhone')" name="hr-employee-phone">
+        <UFormField :label="t('hr.employee.workPhone')" name="hr-employee-phone" :error="fieldError('work_phone')">
           <UInput id="hr-employee-phone" v-model="phone" class="w-full" :disabled="!canManage || !hydrated || isPending" />
         </UFormField>
       </div>
     </SharedFormSection>
-    <SharedFormSection :title="t('hr.employee.assignment')">
+    <SharedFormSection :panel="props.panel" :title="t('hr.employee.assignment')">
       <div class="nasq-form-grid mt-4">
-        <UFormField :label="t('hr.employee.department')" name="hr-employee-department">
+        <UFormField :label="t('hr.employee.department')" name="hr-employee-department" :error="fieldError('department_id')">
           <USelect :model-value="departmentId ? String(departmentId) : 'none'" :items="departmentOptions" class="w-full" :disabled="!canManage || !hydrated || isPending" @update:model-value="departmentId = idOrNull($event)" />
         </UFormField>
-        <UFormField :label="t('hr.employee.manager')" name="hr-employee-manager-search" class="min-w-0">
+        <UFormField :label="t('hr.employee.manager')" name="hr-employee-manager-search" class="min-w-0" :error="fieldError('parent_id')">
           <UInput id="hr-employee-manager-search" v-model="managerSearch" class="w-full" :disabled="!canManage || !hydrated || isPending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" icon="i-lucide-search" />
           <div v-if="managerQuery.error.value || selectedManagerError" class="mt-2 text-sm text-error">
             <p>{{ t('hr.depts.managerLoadError') }}</p>

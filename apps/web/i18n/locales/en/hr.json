@@ -1,5 +1,8 @@
 {
   "hr": {
+    "form": {
+      "saveError": "Unable to save changes. Review the details and try again."
+    },
     "actions": {
       "back": "Back"
     },

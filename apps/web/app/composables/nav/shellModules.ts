@@ -25,13 +25,13 @@ const House = 'i-lucide-house'
 /** Rail module id; applications declare theirs in their manifest, the foundation adds settings, management and vendor. */
 export type NavGroup = string
 export type ShellModule = string
-export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut: string; group?: NavGroup; module?: ShellModule; capability: string }
+export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string }
 
 /** Nav items of the foundation (settings, management, subscription); applications declare theirs in their manifest. */
 const foundationItems: NavItem[] = [
-  { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'g', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
-  { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', group: 'settings', module: 'settings', capability: 'access.users.read' },
-  { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', group: 'settings', module: 'settings', capability: 'access.roles.read' },
+  { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'i', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
+  { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', goKey: 'u', group: 'settings', module: 'settings', capability: 'access.users.read' },
+  { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', goKey: 'r', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
   { to: '/vendor/overview', labelKey: 'nav.management', icon: 'i-lucide-building-2', shortcut: '', module: 'management', capability: 'vendor.read' },
   // The approved SaaS commercial spec (2026-10-02) puts the customer's subscription inside the workspace as /subscription,
@@ -125,6 +125,7 @@ export interface ShellContextLink {
   capability: string
   active?: boolean
   pinned?: boolean
+  section?: string
 }
 
 /** Hide the pinned create on the projects list/form and inside a project workspace. */
@@ -156,8 +157,12 @@ const foundationContextLinks: Record<string, ShellContextLink[]> = {
   ],
 }
 
-export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
+/** A module's context links before capability filtering (the breadcrumb names the page the user is on). */
+export function moduleContextLinks(module: ShellModule, path?: string): ShellContextLink[] {
   const owner = activeManifests().find(manifest => manifest.rail.some(entry => entry.id === module))
-  const links: ShellContextLink[] = owner ? owner.contextLinks?.(path) ?? [] : foundationContextLinks[module] ?? []
-  return links.filter(link => canReach(identity, link.capability, typeof link.to === 'string' ? link.to : undefined))
+  return owner ? owner.contextLinks?.(path) ?? [] : foundationContextLinks[module] ?? []
+}
+
+export function contextLinksForModule(module: ShellModule, identity: AccessIdentity, path?: string): ShellContextLink[] {
+  return moduleContextLinks(module, path).filter(link => canReach(identity, link.capability, typeof link.to === 'string' ? link.to : undefined))
 }

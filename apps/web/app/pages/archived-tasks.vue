@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 import type { Task } from '@nasq/contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { ApiError } from '@/composables/useApi'
@@ -38,67 +40,65 @@ function restoreTask(task: Task) {
     onError: (error) => toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' }),
   })
 }
+const columns = computed<TableColumn<Task>[]>(() => [
+  { id: 'name', header: t('tasks.columns.title') },
+  { id: 'project', header: t('tasks.columns.project') },
+  { id: 'actions', header: t('app.actions'), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } },
+])
+const restoreActions = (task: Task): RowAction[] => [{ label: t('taskLifecycle.restore'), icon: 'i-lucide-archive-restore', onSelect: () => restoreTask(task) }]
 </script>
 
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader
-      :title="t('taskLifecycle.archivedTasks')"
-      :description="t('taskLifecycle.archivedTasksHint')"
-      :back-to="backTo"
-      :back-label="t('taskLifecycle.back')"
-    />
-
-    <div class="w-full min-w-0" data-testid="archived-tasks-toolbar">
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-        <template #search>
-          <UInput
-            v-model="q"
-            :disabled="!hydrated"
-            :placeholder="t('taskLifecycle.searchArchived')"
-            :aria-label="t('taskLifecycle.searchArchived')"
-            icon="i-lucide-search"
-            class="min-w-56 max-w-sm"
-          />
-        </template>
-        <template #actions>
-          <UBadge v-if="data" color="neutral" variant="subtle">{{ total }}</UBadge>
-        </template>
-        <template #active>
-          <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
-            <SharedFilterChip :label="t('tasks.filters.searchValue', { value: q.trim() })" @remove="clearFilters" />
-          </div>
-        </template>
-      </FilterBar>
-    </div>
-
-    <SharedPageState
+  <SharedListPage
+    :title="t('taskLifecycle.archivedTasks')"
+    :description="t('taskLifecycle.archivedTasksHint')"
+    :back-to="backTo"
+    :back-label="t('taskLifecycle.back')"
+  >
+    <template #filters>
+      <div class="w-full min-w-0" data-testid="archived-tasks-toolbar">
+        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <UInput v-model="q" :disabled="!hydrated" :placeholder="t('taskLifecycle.searchArchived')" :aria-label="t('taskLifecycle.searchArchived')" icon="i-lucide-search" class="min-w-56 max-w-sm" />
+          </template>
+          <template #actions>
+            <UBadge v-if="data" color="neutral" variant="subtle">{{ total }}</UBadge>
+          </template>
+          <template #active>
+            <div v-if="q.trim()" class="flex flex-wrap items-center gap-2">
+              <SharedFilterChip :label="t('tasks.filters.searchValue', { value: q.trim() })" @remove="clearFilters" />
+            </div>
+          </template>
+        </FilterBar>
+      </div>
+    </template>
+    <SharedDataTable
+      :rows="items"
+      :columns="columns"
+      row-key="id"
       :loading="isLoading && !items.length"
       :error="items.length ? null : error"
-      :empty="!items.length"
       :empty-text="t('taskLifecycle.noArchivedTasks')"
+      :caption="t('taskLifecycle.archivedTasks')"
       @retry="refetch"
     >
-      <UCard :ui="{ body: 'p-0 sm:p-0' }">
-        <ul class="divide-y divide-default">
-          <li v-for="task in items" :key="task.id" class="flex items-center justify-between gap-3 p-3">
-            <div class="min-w-0">
-              <p class="truncate font-medium text-highlighted">{{ task.name }}</p>
-              <p class="truncate text-sm text-muted">{{ task.project?.name ?? '—' }}</p>
-            </div>
-            <SharedRowActions
-              :label="task.name"
-              :disabled="isPending"
-              :actions="[{ label: t('taskLifecycle.restore'), icon: 'i-lucide-archive-restore', onSelect: () => restoreTask(task) }]"
-            />
-          </li>
-        </ul>
-        <div v-if="hasNextPage" class="border-t border-default p-3 text-center">
-          <UButton color="neutral" variant="outline" type="button" :loading="isFetchingNextPage" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">
-            {{ t('taskLifecycle.loadMore') }}
-          </UButton>
+      <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
+      <template #project-cell="{ row }">{{ row.original.project?.name ?? '—' }}</template>
+      <template #actions-cell="{ row }">
+        <SharedRowActions :label="row.original.name" :disabled="isPending" :actions="restoreActions(row.original)" />
+      </template>
+      <template #mobile-row="{ row: task }">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="truncate font-medium text-highlighted">{{ task.name }}</p>
+            <p class="truncate text-sm text-muted">{{ task.project?.name ?? '—' }}</p>
+          </div>
+          <SharedRowActions :label="task.name" :disabled="isPending" :actions="restoreActions(task)" />
         </div>
-      </UCard>
-    </SharedPageState>
-  </SharedPageContainer>
+      </template>
+    </SharedDataTable>
+    <div v-if="hasNextPage" class="text-center">
+      <UButton color="neutral" variant="outline" type="button" :loading="isFetchingNextPage" :disabled="isFetchingNextPage || !hydrated" @click="fetchNextPage()">{{ t('taskLifecycle.loadMore') }}</UButton>
+    </div>
+  </SharedListPage>
 </template>

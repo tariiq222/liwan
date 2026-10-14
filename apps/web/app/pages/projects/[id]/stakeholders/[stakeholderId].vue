@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectStakeholder } from '@/composables/useProjectGovernance'
@@ -8,69 +9,42 @@ const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const stakeholderId = computed(() => Number(route.params.stakeholderId))
 const item = useProjectStakeholder(projectId, stakeholderId)
-// The owning section list is fixed by this page's own route, so the return trip
-// is literal and carries only the state that list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/projects/${projectId.value}/stakeholders`, query: listQuery }
-})
+const listPaths = computed(() => [`/projects/${projectId.value}/stakeholders`])
+const backTo = computed(() => owningListBack(route.query, listPaths.value, route.hash))
+const editTo = computed(() => recordChildTo(`/projects/${projectId.value}/stakeholders/${stakeholderId.value}/edit`, route.query, listPaths.value, route.hash))
 const notFound = computed(() => item.error.value instanceof ApiError && [403, 404].includes(item.error.value.status))
 const access = useProject(projectId)
 const hydrated = useHydrated()
+const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${stakeholderId.value}`)
 </script>
 
 <template>
-  <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/stakeholders/${stakeholderId}`" width="detail">
-    <SharedPageHeader :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')" :back-to="backTo" :back-label="t('projects.governance.stakeholders')">
-      <template #actions>
-        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="stakeholder-detail-edit" :to="`/projects/${projectId}/stakeholders/${stakeholderId}/edit`">{{ t('app.edit') }}</UButton>
-      </template>
-    </SharedPageHeader>
-    <SharedPageState
-      :loading="item.isLoading.value"
-      :error="notFound ? null : item.error.value"
-      :empty="notFound || !item.data.value"
-      :empty-text="notFound ? t('projects.notFound') : t('app.noResults')"
-      @retry="item.refetch"
-    />
-    <section v-if="item.data?.value" class="grid gap-4">
-      <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="stakeholder-identity-title">
-        <div class="border-b border-default px-5 py-4"><h2 id="stakeholder-identity-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.stakeholderIdentity') }}</h2></div>
-        <div class="p-5">
-          <dl class="grid gap-4 sm:grid-cols-2">
-          <div>
-          <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.internalUser') }}</dt>
-          <dd>{{ item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser') }}</dd>
-        </div>
-        <div>
-          <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.organization') }}</dt>
-          <dd>{{ item.data.value.organization || '—' }}</dd>
-        </div>
-        <div>
-          <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.role') }}</dt>
-          <dd>{{ item.data.value.role || '—' }}</dd>
-          </div>
-          </dl>
-        </div>
-      </section>
-      <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="stakeholder-contact-title">
-        <div class="border-b border-default px-5 py-4"><h2 id="stakeholder-contact-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.stakeholderContact') }}</h2></div>
-        <div class="p-5">
-          <dl>
-            <div>
-            <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt>
-            <dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd>
-            </div>
-            <div class="mt-4">
-            <dt class="text-sm text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt>
-            <dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
-    </section>
-  </SharedPageContainer>
+  <SharedRecordPage
+    v-if="route.path.replace(/\/+$/, '') === detailPath"
+    :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')"
+    :back-to="backTo"
+    :back-label="t('projects.governance.stakeholders')"
+    :loading="item.isLoading.value"
+    :error="notFound ? null : item.error.value"
+    @retry="item.refetch"
+  >
+    <template v-if="item.data?.value && access.data.value?.can_manage && hydrated" #actions>
+      <UButton data-testid="stakeholder-detail-edit" :to="editTo">{{ t('app.edit') }}</UButton>
+    </template>
+    <SharedEmptyState v-if="!item.data?.value" :title="notFound ? t('projects.notFound') : t('app.noResults')" />
+    <SharedRecordSection v-else :title="t('projects.refresh.workspace.stakeholderContact')">
+      <dl class="grid gap-4 text-sm">
+        <div><dt class="text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt><dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd></div>
+        <div><dt class="text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></div>
+      </dl>
+    </SharedRecordSection>
+    <template v-if="item.data?.value" #aside>
+      <SharedPropertiesPanel :title="t('projects.refresh.workspace.stakeholderIdentity')">
+        <SharedPropertyRow :label="t('projects.governance.stakeholder.internalUser')" :value="item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser')" />
+        <SharedPropertyRow :label="t('projects.governance.stakeholder.organization')" :value="item.data.value.organization" />
+        <SharedPropertyRow :label="t('projects.governance.stakeholder.role')" :value="item.data.value.role" />
+      </SharedPropertiesPanel>
+    </template>
+  </SharedRecordPage>
   <NuxtPage />
 </template>

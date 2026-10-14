@@ -30,6 +30,8 @@ const {
 const { mutateAsync: markRead } = useMarkNotificationRead()
 const { mutateAsync: markAllRead, isPending: markingAll } = useMarkAllNotificationsRead()
 const items = computed(() => (data.value?.pages ?? []).flatMap((page) => page.items))
+const listEl = ref<HTMLElement | null>(null)
+useRowNavigation(listEl)
 const unreadCount = computed(() => data.value?.pages[0]?.unread_count ?? 0)
 const notificationTimeZone = computed(() => me.value?.tz || 'UTC')
 const notificationTimestamps = computed(() => new Map(
@@ -101,8 +103,8 @@ async function retryNextPage() {
 </script>
 
 <template>
-  <SharedPageContainer data-testid="notification-center" width="list">
-    <SharedPageHeader :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
+  <SharedListPage data-testid="notification-center" :title="t('notifications.title')" :description="hydrated ? `${unreadCount} ${t('notifications.unread')}` : undefined">
+    <template v-if="hydrated && unreadCount" #actions>
       <UButton
         v-if="hydrated && unreadCount"
         type="button"
@@ -113,7 +115,7 @@ async function retryNextPage() {
         :label="t('notifications.markAllRead')"
         @click="markAll"
       />
-    </SharedPageHeader>
+    </template>
 
     <SharedPageState
       :loading="isLoading && !items.length"
@@ -123,32 +125,33 @@ async function retryNextPage() {
       @retry="retryNotifications"
     >
       <div class="rounded-lg ring ring-default bg-default overflow-hidden">
-        <div class="grid gap-0">
-          <UButton
-            v-for="item in items"
-            :key="item.id"
-            type="button"
-            color="neutral"
-            variant="ghost"
-            class="grid w-full gap-1 rounded-none border-b border-default p-3 text-start transition-colors last:border-b-0 hover:bg-elevated"
-            :class="item.is_read ? 'bg-default' : 'border-s-2 border-s-brand-link bg-brand-soft'"
-            :disabled="!hydrated || actionPending"
-            :data-testid="`notification-${item.id}`"
-            @click="openNotification(item)"
-          >
-            <span class="flex items-center gap-2 text-xs font-medium" :class="item.is_read ? 'text-muted' : 'text-brand-link'">
-              <span>{{ kindLabel(item) }}</span>
-              <span v-if="!item.is_read" class="inline-flex items-center gap-1 font-semibold">
-                <span class="size-1.5 shrink-0 rounded-full bg-brand-link" aria-hidden="true" />
-                {{ t('notifications.unread') }}
+        <ul ref="listEl" class="grid gap-0">
+          <li v-for="item in items" :key="item.id">
+            <UButton
+              data-shortcut-row
+              type="button"
+              color="neutral"
+              variant="ghost"
+              class="grid w-full gap-1 rounded-none border-b border-default p-3 text-start transition-colors hover:bg-elevated"
+              :class="item.is_read ? 'bg-default' : 'border-s-2 border-s-brand-link bg-brand-soft'"
+              :disabled="!hydrated || actionPending"
+              :data-testid="`notification-${item.id}`"
+              @click="openNotification(item)"
+            >
+              <span class="flex items-center gap-2 text-xs font-medium" :class="item.is_read ? 'text-muted' : 'text-brand-link'">
+                <span>{{ kindLabel(item) }}</span>
+                <span v-if="!item.is_read" class="inline-flex items-center gap-1 font-semibold">
+                  <span class="size-1.5 shrink-0 rounded-full bg-brand-link" aria-hidden="true" />
+                  {{ t('notifications.unread') }}
+                </span>
               </span>
-            </span>
-            <span v-if="itemTitle(item)" class="font-medium">{{ itemTitle(item) }}</span>
-            <span v-if="item.kind === 'comment' || item.kind === 'mention'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
-            <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
-            <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
-          </UButton>
-        </div>
+              <span v-if="itemTitle(item)" class="font-medium">{{ itemTitle(item) }}</span>
+              <span v-if="item.kind === 'comment' || item.kind === 'mention'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+              <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
+              <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
+            </UButton>
+          </li>
+        </ul>
         <div v-if="hasQueryError && items.length && !isFetchNextPageError" class="grid gap-2 py-4 text-center" role="alert">
           <p class="text-sm text-error">{{ queryErrorMessage }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
@@ -162,5 +165,5 @@ async function retryNextPage() {
         </div>
       </div>
     </SharedPageState>
-  </SharedPageContainer>
+  </SharedListPage>
 </template>

@@ -1,7 +1,9 @@
+import type { StatusBadgeEntry } from './statusBadge'
 import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
 import {
-  commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft,
+  commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, formatVendorMoney, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft,
 } from './vendorCommercial'
+import { invoiceLineQuantities, type InvoiceLineView } from './invoiceLines'
 
 export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
@@ -43,6 +45,17 @@ export const orderBadgeColor = (o: Pick<Order, 'payment_state' | 'fulfillment_st
   if (o.fulfillment_state === 'applied') return 'success' as const
   if (o.payment_state === 'awaiting_payment') return 'warning' as const
   return 'info' as const
+}
+
+const ORDER_TONE = { error: 'destructive', success: 'success', warning: 'warning', info: 'info' } as const
+
+/** The payment badge's colour reads both states (orderBadgeColor); its label is the payment state. */
+export function orderPaymentBadge(order: Pick<Order, 'payment_state' | 'fulfillment_state'>): StatusBadgeEntry {
+  return { tone: ORDER_TONE[orderBadgeColor(order)], labelKey: `vendor.customers.payment.${order.payment_state}` }
+}
+
+export function orderFulfillmentBadge(order: Pick<Order, 'fulfillment_state'>): StatusBadgeEntry {
+  return { tone: 'neutral', labelKey: `vendor.customers.fulfillment.${order.fulfillment_state}` }
 }
 
 // ---- Overview metrics: counted from list endpoints, never inferred from price lists ----
@@ -96,7 +109,25 @@ export function formatBytes(bytes: number): string {
 // ---- Invoices ----
 export const invoiceStatusColor = (s: Invoice['status']) => ({ draft: 'neutral', issued: 'info', paid: 'success', void: 'neutral', credit_pending: 'warning' } as const)[s]
 export function lineQuantities(line: Pick<InvoiceLine, 'quantity' | 'free_quantity'>): { free: number | null; paid: number } {
-  return line.free_quantity === undefined ? { free: null, paid: line.quantity } : { free: line.free_quantity, paid: line.quantity }
+  return invoiceLineQuantities(line)
+}
+/** The vendor invoice table: kind badge, free / paid / unit / period cells and the amount. */
+export function vendorInvoiceLineViews(lines: Invoice['lines'], t: (key: string) => string, locale: string): InvoiceLineView[] {
+  return lines.map((line) => {
+    const q = lineQuantities(line)
+    return {
+      id: line.key,
+      description: line.description,
+      kind: { label: t(`vendor.invoices.lineKind.${line.kind}`), tone: 'neutral' },
+      cells: [
+        { key: 'free', label: t('vendor.invoices.line.free'), value: q.free === null ? t('app.notAvailable') : String(q.free) },
+        { key: 'paid', label: t('vendor.invoices.line.paid'), value: String(q.paid) },
+        { key: 'unit', label: t('vendor.invoices.line.unit'), value: formatVendorMoney(line.unit_amount, locale) },
+        { key: 'period', label: t('vendor.invoices.line.period'), value: `${line.period_start} → ${line.period_end}` },
+      ],
+      amount: formatVendorMoney(line.amount, locale),
+    }
+  })
 }
 export const isCreditRelated = (i: Pick<Invoice, 'status' | 'kind'>) => i.status === 'credit_pending' || i.kind === 'adjustment'
 

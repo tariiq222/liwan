@@ -37,7 +37,7 @@ describe('vendor commercial customers and invoices pages', () => {
   })
   it('invoices are labelled not official and show payment attempts and adjustments', () => {
     const p = page('invoices/[id].vue')
-    expect(p).toContain('notOfficial'); expect(p).toContain('attempts'); expect(p).toContain('adjustments'); expect(p).toContain('VendorInvoiceLines')
+    expect(p).toContain('notOfficial'); expect(p).toContain('attempts'); expect(p).toContain('adjustments'); expect(p).toContain('SharedInvoiceLines')
   })
   it('overview computes commercial metrics from list endpoints, not price lists', () => {
     const p = page('overview.vue')

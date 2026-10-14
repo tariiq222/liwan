@@ -70,7 +70,7 @@ export function nextBackoffDelay(attempt: number, random: () => number = Math.ra
 // outside any component's setup and can't call useQueryClient() themselves.
 //
 // It is NOT captured by useBus() itself: useBus() is also called from
-// AppSidebar.vue (for `connected`), which renders during SSR, and
+// shell/AppSidebar.vue (for `connected`), which renders during SSR, and
 // useQueryClient() there would latch onto whichever request's query client
 // happened to render first in this Node process - then get reused for every
 // later request/user. See setBusQueryClient() below.

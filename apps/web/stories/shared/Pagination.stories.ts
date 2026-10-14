@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/Pagination',
   component: Pagination,
-  parameters: storyContext('apps/web/app/pages/projects/index.vue:289', 'تحت الجدول. تختفي حين تتسع صفحة واحدة لكل السجلات.'),
+  parameters: storyContext('apps/web/app/pages/projects/index.vue:310', 'تحت الجدول. تختفي حين تتسع صفحة واحدة لكل السجلات.'),
   args: { page: 1, pages: 8, disabled: false },
   render: args => ({
     components: { Pagination },

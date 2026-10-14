@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordParentTo } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
 import FinanceEntryForm from '@/components/project/finance/FinanceEntryForm.vue'
@@ -48,17 +49,7 @@ const initialLoading = computed(() =>
 )
 const pageError = computed(() => keepForm.value ? null : (notFound.value ? null : query.error.value || access.error.value))
 const refreshError = computed(() => keepForm.value ? query.error.value || access.error.value : null)
-// An edit form returns to the record it edits, not past it to the list: being
-// thrown back to the list is exactly what the reader did not ask for. The
-// target is fixed by this page's own route and carries the list state through,
-// so the record's own back control still lands on a filtered list. A referrer's
-// returnTo is dropped rather than forwarded: on the destination URL it would
-// nest one level deeper on every round trip and redirect that page's controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  const ledger = projectId.value ? `/projects/${projectId.value}/finance` : '/projects'
-  return { path: projectId.value && entryId.value ? `${ledger}/${entryId.value}` : ledger, query: listQuery }
-})
+const backTo = computed(() => recordParentTo(projectId.value && entryId.value ? `/projects/${projectId.value}/finance/${entryId.value}` : projectId.value ? `/projects/${projectId.value}/finance` : '/projects', route.query, [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'], route.hash))
 
 function saved() {
   toast.add({ title: t('projects.finance.saved'), color: 'success', icon: 'i-lucide-circle-check' })
@@ -92,8 +83,7 @@ function retry() {
             <UButton color="neutral" variant="outline" type="button" @click="retry">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
-        <section class="rounded-lg ring ring-default bg-default overflow-hidden">
-          <div class="p-5">
+        <SharedFormSection panel>
             <FinanceEntryForm
               :project-id="projectId"
               :currency="currency!"
@@ -102,8 +92,7 @@ function retry() {
               @saved="saved"
               @cancel="router.push(backTo)"
             />
-          </div>
-        </section>
+          </SharedFormSection>
       </template>
     </template>
   </SharedPageContainer>

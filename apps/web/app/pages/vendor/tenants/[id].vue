@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { operationStatusBadge } from '@/utils/commercialBadges'
+import { formatNasqDateTime } from '@/composables/calendarDate'
 import { sharedTenantLoginUrl, type SharedTenantProgress } from '@/composables/useSharedTenantOnboarding'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
@@ -8,7 +10,7 @@ type Tenant = { id: string; name: string; commercial_mode: string; hosting_model
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
 const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
 type Catalog = { version: string; status: string; solution: { tiers?: { id: string; name: string; features?: string[]; limits?: Record<string, number> }[] } }
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const { request } = useVendorApi()
 const vendorContext = useVendorContext()
@@ -165,15 +167,13 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+
     <SharedUnsavedChanges :dirty="dirty" />
-    <SharedPageHeader :title="data?.name ?? t('vendor.tenants.details')" :back-to="backTo">
+    <SharedRecordPage :title="data?.name ?? t('vendor.tenants.details')" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
       <template #actions><UButton v-if="data && commercialCustomer" :to="{ path: `/vendor/customers/${encodeURIComponent(commercialCustomer.id)}`, query: { returnTo: route.fullPath } }" color="neutral" variant="outline">{{ t('vendor.customers.openProfile') }}</UButton><UButton v-if="data" :to="{ path: '/vendor/operations', query: { tenant_id: data.id } }" color="neutral" variant="outline">{{ t('vendor.tenants.viewOperations') }}</UButton></template>
-    </SharedPageHeader>
-    <SharedPageState :loading="pending" :error="error" :empty="!pending && !error && !data" @retry="refresh">
-      <div v-if="data" class="grid gap-5 lg:grid-cols-2">
-        <UCard v-if="provisioning || provisioningError" class="lg:col-span-2">
-          <template #header><h2 class="font-semibold">{{ t('vendor.tenants.provisioning.title') }}</h2></template>
+
+      <div v-if="data" class="space-y-6">
+        <SharedRecordSection v-if="provisioning || provisioningError" class="lg:col-span-2" :title="t('vendor.tenants.provisioning.title')">
           <div aria-live="polite" class="grid gap-3">
             <UAlert v-if="provisioningError" color="error" variant="subtle" :title="t('vendor.tenants.provisioning.unavailable')" />
             <UAlert v-else-if="provisioningFailed" color="error" variant="subtle" :title="t('vendor.tenants.provisioning.failed')" :description="t('vendor.tenants.provisioning.failedHint')" />
@@ -185,21 +185,9 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
             <UButton v-if="loginUrl" :to="loginUrl" external target="_blank" rel="noopener noreferrer" icon="i-lucide-external-link">{{ t('vendor.tenants.provisioning.open') }}</UButton>
             <UButton color="neutral" variant="outline" :disabled="!hydrated || provisioningPending" :loading="provisioningPending" @click="refreshSharedProvisioning">{{ t('vendor.common.refresh') }}</UButton>
           </div>
-        </UCard>
-        <UCard>
-          <dl class="grid gap-4 sm:grid-cols-2">
-            <div><dt class="text-sm text-muted">{{ t('vendor.tenants.fields.mode') }}</dt><dd class="mt-1">{{ t(`vendor.mode.${data.commercial_mode === 'saas' ? 'saas' : 'nonSaas'}`) }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.tenants.fields.hosting') }}</dt><dd class="mt-1">{{ t(`vendor.hosting.${data.hosting_model === 'managed' ? 'managed' : 'customerHosted'}`) }}</dd></div>
-            <div v-if="!provisioning"><dt class="text-sm text-muted">{{ t('vendor.tenants.target') }}</dt><dd class="mt-1"><bdi>{{ data.inventory_target }}</bdi></dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.tenants.fields.catalogVersion') }}</dt><dd class="mt-1">{{ data.catalog_version || t('vendor.common.none') }}<span v-if="data.catalog_tier"> · {{ t(`vendor.catalog.tiers.${data.catalog_tier}`, data.catalog_tier) }}</span></dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.common.status') }}</dt><dd class="mt-1"><UBadge color="neutral" variant="subtle">{{ t(`vendor.status.${provisioning?.status ?? data.status}`) }}</UBadge></dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.tenants.operations') }}</dt><dd class="mt-1">{{ data.operations_enabled ? t('vendor.common.enabled') : t('vendor.common.disabled') }}</dd></div>
-          </dl>
-          <p v-if="data.health_checked_at" class="mt-4 text-sm text-muted">{{ t('vendor.tenants.healthChecked') }}: <time :datetime="data.health_checked_at">{{ new Date(data.health_checked_at).toLocaleString() }}</time></p>
-        </UCard>
+        </SharedRecordSection>
 
-        <UCard v-if="canVendor('vendor.tenants.manage')">
-          <template #header><h2 class="font-semibold">{{ t('vendor.tenants.grantTitle') }}</h2><p class="text-sm text-muted">{{ t('vendor.tenants.grantHint') }}</p></template>
+        <SharedRecordSection v-if="canVendor('vendor.tenants.manage')" :title="t('vendor.tenants.grantTitle')" :description="t('vendor.tenants.grantHint')">
           <UAlert v-if="grantError" class="mb-3" color="error" variant="subtle" :title="t(fieldErrorKey(grantError))" />
           <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="grantReason" required maxlength="1000" class="w-full" /></UFormField>
           <div class="mt-4 flex flex-wrap justify-end gap-2">
@@ -207,10 +195,9 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
             <UButton v-else color="error" variant="ghost" :disabled="grantBusy" @click="confirmRevoke = true">{{ t('vendor.tenants.disableOperations') }}</UButton>
           </div>
           <SharedInlineConfirm v-if="confirmRevoke" class="mt-4" :title="t('vendor.tenants.confirmDisable')" :description="t('vendor.tenants.grantHint')" :confirm-label="t('vendor.tenants.disableOperations')" :pending="grantBusy" :disabled="!grantReason.trim()" @cancel="confirmRevoke = false" @confirm="updateGrant(false)" />
-        </UCard>
+        </SharedRecordSection>
 
-        <UCard class="lg:col-span-2">
-          <template #header><h2 class="font-semibold">{{ t('vendor.tenants.operationsTitle') }}</h2><p class="text-sm text-muted">{{ t('vendor.tenants.operationsHint') }}</p></template>
+        <SharedRecordSection class="lg:col-span-2" :title="t('vendor.tenants.operationsTitle')" :description="t('vendor.tenants.operationsHint')">
           <UAlert v-if="operationsNeedEnabling" color="neutral" variant="subtle" :title="t('vendor.tenants.operationsDisabledHint')" />
           <UAlert v-else-if="!availableOperations.length" color="neutral" variant="subtle" :title="t('vendor.tenants.operationsUnavailableHint')" />
           <UAlert v-if="actionError" class="mb-4" color="error" variant="subtle" :title="t(fieldErrorKey(actionError))" />
@@ -227,17 +214,24 @@ const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.
             <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="reason" required maxlength="1000" class="w-full" /></UFormField>
             <div><UButton type="submit" :loading="actionBusy" :disabled="actionBusy || !reason.trim() || (actionType === 'tenant.entitle' && expectedRevision === null)">{{ t('vendor.operations.enqueue') }}</UButton></div>
           </form>
-          <p v-else-if="!operationsNeedEnabling && availableOperations.length && !canVendor('vendor.operations.run')" class="text-sm text-muted">{{ t('vendor.forbidden') }}</p>
-        </UCard>
+          <SharedForbiddenState v-else-if="!operationsNeedEnabling && availableOperations.length && !canVendor('vendor.operations.run')" />
+        </SharedRecordSection>
 
-        <UCard class="lg:col-span-2">
-          <template #header><h2 class="font-semibold">{{ t('vendor.tenants.policyTitle') }}</h2><p class="text-sm text-muted">{{ t('vendor.tenants.policyHint') }}</p></template>
+        <SharedRecordSection class="lg:col-span-2" :title="t('vendor.tenants.policyTitle')" :description="t('vendor.tenants.policyHint')">
           <div class="grid gap-4 md:grid-cols-2">
             <section><h3 class="mb-2 text-sm font-medium">{{ t('vendor.tenants.desiredPolicy') }}</h3><dl class="grid gap-2 text-sm"><div v-for="[key, value] in Object.entries(data.desired_policy ?? {})" :key="key" class="flex justify-between gap-3"><dt>{{ t(`vendor.features.${key}`, key) }}</dt><dd><bdi>{{ policyValue(value) }}</bdi></dd></div><p v-if="!Object.keys(data.desired_policy ?? {}).length" class="text-muted">{{ t('vendor.common.none') }}</p></dl></section>
             <section><h3 class="mb-2 text-sm font-medium">{{ t('vendor.tenants.observedPolicy') }}</h3><dl class="grid gap-2 text-sm"><div v-for="[key, value] in Object.entries(data.observed_policy ?? {})" :key="key" class="flex justify-between gap-3"><dt>{{ t(`vendor.features.${key}`, key) }}</dt><dd><bdi>{{ policyValue(value) }}</bdi></dd></div><p v-if="!Object.keys(data.observed_policy ?? {}).length" class="text-muted">{{ t('vendor.common.none') }}</p></dl></section>
           </div>
-        </UCard>
+        </SharedRecordSection>
       </div>
-    </SharedPageState>
-  </SharedPageContainer>
+
+  <template #aside><SharedPropertiesPanel v-if="data">
+            <SharedPropertyRow :label="t('vendor.tenants.fields.mode')" :value="t(`vendor.mode.${data.commercial_mode === 'saas' ? 'saas' : 'nonSaas'}`)" />
+            <SharedPropertyRow :label="t('vendor.tenants.fields.hosting')" :value="t(`vendor.hosting.${data.hosting_model === 'managed' ? 'managed' : 'customerHosted'}`)" />
+            <SharedPropertyRow v-if="!provisioning" :label="t('vendor.tenants.target')"><bdi>{{ data.inventory_target }}</bdi></SharedPropertyRow>
+            <SharedPropertyRow :label="t('vendor.tenants.fields.catalogVersion')">{{ data.catalog_version || t('vendor.common.none') }}<span v-if="data.catalog_tier"> · {{ t(`vendor.catalog.tiers.${data.catalog_tier}`, data.catalog_tier) }}</span></SharedPropertyRow>
+            <SharedPropertyRow :label="t('vendor.common.status')"><SharedStatusBadge :tone="operationStatusBadge(provisioning?.status ?? data.status).tone" :label="t(operationStatusBadge(provisioning?.status ?? data.status).labelKey)" /></SharedPropertyRow>
+            <SharedPropertyRow :label="t('vendor.tenants.operations')" :value="data.operations_enabled ? t('vendor.common.enabled') : t('vendor.common.disabled')" />
+          <SharedPropertyRow :label="t('vendor.tenants.healthChecked')" :value="data.health_checked_at ? formatNasqDateTime(data.health_checked_at, locale) : null" /></SharedPropertiesPanel></template>
+</SharedRecordPage>
 </template>

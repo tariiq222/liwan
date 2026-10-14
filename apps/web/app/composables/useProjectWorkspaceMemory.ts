@@ -23,8 +23,10 @@ export function useProjectWorkspaceMemory() {
     }
     const location = projectEntryLocation(id, origin, saved)
     // A changed role must not restore a task view it can no longer read.
-    if (!active || (!me.value?.capabilities.includes('pmo.tasks.read') && (location.path.endsWith('/schedule') || (location.path === `/projects/${id}` && location.query.tab !== 'summary')))) {
-      return { path: `/projects/${id}`, query: { returnTo: location.query.returnTo, projectListReturnTo: location.query.projectListReturnTo, tab: 'summary' } }
+    const taskSection = /\/(tasks|milestones|schedule)$/.test(location.path)
+      || (location.path === `/projects/${id}` && !!location.query.tab && location.query.tab !== 'summary')
+    if (!active || (!me.value?.capabilities.includes('pmo.tasks.read') && taskSection)) {
+      return { path: `/projects/${id}`, query: { returnTo: location.query.returnTo, projectListReturnTo: location.query.projectListReturnTo } }
     }
     return location
   }

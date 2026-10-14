@@ -15,7 +15,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
 </script>
 
 <template>
-  <SharedPageContainer width="list">
+  <SharedSettingsPage width="list">
     <SharedPageHeader
       :title="t('projects.settings.title')"
     />
@@ -35,5 +35,5 @@ const canManage = computed(() => project.value?.can_manage ?? false)
         <ProjectSettingsForm :project="project" />
       </template>
     </SharedPageState>
-  </SharedPageContainer>
+  </SharedSettingsPage>
 </template>

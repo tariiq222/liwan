@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import UsageMeters from '../../app/components/vendor/UsageMeters.vue'
 import { storyContext } from '../support/context'
 import { usage } from './subscriptionFixtures'
-const meta = { title: 'Vendor/UsageMeters', component: UsageMeters, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/vendor/customers/[id].vue:75') }, args: { usage: usage() } } satisfies Meta<typeof UsageMeters>
+const meta = { title: 'Vendor/UsageMeters', component: UsageMeters, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/vendor/customers/[id].vue:109') }, args: { usage: usage() } } satisfies Meta<typeof UsageMeters>
 export default meta
 type Story = StoryObj<typeof meta>
 export const Fresh: Story = {}

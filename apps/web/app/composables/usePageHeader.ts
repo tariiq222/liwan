@@ -1,5 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
-import { inject, onScopeDispose, provide, readonly, ref, toValue, useId, watch, type InjectionKey, type Ref } from 'vue'
+import { computed, inject, onScopeDispose, provide, readonly, ref, toValue, useId, watch, type InjectionKey, type Ref } from 'vue'
 
 interface PageHeaderRegistration {
   owner: string
@@ -62,4 +62,11 @@ export function provideProjectFrameHeading(shown: Readonly<Ref<boolean>>) {
 
 export function useProjectFrameHeading(): Readonly<Ref<boolean>> {
   return inject(PROJECT_FRAME_HEADING, NO_PROJECT_FRAME)
+}
+
+/** The title the current route's page header registered, for the shell breadcrumb; null until one registers. */
+export function usePageHeaderTitle() {
+  const route = useRoute()
+  const state = usePageHeaderState()
+  return computed(() => (state.value && state.value.route === route.path ? state.value.title : null))
 }

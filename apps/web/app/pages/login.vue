@@ -74,49 +74,35 @@ async function submitTotp() {
 </script>
 
 <template>
-  <main class="nasq-login-page min-h-svh grid place-items-center bg-default p-4">
-    <UCard class="nasq-login-card w-full max-w-sm" :ui="{ header: '' }">
-      <template #header>
-        <div class="flex flex-col items-center text-center">
-          <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-4 h-14 w-auto max-w-full object-contain" />
-          <span v-else class="mb-3 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
-          <h1 class="text-2xl font-semibold text-highlighted">{{ productName }}</h1>
-          <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>
-        </div>
-      </template>
-      <div>
-        <form v-if="!mfaPending" class="grid gap-4" @submit.prevent="submit">
-          <UFormField :label="$t('auth.username')" name="login" required>
-            <UInput id="login" v-model="login" autocomplete="username" required dir="ltr" class="w-full text-start" />
-          </UFormField>
-          <UFormField :label="$t('auth.password')" name="password" required>
-            <UInput id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" class="w-full" />
-          </UFormField>
-          <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-          <UButton type="submit" class="w-full justify-center" :disabled="pending || !hydrated" :label="$t('auth.signIn')" />
-        </form>
-        <form v-else class="grid gap-4" @submit.prevent="submitTotp">
-          <UFormField :label="$t('auth.totpTitle')" name="totp" required>
-            <UInput
-              id="totp-code" v-model="totpCode" inputmode="numeric" autocomplete="one-time-code"
-              required dir="ltr" class="w-full text-start"
-            />
-            <template #hint><span>{{ $t('auth.totpHint') }}</span></template>
-          </UFormField>
-          <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-          <UButton type="submit" class="w-full justify-center" :disabled="pending" :label="$t('auth.continue')" />
-        </form>
+  <SharedStandalonePage>
+    <template #header>
+      <div class="flex flex-col items-center text-center">
+        <img v-if="branding" :src="branding.logo_url" :alt="branding.name" class="mb-4 h-14 w-auto max-w-full object-contain" />
+        <span v-else class="mb-3 grid size-12 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">ن</span>
+        <h1 class="text-2xl font-semibold text-highlighted">{{ productName }}</h1>
+        <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>
       </div>
-    </UCard>
-  </main>
+    </template>
+    <form v-if="!mfaPending" class="grid gap-5" @submit.prevent="submit">
+      <UFormField :label="$t('auth.username')" name="login" required>
+        <UInput id="login" v-model="login" autocomplete="username" required dir="ltr" class="w-full text-start" />
+      </UFormField>
+      <UFormField :label="$t('auth.password')" name="password" required>
+        <UInput id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" class="w-full" />
+      </UFormField>
+      <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
+      <UButton type="submit" class="w-full justify-center" :disabled="pending || !hydrated" :label="$t('auth.signIn')" />
+    </form>
+    <form v-else class="grid gap-5" @submit.prevent="submitTotp">
+      <UFormField :label="$t('auth.totpTitle')" name="totp" required>
+        <UInput
+          id="totp-code" v-model="totpCode" inputmode="numeric" autocomplete="one-time-code"
+          required dir="ltr" class="w-full text-start"
+        />
+        <template #hint><span>{{ $t('auth.totpHint') }}</span></template>
+      </UFormField>
+      <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
+      <UButton type="submit" class="w-full justify-center" :disabled="pending" :label="$t('auth.continue')" />
+    </form>
+  </SharedStandalonePage>
 </template>
-
-<style scoped>
-.nasq-login-page { background: var(--nasq-surface-page); }
-.nasq-login-card { border-radius: var(--nasq-radius); box-shadow: var(--elevation-2); }
-.nasq-login-card form { gap: 1.25rem; }
-@media (min-width: 768px) {
-  .nasq-login-page { padding: 2.5rem; }
-  .nasq-login-card { max-width: 28rem; }
-}
-</style>

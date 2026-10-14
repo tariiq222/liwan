@@ -61,7 +61,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/tenant
 <template>
   <SharedCreatePanel :title="t('vendor.tenants.create')" :back-to="backTo" width="wide">
     <SharedUnsavedChanges :dirty="dirty" />
-    <SharedPageState v-if="!can('vendor.tenants.manage')" :empty="true" :empty-text="t('vendor.forbidden')" />
+    <SharedForbiddenState v-if="!can('vendor.tenants.manage')" />
     <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!plans && !plansError)" :error="error || catalogError || plansError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPlans() }">
       <form v-if="targets && catalog && plans" class="grid max-w-2xl gap-5" @submit.prevent="submit">
         <UAlert v-if="saveError" color="error" variant="subtle" :title="t(errorKey)" />

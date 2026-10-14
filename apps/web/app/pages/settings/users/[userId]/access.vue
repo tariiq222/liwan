@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import UserAccessForm from '@/components/access/users/UserAccessForm.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { useAdminPermissionCatalog, useAdminRoles } from '@/composables/useAdminRoles'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
@@ -19,11 +18,11 @@ function retryAccessData() {
 </script>
 
 <template>
-  <SettingsLayout width="form">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('access.users.editAccess')" :back-to="backTo" />
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-      <SharedPageState v-else :loading="user.isLoading.value || roles.isLoading.value || catalog.isLoading.value" :error="user.error.value || roles.error.value || catalog.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="retryAccessData">
-      <UCard v-if="user.data.value" class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }"><UserAccessForm :user="user.data.value" :roles="roles.data.value?.items ?? []" :permissions="catalog.data.value?.items ?? []" :permissions-loading="catalog.isLoading.value" :permissions-error="catalog.error.value" @saved="navigateTo(backTo)" @retry="retryAccessData" /></UCard>
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
+    <SharedPageState v-else :loading="user.isLoading.value || roles.isLoading.value || catalog.isLoading.value" :error="user.error.value || roles.error.value || catalog.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="retryAccessData">
+      <SharedFormSection v-if="user.data.value" panel><UserAccessForm :user="user.data.value" :roles="roles.data.value?.items ?? []" :permissions="catalog.data.value?.items ?? []" :permissions-loading="catalog.isLoading.value" :permissions-error="catalog.error.value" @saved="navigateTo(backTo)" @retry="retryAccessData" /></SharedFormSection>
     </SharedPageState>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

@@ -41,7 +41,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   the app groups inside them; Track A packages are read-only history. Every
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application
-  (closed: `false` / `0`; catalog `platform_v3.json`, `commercial-compiler/2`).
+  (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v4.json`, `commercial-compiler/2`).
   `_nasq_validate_features` stays strict; operator scripts complete a target with
   `_nasq_close_unlisted_features`, and `nasq.tenant.profile._register_hook`
   registers a newly installed application's keys closed. Usage is collected per
@@ -89,9 +89,9 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 - A new application starts from `python3 -B tools/new_app.py <app> --name-ar <ar>
   --name-en <en>` and the `nasq-new-app` skill. Outside its own folders it edits
   only three registration files: `tools/arch_layers.json`,
-  `deploy/catalog/solutions/platform_v3.json` and `packages/contracts/src/index.ts`
+  `deploy/catalog/solutions/platform_v4.json` and `packages/contracts/src/index.ts`
   (plus copies written by `python3 -B tools/catalog_check.py --sync-release-copies`).
-  It edits `platform_v3.json` in place only while that catalog is unpublished; after the
+  It edits `deploy/catalog/solutions/platform_v4.json` in place only while that catalog is unpublished; after the
   first publish a new application needs a new `platform_vN.json`, decided before the first
   server deploy.
 

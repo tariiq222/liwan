@@ -32,7 +32,7 @@ async function load(file: string, url: RouteLocationRaw, props: Record<string, u
   const transpile = (source: string) => ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
   const navigate = vi.fn(async (to: RouteLocationRaw) => router.push(to))
   const bindings = {
-    _defineComponent: Vue.defineComponent, onMounted: () => {}, onUnmounted: () => {}, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick,
+    _defineComponent: Vue.defineComponent, onMounted: () => {}, onUnmounted: () => {}, computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick, useId: Vue.useId,
     useRoute: () => router.currentRoute.value, useRouter: () => router,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }), useToast: () => ({ add: vi.fn() }), usePageHeader: () => {},
@@ -156,4 +156,17 @@ describe('HR producer to consumer return chain', () => {
     expect(target(global).fullPath).toBe('/hr/documents?q=global#docs')
     for (const page of [record, invalid, global]) page.stop()
   })
+  it('global document create cancel keeps list filters and its fragment', async () => {
+    const create = await load('pages/hr/documents/new.vue', '/hr/documents/new?department_id=4&q=document&offset=50#documents')
+    expect(target(create).fullPath).toBe('/hr/documents?department_id=4&q=document&offset=50#documents')
+    create.stop()
+  })
+  it('global document create attaches its saved record to the filtered list', async () => {
+    const create = await load('pages/hr/documents/new.vue', '/hr/documents/new?department_id=4&q=document&offset=50#documents')
+    create.state.saved(9)
+    const record = await load(documentPage, create.navigate.mock.calls[0]![0])
+    expect(target(record).fullPath).toBe('/hr/documents?department_id=4&q=document&offset=50#documents')
+    create.stop(); record.stop()
+  })
+
 })

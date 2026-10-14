@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const WithActions: Story = {
   name: 'مع إجراءات الصفحة',
-  parameters: storyContext('apps/web/app/pages/tasks.vue:48'),
+  parameters: storyContext('apps/web/app/pages/projects/[id]/settings.vue:19'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -25,7 +25,7 @@ export const WithActions: Story = {
 
 export const WithBack: Story = {
   name: 'مع زر الرجوع',
-  parameters: storyContext('apps/web/app/pages/search.vue:39'),
+  parameters: storyContext('apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:67'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -40,5 +40,15 @@ export const TitleAndDescription: Story = {
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
     template: `<main class="nasq-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" :description="t('account.description')" /></PageContainer></main>`,
+  }),
+}
+
+export const HiddenTitle: Story = {
+  name: 'عنوان يملكه الإطار',
+  parameters: storyContext('unused', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
+  render: () => ({
+    components: { PageContainer, PageHeader },
+    setup: () => ({ t: useI18n().t }),
+    template: `<main class="nasq-shell-main"><PageContainer width="list"><h1 class="text-xl font-semibold text-highlighted">{{ t('projects.title') }}</h1><PageHeader :title="t('tasks.title')" hide-title><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }

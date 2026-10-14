@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
-import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
+import DescriptionEditor from '@/components/shared/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import type { MeetingPatch } from '@nasq/contracts'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'

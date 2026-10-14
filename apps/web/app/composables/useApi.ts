@@ -26,13 +26,14 @@ export function useApi() {
 
   async function $api<T>(
     path: string,
-    opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T> } = {},
+    opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal } = {},
   ): Promise<T> {
     try {
       const data = await $fetch<unknown>(path, {
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
         query: opts.query,
+        signal: opts.signal,
         // Never forward a cookie or private hop identity to an absolute URL,
         // protocol-relative URL, encoded path or normalized traversal target.
         headers: /^\/api\/v1\/[a-zA-Z0-9_/-]+$/.test(path) && !path.includes('..')

@@ -25,7 +25,6 @@
         "charts": "Data",
         "modes": {
           "light": "Light",
-          "cream": "Cream",
           "dark": "Dark"
         }
       },
@@ -146,9 +145,8 @@
     "appearance": {
       "title": "Appearance",
       "mode": "Display mode",
-      "modeHint": "Choose a light, cream, or dark appearance",
+      "modeHint": "Choose a light or dark appearance",
       "light": "Light",
-      "cream": "Cream",
       "dark": "Dark",
       "fontSize": "Font size",
       "small": "Small",

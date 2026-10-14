@@ -27,4 +27,11 @@ describe('global search keyboard handler', () => {
     expect(findSearchShortcut({ key: '1', target }, '', shortcuts)).toEqual(shortcuts[0])
     expect(findSearchShortcut({ key: 'x', target }, '', shortcuts)).toBeUndefined()
   })
+
+  it('matches an Arabic layout by key position and skips keys the shell already used', () => {
+    const target = { tagName: 'BODY', closest: () => null }
+    expect(findSearchShortcut({ key: 'س', code: 'KeyS', target }, '', shortcuts)).toEqual(shortcuts[1])
+    expect(findSearchShortcut({ key: '١', code: 'Digit1', target }, '', shortcuts)).toEqual(shortcuts[0])
+    expect(findSearchShortcut({ key: 's', code: 'KeyS', target, defaultPrevented: true }, '', shortcuts)).toBeUndefined()
+  })
 })

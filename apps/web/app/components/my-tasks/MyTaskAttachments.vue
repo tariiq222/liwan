@@ -60,11 +60,10 @@ async function confirmDelete(attachmentId: number) {
 </script>
 
 <template>
-  <section data-testid="my-task-attachments" class="space-y-3" :aria-label="t('myTasks.attachments.title')">
-    <header class="flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold text-highlighted">{{ t('myTasks.attachments.title') }}</h2>
+  <SharedRecordSection data-testid="my-task-attachments" :title="t('myTasks.attachments.title')">
+    <template #actions>
       <span class="text-xs text-muted">{{ t('myTasks.attachments.count', { count: props.count }) }}</span>
-    </header>
+    </template>
 
     <SharedPageState :loading="isLoading" :error="loadError" :empty="!attachments.length" :empty-text="t('myTasks.attachments.empty')" @retry="refetch">
       <ul class="divide-y divide-default">
@@ -110,5 +109,5 @@ async function confirmDelete(attachmentId: number) {
       <p class="text-xs text-muted">{{ t('myTasks.attachments.help') }}</p>
     </div>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-  </section>
+  </SharedRecordSection>
 </template>

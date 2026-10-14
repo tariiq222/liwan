@@ -12,12 +12,15 @@ const props = defineProps<{
   employees: HrEmployee[]
   backTo?: RouteLocationRaw
   initialParentId?: number | null
+  panel?: boolean
 }>()
 const emit = defineEmits<{ saved: [department: HrDepartment] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
-const toast = useToast()
+const formError = ref<unknown>(null)
+const errorMessage = computed(() => formError.value instanceof ApiError ? formError.value.message : undefined)
+function fieldError(field: string) { return formError.value instanceof ApiError && formError.value.field === field ? formError.value.message : undefined }
 const canManage = computed(() => can('hr.departments.manage'))
 const parentOptions = computed(() => { const allowed = new Set(getAllowedParentIds(props.departments, props.department?.id ?? null)); return props.departments.filter(d => allowed.has(d.id)) })
 const name = ref('')
@@ -61,9 +64,10 @@ async function submit() {
       ? await update({ id: props.department.id, patch: { name: trimmed, parent_id: parentId.value, manager_id: managerId.value } })
       : await create({ name: trimmed, parent_id: parentId.value, manager_id: managerId.value })
     savedState.value = state()
+    formError.value = null
     emit('saved', department)
   } catch (error) {
-    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
+    formError.value = error
   }
 }
 </script>
@@ -71,15 +75,16 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="{ name, parentId, managerId }" class="nasq-form" method="post" @submit="submit">
-    <SharedFormSection :title="t('hr.depts.formDescription')">
+    <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
+    <SharedFormSection :panel="props.panel" :title="t('hr.depts.formDescription')">
       <div class="nasq-form-grid mt-4">
-        <UFormField :label="t('hr.depts.name')" name="hr-dept-name" required>
+        <UFormField :label="t('hr.depts.name')" name="hr-dept-name" required :error="fieldError('name')">
           <UInput id="hr-dept-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || pending" required />
         </UFormField>
-        <UFormField :label="t('hr.depts.parent')" name="hr-dept-parent">
+        <UFormField :label="t('hr.depts.parent')" name="hr-dept-parent" :error="fieldError('parent_id')">
           <USelect id="hr-dept-parent" :model-value="parentId ? String(parentId) : 'none'" :items="parentSelectOptions" class="w-full" :disabled="!canManage || !hydrated || pending" @update:model-value="parentId = idOrNull($event)" />
         </UFormField>
-        <UFormField :label="t('hr.depts.manager')" name="hr-dept-manager" class="sm:col-span-2">
+        <UFormField :label="t('hr.depts.manager')" name="hr-dept-manager" class="sm:col-span-2" :error="fieldError('manager_id')">
           <UInput v-model="managerSearch" class="w-full" :disabled="!canManage || !hydrated || pending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" icon="i-lucide-search" />
           <div v-if="employeeQuery.error.value || selectedManagerQuery.error.value" class="mt-2 text-sm text-error">
             <p>{{ t('hr.depts.managerLoadError') }}</p>

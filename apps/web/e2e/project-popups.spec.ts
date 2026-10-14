@@ -100,7 +100,7 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   await expect(filters).toHaveAttribute('aria-expanded', 'false')
   await filters.click()
   const search = (await page.getByRole('textbox', { name: 'بحث في العناوين…' }).boundingBox())!
-  const create = (await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).boundingBox())!
+  const create = (await page.getByTestId('project-header-create').boundingBox())!
   const header = (await page.locator('main [data-slot="page-header"]').boundingBox())!
   expect(create.y).toBeGreaterThanOrEqual(header.y)
   expect(create.y + create.height).toBeLessThanOrEqual(header.y + header.height + 1)
@@ -161,12 +161,10 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await expect(rail).toHaveAttribute('data-expanded', 'false')
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(64)
-  await page.getByTestId('module-rail-toggle').click()
-  await expect(rail).toHaveAttribute('data-expanded', 'true')
+  await expect(rail).toHaveCSS('width', '64px')
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(48)
+  await expect(page.getByTestId('module-rail-toggle')).toHaveCount(0)
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-  await page.getByTestId('module-rail-toggle').click()
   await page.getByTestId('project-workspace-settings').click()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 1 })).toBeVisible()
@@ -179,7 +177,7 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await page.screenshot({ path: testInfo.outputPath('project-sidebar-collapsed.png'), fullPage: true })
   await toggle.click()
   await expect(sidebar).toHaveAttribute('data-expanded', 'true')
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(244)
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(232)
 })
 
 test('task opens over project and browser back returns to the filtered workspace', async ({ page }) => {
@@ -284,7 +282,7 @@ test('RTL side sheet enters from the left and remains mounted until it exits rig
       }, true)
     }
   })
-  await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).click()
+  await page.getByTestId('project-header-create').click()
   await expect.poll(() => page.evaluate(() => (window as any).__projectSheetMotion.some(
     (event: any) => event.type === 'animationend' && event.state === 'open',
   ))).toBe(true)
@@ -317,7 +315,6 @@ test('side sheet respects reduced motion and follows the expanded module rail', 
   await page.goto('/projects/1/tasks/new')
   const sheet = page.getByRole('dialog')
   await expect(sheet).toBeVisible()
-  await page.getByTestId('module-rail-toggle').click()
   await expect.poll(async () => {
     const overlay = (await page.getByTestId('project-route-overlay').boundingBox())!
     const rail = (await page.getByTestId('module-rail').boundingBox())!
@@ -326,7 +323,7 @@ test('side sheet respects reduced motion and follows the expanded module rail', 
   }).toBeTruthy()
   await page.getByTestId('project-overlay-close').click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'مهمة جديدة', exact: true })).toBeEnabled()
+  await expect(page.getByTestId('project-header-create')).toBeEnabled()
 })
 
 test('risk details and editing share one window over the same register', async ({ page }) => {
@@ -356,7 +353,7 @@ test('quick task creation keeps its draft on error and returns to the same list 
     return route.fulfill({ status: 201, json: { ...detail, id: 105, name: 'مهمة جديدة للتجربة' } })
   })
   await page.goto('/projects/1?tab=tasks&q=مهمة')
-  await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).click()
+  await page.getByRole('link', { name: 'مهمة جديدة', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByTestId('task-create-optional')).not.toHaveAttribute('open', '')
   await dialog.getByLabel('عنوان المهمة', { exact: true }).fill('مهمة جديدة للتجربة')
@@ -416,7 +413,7 @@ test('shell navigation remains available and protects a dirty project draft', as
 
 test('dirty project task survives Escape and browser back until explicitly discarded', async ({ page }) => {
   await page.goto('/projects/1?tab=tasks')
-  await page.getByRole('button', { name: 'مهمة جديدة', exact: true }).click()
+  await page.getByTestId('project-header-create').click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('عنوان المهمة', { exact: true }).fill('مسودة لا تفقد')

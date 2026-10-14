@@ -74,7 +74,7 @@ async function assertH1(page: Page, expected: string) {
 
 async function visit(page: Page, route: (typeof ROUTES)[number], opts: { checkWidth: boolean; checkForm: boolean }) {
   const defects: string[] = []
-  await page.goto(route.path)
+  await page.goto(route.id === 'projects' ? `${route.path}?view=table` : route.path)
   const createPanel = route.id === 'employee-new' || route.id === 'catalog-new'
   if (createPanel) {
     const dialog = page.getByRole('dialog')

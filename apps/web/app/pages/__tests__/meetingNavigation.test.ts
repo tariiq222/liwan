@@ -3,20 +3,26 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, effectScope, nextTick, onScopeDispose, reactive, ref, watch } from 'vue'
+import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { createHooks } from 'hookable'
 import { refDebounced } from '@vueuse/core'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { formatLocalDateTime } from '../../utils/meetingDateTime'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '../../utils/meetingListFilters'
 import { parseOffset } from '../../utils/routeQuery'
 import { resolutionActions } from '../../utils/meetingWorkspace'
 
-function page(file: string, pmo = false, routeOverride: Record<string, unknown> = {}) {
+function page(file: string, pmo = false, routeOverride: Record<string, unknown> = {}, realRouter?: Router, navigationHooks = createHooks()) {
   const source = parse(readFileSync(resolve('app/pages/meetings', file), 'utf8')).descriptor.scriptSetup!.content
-  const route = { path: '/meetings/7', fullPath: '/meetings/7', params: { id: '7' },
+  const legacyRoute = { path: '/meetings/7', fullPath: '/meetings/7', params: { id: '7' },
     ...routeOverride, query: { q: 'review', offset: '25', ...(routeOverride.query as Record<string, unknown> | undefined) } }
-  const replace = vi.fn(async ({ query }) => { route.query = query })
+  const route = realRouter ? reactive({
+    get path() { return realRouter.currentRoute.value.path }, get fullPath() { return realRouter.currentRoute.value.fullPath },
+    get params() { return realRouter.currentRoute.value.params }, get query() { return realRouter.currentRoute.value.query }, get hash() { return realRouter.currentRoute.value.hash },
+  }) : legacyRoute
+  const replace = realRouter ? vi.spyOn(realRouter, 'replace') : vi.fn(async ({ query }) => { legacyRoute.query = query })
   const projects = vi.fn(() => ({ data: ref([{ id: 3, name: 'Valid project' }]) }))
   const people = vi.fn(() => ({ data: ref([{ id: 3, user_id: 3, name: 'Valid organizer' }]), isLoading: ref(false), error: ref(null), refetch: vi.fn() }))
   const seriesList = vi.fn(() => ({ data: ref({ total: 120, items: [] }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }))
@@ -28,7 +34,9 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
   const scope = {
     meetingTabFromRoute, meetingTabQuery, isMeetingTab,
     onMounted: () => {}, onBeforeUnmount: () => {}, // DOM scrolling is covered by the browser suite.
- ref, computed, watch, useRoute: () => route, useRouter: () => ({ replace, push: vi.fn() }),
+    onScopeDispose: realRouter ? onScopeDispose : () => {},
+    useNuxtApp: () => ({ hook: navigationHooks.hook }),
+ ref, computed, watch, useRoute: () => route, useRouter: () => realRouter ?? ({ replace, push: vi.fn() }),
     refDebounced,
     useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }), useHydrated: () => ref(true),
     useAccess: () => ({ can: () => pmo }), useProjects: projects,
@@ -57,6 +65,20 @@ function page(file: string, pmo = false, routeOverride: Record<string, unknown> 
   return { ...new Function(...Object.keys(scope), `${js};return ${exposed}`)(...Object.values(scope)), route, meeting: meetingData, projects, seriesList, replace, mutateAsync: meetingMutation, resolutionMutation }
 }
 
+const listScopes: Array<() => void> = []
+afterEach(() => { listScopes.splice(0).forEach(stop => stop()) })
+async function listPage(file: 'index.vue' | 'series.vue') {
+  const path = file === 'index.vue' ? '/meetings' : '/meetings/series'
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path, component: {} }] })
+  await router.push(`${path}?q=review&offset=25`)
+  const hooks = createHooks()
+  router.beforeEach(to => hooks.callHook('nasq:navigation:start', to))
+  const scope = effectScope()
+  const loaded = scope.run(() => page(file, false, {}, router, hooks))!
+  listScopes.push(() => scope.stop())
+  return loaded
+}
+
 describe('meeting route and conversion behavior', () => {
   const originalTimezone = process.env.TZ
   beforeAll(() => { process.env.TZ = 'Asia/Riyadh' })
@@ -65,10 +87,10 @@ describe('meeting route and conversion behavior', () => {
     else process.env.TZ = originalTimezone
   })
 
-  it('removes the old offset on page one and preserves search for refresh/back', () => {
-    const list = page('index.vue')
+  it('removes the old offset on page one and preserves search for refresh/back', async () => {
+    const list = await listPage('index.vue')
     list.setPage(1)
-    expect(list.route.query.offset).toBeUndefined()
+    await expect.poll(() => list.route.query.offset).toBeUndefined()
     expect(list.route.query.q).toBe('review')
     expect(list.offset.value).toBe(0)
   })
@@ -127,7 +149,7 @@ describe('meeting route and conversion behavior', () => {
   })
 
   it('keeps series search and pagination in the API params and reports total pages', async () => {
-    const list = page('series.vue')
+    const list = await listPage('series.vue')
     expect(list.pages.value).toBe(5)
     list.search.value = 'weekly'
     await new Promise(resolve => setTimeout(resolve, 300))

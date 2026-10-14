@@ -23,7 +23,7 @@ test('project views share the approved toolbar and keep filters when opening a c
   await page.setViewportSize({ width: 1440, height: 1000 })
   await login(page)
   const { project } = await fixture(page)
-  await page.goto(`/projects?q=${encodeURIComponent(project.name)}`)
+  await page.goto(`/projects?view=table&q=${encodeURIComponent(project.name)}`)
   await expect(page.getByTestId('projects-toolbar')).toBeVisible()
   await expect(page.getByTestId('project-new')).toBeVisible()
   await expect(page.getByTestId('project-row')).toHaveCount(1)

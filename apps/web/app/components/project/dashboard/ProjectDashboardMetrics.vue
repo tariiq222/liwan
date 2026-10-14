@@ -16,15 +16,13 @@ const METRIC_ICON: Record<string, `i-lucide-${string}`> = {
 </script>
 
 <template>
-  <section :aria-label="t('projects.dashboard.metrics.metricsLabel')" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-    <SharedMetricTile
-      v-for="metric in metrics"
-      :key="metric.key"
-      :icon="METRIC_ICON[metric.key] ?? 'i-lucide-chart-column'"
-      :label="t(`projects.dashboard.metrics.${metric.key}`)"
-      :value="metric.value == null ? unknown : metric.value"
-      :unit="metric.value != null ? metric.suffix || undefined : undefined"
-      :value-dir="metric.suffix ? 'ltr' : undefined"
-    />
-  </section>
+  <SharedMetricTile
+    v-for="metric in metrics"
+    :key="metric.key"
+    :icon="METRIC_ICON[metric.key] ?? 'i-lucide-chart-column'"
+    :label="t(`projects.dashboard.metrics.${metric.key}`)"
+    :value="metric.value == null ? unknown : metric.value"
+    :unit="metric.value != null ? metric.suffix || undefined : undefined"
+    :value-dir="metric.suffix ? 'ltr' : undefined"
+  />
 </template>

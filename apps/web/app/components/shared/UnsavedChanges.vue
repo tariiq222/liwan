@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ModalProps } from '@nuxt/ui'
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
+import { takeNavigationFocus } from '@/composables/useNavigationFocus'
 
 const props = withDefaults(defineProps<{
   dirty: boolean
@@ -26,7 +27,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guardBrowserUnl
 
 function guard(to: { fullPath: string }) {
   if (!props.dirty || leaving.value) return true
-  if (import.meta.client) returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  // An overlay that started this navigation and is closing (the palette) hands over where focus belongs.
+  if (import.meta.client) returnFocus = takeNavigationFocus() ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
   pendingPath.value = to.fullPath
   return false
 }

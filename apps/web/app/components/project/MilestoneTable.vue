@@ -3,12 +3,12 @@ import type { Milestone } from '@nasq/contracts'
 import { getLocalTimeZone, today } from '@internationalized/date'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
-import { STATUS_COLOR } from '@/utils/statusTone'
+import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import type { RowAction } from '@/components/shared/RowActions.vue'
 
-const props = defineProps<{ projectId: number; canManage: boolean; embedded?: boolean }>()
+const props = defineProps<{ projectId: number; canManage: boolean }>()
 
 /** Claim one milestone checklist mutation at a time to prevent lost toggles. */
 function claimMilestoneChecklistUpdate(pending: ReadonlySet<number>, milestoneId: number): Set<number> | null {
@@ -51,7 +51,7 @@ function milestoneActions(m: Milestone): RowAction[] {
       icon: 'i-lucide-trash-2',
       destructive: true,
       disabled: m.task_count > 0,
-      onSelect: () => { deleteTarget.value = m },
+      onSelect: () => { deleteId.value = m.id },
     },
   ]
 }
@@ -116,73 +116,100 @@ async function toggleDeliverable(m: Milestone, index: number, next: boolean) {
 
 // --- delete ------------------------------------------------------------
 const { mutateAsync: deleteMutate, isPending: deleting } = useDeleteMilestone()
-const deleteTarget = ref<Milestone | null>(null)
+const deleteId = ref<number | null>(null)
+const deleteTarget = computed(() => items.value.find(m => m.id === deleteId.value) ?? null)
 
 async function confirmDelete() {
   if (!deleteTarget.value) return
   try {
     await deleteMutate({ projectId: props.projectId, id: deleteTarget.value.id })
-    deleteTarget.value = null
+    deleteId.value = null
   } catch (e) {
     toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
   }
 }
+const columns = computed<TableColumn<Milestone>[]>(() => [
+  { id: 'name', header: t('projects.milestones.name') },
+  { id: 'state', header: t('projects.milestones.state') },
+  { id: 'start', header: t('projects.milestones.startDate') },
+  { id: 'deadline', header: t('projects.milestones.deadline') },
+  { id: 'tasks', header: t('projects.milestones.tasks') },
+  ...(props.canManage ? [{ id: 'actions', header: t('app.actions'), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } }] : []),
+])
 </script>
 
 <template>
-  <div class="space-y-3" data-testid="milestone-table">
-    <UCard :ui="{ body: 'p-0' }">
-      <template v-if="!embedded" #header>
-        <div>
-          <h2 class="text-lg font-semibold text-highlighted">{{ t('projects.tabs.milestones') }}</h2>
-          <p class="text-sm text-muted">{{ t('projects.milestones.emptyHint') }}</p>
-        </div>
-      </template>
-      <div v-if="isLoading || !hydrated" class="space-y-3 p-4">
-        <USkeleton v-for="n in 3" :key="n" class="h-14 w-full" />
-      </div>
-      <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-      <div v-else-if="items.length === 0" class="p-8 text-center">
-        <p class="font-medium text-highlighted">{{ t('projects.milestones.empty') }}</p>
-        <p class="mt-1 text-sm text-muted">{{ t('projects.milestones.emptyHint') }}</p>
-      </div>
-      <div v-else class="milestone-list divide-y divide-default">
-        <div v-for="m in items" :key="m.id" data-testid="milestone-row" class="space-y-3 px-4 py-4">
-          <div class="milestone-row flex items-start justify-between gap-3">
-            <div class="milestone-main min-w-0">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="font-medium">{{ m.name }}</p>
-                <UBadge variant="subtle" :color="STATUS_COLOR[m.is_reached ? 'success' : 'neutral']">{{ t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached') }}</UBadge>
-              </div>
-              <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-                <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
-                <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
-                <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
-                <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
-                <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
-              </div>
-              <div v-if="m.deliverables?.length" class="mt-3 space-y-1.5">
-                <label v-for="(item, index) in m.deliverables" :key="`${m.id}-${index}`" class="flex items-center gap-2 text-sm">
-                  <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(m, index, value)" />
-                  <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
-                </label>
-              </div>
-            </div>
-            <div v-if="canManage" class="shrink-0" data-testid="milestone-actions">
-              <SharedRowActions :actions="milestoneActions(m)" :label="t('projects.milestones.actionsNamed', { name: m.name })" />
+  <div class="min-w-0 space-y-3" data-testid="milestone-table">
+    <SharedPageState v-if="error" :error="error" @retry="refetch" />
+    <SharedEmptyState
+      v-else-if="hydrated && !isLoading && items.length === 0"
+      :title="t('projects.milestones.empty')"
+      :description="t('projects.milestones.emptyHint')"
+    />
+    <template v-else>
+      <SharedInlineConfirm
+        v-if="deleteTarget"
+        data-testid="milestone-delete-confirm"
+        :title="t('projects.milestones.deleteConfirm', { name: deleteTarget.name })"
+        :confirm-label="t('projects.milestones.delete')"
+        :pending="deleting"
+        @cancel="deleteId = null"
+        @confirm="confirmDelete"
+      />
+      <SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="isLoading || !hydrated" :caption="t('projects.tabs.milestones')">
+        <template #name-cell="{ row }">
+          <div data-testid="milestone-row" class="min-w-0 space-y-2">
+            <p class="font-medium text-highlighted">{{ row.original.name }}</p>
+            <span v-if="row.original.deliverables?.length" class="text-xs text-muted">{{ t('projects.milestones.checklistOf', { done: row.original.deliverables.filter(item => item.done).length, total: row.original.deliverables.length }) }}</span>
+            <div v-if="row.original.deliverables?.length" class="space-y-1.5">
+              <label v-for="(item, index) in row.original.deliverables" :key="`${row.original.id}-${index}`" class="flex items-center gap-2 text-sm">
+                <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(row.original.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(row.original, index, value)" />
+                <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
+              </label>
             </div>
           </div>
-          <SharedInlineConfirm
-            v-if="deleteTarget?.id === m.id"
-            data-testid="milestone-delete-confirm"
-            :title="t('projects.milestones.deleteConfirm', { name: m.name })"
-            :confirm-label="t('projects.milestones.delete')"
-            :pending="deleting"
-            @cancel="deleteTarget = null"
-            @confirm="confirmDelete"
-          />
-        </div>
-      </div>
-    </UCard>
+        </template>
+        <template #state-cell="{ row }">
+          <SharedStatusBadge :tone="row.original.is_reached ? 'success' : 'neutral'" :label="t(row.original.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+        </template>
+        <template #start-cell="{ row }">{{ startText(row.original) }}</template>
+        <template #deadline-cell="{ row }"><span :class="DEADLINE_TEXT_CLASS[deadlineTone(row.original)]">{{ deadlineText(row.original) }}</span></template>
+        <template #tasks-cell="{ row }">
+          <span class="block">{{ t('projects.milestones.tasksOf', { done: row.original.done_task_count, total: row.original.task_count }) }}</span>
+          <span class="block text-xs text-muted">{{ t('projects.milestones.taskProgress', { percent: taskProgress(row.original) }) }}</span>
+        </template>
+        <template #actions-cell="{ row }">
+          <div data-testid="milestone-actions">
+            <SharedRowActions :actions="milestoneActions(row.original)" :label="t('projects.milestones.actionsNamed', { name: row.original.name })" />
+          </div>
+        </template>
+        <template #mobile-row="{ row: m }">
+          <div data-testid="milestone-card" class="space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-medium text-highlighted">{{ m.name }}</p>
+                <SharedStatusBadge class="mt-1" :tone="m.is_reached ? 'success' : 'neutral'" :label="t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+              </div>
+              <div v-if="canManage" data-testid="milestone-actions-card" class="shrink-0">
+                <SharedRowActions :actions="milestoneActions(m)" :label="t('projects.milestones.actionsNamed', { name: m.name })" />
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+              <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
+              <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
+              <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
+              <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
+              <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
+            </div>
+            <div v-if="m.deliverables?.length" class="space-y-1.5">
+              <label v-for="(item, index) in m.deliverables" :key="`${m.id}-m-${index}`" class="flex items-center gap-2 text-sm">
+                <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(m, index, value)" />
+                <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
+              </label>
+            </div>
+          </div>
+        </template>
+      </SharedDataTable>
+    </template>
   </div>
 </template>

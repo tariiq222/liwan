@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   CHARTER_CATALOG_PAGE_SIZE,
@@ -47,6 +47,14 @@ const actionError = ref<string | null>(null)
 const title = computed(() => resource.value === 'owning-units'
   ? t('settings.projects.catalogs.owningUnits')
   : t('settings.projects.catalogs.types'))
+
+const columns = computed<TableColumn<ProjectCharterReference>[]>(() => [
+  { id: 'name', header: t('settings.projects.catalogs.name') },
+  { id: 'sequence', header: t('settings.projects.catalogs.sequence') },
+  ...(resource.value === 'types' ? [{ id: 'steps', header: t('settings.projects.catalogs.charterSteps') }] : []),
+  { id: 'status', header: t('projects.milestones.state') },
+  { id: 'actions', header: t('app.actions'), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } },
+])
 
 const page = computed(() => Math.floor(offset.value / CHARTER_CATALOG_PAGE_SIZE) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / CHARTER_CATALOG_PAGE_SIZE)))
@@ -129,9 +137,9 @@ async function confirmAction() {
 </script>
 
 <template>
-  <SettingsLayout>
+  <SharedSettingsPage>
     <SharedPageHeader :title="title" :description="t('projects.refresh.settings.catalogDescription')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')">
-      <UButton v-if="resource && !forbidden" icon="i-lucide-plus" :disabled="!hydrated" :label="t('settings.projects.catalogs.add')" @click="openNew" />
+      <UButton v-if="resource && !forbidden" icon="i-lucide-plus" data-shortcut-create aria-keyshortcuts="c" :disabled="!hydrated" :label="t('settings.projects.catalogs.add')" @click="openNew" />
     </SharedPageHeader>
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
@@ -158,31 +166,47 @@ async function confirmAction() {
           </template>
         </FilterBar>
       </div>
-      <SharedPageState
+      <SharedDataTable
+        :rows="query.data.value?.items ?? []"
+        :columns="columns"
+        row-key="id"
         :loading="query.isLoading.value"
         :error="query.error.value"
-        :empty="!query.data.value?.items.length"
         :empty-text="t('settings.projects.catalogs.empty')"
+        :page="page"
+        :pages="pages"
+        :caption="title"
+        @update:page="setPage"
         @retry="query.refetch"
       >
-        <div class="rounded-lg ring ring-default bg-default overflow-hidden">
-          <ul>
-            <li v-for="item in query.data.value?.items ?? []" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-default/80 p-3 last:border-0">
-              <div>
-                <p class="font-medium">{{ item.name }}</p>
-                <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }} · {{ item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive') }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }) }}</template></p>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
-                <UButton v-if="item.active" type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
-                <UButton v-else type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
-                <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</UButton>
-              </div>
-            </li>
-          </ul>
-        </div>
-      </SharedPageState>
-      <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
+        <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
+        <template #sequence-cell="{ row }">{{ t('settings.projects.catalogs.sequenceValue', { sequence: row.original.sequence }) }}</template>
+        <template #steps-cell="{ row }">{{ row.original.charter_steps ? t('settings.projects.catalogs.charterStepsColumn', { count: row.original.charter_steps.length }) : '—' }}</template>
+        <template #status-cell="{ row }"><SharedStatusBadge :tone="row.original.active ? 'success' : 'neutral'" :label="row.original.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" /></template>
+        <template #actions-cell="{ row }">
+          <div class="flex flex-wrap justify-end gap-2">
+            <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(row.original.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
+            <UButton v-if="row.original.active" type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(row.original, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
+            <UButton v-else type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(row.original, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
+            <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="requestAction(row.original, 'delete')">{{ t('settings.projects.catalogs.delete') }}</UButton>
+          </div>
+        </template>
+        <template #mobile-row="{ row: item }">
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <p class="font-medium text-highlighted">{{ item.name }}</p>
+              <SharedStatusBadge :tone="item.active ? 'success' : 'neutral'" :label="item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" />
+            </div>
+            <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }) }}</template></p>
+            <div class="flex flex-wrap gap-2">
+              <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
+              <UButton v-if="item.active" type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
+              <UButton v-else type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
+              <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</UButton>
+            </div>
+          </div>
+        </template>
+      </SharedDataTable>
       <SharedInlineConfirm
         v-if="pendingItem && pendingAction"
         :color="pendingAction === 'enable' ? 'primary' : 'error'"
@@ -195,5 +219,5 @@ async function confirmAction() {
         <p v-if="actionError" role="alert" class="text-error">{{ actionError }}</p>
       </SharedInlineConfirm>
     </template>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

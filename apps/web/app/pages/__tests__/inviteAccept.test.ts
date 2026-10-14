@@ -9,6 +9,8 @@ const page = read('app/pages/invite/accept.vue')
 
 describe('invite accept page', () => {
   it('is public, reads ?token, validates length and uses UFormField', () => {
+    expect(page).toContain('<SharedStandalonePage')
+    expect(page).not.toContain('<main')
     expect(page).toContain('route.query.token')
     expect(page).toContain('MIN_LENGTH = 12')
     expect(page.match(/<UFormField/g)?.length).toBe(2)

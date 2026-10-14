@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
@@ -7,11 +8,10 @@ import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
-import AccessBadge from './AccessBadge.vue'
 import { refDebounced } from '@vueuse/core'
 
 const departmentId = defineModel<number | null>('departmentId', { default: null })
-const emit = defineEmits<{ open: [id: number]; manage: [id: number] }>()
+const emit = defineEmits<{ manage: [id: number] }>()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -104,12 +104,7 @@ function employeeTo(id: number) {
   return { path: `/hr/employees/${id}`, query: returnToQuery(route.fullPath) }
 }
 
-function onRowClick(id: number, event: Event) {
-  if (!hydrated.value) return
-  const target = event.target as HTMLElement
-  if (target.closest('a, button')) return
-  emit('open', id)
-}
+function rowTo(employee: HrEmployee) { return employeeTo(employee.id) }
 
 const columns = computed<TableColumn<HrEmployee>[]>(() => [
   { accessorKey: 'id', header: t('app.recordNumber') },
@@ -182,61 +177,53 @@ function clearFilters() {
       @cancel="pendingArchiveId = null"
     />
 
-    <SharedPageState :error="error" @retry="refetch">
-      <div class="min-w-0 space-y-2">
-        <div v-if="isLoading" class="hidden divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:block" role="status" :aria-label="t('app.loading')">
-          <div v-for="n in 5" :key="n" class="flex items-center gap-4 px-4 py-3">
-            <USkeleton class="h-5 w-10" />
-            <USkeleton class="h-5 flex-1" />
-            <USkeleton class="h-5 w-24" />
-            <USkeleton class="h-5 w-24" />
+    <div v-if="!isLoading && !error && items.length === 0" class="overflow-hidden rounded-lg bg-default p-6 ring ring-default">
+      <SharedEmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
+        <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
+      </SharedEmptyState>
+    </div>
+    <SharedDataTable
+      v-else
+      :rows="items"
+      :columns="columns"
+      row-key="id"
+      :row-to="rowTo"
+      :loading="isLoading"
+      :error="error"
+      :caption="t('hr.directory.title')"
+      :page="page"
+      :pages="pages"
+      @update:page="setPage"
+      @retry="refetch"
+    >
+      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+      <template #name-cell="{ row }">
+        <NuxtLink :to="employeeTo(row.original.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name">{{ row.original.name }}</NuxtLink>
+      </template>
+      <template #job_title-cell="{ row }">{{ row.original.job_title || '—' }}</template>
+      <template #department-cell="{ row }">{{ row.original.department?.name ?? '—' }}</template>
+      <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
+      <template #access-cell="{ row }"><SharedStatusBadge variant="outline" data-testid="hr-access-badge" :tone="hrAccessBadge(row.original.access).tone" :label="t(hrAccessBadge(row.original.access).labelKey)" /></template>
+      <template v-if="showActions" #manage-cell="{ row }">
+        <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('hr.directory.rowActions', { name: row.original.name })" /></div>
+      </template>
+      <template #mobile-row="{ row }">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
+            <NuxtLink :to="employeeTo(row.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name">{{ row.name }}</NuxtLink>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <SharedStatusBadge variant="outline" data-testid="hr-access-badge" :tone="hrAccessBadge(row.access).tone" :label="t(hrAccessBadge(row.access).labelKey)" />
+            <SharedRowActions v-if="showActions" :actions="actionsFor(row)" :label="t('hr.directory.rowActions', { name: row.name })" />
           </div>
         </div>
-        <div v-else-if="items.length === 0" class="overflow-hidden rounded-lg bg-default p-6 ring ring-default">
-          <SharedEmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
-            <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
-          </SharedEmptyState>
-        </div>
-        <template v-else>
-          <div class="hidden overflow-hidden rounded-lg bg-default ring ring-default md:block">
-            <div class="overflow-x-auto">
-              <UTable :data="items" :columns="columns" :caption="t('hr.directory.title')" :ui="{ caption: 'sr-only', th: '', tr: 'cursor-pointer' }" @select="(event, row) => onRowClick(row.original.id, event)">
-                <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-                <template #name-cell="{ row }">
-                  <NuxtLink :to="employeeTo(row.original.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name" @click.stop>{{ row.original.name }}</NuxtLink>
-                </template>
-                <template #job_title-cell="{ row }">{{ row.original.job_title || '—' }}</template>
-                <template #department-cell="{ row }">{{ row.original.department?.name ?? '—' }}</template>
-                <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
-                <template #access-cell="{ row }"><AccessBadge :access="row.original.access" /></template>
-                <template v-if="showActions" #manage-cell="{ row }">
-                  <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('hr.directory.rowActions', { name: row.original.name })" /></div>
-                </template>
-              </UTable>
-            </div>
-          </div>
-          <ul class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('hr.directory.title')">
-            <li v-for="employee in items" :key="employee.id" class="cursor-pointer p-4" @click="onRowClick(employee.id, $event)">
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <bdi class="block text-xs text-muted">#{{ employee.id }}</bdi>
-                  <NuxtLink :to="employeeTo(employee.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name" @click.stop>{{ employee.name }}</NuxtLink>
-                </div>
-                <div class="flex shrink-0 items-center gap-2">
-                  <AccessBadge :access="employee.access" />
-                  <SharedRowActions v-if="showActions" :actions="actionsFor(employee)" :label="t('hr.directory.rowActions', { name: employee.name })" />
-                </div>
-              </div>
-              <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
-                <div><dt>{{ t('hr.directory.columns.jobTitle') }}</dt><dd>{{ employee.job_title || '—' }}</dd></div>
-                <div><dt>{{ t('hr.directory.columns.department') }}</dt><dd>{{ employee.department?.name ?? '—' }}</dd></div>
-                <div><dt>{{ t('hr.directory.columns.manager') }}</dt><dd>{{ employee.manager?.name ?? '—' }}</dd></div>
-              </dl>
-            </li>
-          </ul>
-        </template>
-      </div>
-    </SharedPageState>
-    <SharedPagination :page="page" :pages="pages" :disabled="hasPendingSearch || isLoading" @update:page="setPage" />
+        <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
+          <div><dt>{{ t('hr.directory.columns.jobTitle') }}</dt><dd>{{ row.job_title || '—' }}</dd></div>
+          <div><dt>{{ t('hr.directory.columns.department') }}</dt><dd>{{ row.department?.name ?? '—' }}</dd></div>
+          <div><dt>{{ t('hr.directory.columns.manager') }}</dt><dd>{{ row.manager?.name ?? '—' }}</dd></div>
+        </dl>
+      </template>
+    </SharedDataTable>
   </div>
 </template>

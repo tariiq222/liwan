@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { Order, SubscriptionView } from '@nasq/commercial-contracts'
+import type { Invoice, Order, SubscriptionView } from '@nasq/commercial-contracts'
 import {
-  commercialMetrics, customerListQuery, customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, lineQuantities, formatBytes,
+  commercialMetrics, customerListQuery, customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, lineQuantities, formatBytes, vendorInvoiceLineViews,
   type VendorCustomer,
 } from '../vendorSubscriptions'
+import { formatVendorMoney, sar } from '../vendorCommercial'
 
 const now = new Date('2026-10-10T00:00:00Z')
 const order = (o: Partial<Order> = {}) => ({ id: 'o', payment_state: 'paid', fulfillment_state: 'applying', created_at: '2026-10-10T00:00:00Z', ...o }) as Order
@@ -83,5 +84,27 @@ describe('isNotAvailable', () => {
     expect(normalizeQuoteResponse({ quote: { id: 'q' }, preview: true })).toEqual({ quote: { id: 'q' }, preview: true })
     expect(normalizeQuoteResponse({ id: 'q' }).preview).toBe(false)
     expect(withoutDraftTerms({ a: 1, terms: { x: 1 } })).toEqual({ a: 1 })
+  })
+})
+
+describe('vendorInvoiceLineViews', () => {
+  const t = (key: string) => `t:${key}`
+  const line = { key: 'l1', kind: 'branch', timing: 'now', description: 'Branches', quantity: 3, free_quantity: 1,
+    unit_amount: sar(10000), amount: sar(30000), period_start: '2026-10-01', period_end: '2026-10-31', source_revision_id: 'r' } as Invoice['lines'][number]
+
+  it('keeps the vendor table columns and quantities, with money formatted', () => {
+    const [view] = vendorInvoiceLineViews([line], t, 'en')
+    expect(view!.id).toBe('l1')
+    expect(view!.kind).toEqual({ label: 't:vendor.invoices.lineKind.branch', tone: 'neutral' })
+    expect(view!.cells.map(c => [c.key, c.value])).toEqual([
+      ['free', '1'], ['paid', '3'], ['unit', formatVendorMoney(sar(10000), 'en')], ['period', '2026-10-01 → 2026-10-31'],
+    ])
+    expect(view!.cells.map(c => c.label)).toEqual(['t:vendor.invoices.line.free', 't:vendor.invoices.line.paid', 't:vendor.invoices.line.unit', 't:vendor.invoices.line.period'])
+    expect(view!.amount).toBe(formatVendorMoney(sar(30000), 'en'))
+  })
+
+  it('shows not-available, never 0, when a line has no free quantity', () => {
+    const [view] = vendorInvoiceLineViews([{ ...line, free_quantity: undefined }], t, 'en')
+    expect(view!.cells[0]!.value).toBe('t:app.notAvailable')
   })
 })

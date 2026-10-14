@@ -113,7 +113,7 @@ test('the open tab lists open rows and the done tab asks the API for closed rows
   await open(page, '/my-tasks')
   await expect(page.getByRole('heading', { name: 'مهامي', level: 1 })).toBeVisible()
   await expect(rows(page)).toHaveCount(3)
-  await expect(page.getByRole('link', { name: 'شراء هدايا العملاء' })).toBeVisible()
+  await expect(page.locator('tbody').getByRole('link', { name: 'شراء هدايا العملاء' })).toBeVisible()
   expect(requests.at(-1)!.get('closed')).toBe('0')
 
   const done = page.getByRole('tab', { name: 'المنجزة' })
@@ -121,7 +121,7 @@ test('the open tab lists open rows and the done tab asks the API for closed rows
   await done.click()
   await expect(page).toHaveURL(/tab=done/)
   await expect(rows(page)).toHaveCount(2)
-  await expect(page.getByRole('link', { name: 'إرسال التقرير الشهري' })).toBeVisible()
+  await expect(page.locator('tbody').getByRole('link', { name: 'إرسال التقرير الشهري' })).toBeVisible()
   expect(requests.at(-1)!.get('closed')).toBe('1')
 })
 
@@ -173,10 +173,10 @@ test('typing keeps the whole text while an earlier search navigation is still pe
 test('a project row links to its href and a personal row to its detail page', async ({ page }) => {
   await mockList(page, fixtureList)
   await open(page, '/my-tasks')
-  const project = page.getByRole('link', { name: 'مراجعة العقد' })
+  const project = page.locator('tbody').getByRole('link', { name: 'مراجعة العقد' })
   await expect(project).toHaveAttribute('href', '/projects/7/tasks/42')
   await expect(rows(page).filter({ hasText: 'مشروع الأفق' })).toHaveCount(1)
-  const personalLink = page.getByRole('link', { name: 'ترتيب ملفات الأرشيف' })
+  const personalLink = page.locator('tbody').getByRole('link', { name: 'ترتيب ملفات الأرشيف' })
   await expect(personalLink).toHaveAttribute('href', /^\/my-tasks\/102\?returnTo=/)
 })
 
@@ -188,7 +188,7 @@ test('the list state comes back from history and rows carry returnTo', async ({ 
   await mockList(page, fixtureList)
   await open(page, '/my-tasks?tab=done&scope=created&q=حجز')
   await expect(rows(page)).toHaveCount(1)
-  const link = page.getByRole('link', { name: 'حجز قاعة الاجتماع' })
+  const link = page.locator('tbody').getByRole('link', { name: 'حجز قاعة الاجتماع' })
   const href = (await link.getAttribute('href'))!
   const returnTo = new URL(href, 'http://nasq.local').searchParams.get('returnTo')!
   expect(new URL(returnTo, 'http://nasq.local').searchParams.get('tab')).toBe('done')

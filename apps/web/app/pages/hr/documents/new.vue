@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import DocumentCreateForm from '@/components/hr/DocumentCreateForm.vue'
+import { returnToQuery } from '@/utils/safeReturnTo'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
@@ -17,14 +19,14 @@ const selectedDepartment = computed(() => departments.data.value?.items.find(d =
 // level deeper on every round trip and redirect that page's own controls.
 const backTo = computed(() => {
   const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/hr/documents', query: listQuery }
+  return { path: '/hr/documents', query: listQuery, ...(route.hash ? { hash: route.hash } : {}) }
 })
 
 function selectDepartment(value: unknown) {
   departmentId.value = value ? Number(value) : 0
 }
 function saved(id: number) {
-  void navigateTo(`/hr/departments/${departmentId.value}/documents/${id}`)
+  void navigateTo({ path: `/hr/departments/${departmentId.value}/documents/${id}`, query: returnToQuery(router.resolve(backTo.value).fullPath) })
 }
 </script>
 

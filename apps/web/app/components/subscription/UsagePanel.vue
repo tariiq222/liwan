@@ -10,7 +10,7 @@ const rows = computed(() => props.usage.metrics.map(m => ({ m, f: usageFigure(m,
   <div class="space-y-3" data-slot="usage-panel" :data-freshness="usage.freshness">
     <p v-if="usage.freshness === 'unavailable'" role="status" class="text-sm text-muted">{{ t('subscription.usage.unavailableNote') }}</p>
     <p v-else class="text-xs text-muted">
-      <UBadge :color="usage.freshness === 'stale' ? 'warning' : 'success'" variant="subtle" size="sm">{{ t(usage.freshness === 'stale' ? 'subscription.usage.stale' : 'subscription.usage.fresh') }}</UBadge>
+      <SharedStatusBadge :tone="usage.freshness === 'stale' ? 'warning' : 'success'" variant="subtle" size="sm" :label="t(usage.freshness === 'stale' ? 'subscription.usage.stale' : 'subscription.usage.fresh')" />
       <span v-if="usage.observed_at" class="ms-2">{{ t('subscription.usage.observed') }} <bdi dir="ltr">{{ usage.observed_at }}</bdi></span>
     </p>
     <dl class="grid gap-3 sm:grid-cols-2">

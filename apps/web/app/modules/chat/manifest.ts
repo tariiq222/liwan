@@ -6,12 +6,16 @@ const manifest: AppManifest = {
   routePrefixes: ['/chat'],
   rail: [{ id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', order: 40 }],
   nav: [
-    { to: '/chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', shortcut: 'c', capability: 'nasq.internal' },
+    { to: '/chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', shortcut: 'n', goKey: 'c', capability: 'nasq.internal' },
   ],
   contextLinks: () => [
     { id: 'new-chat', labelKey: 'nav.newConversation', icon: 'i-lucide-plus', to: '/chat/new', capability: 'nasq.internal', pinned: true },
     { id: 'chat', labelKey: 'nav.chat', icon: 'i-lucide-message-circle', to: '/chat', capability: 'nasq.internal' },
   ],
+  commands: [
+    { id: 'chat.new-conversation', labelKey: 'nav.newConversation', icon: 'i-lucide-message-circle', to: '/chat/new', capability: 'nasq.internal' },
+  ],
+  sidebarPanel: { module: 'chat', width: 'wide', load: () => import('../../components/chat/ChatSidebarPanel.vue') },
   routeCapabilities: [{ pattern: /^\/chat(?:\/|$)/, capability: 'nasq.internal' }],
   capabilityAliases: { 'nasq.internal': 'chat.enabled' },
   returnToPaths: ['/chat'],

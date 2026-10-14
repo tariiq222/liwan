@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import type { TaskListParams } from '@/composables/useTasks'
-import { useTask } from '@/composables/useTasks'
 import TaskDetailPanel from './TaskDetailPanel.vue'
 
 const props = defineProps<{
@@ -28,15 +27,13 @@ function close() {
 </script>
 
 <template>
-  <SharedPageContainer data-testid="task-detail-page" width="detail">
-    <SharedPageHeader :title="title" />
-    <TaskDetailPanel
-      :task-id="props.taskId"
-      :base-path="props.basePath"
-      :sibling-params="props.siblingParams"
-      :back-to="backTo"
-      :back-label="props.backLabel ?? t('tasks.detail.back')"
-      @close="close"
-    />
-  </SharedPageContainer>
+  <TaskDetailPanel
+    data-testid="task-detail-page"
+    :task-id="props.taskId"
+    :base-path="props.basePath"
+    :sibling-params="props.siblingParams"
+    :back-to="backTo"
+    :back-label="props.backLabel ?? t('tasks.detail.back')"
+    @close="close"
+  />
 </template>

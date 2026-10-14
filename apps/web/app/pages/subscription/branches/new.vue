@@ -35,7 +35,7 @@ definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
   <SharedCreatePanel :title="t('subscription.branches.newTitle')" :description="t('subscription.branches.newDescription')" back-to="/subscription/branches">
-    <p v-if="!allowed" class="text-muted">{{ t('subscription.branches.readOnly') }}</p>
+    <SharedForbiddenState v-if="!allowed" :description="t('subscription.branches.readOnly')" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
       <form class="space-y-4" @submit.prevent="review">
         <div v-for="(_, i) in names" :key="i" class="flex items-end gap-2">

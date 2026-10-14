@@ -9,24 +9,17 @@ import {
   type ShellModule,
 } from './nav/shellModules'
 import { activeShellModule, contextModuleFor, projectIdFromPath } from './nav/activeRoute'
+import { CONTEXT_SIDEBAR_COOKIE, contextSidebarState, type ContextSidebarCookie } from './nav/contextSidebarState'
 import { isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 
-export function useModuleRail() {
-  const expanded = useState('nasq-module-rail-expanded', () => false)
-  const hydrated = useHydrated()
-  function toggle() {
-    if (hydrated.value) expanded.value = !expanded.value
-  }
-  return { expanded, hydrated, toggle }
-}
-
 export function useContextSidebar() {
-  const expanded = useState('nasq-context-sidebar-expanded', () => true)
-  const hydrated = useHydrated()
-  function toggle() {
-    if (hydrated.value) expanded.value = !expanded.value
-  }
-  return { expanded, hydrated, toggle }
+  const cookie = useCookie<ContextSidebarCookie | null>(CONTEXT_SIDEBAR_COOKIE, {
+    default: () => 'open',
+    path: '/',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 365,
+  })
+  return contextSidebarState(cookie, useHydrated())
 }
 
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {
