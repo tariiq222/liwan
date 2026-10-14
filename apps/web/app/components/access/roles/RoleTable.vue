@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { accessStateBadge } from '@/utils/accessStateBadge'
+import { accessBadge } from '@/components/access/accessBadge'
 import type { TableColumn } from '@nuxt/ui'
 import type { RoleSummary } from '@nasq/contracts'
 import type { RouteLocationRaw } from 'vue-router'
@@ -21,7 +21,7 @@ const { t, te, locale } = useI18n()
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 const roleDescription = (role: RoleSummary) => builtinRoleDescription(role, t, te)
 const roleTo = (role: RoleSummary): RouteLocationRaw => props.toFor?.(role) ?? `/settings/roles/${role.id}`
-const badge = (role: RoleSummary) => accessStateBadge({ active: role.active, protected: role.protected })
+const badge = (role: RoleSummary) => accessBadge({ active: role.active, protected: role.protected })
 const typeLabel = (role: RoleSummary) => role.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom')
 
 function actionsFor(role: RoleSummary): RowAction[] {
@@ -54,7 +54,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
     <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal">{{ roleDescription(row.original) }}</span></template>
     <template #type-cell="{ row }">{{ typeLabel(row.original) }}</template>
     <template #user_count-cell="{ row }">{{ row.original.user_count }}</template>
-    <template #active-cell="{ row }"><SharedStatusBadge :tone="badge(row.original).tone" :label="t(badge(row.original).labelKey)" /></template>
+    <template #active-cell="{ row }"><SharedStatusBadge :tone="badge(row.original).tone" :label="t(badge(row.original).labelKey)" :icon="badge(row.original).icon" /></template>
     <template #actions-cell="{ row }">
       <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.roles.rowActions', { name: roleLabel(row.original) })" /></div>
     </template>
@@ -64,7 +64,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
           <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
           <NuxtLink :to="roleTo(row)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ roleLabel(row) }}</NuxtLink>
         </div>
-        <SharedStatusBadge :tone="badge(row).tone" :label="t(badge(row).labelKey)" />
+        <SharedStatusBadge :tone="badge(row).tone" :label="t(badge(row).labelKey)" :icon="badge(row).icon" />
       </div>
       <p class="mt-2 text-xs text-muted">{{ roleDescription(row) }}</p>
       <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">

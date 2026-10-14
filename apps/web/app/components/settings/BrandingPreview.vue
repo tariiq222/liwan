@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import type { AppearanceMode } from '@/utils/appearance'
 import { createBrandTheme } from '@/utils/brandTheme'
 import { DARK_SURFACES } from '@/utils/nasqPalette'
-import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
 
 const props = defineProps<{
   name: string
@@ -121,34 +120,49 @@ const previewStyle = computed(() => {
         </div>
       </div>
     </template>
-    <div class="space-y-4">
-      <div class="flex items-center gap-3 rounded-lg bg-[var(--nasq-rail)] px-4 py-3 text-white">
-        <img v-if="logoUrl" :src="logoUrl" :alt="name" class="size-12 rounded-md object-contain bg-white/80">
-        <span class="font-semibold">{{ name }}</span>
+    <div class="overflow-hidden rounded-lg ring ring-default bg-muted" data-testid="branding-preview-app">
+      <div class="flex items-center gap-3 bg-[var(--nasq-rail)] px-3 py-2 text-white">
+        <img v-if="logoUrl" :src="logoUrl" alt="" class="size-7 rounded-md object-contain bg-white/80">
+        <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ name }}</span>
+        <span class="size-6 rounded-full bg-white/20" aria-hidden="true" />
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <UButton type="button" data-testid="branding-preview-action">{{ t('settings.branding.preview.action') }}</UButton>
-        <span class="bg-primary/10 inline-flex min-h-9 items-center px-3 text-sm font-medium">{{ t('settings.branding.preview.selection') }}</span>
-        <UInput :aria-label="t('settings.branding.preview.action')" :placeholder="t('settings.branding.preview.action')" class="w-40" readonly />
-      </div>
-      <div :class="routeTabsStripClass">
-        <UButton type="button" color="neutral" variant="ghost" :class="routeTabClass" aria-current="page">{{ t('settings.branding.preview.action') }}</UButton>
-        <UButton type="button" color="neutral" variant="ghost" :class="routeTabClass">{{ t('settings.branding.preview.selection') }}</UButton>
-      </div>
-      <div class="rounded-lg ring ring-default bg-default overflow-hidden p-4">
-        <p class="text-sm">{{ t('settings.branding.preview.hint') }}</p>
-      </div>
-      <div>
-        <p class="mb-1 text-xs text-muted">{{ t('settings.branding.preview.progress') }}</p>
-        <UProgress :model-value="66" size="sm" :aria-label="t('settings.branding.preview.progress')" />
-      </div>
-      <div>
-        <p class="mb-1 text-xs text-muted">{{ t('settings.branding.preview.charts') }}</p>
-        <div class="flex gap-1.5">
-          <span v-for="index in 6" :key="index" class="size-5 rounded-full" :style="{ background: `var(--chart-${index})` }" />
+      <div class="flex">
+        <div class="flex w-11 shrink-0 flex-col items-center gap-2 border-e border-default bg-default py-3" aria-hidden="true">
+          <span class="grid size-7 place-items-center rounded-md bg-primary/10 text-primary"><UIcon name="i-lucide-layout-dashboard" class="size-4" /></span>
+          <span class="grid size-7 place-items-center rounded-md text-muted"><UIcon name="i-lucide-list-checks" class="size-4" /></span>
+          <span class="grid size-7 place-items-center rounded-md text-muted"><UIcon name="i-lucide-users" class="size-4" /></span>
+        </div>
+        <div class="min-w-0 flex-1 space-y-3 p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="font-semibold">{{ t('settings.branding.preview.sample') }}</p>
+            <UButton type="button" size="sm" data-testid="branding-preview-action">{{ t('settings.branding.preview.action') }}</UButton>
+          </div>
+          <div class="space-y-3 rounded-lg bg-default p-3 ring ring-default">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="bg-primary/10 text-primary inline-flex min-h-7 items-center rounded-md px-2 text-sm font-medium">{{ t('settings.branding.preview.selection') }}</span>
+              <UInput :aria-label="t('settings.branding.preview.action')" :placeholder="t('settings.branding.preview.action')" class="w-36" size="sm" readonly />
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <UBadge color="success" variant="subtle">{{ t('settings.branding.preview.states.done') }}</UBadge>
+              <UBadge color="info" variant="subtle">{{ t('settings.branding.preview.states.active') }}</UBadge>
+              <UBadge color="warning" variant="subtle">{{ t('settings.branding.preview.states.risk') }}</UBadge>
+              <UBadge color="error" variant="subtle">{{ t('settings.branding.preview.states.late') }}</UBadge>
+              <UBadge color="neutral" variant="subtle">{{ t('settings.branding.preview.states.draft') }}</UBadge>
+            </div>
+            <div>
+              <p class="mb-1 text-xs text-muted">{{ t('settings.branding.preview.progress') }}</p>
+              <UProgress :model-value="66" size="sm" :aria-label="t('settings.branding.preview.progress')" />
+            </div>
+            <div>
+              <p class="mb-1 text-xs text-muted">{{ t('settings.branding.preview.charts') }}</p>
+              <div class="flex gap-1.5">
+                <span v-for="index in 6" :key="index" class="size-5 rounded-full" :style="{ background: `var(--chart-${index})` }" />
+              </div>
+            </div>
+          </div>
+          <UAlert color="info" variant="subtle" :title="t('settings.branding.preview.notice')" />
         </div>
       </div>
-      <UAlert color="info" variant="subtle" :title="t('settings.branding.preview.hint')" />
     </div>
   </UCard>
   </div>
