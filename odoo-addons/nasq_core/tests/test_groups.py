@@ -35,7 +35,7 @@ class TestNasqGroups(TransactionCase):
     def test_company_branding_defaults(self):
         company = self.env.ref('base.main_company')
         self.assertEqual(company.font, 'IBM_Plex_Sans_Arabic')
-        self.assertEqual(company.primary_color, '#18181b')
+        self.assertEqual(company.primary_color, '#13234a')
         selection = dict(self.env['res.company']._fields['font'].get_description(self.env)['selection'])
         self.assertEqual(selection['IBM_Plex_Sans_Arabic'], 'IBM Plex Sans Arabic')
 

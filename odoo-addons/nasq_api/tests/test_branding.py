@@ -42,7 +42,7 @@ class TestBrandingEndpoint(HttpCase):
     def test_branding_falls_back_to_default_color(self):
         self.env.ref('base.main_company').primary_color = False
         res = self.url_open('/api/v1/branding')
-        self.assertEqual(res.json()['primary_color'], '#18181b')
+        self.assertEqual(res.json()['primary_color'], '#13234a')
 
     def test_branding_uses_root_company_not_lowest_id(self):
         decoy = self.env.ref('base.main_company')
