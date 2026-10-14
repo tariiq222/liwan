@@ -112,6 +112,7 @@
     }
   },
   "meetingsUx": {
+    "cancelMeetingAction": "Cancel meeting",
     "context": {
       "series": "Series: {name}",
       "project": "Project: {name}"

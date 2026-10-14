@@ -29,7 +29,8 @@ function capturedAt(value: string) {
 </script>
 
 <template>
-  <SharedRecordSection :title="t('meetingMinutesForm.versions')" data-testid="meeting-version-list">
+  <section data-testid="meeting-version-list" class="space-y-3" aria-labelledby="meeting-version-list-title">
+    <h2 id="meeting-version-list-title" class="sr-only">{{ t('meetingMinutesForm.versions') }}</h2>
     <SharedPageState :loading="loading" :error="error" :empty="!versions.length" :empty-text="t('meetingMinutesForm.noVersions')" @retry="emit('retry')">
       <ol class="grid gap-2">
         <li v-for="version in versions" :key="version.id">
@@ -51,5 +52,5 @@ function capturedAt(value: string) {
       </ol>
     </SharedPageState>
     <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
-  </SharedRecordSection>
+  </section>
 </template>

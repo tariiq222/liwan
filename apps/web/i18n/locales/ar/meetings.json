@@ -112,6 +112,7 @@
     }
   },
   "meetingsUx": {
+    "cancelMeetingAction": "إلغاء الاجتماع",
     "context": {
       "series": "الاجتماع الدوري: {name}",
       "project": "المشروع: {name}"
