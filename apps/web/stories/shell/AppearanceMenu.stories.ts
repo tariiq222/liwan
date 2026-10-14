@@ -13,6 +13,6 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   name: 'زر المظهر',
-  parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:86'),
+  parameters: storyContext('unused'),
   render: () => ({ components: { AppearanceMenu }, template: '<div class="nasq-shell-header-actions"><AppearanceMenu /></div>' }),
 }

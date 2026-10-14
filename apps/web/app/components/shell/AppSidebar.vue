@@ -7,9 +7,11 @@ import { useShellModel } from '@/composables/useShellModel'
 import { sidebarModel } from '@/composables/nav/sidebarModel'
 import { isSidebarToggleShortcut } from '@/composables/nav/sidebarShortcut'
 import { overlayOwnsEscape } from '@/composables/useEscapeBack'
+import { hasNoContextSidebar } from './noContextRoutes'
 
 // Desktop navigation: the module rail and the context sidebar, fed by one model.
 const route = useRoute()
+const showContext = computed(() => !hasNoContextSidebar(route.path))
 const { me } = useMe()
 const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, projectId, project, createTo } = useShellModel()
 const { expanded, hydrated, toggle } = useContextSidebar()
@@ -43,6 +45,7 @@ watch([() => route.fullPath, () => project.data.value, () => me.value, hydrated]
 <template>
   <ModuleRail :modules="rail.primary" :utility="rail.utility" :active-id="activeModule" :home-to="homePath" />
   <ContextSidebar
+    v-if="showContext"
     :title="contextTitle"
     :create-links="createLinks"
     :sections="model.sections"

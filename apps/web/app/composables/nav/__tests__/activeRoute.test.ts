@@ -64,7 +64,7 @@ describe('shell route classification', () => {
     expect(activeShellModule('/projects')).toBe('projects')
     expect(activeShellModule('/projects/new')).toBe('projects')
     expect(activeShellModule('/reports')).toBe('projects')
-    expect(activeShellModule('/account')).toBe('settings')
+    expect(activeShellModule('/account')).toBeNull()
     expect(contextModuleFor('home')).toBe('projects')
     expect(contextModuleFor('meetings')).toBe('meetings')
     expect(activeShellModule('/meetings/calendar')).toBe('meetings')

@@ -57,7 +57,8 @@ export function activeShellModule(path: string): ShellModule | null {
   if (owner) return moduleWithinApp(owner, path)
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings'
   if (path === '/subscription' || path.startsWith('/subscription/')) return 'settings'
-  if (path === '/account' || path.startsWith('/account/')) return 'settings'
+  // The account is reached from the header menu, not from a rail module.
+  if (path === '/account' || path.startsWith('/account/')) return null
   if (path === '/search' || path.startsWith('/search/')) return 'projects'
   if (path === '/notifications' || path.startsWith('/notifications/')) return null
   if (path === '/notification-digests' || path.startsWith('/notification-digests/')) return null

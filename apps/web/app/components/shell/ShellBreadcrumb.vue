@@ -5,7 +5,7 @@ import type { ShellCrumb } from '@/composables/nav/breadcrumb'
 const props = defineProps<{ items: ShellCrumb[] }>()
 const { t } = useI18n()
 // The last crumb is the current page: UBreadcrumb sets aria-current only when it is marked active.
-const items = computed(() => props.items.map((item, index) => ({ label: item.label, to: item.to, active: index === props.items.length - 1 })))
+const items = computed(() => props.items.map((item, index) => ({ label: item.label, to: item.to, active: index === props.items.length - 1 && !item.to })))
 </script>
 
 <template>
