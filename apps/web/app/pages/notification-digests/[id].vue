@@ -60,7 +60,7 @@ async function retryNextPage() {
   <SharedRecordPage
     data-testid="notification-digest"
     :title="t('tasks.digest.title')"
-    :description="t('tasks.digest.count', { n: overdueCount })"
+    :description="t('tasks.digest.count', { n: overdueCount }, overdueCount)"
     :back-to="backTo"
     :back-label="t('notifications.back')"
     :loading="isLoading && !idInvalid && !items.length"

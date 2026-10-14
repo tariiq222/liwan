@@ -30,7 +30,7 @@ const totals = computed(() => props.quote ? [
     <template v-else>
       <p class="text-sm text-muted">{{ t('vendor.pricing.quote.cadence') }}: {{ cadenceLabel(quote.cadence, t) }}</p>
       <SharedInvoiceLines layout="list" :lines="lines" :totals="totals" />
-      <p v-if="quote.requested_extra_branches > 0" class="text-sm text-muted tabular-nums">{{ t('vendor.pricing.quote.branches', { free: freeBranches, paid }) }}</p>
+      <p v-if="quote.requested_extra_branches > 0" class="text-sm text-muted tabular-nums">{{ t('vendor.pricing.quote.branches', { free: t('vendor.pricing.quote.branchesFree', { count: freeBranches }, freeBranches), paid: t('vendor.pricing.quote.branchesPaid', { count: paid }, paid) }) }}</p>
       <p class="text-xs text-muted">{{ t('vendor.pricing.quote.vatNote') }}</p>
       <details v-if="renewal.length" class="text-sm"><summary class="cursor-pointer text-muted">{{ t('vendor.pricing.quote.renewalLines') }}</summary>
         <ul class="mt-2 space-y-1"><li v-for="line in renewal" :key="line.key" class="flex justify-between gap-3"><span>{{ line.description }}</span><span class="tabular-nums">{{ money(line.amount) }}</span></li></ul>

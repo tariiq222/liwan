@@ -67,11 +67,11 @@ const completedSubtasks = computed(() => props.task.subtasks.filter(subtask => s
             </div>
             <div class="min-w-0">
               <dt class="text-xs font-medium text-muted">{{ t('tasks.drawer.age') }}</dt>
-              <dd class="mt-1 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.age_days }) }}</dd>
+              <dd class="mt-1 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.age_days }, task.age_days) }}</dd>
             </div>
             <div v-if="task.cycle_days !== null" class="min-w-0">
               <dt class="text-xs font-medium text-muted">{{ t('tasks.drawer.cycle') }}</dt>
-              <dd class="mt-1 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.cycle_days }) }}</dd>
+              <dd class="mt-1 wrap-anywhere text-toned">{{ t('tasks.drawer.days', { n: task.cycle_days }, task.cycle_days) }}</dd>
             </div>
           </dl>
         </section>

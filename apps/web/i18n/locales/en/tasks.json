@@ -25,7 +25,7 @@
       "open": "Open",
       "closed": "Done",
       "allStates": "All states",
-      "selectedStates": "{count} states",
+      "selectedStates": "{count} state | {count} states",
       "allProjects": "All projects",
       "stateLabel": "State",
       "projectLabel": "Project",
@@ -56,8 +56,8 @@
       "none": "No deadline",
       "today": "Today",
       "tomorrow": "Tomorrow",
-      "inDays": "In {n} days",
-      "overdueDays": "{n} days overdue"
+      "inDays": "In {n} day | In {n} days",
+      "overdueDays": "{n} day overdue | {n} days overdue"
     },
     "detail": {
       "next": "Next",
@@ -109,7 +109,7 @@
       "metrics": "Metrics",
       "age": "Age",
       "cycle": "Cycle time",
-      "days": "{n} days",
+      "days": "{n} day | {n} days",
       "created": "Created",
       "updated": "Last updated",
       "unassigned": "Unassigned",

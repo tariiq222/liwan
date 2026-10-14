@@ -245,7 +245,7 @@ function setPage(next: number) {
       <template #recurrence-cell="{ row }">{{ t(`meetingsUi.recurrence.${row.original.recurrence}`) }}</template>
       <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
       <template #project-cell="{ row }">{{ row.original.project?.name || '—' }}</template>
-      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }} · {{ t('meetingsUi.overdueCount', { count: row.original.overdue_resolution_count }) }}</template>
+      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }} · {{ t('meetingsUi.overdueCount', { count: row.original.overdue_resolution_count }) }}</template>
       <template #mobile-row="{ row: series }">
         <NuxtLink :to="seriesTo(series)" @click.capture="openRecord($event, series)" class="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 focus-visible:outline-none">
           <span class="min-w-0 flex-1 break-words font-medium text-highlighted">{{ series.name }}</span>
@@ -255,7 +255,7 @@ function setPage(next: number) {
             <span v-if="series.organizer && series.project"> · </span>
             <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
             <span v-if="series.organizer || series.project"> · </span>
-            <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }) }}</span>
+            <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }, series.open_resolution_count) }}</span>
             <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
           </span>
         </NuxtLink>

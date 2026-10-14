@@ -132,7 +132,7 @@ function goToday() {
   <SharedTimelineFrame :title="t('nav.meetingCalendar')" :range-label="monthLabel" @prev="shift(-1)" @next="shift(1)" @today="goToday">
     <div class="grid min-w-0 gap-4">
       <p v-if="coverage.status === 'truncated'" class="text-sm text-warning" role="status">
-        {{ t('meetingsUx.calendarTruncated', { count: coverage.total }) }}
+        {{ t('meetingsUx.calendarTruncated', { count: coverage.total }, coverage.total) }}
       </p>
       <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="text-sm text-muted" role="status">
         {{ t('meetingsUx.calendarCoverageUnknown') }}
@@ -206,7 +206,7 @@ function goToday() {
                   <h2 class="text-sm font-semibold text-highlighted">{{ t('meetingsUx.dayCardTitle') }}</h2>
                   <p class="text-xs text-muted">{{ selectedDay ? localDate(selectedDay) : t('meetingsUx.dayCardHint') }}</p>
                 </div>
-                <UBadge v-if="selectedDay" color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }) }}</UBadge>
+                <UBadge v-if="selectedDay" color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }, selectedMeetings.length) }}</UBadge>
               </div>
               <div v-if="selectedDay && !selectedMeetings.length" class="p-3"><SharedEmptyState :title="t('meetingsUx.dayCardEmpty')" /></div>
               <ul v-else-if="selectedDay" class="grid gap-2 p-3">

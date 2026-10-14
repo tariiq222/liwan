@@ -130,7 +130,7 @@
         },
         "charterSteps": "Charter steps",
         "charterStepsHint": "The steps a charter of this classification walks through. Basics and review are always present.",
-        "charterStepsColumn": "{count} steps"
+        "charterStepsColumn": "{count} step | {count} steps"
       },
       "scopeHint": "Policies, defaults, and shared reference data for this company. Existing projects change only where a section says they do.",
       "creation": {

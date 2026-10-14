@@ -47,7 +47,7 @@ function milestoneActions(m: Milestone): RowAction[] {
     },
     { label: t('projects.milestones.edit'), icon: 'i-lucide-pencil', to: editTo(m) },
     {
-      label: m.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: m.task_count }) : t('projects.milestones.delete'),
+      label: m.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: m.task_count }, m.task_count) : t('projects.milestones.delete'),
       icon: 'i-lucide-trash-2',
       destructive: true,
       disabled: m.task_count > 0,

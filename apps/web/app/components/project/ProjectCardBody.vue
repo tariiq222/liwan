@@ -29,7 +29,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
     </div>
     <div class="space-y-2">
       <div class="flex items-center justify-between gap-3 text-xs text-muted">
-        <span>{{ t('projects.progressOf', { closed: project.closed_task_count, total: project.task_count }) }}</span>
+        <span>{{ t('projects.progressOf', { closed: project.closed_task_count, total: project.task_count }, project.task_count) }}</span>
         <span class="tabular-nums font-medium text-highlighted">{{ project.progress }}%</span>
       </div>
       <UProgress :model-value="project.progress" size="sm" :aria-label="t('projects.columns.progress')" />

@@ -28,7 +28,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <SharedListPage :title="t('vendor.tenants.title')" :create-to="can('vendor.tenants.manage') ? { path: '/vendor/tenants/new', query: { returnTo: route.fullPath } } : undefined" :create-label="t('vendor.tenants.new')" create-test-id="vendor-tenant-new">
 
 <template #filters><FilterBar :active-count="Number(Boolean(q)) + Number(Boolean(mode))" @clear="{ q = ''; mode = '' }"><template #search><UInput v-model="q" icon="i-lucide-search" :placeholder="t('vendor.tenants.search')" :aria-label="t('vendor.tenants.search')" /></template><UFormField :label="t('vendor.tenants.fields.mode')"><USelect :model-value="mode || '__all__'" @update:model-value="mode = $event === '__all__' ? '' : String($event)" :items="[{ label: t('vendor.common.allModes'), value: '__all__' }, { label: t('vendor.mode.saas'), value: 'saas' }, { label: t('vendor.mode.nonSaas'), value: 'non_saas' }]" /></UFormField></FilterBar></template>
-<p v-if="data" class="text-sm text-muted" data-testid="tenants-result-count">{{ t('vendor.pagination.total', { count: data.total }) }}</p>
+<p v-if="data" class="text-sm text-muted" data-testid="tenants-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 
 <SharedDataTable  :rows="items" :columns="columns" row-key="id" :row-to="tenantTo" :loading="pending" :error="error" :empty-text="t('vendor.tenants.empty')" :caption="t('vendor.tenants.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => router.replace({ query: { ...route.query, page: value } })">
   <template #name-cell="{ row: { original: tenant } }"><NuxtLink :to="tenantTo(tenant)" class="font-medium hover:underline">{{ tenant.name }}</NuxtLink></template>

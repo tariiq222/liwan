@@ -23,7 +23,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
       <div class="space-y-1">
         <p class="text-muted">{{ t('projects.finance.actual') }}</p>
         <p class="text-2xl font-medium tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.actual, currency, unknown) }}</p>
-        <p class="text-xs text-muted">{{ t('projects.finance.budgetUnknown') }} · {{ t('projects.finance.expenseCount', { count: summary.expense_count }) }}</p>
+        <p class="text-xs text-muted">{{ t('projects.finance.budgetUnknown') }} · {{ t('projects.finance.expenseCount', { count: summary.expense_count }, summary.expense_count) }}</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <UButton v-if="canManage" icon="i-lucide-plus" :disabled="!hydrated" :to="budgetTo">{{ t('projects.finance.newBudget') }}</UButton>
@@ -37,14 +37,14 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
         :label="t('projects.finance.planned')"
         :value="formatNullableAmount(summary.planned, currency, unknown)"
         value-dir="ltr"
-        :hint="t('projects.finance.budgetCount', { count: summary.budget_count })"
+        :hint="t('projects.finance.budgetCount', { count: summary.budget_count }, summary.budget_count)"
       />
       <SharedMetricTile
         icon="i-lucide-receipt"
         :label="t('projects.finance.actual')"
         :value="formatNullableAmount(summary.actual, currency, unknown)"
         value-dir="ltr"
-        :hint="t('projects.finance.expenseCount', { count: summary.expense_count })"
+        :hint="t('projects.finance.expenseCount', { count: summary.expense_count }, summary.expense_count)"
       />
       <SharedMetricTile
         icon="i-lucide-scale"

@@ -610,7 +610,7 @@ async function confirmResolutionAction() {
         </SharedPropertyRow>
         <SharedPropertyRow v-else :label="t('meetingsUi.series')" />
         <SharedPropertyRow :label="t('meetingsUi.project')" :value="query.data.value.project?.name" />
-        <SharedPropertyRow :label="t('meetingsUi.resolutions')" :value="t('meetingsUi.openCount', { count: query.data.value.open_resolution_count })" />
+        <SharedPropertyRow :label="t('meetingsUi.resolutions')" :value="t('meetingsUi.openCount', { count: query.data.value.open_resolution_count }, query.data.value.open_resolution_count)" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

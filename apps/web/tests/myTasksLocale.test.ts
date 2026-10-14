@@ -27,7 +27,7 @@ describe('my-tasks locale', () => {
   })
 
   it('keeps the same placeholders in both locales', () => {
-    const tokens = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort()
+    const tokens = (s: string) => [...new Set(s.match(/\{\w+\}/g) ?? [])].sort()
     for (const key of Object.keys(ar)) expect(tokens(ar[key]!)).toEqual(tokens(en[key]!))
   })
 

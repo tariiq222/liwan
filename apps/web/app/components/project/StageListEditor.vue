@@ -216,7 +216,7 @@ function confirmDelete(stageId: StageRow['id']) {
             @confirm="confirmDelete(stage.id)"
           />
         </template>
-        <UTooltip v-else :text="t('projects.stages.notEmpty', { count: stage.task_count })" :delay-duration="0">
+        <UTooltip v-else :text="t('projects.stages.notEmpty', { count: stage.task_count }, stage.task_count)" :delay-duration="0">
           <span>
             <UButton color="neutral" variant="ghost" square type="button" data-testid="stage-delete" icon="i-lucide-trash-2" :aria-label="t('projects.stages.delete')" disabled />
           </span>

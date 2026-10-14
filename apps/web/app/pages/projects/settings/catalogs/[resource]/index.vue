@@ -181,7 +181,7 @@ async function confirmAction() {
       >
         <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
         <template #sequence-cell="{ row }">{{ t('settings.projects.catalogs.sequenceValue', { sequence: row.original.sequence }) }}</template>
-        <template #steps-cell="{ row }">{{ row.original.charter_steps ? t('settings.projects.catalogs.charterStepsColumn', { count: row.original.charter_steps.length }) : '—' }}</template>
+        <template #steps-cell="{ row }">{{ row.original.charter_steps ? t('settings.projects.catalogs.charterStepsColumn', { count: row.original.charter_steps.length }, row.original.charter_steps.length) : '—' }}</template>
         <template #status-cell="{ row }"><SharedStatusBadge :tone="row.original.active ? 'success' : 'neutral'" :label="row.original.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" /></template>
         <template #actions-cell="{ row }">
           <div class="flex flex-wrap justify-end gap-2">
@@ -197,7 +197,7 @@ async function confirmAction() {
               <p class="font-medium text-highlighted">{{ item.name }}</p>
               <SharedStatusBadge :tone="item.active ? 'success' : 'neutral'" :label="item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" />
             </div>
-            <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }) }}</template></p>
+            <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }, item.charter_steps.length) }}</template></p>
             <div class="flex flex-wrap gap-2">
               <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
               <UButton v-if="item.active" type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
