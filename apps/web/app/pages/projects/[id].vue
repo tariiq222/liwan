@@ -63,13 +63,12 @@ provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.val
   <div class="flex flex-col gap-6">
     <SharedPageContainer v-if="showFrame" width="list" class="nasq-print-hide" data-testid="project-workspace-frame">
       <div class="flex flex-col gap-4">
-        <div v-if="backTo" class="flex items-center gap-2 text-sm">
-          <UButton :to="backTo" :aria-label="backLabel" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary" data-testid="project-workspace-back">
-            <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" />{{ backLabel }}
+        <!-- Record header: back + title + status + actions on one line, in the same slot on every tab. -->
+        <div class="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-2" data-testid="project-workspace-identity">
+          <UButton v-if="backTo" :to="backTo" :aria-label="backLabel" color="neutral" variant="outline" size="sm" class="shrink-0 focus-visible:ring-2 focus-visible:ring-primary" data-testid="project-workspace-back">
+            <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" /><span class="hidden sm:inline">{{ backLabel }}</span>
           </UButton>
-        </div>
-        <div class="flex min-h-9 flex-wrap items-start justify-between gap-3" data-testid="project-workspace-identity">
-          <div v-if="project" class="min-w-0">
+          <div v-if="project" class="min-w-0 flex-1">
             <h1 class="truncate text-xl font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
             <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
               <SharedStatusBadge v-bind="projectBadge(project.status)" data-testid="project-status" />
@@ -80,19 +79,17 @@ provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.val
             </p>
           </div>
           <USkeleton v-else-if="isLoading || !hydrated" class="h-9 w-1/3" />
-          <UButton
-            v-if="project?.can_manage"
-            square
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-settings"
-            class="ms-auto"
-            data-testid="project-workspace-settings"
-            :to="settingsTo"
-            :aria-label="t('nav.projectSettings')"
-            :title="t('nav.projectSettings')"
-            :aria-current="isProjectSettings ? 'page' : undefined"
-          />
+          <div v-if="project?.can_manage" class="ms-auto flex shrink-0 items-center gap-2">
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-settings"
+              :label="t('nav.projectSettings')"
+              data-testid="project-workspace-settings"
+              :to="settingsTo"
+              :aria-current="isProjectSettings ? 'page' : undefined"
+            />
+          </div>
         </div>
         <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
         <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />

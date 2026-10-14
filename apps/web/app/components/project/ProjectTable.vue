@@ -69,7 +69,7 @@ function openLink(project: ProjectListItem, event: MouseEvent) {
       <ProjectProgress :progress="row.original.progress" :task-count="row.original.task_count" :closed-task-count="row.original.closed_task_count" compact />
     </template>
     <template #menu-cell="{ row }">
-      <ProjectMenu :project="row.original" hide-settings @click.stop />
+      <ProjectMenu :project="row.original" :to="toFor(row.original)" hide-settings @click.stop />
     </template>
     <template #mobile-row="{ row }">
       <ProjectCardBody :project="row" :to-for="toFor" />
