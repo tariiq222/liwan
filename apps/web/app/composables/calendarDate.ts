@@ -1,4 +1,5 @@
 import { CalendarDate, parseDate } from '@internationalized/date'
+import { formatDate, formatDateTime, formatTime } from '../utils/formatDate'
 
 // Calendar dates (project start/end, milestone deadline) are YYYY-MM-DD
 // strings on the wire — not instants, unlike task deadlines. Never go through
@@ -13,33 +14,29 @@ export function toCalendarDate(iso: string | null): CalendarDate | undefined {
   }
 }
 
-export function formatCalendarDate(iso: string | null, locale: string): string {
+// All display formats live in utils/formatDate.ts (dd/MM/yyyy, HH:mm). The
+// locale argument is kept for call-site compatibility; the format is the same
+// in every locale.
+export function formatCalendarDate(iso: string | null, _locale?: string): string {
   const d = toCalendarDate(iso)
-  if (!d) return ''
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', calendar: 'gregory', timeZone: 'UTC' }).format(
-    new Date(Date.UTC(d.year, d.month - 1, d.day)),
-  )
+  return d ? formatDate(iso!.slice(0, 10)) : ''
 }
 
-const BIDI = /[\u200e\u200f\u061c]/g
-
-function formatInstant(value: string | number | Date | null | undefined, locale: string, options: Intl.DateTimeFormatOptions): string {
-  if (value == null || value === '') return '—'
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return typeof value === 'string' ? value : '—'
-  return new Intl.DateTimeFormat(locale, { calendar: 'gregory', ...options }).format(date).replace(BIDI, '')
+function orFallback(formatted: string, value: string | number | Date | null | undefined): string {
+  if (formatted) return formatted
+  return typeof value === 'string' && value !== '' ? value : '—'
 }
 
-export function formatNasqDate(value: string | number | Date | null | undefined, locale: string): string {
-  return formatInstant(value, locale, { dateStyle: 'medium' })
+export function formatNasqDate(value: string | number | Date | null | undefined, _locale?: string): string {
+  return orFallback(formatDate(value), value)
 }
 
-export function formatNasqDateTime(value: string | number | Date | null | undefined, locale: string): string {
-  return formatInstant(value, locale, { dateStyle: 'medium', timeStyle: 'short' })
+export function formatNasqDateTime(value: string | number | Date | null | undefined, _locale?: string): string {
+  return orFallback(formatDateTime(value), value)
 }
 
-export function formatNasqTime(value: string | number | Date | null | undefined, locale: string): string {
-  return formatInstant(value, locale, { timeStyle: 'short' })
+export function formatNasqTime(value: string | number | Date | null | undefined, _locale?: string): string {
+  return orFallback(formatTime(value), value)
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/

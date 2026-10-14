@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
+import { formatTime } from '@/utils/formatDate'
 import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
 const props = defineProps<{
@@ -14,7 +15,7 @@ const { data, isLoading, isError, refetch, error } = useChatConversations(() => 
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
 const q = ref(props.routeState.q)
-const timeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', calendar: 'gregory' }))
+const timeFmt = { format: (value: Date) => formatTime(value) }
 const listQuery = computed(() => serializeChatListRoute(props.routeState))
 const filters: ChatFilter[] = ['all', 'unread', 'groups', 'channels', 'starred']
 watch(() => props.routeState.q, value => { q.value = value })

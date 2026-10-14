@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { UsageSnapshot } from '@nasq/commercial-contracts'
 import { formatBytes, usageDisplay } from '@/utils/vendorSubscriptions'
+import { formatDateTime } from '@/utils/formatDate'
 import { usageMetricLabel } from '@/utils/subscription'
 const props = defineProps<{ usage?: UsageSnapshot | null }>()
 const { t, te, locale } = useI18n()
@@ -13,7 +14,7 @@ const rows = computed(() => (props.usage?.metrics ?? []).map(m => ({ m, view: us
     <template v-else>
       <p class="flex flex-wrap items-center gap-2 text-sm text-muted">
         <SharedStatusBadge :tone="usage.freshness === 'fresh' ? 'success' : usage.freshness === 'stale' ? 'warning' : 'neutral'" variant="subtle" :label="t(`vendor.customers.usage.freshness.${usage.freshness}`)" />
-        <span v-if="usage.observed_at">{{ t('vendor.customers.usage.observedAt') }}: <time :datetime="usage.observed_at">{{ new Date(usage.observed_at).toLocaleString(locale) }}</time></span>
+        <span v-if="usage.observed_at">{{ t('vendor.customers.usage.observedAt') }}: <time :datetime="usage.observed_at">{{ formatDateTime(usage.observed_at) }}</time></span>
       </p>
       <ul class="grid gap-3 sm:grid-cols-2">
         <li v-for="{ m, view } in rows" :key="m.key" class="rounded-lg p-3 ring ring-default" data-testid="usage-meter">

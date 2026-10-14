@@ -145,7 +145,7 @@ describe('meeting route and conversion behavior', () => {
 
   it('displays API UTC datetimes in local time instead of stripping the timezone', () => {
     const detail = page('[id].vue')
-    expect(detail.localTime('2026-09-08T06:30:00.000Z')).toBe('2026-09-08 09:30')
+    expect(detail.localTime('2026-09-08T06:30:00.000Z')).toBe('\u206608/09/2026 09:30\u2069')
   })
 
   it('keeps series search and pagination in the API params and reports total pages', async () => {
