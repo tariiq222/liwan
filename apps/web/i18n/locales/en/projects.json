@@ -85,6 +85,9 @@
     "createForbidden": "You may not create projects",
     "create": {
       "defaultsHint": "A manager defaults to you. Choose an end date when it is required. Required fields apply only at creation.",
+      "defaultManagerSelf": "You are the default manager.",
+      "defaultManagerOther": "The default manager comes from project settings and you can change it.",
+      "defaultsHintBase": "Choose an end date when it is required. Required fields apply only at creation.",
       "managerRequired": "Choose a project manager",
       "endDateRequired": "Choose an end date",
       "chooseEndDate": "Choose an end date",

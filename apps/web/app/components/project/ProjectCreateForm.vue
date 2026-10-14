@@ -28,19 +28,29 @@ const defaultManagerName = computed(() => {
   return current && defaults.value?.default_manager_id === current.id ? current.name : null
 })
 
+// The server decides the default manager (a tenant setting), so the hint only claims "you" when it is you.
+const defaultsHint = computed(() => {
+  const base = t('projects.create.defaultsHintBase')
+  const managerId = defaults.value?.default_manager_id
+  if (!managerId) return base
+  const who = me.value && managerId === me.value.id ? t('projects.create.defaultManagerSelf') : t('projects.create.defaultManagerOther')
+  return `${who} ${base}`
+})
+
 async function retryDefaults() {
   await refetchDefaults()
 }
 </script>
 
 <template>
-  <SharedFormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')">
+  <SharedFormSection :title="t('projects.charter.title')" :description="defaultsHint">
     <div class="grid gap-4">
       <NuxtLink
         :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }"
         data-testid="project-create-from-template"
-        class="w-fit text-sm font-medium text-brand-link underline-offset-4 hover:underline"
+        class="inline-flex w-fit items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-medium text-primary hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-primary"
       >
+        <UIcon name="i-lucide-layout-template" class="size-4" aria-hidden="true" />
         {{ t('projects.create.fromTemplate') }}
       </NuxtLink>
       <p v-if="defaultsLoading && !defaults" data-testid="project-create-loading" class="text-sm text-muted">{{ t('projects.create.loading') }}</p>

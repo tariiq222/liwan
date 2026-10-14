@@ -6,6 +6,7 @@ const props = withDefaults(defineProps<{
   title: string
   backTo: RouteLocationRaw
   description?: string
+  /** Deprecated and ignored: every create panel has the one width below. */
   width?: 'form' | 'wide'
 }>(), {
   width: 'form',
@@ -26,7 +27,19 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { 'aria-
 }))
 
 const side = computed(() => localeProperties.value.dir === 'rtl' ? 'left' : 'right')
-const contentClass = computed(() => props.width === 'wide' ? 'sm:max-w-4xl' : 'max-w-xl sm:max-w-2xl')
+// One width for every /new panel (640px, full width on mobile). The body drops its bottom padding so the
+// form footer (.nasq-form-footer or the #footer slot) can stick to the bottom edge with its own padding.
+const panelUi = {
+  content: 'w-full max-w-none sm:max-w-160',
+  // The panel is teleported; the footer rules key on the shared .nasq-form-footer class. Cancel sits at the
+  // inline start and the primary action at the inline end (LTR and RTL); the footer stays visible on scroll.
+  body: [
+    'p-4 pb-0 sm:p-6 sm:pb-0',
+    '[&_.nasq-form-footer]:sticky [&_.nasq-form-footer]:bottom-0 [&_.nasq-form-footer]:z-1 [&_.nasq-form-footer]:mt-6',
+    '[&_.nasq-form-footer]:bg-default [&_.nasq-form-footer]:py-4 [&_.nasq-form-footer]:justify-between!',
+    '[&_.nasq-form-footer>:only-child]:ms-auto',
+  ].join(' '),
+}
 
 async function onOpenUpdate(next: boolean) {
   open.value = true
@@ -44,7 +57,7 @@ async function onOpenUpdate(next: boolean) {
     :side="side"
     dismissible
     :content="dialogContent"
-    :ui="{ content: contentClass }"
+    :ui="panelUi"
     @update:open="onOpenUpdate"
   >
     <template #header="{ close }">
@@ -67,7 +80,10 @@ async function onOpenUpdate(next: boolean) {
       <slot />
     </template>
     <template v-if="$slots.footer" #footer>
-      <slot name="footer" />
+      <div class="nasq-create-panel-footer flex w-full items-center justify-between gap-2">
+        <slot name="footer" />
+      </div>
     </template>
   </USlideover>
 </template>
+
