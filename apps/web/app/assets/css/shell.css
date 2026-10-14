@@ -70,7 +70,7 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
   --module-rail-width: 64px;
   --context-sidebar-width: 232px;
   min-height: 100svh;
-  background: var(--ui-bg);
+  background: var(--nasq-canvas);
 }
 html[dir="rtl"] body { padding-right: 0 !important; }
 @media (min-width: 768px) {
@@ -130,6 +130,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   background: var(--nasq-rail);
   background-image: linear-gradient(180deg, var(--nasq-rail) 0%, var(--nasq-rail-deep) 100%);
   color: rgb(255 255 255 / 72%);
+  border-inline-end: 1px solid var(--nasq-rail-edge, transparent);
 }
 .nasq-module-rail-brand { display: grid; height: var(--shell-header-height); flex: none; place-items: center; color: #fff; text-decoration: none; }
 .nasq-module-rail-brand:focus-visible { outline: 2px solid var(--nasq-lime); outline-offset: -4px; }
@@ -254,8 +255,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-chat-row:hover .nasq-chat-msg-actions, .nasq-chat-row:focus-within .nasq-chat-msg-actions { opacity: 1; }
 
 /* Workspace. */
-.nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--ui-bg); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
-.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--ui-bg); padding: 20px 24px 48px; }
+.nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--nasq-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
+.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--nasq-canvas); padding: 20px 24px 48px; }
 .nasq-shell:has(.nasq-context-sidebar[data-panel="true"]) .nasq-shell-main { padding: 0; overflow: hidden; }
 .nasq-page-content-motion { animation: nasq-page-content-enter 150ms ease both; }
 @keyframes nasq-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }

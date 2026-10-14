@@ -51,3 +51,38 @@ describe('subtle and soft badge text contrast', () => {
     }
   }
 })
+
+// Solid badges: the recipe sets the fill and the label; light mode is white (or slate-900 on warning) on the 600/700 step.
+function solidClasses(tone: string): string[] {
+  const entry = new RegExp(`\\{[^{}]*color: '${tone}'[^{}]*variant: 'solid'[^{}]*class: '([^']*)'`).exec(badge)
+  return entry?.[1]?.split(/\s+/) ?? []
+}
+const LABEL: Record<string, string> = { 'text-white': '#ffffff', 'text-slate-900': '#0f172a' }
+
+describe('solid badge contrast', () => {
+  for (const tone of Object.keys(PALETTE)) {
+    it(`${tone} solid label reaches 4.5:1 on its fill in light mode`, () => {
+      const classes = solidClasses(tone)
+      const fill = classes.find(c => new RegExp(`^bg-${tone}-\\d+$`).test(c))
+      const label = classes.find(c => c in LABEL)
+      expect(fill, `${tone} fill class`).toBeDefined()
+      expect(label, `${tone} label class`).toBeDefined()
+      expect(contrastRatio(LABEL[label!]!, PALETTE[tone]![Number(fill!.split('-').pop())]!)).toBeGreaterThanOrEqual(4.5)
+    })
+    it(`${tone} solid label reaches 4.5:1 on its fill in dark mode`, () => {
+      expect(contrastRatio(DARK_SURFACES.bg, PALETTE[tone]![400]!)).toBeGreaterThanOrEqual(4.5)
+      expect(solidClasses(tone)).toEqual(expect.arrayContaining([`dark:bg-${tone}`, 'dark:text-inverted']))
+    })
+  }
+})
+
+describe('badge defaults', () => {
+  it('uses the subtle variant unless a call site asks otherwise', () => {
+    expect(badge).toContain("defaultVariants: { variant: 'subtle' }")
+  })
+  it('never renders text under 12px (xs and sm use text-xs)', () => {
+    expect(badge).not.toMatch(/text-\[\d/)
+    expect(badge).toMatch(/xs: \{ base: 'text-xs\//)
+    expect(badge).toMatch(/sm: \{ base: 'text-xs\//)
+  })
+})
