@@ -28,7 +28,8 @@
         "department": "القسم",
         "manager": "المدير",
         "account": "الحساب",
-        "actions": "الإجراءات"
+        "actions": "الإجراءات",
+        "status": "الحالة"
       },
       "access": {
         "noAccount": "بدون حساب",
@@ -41,7 +42,11 @@
       "filteredEmpty": "لا موظفون يطابقون الفلاتر",
       "filteredEmptyHint": "غيّر الفلاتر أو امسحها.",
       "searchValue": "بحث: {value}",
-      "clear": "مسح الفلاتر"
+      "clear": "مسح الفلاتر",
+      "status": {
+        "active": "نشط",
+        "archived": "مؤرشف"
+      }
     },
     "card": {
       "title": "بطاقة الموظف",
