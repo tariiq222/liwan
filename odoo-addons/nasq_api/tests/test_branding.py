@@ -13,7 +13,7 @@ class TestBrandingEndpoint(HttpCase):
 
     def test_branding_is_public_and_cached(self):
         company = self.env.ref('base.main_company')
-        company.write({'name': 'Erada', 'primary_color': '#0055ff'})
+        company.write({'name': 'Erada', 'primary_color': '#0055ff', 'logo': image_base64('PNG')})
 
         res = self.url_open('/api/v1/branding')
 
@@ -26,6 +26,13 @@ class TestBrandingEndpoint(HttpCase):
         self.assertEqual(body['primary_color'], '#0055ff')
         self.assertEqual(body['font'], 'IBM_Plex_Sans_Arabic')
         self.assertRegex(body['logo_url'], rf'^/web/binary/company_logo\?company={company.id}&v=.+$')
+
+    def test_branding_has_no_logo_url_without_a_company_logo(self):
+        company = self.env.ref('base.main_company')
+        company.logo = False
+        body = self.url_open('/api/v1/branding').json()
+        self.assertIn('logo_url', body)
+        self.assertIsNone(body['logo_url'])
 
     def test_branding_falls_back_to_default_color(self):
         self.env.ref('base.main_company').primary_color = False
