@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/RouteTabs',
   component: RouteTabs,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue:40') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue:41') },
   args: {
     ariaLabel: 'أقسام المشروع',
     items: [

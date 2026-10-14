@@ -176,7 +176,7 @@
         {
           "id": "WithLabel",
           "name": "بعنوان ظاهر في الفلاتر",
-          "context": "apps/web/app/pages/meetings/series.vue:118"
+          "context": "apps/web/app/pages/meetings/series.vue:214"
         }
       ]
     },
@@ -1290,7 +1290,7 @@
         {
           "id": "InFilterPopover",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:245"
+          "context": "apps/web/app/pages/meetings/index.vue:355"
         },
         {
           "id": "WithTime",
@@ -1610,12 +1610,12 @@
         {
           "id": "ActiveRow",
           "name": "صف الفلاتر النشطة",
-          "context": "apps/web/app/pages/meetings/index.vue:263"
+          "context": "apps/web/app/pages/meetings/index.vue:373"
         },
         {
           "id": "Disabled",
           "name": "معطّلة",
-          "context": "apps/web/app/pages/meetings/index.vue:263"
+          "context": "apps/web/app/pages/meetings/index.vue:373"
         }
       ]
     },
@@ -1668,22 +1668,22 @@
         {
           "id": "Chips",
           "name": "شرائح",
-          "context": "apps/web/app/pages/meetings/index.vue:224"
+          "context": "apps/web/app/pages/meetings/index.vue:334"
         },
         {
           "id": "Multiple",
           "name": "اختيار متعدد",
-          "context": "apps/web/app/pages/meetings/index.vue:224"
+          "context": "apps/web/app/pages/meetings/index.vue:334"
         },
         {
           "id": "Segment",
           "name": "شريط مقسّم",
-          "context": "apps/web/app/pages/meetings/index.vue:224"
+          "context": "apps/web/app/pages/meetings/index.vue:334"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/index.vue:224"
+          "context": "apps/web/app/pages/meetings/index.vue:334"
         }
       ]
     },
@@ -1714,7 +1714,7 @@
         {
           "id": "InFilterPanel",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:225"
+          "context": "apps/web/app/pages/meetings/index.vue:335"
         }
       ]
     },
@@ -2729,7 +2729,7 @@
         {
           "id": "Workspace",
           "name": "أقسام المشروع",
-          "context": "apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue:40"
+          "context": "apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue:41"
         }
       ]
     },
