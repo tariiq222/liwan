@@ -61,6 +61,8 @@ const policyError = computed(() => validateTaskCreatePolicy({
   dateDeadline: dateDeadline.value ? `${dateDeadline.value}T23:59:00Z` : null,
 }))
 const projectQuick = computed(() => props.mode === 'project')
+// Non-quick hosts never collapse; quick-create starts folded.
+const optionalOpen = ref(props.mode !== 'project')
 // Guided creation in a project with dated milestones requires a milestone and both dates.
 const scheduleRequired = computed(() => guided.value && hasDatedMilestones.value)
 
@@ -223,32 +225,35 @@ async function submit() {
         @update:model-value="selectProject"
       />
     </UFormField>
-    <component
-      :is="projectQuick ? 'details' : 'div'"
+    <!-- Project quick-create folds the optional fields behind a trigger; every other host shows them. -->
+    <UCollapsible
+      v-model:open="optionalOpen"
       :data-testid="projectQuick ? 'task-create-optional' : undefined"
-      :class="projectQuick ? 'sm:col-span-2 rounded-lg border border-default p-4' : 'contents'"
+      :class="projectQuick ? 'rounded-lg border border-default p-4' : undefined"
     >
-      <summary v-if="projectQuick" class="cursor-pointer font-semibold">{{ t('tasks.quick.optional') }}</summary>
-      <div :class="projectQuick ? 'mt-4 grid gap-6' : 'contents'">
-        <UFormField :label="t('tasks.drawer.description')" name="description" class="sm:col-span-2">
-          <UTextarea id="new-task-description" v-model="description" class="w-full" :rows="4" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
-        </UFormField>
-        <UFormField :label="t('tasks.deliverables.title')" :description="t('tasks.deliverables.hint')" name="deliverables" class="sm:col-span-2">
-          <div class="grid gap-2">
-            <div v-if="deliverables.length" class="space-y-2">
-              <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
-                <UInput v-model="item.name" class="flex-1" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
-                <UButton type="button" color="neutral" variant="ghost" size="sm" square icon="i-lucide-x" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)" />
+      <UButton v-if="projectQuick" type="button" color="neutral" variant="ghost" class="w-full justify-between font-semibold" trailing-icon="i-lucide-chevron-down" :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }">{{ t('tasks.quick.optional') }}</UButton>
+      <template #content>
+        <div class="grid gap-6" :class="projectQuick && 'pt-4'">
+          <UFormField :label="t('tasks.drawer.description')" name="description" class="sm:col-span-2">
+            <UTextarea id="new-task-description" v-model="description" class="w-full" :rows="4" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
+          </UFormField>
+          <UFormField :label="t('tasks.deliverables.title')" :description="t('tasks.deliverables.hint')" name="deliverables" class="sm:col-span-2">
+            <div class="grid gap-2">
+              <div v-if="deliverables.length" class="space-y-2">
+                <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
+                  <UInput v-model="item.name" class="flex-1" :aria-label="t('tasks.deliverables.name')" :disabled="!hydrated || isPending" />
+                  <UButton type="button" color="neutral" variant="ghost" size="sm" square icon="i-lucide-x" :disabled="!hydrated || isPending" :aria-label="t('tasks.deliverables.remove')" @click="removeDeliverable(index)" />
+                </div>
+              </div>
+              <p v-else class="text-sm text-muted">{{ t('tasks.deliverables.empty') }}</p>
+              <div>
+                <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</UButton>
               </div>
             </div>
-            <p v-else class="text-sm text-muted">{{ t('tasks.deliverables.empty') }}</p>
-            <div>
-              <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated || isPending" @click="addDeliverable">{{ t('tasks.deliverables.add') }}</UButton>
-            </div>
-          </div>
-        </UFormField>
-      </div>
-    </component>
+          </UFormField>
+        </div>
+      </template>
+    </UCollapsible>
     <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton color="neutral" variant="outline" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending">{{ t('app.create') }}</UButton>

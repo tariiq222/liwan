@@ -3,6 +3,7 @@ import type { Task } from '@nasq/contracts'
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { deadlineLabel, deadlineTone } from '@/composables/taskState'
+import { taskDaysRemaining } from './taskDeadline'
 import { useTasks, type TaskListParams } from '@/composables/useTasks'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
@@ -40,20 +41,23 @@ const emptyTitleKey = computed(() => {
 const showCreateAction = computed(() => can('pmo.tasks.create') && !hasActiveFilters.value && !props.params.closed)
 
 // Widths are applied to both the header and the cell; the number and title columns stay stable.
-function column(id: string, header: string, width: string): TableColumn<Task> {
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `max-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${width}` } } }
+// Text columns truncate with an ellipsis; a column holding a badge or a menu trigger (`fit`) never
+// clips, so a long deadline or state label is shown whole.
+function column(id: string, header: string, width: string, fit = false): TableColumn<Task> {
+  const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
+  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } }
 }
 const columns = computed<TableColumn<Task>[]>(() => props.variant === 'project'
   ? [
       column('record_number', t('app.recordNumber'), 'w-[6%]'), column('title', t('tasks.columns.title'), 'w-[30%]'),
       column('assignees', t('tasks.columns.assignees'), 'w-[12%]'), column('stage', t('tasks.columns.stage'), 'w-[12%]'),
-      column('deadline', t('tasks.columns.deadline'), 'w-[12%]'), column('priority', t('tasks.columns.priority'), 'w-[14%]'),
-      column('state', t('tasks.columns.state'), 'w-[14%]'),
+      column('deadline', t('tasks.columns.deadline'), 'w-[12%] min-w-36', true), column('priority', t('tasks.columns.priority'), 'w-[14%] min-w-28', true),
+      column('state', t('tasks.columns.state'), 'w-[14%] min-w-32', true),
     ]
   : [
       column('record_number', t('app.recordNumber'), 'w-[7%]'), column('title', t('tasks.columns.title'), 'w-[30%]'),
-      column('project', t('tasks.columns.project'), 'w-[14%]'), column('state', t('tasks.columns.state'), 'w-[14%]'),
-      column('deadline', t('tasks.columns.deadline'), 'w-[13%]'), column('priority', t('tasks.columns.priority'), 'w-[12%]'),
+      column('project', t('tasks.columns.project'), 'w-[14%]'), column('state', t('tasks.columns.state'), 'w-[14%] min-w-32', true),
+      column('deadline', t('tasks.columns.deadline'), 'w-[13%] min-w-36', true), column('priority', t('tasks.columns.priority'), 'w-[12%] min-w-28', true),
       column('stage', t('tasks.columns.stage'), 'w-[10%]'),
     ])
 
@@ -66,7 +70,7 @@ function initials(name: string): string {
 </script>
 
 <template>
-  <div class="min-w-0 space-y-2" :class="props.variant === 'project' ? '[&_table]:min-w-[960px]' : '[&_table]:min-w-[760px]'">
+  <div class="min-w-0 space-y-2 [&_table]:w-full" :class="props.variant === 'project' ? '[&_table]:min-w-[max(100%,960px)]' : '[&_table]:min-w-[max(100%,760px)]'">
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <EmptyState v-else-if="!isLoading && items.length === 0" :title="t(emptyTitleKey)">
       <template v-if="showCreateAction" #action>
@@ -100,7 +104,7 @@ function initials(name: string): string {
       <template #stage-cell="{ row }">{{ stageName(row.original) }}</template>
       <template #state-cell="{ row }"><StateMenu :task="row.original" /></template>
       <template #deadline-cell="{ row }">
-        <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(row.original.days_remaining, row.original.is_closed)" :label="deadlineLabel(row.original.days_remaining, t)" />
+        <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(taskDaysRemaining(row.original), row.original.is_closed)" :label="deadlineLabel(taskDaysRemaining(row.original), t)" />
       </template>
       <template #priority-cell="{ row }"><PrioritySelect :task="row.original" /></template>
       <template #mobile-row="{ row: task }">
@@ -110,7 +114,7 @@ function initials(name: string): string {
               <RecordNumber :value="task.id" />
               <NuxtLink :to="rowTo(task)" class="block min-w-0 max-w-full truncate font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ task.name }}</NuxtLink>
             </div>
-            <SharedStatusBadge class="shrink-0" data-testid="deadline-badge" :tone="deadlineTone(task.days_remaining, task.is_closed)" :label="deadlineLabel(task.days_remaining, t)" />
+            <SharedStatusBadge class="shrink-0" data-testid="deadline-badge" :tone="deadlineTone(taskDaysRemaining(task), task.is_closed)" :label="deadlineLabel(taskDaysRemaining(task), t)" />
           </div>
           <p class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
             <span class="truncate">{{ task.project?.name ?? (props.variant === 'project' ? task.stage?.name : '—') }}</span>
