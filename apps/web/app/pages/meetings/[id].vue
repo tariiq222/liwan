@@ -21,6 +21,7 @@ import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps, resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
 import { filterMeetingResolutions, resolutionActions } from '@/utils/meetingWorkspace'
+import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
 import { meetingTabFromRoute, meetingTabQuery, type MeetingTab } from '@/utils/meetingTabs'
 
 const route = useRoute()
@@ -79,6 +80,16 @@ const tabLinks = computed(() => meetingTabs.value.map(tab => ({
   to: { query: meetingTabQuery(route.query, tab.value), hash: '' },
   active: activeTab.value === tab.value,
 })))
+// Index of the first log tab (history); the strip draws a divider before it.
+const logTabStart = computed(() => meetingTabs.value.findIndex(tab => tab.value === 'history'))
+const moreActions = computed(() => {
+  const m = query.data.value
+  const groups = [[{ label: t('meetingMinutesForm.printPreview'), icon: 'i-lucide-printer', to: childTo(`/meetings/${id.value}/print`) }]]
+  if (m?.can_manage && m.state !== 'cancelled' && m.state !== 'done') {
+    groups.push([{ label: t('meetingsUx.cancelMeetingAction'), icon: 'i-lucide-ban', color: 'error', disabled: transitioning.value, onSelect: () => requestMeetingAction('cancel') }] as never)
+  }
+  return groups
+})
 // The heading is the meeting's name; behind the create-recommendation panel it stays the application name, as before.
 const recordTitle = computed(() => isCreateResolution.value
   ? t('nav.meetings')
@@ -328,16 +339,26 @@ async function confirmResolutionAction() {
     @retry="query.refetch()"
   >
     <template #actions>
-      <UButton color="neutral" variant="outline" :to="childTo(`/meetings/${id}/print`)" :label="t('meetingMinutesForm.printPreview')" />
       <UButton v-if="query.data.value?.can_edit && pendingResolutionIds.size === 0" color="neutral" variant="outline" :to="childTo(`/meetings/${id}/edit`)" :label="t('app.edit')" />
       <UButton v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="requestMeetingAction('confirm')" />
       <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.complete')" @click="requestMeetingAction('complete')" />
-      <UButton v-if="query.data.value?.can_manage && query.data.value.state !== 'cancelled' && query.data.value.state !== 'done'" color="neutral" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.cancelMeeting')" @click="requestMeetingAction('cancel')" />
       <UButton v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" color="neutral" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.reopen')" @click="requestMeetingAction('reopen')" />
+      <!-- Secondary and destructive actions live in one menu; cancelling still asks inline below the header. -->
+      <UDropdownMenu :items="moreActions" :content="{ align: 'end' }">
+        <UButton color="neutral" variant="outline" square icon="i-lucide-ellipsis" :aria-label="t('app.actions')" :disabled="!hydrated" data-testid="meeting-more-actions" />
+      </UDropdownMenu>
     </template>
     <template #tabs>
       <div ref="meetingTabsRoot" class="min-w-0 max-w-full">
-        <SharedRouteTabs data-testid="meeting-tabs" :items="tabLinks" :ariaLabel="t('meetingsUx.sections')" />
+        <!-- Record tabs first, then a divider and the log tabs (history, versions); every tab keeps its own route. -->
+        <nav data-testid="meeting-tabs" :class="routeTabsStripClass" :aria-label="t('meetingsUx.sections')">
+          <template v-for="(tab, index) in tabLinks" :key="tab.key">
+            <span v-if="index === logTabStart" role="separator" aria-orientation="vertical" class="mx-1 my-2 w-px shrink-0 bg-accented" />
+            <UButton color="neutral" variant="ghost" :class="routeTabClass" :to="tab.to" :aria-current="tab.active ? 'page' : undefined" :data-active="tab.active" :data-testid="tab.key">
+              <span>{{ tab.label }}</span>
+            </UButton>
+          </template>
+        </nav>
       </div>
     </template>
 
@@ -355,7 +376,8 @@ async function confirmResolutionAction() {
       </SharedInlineConfirm>
 
       <template v-if="activeTab === 'summary'">
-        <SharedRecordSection id="meeting-summary" :title="t('meetingsUi.summary')">
+        <section id="meeting-summary" aria-labelledby="meeting-summary-title">
+          <h2 id="meeting-summary-title" class="sr-only">{{ t('meetingsUi.summary') }}</h2>
           <UCard class="min-w-0">
             <div class="grid min-w-0 gap-6 lg:grid-cols-2">
               <section class="grid min-w-0 content-start gap-3">
@@ -384,16 +406,18 @@ async function confirmResolutionAction() {
               </section>
             </div>
           </UCard>
-        </SharedRecordSection>
+        </section>
       </template>
       <template v-else-if="activeTab === 'agenda'">
-        <SharedRecordSection id="meeting-agenda" :title="t('meetingsUi.agenda')" :description="historicalSnapshot ? t('meetingsUx.historicalMinutesTitle') : undefined">
+        <section id="meeting-agenda" aria-labelledby="meeting-agenda-title" class="space-y-3">
+          <h2 id="meeting-agenda-title" class="sr-only">{{ t('meetingsUi.agenda') }}</h2>
+          <p v-if="historicalSnapshot" class="text-sm text-muted">{{ t('meetingsUx.historicalMinutesTitle') }}</p>
           <UCard class="min-w-0">
             <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
             <SharedRichText v-if="richTextHasContent(historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda)" :html="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda" size="sm" />
             <SharedEmptyState v-else :title="t('meetingsUi.emptyAgenda')" />
           </UCard>
-        </SharedRecordSection>
+        </section>
       </template>
       <template v-else-if="activeTab === 'minutes'">
         <div v-if="!historicalSnapshot && query.data.value.can_edit && pendingResolutionIds.size === 0" class="flex flex-wrap items-center justify-end gap-2"><UButton size="sm" :to="childTo(`/meetings/${id}/minutes`)" :label="t('meetingsUx.editMinutes')" /></div>
@@ -408,13 +432,14 @@ async function confirmResolutionAction() {
           :legacy-recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
           :title="t('meetingMinutesForm.documentTitle')"
         />
-        <SharedRecordSection v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" :title="t('meetingsUi.minutes')">
+        <section v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" aria-labelledby="meeting-minutes-title">
+          <h2 id="meeting-minutes-title" class="sr-only">{{ t('meetingsUi.minutes') }}</h2>
           <UCard class="min-w-0">
             <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
             <SharedRichText v-if="richTextHasContent(query.data.value.minutes)" :html="query.data.value.minutes" size="sm" />
             <SharedEmptyState v-else :title="t('meetingsUi.emptyMinutes')" />
           </UCard>
-        </SharedRecordSection>
+        </section>
         <SharedRecordSection v-if="historicalSnapshot" id="meeting-snapshot" :title="t('meetingsUx.historicalDecisionStates')" :description="t('meetingsUx.historicalMinutesTitle')">
           <UCard class="min-w-0">
             <div v-if="historicalSnapshot.resolutions.length" class="grid gap-3">
@@ -472,10 +497,12 @@ async function confirmResolutionAction() {
         />
       </template>
       <template v-else-if="activeTab === 'resolutions'">
-        <SharedRecordSection id="meeting-resolutions" :title="t('meetingsUi.resolutions')" :description="t('meetingsUx.currentFollowUp')">
-          <template #actions>
+        <section id="meeting-resolutions" aria-labelledby="meeting-resolutions-title" class="space-y-3">
+          <h2 id="meeting-resolutions-title" class="sr-only">{{ t('meetingsUi.resolutions') }}</h2>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="min-w-0 text-sm text-muted">{{ t('meetingsUx.currentFollowUp') }}</p>
             <UButton v-if="query.data.value.can_edit && !['done', 'cancelled'].includes(query.data.value.state)" size="sm" :to="childTo(`/meetings/${id}/resolutions/new`, { ...route.query, tab: 'resolutions' })" :label="t('meetingsUi.newResolution')" />
-          </template>
+          </div>
           <UCard class="min-w-0">
             <div class="grid min-w-0 gap-4">
               <FilterBar v-if="query.data.value.resolutions.length" :active-count="Number(Boolean(recommendationSearch.trim())) + Number(Boolean(recommendationState))" :disabled="!hydrated" @clear="recommendationSearch = ''; recommendationState = ''">
@@ -547,7 +574,7 @@ async function confirmResolutionAction() {
               </ul>
             </div>
           </UCard>
-        </SharedRecordSection>
+        </section>
         <SharedRecordSection v-if="query.data.value.previous_resolutions.length" id="meeting-follow-up" :title="t('meetingsUi.previousResolutions')" :description="t('meetingsUx.currentPreviousFollowUp')">
           <UCard class="min-w-0">
             <ul class="grid min-w-0 divide-y divide-default">
@@ -567,7 +594,8 @@ async function confirmResolutionAction() {
         </SharedRecordSection>
       </template>
       <template v-else-if="activeTab === 'attachments'">
-        <SharedRecordSection id="meeting-attachments" :title="t('meetingsUi.attachmentsTitle')">
+        <section id="meeting-attachments" aria-labelledby="meeting-attachments-title">
+          <h2 id="meeting-attachments-title" class="sr-only">{{ t('meetingsUi.attachmentsTitle') }}</h2>
           <UCard class="min-w-0">
             <SharedPageState :loading="attachments.isLoading.value" :error="attachments.error.value" :empty="!attachments.data.value?.items.length" :empty-text="t('meetingsUi.emptyAttachments')" @retry="() => attachments.refetch()">
               <ul class="grid min-w-0 divide-y divide-default">
@@ -594,7 +622,7 @@ async function confirmResolutionAction() {
               <p class="text-xs text-muted">{{ t('meetingsUi.attachmentHelp') }}</p>
             </div>
           </UCard>
-        </SharedRecordSection>
+        </section>
       </template>
 
     </div>
