@@ -23,6 +23,7 @@
     },
     "filters": {
       "open": "Open",
+      "scopeLabel": "Task scope",
       "closed": "Done",
       "allStates": "All states",
       "selectedStates": "{count} states",
@@ -173,6 +174,9 @@
       "activeField": "Active"
     },
     "kanban": {
+      "groupBy": "Group board by",
+      "groupStatus": "By status",
+      "groupStage": "By stage",
       "moveTo": "Move to…",
       "emptyColumn": "No tasks",
       "unstaged": "No stage",

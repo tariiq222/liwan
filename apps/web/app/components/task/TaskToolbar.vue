@@ -13,7 +13,11 @@ const hydrated = useHydrated()
 
 const { data: projects } = useProjects()
 
-const ALL_STATES: TaskState[] = ['in_progress', 'waiting', 'changes_requested', 'approved', 'done', 'cancelled']
+// The open scope only holds unfinished tasks and the closed scope only done/cancelled ones (the API
+// filters on is_closed), so each scope offers just the states it can contain.
+const OPEN_STATES: TaskState[] = ['in_progress', 'waiting', 'changes_requested', 'approved']
+const CLOSED_STATES: TaskState[] = ['done', 'cancelled']
+const ALL_STATES = computed(() => (props.modelValue.closed ? CLOSED_STATES : OPEN_STATES))
 
 function patch(changes: Partial<TaskListParams>) {
   emit('update:modelValue', { ...props.modelValue, ...changes })
@@ -27,7 +31,7 @@ const activeFilterCount = computed(() => Number(Boolean(props.modelValue.q)) + s
 // it clears the selection; picking a state while "all" is shown replaces it.
 const stateChoiceItems = computed(() => [
   { value: 'all', label: t('tasks.filters.allStates') },
-  ...ALL_STATES.map((s) => ({ value: s, label: t(STATE_LABEL_KEY[s]) })),
+  ...ALL_STATES.value.map((s) => ({ value: s, label: t(STATE_LABEL_KEY[s]) })),
 ])
 const stateChoiceValue = computed(() => (selectedStates.value.length ? [...selectedStates.value] : ['all']))
 function onStatesChange(value: string | string[]) {
@@ -36,8 +40,13 @@ function onStatesChange(value: string | string[]) {
     patch({ state: undefined })
     return
   }
-  const states = ALL_STATES.filter((s) => next.includes(s))
+  const states = ALL_STATES.value.filter((s) => next.includes(s))
   patch({ state: states.length ? states : undefined })
+}
+// Switching scope drops a state filter the other scope cannot contain, so it never silently empties the list.
+function setScope(closed: boolean) {
+  if (Boolean(props.modelValue.closed) === closed) return
+  patch({ closed, state: undefined })
 }
 function removeState(s: TaskState) {
   const states = selectedStates.value.filter((state) => state !== s)
@@ -119,12 +128,19 @@ const projectItems = computed(() => [
     <template #actions><slot name="actions" /></template>
 
     <template #view>
-      <UTabs
-        :items="[{ label: t('tasks.filters.open'), value: 'open', disabled: !hydrated }, { label: t('tasks.filters.closed'), value: 'closed', disabled: !hydrated }]"
-        :model-value="modelValue.closed ? 'closed' : 'open'"
-        size="sm"
-        @update:model-value="(v) => patch({ closed: v === 'closed' })"
-      />
+      <div role="group" data-testid="task-scope" class="inline-flex items-center gap-0.5 rounded-md bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.filters.scopeLabel')">
+        <UButton
+          v-for="scope in [{ value: false, label: t('tasks.filters.open') }, { value: true, label: t('tasks.filters.closed') }]"
+          :key="String(scope.value)"
+          type="button"
+          color="neutral"
+          size="sm"
+          :variant="Boolean(modelValue.closed) === scope.value ? 'soft' : 'ghost'"
+          :aria-pressed="Boolean(modelValue.closed) === scope.value"
+          :disabled="!hydrated"
+          @click="setScope(scope.value)"
+        >{{ scope.label }}</UButton>
+      </div>
     </template>
   </FilterBar>
   </div>

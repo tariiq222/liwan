@@ -23,6 +23,7 @@
     },
     "filters": {
       "open": "مفتوحة",
+      "scopeLabel": "نطاق المهام",
       "closed": "منجزة",
       "allStates": "كل الحالات",
       "selectedStates": "{count} حالات",
@@ -173,6 +174,9 @@
       "activeField": "نشطة"
     },
     "kanban": {
+      "groupBy": "تجميع اللوحة",
+      "groupStatus": "حسب الحالة",
+      "groupStage": "حسب المرحلة",
       "moveTo": "نقل إلى…",
       "emptyColumn": "لا مهام",
       "unstaged": "بلا مرحلة",

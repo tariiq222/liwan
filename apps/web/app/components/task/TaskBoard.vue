@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import type { Task } from '@nasq/contracts'
+import type { Task, TaskState } from '@nasq/contracts'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { BoardStage, StageSource } from '@/composables/boardStages'
 import { moveTo, stageOf } from '@/composables/boardStages'
+import { STATE_LABEL_KEY, taskStateBadge } from '@/composables/taskState'
+import { ApiError } from '@/composables/useApi'
 import type { TaskListParams } from '@/composables/useTasks'
-import { useUpdateTask, useTasks } from '@/composables/useTasks'
+import { useTasks, useTransitionTask, useUpdateTask } from '@/composables/useTasks'
+import { badgeLabel } from '@/utils/statusBadge'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
 import EmptyState from '@/components/shared/EmptyState.vue'
@@ -20,6 +23,9 @@ const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: S
 const emit = defineEmits<{ open: [id: number] }>()
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
 
 // Board cap: keep pulling pages until the list is exhausted or we've loaded
 // 200 tasks, whichever comes first — a personal board isn't meant to hold
@@ -31,6 +37,7 @@ const { data, hasNextPage, fetchNextPage, isFetchingNextPage, isLoading, error, 
 const kind = computed(() => props.stageSource.kind)
 const { data: stagesData, error: personalStagesError, isLoading: personalStagesLoading, refetch: refetchPersonalStages } = usePersonalStages()
 const { mutate: updateTask } = useUpdateTask()
+const { mutate: transitionTask } = useTransitionTask()
 
 const allItems = computed<Task[]>(() => data.value?.pages.flatMap((page) => page.items) ?? [])
 
@@ -52,32 +59,80 @@ const sortedStages = computed<BoardStage[]>(() => {
 
 const UNSTAGED = 'unstaged'
 
+// Grouping lives in the URL (`?group=stage`) so a refresh, a shared link and the
+// back button from a task keep it. Status is the default: every project and
+// personal board has the same, always-populated columns, instead of one big
+// "no stage" column for tasks nobody staged.
+type Grouping = 'status' | 'stage'
+const grouping = computed<Grouping>(() => (route.query.group === 'stage' ? 'stage' : 'status'))
+function setGrouping(value: Grouping) {
+  if (value === grouping.value) return
+  void router.replace({ query: { ...route.query, group: value === 'stage' ? 'stage' : undefined } })
+}
+const groupingOptions = computed(() => [
+  { value: 'status' as const, label: t('tasks.kanban.groupStatus') },
+  { value: 'stage' as const, label: t('tasks.kanban.groupStage') },
+])
+
+// Status lanes follow the open/closed scope the list uses (the server returns only
+// open tasks for the open scope, only done/cancelled for the closed one).
+const OPEN_STATES: TaskState[] = ['in_progress', 'waiting', 'changes_requested', 'approved']
+const CLOSED_STATES: TaskState[] = ['done', 'cancelled']
+const statusLanes = computed<TaskState[]>(() => {
+  const scope = props.params.closed ? CLOSED_STATES : OPEN_STATES
+  const picked = props.params.state
+  return picked?.length ? scope.filter((s) => picked.includes(s)) : scope
+})
+
+interface Lane {
+  key: string
+  title: string
+  tone?: ReturnType<typeof taskStateBadge>['tone']
+  stage?: BoardStage
+  unstaged?: boolean
+  state?: TaskState
+}
+const lanes = computed<Lane[]>(() => {
+  if (grouping.value === 'status') {
+    return statusLanes.value.map((state) => ({ key: state, title: t(STATE_LABEL_KEY[state]), tone: taskStateBadge(state).tone, state }))
+  }
+  const list: Lane[] = []
+  // Leading "unstaged" lane: always on the personal board; on a project board only
+  // when it holds cards (a project task always has a stage, so it can't take drops).
+  if (kind.value === 'personal' || (columns.value[UNSTAGED]?.length ?? 0) > 0) {
+    list.push({ key: UNSTAGED, title: t('tasks.kanban.unstaged'), unstaged: true })
+  }
+  for (const stage of sortedStages.value) list.push({ key: String(stage.id), title: stage.name, stage })
+  return list
+})
+
 // Per-column arrays vue-draggable-plus mutates directly via v-model while
 // dragging. Rebuilt from the query result on every change (including after
 // an optimistic move settles the source task into its new column); dragging
 // itself never writes back into `items`/query state, only into this map.
 const columns = ref<Record<string, Task[]>>({})
-watch(
-  [items, sortedStages],
-  ([tasks, stages]) => {
-    const byStage: Record<string, Task[]> = { [UNSTAGED]: [] }
-    for (const stage of stages) byStage[String(stage.id)] = []
-    for (const task of tasks) {
+function rebuildColumns() {
+  const byKey: Record<string, Task[]> = {}
+  if (grouping.value === 'status') {
+    for (const state of statusLanes.value) byKey[state] = []
+    for (const task of items.value) byKey[task.state]?.push(task)
+  } else {
+    byKey[UNSTAGED] = []
+    for (const stage of sortedStages.value) byKey[String(stage.id)] = []
+    for (const task of items.value) {
       const stage = stageOf(task, kind.value)
-      const key = stage ? String(stage.id) : UNSTAGED
-      ;(byStage[key] ??= []).push(task)
+      ;(byKey[stage ? String(stage.id) : UNSTAGED] ??= []).push(task)
     }
-    columns.value = byStage
-  },
-  { immediate: true },
-)
+  }
+  columns.value = byKey
+}
+watch([items, sortedStages, grouping, statusLanes], rebuildColumns, { immediate: true })
+const countOf = (key: string) => columns.value[key]?.length ?? 0
 
 // Single move implementation shared by every way a task can change stage: a
-// cross-column drag (onColumnAdd below, for both a real stage and the
-// unstaged column) and the "..." menu on the card (@move in the template).
-// `stage: null` targets the unstaged column (personal board only — a
-// project task always has a stage, so moveTo returns null and this is a
-// no-op).
+// cross-column drag and the "..." menu on the card. `stage: null` targets the
+// unstaged column (personal board only - a project task always has a stage, so
+// moveTo returns null and this is a no-op).
 function applyMove(task: Task, stage: BoardStage | null) {
   const move = moveTo(kind.value, stage)
   if (!move || !task.can_write) return
@@ -85,20 +140,44 @@ function applyMove(task: Task, stage: BoardStage | null) {
   updateTask({ id: task.id, ...move })
 }
 
-// Fired only for real cross-column drops (SortableJS's @add via
-// vue-draggable-plus), never for the programmatic v-model rebuild above.
-// `event.data` is the underlying array item vue-draggable-plus resolves the
-// dragged DOM node back to — the moved Task itself.
-function onColumnAdd(event: { data?: Task }, targetKey: string) {
-  const task = event.data
-  if (!task) return
-  if (targetKey === UNSTAGED) {
-    applyMove(task, null)
+// A status change is a workflow transition, never optimistic: the server may refuse
+// it, so a refused drop snaps the card back to the column the data still says it is in.
+function applyTransition(task: Task, state: TaskState) {
+  if (task.state === state) return
+  if (!task.allowed_transitions?.includes(state)) {
+    toast.add({ title: t('tasks.transition.forbidden'), color: 'error' })
+    rebuildColumns()
     return
   }
-  const stage = sortedStages.value.find((s) => String(s.id) === targetKey)
-  if (stage) applyMove(task, stage)
+  transitionTask({ id: task.id, state }, {
+    onError: (err) => {
+      toast.add({ title: err instanceof ApiError && err.code !== 'transition_forbidden' ? err.message : t('tasks.transition.forbidden'), color: 'error' })
+      rebuildColumns()
+    },
+  })
 }
+
+// Fired only for real cross-column drops (SortableJS's @add via vue-draggable-plus),
+// never for the programmatic v-model rebuild above. `event.data` is the underlying
+// array item vue-draggable-plus resolves the dragged DOM node back to - the moved Task.
+function onColumnAdd(event: { data?: Task }, lane: Lane) {
+  const task = event.data
+  if (!task) return
+  if (lane.state) applyTransition(task, lane.state)
+  else applyMove(task, lane.stage ?? null)
+}
+
+// The "..." menu on a card lists where it can go: its allowed transitions on a status
+// board, the other stages on a stage board.
+function moveTargets(task: Task) {
+  if (grouping.value === 'status') {
+    return (task.allowed_transitions ?? []).map((state) => ({ label: t(STATE_LABEL_KEY[state]), onSelect: () => applyTransition(task, state) }))
+  }
+  if (!task.can_write) return []
+  const current = stageOf(task, kind.value)?.id ?? null
+  return sortedStages.value.map((stage) => ({ label: stage.name, disabled: current === stage.id, onSelect: () => applyMove(task, stage) }))
+}
+const stateBadge = (state: TaskState) => { const entry = taskStateBadge(state); return { tone: entry.tone, label: badgeLabel(entry, state, t) } }
 
 // Folded stages (fold: true) render collapsed by default; clicking a
 // collapsed column expands it locally for the rest of the session.
@@ -109,14 +188,32 @@ function toggleFold(stageId: number) {
   else next.add(stageId)
   expandedFolded.value = next
 }
-function isCollapsed(stage: BoardStage): boolean {
-  return stage.fold && !expandedFolded.value.has(stage.id)
+function isCollapsed(stage?: BoardStage): boolean {
+  return !!stage?.fold && !expandedFolded.value.has(stage.id)
+}
+function dropGroup(lane: Lane) {
+  return lane.unstaged && kind.value === 'project' ? { name: 'tasks', put: false } : 'tasks'
 }
 </script>
 
 <template>
   <div :class="embedded ? 'space-y-2 p-4' : 'rounded-lg ring ring-default bg-default overflow-hidden space-y-2 p-4'">
-    <p v-if="isCapped" class="text-xs text-muted">{{ t('tasks.kanban.capped') }}</p>
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div role="group" data-testid="board-grouping" class="inline-flex items-center gap-0.5 rounded-md bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.kanban.groupBy')">
+        <UButton
+          v-for="option in groupingOptions"
+          :key="option.value"
+          type="button"
+          color="neutral"
+          size="sm"
+          :variant="option.value === grouping ? 'soft' : 'ghost'"
+          :aria-pressed="option.value === grouping"
+          :data-grouping="option.value"
+          @click="setGrouping(option.value)"
+        >{{ option.label }}</UButton>
+      </div>
+      <p v-if="isCapped" class="text-xs text-muted">{{ t('tasks.kanban.capped') }}</p>
+    </div>
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <SharedPageState v-else-if="stageError" :error="stageError" @retry="refetchPersonalStages" />
     <SharedPageState v-else-if="isLoading || stageLoading" loading />
@@ -124,113 +221,76 @@ function isCollapsed(stage: BoardStage): boolean {
       A fixed board height with per-column vertical scroll (rather than
       letting the whole page grow with the tallest column) keeps every
       column's header and drop target reachable regardless of how many
-      cards a stage holds — the board only scrolls horizontally, per spec.
+      cards a column holds - the board only scrolls horizontally, per spec.
     -->
     <div v-else class="flex min-h-105 items-start gap-3 overflow-x-auto pb-2" :class="embedded ? 'h-[calc(100vh-340px)]' : 'h-[calc(100vh-260px)]'">
-      <!-- Leading "unstaged" column: tasks with no stage yet. Always shown on
-           the personal board; on a project board only when it actually holds
-           cards, since a project task always has a stage and the column
-           can't accept drops there. -->
-      <div
-        v-if="kind === 'personal' || (columns[UNSTAGED]?.length ?? 0) > 0"
-        data-testid="board-column"
-        data-stage-id="unstaged"
-        class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-elevated/30 p-2"
-      >
-        <div class="flex items-center justify-between px-1">
-          <h3 data-testid="board-column-title" class="text-sm font-medium text-muted">{{ t('tasks.kanban.unstaged') }}</h3>
-          <span class="text-xs text-muted">{{ columns[UNSTAGED]?.length ?? 0 }}</span>
-        </div>
-        <VueDraggable
-          v-model="columns[UNSTAGED]!"
-          class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"
-          :group="kind === 'project' ? { name: 'tasks', put: false } : 'tasks'"
-          :animation="150"
-          filter="[data-readonly=true]"
-          @add="(e: any) => onColumnAdd(e, UNSTAGED)"
-        >
-          <TaskCard
-            v-for="task in columns[UNSTAGED]"
-            :key="task.id"
-            :task="task"
-            :stages="sortedStages"
-            :current-stage-id="stageOf(task, kind)?.id ?? null"
-            :show-project="kind === 'personal'"
-            @open="emit('open', $event)"
-            @move="applyMove(task, $event)"
-          />
-        </VueDraggable>
-        <p v-if="(columns[UNSTAGED]?.length ?? 0) === 0" class="px-1 text-xs text-muted">{{ t('tasks.kanban.emptyColumn') }}</p>
-      </div>
-
-      <template v-for="stage in sortedStages" :key="stage.id">
+      <template v-for="lane in lanes" :key="lane.key">
         <!-- Collapsed folded column: name + count, expands on click. -->
         <UButton
-          v-if="isCollapsed(stage)"
+          v-if="isCollapsed(lane.stage)"
           type="button"
           color="neutral"
           variant="ghost"
           data-testid="board-column-folded"
-          :data-stage-id="stage.id"
+          :data-stage-id="lane.key"
           :aria-expanded="false"
-          :aria-label="t('tasks.kanban.expand', { name: stage.name })"
+          :aria-label="t('tasks.kanban.expand', { name: lane.title })"
           class="flex h-full w-12 shrink-0 flex-col items-center gap-2 rounded-lg border border-default bg-elevated/30 p-2 text-muted hover:bg-elevated"
-          @click="toggleFold(stage.id)"
+          @click="toggleFold(lane.stage!.id)"
         >
-          <span data-testid="board-column-count" class="text-xs font-medium">{{ columns[String(stage.id)]?.length ?? 0 }}</span>
-          <span class="text-xs [writing-mode:vertical-rl]">{{ stage.name }}</span>
+          <span data-testid="board-column-count" class="text-xs font-medium">{{ countOf(lane.key) }}</span>
+          <span class="text-xs [writing-mode:vertical-rl]">{{ lane.title }}</span>
         </UButton>
 
         <div
           v-else
           data-testid="board-column"
-          :data-stage-id="stage.id"
+          :data-stage-id="lane.key"
           class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-elevated/30 p-2"
         >
           <div class="flex items-center justify-between px-1">
             <UButton
-              v-if="stage.fold"
+              v-if="lane.stage?.fold"
               type="button"
               color="neutral"
               variant="ghost"
               data-testid="board-column-title"
               class="text-start text-sm font-medium hover:underline"
-              :aria-expanded="!isCollapsed(stage)"
-              :aria-label="t('tasks.kanban.collapse', { name: stage.name })"
-              @click="toggleFold(stage.id)"
+              :aria-expanded="true"
+              :aria-label="t('tasks.kanban.collapse', { name: lane.title })"
+              @click="toggleFold(lane.stage.id)"
             >
-              {{ stage.name }}
+              {{ lane.title }}
             </UButton>
-            <h3 v-else data-testid="board-column-title" class="text-sm font-medium">{{ stage.name }}</h3>
-            <span class="text-xs text-muted">{{ columns[String(stage.id)]?.length ?? 0 }}</span>
+            <h3 v-else-if="lane.state" data-testid="board-column-title" class="text-sm font-medium"><SharedStatusBadge v-bind="stateBadge(lane.state)" /></h3>
+            <h3 v-else data-testid="board-column-title" class="text-sm font-medium" :class="lane.unstaged && 'text-muted'">{{ lane.title }}</h3>
+            <span class="text-xs text-muted">{{ countOf(lane.key) }}</span>
           </div>
           <VueDraggable
-            v-model="columns[String(stage.id)]!"
+            v-model="columns[lane.key]!"
             class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"
-            group="tasks"
+            :group="dropGroup(lane)"
             :animation="150"
             filter="[data-readonly=true]"
-            @add="(e: any) => onColumnAdd(e, String(stage.id))"
+            @add="(e: any) => onColumnAdd(e, lane)"
           >
             <TaskCard
-              v-for="task in columns[String(stage.id)]"
+              v-for="task in columns[lane.key]"
               :key="task.id"
               :task="task"
               :stages="sortedStages"
               :current-stage-id="stageOf(task, kind)?.id ?? null"
+              :move-targets="moveTargets(task)"
               :show-project="kind === 'personal'"
               @open="emit('open', $event)"
-              @move="applyMove(task, $event)"
             />
           </VueDraggable>
-          <p v-if="(columns[String(stage.id)]?.length ?? 0) === 0" class="px-1 text-xs text-muted">
-            {{ t('tasks.kanban.emptyColumn') }}
-          </p>
+          <p v-if="countOf(lane.key) === 0" class="px-1 text-xs text-muted">{{ t('tasks.kanban.emptyColumn') }}</p>
         </div>
       </template>
     </div>
     <EmptyState
-      v-if="kind === 'project' && sortedStages.length === 0"
+      v-if="grouping === 'stage' && kind === 'project' && sortedStages.length === 0"
       :title="t('tasks.kanban.noStages')"
       class="py-6"
     />
