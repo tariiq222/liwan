@@ -29,7 +29,7 @@
       "changes": "سجل التغييرات",
       "employeeFile": "ملف الموظف",
       "account": "الحساب",
-      "login": "بريد الدخول",
+      "login": "اسم الدخول",
       "employee": "الموظف المرتبط",
       "chooseEmployee": "اختر موظفًا نشطًا",
       "chooseRole": "اختر دورًا",
@@ -59,7 +59,7 @@
       "noEmployee": "بلا موظف مرتبط",
       "noRoles": "بلا أدوار",
       "empty": "لا توجد حسابات مطابقة.",
-      "columns": { "name": "الاسم", "login": "بريد الدخول", "employee": "الموظف", "roles": "الأدوار", "status": "الحالة", "actions": "الإجراءات" },
+      "columns": { "name": "الاسم", "login": "اسم الدخول", "employee": "الموظف", "roles": "الأدوار", "status": "الحالة", "actions": "الإجراءات" },
       "filters": { "search": "ابحث بالاسم أو البريد…", "allStatuses": "كل الحالات", "allRoles": "كل الأدوار", "allDepartments": "كل الإدارات" },
       "resetPassword": "إعادة تعيين كلمة المرور",
       "disable": "إيقاف الدخول",
@@ -150,6 +150,6 @@
         "legacyAdminPreserved": "الإبقاء على مسؤول قديم"
       }
     },
-    "errors": { "weakPassword": "كلمة المرور قصيرة جدًا.", "conflict": "تغيرت البيانات. أعد تحميل النسخة الأحدث ثم حاول مرة أخرى.", "custom_role_permission_forbidden": "لا يمكن للدور المخصص منح صلاحية إدارة الوصول.", "forbidden": "لا تملك صلاحية تنفيذ هذا الإجراء.", "protected_user": "حساب الدعم محمي.", "protected_role": "الدور الجاهز محمي.", "last_access_admin": "لا يمكن إزالة آخر مسؤول وصول.", "employee_archived": "لا يمكن منح الدخول لموظف مؤرشف.", "email_required": "يحتاج الموظف إلى بريد وظيفي صحيح.", "login_taken": "بريد الدخول مستخدم مسبقًا.", "unsupported_scope": "النطاق المحدد غير مدعوم.", "missing_dependency": "أضف الصلاحيات التابعة أولًا.", "role_in_use": "لا يمكن حذف دور مسند إلى مستخدمين." }
+    "errors": { "weakPassword": "كلمة المرور قصيرة جدًا.", "conflict": "تغيرت البيانات. أعد تحميل النسخة الأحدث ثم حاول مرة أخرى.", "custom_role_permission_forbidden": "لا يمكن للدور المخصص منح صلاحية إدارة الوصول.", "forbidden": "لا تملك صلاحية تنفيذ هذا الإجراء.", "protected_user": "حساب الدعم محمي.", "protected_role": "الدور الجاهز محمي.", "last_access_admin": "لا يمكن إزالة آخر مسؤول وصول.", "employee_archived": "لا يمكن منح الدخول لموظف مؤرشف.", "email_required": "يحتاج الموظف إلى بريد وظيفي صحيح.", "login_taken": "اسم الدخول مستخدم مسبقًا.", "unsupported_scope": "النطاق المحدد غير مدعوم.", "missing_dependency": "أضف الصلاحيات التابعة أولًا.", "role_in_use": "لا يمكن حذف دور مسند إلى مستخدمين." }
   }
 }

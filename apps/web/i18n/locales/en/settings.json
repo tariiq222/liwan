@@ -49,7 +49,7 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "The institution name and logo are managed by the system administrator in Odoo. You can customize the primary color here.",
+      "managedIdentity": "The institution name and logo are managed by the system administrator. You can customize the primary color here.",
       "primaryHint": "Chrome, primary action, focus, selection, progress, and charts.",
       "chartsNotDistinct": "The six chart colours are not all distinct."
     },

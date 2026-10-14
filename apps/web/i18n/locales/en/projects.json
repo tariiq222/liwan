@@ -744,7 +744,7 @@
       "description": "A live summary of project status, tasks, and budgets for the current filters.",
       "summaryTitle": "Project summary",
       "summaryDescription": "Metrics and totals cover every matching project, not only the current page.",
-      "projectCount": "Matching projects",
+      "projectCount": "Projects",
       "attentionCount": "Needs attention",
       "overdueCount": "Overdue tasks",
       "statusTitle": "Project status distribution",
@@ -777,7 +777,7 @@
       "tableDescription": "The full table with search, filters, and pagination.",
       "metrics": {
         "metricsLabel": "Project metrics",
-        "projects": "Matching projects",
+        "projects": "Projects",
         "active": "Active projects",
         "taskProgress": "Task completion",
         "budgeted": "Budgeted projects"
@@ -831,7 +831,7 @@
     },
     "refresh": {
       "workspace": {
-        "needsAttentionPreviewEmpty": "No overdue tasks appear in the first loaded tasks shown in this preview.",
+        "needsAttentionPreviewEmpty": "No overdue tasks among the tasks shown.",
         "resultCount": "{count} project matches the current filters | {count} projects match the current filters",
         "viewAllUpdates": "View update history",
         "updatesTitle": "Project update history",

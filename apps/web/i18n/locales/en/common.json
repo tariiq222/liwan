@@ -108,6 +108,8 @@
     "pageNotFound": "The link may be wrong, or the page has moved.",
     "pageErrorTitle": "This page could not be shown",
     "pageError": "Something went wrong. Go back to the home page and try again.",
+    "pageForbiddenTitle": "You do not have access",
+    "pageForbidden": "You do not have permission to view this page. Ask your system administrator for access.",
     "goHome": "Back to home",
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
