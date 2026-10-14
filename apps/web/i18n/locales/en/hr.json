@@ -28,7 +28,8 @@
         "department": "Department",
         "manager": "Manager",
         "account": "Account",
-        "actions": "Actions"
+        "actions": "Actions",
+        "status": "Status"
       },
       "access": {
         "noAccount": "No account",
@@ -41,7 +42,11 @@
       "filteredEmpty": "No employees match these filters",
       "filteredEmptyHint": "Change or clear the filters.",
       "searchValue": "Search: {value}",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "status": {
+        "active": "Active",
+        "archived": "Archived"
+      }
     },
     "card": {
       "title": "Employee card",
