@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { DARK_SURFACES } from '../../../utils/nasqPalette'
+import { contrastRatio, DARK_SURFACES, LIGHT_CANVAS } from '../../../utils/nasqPalette'
 import { createBrandTheme, DEFAULT_PRIMARY } from '../../../utils/brandTheme'
 
 const sheet = (name: string) => readFileSync(resolve(import.meta.dirname, '..', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
@@ -47,6 +47,7 @@ describe('dark surfaces', () => {
   it('tokens.css .dark matches DARK_SURFACES', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
     const expected: Record<string, string> = {
+      '--nasq-canvas': DARK_SURFACES.canvas,
       '--ui-bg': DARK_SURFACES.bg,
       '--ui-bg-muted': DARK_SURFACES.muted,
       '--ui-bg-elevated': DARK_SURFACES.elevated,
@@ -67,5 +68,46 @@ describe('dark solid primary defaults', () => {
       expect(found.get(token), token).toBeDefined()
       expect(found.get(token)?.toLowerCase(), token).toBe(theme[token])
     }
+  })
+})
+
+describe('page canvas and rail', () => {
+  it('paints the shell on the canvas token and keeps cards on --ui-bg', () => {
+    const tokens = sheet('tokens.css')
+    expect(declarations(ruleBodies(tokens, ':root')).get('--nasq-canvas')?.toLowerCase()).toBe(LIGHT_CANVAS)
+    const shell = sheet('shell.css')
+    for (const selector of ['.nasq-shell', '.nasq-shell-workspace', '.nasq-shell-main']) {
+      expect(declarations(ruleBodies(shell, selector)).get('background'), selector).toBe('var(--nasq-canvas)')
+    }
+  })
+
+  it('keeps the dark rail distinguishable from the page canvas and the cards', () => {
+    const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
+    const rail = found.get('--nasq-rail')!
+    expect(contrastRatio(rail, DARK_SURFACES.canvas)).toBeGreaterThanOrEqual(1.35)
+    expect(contrastRatio(found.get('--nasq-rail-deep')!, DARK_SURFACES.canvas)).toBeGreaterThanOrEqual(1.2)
+    expect(contrastRatio('#ffffff', found.get('--nasq-rail-deep')!)).toBeGreaterThanOrEqual(4.5)
+    expect(found.get('--nasq-rail-edge')).toBeDefined()
+  })
+})
+
+describe('dark brand tone and chart defaults', () => {
+  it('tokens.css .dark matches createBrandTheme for the default midnight', () => {
+    const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
+    const theme = createBrandTheme(DEFAULT_PRIMARY, 'dark')
+    const tokens = ['--brand-link', '--ring', '--sidebar-ring', ...[1, 2, 3, 4, 5, 6].map(i => `--chart-${i}`), ...['success', 'info', 'warning', 'error', 'neutral'].map(k => `--chart-status-${k}`)]
+    for (const token of tokens) expect(found.get(token)?.toLowerCase(), token).toBe(theme[token])
+  })
+
+  it('tokens.css :root matches createBrandTheme for the default midnight in light mode', () => {
+    const found = declarations(ruleBodies(sheet('tokens.css'), ':root'))
+    const theme = createBrandTheme(DEFAULT_PRIMARY, 'light')
+    const tokens = [...[1, 2, 3, 4, 5, 6].map(i => `--chart-${i}`), ...['success', 'info', 'warning', 'error', 'neutral'].map(k => `--chart-status-${k}`)]
+    for (const token of tokens) expect(found.get(token)?.toLowerCase(), token).toBe(theme[token])
+  })
+
+  it('keeps the default dark brand tone readable on the dark surfaces', () => {
+    const link = declarations(ruleBodies(sheet('tokens.css'), '.dark')).get('--brand-link')!
+    for (const surface of Object.values(DARK_SURFACES)) expect(contrastRatio(link, surface), surface).toBeGreaterThanOrEqual(4.5)
   })
 })
