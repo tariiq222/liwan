@@ -99,6 +99,9 @@
     "signInToContinue": "سجّل الدخول للمتابعة",
     "invalidCredentials": "بيانات الدخول غير صحيحة",
     "loginFailed": "تعذّر تسجيل الدخول",
+    "usernameRequired": "أدخل اسم المستخدم",
+    "passwordRequired": "أدخل كلمة المرور",
+    "totpRequired": "أدخل رمز التحقق",
     "totpTitle": "رمز التحقق",
     "totpHint": "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة",
     "totpInvalid": "رمز التحقق غير صحيح"
