@@ -1,0 +1,84 @@
+{
+  "schema_version": 3,
+  "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
+  "id": "platform_v4",
+  "name": "nasq Platform",
+  "description": "Operations application release revision; earlier catalog revisions remain unchanged.",
+  "industry": "none",
+  "base_modules": [
+    "nasq_core",
+    "nasq_platform",
+    "nasq_api"
+  ],
+  "tiers": [
+    {
+      "id": "core",
+      "name": "Core",
+      "description": "Base modules only: the platform, its capability catalog and the shared API.",
+      "modules": [],
+      "features": [
+        "limit:users.limit",
+        "limit:storage.limit_mb",
+        "limit:branches.extra_limit:0"
+      ]
+    },
+    {
+      "id": "projects",
+      "name": "Projects",
+      "description": "The project and meeting applications.",
+      "modules": [
+        "nasq_pmo",
+        "nasq_meetings"
+      ],
+      "features": [
+        "boolean:pmo.enabled",
+        "boolean:meetings.enabled",
+        "limit:projects.max_projects"
+      ]
+    },
+    {
+      "id": "people",
+      "name": "People",
+      "description": "The HR application.",
+      "modules": [
+        "nasq_hr"
+      ],
+      "features": [
+        "boolean:hr.enabled"
+      ]
+    },
+    {
+      "id": "messaging",
+      "name": "Messaging",
+      "description": "The member-private chat application.",
+      "modules": [
+        "nasq_chat"
+      ],
+      "features": [
+        "boolean:chat.enabled"
+      ]
+    },
+    {
+      "id": "tasks",
+      "name": "Tasks",
+      "description": "Personal and team tasks that need no project.",
+      "modules": [
+        "nasq_tasks"
+      ],
+      "features": [
+        "boolean:tasks.enabled"
+      ]
+    },
+    {
+      "id": "operations",
+      "name": "Operations",
+      "description": "The Operations application.",
+      "modules": [
+        "nasq_operations"
+      ],
+      "features": [
+        "boolean:operations.enabled"
+      ]
+    }
+  ]
+}

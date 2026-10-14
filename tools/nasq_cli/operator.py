@@ -44,6 +44,7 @@ PATH_KEYS = frozenset({
 CREATE_MODULES = (
     'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_directory', 'nasq_notify', 'nasq_pmo',
     'nasq_meetings', 'nasq_meetings_pmo', 'nasq_hr', 'nasq_chat', 'nasq_tasks', 'nasq_tasks_pmo',
+    'nasq_operations', 'nasq_operations_pmo',
 )
 CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy' / 'catalog' / 'solutions' / 'platform.json'
 PROFILE_SQL = (

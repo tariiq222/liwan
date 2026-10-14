@@ -241,7 +241,7 @@ class TestNewApp(unittest.TestCase):
     def test_success_prints_the_catalog_warning(self):
         code, out, err = run(self.root, *ARGS)
         self.assertEqual(code, 0, err)
-        self.assertIn('platform_v3.json was edited in place', out)
+        self.assertIn('platform_v4.json was edited in place', out)
         self.assertIn('platform_vN.json', out)
 
     def test_existing_page_or_contracts_entry_blocks_the_id(self):

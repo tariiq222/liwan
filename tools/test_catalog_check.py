@@ -502,7 +502,7 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
 
     def test_the_committed_release_is_the_base_then_the_tier_closures(self):
         name, modules = catalog_check.current_release(ROOT)
-        self.assertEqual(name, 'platform_v3.json')
+        self.assertEqual(name, 'platform_v4.json')
         data = json.loads((ROOT / 'deploy/catalog/solutions' / name).read_text())
         self.assertEqual(data['base_modules'], ['nasq_core', 'nasq_platform', 'nasq_api'])
         order = catalog_check.release_install_order(ROOT, data)
@@ -511,8 +511,12 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
         self.assertEqual(len(order), len(set(order)))
         position = {module: index for index, module in enumerate(order)}
         seen = set(data['base_modules'])
+        selected = list(data['base_modules'])
         for tier in data['tiers']:
-            closure = catalog_check.install_closure([ROOT / 'odoo-addons'], data['base_modules'] + tier['modules'])
+            selected += tier['modules']
+            # Bridges join when the accumulated release prefix completes both
+            # applications, rather than in the closure of one isolated tier.
+            closure = catalog_check.install_closure([ROOT / 'odoo-addons'], selected)
             added = closure - seen
             # a tier's modules come before every module that only a later tier adds
             later = set(order) - seen - added

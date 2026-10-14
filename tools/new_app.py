@@ -4,7 +4,7 @@
     python3 -B tools/new_app.py <app> --name-ar <ar> --name-en <en> [--route SLUG] [--root DIR] [--dry-run]
 
 Creates the application's own folders from tools/new_app_templates, makes the three
-registration edits (tools/arch_layers.json, the platform_v3 catalog tier,
+registration edits (tools/arch_layers.json, the platform_v4 catalog tier,
 packages/contracts/src/index.ts) and runs catalog_check.py --sync-release-copies.
 Nothing is written when any target already exists or any check fails.
 """
@@ -46,7 +46,7 @@ SHELL_ROUTES = frozenset({
 })
 ROUTE_SLUG = re.compile(r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$')
 ARCH_LAYERS = 'tools/arch_layers.json'
-PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v3.json'
+PLATFORM_SOLUTION = 'deploy/catalog/solutions/platform_v4.json'
 CONTRACTS_INDEX = 'packages/contracts/src/index.ts'
 APPLICATION_RANK = 4
 

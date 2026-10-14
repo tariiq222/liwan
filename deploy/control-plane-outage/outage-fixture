@@ -20,7 +20,7 @@ PYTHON="$ODOO_ROOT/.venv/bin/python"
 ODOO_BIN="$ODOO_ROOT/odoo-bin"
 STOCK_ADDONS="$ODOO_ROOT/addons"
 ADDONS="$ROOT/odoo-addons"
-MODULES=nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo
+MODULES=nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo
 
 fail() { printf 'fixture stopped: %s\n' "$1" >&2; exit 1; }
 
