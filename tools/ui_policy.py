@@ -37,6 +37,8 @@ LOCALES = 'apps/web/i18n/locales/'
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'shared/PageHeader.vue', 'shared/PageState.vue', 'shared/PageContainer.vue', 'shared/UnsavedChanges.vue',
     'shared/CreatePanel.vue',
+    'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
+    'operations/ProcessForm.vue', 'operations/StateBadge.vue',
     'shared/FormSection.vue', 'shared/RecordNumber.vue', 'settings/SettingsLayout.vue', 'shared/EmptyState.vue',
     'shared/FilterBar.vue', 'shared/DateField.vue', 'task/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
     'meetings/MeetingPeopleFields.vue', 'shared/FileField.vue', 'project/ProjectFieldHelp.vue',

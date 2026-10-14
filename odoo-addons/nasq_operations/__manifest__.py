@@ -1,0 +1,2 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+{'name': 'nasq Operations', 'summary': 'Operations: versioned process definitions and permission-checked approval requests', 'version': '19.0.1.0.0', 'category': 'Hidden', 'author': 'Tariq Alwalidi', 'license': 'LGPL-3', 'depends': ['nasq_api', 'nasq_directory', 'base_tier_validation'], 'data': ['security/operations_capability_groups.xml', 'data/operations_access_permissions.xml', 'security/ir.model.access.csv', 'security/operations_rules.xml'], 'installable': True, 'application': False}

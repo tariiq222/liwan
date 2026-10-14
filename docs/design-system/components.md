@@ -95,3 +95,16 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/web/app/components/subscription/InvoiceLines.vue` | `apps/web/stories/subscription/InvoiceLines.stories.ts` |  |
 | `apps/web/app/components/subscription/StateBadge.vue` | `apps/web/stories/subscription/StateBadge.stories.ts` | `UBadge` |
 | `apps/web/app/components/subscription/UsagePanel.vue` | `apps/web/stories/subscription/UsagePanel.stories.ts` | `UBadge` |
+
+
+## مكونات العمليات
+
+المكونات التالية محلية لتطبيق العمليات، وتعيد استخدام لبنات Storybook المشتركة. الصلاحيات والقرارات تأتي من عقود الخادم.
+
+| المكوّن | الوظيفة | القصة | مكونات الأساس |
+| --- | --- | --- | --- |
+| `apps/web/app/components/operations/RequestList.vue` | طلباتي، بانتظار موافقتي، متابعة التنفيذ مع فلاتر الرابط | `apps/web/stories/operations/RequestList.stories.ts` | `SharedFilterBar`, `SharedFilterField`, `SharedPageState`, `SharedRecordNumber`, `SharedPagination`, `UButton` |
+| `apps/web/app/components/operations/ProcessList.vue` | الإجراءات المنشورة والمسودات بحسب الصلاحية | `apps/web/stories/operations/ProcessList.stories.ts` | `SharedPageHeader`, `SharedPageState`, `SharedRecordNumber`, `SharedPagination`, `UButton` |
+| `apps/web/app/components/operations/RequestForm.vue` | إنشاء الطلب وتعديل مسودته واختيار السجل المرتبط | `apps/web/stories/operations/RequestForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/web/app/components/operations/ProcessForm.vue` | ترتيب المراحل والمراجعين ونتيجة الإجراء | `apps/web/stories/operations/ProcessForm.stories.ts` | `SharedFormSection`, `SharedPersonPicker`, `SharedUnsavedChanges`, `UFormField`, `UButton` |
+| `apps/web/app/components/operations/StateBadge.vue` | حالة الطلب أو المرحلة أو الإجراء | `apps/web/stories/operations/StateBadge.stories.ts` | `UBadge` |

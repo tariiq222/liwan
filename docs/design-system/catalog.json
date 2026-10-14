@@ -317,6 +317,272 @@
       ]
     },
     {
+      "name": "OperationsProcessForm",
+      "file": "apps/web/app/components/operations/ProcessForm.vue",
+      "story": "apps/web/stories/operations/ProcessForm.stories.ts",
+      "title": "Operations/ProcessForm",
+      "props": [
+        {
+          "name": "process",
+          "type": "{ id: number; name: string; description: string; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "backTo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "refresh",
+          "type": "(() => Promise<{ id: number; name: string; description: string; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>)",
+          "required": false
+        },
+        {
+          "name": "save",
+          "type": "(body: OperationProcessBody) => Promise<{ id: number; name: string; description: string; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }>",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "saved",
+          "payload": "[process: { id: number; name: string; description: string; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Create",
+          "name": "Create",
+          "context": "apps/web/app/pages/operations/processes/new.vue:17"
+        },
+        {
+          "id": "PublishedRevision",
+          "name": "PublishedRevision",
+          "context": "apps/web/app/pages/operations/processes/new.vue:17"
+        },
+        {
+          "id": "Disabled",
+          "name": "Disabled",
+          "context": "apps/web/app/pages/operations/processes/new.vue:17"
+        }
+      ]
+    },
+    {
+      "name": "OperationsProcessList",
+      "file": "apps/web/app/components/operations/ProcessList.vue",
+      "story": "apps/web/stories/operations/ProcessList.stories.ts",
+      "title": "Operations/ProcessList",
+      "props": [
+        {
+          "name": "background",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UInput"
+      ],
+      "stories": [
+        {
+          "id": "Published",
+          "name": "Published",
+          "context": "apps/web/app/pages/operations/processes/index.vue:4"
+        }
+      ]
+    },
+    {
+      "name": "OperationsRequestForm",
+      "file": "apps/web/app/components/operations/RequestForm.vue",
+      "story": "apps/web/stories/operations/RequestForm.stories.ts",
+      "title": "Operations/RequestForm",
+      "props": [
+        {
+          "name": "record",
+          "type": "{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }",
+          "required": false
+        },
+        {
+          "name": "processes",
+          "type": "{ id: number; name: string; description: string; state: \"draft\" | \"published\" | \"archived\"; revision: number; execution_kind: string; steps: { name: string; reviewer_ids: number[]; reviewers: { id: number; name: string; user_id: number; }[]; }[]; }[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "processError",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "backTo",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "refresh",
+          "type": "(() => Promise<{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }>)",
+          "required": false
+        },
+        {
+          "name": "save",
+          "type": "(body: RequestFormPayload) => Promise<{ id: number; name: string; process: { id: number; name: string; }; process_revision: number; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }>",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "saved",
+          "payload": "[record: { id: number; name: string; process: { id: number; name: string; }; process_revision: number; state: \"done\" | \"pending\" | \"draft\" | \"returned\" | \"rejected\" | \"withdrawn\"; revision: number; cycle: number; requester: { id: number; name: string; user_id: number; }; created_at: string; execution_count: number; description: string; target: { id: number; name: string; href: string; } | null; steps: { sequence: number; name: string; reviewers: { id: number; name: string; user_id: number; }[]; status: \"pending\" | \"rejected\" | \"waiting\" | \"approved\" | \"cancel\"; }[]; events: { id: number; kind: string; actor: { id: number; name: string; user_id: number; }; comment: string; cycle: number; created_at: string; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; allowed_actions: { edit: boolean; submit: boolean; approve: boolean; reject: boolean; return: boolean; withdraw: boolean; }; }]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelect",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Create",
+          "name": "Create",
+          "context": "apps/web/app/pages/operations/new.vue:20"
+        },
+        {
+          "id": "EditReturned",
+          "name": "EditReturned",
+          "context": "apps/web/app/pages/operations/new.vue:20"
+        },
+        {
+          "id": "LoadingChoices",
+          "name": "LoadingChoices",
+          "context": "apps/web/app/pages/operations/new.vue:20"
+        },
+        {
+          "id": "PermissionDenied",
+          "name": "PermissionDenied",
+          "context": "apps/web/app/pages/operations/new.vue:20"
+        },
+        {
+          "id": "RelatedTask",
+          "name": "RelatedTask",
+          "context": "apps/web/app/pages/operations/new.vue:20"
+        }
+      ]
+    },
+    {
+      "name": "OperationsRequestList",
+      "file": "apps/web/app/components/operations/RequestList.vue",
+      "story": "apps/web/stories/operations/RequestList.stories.ts",
+      "title": "Operations/RequestList",
+      "props": [
+        {
+          "name": "scope",
+          "type": "OperationScope",
+          "required": true
+        },
+        {
+          "name": "background",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UInput",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "Mine",
+          "name": "Mine",
+          "context": "apps/web/app/pages/operations/index.vue:4"
+        },
+        {
+          "id": "Pending",
+          "name": "Pending",
+          "context": "apps/web/app/pages/operations/index.vue:4"
+        },
+        {
+          "id": "Monitoring",
+          "name": "Monitoring",
+          "context": "apps/web/app/pages/operations/index.vue:4"
+        }
+      ]
+    },
+    {
+      "name": "OperationsStateBadge",
+      "file": "apps/web/app/components/operations/StateBadge.vue",
+      "story": "apps/web/stories/operations/StateBadge.stories.ts",
+      "title": "Operations/StateBadge",
+      "props": [
+        {
+          "name": "state",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Pending",
+          "name": "Pending",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+        },
+        {
+          "id": "Completed",
+          "name": "Completed",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+        },
+        {
+          "id": "Returned",
+          "name": "Returned",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+        },
+        {
+          "id": "Rejected",
+          "name": "Rejected",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+        }
+      ]
+    },
+    {
       "name": "ProjectDashboardChartPanel",
       "file": "apps/web/app/components/project/dashboard/DashboardChartPanel.vue",
       "story": "apps/web/stories/project/dashboard/DashboardChartPanel.stories.ts",
@@ -432,12 +698,12 @@
       "props": [
         {
           "name": "mode",
-          "type": "\"create\" | \"edit\"",
+          "type": "\"edit\" | \"create\"",
           "required": true
         },
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"read\" | \"write\" | \"archive\")[]; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"employees\" | \"followers\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"justification\" | \"scope\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"final\"; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"read\" | \"write\" | \"archive\")[]; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"employees\" | \"followers\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"final\"; }; }",
           "required": false
         },
         {
@@ -482,20 +748,20 @@
           "payload": "[]"
         },
         {
+          "name": "saved",
+          "payload": "[finalized: boolean]"
+        },
+        {
           "name": "created",
           "payload": "[id: number]"
         },
         {
           "name": "drafted",
-          "payload": "[id: number, step: \"justification\" | \"scope\" | \"schedule\" | \"budget\" | \"risks\" | \"basics\" | \"review\"]"
+          "payload": "[id: number, step: \"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\" | \"basics\" | \"review\"]"
         },
         {
           "name": "draftSaved",
           "payload": "[]"
-        },
-        {
-          "name": "saved",
-          "payload": "[finalized: boolean]"
         },
         {
           "name": "retryMilestones",
@@ -564,7 +830,7 @@
       "props": [
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"read\" | \"write\" | \"archive\")[]; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"read\" | \"write\" | \"archive\")[]; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"employees\" | \"followers\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"justification\" | \"scope\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"final\"; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"read\" | \"write\" | \"archive\")[]; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"read\" | \"write\" | \"archive\")[]; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"employees\" | \"followers\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"final\"; }; }",
           "required": true
         },
         {
@@ -576,11 +842,11 @@
       ],
       "events": [
         {
-          "name": "settings",
+          "name": "archived",
           "payload": "[]"
         },
         {
-          "name": "archived",
+          "name": "settings",
           "payload": "[]"
         },
         {
@@ -1315,11 +1581,11 @@
       ],
       "events": [
         {
-          "name": "confirm",
+          "name": "cancel",
           "payload": "[]"
         },
         {
-          "name": "cancel",
+          "name": "confirm",
           "payload": "[]"
         }
       ],
@@ -1991,7 +2257,7 @@
       "props": [
         {
           "name": "summary",
-          "type": "{ items: { id: string; subscription_id: string; tenant_id: string; name: string; kind: \"hq\" | \"extra\"; billing: \"paid\" | \"included\" | \"free_extra\"; state: \"active\" | \"archived\" | \"pending\" | \"failed\"; odoo_company_id: number | null; order_id: string | null; activated_at: string | null; archived_at: string | null; }[]; total: number; hq: 1; free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null; }",
+          "type": "{ items: { id: string; subscription_id: string; tenant_id: string; name: string; kind: \"hq\" | \"extra\"; billing: \"paid\" | \"included\" | \"free_extra\"; state: \"pending\" | \"archived\" | \"active\" | \"failed\"; odoo_company_id: number | null; order_id: string | null; activated_at: string | null; archived_at: string | null; }[]; total: number; hq: 1; free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null; }",
           "required": true
         }
       ],
@@ -2185,11 +2451,11 @@
       ],
       "events": [
         {
-          "name": "update:modelValue",
+          "name": "draft",
           "payload": "[{ html: string; taskId: number; }]"
         },
         {
-          "name": "draft",
+          "name": "update:modelValue",
           "payload": "[{ html: string; taskId: number; }]"
         }
       ],
@@ -2226,7 +2492,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"in_progress\" | \"changes_requested\" | \"approved\" | \"waiting\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"in_progress\" | \"changes_requested\" | \"approved\" | \"waiting\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
           "required": true
         },
         {
@@ -2267,7 +2533,7 @@
       "props": [
         {
           "name": "state",
-          "type": "\"done\" | \"in_progress\" | \"changes_requested\" | \"approved\" | \"waiting\" | \"cancelled\"",
+          "type": "\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"",
           "required": true
         },
         {
@@ -2302,7 +2568,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"in_progress\" | \"changes_requested\" | \"approved\" | \"waiting\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"in_progress\" | \"changes_requested\" | \"approved\" | \"waiting\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
           "required": true
         },
         {
@@ -2392,7 +2658,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"in_progress\" | \"changes_requested\" | \"approved\" | \"waiting\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"in_progress\" | \"changes_requested\" | \"approved\" | \"waiting\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
           "required": true
         },
         {
@@ -2456,7 +2722,7 @@
         },
         {
           "name": "initial",
-          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
+          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
           "required": false
         },
         {
@@ -2491,12 +2757,12 @@
       ],
       "events": [
         {
-          "name": "cancel",
-          "payload": "[]"
-        },
-        {
           "name": "save",
           "payload": "[draft: globalThis.BundleDraft, release: { id: string; version: string; source_digest: string; artifact_digest: string; applications: { id: string; name_ar: string; name_en: string; modules: string[]; requires_apps: string[]; conflicts_with_apps: string[]; selectable: boolean; features: { key: string; kind: \"boolean\" | \"limit\"; selectable: boolean; requires: string[]; enforcement_refs: string[]; ceiling?: number | undefined; }[]; }[]; base_modules?: string[] | undefined; } | undefined]"
+        },
+        {
+          "name": "cancel",
+          "payload": "[]"
         }
       ],
       "slots": [],
@@ -2657,12 +2923,12 @@
       ],
       "events": [
         {
-          "name": "cancel",
-          "payload": "[]"
-        },
-        {
           "name": "save",
           "payload": "[draft: globalThis.TermsDraft]"
+        },
+        {
+          "name": "cancel",
+          "payload": "[]"
         },
         {
           "name": "preview",
@@ -2829,14 +3095,14 @@
         },
         {
           "name": "view",
-          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
+          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
           "required": true
         }
       ],
       "events": [
         {
           "name": "done",
-          "payload": "[action: globalThis.LifecycleAction, result: { bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | null]"
+          "payload": "[action: globalThis.LifecycleAction, result: { bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | null]"
         },
         {
           "name": "reload",
@@ -2926,7 +3192,7 @@
       "props": [
         {
           "name": "bundles",
-          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }[]",
+          "type": "{ bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }[]",
           "required": true
         },
         {
@@ -2936,7 +3202,7 @@
         },
         {
           "name": "initial",
-          "type": "{ plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"validated\" | \"published\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
+          "type": "{ plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; }",
           "required": false
         },
         {
@@ -2965,12 +3231,12 @@
       ],
       "events": [
         {
-          "name": "cancel",
-          "payload": "[]"
-        },
-        {
           "name": "save",
           "payload": "[draft: globalThis.PlanDraft]"
+        },
+        {
+          "name": "cancel",
+          "payload": "[]"
         }
       ],
       "slots": [],
@@ -3150,7 +3416,7 @@
       "props": [
         {
           "name": "subscription",
-          "type": "{ id: string; customer_id: string; tenant_id: string | null; state: \"cancelled\" | \"active\" | \"pending\" | \"trialing\" | \"past_due\" | \"suspended\"; applied: { id: string; subscription_id: string; revision: number; customer_id: string; tenant_id: string; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; policy_revision_id: string; cadence: { unit: \"month\" | \"year\"; count: number; }; term_start: string; term_end: string; period_start: string; period_end: string; included_extra_branches: number; extra_branch_count: number; entitlement: { catalog_release_id: string; modules: string[]; features: Record<string, number | boolean | null>; compiler_version: string; digest: string; }; quote_id: string; created_at: string; } | null; target: { id: string; subscription_id: string; revision: number; customer_id: string; tenant_id: string; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; policy_revision_id: string; cadence: { unit: \"month\" | \"year\"; count: number; }; term_start: string; term_end: string; period_start: string; period_end: string; included_extra_branches: number; extra_branch_count: number; entitlement: { catalog_release_id: string; modules: string[]; features: Record<string, number | boolean | null>; compiler_version: string; digest: string; }; quote_id: string; created_at: string; } | null; pending_order: { id: string; customer_id: string; subscription_id: string; kind: \"change\" | \"renewal\" | \"new\" | \"branch_add\" | \"branch_archive\"; quote_id: string; target_revision_id: string; expected_applied_revision_id: string | null; payment_state: \"awaiting_payment\" | \"failed\" | \"paid\" | \"not_required\" | \"refund_pending\" | \"refunded\"; fulfillment_state: \"failed\" | \"applied\" | \"not_started\" | \"queued\" | \"applying\" | \"needs_intervention\"; effective_at: string | null; idempotency_key: string; request_digest: string; due_now: { currency: string; exponent: number; minor: number; }; created_at: string; } | null; revision: number; renewal_at: string | null; auto_renew: { enabled: boolean; consent_at: string | null; token_ref_present: boolean; }; trial_ends_at: string | null; grace_ends_at: string | null; }",
+          "type": "{ id: string; customer_id: string; tenant_id: string | null; state: \"pending\" | \"cancelled\" | \"active\" | \"trialing\" | \"past_due\" | \"suspended\"; applied: { id: string; subscription_id: string; revision: number; customer_id: string; tenant_id: string; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; policy_revision_id: string; cadence: { unit: \"month\" | \"year\"; count: number; }; term_start: string; term_end: string; period_start: string; period_end: string; included_extra_branches: number; extra_branch_count: number; entitlement: { catalog_release_id: string; modules: string[]; features: Record<string, number | boolean | null>; compiler_version: string; digest: string; }; quote_id: string; created_at: string; } | null; target: { id: string; subscription_id: string; revision: number; customer_id: string; tenant_id: string; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; policy_revision_id: string; cadence: { unit: \"month\" | \"year\"; count: number; }; term_start: string; term_end: string; period_start: string; period_end: string; included_extra_branches: number; extra_branch_count: number; entitlement: { catalog_release_id: string; modules: string[]; features: Record<string, number | boolean | null>; compiler_version: string; digest: string; }; quote_id: string; created_at: string; } | null; pending_order: { id: string; customer_id: string; subscription_id: string; kind: \"change\" | \"renewal\" | \"new\" | \"branch_add\" | \"branch_archive\"; quote_id: string; target_revision_id: string; expected_applied_revision_id: string | null; payment_state: \"awaiting_payment\" | \"failed\" | \"paid\" | \"not_required\" | \"refund_pending\" | \"refunded\"; fulfillment_state: \"failed\" | \"applied\" | \"not_started\" | \"queued\" | \"applying\" | \"needs_intervention\"; effective_at: string | null; idempotency_key: string; request_digest: string; due_now: { currency: string; exponent: number; minor: number; }; created_at: string; } | null; revision: number; renewal_at: string | null; auto_renew: { enabled: boolean; consent_at: string | null; token_ref_present: boolean; }; trial_ends_at: string | null; grace_ends_at: string | null; }",
           "required": true
         },
         {
