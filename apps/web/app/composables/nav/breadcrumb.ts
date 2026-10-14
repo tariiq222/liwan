@@ -31,7 +31,14 @@ export function shellBreadcrumb(input: { path: string; pageTitle?: string | null
     if (section) push({ label: input.t(section.labelKey), to: target(section.to) || undefined })
   }
   const title = input.pageTitle?.trim()
-  if (title) push({ label: title })
+  // The page heading already names the current page. On a list page the last crumb is that same
+  // label, so it is dropped and the trail ends at its parent (which keeps its link); a record page
+  // keeps its title as the last crumb. A page with no parent shows no trail.
+  if (title) {
+    if (crumbs.at(-1)?.label === title) return crumbs.slice(0, -1)
+    if (!crumbs.length) return []
+    crumbs.push({ label: title })
+  }
   if (crumbs.length) crumbs[crumbs.length - 1] = { label: crumbs.at(-1)!.label }
   return crumbs
 }
