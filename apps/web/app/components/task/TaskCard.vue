@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { deadlineLabel, deadlineTone } from '@/composables/taskState'
+import { taskDaysRemaining } from './taskDeadline'
 import type { Task } from '@nasq/contracts'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 
-const props = withDefaults(defineProps<{ task: Task; stages: BoardStage[]; currentStageId: number | null; showProject?: boolean }>(), {
+const props = withDefaults(defineProps<{
+  task: Task
+  stages?: BoardStage[]
+  currentStageId?: number | null
+  // Explicit "move to" menu entries (the board passes status transitions); without them the card lists `stages`.
+  moveTargets?: { label: string; disabled?: boolean; onSelect: () => void }[]
+  showProject?: boolean
+}>(), {
+  stages: () => [],
+  currentStageId: null,
+  moveTargets: undefined,
   showProject: true,
 })
 const emit = defineEmits<{
@@ -33,11 +44,13 @@ const PRIORITY_TONE: Record<string, string> = {
   '3': 'text-error',
 }
 
-const moveItems = computed(() => props.stages.map((stage) => ({
-  label: stage.name,
-  disabled: props.currentStageId === stage.id,
-  onSelect: () => emit('move', stage),
-})))
+const moveItems = computed(() => props.moveTargets ?? (props.task.can_write
+  ? props.stages.map((stage) => ({
+      label: stage.name,
+      disabled: props.currentStageId === stage.id,
+      onSelect: () => emit('move', stage),
+    }))
+  : []))
 
 function onCardClick(event: MouseEvent) {
   const target = event.target as HTMLElement
@@ -68,7 +81,7 @@ function onCardKeydown(event: KeyboardEvent) {
   >
     <div class="flex items-start justify-between gap-2">
       <p class="line-clamp-2 text-sm font-medium">{{ task.name }}</p>
-      <UDropdownMenu v-if="task.can_write" :items="moveItems" :content="{ align: 'end' }">
+      <UDropdownMenu v-if="moveItems.length" :items="moveItems" :content="{ align: 'end' }">
         <UButton
           type="button"
           square
@@ -85,7 +98,7 @@ function onCardKeydown(event: KeyboardEvent) {
 
     <div class="flex items-center justify-between gap-2 pt-1">
       <div class="flex items-center gap-2">
-        <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(task.days_remaining, task.is_closed)" :label="deadlineLabel(task.days_remaining, t)" />
+        <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(taskDaysRemaining(task), task.is_closed)" :label="deadlineLabel(taskDaysRemaining(task), t)" />
         <UIcon
           name="i-lucide-flag"
           v-if="PRIORITY_TONE[task.priority]"
