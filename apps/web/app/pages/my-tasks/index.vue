@@ -158,7 +158,7 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
               <USelect id="my-tasks-sort" :model-value="state.sort" :items="sortItems" class="w-full" :disabled="!hydrated" @update:model-value="update({ sort: $event as MyTaskListState['sort'] })" />
             </SharedFilterField>
             <template #actions>
-              <UBadge v-if="query.data.value" color="neutral" variant="subtle" data-testid="my-tasks-total">{{ t('myTasks.list.total', { count: total }) }}</UBadge>
+              <UBadge v-if="query.data.value" color="neutral" variant="subtle" data-testid="my-tasks-total">{{ t('myTasks.list.total', { count: total }, total) }}</UBadge>
             </template>
           </FilterBar>
         </div>

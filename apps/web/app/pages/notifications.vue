@@ -52,7 +52,7 @@ function kindLabel(item: BellNotification) {
 }
 
 function itemTitle(item: BellNotification) {
-  if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count })
+  if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count }, item.overdue_count)
   if (isMeetingNotification(item)) return item.meeting_name
   if (isKnownNotification(item)) return item.task_name
   return genericNotificationText(item).title

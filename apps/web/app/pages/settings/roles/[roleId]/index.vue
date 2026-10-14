@@ -106,7 +106,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
             @retry="assignedUsers.refetch"
           />
           <template v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length">
-            <p class="text-sm text-muted">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }) }}</p>
+            <p class="text-sm text-muted">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }, assignedUsers.data.value.total) }}</p>
             <UButton color="primary" variant="link" class="p-0" :to="{ path: '/settings/users', query: { role_id: id } }" :label="t('access.roles.viewAllAssignedUsers')" />
           </template>
         </SharedRecordSection>

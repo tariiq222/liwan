@@ -97,8 +97,8 @@ function toggle(node: DepartmentTreeNode) {
         <span class="block text-pretty break-words font-medium">{{ node.department.name }}</span>
         <span class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
           <span>{{ node.department.manager?.name || $t('hr.depts.noManager') }}</span>
-          <span>{{ $t('hr.depts.employeeReason', { count: node.department.employee_count }) }}</span>
-          <span v-if="node.children.length">{{ $t('hr.depts.childReason', { count: node.children.length }) }}</span>
+          <span>{{ $t('hr.depts.employeeReason', { count: node.department.employee_count }, node.department.employee_count) }}</span>
+          <span v-if="node.children.length">{{ $t('hr.depts.childReason', { count: node.children.length }, node.children.length) }}</span>
         </span>
       </UButton>
       <div

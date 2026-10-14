@@ -54,8 +54,8 @@ export function deadlineLabel(days: number | null, t: (key: string, params?: Rec
   if (days === null) return t('tasks.deadline.none')
   if (days === 0) return t('tasks.deadline.today')
   if (days === 1) return t('tasks.deadline.tomorrow')
-  if (days > 1) return t('tasks.deadline.inDays', { n: days })
-  return t('tasks.deadline.overdueDays', { n: Math.abs(days) })
+  if (days > 1) return t('tasks.deadline.inDays', { n: days }, days)
+  return t('tasks.deadline.overdueDays', { n: Math.abs(days) }, Math.abs(days))
 }
 
 const TASK_STATE_BADGES = Object.fromEntries(

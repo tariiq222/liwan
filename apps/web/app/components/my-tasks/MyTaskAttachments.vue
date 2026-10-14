@@ -62,7 +62,7 @@ async function confirmDelete(attachmentId: number) {
 <template>
   <SharedRecordSection data-testid="my-task-attachments" :title="t('myTasks.attachments.title')">
     <template #actions>
-      <span class="text-xs text-muted">{{ t('myTasks.attachments.count', { count: props.count }) }}</span>
+      <span class="text-xs text-muted">{{ t('myTasks.attachments.count', { count: props.count }, props.count) }}</span>
     </template>
 
     <SharedPageState :loading="isLoading" :error="loadError" :empty="!attachments.length" :empty-text="t('myTasks.attachments.empty')" @retry="refetch">

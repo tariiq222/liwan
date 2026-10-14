@@ -309,7 +309,7 @@ async function openProject(id: number) {
       <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
       <div v-else class="grid gap-3">
         <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
-          {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
+          {{ t('projects.refresh.workspace.resultCount', { count: total }, total) }}
         </p>
         <SharedEmptyState v-if="showEmpty" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
         <ProjectTable v-else-if="view === 'table'" :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />

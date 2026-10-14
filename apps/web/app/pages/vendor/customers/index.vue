@@ -41,7 +41,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="state" :items="stateItems" :disabled="!hydrated" @update:model-value="patch({ state: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="state !== 'all'" :label="t(`vendor.customers.filter.${state}`)" @remove="patch({ state: undefined })" /></template>
     </SharedFilterBar></template>
-<p v-if="data" class="text-sm text-muted" data-testid="customers-result-count">{{ t('vendor.pagination.total', { count: data.total }) }}</p>
+<p v-if="data" class="text-sm text-muted" data-testid="customers-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.customers.notAvailable')" :description="t('vendor.customers.notAvailableHint')" />
 <SharedDataTable v-else :rows="items" :columns="columns" row-key="id" :row-to="to" :loading="pending" :error="error" :empty-text="t(q || state !== 'all' ? 'vendor.customers.noResults' : 'vendor.customers.empty')" :caption="t('vendor.customers.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
   <template #name-cell="{ row: { original: c } }"><NuxtLink :to="to(c)" data-testid="customer-row" class="font-medium hover:underline">{{ c.name }}</NuxtLink></template>

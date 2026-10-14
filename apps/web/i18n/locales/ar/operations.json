@@ -32,7 +32,7 @@
     "noTargets": "لا توجد سجلات متاحة لهذا الإجراء.",
     "stages": "مراحل الموافقة",
     "stageNumber": "المرحلة {number}",
-    "stageCount": "{count} مراحل",
+    "stageCount": "لا مراحل | مرحلة واحدة | مرحلتان | {count} مراحل | {count} مرحلة | {count} مرحلة",
     "stageName": "اسم المرحلة",
     "reviewers": "المراجعون",
     "addStage": "إضافة مرحلة",

@@ -135,7 +135,7 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
         <NuxtLink :to="itemTo(row.original)" @click.capture="openLiveItem($event, row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
       </template>
       <template #description-cell="{ row }">{{ row.original.description || '—' }}</template>
-      <template #summary-cell="{ row }">{{ t('projects.templates.summary', { stages: row.original.definition.stages.length, tasks: row.original.definition.tasks.length, milestones: row.original.definition.milestones.length }) }}</template>
+      <template #summary-cell="{ row }">{{ t('projects.templates.summary', { stages: t('projects.templates.summaryStages', { count: row.original.definition.stages.length }, row.original.definition.stages.length), tasks: t('projects.templates.summaryTasks', { count: row.original.definition.tasks.length }, row.original.definition.tasks.length), milestones: t('projects.templates.summaryMilestones', { count: row.original.definition.milestones.length }, row.original.definition.milestones.length) }) }}</template>
       <template #apply-cell="{ row }"><SharedStatusBadge v-if="row.original.can_apply && canApply" tone="success" :label="t('projects.templates.canApply')" /><span v-else class="text-muted">—</span></template>
       <template #actions-cell="{ row }">
         <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.templates.actionsNamed', { name: row.original.name })" @click.stop />
@@ -147,7 +147,7 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
             <SharedStatusBadge v-if="item.can_apply && canApply" tone="success" :label="t('projects.templates.canApply')" />
           </div>
           <p class="text-sm text-muted">{{ item.description }}</p>
-          <p class="text-xs text-muted">{{ t('projects.templates.summary', { stages: item.definition.stages.length, tasks: item.definition.tasks.length, milestones: item.definition.milestones.length }) }}</p>
+          <p class="text-xs text-muted">{{ t('projects.templates.summary', { stages: t('projects.templates.summaryStages', { count: item.definition.stages.length }, item.definition.stages.length), tasks: t('projects.templates.summaryTasks', { count: item.definition.tasks.length }, item.definition.tasks.length), milestones: t('projects.templates.summaryMilestones', { count: item.definition.milestones.length }, item.definition.milestones.length) }) }}</p>
           <div class="flex justify-end"><SharedRowActions :actions="rowActions(item)" :label="t('projects.templates.actionsNamed', { name: item.name })" /></div>
         </div>
       </template>

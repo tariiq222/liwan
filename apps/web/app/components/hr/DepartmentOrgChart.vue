@@ -106,7 +106,7 @@ function onWindowKeydown(event: KeyboardEvent) {
 }
 
 function nodeLabel(box: OrgChartBox) {
-  return `${box.name}, ${box.manager || t('hr.depts.noManager')}, ${t('hr.depts.employeeReason', { count: box.employeeCount })}`
+  return `${box.name}, ${box.manager || t('hr.depts.noManager')}, ${t('hr.depts.employeeReason', { count: box.employeeCount }, box.employeeCount)}`
 }
 
 function nodeStyle(box: OrgChartBox) {
@@ -250,7 +250,7 @@ onUnmounted(() => {
             <span class="flex h-full flex-col justify-center text-start" :dir="rtl ? 'rtl' : 'ltr'" data-org-node-text>
               <span class="line-clamp-2 text-pretty text-sm font-medium leading-5">{{ box.name }}</span>
               <span class="mt-1 line-clamp-1 text-xs text-muted">{{ box.manager || $t('hr.depts.noManager') }}</span>
-              <span class="line-clamp-1 text-xs text-muted">{{ $t('hr.depts.employeeReason', { count: box.employeeCount }) }}</span>
+              <span class="line-clamp-1 text-xs text-muted">{{ $t('hr.depts.employeeReason', { count: box.employeeCount }, box.employeeCount) }}</span>
             </span>
           </NuxtLink>
         </div>

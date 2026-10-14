@@ -12,6 +12,6 @@ const { t } = useI18n()
         <span class="flex gap-2"><SharedStatusBadge tone="neutral" variant="outline" :label="t(`subscription.branches.billing.${b.billing}`)" /><SharedStatusBadge :tone="b.state === 'active' ? 'success' : b.state === 'failed' ? 'destructive' : 'neutral'" variant="subtle" :label="t(`subscription.branches.state.${b.state}`)" /></span>
       </li>
     </ul>
-    <p class="text-sm text-muted tabular-nums">{{ t('subscription.branches.freeUsed', { used: summary.free_extra_used, allowed: summary.free_extra_allowed }) }} · {{ t('subscription.branches.paid', { count: summary.paid }) }}</p>
+    <p class="text-sm text-muted tabular-nums">{{ t('subscription.branches.freeUsed', { used: summary.free_extra_used, allowed: summary.free_extra_allowed }, summary.free_extra_allowed) }} · {{ t('subscription.branches.paid', { count: summary.paid }, summary.paid) }}</p>
   </div>
 </template>

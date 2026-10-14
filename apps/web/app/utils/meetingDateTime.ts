@@ -1,3 +1,5 @@
+import { formatDateTime } from './formatDate'
+
 /** Convert a datetime-local input (in the browser's local timezone) to the UTC wire format. */
 export function toUtcDateTime(value: string | null | undefined): string | undefined {
   if (!value?.trim()) return undefined
@@ -15,8 +17,7 @@ export function fromUtcDateTimeInput(value: string | null | undefined): string {
 }
 
 export function formatLocalDateTime(value: string | null | undefined): string {
-  const input = fromUtcDateTimeInput(value)
-  return input ? input.replace('T', ' ') : ''
+  return formatDateTime(value)
 }
 
 /** Preserve the browser's calendar day and explicit offset for the API. */

@@ -2,6 +2,7 @@
 import { useMediaQuery } from '@vueuse/core'
 import EmptyState from '@/components/shared/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
+import { formatTime } from '@/utils/formatDate'
 import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
 const props = defineProps<{
@@ -20,7 +21,7 @@ const noConversations = computed(() => hydrated.value && !isLoading.value && !is
 const showStartEmpty = computed(() => noConversations.value && !isDesktop.value)
 const quietEmpty = computed(() => noConversations.value && isDesktop.value)
 const q = ref(props.routeState.q)
-const timeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', calendar: 'gregory' }))
+const timeFmt = { format: (value: Date) => formatTime(value) }
 const listQuery = computed(() => serializeChatListRoute(props.routeState))
 const filters: ChatFilter[] = ['all', 'unread', 'groups', 'channels', 'starred']
 watch(() => props.routeState.q, value => { q.value = value })
