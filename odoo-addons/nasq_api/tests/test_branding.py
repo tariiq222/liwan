@@ -34,6 +34,11 @@ class TestBrandingEndpoint(HttpCase):
         self.assertIn('logo_url', body)
         self.assertIsNone(body['logo_url'])
 
+    def test_branding_has_no_logo_url_for_the_stock_odoo_logo(self):
+        company = self.env.ref('base.main_company')
+        company.logo = company._get_logo()
+        self.assertIsNone(self.url_open('/api/v1/branding').json()['logo_url'])
+
     def test_branding_falls_back_to_default_color(self):
         self.env.ref('base.main_company').primary_color = False
         res = self.url_open('/api/v1/branding')

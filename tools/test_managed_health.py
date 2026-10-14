@@ -212,6 +212,13 @@ class HealthCase(unittest.TestCase):
                 response.body = json.dumps(value).encode()
         self.assertTrue(self.health())
 
+    def test_null_logo_url_is_valid_for_a_tenant_without_its_own_logo(self):
+        value = {**BRANDING, 'logo_url': None}
+        for url, response in self.opener.responses.items():
+            if url.endswith('/branding'):
+                response.body = json.dumps(value).encode()
+        self.assertTrue(self.health())
+
     def test_json_duplicates_and_nonfinite_values_fail(self):
         response = self.opener.responses['http://127.0.0.1:28061/api/v1/branding']
         for raw in [b'{"name":"x","name":"x"}', b'{"name":NaN}', b'\xff']:

@@ -37,10 +37,10 @@ def _logo_version(company):
 
 def dump_branding(company):
     """Public branding of ``company`` for the login page and app chrome."""
-    # Odoo serves its own stock logo when the company has none; never expose that URL.
+    # Odoo serves (and stores) its own stock logo when the company has none; never expose that URL.
     logo_url = (
         f'/web/binary/company_logo?company={company.id}&v={_logo_version(company)}'
-        if company.logo else None
+        if company.logo and not company.uses_default_logo else None
     )
     payload = {
         'name': company.name,
