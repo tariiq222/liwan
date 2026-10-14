@@ -16,10 +16,10 @@ async function primary(page: Page) {
   return page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
 }
 
-// Display mode and font size are a header menu (checkbox items behaving as
+// Display mode and font size are in the account menu (checkbox items behaving as
 // two radio groups) saved per user through PATCH /api/v1/me/appearance.
 async function choose(page: Page, label: string) {
-  await page.getByTestId('appearance-menu').click()
+  await page.getByTestId('account-menu').click()
   const item = page.getByRole('menuitemcheckbox', { name: label, exact: true })
   await expect(item).toBeVisible()
   // Selecting the already active value is intentionally a no-op, not a write.
@@ -33,7 +33,7 @@ async function choose(page: Page, label: string) {
 }
 
 async function expectChecked(page: Page, label: string) {
-  await page.getByTestId('appearance-menu').click()
+  await page.getByTestId('account-menu').click()
   await expect(page.getByRole('menuitemcheckbox', { name: label, exact: true })).toHaveAttribute('aria-checked', 'true')
   await page.keyboard.press('Escape')
 }
@@ -140,7 +140,7 @@ test('saved appearance is present before hydration and controls wait for hydrati
     await page.goto('/projects', { waitUntil: 'commit' })
     await expect(page.locator('html')).toHaveClass(/dark/)
     await expect(page.locator('html')).toHaveAttribute('data-font-size', 'medium')
-    await expect(page.getByTestId('appearance-menu')).toBeDisabled()
+    await expect(page.getByTestId('account-menu')).toBeDisabled()
   } finally {
     released = true
     resume()
@@ -150,7 +150,7 @@ test('saved appearance is present before hydration and controls wait for hydrati
     // browser cache for the remaining dev-module graph after release.
     await page.unroute('**/_nuxt/**', holdScripts)
   }
-  await expect(page.getByTestId('appearance-menu')).toBeEnabled()
+  await expect(page.getByTestId('account-menu')).toBeEnabled()
   await choose(page, MODE.light)
   await expect(page.locator('html')).not.toHaveClass(/dark/)
 })

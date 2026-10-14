@@ -157,7 +157,7 @@ test('mobile navigation replaces desktop columns and retains module and context 
   await menuToggle.click()
   const menu = page.locator('#mobile-navigation')
   await expect(menu).toBeVisible()
-  for (const name of ['الرئيسية', 'المشاريع', 'الاجتماعات', 'المحادثات', 'المؤسسة', 'الإعدادات']) {
+  for (const name of ['نظرة عامة', 'المشاريع', 'الاجتماعات', 'المحادثات', 'المؤسسة', 'الإعدادات']) {
     await expect(menu.getByRole('link', { name, exact: true })).toBeVisible()
   }
   await expect(menu.getByTestId('mobile-context-link-tasks')).toBeVisible()

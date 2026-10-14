@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import AppAccountMenu from '@/components/shell/AppAccountMenu.vue'
-import AppearanceMenu from '@/components/shell/AppearanceMenu.vue'
 import GlobalSearch from '@/components/shell/GlobalSearch.vue'
 import MobileNavigation from '@/components/shell/MobileNavigation.vue'
 import ShellBreadcrumb from '@/components/shell/ShellBreadcrumb.vue'
@@ -17,8 +16,8 @@ import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
 // The 48px neutral header (spec §5): tenant mark, breadcrumb, the ⌘K command palette,
-// appearance, bell, account; a console badge on /vendor/*. It also hosts the shell's
-// one keyboard listener (useShellShortcuts).
+// bell, account (which also holds language and appearance); a console badge on /vendor/*.
+// It also hosts the shell's one keyboard listener (useShellShortcuts).
 const { t } = useI18n()
 const route = useRoute()
 const { branding } = useBranding()
@@ -28,7 +27,11 @@ const pageTitle = usePageHeaderTitle()
 const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, createTo } = useShellModel()
 const { expanded } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
-const brandName = computed(() => branding.value?.name ?? t('app.productName'))
+// The tenant's own mark: its logo, else its initials on the primary colour. A tenant without a
+// name or logo shows nothing here, because the rail already carries the Nasq wordmark.
+const tenantName = computed(() => branding.value?.name?.trim() ?? '')
+const tenantInitials = computed(() => tenantName.value.split(/\s+/).filter(Boolean).slice(0, 2).map(word => Array.from(word)[0]!).join('').toLocaleUpperCase())
+const showTenantMark = computed(() => !!branding.value?.logo_url || !!tenantName.value)
 // The page registers its title after the header rendered on the server; show it only once hydrated so both renders match.
 const crumbs = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hydrated.value ? pageTitle.value : null, t, rail: rail.value.all }))
 const isConsole = computed(() => activeModule.value === 'management')
@@ -72,18 +75,17 @@ useShellShortcuts({
         :create-links="mobileCreateLinks"
         :sections="mobile.sections"
       />
-      <NuxtLink :to="homePath" class="nasq-shell-brand" :aria-label="`${brandName} — ${t('nav.home')}`">
-        <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="brandName" class="nasq-shell-brand-logo">
-        <span v-else class="nasq-shell-brand-mark" aria-hidden="true">{{ brandName.slice(0, 1) }}</span>
-        <span class="nasq-shell-brand-name">{{ brandName }}</span>
+      <NuxtLink v-if="showTenantMark" :to="homePath" class="nasq-shell-brand" :aria-label="`${tenantName || t('app.productName')} — ${t('nav.home')}`">
+        <img v-if="branding?.logo_url" :src="branding.logo_url" alt="" class="nasq-shell-brand-logo">
+        <span v-else class="nasq-shell-brand-mark bg-primary! text-inverted!" aria-hidden="true">{{ tenantInitials }}</span>
+        <span v-if="tenantName" class="nasq-shell-brand-name">{{ tenantName }}</span>
       </NuxtLink>
-      <span v-if="crumbs.length" class="nasq-shell-header-divider" aria-hidden="true" />
+      <span v-if="showTenantMark && crumbs.length" class="nasq-shell-header-divider" aria-hidden="true" />
       <ShellBreadcrumb :items="crumbs" />
       <UBadge v-if="isConsole" color="neutral" variant="subtle" size="sm" class="nasq-shell-console-badge" data-testid="vendor-console-badge">{{ t('nav.consoleBadge') }}</UBadge>
     </div>
     <div class="nasq-shell-header-actions">
       <GlobalSearch />
-      <AppearanceMenu />
       <NotificationCenter v-if="can('nasq.notifications')" />
       <AppAccountMenu />
     </div>
