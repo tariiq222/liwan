@@ -22,6 +22,9 @@
         "action": "Primary action",
         "selection": "Selected item",
         "progress": "Progress",
+        "sample": "Sample project",
+        "notice": "Status colors stay fixed and do not follow the brand color",
+        "states": { "done": "Done", "active": "In progress", "risk": "At risk", "late": "Overdue", "draft": "Draft" },
         "charts": "Data",
         "modes": {
           "light": "Light",

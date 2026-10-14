@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { accessStateBadge } from '@/utils/accessStateBadge'
+import { accessBadge } from '@/components/access/accessBadge'
 import type { PermissionDefinition } from '@nasq/contracts'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
@@ -69,10 +69,10 @@ const tabs = computed(() => {
     </SharedPageState>
     <template v-if="query.data.value && !forbidden" #aside>
       <SharedPropertiesPanel id="account" :title="t('access.users.account')">
-        <SharedPropertyRow :label="t('access.users.login')"><bdi dir="ltr">{{ query.data.value.login }}</bdi></SharedPropertyRow>
+        <SharedPropertyRow :label="t('access.users.loginName')"><bdi dir="ltr">{{ query.data.value.login }}</bdi></SharedPropertyRow>
         <SharedPropertyRow :label="t('access.users.employee')" :value="query.data.value.employee?.name ?? t('access.users.noEmployee')" />
         <SharedPropertyRow :label="t('access.users.columns.status')">
-          <SharedStatusBadge :tone="accessStateBadge({ active: query.data.value.active, protected: query.data.value.protected }).tone" :label="t(accessStateBadge({ active: query.data.value.active, protected: query.data.value.protected }).labelKey)" />
+          <SharedStatusBadge :tone="accessBadge({ active: query.data.value.active, protected: query.data.value.protected }).tone" :label="t(accessBadge({ active: query.data.value.active, protected: query.data.value.protected }).labelKey)" :icon="accessBadge({ active: query.data.value.active, protected: query.data.value.protected }).icon" />
         </SharedPropertyRow>
       </SharedPropertiesPanel>
     </template>
