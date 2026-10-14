@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { deadlineLabel, deadlineTone } from '@/composables/taskState'
+import { taskDaysRemaining } from './taskDeadline'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import { shortcutKey } from '@/composables/shortcuts/keymap'
 import type { TaskListParams } from '@/composables/useTasks'
-import { useArchiveTask, useTask, useTaskSiblings, useUpdateTask } from '@/composables/useTasks'
+import { useArchiveTask, useTask, useTaskSiblings } from '@/composables/useTasks'
 import StateMenu from './StateMenu.vue'
 import TaskCompletionApproval from './TaskCompletionApproval.vue'
 import TaskDetails from './TaskDetails.vue'
@@ -43,7 +44,6 @@ const { data: task, error, refetch } = useTask(idRef)
 const localFilters = props.siblingParams ? null : useTaskFilters()
 const filterParams = computed<TaskListParams>(() => props.siblingParams ?? localFilters!.value)
 const siblings = useTaskSiblings(idRef, filterParams)
-const { mutate: updateTask, isPending: titleSaving } = useUpdateTask()
 const hydrated = useHydrated()
 const toast = useToast()
 
@@ -64,64 +64,9 @@ async function doArchive() {
   }
 }
 
-const titleDraft = ref('')
-const editingTitle = ref(false)
 watch(() => props.taskId, () => {
-  editingTitle.value = false
   archiveConfirmOpen.value = false
 })
-watch(
-  () => task.value?.name,
-  (name) => {
-    if (name !== undefined && !editingTitle.value) titleDraft.value = name
-  },
-  { immediate: true },
-)
-
-async function startTitleEdit() {
-  if (!hydrated.value || !task.value?.can_write || titleSaving.value) return
-  titleDraft.value = task.value.name
-  editingTitle.value = true
-  await nextTick()
-  const input = document.querySelector<HTMLInputElement>('[data-testid="task-title-input"]')
-  input?.focus()
-  input?.select()
-}
-
-async function focusTitleEditControl() {
-  await nextTick()
-  document.querySelector<HTMLButtonElement>('[data-testid="task-title-edit"]')?.focus()
-}
-
-async function cancelTitleEdit() {
-  if (titleSaving.value) return
-  titleDraft.value = task.value?.name ?? ''
-  editingTitle.value = false
-  await focusTitleEditControl()
-}
-
-function saveTitle() {
-  if (!hydrated.value || !task.value?.can_write) return
-  const name = titleDraft.value.trim()
-  if (!name || name === task.value.name) {
-    titleDraft.value = task.value.name
-    editingTitle.value = false
-    void focusTitleEditControl()
-    return
-  }
-  updateTask(
-    { id: task.value.id, patch: { name } },
-    {
-      onSuccess: () => {
-        editingTitle.value = false
-        void focusTitleEditControl()
-      },
-      onError: (error) => {
-        toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
-      },
-    },
-  )
-}
 
 function siblingTo(id: number) {
   return { path: `${props.basePath}/${id}`, query: route.query }
@@ -136,11 +81,7 @@ function onKeydown(e: KeyboardEvent) {
   if (!hydrated.value || e.defaultPrevented) return
   if (e.metaKey || e.ctrlKey || e.altKey) return
   if (isEditableKeyTarget(e.target)) return
-  if (editingTitle.value || titleSaving.value) {
-    if (e.key === 'Escape' && !titleSaving.value) cancelTitleEdit()
-    return
-  }
-  // PageHeader owns ordinary Escape-back. While title editing or an archive confirmation is open, its back target is suppressed.
+  // PageHeader owns ordinary Escape-back. While an archive confirmation is open, its back target is suppressed.
   if (e.key === 'Escape') return
   // By the shell keymap rule, so «ت» / «ن» on an Arabic layout move too.
   const key = shortcutKey(e)
@@ -150,46 +91,46 @@ function onKeydown(e: KeyboardEvent) {
 
 useEventListener(document, 'keydown', onKeydown)
 const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
+// Counted from the same instant the Deadline property prints, so the badge and the date cannot disagree.
+const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) : null))
 </script>
 
 <template>
   <SharedRecordPage
     :title="title"
-    :back-to="editingTitle || titleSaving || archiveConfirmOpen ? undefined : backTo"
+    :back-to="archiveConfirmOpen ? undefined : backTo"
     :back-label="props.backLabel ?? t('tasks.detail.back')"
     :loading="!task && !error"
     :error="task ? null : error"
     @retry="refetch"
   >
     <template #back>
-      <UButton :to="backTo" data-testid="task-detail-back" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary" :disabled="!hydrated || editingTitle || titleSaving">
+      <UButton :to="backTo" data-testid="task-detail-back" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary" :disabled="!hydrated">
         <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" />{{ props.backLabel ?? t('tasks.detail.back') }}
       </UButton>
     </template>
     <template v-if="task" #actions>
       <div data-testid="task-detail-menu" class="flex flex-none items-center gap-1.5" role="group" :aria-label="t('tasks.detail.menu')">
-        <UButton v-if="task.can_write && !editingTitle" data-testid="task-title-edit" color="neutral" variant="outline" size="sm" square type="button" icon="i-lucide-pencil" :aria-label="t('tasks.detail.editTitle')" :disabled="!hydrated || titleSaving" @click="startTitleEdit" />
-        <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.prevId" @click="goTo(siblings.prevId)">
-          <UIcon name="i-lucide-chevron-right" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
-        </UButton>
-        <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || editingTitle || titleSaving || !siblings.nextId" @click="goTo(siblings.nextId)">
-          <UIcon name="i-lucide-chevron-left" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
-        </UButton>
-        <UButton v-if="task.allowed_actions.includes('archive')" data-testid="task-archive" color="neutral" variant="outline" size="sm" square type="button" icon="i-lucide-archive" :disabled="!hydrated || editingTitle || titleSaving || archiving" :aria-label="t('tasks.drawer.archive')" :title="t('tasks.drawer.archive')" @click="archiveConfirmOpen = true" />
+        <UTooltip :text="t('tasks.detail.prev')">
+          <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.prev')" :disabled="!hydrated || !siblings.prevId" @click="goTo(siblings.prevId)">
+            <UIcon name="i-lucide-chevron-right" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
+          </UButton>
+        </UTooltip>
+        <UTooltip :text="t('tasks.detail.next')">
+          <UButton color="neutral" variant="outline" size="sm" square type="button" :aria-label="t('tasks.detail.next')" :disabled="!hydrated || !siblings.nextId" @click="goTo(siblings.nextId)">
+            <UIcon name="i-lucide-chevron-left" class="size-4.5 ltr:rotate-180" aria-hidden="true" />
+          </UButton>
+        </UTooltip>
+        <UTooltip v-if="task.allowed_actions.includes('archive')" :text="t('tasks.drawer.archive')">
+          <UButton data-testid="task-archive" color="neutral" variant="outline" size="sm" square type="button" icon="i-lucide-archive" :disabled="!hydrated || archiving" :aria-label="t('tasks.drawer.archive')" @click="archiveConfirmOpen = true" />
+        </UTooltip>
       </div>
     </template>
 
     <template v-if="task">
-      <div v-if="editingTitle || task.project" data-testid="task-detail-context" class="flex min-w-0 items-center gap-2">
-        <template v-if="editingTitle">
-          <UInput v-model="titleDraft" data-testid="task-title-input" :aria-label="t('tasks.newTitle')" class="min-w-0 flex-1" size="sm" :disabled="titleSaving" @keydown.enter.prevent="saveTitle" @keydown.escape.stop.prevent="cancelTitleEdit" />
-          <UButton data-testid="task-title-save" variant="outline" size="sm" square type="button" icon="i-lucide-check" :aria-label="t('tasks.detail.saveTitle')" :loading="titleSaving" :disabled="titleSaving || !titleDraft.trim()" @click="saveTitle" />
-          <UButton data-testid="task-title-cancel" color="neutral" variant="outline" size="sm" square type="button" icon="i-lucide-x" :aria-label="t('tasks.detail.cancelTitle')" :disabled="titleSaving" @click="cancelTitleEdit" />
-        </template>
-        <template v-else-if="task.project">
-          <span class="text-xs text-muted">{{ t('tasks.project') }}</span>
-          <NuxtLink :to="`/projects/${task.project.id}`" class="min-w-0 truncate text-sm font-semibold hover:underline">{{ task.project.name }}</NuxtLink>
-        </template>
+      <div v-if="task.project" data-testid="task-detail-context" class="flex min-w-0 items-center gap-2">
+        <span class="text-xs text-muted">{{ t('tasks.project') }}</span>
+        <NuxtLink :to="`/projects/${task.project.id}`" class="min-w-0 truncate text-sm font-semibold hover:underline">{{ task.project.name }}</NuxtLink>
       </div>
 
       <SharedInlineConfirm v-if="archiveConfirmOpen" data-testid="task-archive-confirm" :title="t('tasks.drawer.archive')" :description="t('tasks.drawer.archiveConfirm')" :confirm-label="t('tasks.drawer.archive')" :pending="archiving" @confirm="doArchive" @cancel="archiveConfirmOpen = false" />
@@ -199,7 +140,7 @@ const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
           <div class="flex flex-wrap items-center gap-2">
             <StateMenu :task="task" :can-approve="task.can_approve" />
             <span class="text-xs text-muted">{{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}</span>
-            <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(task.days_remaining, task.is_closed)" :label="deadlineLabel(task.days_remaining, t)" />
+            <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(deadlineDays, task.is_closed)" :label="deadlineLabel(deadlineDays, t)" />
           </div>
           <TaskCompletionApproval :task="task" />
           <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />

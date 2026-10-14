@@ -6,6 +6,7 @@ import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProject } from '@/composables/useProjects'
+import { ApiError } from '@/composables/useApi'
 import { validateTaskDates } from '@/utils/projectDateBounds'
 import AssigneePicker from './AssigneePicker.vue'
 import MilestoneSelect from './MilestoneSelect.vue'
@@ -19,6 +20,7 @@ const { data: stages } = usePersonalStages()
 const projectId = computed(() => props.task.project?.id ?? null)
 const { data: milestones } = useMilestones(projectId)
 const { data: project } = useProject(projectId)
+const toast = useToast()
 const deadlineError = ref<string | null>(null)
 const selectedMilestone = computed(() => {
   const milestoneId = props.task.milestone?.id
@@ -29,6 +31,26 @@ const milestoneDeadline = computed(() => selectedMilestone.value?.deadline ?? pr
 
 function patch(body: Parameters<typeof updateTask>[0]['patch'], resolved?: Parameters<typeof updateTask>[0]['resolved']) {
   if (props.task.can_write) updateTask({ id: props.task.id, patch: body, resolved })
+}
+
+// --- title -------------------------------------------------------------
+// The title is edited here, like every other property: commit on Enter or when the field loses
+// focus, Escape puts the saved name back. There is no separate edit mode on the heading.
+const nameDraft = ref(props.task.name)
+watch(() => props.task.name, (name) => { nameDraft.value = name })
+function saveName() {
+  if (!props.task.can_write) return
+  const name = nameDraft.value.trim()
+  if (!name || name === props.task.name) {
+    nameDraft.value = props.task.name
+    return
+  }
+  updateTask({ id: props.task.id, patch: { name } }, {
+    onError: (error) => {
+      nameDraft.value = props.task.name
+      toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
+    },
+  })
 }
 
 // --- assignees -------------------------------------------------------
@@ -154,6 +176,19 @@ function onHoursChange() {
 
 <template>
   <SharedPropertiesPanel data-testid="task-properties" :title="t('tasks.detail.primaryMetadata')">
+    <SharedPropertyRow v-if="task.can_write" :label="t('tasks.newTitle')">
+      <UInput
+        v-model="nameDraft"
+        data-testid="task-title-input"
+        size="sm"
+        class="w-full"
+        :disabled="!hydrated"
+        :aria-label="t('tasks.newTitle')"
+        @blur="saveName"
+        @keydown.enter.prevent="saveName"
+        @keydown.escape.stop.prevent="nameDraft = task.name"
+      />
+    </SharedPropertyRow>
     <SharedPropertyRow :label="t('tasks.drawer.assignees')">
       <span id="task-assignees-label" class="sr-only">{{ t('tasks.drawer.assignees') }}</span>
       <span v-if="!task.can_write">{{ task.assignees.map(person => person.name).join('، ') || t('tasks.drawer.unassigned') }}</span>
