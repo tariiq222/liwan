@@ -63,6 +63,7 @@
       "completedSummary": "اكتملت {closed} من {total} مهمة",
       "nextMilestone": "أقرب معلم",
       "noUpcomingMilestone": "لا يوجد معلم قادم",
+      "noMilestones": "لا توجد معالم في المشروع",
       "latestUpdate": "آخر تحديث",
       "noUpdates": "لا توجد تحديثات بعد",
       "needsAttention": "يحتاج انتباهك",
@@ -123,6 +124,7 @@
     "archivedEmptyHint": "ستظهر هنا المشاريع التي أرشفتها ويمكنك استعادتها عند الحاجة.",
     "menu": {
       "label": "إجراءات المشروع",
+      "open": "عرض",
       "settings": "إعدادات المشروع",
       "archive": "أرشفة المشروع",
       "unarchive": "إلغاء الأرشفة",
@@ -464,6 +466,8 @@
     },
     "templates": {
       "title": "قوالب المشاريع",
+      "actionsNamed": "إجراءات قالب {name}",
+      "columns": { "content": "المحتوى", "availability": "الإتاحة" },
       "description": "تعريف مراحل ومهام ومعالم قابلة لإعادة الاستخدام.",
       "new": "قالب مشروع جديد",
       "edit": "تعديل قالب المشروع",

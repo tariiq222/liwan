@@ -229,7 +229,7 @@ const showEmpty = computed(() => !list.isLoading.value && items.value.length ===
       <template #filters>
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
-            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" data-testid="finance-search" class="min-w-52 max-w-md flex-1" />
+            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" icon="i-lucide-search" data-testid="finance-search" class="w-full min-w-52" />
           </template>
           <template #default>
             <SharedFilterChoice data-testid="finance-kind-filter" layout="segment" :label="t('projects.finance.fields.kind')" :items="kindItems" :model-value="filters.kind" :disabled="!hydrated" @update:model-value="onKindChange" />

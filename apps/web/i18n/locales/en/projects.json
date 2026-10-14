@@ -63,6 +63,7 @@
       "completedSummary": "{closed} of {total} tasks completed",
       "nextMilestone": "Nearest milestone",
       "noUpcomingMilestone": "No upcoming milestone",
+      "noMilestones": "This project has no milestones",
       "latestUpdate": "Latest update",
       "noUpdates": "No updates yet",
       "needsAttention": "Needs your attention",
@@ -123,6 +124,7 @@
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": {
       "label": "Project actions",
+      "open": "View",
       "settings": "Project settings",
       "archive": "Archive project",
       "unarchive": "Unarchive",
@@ -458,6 +460,8 @@
     },
     "templates": {
       "title": "Project templates",
+      "actionsNamed": "Actions for {name}",
+      "columns": { "content": "Contents", "availability": "Availability" },
       "description": "Reusable project stages, tasks and milestones.",
       "new": "New project template",
       "edit": "Edit project template",

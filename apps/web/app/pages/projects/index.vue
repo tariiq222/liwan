@@ -183,6 +183,13 @@ watch(() => route.query, (query) => {
   queueMicrotask(() => { applyingRoute = false })
 })
 
+// «كل المشاريع» links and older bookmarks may ask for `?view=list`: that is the table view, so settle on `table`
+// and keep every other query value.
+watch(() => route.query.view, (view) => {
+  if (view !== 'list' || (route.path.replace(/\/+$/, '') || '/') !== '/projects') return
+  void navigateTo({ path: route.path, query: { ...route.query, view: 'table' }, hash: route.hash }, { replace: true })
+}, { immediate: true })
+
 function onStatusChange(value: unknown) {
   applyPatch({ status: parseProjectListStatus(value) })
 }

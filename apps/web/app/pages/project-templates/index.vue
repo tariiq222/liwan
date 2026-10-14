@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
-import { h } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/FilterBar.vue'
+import type { RowAction } from '@/components/shared/RowActions.vue'
 import { useProjectTemplateList } from '@/composables/useProjectTemplates'
 
 const route = useRoute()
@@ -73,11 +73,20 @@ const liveQuery = computed(() => ({ ...(search.value.trim() ? { q: search.value.
 const itemTo = (item: { id: number }) => ({ path: `/project-templates/${item.id}`, query: liveQuery.value })
 const createTo = computed(() => canManage.value ? { path: '/project-templates/new', query: liveQuery.value } : undefined)
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
+  { id: 'number', header: t('app.recordNumber') },
   { id: 'name', header: t('projects.templates.fields.name') },
   { id: 'description', header: t('projects.templates.fields.description') },
-  { id: 'summary', header: t('projects.templates.title') },
-  { id: 'apply', header: () => h('span', { class: 'sr-only' }, t('projects.templates.canApply')) },
+  { id: 'summary', header: t('projects.templates.columns.content') },
+  { id: 'apply', header: t('projects.templates.columns.availability') },
+  { id: 'actions', header: t('app.actions') },
 ])
+// One quiet "View" action on its own; apply and edit join it in the shared "more" menu.
+function rowActions(item: (typeof items.value)[number]): RowAction[] {
+  const actions: RowAction[] = [{ label: t('projects.menu.open'), icon: 'i-lucide-eye', to: itemTo(item) }]
+  if (item.can_apply && canApply.value) actions.push({ label: t('projects.templates.actions.apply'), icon: 'i-lucide-play', to: { path: `/project-templates/${item.id}/apply`, query: liveQuery.value } })
+  if (canManage.value) actions.push({ label: t('projects.templates.actions.edit'), icon: 'i-lucide-pencil', to: { path: `/project-templates/${item.id}/edit`, query: liveQuery.value } })
+  return actions
+}
 const PAGE = pageSize
 const pageNumber = computed(() => Math.floor(offset.value / PAGE) + 1)
 const pages = computed(() => Math.max(1, pageNumber.value, Math.ceil(total.value / PAGE)))
@@ -121,12 +130,16 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
       @update:page="goPage((($event as number) - 1) * PAGE)"
       @retry="list.refetch"
     >
+      <template #number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>
       <template #name-cell="{ row }">
         <NuxtLink :to="itemTo(row.original)" @click.capture="openLiveItem($event, row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
       </template>
       <template #description-cell="{ row }">{{ row.original.description || '—' }}</template>
       <template #summary-cell="{ row }">{{ t('projects.templates.summary', { stages: row.original.definition.stages.length, tasks: row.original.definition.tasks.length, milestones: row.original.definition.milestones.length }) }}</template>
-      <template #apply-cell="{ row }"><SharedStatusBadge v-if="row.original.can_apply && canApply" tone="success" :label="t('projects.templates.canApply')" /></template>
+      <template #apply-cell="{ row }"><SharedStatusBadge v-if="row.original.can_apply && canApply" tone="success" :label="t('projects.templates.canApply')" /><span v-else class="text-muted">—</span></template>
+      <template #actions-cell="{ row }">
+        <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.templates.actionsNamed', { name: row.original.name })" @click.stop />
+      </template>
       <template #mobile-row="{ row: item }">
         <div class="space-y-1">
           <div class="flex items-start justify-between gap-3">
@@ -135,6 +148,7 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
           </div>
           <p class="text-sm text-muted">{{ item.description }}</p>
           <p class="text-xs text-muted">{{ t('projects.templates.summary', { stages: item.definition.stages.length, tasks: item.definition.tasks.length, milestones: item.definition.milestones.length }) }}</p>
+          <div class="flex justify-end"><SharedRowActions :actions="rowActions(item)" :label="t('projects.templates.actionsNamed', { name: item.name })" /></div>
         </div>
       </template>
     </SharedDataTable>

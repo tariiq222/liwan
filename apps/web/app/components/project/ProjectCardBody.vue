@@ -45,7 +45,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
         <span class="sr-only">{{ t('projects.columns.dateEnd') }}: </span>
         <span>{{ project.date_end ? formatCalendarDate(project.date_end, locale) : '—' }}</span>
       </span>
-      <ProjectMenu :project="project" hide-settings />
+      <ProjectMenu :project="project" :to="toFor(project)" hide-settings />
     </div>
   </div>
 </template>

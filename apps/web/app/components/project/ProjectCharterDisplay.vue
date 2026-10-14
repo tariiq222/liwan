@@ -36,6 +36,9 @@ function printCharter() {
   if (milestonesReady.value && typeof window !== 'undefined') window.print()
 }
 
+// Label and value sit side by side in two tight columns, so a wide page no longer pushes the value half a screen away.
+const defList = 'grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-[max-content_minmax(0,1fr)] [&_dt]:pt-0.5 max-sm:[&_dd]:mb-2'
+
 function date(value: string | null): string {
   return value ? formatCalendarDate(value, locale.value) || value : ''
 }
@@ -74,13 +77,13 @@ function budgetAmount(): string {
             :label="t('projects.charter.print')"
             @click="printCharter"
           /></template>
-      <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-        <div data-testid="charter-display-name"><dt class="text-sm text-muted">{{ t('projects.charter.fields.name') }}</dt><dd class="mt-1 text-lg font-semibold text-highlighted">{{ draft.name }}</dd></div>
-        <div v-if="draft.code" data-testid="charter-display-code"><dt class="text-sm text-muted">{{ t('projects.charter.fields.code') }}</dt><dd class="mt-1 font-mono text-sm" dir="ltr">{{ draft.code }}</dd></div>
-        <div v-if="draft.description.trim()" class="sm:col-span-2"><dt class="text-sm text-muted">{{ t('projects.charter.fields.description') }}</dt><dd v-if="/<\/?[a-z][\s\S]*>/i.test(draft.description)" class="mt-1"><SharedRichText size="sm" :html="draft.description" /></dd><dd v-else class="mt-1 whitespace-pre-wrap text-sm">{{ draft.description }}</dd></div>
-        <div v-if="draft.managerName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.manager') }}</dt><dd class="mt-1 text-sm">{{ draft.managerName }}</dd></div>
-        <div v-if="draft.dateStart"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_start') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateStart) }}</dd></div>
-        <div v-if="draft.dateEnd"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_end') }}</dt><dd class="mt-1 text-sm">{{ date(draft.dateEnd) }}</dd></div>
+      <dl :class="defList">
+        <div class="contents" data-testid="charter-display-name"><dt class="text-sm text-muted">{{ t('projects.charter.fields.name') }}</dt><dd class="text-lg font-semibold text-highlighted">{{ draft.name }}</dd></div>
+        <div v-if="draft.code" class="contents" data-testid="charter-display-code"><dt class="text-sm text-muted">{{ t('projects.charter.fields.code') }}</dt><dd class="font-mono text-sm" dir="ltr">{{ draft.code }}</dd></div>
+        <div v-if="draft.description.trim()" class="contents"><dt class="text-sm text-muted">{{ t('projects.charter.fields.description') }}</dt><dd v-if="/<\/?[a-z][\s\S]*>/i.test(draft.description)"><SharedRichText size="sm" :html="draft.description" /></dd><dd v-else class="whitespace-pre-wrap text-sm">{{ draft.description }}</dd></div>
+        <div v-if="draft.managerName?.trim()" class="contents"><dt class="text-sm text-muted">{{ t('projects.charter.fields.manager') }}</dt><dd class="text-sm">{{ draft.managerName }}</dd></div>
+        <div v-if="draft.dateStart" class="contents"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_start') }}</dt><dd class="text-sm">{{ date(draft.dateStart) }}</dd></div>
+        <div v-if="draft.dateEnd" class="contents"><dt class="text-sm text-muted">{{ t('projects.charter.fields.date_end') }}</dt><dd class="text-sm">{{ date(draft.dateEnd) }}</dd></div>
       </dl>
     </SharedRecordSection>
 
@@ -120,15 +123,24 @@ function budgetAmount(): string {
     </SharedRecordSection>
 
     <SharedRecordSection id="project-charter-budget" :title="t('projects.charter.sections.planning')">
-      <dl class="grid gap-4 sm:grid-cols-2">
-        <div><dt class="text-sm text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
-        <div v-if="budgetAmount()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm">{{ budgetAmount() }}<span v-if="draft.currencyLabel"> {{ draft.currencyLabel }}</span></dd></div>
+      <dl :class="defList">
+        <div class="contents"><dt class="text-sm text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="text-sm">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
+        <div v-if="budgetAmount()" class="contents"><dt class="text-sm text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="text-sm">{{ budgetAmount() }}<span v-if="draft.currencyLabel"> {{ draft.currencyLabel }}</span></dd></div>
       </dl>
     </SharedRecordSection>
 
-    <details v-if="hasLegacyDetails" class="rounded-lg border border-default p-4">
-      <summary class="cursor-pointer font-semibold text-highlighted">{{ t('projects.charter.legacyDetails') }}</summary>
-      <div class="mt-4 grid gap-6">
+    <UCollapsible v-if="hasLegacyDetails" class="rounded-lg border border-default" data-testid="charter-legacy-details">
+      <UButton
+        color="neutral"
+        variant="ghost"
+        block
+        class="group justify-between p-4 font-semibold text-highlighted"
+        trailing-icon="i-lucide-chevron-down"
+        :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
+        :label="t('projects.charter.legacyDetails')"
+      />
+      <template #content>
+      <div class="grid gap-6 p-4 pt-0">
         <dl class="grid gap-4 sm:grid-cols-2">
           <div v-if="draft.typeName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.type') }}</dt><dd class="mt-1 text-sm">{{ draft.typeName }}</dd></div>
           <div v-if="draft.owningUnitName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.owning_unit') }}</dt><dd class="mt-1 text-sm">{{ draft.owningUnitName }}</dd></div>
@@ -155,6 +167,7 @@ function budgetAmount(): string {
           </ul>
         </div>
       </div>
-    </details>
+      </template>
+    </UCollapsible>
   </article>
 </template>

@@ -188,6 +188,13 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
   }))
   app.component('UButton', Passthrough)
   app.component('UCheckbox', Passthrough)
+  // The real collapsible mounts its content only when opened; the stub renders both so the test can read the closed content.
+  app.component('UCollapsible', defineComponent({
+    inheritAttrs: false,
+    setup(_, { slots, attrs }) {
+      return () => h('div', attrs, [slots.default?.(), slots.content?.()])
+    },
+  }))
   return renderToString(app)
 }
 

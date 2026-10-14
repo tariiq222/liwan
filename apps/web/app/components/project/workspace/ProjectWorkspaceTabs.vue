@@ -41,6 +41,7 @@ const governance = computed(() => props.level === 'governance')
   <SharedRouteTabs
     :items="governance ? governanceItems : sectionItems"
     :ariaLabel="t(governance ? 'projects.workspace.subtabsLabel' : 'projects.workspace.tabsLabel')"
+    class="[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     :data-testid="governance ? 'project-governance-tabs' : 'project-workspace-tabs'"
   />
 </template>

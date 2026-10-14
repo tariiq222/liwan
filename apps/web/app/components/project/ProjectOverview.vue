@@ -26,6 +26,8 @@ const nearestMilestone = computed(() => {
 const latestUpdate = computed(() => [...(updates.data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null)
 const openTaskCount = computed(() => Math.max(0, props.project.task_count - props.project.closed_task_count))
 
+const metricGridClass = 'grid grid-cols-2 gap-3 @min-[36rem]:grid-cols-3 @min-[36rem]:gap-6 [&>:last-child:nth-child(odd)]:col-span-2 @min-[36rem]:[&>:last-child:nth-child(odd)]:col-span-1 max-sm:[&_[data-slot=body]]:gap-2 max-sm:[&_[data-slot=body]]:p-3 max-sm:[&_[data-slot=body]>span]:hidden'
+
 function dateLabel(value: string | null) {
   return value ? formatCalendarDate(value, locale.value) : '—'
 }
@@ -33,7 +35,8 @@ function dateLabel(value: string | null) {
 
 <template>
   <div data-testid="project-overview" class="@container min-w-0 space-y-6">
-    <section class="grid gap-6 @min-[26rem]:grid-cols-2 @min-[36rem]:grid-cols-3">
+    <!-- Two columns from the narrowest width, compact tiles on phones; the odd one out spans the row. -->
+    <section :class="metricGridClass">
       <SharedMetricTile
         icon="i-lucide-chart-no-axes-column-increasing"
         :label="t('projects.overview.progress')"
@@ -54,7 +57,7 @@ function dateLabel(value: string | null) {
       <SharedMetricTile
         :label="t('projects.overview.nextMilestone')"
         :value="nearestMilestone ? dateLabel(nearestMilestone.deadline) : null"
-        :hint="nearestMilestone?.name ?? t('projects.overview.noUpcomingMilestone')"
+        :hint="nearestMilestone?.name ?? t(project.milestone_count === 0 ? 'projects.overview.noMilestones' : 'projects.overview.noUpcomingMilestone')"
       />
     </section>
 

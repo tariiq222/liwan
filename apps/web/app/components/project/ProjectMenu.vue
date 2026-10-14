@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { Project, ProjectDetail } from '@nasq/contracts'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { useArchiveProject, useUnarchiveProject } from '@/composables/useProjects'
 
-const props = withDefaults(defineProps<{ project: Project | ProjectDetail; hideSettings?: boolean }>(), { hideSettings: false })
+const props = withDefaults(defineProps<{ project: Project | ProjectDetail; hideSettings?: boolean; to?: RouteLocationRaw }>(), { hideSettings: false })
 const emit = defineEmits<{ settings: []; archived: []; unarchived: [] }>()
 
 const { t } = useI18n()
@@ -48,7 +49,8 @@ async function doUnarchive() {
 </script>
 
 <template>
-  <!-- The trigger matches SharedRowActions; the menu stays a menu even with one item so row layout is stable. -->
+  <!-- The trigger matches SharedRowActions; the menu stays a menu even with one item so row layout is stable.
+       Someone who cannot manage the project still gets the one quiet "View" action, so every row and card ends the same way. -->
   <UDropdownMenu v-if="project.can_manage" :items="items" :content="{ align: 'end' }">
     <UButton
       type="button"
@@ -63,6 +65,11 @@ async function doUnarchive() {
       @click.stop
     />
   </UDropdownMenu>
+  <SharedRowActions
+    v-else-if="to"
+    :actions="[{ label: t('projects.menu.open'), icon: 'i-lucide-eye', to }]"
+    :label="t('projects.menu.labelNamed', { name: project.name })"
+  />
 
   <SharedInlineConfirm
     v-if="project.active && confirmOpen"

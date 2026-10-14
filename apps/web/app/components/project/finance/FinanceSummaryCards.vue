@@ -31,7 +31,7 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
       </div>
     </section>
 
-    <section v-else-if="mode === 'dashboard'" class="grid gap-3 sm:grid-cols-3">
+    <section v-else-if="mode === 'dashboard'" class="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>:last-child:nth-child(odd)]:col-span-2 sm:[&>:last-child:nth-child(odd)]:col-span-1 max-sm:[&_[data-slot=body]]:gap-2 max-sm:[&_[data-slot=body]]:p-3 max-sm:[&_[data-slot=body]>span]:hidden">
       <SharedMetricTile
         icon="i-lucide-wallet"
         :label="t('projects.finance.planned')"

@@ -49,7 +49,8 @@ function onCancel() {
 
 <template>
   <SharedStandalonePage v-if="readonly" variant="print">
-    <SharedPageHeader class="nasq-print-hide" :title="t('projects.charter.title')">
+    <!-- The "Project charter" sub-tab already names this page (DESIGN 4): the header keeps only the state and the edit action. -->
+    <SharedPageHeader class="nasq-print-hide" hide-title :title="t('projects.charter.title')">
       <template #actions>
         <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
         <UButton v-if="project?.can_manage" data-testid="project-charter-edit" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t(isDraft ? 'projects.charter.continueDraft' : 'app.edit') }}</UButton>
