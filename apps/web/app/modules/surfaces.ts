@@ -1,5 +1,5 @@
 import { activeManifests } from './manifests'
-import type { AppBellKind, AppSearchProvider } from './types'
+import type { AppBellKind, AppCommand, AppSearchProvider, AppSidebarPanel } from './types'
 
 /** Search providers of every application, in rail order; `/search` omits the dialog-only ones. */
 export function searchProviders(surface: 'dialog' | 'page' = 'dialog'): AppSearchProvider[] {
@@ -20,4 +20,15 @@ export function bellKindFor(kind: string): AppBellKind | undefined {
 /** Route prefixes applications own, for return-to allowlists. */
 export function manifestRoutePrefixes(): string[] {
   return activeManifests().flatMap(manifest => manifest.routePrefixes)
+}
+
+/** The sidebar panel an application declares for a rail module, if any. */
+export function sidebarPanelFor(module: string | null): AppSidebarPanel | undefined {
+  if (!module) return undefined
+  return activeManifests().find(manifest => manifest.sidebarPanel?.module === module)?.sidebarPanel
+}
+
+/** Palette commands of every application, in rail order. */
+export function appCommands(): AppCommand[] {
+  return activeManifests().flatMap(manifest => manifest.commands ?? [])
 }

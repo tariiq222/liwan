@@ -1,10 +1,13 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Route } from '@playwright/test'
+import { MeSchema, RoleListSchema } from '@nasq/contracts'
 
 async function login(page: Page) {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill(process.env.E2E_ADMIN_LOGIN ?? 'admin')
   await page.getByLabel('كلمة المرور').fill(process.env.E2E_ADMIN_PASSWORD ?? 'admin')
+  const authenticated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login' && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'دخول', exact: true }).click()
+  expect((await authenticated).status()).toBe(200)
   // Login lands on the first section the user may open (accessPolicy.firstAllowedPath).
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
@@ -18,6 +21,12 @@ async function primary(page: Page) {
 async function choose(page: Page, label: string) {
   await page.getByTestId('appearance-menu').click()
   const item = page.getByRole('menuitemcheckbox', { name: label, exact: true })
+  await expect(item).toBeVisible()
+  // Selecting the already active value is intentionally a no-op, not a write.
+  if (await item.getAttribute('aria-checked') === 'true') {
+    await page.keyboard.press('Escape')
+    return
+  }
   const response = page.waitForResponse(response => response.url().includes('/api/v1/me/appearance') && response.request().method() === 'PATCH')
   await item.click()
   expect((await response).status()).toBe(200)
@@ -29,7 +38,7 @@ async function expectChecked(page: Page, label: string) {
   await page.keyboard.press('Escape')
 }
 
-const MODE = { light: 'فاتح', cream: 'كريمي', dark: 'داكن' } as const
+const MODE = { light: 'فاتح', dark: 'داكن' } as const
 const FONT = { small: 'صغير', medium: 'وسط', large: 'كبير' } as const
 
 test('appearance changes apply across routes and survive reload without changing branding', async ({ page }) => {
@@ -42,16 +51,8 @@ test('appearance changes apply across routes and survive reload without changing
   await expect(html).toHaveCSS('font-size', '14px')
   await expectChecked(page, MODE.light)
 
-  await choose(page, MODE.cream)
-  await expect(html).toHaveClass(/cream/)
-  await expect(html).not.toHaveClass(/dark/)
-  await expect(html).toHaveCSS('color-scheme', 'light')
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())).toBe('#f6f1e7')
-  expect(await primary(page)).toBe(originalColor)
-
   await choose(page, MODE.dark)
   await expect(html).toHaveClass(/dark/)
-  await expect(html).not.toHaveClass(/cream/)
   await expect(html).toHaveCSS('color-scheme', 'dark')
   for (const [size, pixels] of [['medium', '16px'], ['large', '18px'], ['small', '14px']] as const) {
     await choose(page, FONT[size])
@@ -72,7 +73,6 @@ test('appearance changes apply across routes and survive reload without changing
   await expectChecked(page, FONT.large)
   await choose(page, MODE.light)
   await expect(html).not.toHaveClass(/dark/)
-  await expect(html).not.toHaveClass(/cream/)
   await expect(html).toHaveCSS('font-size', '18px')
 })
 
@@ -82,42 +82,73 @@ test('the saved appearance belongs to the signed-in user, not the browser', asyn
   await page.goto('/projects')
   await expect(page.locator('html')).toHaveClass(/dark/)
   await expect(page.locator('html')).toHaveCSS('font-size', '18px')
+  // Create the second account while the administrator is still signed in.
+  const suffix = Date.now()
+  const meResponse = await page.request.get('/api/v1/me')
+  expect(meResponse.status()).toBe(200)
+  const me = MeSchema.parse(await meResponse.json())
+  const rolesResponse = await page.request.get('/api/v1/admin/roles?type=built_in')
+  expect(rolesResponse.status()).toBe(200)
+  const role = RoleListSchema.parse(await rolesResponse.json()).items.find(item => item.key === 'employee')
+  expect(role, 'Requires a backend with the employee role').toBeDefined()
+  const employeeResponse = await page.request.post('/api/v1/hr/employees', {
+    data: { name: `Appearance ${suffix}`, work_email: `appearance-${suffix}@example.test` },
+  })
+  expect(employeeResponse.status()).toBe(201)
+  const employee = await employeeResponse.json()
+  const created = await page.request.post('/api/v1/admin/users', {
+    data: { employee_id: employee.id, password: 'Appearance-Initial-123!', assignments: [{ role_id: role!.id, scope: { kind: 'company', id: me.company.id } }] },
+  })
+  expect(created.status(), 'Requires a backend with account creation and separate user sessions').toBe(201)
   // Another user on the same browser starts from their own (default) preference.
-  await page.getByTestId('header-account').click().catch(() => page.locator('[data-slot="header-account"]').click())
+  await page.locator('[data-slot="header-account"]').click()
   await page.getByRole('menuitem', { name: 'تسجيل الخروج' }).click()
   await expect(page).toHaveURL(/\/login/)
-  const suffix = Date.now()
-  const created = await page.request.post('/api/v1/admin/users', {
-    data: { name: `Appearance ${suffix}`, login: `appearance-${suffix}@example.test`, password: 'Appearance-Initial-123!' },
-  })
-  test.skip(created.status() !== 201, 'user creation not available for this fixture')
   await page.getByLabel('اسم المستخدم').fill(`appearance-${suffix}@example.test`)
   await page.getByLabel('كلمة المرور').fill('Appearance-Initial-123!')
+  const authenticated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login' && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'دخول', exact: true }).click()
+  expect((await authenticated).status()).toBe(200)
   await expect(page.locator('html')).not.toHaveClass(/dark/)
   await expect(page.locator('html')).toHaveCSS('font-size', '14px')
 })
 
-test('saved appearance is present before hydration and controls wait for hydration', async ({ page, context }) => {
-  await login(page)
+test('saved appearance is present before hydration and controls wait for hydration', async ({ page, context, baseURL }) => {
+  // Authentication is a precondition here; the login form has its own acceptance tests.
+  expect((await page.request.post('/api/auth/login', { data: { login: process.env.E2E_ADMIN_LOGIN ?? 'admin', password: process.env.E2E_ADMIN_PASSWORD ?? 'admin' } })).status()).toBe(200)
+  expect(baseURL).toBeDefined()
   await context.addCookies([{
     name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'dark', fontSize: 'medium' })),
-    url: new URL(page.url()).origin,
+    url: new URL(baseURL!).origin,
   }])
   let resume!: () => void
   const gate = new Promise<void>(resolve => { resume = resolve })
-  await page.route('**/_nuxt/**', async (route) => {
-    if (route.request().resourceType() === 'script') await gate
-    await route.continue()
-  })
+  let released = false
+  const heldScripts: Promise<void>[] = []
+  const holdScripts = (route: Route) => {
+    const held = !released && route.request().resourceType() === 'script'
+    const handled = (async () => {
+      if (held) await gate
+      await route.continue()
+    })()
+    if (held) heldScripts.push(handled)
+    return handled
+  }
+  await page.route('**/_nuxt/**', holdScripts)
   try {
-    await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'medium' } })
+    expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'medium' } })).status()).toBe(200)
     await page.goto('/projects', { waitUntil: 'commit' })
     await expect(page.locator('html')).toHaveClass(/dark/)
     await expect(page.locator('html')).toHaveAttribute('data-font-size', 'medium')
     await expect(page.getByTestId('appearance-menu')).toBeDisabled()
   } finally {
+    released = true
     resume()
+    // Finish held routes before unroute, which can otherwise handle them twice.
+    await Promise.all(heldScripts)
+    // The gate owns only the initial scripts. Removing it also restores the
+    // browser cache for the remaining dev-module graph after release.
+    await page.unroute('**/_nuxt/**', holdScripts)
   }
   await expect(page.getByTestId('appearance-menu')).toBeEnabled()
   await choose(page, MODE.light)

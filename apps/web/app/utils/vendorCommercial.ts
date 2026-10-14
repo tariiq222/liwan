@@ -4,6 +4,7 @@ import {
   type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Quote, type Selection,
 } from '@nasq/commercial-contracts'
 import { safeReturnTo } from './safeReturnTo'
+import type { StatusBadgeEntry } from './statusBadge'
 
 export const CURRENCY = 'SAR'
 export const EXPONENT = 2
@@ -23,6 +24,13 @@ export const STATUS_FILTERS: StatusFilter[] = ['all', 'draft', 'validated', 'pub
 export function lifecycleStatus(view: { status: string; available: boolean }): LifecycleStatus {
   if (view.status === 'published') return view.available ? 'published' : 'withdrawn'
   return view.status === 'validated' ? 'validated' : 'draft'
+}
+
+const LIFECYCLE_TONE = { draft: 'neutral', validated: 'info', published: 'success', withdrawn: 'warning' } as const satisfies Record<LifecycleStatus, StatusBadgeEntry['tone']>
+
+export function lifecycleBadge(view: { status: string; available?: boolean }): StatusBadgeEntry {
+  const state = lifecycleStatus({ status: view.status, available: view.available ?? true })
+  return { tone: LIFECYCLE_TONE[state], labelKey: `vendor.pricing.status.${state}` }
 }
 export function isStatusFilter(value: unknown): value is StatusFilter { return typeof value === 'string' && (STATUS_FILTERS as string[]).includes(value) }
 

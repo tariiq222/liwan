@@ -8,21 +8,26 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور', { exact: true }).fill('admin')
+  const authenticated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login' && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'دخول', exact: true }).click()
+  expect((await authenticated).status()).toBe(200)
   await expect(page).not.toHaveURL(/\/login/)
 })
 
 async function appearance(page: Page, mode: string, fontSize = 'small') {
-  await page.context().addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize })), url: page.url() }])
-  await page.goto('/projects/1?tab=tasks')
+  // The server preference owns appearance; a cookie is only the previous paint.
+  const saved = await page.request.patch('/api/v1/me/appearance', { data: { mode, font_size: fontSize } })
+  expect(saved.status(), 'Requires isolated synthetic API with saved appearance').toBe(200)
+  await page.goto('/projects/1/tasks')
   await expect(page.locator('main tbody tr')).toHaveCount(4)
-  if (mode !== 'light') await expect(page.locator('html')).toHaveClass(new RegExp(mode))
+  await expect(page.locator('html')).toHaveAttribute('data-font-size', fontSize)
+  if (mode === 'dark') await expect(page.locator('html')).toHaveClass(/dark/)
+  else await expect(page.locator('html')).not.toHaveClass(/dark/)
   await page.evaluate(() => document.fonts.ready)
 }
 
 // Measure rendered/composited colors, including color-mix and alpha surfaces.
-async function readability(page: Page) {
-  return page.locator('main h1, main th, main [class*="nasq-status-chip-"], [data-notification-preview-item] .text-muted-foreground, [data-sonner-toast]').evaluateAll(elements => {
+function measureReadability(elements: Element[]) {
     const context = document.createElement('canvas').getContext('2d')!
     function rgba(color: string) {
       context.clearRect(0, 0, 1, 1)
@@ -41,23 +46,37 @@ async function readability(page: Page) {
       const background = ancestors.reduce((bg, node) => over(rgba(getComputedStyle(node).backgroundColor), bg), [1, 1, 1, 1])
       const style = getComputedStyle(element)
       const fg = luminance(over(rgba(style.color), background)), bg = luminance(background)
-      return { text: element.textContent?.trim(), ratio: (Math.max(fg, bg) + .05) / (Math.min(fg, bg) + .05), fontSize: parseFloat(style.fontSize) }
+      return { tag: element.tagName.toLowerCase(), text: element.textContent?.trim(), ratio: (Math.max(fg, bg) + .05) / (Math.min(fg, bg) + .05), fontSize: parseFloat(style.fontSize) }
     })
-  })
 }
 
-for (const mode of ['light', 'cream', 'dark']) {
+async function readability(page: Page) {
+  return page.locator('main h1, main th, main [data-tone], [data-notification-preview-item] .text-xs, [data-notification-preview-item] .text-sm').evaluateAll(measureReadability)
+}
+
+for (const mode of ['light', 'dark']) {
   test(`project status and notification text stays readable in ${mode}`, async ({ page }, info) => {
     await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: {
+      items: [{ id: 501, kind: 'comment', task_id: 101, task_name: 'مهمة جارية', body: 'تعليق لاختبار التباين', created_at: '2026-09-07T10:00:00', is_read: false }],
+      total: 1, unread_count: 1,
+    } }))
     await appearance(page, mode)
     await page.getByTestId('notification-bell').click()
     await expect(page.getByTestId('notification-preview')).toBeVisible()
     // Trigger an actual failure toast through the notification workflow, with
     // the request intercepted so no synthetic or real record is mutated.
-    await page.route('**/api/v1/notifications/*/read', route => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }))
+    await page.route('**/api/v1/notifications/*/read', route => route.fulfill({ status: 500, json: { code: 'server_error', message: 'تعذر تحديث الإشعار' } }))
     await page.getByTestId('notification-preview-501').click()
-    await expect(page.locator('[data-sonner-toast][data-type="error"]')).toBeVisible()
-    const measurements = await readability(page)
+    await expect(page.getByText('تعذر تحديث الإشعار', { exact: true })).toBeVisible()
+    const measurements = [
+      ...await readability(page),
+      ...await page.getByText('تعذر تحديث الإشعار', { exact: true }).evaluateAll(measureReadability),
+    ]
+    expect(measurements.some(item => item.text === 'تعذر تحديث الإشعار')).toBe(true)
+    expect(measurements.some(item => item.text === 'تعليق جديد على مهمة')).toBe(true)
+    expect(measurements.some(item => item.text === 'تعليق لاختبار التباين')).toBe(true)
+    expect(measurements.some(item => item.tag === 'time' && !!item.text)).toBe(true)
     expect(measurements.length).toBeGreaterThan(15)
     for (const item of measurements) {
       expect(item.ratio, JSON.stringify(item)).toBeGreaterThanOrEqual(4.5)
@@ -71,11 +90,25 @@ for (const mode of ['light', 'cream', 'dark']) {
 
 test('project typography scales with preference and releases its scope on client navigation', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 1000 })
-  for (const [size, root] of [['small', 14], ['medium', 16], ['large', 18]] as const) {
-    await appearance(page, 'light', size)
+  await page.route('**/api/v1/notifications?*', route => route.fulfill({ json: {
+    items: [{ id: 501, kind: 'comment', task_id: 101, task_name: 'مهمة جارية', body: 'تعليق', created_at: '2026-09-07T10:00:00', is_read: false }],
+    total: 1, unread_count: 1,
+  } }))
+  await appearance(page, 'light', 'small')
+  for (const [size, root, label] of [['small', 14, 'صغير'], ['medium', 16, 'وسط'], ['large', 18, 'كبير']] as const) {
+    if (size !== 'small') {
+      await page.getByTestId('appearance-menu').click()
+      const item = page.getByRole('menuitemcheckbox', { name: label, exact: true })
+      await expect(item).toBeVisible()
+      await expect(item).toHaveAttribute('aria-checked', 'false')
+      const saved = page.waitForResponse(response => response.url().includes('/api/v1/me/appearance') && response.request().method() === 'PATCH')
+      await item.click()
+      expect((await saved).status()).toBe(200)
+    }
+    await expect(page.locator('html')).toHaveCSS('font-size', `${root}px`)
     const title = page.locator('main h1')
     expect(await title.evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 20 / 14, 1)
-    expect(await page.locator('main td').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root, 1)
+    expect(await page.locator('main td').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(root * 13 / 14, 1)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.getByTestId('notification-bell').click()
@@ -84,5 +117,5 @@ test('project typography scales with preference and releases its scope on client
   await expect(page).toHaveURL(/\/notifications$/)
   await expect(page.locator('html')).not.toHaveAttribute('data-project-theme')
   await page.goBack()
-  await expect(page.locator('html')).toHaveAttribute('data-project-theme', 'true')
+  await expect(page.locator('html')).not.toHaveAttribute('data-project-theme')
 })

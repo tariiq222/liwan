@@ -2,33 +2,41 @@
 import { hrDepartmentBack, hrDepartmentContext } from '@/utils/hrReturnTo'
 import DocumentList from '@/components/hr/DocumentList.vue'
 import { useHrDepartment } from '@/composables/useHrDepartments'
-const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.departmentId)); const isCreateDocument = computed(() => route.path === `/hr/departments/${id.value}/documents/new`); const isDetail = computed(() => route.path === `/hr/departments/${id.value}` || isCreateDocument.value); const query = useHrDepartment(computed(() => isDetail.value ? id.value : null)); const department = computed(() => query.data.value)
+const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
+const id = computed(() => Number(route.params.departmentId))
+const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
+const isCreateDocument = computed(() => route.path === `/hr/departments/${route.params.departmentId}/documents/new`)
+const isDetail = computed(() => route.path === `/hr/departments/${route.params.departmentId}` || isCreateDocument.value)
+const query = useHrDepartment(computed(() => isDetail.value && validId.value ? id.value : null))
+const department = computed(() => query.data.value)
+const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const backTo = computed(() => hrDepartmentBack(route.query, route.hash))
 const editTo = computed(() => ({ path: `/hr/departments/${id.value}/edit`, query: hrDepartmentContext(route.query), ...(route.hash ? { hash: route.hash } : {}) }))
 </script>
 <template>
-  <SharedPageContainer v-if="isDetail" width="detail">
-    <!-- Under the create-document panel the registered (shell) title stays static so the
-         loaded department name never overwrites the panel's title; the visible heading keeps the name. -->
-    <SharedPageHeader :title="isCreateDocument ? t('hr.depts.title') : (department?.name || t('hr.depts.title'))" :back-to="isCreateDocument ? undefined : backTo">
-      <template #title>{{ department?.name || t('hr.depts.title') }}</template>
-      <UButton v-if="department && can('hr.departments.manage')" color="primary" :disabled="!hydrated" :to="editTo" :label="t('hr.depts.edit')" @click="!hydrated && $event.preventDefault()" />
-    </SharedPageHeader>
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!department" @retry="query.refetch">
-      <div v-if="department" class="grid gap-6 items-start lg:grid-cols-[2fr_1fr]">
-        <UCard v-if="can('hr.documents.read')" class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
-          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.depts.detail') }}</h2></template>
-          <DocumentList :department-id="id" :can-write="can('hr.documents.manage')" embedded />
-        </UCard>
-        <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
-          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.card.overview') }}</h2></template>
-          <dl class="grid gap-4">
-            <div><dt class="text-sm text-muted">{{ t('hr.tabs.employees') }}</dt><dd class="mt-1 font-medium">{{ department.employee_count }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('hr.depts.manager') }}</dt><dd class="mt-1 font-medium">{{ department.manager?.name || t('hr.depts.noManager') }}</dd></div>
-          </dl>
-        </UCard>
-      </div>
-    </SharedPageState>
-  </SharedPageContainer>
+  <!-- Under the create-document panel the registered (shell) title stays static and no heading is drawn,
+       so the panel's own <h1> is the only one and the loaded department name never overwrites its title. -->
+  <SharedRecordPage
+    v-if="isDetail"
+    :title="isCreateDocument ? t('hr.depts.title') : (department?.name || t('hr.depts.title'))"
+    :hide-header="isCreateDocument"
+    :back-to="isCreateDocument ? undefined : backTo"
+    :loading="query.isLoading.value"
+    :error="pageError"
+    @retry="query.refetch"
+  >
+    <template v-if="department && can('hr.departments.manage')" #actions>
+      <UButton color="primary" :disabled="!hydrated" :to="editTo" :label="t('hr.depts.edit')" @click="!hydrated && $event.preventDefault()" />
+    </template>
+    <SharedRecordSection v-if="department && can('hr.documents.read')" :title="t('hr.depts.detail')">
+      <DocumentList :department-id="id" :can-write="can('hr.documents.manage')" />
+    </SharedRecordSection>
+    <template v-if="department" #aside>
+      <SharedPropertiesPanel :title="t('hr.card.overview')">
+        <SharedPropertyRow :label="t('hr.tabs.employees')" :value="department.employee_count" />
+        <SharedPropertyRow :label="t('hr.depts.manager')" :value="department.manager?.name || t('hr.depts.noManager')" />
+      </SharedPropertiesPanel>
+    </template>
+  </SharedRecordPage>
   <NuxtPage />
 </template>

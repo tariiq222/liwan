@@ -2,7 +2,7 @@
 import { refDebounced } from '@vueuse/core'
 import { useOperationRequests, type OperationScope } from '@/composables/operations/useOperations'
 import { operationListLocation, safeOperationReturnTo, operationStateChoices, operationStateFromSelection } from '@/composables/operations/forms'
-import StateBadge from './StateBadge.vue'
+import { operationsStateTone } from '@/composables/operations/state'
 const props = defineProps<{ scope: OperationScope; background?: boolean }>()
 const route = useRoute()
 const router = useRouter()
@@ -44,7 +44,7 @@ const stateItems = computed(() => operationStateChoices(t))
         <ul class="divide-y divide-default rounded-lg bg-default ring ring-default">
           <li v-for="item in items" :key="item.id" class="flex min-w-0 flex-wrap items-start justify-between gap-3 p-4">
             <div class="min-w-0 flex-1"><div class="flex min-w-0 items-baseline gap-2"><span class="sr-only">{{ t('operations.recordNumber') }}</span><SharedRecordNumber :value="item.id" /><UButton color="neutral" variant="link" class="max-w-full p-0 text-start" :label="item.name" :disabled="!hydrated" :to="{ path: `/operations/${item.id}`, query: { returnTo: backTo } }" /></div><p class="mt-1 text-sm text-muted">{{ item.process.name }} · {{ item.requester.name }}</p></div>
-            <StateBadge :state="item.state" />
+            <SharedStatusBadge :tone="operationsStateTone(item.state)" :label="t(`operations.states.${item.state}`)" />
           </li>
         </ul>
       </SharedPageState>

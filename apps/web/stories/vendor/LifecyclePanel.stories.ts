@@ -10,7 +10,7 @@ const caps = (capabilities: string[]) => ({ api: [http.get('/api/vendor/v1/conte
 const all = ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage']
 const meta = {
   title: 'Vendor/LifecyclePanel', component: LifecyclePanel,
-  parameters: { layout: 'padded', msw: { handlers: caps(all) }, ...storyContext('apps/web/app/pages/vendor/bundles/[id].vue:35') },
+  parameters: { layout: 'padded', msw: { handlers: caps(all) }, ...storyContext('apps/web/app/pages/vendor/bundles/[id].vue:36') },
   args: { kind: 'bundle', view: bundleView({ status: 'draft' }) },
 } satisfies Meta<typeof LifecyclePanel>
 export default meta

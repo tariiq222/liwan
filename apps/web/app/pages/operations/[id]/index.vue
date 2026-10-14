@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { OperationAction } from '@nasq/contracts'
-import StateBadge from '@/components/operations/StateBadge.vue'
+import { operationsStateTone } from '@/composables/operations/state'
 import { useOperationRequest, useOperationRequestMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationId, safeOperationReturnTo } from '@/composables/operations/forms'
 const route = useRoute()
@@ -63,13 +63,13 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
     <SharedPageState :loading="id !== null && query.isPending.value" :error="id === null ? { status: 404 } : query.error.value" @retry="hydrated && query.refetch()">
       <template v-if="record">
         <SharedUnsavedChanges :dirty="!!comment.trim()" />
-        <div class="flex flex-wrap items-center gap-3"><StateBadge :state="record.state" /><span class="text-sm text-muted">{{ record.process.name }} · {{ record.requester.name }} · {{ date(record.created_at) }}</span></div>
+        <div class="flex flex-wrap items-center gap-3"><SharedStatusBadge :tone="operationsStateTone(record.state)" :label="t(`operations.states.${record.state}`)" /><span class="text-sm text-muted">{{ record.process.name }} · {{ record.requester.name }} · {{ date(record.created_at) }}</span></div>
         <UAlert v-if="error" role="alert" color="error" :title="t(`operations.errors.${operationErrorKey(error)}`)"><template #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="refresh" /></template></UAlert>
         <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'approve' ? 'operations.approveHelp' : selected === 'submit' ? 'operations.submitHelp' : 'operations.reasonHelp')" :confirm-label="t(`operations.actions.${selected}`)" :color="selected === 'reject' || selected === 'withdraw' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="cancel">
           <UFormField v-if="selected !== 'submit'" name="comment" :label="t('operations.comment')" :required="commentRequired" :error="attempted && commentRequired && !comment.trim() ? t('operations.errors.required') : undefined"><UTextarea v-model="comment" class="w-full" :rows="3" :disabled="disabled" :maxlength="4000" /></UFormField>
         </SharedInlineConfirm>
         <SharedFormSection :title="t('operations.description')"><p class="whitespace-pre-wrap text-sm leading-7">{{ record.description || t('operations.noDescription') }}</p><UButton v-if="record.target" color="neutral" variant="link" :disabled="disabled" :to="record.target.href" :label="record.target.name" icon="i-lucide-external-link" /></SharedFormSection>
-        <SharedFormSection :title="t('operations.stages')"><p v-if="!record.steps.length" class="text-sm text-muted">{{ t('operations.stagesAfterSubmit') }}</p><ol v-else class="space-y-3"><li v-for="step in record.steps" :key="step.sequence" class="flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-lg p-4 ring ring-default"><div class="min-w-0 flex-1"><h3 class="font-medium text-highlighted">{{ step.sequence }}. {{ step.name }}</h3><p class="mt-1 text-sm text-muted">{{ step.reviewers.map(person => person.name).join('، ') }}</p></div><StateBadge :state="step.status" /></li></ol></SharedFormSection>
+        <SharedFormSection :title="t('operations.stages')"><p v-if="!record.steps.length" class="text-sm text-muted">{{ t('operations.stagesAfterSubmit') }}</p><ol v-else class="space-y-3"><li v-for="step in record.steps" :key="step.sequence" class="flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-lg p-4 ring ring-default"><div class="min-w-0 flex-1"><h3 class="font-medium text-highlighted">{{ step.sequence }}. {{ step.name }}</h3><p class="mt-1 text-sm text-muted">{{ step.reviewers.map(person => person.name).join('، ') }}</p></div><SharedStatusBadge :tone="operationsStateTone(step.status)" :label="t(`operations.states.${step.status}`)" /></li></ol></SharedFormSection>
         <SharedFormSection :title="t('operations.attachments')">
           <SharedFileField v-if="record.allowed_actions.edit" ref="fileField" :disabled="disabled || selected !== null || removal !== null" :aria-label="t('operations.addAttachment')" @change="upload" />
           <p v-if="!record.attachments.length" class="text-sm text-muted">{{ t('operations.noAttachments') }}</p>

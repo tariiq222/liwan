@@ -12,11 +12,11 @@ type Story = StoryObj<typeof meta>
 
 export const InContextSidebar: Story = {
   name: 'في الشريط الجانبي',
-  parameters: storyContext('unused', 'لم يعد مستخدمًا بعد تحديث الشريط الجانبي؛ الغلاف بعرض `--context-sidebar-width: 236px` من `apps/web/app/assets/css/shell.css:75`.'),
+  parameters: storyContext('unused', 'لم يعد مستخدمًا بعد تحديث الشريط الجانبي؛ الغلاف بعرض `--context-sidebar-width: 232px` من `apps/web/app/assets/css/shell.css`.'),
   render: args => ({
     components: { SidebarCreateAction },
     setup: () => ({ args }),
-    template: `<div style="width: 236px"><div class="nasq-context-create-actions"><SidebarCreateAction :to="args.to" :label="args.label || $t('nav.newProject')" :active="args.active" /><SidebarCreateAction to="/meetings/new" :label="$t('nav.newMeeting')" /></div></div>`,
+    template: `<div style="width: 232px"><div class="nasq-context-create-actions"><SidebarCreateAction :to="args.to" :label="args.label || $t('nav.newProject')" :active="args.active" /><SidebarCreateAction to="/meetings/new" :label="$t('nav.newMeeting')" /></div></div>`,
   }),
 }
 

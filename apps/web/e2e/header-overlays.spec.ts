@@ -21,7 +21,7 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   const input = dialog.getByRole('textbox')
   await expect(input).toBeFocused()
   await input.fill(task.name)
-  await expect(dialog.getByRole('link', { name: task.name, exact: true })).toBeVisible()
+  await expect(dialog.getByRole('option', { name: task.name, exact: true })).toBeVisible()
   const box = await dialog.boundingBox()
   const viewport = page.viewportSize()!
   expect(Math.abs(box!.x + box!.width / 2 - viewport.width / 2)).toBeLessThan(3)
@@ -32,7 +32,7 @@ test('search opens centered, searches real tasks, closes with Escape and navigat
   await page.keyboard.press('Control+k')
   await expect(dialog).toBeVisible()
   await dialog.getByRole('textbox').fill(task.name)
-  await dialog.getByRole('link', { name: task.name, exact: true }).click()
+  await dialog.getByRole('option', { name: task.name, exact: true }).click()
   await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}\\?returnTo=`))
   await expect(dialog).toBeHidden()
   await page.getByRole('link', { name: 'العودة إلى المهام', exact: true }).click()

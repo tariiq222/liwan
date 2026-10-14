@@ -38,8 +38,7 @@ async function submit() {
 </script>
 
 <template>
-  <section data-testid="my-task-comments" class="space-y-3" :aria-label="t('myTasks.comments.title')">
-    <h2 class="text-lg font-semibold text-highlighted">{{ t('myTasks.comments.title') }}</h2>
+  <SharedRecordSection data-testid="my-task-comments" :title="t('myTasks.comments.title')">
     <SharedPageState :loading="isLoading" :error="loadError" :empty="!comments.length" :empty-text="t('myTasks.comments.empty')" @retry="refetch">
       <ul class="divide-y divide-default">
         <li v-for="comment in comments" :key="comment.id" class="grid gap-1 py-3">
@@ -67,5 +66,5 @@ async function submit() {
         <UButton type="submit" size="sm" :loading="isPending" :disabled="!hydrated || isPending || !body.trim() || problem !== null" :label="t('myTasks.comments.post')" />
       </div>
     </form>
-  </section>
+  </SharedRecordSection>
 </template>

@@ -1,54 +1,40 @@
 <script setup lang="ts">
 import type { SlideoverProps } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
+import type { RouteLocationRaw } from 'vue-router'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
-import { useShellNavigation } from '@/composables/useShellNavigation'
-import { hidePinnedNewProject, shellModuleList, visibleShellModules } from '@/composables/nav/shellModules'
-import { activeShellModule, contextModuleFor } from '@/composables/nav/activeRoute'
-import { createLinkTo } from '@/composables/nav/createActions'
+import type { ShellContextLink } from '@/composables/nav/shellModules'
+import type { ShellContextSection, ShellRailItem } from '@/composables/nav/sidebarModel'
 
+// The one mobile drawer (< 768px): modules, then the current module's create
+// actions and sections. Props only; ShellHeader derives them from useShellModel().
+const props = defineProps<{
+  modules: ShellRailItem[]
+  activeId: string | null
+  title: string
+  createLinks: ShellContextLink[]
+  sections: ShellContextSection[]
+}>()
+const open = defineModel<boolean>('open', { default: false })
 const { t, te, localeProperties } = useI18n()
-const menuTitle = computed(() => te('nav.navigation') ? t('nav.navigation') : t('nav.modules'))
-const openMenuLabel = computed(() => te('nav.openMenu') ? t('nav.openMenu') : t('nav.toggleSidebar'))
-const workspaceIdentity = useWorkspaceIdentity()
 const route = useRoute()
 const router = useRouter()
 const hydrated = useHydrated()
-const open = ref(false)
 const desktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
-const { module, contextLinks } = useShellNavigation(workspaceIdentity)
-const availableModules = computed(() => visibleShellModules(workspaceIdentity.value))
-const activeModule = computed(() => activeShellModule(route.path))
-// `home` and `projects` share one projects sidebar heading (2026-09-11).
-const linksModule = computed(() => contextModuleFor(activeModule.value))
-const moduleDefinition = computed(() => shellModuleList().find(item => item.id === linksModule.value) ?? module.value)
-const contextTitle = computed(() => moduleDefinition.value ? t(moduleDefinition.value.labelKey) : t('app.productName'))
-const primaryLinks = computed(() => contextLinks.value)
-// Pinned create actions first, then navigation — the same order as the desktop sidebar.
-const orderedLinks = computed(() => [...primaryLinks.value.filter(link => link.pinned), ...primaryLinks.value.filter(link => !link.pinned)])
-const createLinks = computed(() => orderedLinks.value.filter(link => link.pinned && !(link.id === 'new-project' && hidePinnedNewProject(route.path))))
-const navigationLinks = computed(() => orderedLinks.value.filter(link => !link.pinned))
+const menuTitle = computed(() => te('nav.navigation') ? t('nav.navigation') : t('nav.modules'))
+const openMenuLabel = computed(() => te('nav.openMenu') ? t('nav.openMenu') : t('nav.toggleSidebar'))
+const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: string }>(() => ({ id: 'mobile-navigation' }))
 
 watch(desktop, value => { if (value) open.value = false })
 watch(() => route.fullPath, () => { open.value = false })
 
-function createTo(link: { id: string; to: import('vue-router').RouteLocationRaw }): import('vue-router').RouteLocationRaw {
-  return createLinkTo(link, { path: route.path, fullPath: route.fullPath, query: route.query, params: route.params })
-}
-
-function closeIfCurrent(to: import('vue-router').RouteLocationRaw) {
+function closeIfCurrent(to: RouteLocationRaw) {
   if (router.resolve(to).fullPath === route.fullPath) open.value = false
 }
 
-function moduleTarget(module: { id: string; to: string }) {
-  return module.id === 'vendor' ? undefined : module.to
+function onModuleActivate(item: ShellRailItem) {
+  if (item.external || router.resolve(item.to).fullPath === route.fullPath) open.value = false
 }
-
-function onModuleActivate(module: { id: string; to: string }) {
-  if (module.id === 'vendor' || router.resolve(module.to).fullPath === route.fullPath) open.value = false
-}
-
-const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: string }>(() => ({ id: 'mobile-navigation' }))
 </script>
 
 <template>
@@ -56,7 +42,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
     v-model:open="open"
     :side="localeProperties.dir === 'rtl' ? 'right' : 'left'"
     :title="menuTitle"
-    :description="contextTitle"
+    :description="props.title"
     :content="dialogContent"
     :ui="{ content: 'nasq-mobile-menu', overlay: 'nasq-mobile-menu-overlay' }"
   >
@@ -78,52 +64,52 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
       </template>
     </UButton>
     <template #body>
-      <div>
-        <nav :aria-label="t('nav.modules')" class="grid gap-2">
+      <nav :aria-label="t('nav.modules')" class="nasq-mobile-section">
+        <UButton
+          v-for="item in props.modules"
+          :key="item.id"
+          :to="item.external ? undefined : item.to"
+          :href="item.external ? item.to : undefined"
+          :target="item.external ? '_blank' : undefined"
+          :rel="item.external ? 'noopener' : undefined"
+          color="neutral"
+          variant="ghost"
+          class="nasq-context-link"
+          :data-active="props.activeId === item.id"
+          :active="props.activeId === item.id"
+          :aria-current="props.activeId === item.id ? 'page' : undefined"
+          :aria-label="t(item.labelKey)"
+          @click="onModuleActivate(item)"
+        >
+          <template #leading>
+            <UIcon :name="item.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+          </template>
+          <span data-slot="label">{{ t(item.labelKey) }}</span>
+        </UButton>
+      </nav>
+      <USeparator class="my-4" />
+      <h2 class="nasq-mobile-title">{{ props.title }}</h2>
+      <div v-if="props.createLinks.length" class="nasq-mobile-section">
+        <SidebarCreateAction
+          v-for="link in props.createLinks"
+          :key="link.id"
+          :to="link.to"
+          :label="t(link.labelKey)"
+          :active="link.active"
+          :test-id="`mobile-context-link-${link.id}`"
+          @click="closeIfCurrent(link.to)"
+        />
+      </div>
+      <nav v-if="props.sections.length" :aria-label="props.title" class="nasq-mobile-section">
+        <template v-for="section in props.sections" :key="section.id">
+          <h3 v-if="section.titleKey" class="nasq-context-section-title">{{ t(section.titleKey) }}</h3>
           <UButton
-            v-for="item in availableModules"
-            :key="item.id"
-            :to="moduleTarget(item)"
-            :href="item.id === 'vendor' ? item.to : undefined"
-            :target="item.id === 'vendor' ? '_blank' : undefined"
-            :rel="item.id === 'vendor' ? 'noopener' : undefined"
-            color="neutral"
-            variant="ghost"
-            class="nasq-module-rail-link"
-            :label="t(item.labelKey)"
-            :aria-label="t(item.labelKey)"
-            :aria-current="activeModule === item.id ? 'page' : undefined"
-            :data-active="activeModule === item.id"
-            :active="activeModule === item.id"
-            @click="onModuleActivate(item)"
-          >
-            <template #leading>
-              <UIcon :name="item.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
-            </template>
-          </UButton>
-        </nav>
-        <USeparator class="my-6" />
-        <h2 class="mb-3 font-semibold">{{ contextTitle }}</h2>
-        <div v-if="createLinks.length" class="mb-3 grid gap-2">
-          <SidebarCreateAction
-            v-for="link in createLinks"
-            :key="link.id"
-            :to="createTo(link)"
-            :label="t(link.labelKey)"
-            :active="link.active"
-            :test-id="`mobile-context-link-${link.id}`"
-            @click="closeIfCurrent(createTo(link))"
-          />
-        </div>
-        <nav v-if="navigationLinks.length" :aria-label="contextTitle" class="grid gap-2">
-          <UButton
-            v-for="link in navigationLinks"
+            v-for="link in section.links"
             :key="link.id"
             :to="link.to"
             color="neutral"
             variant="ghost"
             class="nasq-context-link"
-            :label="t(link.labelKey)"
             :aria-label="t(link.labelKey)"
             :aria-current="link.active ? 'page' : undefined"
             :data-active="link.active"
@@ -134,9 +120,10 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { id: st
             <template #leading>
               <UIcon :name="link.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
             </template>
+            <span data-slot="label">{{ t(link.labelKey) }}</span>
           </UButton>
-        </nav>
-      </div>
+        </template>
+      </nav>
     </template>
   </USlideover>
 </template>

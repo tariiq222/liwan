@@ -3,6 +3,10 @@ import { appManifests, manifestForPath, withManifests } from '../manifests'
 import { canUse, featureForCapability, featureForPath, hasFeature, MODULE_FEATURES } from '../registry'
 import { canReach, canReachPath, firstAllowedPath, hasCapability, isNavPathActive, postLoginPath, requiredCapabilityForPath } from '../../utils/accessPolicy'
 import type { AppManifest } from '../types'
+import { allNavItems } from '../../composables/nav/shellModules'
+import { goKeyProblems } from '../../composables/nav/paletteModel'
+import { appCommands } from '../surfaces'
+import { SHELL_RESERVED_KEYS } from '../../composables/shortcuts/keymap'
 
 const crm: AppManifest = {
   id: 'crm',
@@ -144,5 +148,40 @@ describe('app manifests', () => {
       expect(manifestForPath('/crm')).toBeNull()
       expect(manifestForPath('/hr')?.id).toBe('hr')
     })
+  })
+})
+
+describe('palette declarations', () => {
+  it('go keys are single letters, never g, and unique across applications and the foundation', () => {
+    expect(goKeyProblems(allNavItems())).toEqual([])
+    expect(allNavItems().flatMap(item => item.goKey ?? []).sort()).toEqual(['c', 'd', 'e', 'h', 'm', 'p', 'r', 't', 'u'])
+  })
+
+  it('commands have unique ids under their manifest, open a path it owns and need that route\'s capability', () => {
+    const ids = appCommands().map(command => command.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const manifest of appManifests) {
+      for (const command of manifest.commands ?? []) {
+        expect(command.id.startsWith(`${manifest.id}.`), command.id).toBe(true)
+        expect(manifestForPath(command.to)?.id, command.id).toBe(manifest.id)
+        expect(requiredCapabilityForPath(command.to), command.id).toBe(command.capability)
+      }
+    }
+    expect(ids).toEqual(expect.arrayContaining([
+      'pmo.new-project', 'pmo.new-task', 'meetings.new-meeting', 'meetings.new-series',
+      'chat.new-conversation', 'hr.new-employee', 'hr.new-department', 'hr.new-document',
+    ]))
+  })
+
+  // goKeys follow the `G` chord, so only `g` is off limits for them (goKeyProblems); c, j and k are fine there.
+  it('no /search one-key jump uses a key the shell layer owns', () => {
+    for (const item of allNavItems()) {
+      expect(SHELL_RESERVED_KEYS, `${item.to} shortcut`).not.toContain(item.shortcut)
+    }
+  })
+
+  it('/search one-key jumps are unique across manifests', () => {
+    const jumps = appManifests.flatMap(manifest => manifest.nav.map(item => item.shortcut)).filter(Boolean)
+    expect(new Set(jumps).size).toBe(jumps.length)
   })
 })

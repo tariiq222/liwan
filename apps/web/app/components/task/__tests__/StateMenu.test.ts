@@ -57,7 +57,8 @@ function loadStateMenu() {
       const t = (key: string) => key
       const onSelect = (state: string) => state
       const items = computed(() => states.value.map((s) => ({ label: t(STATE_LABEL_KEY[s]), onSelect: () => onSelect(s) })))
-      return { states, hydrated, isPending, t, onSelect, STATE_LABEL_KEY, items }
+      const stateBadge = (state: string) => ({ tone: 'info', label: state })
+      return { states, hydrated, isPending, t, onSelect, STATE_LABEL_KEY, items, stateBadge }
     },
     render,
   })
@@ -67,9 +68,9 @@ async function renderMenu(task: Pick<Task, 'state' | 'allowed_transitions'>, can
   const app = createSSRApp({
     render: () => h(loadStateMenu(), { task: { ...task, id: 1 }, canApprove }),
   })
-  app.component('StateBadge', defineComponent({
-    props: { state: String },
-    setup(props) { return () => h('span', { 'data-state': props.state }, props.state) },
+  app.component('SharedStatusBadge', defineComponent({
+    props: { tone: String, label: String },
+    setup(props) { return () => h('span', { 'data-tone': props.tone }, props.label) },
   }))
   app.component('UDropdownMenu', DropdownMenuStub)
   app.component('Loader2', defineComponent({ setup: () => () => null }))

@@ -2,12 +2,7 @@
   "R1": {},
   "R10": {},
   "R2": {},
-  "R3": {
-    "web apps/web/app/pages/meetings/[id]/edit.vue": 1,
-    "web apps/web/app/pages/meetings/[id]/minutes.vue": 1,
-    "web apps/web/app/pages/meetings/[id]/resolutions/[resolutionId]/edit.vue": 1,
-    "web apps/web/app/pages/meetings/new.vue": 1
-  },
+  "R3": {},
   "R4": {},
   "R5": {
     "commercial import apps/web/app/composables/useSubscription.ts": 1,

@@ -6,6 +6,8 @@ const props = defineProps<{
   description?: string
   backTo?: RouteLocationRaw
   backLabel?: string
+  /** A frame around the page already shows the heading (the project workspace's h1): draw the actions only. The title still names the page for the shell and `backTo` still answers Escape. */
+  hideTitle?: boolean
 }>()
 
 usePageHeader(() => props.title, () => props.description)
@@ -22,12 +24,13 @@ const frameOwnsHeading = useProjectFrameHeading()
 
 <template>
   <header
+    v-if="!props.hideTitle || $slots.actions || $slots.default"
     data-slot="page-header"
     data-empty="false"
     class="flex flex-wrap items-center justify-between gap-4"
   >
     <div class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-4">
-      <div class="min-w-0">
+      <div v-if="!props.hideTitle" class="min-w-0">
         <div v-if="props.backTo || $slots.back" class="mb-1 flex items-center gap-2 text-sm">
           <slot name="back">
             <UButton :to="props.backTo!" color="neutral" variant="outline" class="focus-visible:ring-2 focus-visible:ring-primary">

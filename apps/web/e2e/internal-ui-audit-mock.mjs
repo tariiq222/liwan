@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 import http from 'node:http'
 import { projectsPreviewData } from './projects-ui-preview-data.mjs'
+import { pmoPreviewData } from './pmo-ui-preview-data.mjs'
 import { moduleUiCapabilities, moduleUiPreviewData } from './module-ui-preview-data.mjs'
+import { capabilitiesForRequest } from './mock-capabilities.mjs'
+import { handleCommercial } from './commercial-mock-routes.mjs'
 import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
 const PORT = Number(process.env.MOCK_PORT || 4388)
 const SESSION = 'nasq-ui-mock'
 const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+// Deterministic local asset for the two employee records in the screenshot fixture.
+const HR_FIXTURE_AVATAR = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="64" fill="#e2e8f0"/><circle cx="64" cy="46" r="22" fill="#64748b"/><path d="M24 120c0-27 18-44 40-44s40 17 40 44" fill="#64748b"/></svg>'
 
 const CAPABILITIES = [
   'access.users.read', 'access.users.grant', 'access.users.assign_roles', 'access.users.disable',
@@ -40,18 +45,21 @@ const ME = {
 
 const BRANDING = {
   name: 'نَسَق',
-  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#18181b"/></svg>'),
-  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#18181b',
+  logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#13234a"/></svg>'),
+  primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#13234a',
   font: 'IBM Plex Sans Arabic',
 }
 
 const CHARTER = {
-  code: 'P-1', type: { id: 1, name: 'داخلي' }, owning_unit: { id: 1, name: 'مكتب المشاريع' },
+  code: 'P-1', state: 'final', type: { id: 1, name: 'داخلي', charter_steps: [] }, owning_unit: { id: 1, name: 'مكتب المشاريع' },
   sponsor: { id: 2, name: 'Admin' }, authority: '', rationale: '', objectives: [], benefits: '',
   scope: '', exclusions: '', high_level_requirements: '', deliverables: [], success: '',
   budget_state: 'unknown', amount: null, currency: null, priority: 'normal',
   assumptions: '', constraints: '', closure: '',
 }
+
+// Per-user appearance (PATCH /api/v1/me/appearance); /me carries it once saved.
+const appearance = { mode: 'light', font_size: 'small' }
 
 const STAGES = [
   { id: 11, name: 'جديد', sequence: 1, fold: false, task_count: 2 },
@@ -131,6 +139,24 @@ const NOTIFICATIONS = {
 }
 
 const CURRENCY = { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 }
+
+// Use the winning people fixture's display refs, without changing ME's auth
+// persona. Both providers receive the already-created canonical fixture data.
+const peoplePath = '/api/v1/people'
+const peopleUrl = new URL(`http://localhost${peoplePath}`)
+const taskPeople = process.env.MODULE_UI_PREVIEW === '1'
+  ? moduleUiPreviewData(peoplePath, peopleUrl)
+  : process.env.PROJECTS_UI_PREVIEW === '1'
+    ? projectsPreviewData(peoplePath, peopleUrl, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })
+    : undefined
+if (Array.isArray(taskPeople)) {
+  for (const item of TASKS) {
+    item.assignees = item.assignees.map(assignee => ({
+      ...assignee, name: taskPeople.find(person => person.id === assignee.id)?.name ?? assignee.name,
+    }))
+  }
+}
+
 
 function reportRow(p) {
   return {
@@ -235,21 +261,54 @@ async function handle(req, res) {
 
   if (method === 'GET' && path === '/api/v1/branding') return json(res, 200, BRANDING)
 
+  if (method === 'GET' && process.env.MODULE_UI_PREVIEW === '1' && /^\/web\/image\/hr\.employee\/(1|3)\/avatar_128$/.test(path)) {
+    if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
+    res.writeHead(200, { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'no-store' })
+    res.end(HR_FIXTURE_AVATAR)
+    return
+  }
+
   if (!path.startsWith('/api/v1/')) return fail(res, 404, 'not_found', `unknown path ${method} ${path}`)
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
-    if (path === '/api/v1/me') return json(res, 200, { ...ME, capabilities: moduleUiCapabilities })
+    if (path === '/api/v1/me') return json(res, 200, { ...ME, appearance, capabilities: capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities) })
     const preview = moduleUiPreviewData(path, url)
     if (preview !== undefined) return json(res, 200, preview)
   }
 
   if (process.env.PROJECTS_UI_PREVIEW === '1' && method === 'GET') {
-    const preview = projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })
-    if (preview !== undefined) return json(res, 200, preview)
+    const taskRead = path.match(/^\/api\/v1\/tasks\/(\d+)\/(attachments|dependencies\/candidates)$/)
+    if (taskRead) {
+      const item = TASKS.find(task => task.id === Number(taskRead[1]))
+      if (!item) return fail(res, 404, 'not_found', 'task not found')
+      if (taskRead[2] === 'attachments') {
+        const detail = projectsPreviewData(`/api/v1/tasks/${item.id}`, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })
+        return json(res, 200, { items: detail.attachments, total: detail.attachments.length })
+      }
+      const limit = Math.min(Number(url.searchParams.get('limit') ?? 50), 200)
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      if (!Number.isInteger(limit) || limit < 0 || !Number.isInteger(offset) || offset < 0) return fail(res, 422, 'invalid', 'limit and offset must be nonnegative integers')
+      const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
+      const project = PROJECTS.find(project => project.id === item.project?.id)
+      const candidates = (project?.active ? TASKS : [])
+        .filter(task => task.id !== item.id && task.project?.id === item.project?.id && (!q || task.name.toLowerCase().includes(q)))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ar') || a.id - b.id)
+        .map(({ id, name, state }) => ({ id, name, state }))
+      return json(res, 200, { items: candidates.slice(offset, limit === 0 ? undefined : offset + limit), total: candidates.length })
+    }
+    const preview = pmoPreviewData(path, url, { PROJECTS, TASKS, CURRENCY })
+      ?? projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail, reportRow, CURRENCY })
+    if (preview !== undefined) return json(res, 200, path === '/api/v1/people' ? preview.map(person => ({ ...person, user_id: person.user_id ?? person.id })) : preview)
   }
-  if (method === 'GET' && path === '/api/v1/me') return json(res, 200, ME)
+  if (method === 'GET' && path === '/api/v1/me') return json(res, 200, { ...ME, appearance })
+  if (method === 'PATCH' && path === '/api/v1/me/appearance') {
+    let patch = {}
+    try { patch = JSON.parse(await readBody(req) || '{}') } catch { patch = {} }
+    Object.assign(appearance, patch)
+    return json(res, 200, { ...ME, appearance })
+  }
   if (method === 'GET' && path === '/api/v1/admin/branding') return json(res, 200, BRANDING)
   if (method === 'GET' && path === '/api/v1/notifications') return json(res, 200, NOTIFICATIONS)
   if (method === 'POST' && match(path, '/api/v1/notifications/:id/read')) return json(res, 200, { updated: 1 })
@@ -310,12 +369,20 @@ async function handle(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  const commercialUrl = new URL(req.url, 'http://mock.local')
+  if (commercialUrl.pathname.startsWith('/v1/') && handleCommercial(req, res, commercialUrl)) return
   handle(req, res).catch((err) => {
     fail(res, 500, 'server_error', String(err?.message || err))
   })
 })
 
 server.on('upgrade', (req, socket) => {
+  // Browsers can reset the upgraded connection when a page closes. This
+  // expected peer disconnect must not stop the shared HTTP fixture service.
+  socket.on('error', (error) => {
+    if (error.code !== 'ECONNRESET') throw error
+    socket.destroy()
+  })
   const url = new URL(req.url || '/', `http://127.0.0.1:${PORT}`)
   if (url.pathname !== '/websocket') {
     socket.write('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n')

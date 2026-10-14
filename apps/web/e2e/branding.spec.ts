@@ -3,13 +3,11 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
 const LIGHT_SMALL_APPEARANCE = encodeURIComponent(JSON.stringify({ mode: 'light', fontSize: 'small' }))
-const DARK_SMALL_APPEARANCE = encodeURIComponent(JSON.stringify({ mode: 'dark', fontSize: 'small' }))
 
 const PRIMARY_COLOURS = ['#6758e8', '#0055ff', '#ffffff', '#000000', '#ffff00'] as const
 const PREVIEW_MODES = {
   light: { label: 'فاتح', surface: '#ffffff' },
-  cream: { label: 'كريمي', surface: '#fffdf8' },
-  dark: { label: 'داكن', surface: '#181b24' },
+  dark: { label: 'داكن', surface: '#0a1124' },
 } as const
 
 type PreviewMode = keyof typeof PREVIEW_MODES
@@ -31,7 +29,17 @@ async function loginAsAdmin(page: Page, baseURL: string | undefined) {
   await page.context().addCookies([{ name: 'nasq-appearance', value: LIGHT_SMALL_APPEARANCE, url: baseURL! }])
   await page.goto('/projects/dashboard')
   await expect(page).not.toHaveURL(/\/login/)
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   return baseURL!
+}
+
+async function logoBytes(page: Page, logoUrl: string, baseURL: string) {
+  const result = await page.evaluate(async (url) => {
+    const response = await fetch(url)
+    return { status: response.status, bytes: [...new Uint8Array(await response.arrayBuffer())] }
+  }, new URL(logoUrl, baseURL).toString())
+  expect(result.status).toBe(200)
+  return Buffer.from(result.bytes)
 }
 
 function hexToRgb(hex: string) {
@@ -98,15 +106,27 @@ function contrastRatio(first: string, second: string) {
   return (light + 0.05) / (dark + 0.05)
 }
 
-async function computedColours(element: Locator) {
-  return element.evaluate((node) => {
+async function computedColours(element: Locator, placeholder = false) {
+  return element.evaluate((node, usePlaceholder) => {
+    // Browsers may report color-mix as oklab/oklch. Canvas resolves the actual
+    // sRGB colour and alpha so translucent selection backgrounds are measured.
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    const context = canvas.getContext('2d')!
+    const rgba = (css: string) => {
+      context.clearRect(0, 0, 1, 1)
+      context.fillStyle = css
+      context.fillRect(0, 0, 1, 1)
+      const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data
+      return `rgba(${red}, ${green}, ${blue}, ${alpha! / 255})`
+    }
     const backgrounds = []
     for (let current: Element | null = node; current; current = current.parentElement) {
-      backgrounds.push(getComputedStyle(current).backgroundColor)
+      backgrounds.push(rgba(getComputedStyle(current).backgroundColor))
     }
-    backgrounds.push(getComputedStyle(document.documentElement).backgroundColor)
-    return { backgrounds, color: getComputedStyle(node).color }
-  })
+    backgrounds.push(rgba(getComputedStyle(document.documentElement).backgroundColor))
+    return { backgrounds, color: rgba(getComputedStyle(node, usePlaceholder ? '::placeholder' : null).color) }
+  }, placeholder)
 }
 
 async function expectReadable(element: Locator, label: string) {
@@ -131,14 +151,9 @@ async function expectBackgroundContrast(element: Locator, surface: Locator, labe
 
 async function expectPlaceholderReadable(input: Locator, label: string) {
   await expect.poll(async () => {
-    const colours = await input.evaluate((node) => {
-      const preview = node.closest('[data-testid="branding-preview"]')
-      return {
-        background: preview ? getComputedStyle(preview).backgroundColor : getComputedStyle(node).backgroundColor,
-        color: getComputedStyle(node, '::placeholder').color,
-      }
-    })
-    return contrastRatio(colours.background, colours.color) ?? 0
+    const colours = await computedColours(input, true)
+    const background = compositeBackground(colours.backgrounds)
+    return background ? contrastRatio(background, colours.color) ?? 0 : 0
   }, { message: label }).toBeGreaterThanOrEqual(4.5)
 }
 
@@ -154,7 +169,7 @@ async function previewSnapshot(preview: Locator) {
       primary: style.getPropertyValue('--primary').trim(),
       background: style.backgroundColor,
       action: read(root.querySelector('[data-testid="branding-preview-action"]')),
-      selected: read(root.querySelector('.nasq-ui-selected')),
+      selected: read([...root.querySelectorAll('span')].find(element => element.textContent?.trim() === 'عنصر مختار') ?? null),
       charts: [...root.querySelectorAll('span.size-5.rounded-full')].map(element => getComputedStyle(element).backgroundColor),
       status: read([...root.querySelectorAll('[data-slot="root"]')].pop() ?? null),
     }
@@ -189,9 +204,7 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   const savedBranding = await (await page.request.get('/api/v1/admin/branding')).json() as { name: string; logo_url: string | null }
   const savedName = savedBranding.name
   const savedLogo = savedBranding.logo_url
-  const savedLogoResponse = savedLogo ? await page.request.get(new URL(savedLogo, runtimeBaseURL).toString()) : null
-  if (savedLogoResponse) expect(savedLogoResponse.status()).toBe(200)
-  const savedLogoBytes = savedLogoResponse ? await savedLogoResponse.body() : null
+  const savedLogoBytes = savedLogo ? await logoBytes(page, savedLogo, runtimeBaseURL) : null
   const savedColour = await colour.inputValue()
   const initialTitle = await page.title()
   const initialPrimary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
@@ -235,7 +248,7 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   }
   page.on('request', onResetRequest)
   await page.getByTestId('branding-default').click()
-  await expect(colour).toHaveValue('#18181b')
+  await expect(colour).toHaveValue('#13234a')
   page.off('request', onResetRequest)
   expect(resetPatchCount).toBe(0)
   await expect(preview).toContainText(savedName)
@@ -283,9 +296,7 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   expect(afterSave.name).toBe(savedName)
   expect(logoUrlWithoutCacheVersion(afterSave.logo_url, runtimeBaseURL)).toBe(logoUrlWithoutCacheVersion(savedLogo, runtimeBaseURL))
   if (afterSave.logo_url) {
-    const afterLogoResponse = await page.request.get(new URL(afterSave.logo_url, runtimeBaseURL).toString())
-    expect(afterLogoResponse.status()).toBe(200)
-    expect(await afterLogoResponse.body()).toEqual(savedLogoBytes)
+    expect(await logoBytes(page, afterSave.logo_url, runtimeBaseURL)).toEqual(savedLogoBytes)
   } else {
     expect(savedLogoBytes).toBeNull()
   }
@@ -328,50 +339,55 @@ test('legacy secondary branding data cannot affect the rendered primary theme', 
 })
 
 test('primary color matrix keeps preview actions, selection, charts, and semantic status readable', async ({ page, baseURL }) => {
-  const runtimeBaseURL = await loginAsAdmin(page, baseURL)
-  await page.context().addCookies([{ name: 'nasq-appearance', value: DARK_SMALL_APPEARANCE, url: runtimeBaseURL }])
-  await page.goto('/settings/branding')
-  const colour = page.getByTestId('branding-color')
-  const preview = page.getByTestId('branding-preview')
-  const action = preview.getByTestId('branding-preview-action')
-  const selected = preview.locator('.nasq-ui-selected')
-  const placeholder = preview.locator('input[placeholder]').first()
-  const status = preview.locator('[data-slot="root"]').last()
-  const statusByMode = new Map<PreviewMode, { background: string; color: string }>()
+  await loginAsAdmin(page, baseURL)
+  const savedAppearance = (await (await page.request.get('/api/v1/me')).json()).appearance
+  try {
+    expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'small' } })).status()).toBe(200)
+    await page.goto('/settings/branding')
+    const colour = page.getByTestId('branding-color')
+    const preview = page.getByTestId('branding-preview')
+    const action = preview.getByTestId('branding-preview-action')
+    const selected = preview.locator('span').filter({ hasText: /^عنصر مختار$/ })
+    const placeholder = preview.locator('input[placeholder]').first()
+    const status = preview.locator('[data-slot="root"]').last()
+    const statusByMode = new Map<PreviewMode, { background: string; color: string }>()
 
-  await expect(page.locator('html')).toHaveClass(/dark/)
-  await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
-  for (const primary of PRIMARY_COLOURS) {
-    await colour.fill(primary)
-    await expect(preview).toHaveAttribute('data-preview-primary', primary)
-    for (const mode of Object.keys(PREVIEW_MODES) as PreviewMode[]) {
-      await choosePreviewMode(preview, mode)
-      await expect(placeholder).toBeVisible()
-      await expectPlaceholderReadable(placeholder, `${primary}/${mode} preview placeholder`)
-      await expect(action).toBeVisible()
-      await expectReadable(action, `${primary}/${mode} primary action`)
-      await action.hover()
-      await expectReadable(action, `${primary}/${mode} hovered primary action`)
+    await expect(page.locator('html')).toHaveClass(/dark/)
+    await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
+    for (const primary of PRIMARY_COLOURS) {
+      await colour.fill(primary)
+      await expect(preview).toHaveAttribute('data-preview-primary', primary)
+      for (const mode of Object.keys(PREVIEW_MODES) as PreviewMode[]) {
+        await choosePreviewMode(preview, mode)
+        await expect(placeholder).toBeVisible()
+        await expectPlaceholderReadable(placeholder, `${primary}/${mode} preview placeholder`)
+        await expect(action).toBeVisible()
+        await expectReadable(action, `${primary}/${mode} primary action`)
+        await action.hover()
+        await expectReadable(action, `${primary}/${mode} hovered primary action`)
 
-      const box = await action.boundingBox()
-      if (box) {
-        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-        await page.mouse.down()
-        await expectReadable(action, `${primary}/${mode} active primary action`)
-        await page.mouse.up()
+        const box = await action.boundingBox()
+        if (box) {
+          await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+          await page.mouse.down()
+          await expectReadable(action, `${primary}/${mode} active primary action`)
+          await page.mouse.up()
+        }
+
+        await expectReadable(selected, `${primary}/${mode} selected text`)
+        const snapshot = await previewSnapshot(preview)
+        expect(snapshot.primary).toBe(primary)
+        expect(snapshot.charts).toHaveLength(6)
+        expect(new Set(snapshot.charts).size, `${primary}/${mode} chart colors`).toBe(6)
+        await expect(status).toBeVisible()
+        const statusColours = await computedColours(status)
+        const priorStatus = statusByMode.get(mode)
+        if (priorStatus) expect(statusColours).toEqual(priorStatus)
+        else statusByMode.set(mode, statusColours)
       }
-
-      await expectReadable(selected, `${primary}/${mode} selected text`)
-      const snapshot = await previewSnapshot(preview)
-      expect(snapshot.primary).toBe(primary)
-      expect(snapshot.charts).toHaveLength(6)
-      expect(new Set(snapshot.charts).size, `${primary}/${mode} chart colors`).toBe(6)
-      await expect(status).toBeVisible()
-      const statusColours = await computedColours(status)
-      const priorStatus = statusByMode.get(mode)
-      if (priorStatus) expect(statusColours).toEqual(priorStatus)
-      else statusByMode.set(mode, statusColours)
     }
+  } finally {
+    expect((await page.request.patch('/api/v1/me/appearance', { data: savedAppearance })).status()).toBe(200)
   }
 })
 

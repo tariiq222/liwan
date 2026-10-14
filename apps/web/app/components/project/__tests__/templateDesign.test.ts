@@ -6,6 +6,9 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { createSSRApp, defineComponent, h, ref, type RenderFunction } from 'vue'
+import * as dataTable from '../../../utils/dataTable'
+import * as errorState from '../../../utils/errorState'
+import { loadShared } from '../../shared/__tests__/helpers/renderShared'
 import { describe, expect, it } from 'vitest'
 
 const pages = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/project-templates')
@@ -49,6 +52,12 @@ function loadListPage(setup: () => Record<string, unknown>) {
 
 async function renderList(setup: () => Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(loadListPage(setup)) })
+  app.component('SharedListPage', Passthrough)
+  app.component('UPagination', defineComponent({ props: { page: Number }, setup: props => () => h('button', { disabled: (props.page ?? 1) <= 1, 'aria-label': 'app.previous' }, 'app.previous') }))
+  app.component('SharedDataTable', loadShared('DataTable', {
+    modules: { '@/composables/useRowNavigation': { useRowNavigation: () => {} }, '@/utils/dataTable': dataTable, '@/utils/errorState': errorState },
+    stubs: { UPagination: defineComponent({ props: { page: Number }, setup: props => () => h('button', { disabled: (props.page ?? 1) <= 1, 'aria-label': 'app.previous' }, 'app.previous') }) },
+  }))
   app.component('SharedPageContainer', Passthrough)
   app.component('SharedPageHeader', Passthrough)
   app.component('SharedPageState', SharedPageState)
@@ -71,12 +80,15 @@ function listSetup(overrides: Record<string, unknown> = {}) {
     canApply: false,
     search: ref(''),
     router: { push: () => {} },
-    detailPath: () => '/project-templates/new',
+    itemTo: () => '/project-templates/1',
     goPage: () => {},
     pageSize: 50,
     offset: 50,
     total: 0,
     items: [],
+    createTo: undefined, columns: [], rowTo: () => '/project-templates/1',
+    pageNumber: Math.floor(Number(overrides.offset ?? 50) / 50) + 1,
+    pages: Math.max(Math.floor(Number(overrides.offset ?? 50) / 50) + 1, Math.ceil(Number(overrides.total ?? 0) / 50), 1),
     list: {
       isLoading: { value: false },
       error: { value: null },
@@ -91,10 +103,11 @@ describe('project template catalog pagination', () => {
   it('keeps previous pagination when an offset page returns zero rows', async () => {
     const html = await renderList(listSetup())
     expect(html).toContain('projects.templates.empty')
-    expect(html).toContain('projects.templates.pagination.label')
-    expect(html).toContain('projects.templates.pagination.previous')
+    expect(html).toContain('app.pagination')
+    expect(html).toContain('app.previous')
+    expect(html).not.toMatch(/<button[^>]*disabled[^>]*aria-label="app.previous"/)
     const emptyAt = html.indexOf('projects.templates.empty')
-    const navAt = html.indexOf('projects.templates.pagination.label')
+    const navAt = html.indexOf('app.pagination')
     expect(emptyAt).toBeGreaterThanOrEqual(0)
     expect(navAt).toBeGreaterThan(emptyAt)
   })
@@ -102,6 +115,6 @@ describe('project template catalog pagination', () => {
   it('hides pagination on the first empty page', async () => {
     const html = await renderList(listSetup({ offset: 0, total: 0, items: [] }))
     expect(html).toContain('projects.templates.empty')
-    expect(html).not.toContain('projects.templates.pagination.label')
+    expect(html).not.toContain('app.pagination')
   })
 })

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
@@ -10,7 +11,7 @@ import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
-import { meetingStateColor } from '@/utils/meetingStatus'
+import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 import { parseOffset } from '@/utils/routeQuery'
 
@@ -31,6 +32,112 @@ const dateToField = computed({ get: () => dateTo.value || null, set: value => { 
 const debouncedSearch = refDebounced(search, 250)
 const debouncedOrganizerSearch = refDebounced(organizerSearch, 250)
 const organizerQuery = usePeople(debouncedOrganizerSearch)
+
+const listPath = '/meetings'
+let pendingNavigation: RouteLocationNormalized | null = null
+let ownWrites = 0
+let disposed = false
+let writeId = 0
+let pendingQuery: { id: number; query: LocationQueryRaw; fullPath: string; navigation: RouteLocationNormalized | null } | null = null
+const isCurrentList = () => router.currentRoute.value.path.replace(/\/+$/, '') === listPath
+function currentListQuery() {
+  return pendingQuery?.query ?? router.currentRoute.value.query
+}
+function liveListQuery() {
+  const query = currentListQuery()
+  const current = parseMeetingListFilters(query)
+  const patch: MeetingFilterPatch = {}
+  if (search.value.trim() !== current.q) patch.q = search.value.trim() || undefined
+  if (state.value !== current.state) patch.state = state.value || undefined
+  if (mine.value !== current.mine) patch.mine = mine.value
+  if (dateFrom.value !== current.dateFrom) patch.date_from = dateFrom.value || undefined
+  if (dateTo.value !== current.dateTo) patch.date_to = dateTo.value || undefined
+  return Object.keys(patch).length ? patchMeetingListQuery(query, patch) : query
+}
+function liveReturnTo() {
+  return router.resolve({ path: listPath, query: liveListQuery(), hash: router.currentRoute.value.hash }).fullPath
+}
+function writeSearch() {
+  if (disposed || pendingNavigation || ownWrites || !isCurrentList()) return
+  if (search.value.trim() === parseMeetingListFilters(router.currentRoute.value.query).q) return
+  void replaceListQuery(liveListQuery())
+}
+function syncListState(to: RouteLocationNormalized) {
+  const next = parseMeetingListFilters(to.query)
+  search.value = next.q
+  state.value = next.state
+  mine.value = next.mine
+  dateFrom.value = next.dateFrom
+  dateTo.value = next.dateTo
+  offset.value = parseOffset(to.query.offset)
+}
+const stopNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => {
+  pendingNavigation = to
+  // Capture the first actual router target for this writer before auth awaits.
+  // A later human navigation may resolve to the same URL with another identity.
+  if (pendingQuery && !pendingQuery.navigation && to.fullPath === pendingQuery.fullPath) pendingQuery.navigation = to
+})
+const stopAfterEach = router.afterEach((to, _from, failure) => {
+  if (to !== pendingNavigation) return
+  pendingNavigation = null
+  // A refused own query finishes its promise without requeueing itself.
+  if (ownWrites) {
+    // A newer external list owns its query even before the old writer settles.
+    // Drop that writer's draft before route-driven date watchers can reuse it.
+    if (!failure && isCurrentList() && to !== pendingQuery?.navigation) {
+      pendingQuery = null
+      syncListState(to)
+    }
+    return
+  }
+  if (failure) writeSearch()
+  else if (isCurrentList()) syncListState(to)
+})
+const stopOnError = router.onError((_error, to) => {
+  if (to !== pendingNavigation) return
+  pendingNavigation = null
+  if (!ownWrites) writeSearch()
+})
+onScopeDispose(() => { disposed = true; stopNavigationStart(); stopAfterEach(); stopOnError() })
+async function replaceListQuery(query: LocationQueryRaw) {
+  if (disposed || !isCurrentList()) return
+  const id = ++writeId
+  const searchAtStart = search.value
+  const routeAtStart = router.currentRoute.value
+  pendingQuery = { id, query, fullPath: router.resolve({ path: listPath, query, hash: routeAtStart.hash }).fullPath, navigation: null }
+  ownWrites++
+  let succeeded = false
+  try {
+    succeeded = !(await router.replace({ path: listPath, query, hash: routeAtStart.hash }))
+  } catch {
+    // Router errors leave the draft available for a later human edit.
+  } finally {
+    ownWrites--
+    const ownsDraft = pendingQuery?.id === id
+    if (ownsDraft) pendingQuery = null
+    if (disposed) return
+    if (!ownWrites && ownsDraft && id === writeId && !succeeded && router.currentRoute.value !== routeAtStart && isCurrentList()) {
+      syncListState(router.currentRoute.value)
+    } else if (!ownWrites && search.value !== searchAtStart && debouncedSearch.value === search.value) {
+      writeSearch()
+    }
+  }
+}
+function isPlainClick(event: MouseEvent) {
+  return event.button === 0 && !event.defaultPrevented && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+}
+function openRecord(event: MouseEvent, record: { id: number }) {
+  if (!hydrated.value || !isCurrentList() || !isPlainClick(event)) return
+  event.preventDefault()
+  void router.push(meetingTo(record)).catch(() => undefined)
+}
+function openCreate(event: MouseEvent) {
+  if (!can('meetings.create') || !hydrated.value || !isCurrentList() || !isPlainClick(event)) return
+  if (!(event.target as Element | null)?.closest('[data-testid="meeting-new"]')) return
+  event.preventDefault()
+  void router.push({ path: `${listPath}/new`, query: returnToQuery(liveReturnTo()) }).catch(() => undefined)
+}
+
 const limit = 25
 const offset = ref(parseOffset(route.query.offset))
 const validStates = ['draft', 'confirmed', 'done', 'cancelled']
@@ -109,11 +216,14 @@ const columns = computed<TableColumn<MeetingListItem>[]>(() => [
   { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
 ])
 
-function meetingTo(meeting: MeetingListItem) {
-  return { path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }
+function meetingTo(meeting: { id: number }) {
+  return { path: `/meetings/${meeting.id}`, query: returnToQuery(liveReturnTo()) }
 }
 
+const createTo = computed(() => ({ path: '/meetings/new', query: returnToQuery(liveReturnTo()) }))
+
 watch(() => route.query.q, value => {
+  if (ownWrites || !isCurrentList() || value !== router.currentRoute.value.query.q) return
   const next = typeof value === 'string' ? value : ''
   if (next !== search.value) search.value = next
 })
@@ -138,18 +248,14 @@ watch(() => route.query.offset, value => {
   if (next !== offset.value) offset.value = next
 })
 watch([dateFrom, dateTo], ([from, to]) => {
-  if (from === routeFilters.value.dateFrom && to === routeFilters.value.dateTo) return
-  void router.replace({ query: patchMeetingListQuery(route.query, {
+  const current = parseMeetingListFilters(currentListQuery())
+  if (from === current.dateFrom && to === current.dateTo) return
+  void replaceListQuery(patchMeetingListQuery(liveListQuery(), {
     date_from: from || undefined,
     date_to: to || undefined,
-  }) })
+  }))
 })
-watch(debouncedSearch, (value) => {
-  const next = value.trim()
-  const current = routeFilters.value.q
-  if (next === current) return
-  void router.replace({ query: patchMeetingListQuery(route.query, { q: next || undefined }) })
-})
+watch(debouncedSearch, () => { writeSearch() })
 function onStateChange(value: unknown) {
   stateSelect.value = String(value)
   applyFilters()
@@ -162,13 +268,13 @@ function toggleMine(value: boolean) {
   applyFilters()
 }
 function applyFilters() {
-  void router.replace({ query: patchMeetingListQuery(route.query, {
+  void replaceListQuery(patchMeetingListQuery(liveListQuery(), {
     state: state.value || undefined,
     mine: mine.value,
     organizer_id: routeFilters.value.organizerId,
     date_from: dateFrom.value || undefined,
     date_to: dateTo.value || undefined,
-  }) })
+  }))
 }
 
 function clearFilters() {
@@ -178,135 +284,151 @@ function clearFilters() {
   organizerSearch.value = ''
   dateFrom.value = ''
   dateTo.value = ''
-  void router.replace({ query: clearMeetingListFilters(route.query) })
+  void replaceListQuery(clearMeetingListFilters(liveListQuery()))
 }
 function clearFilter(key: MeetingFilterKey) {
+  if (key === 'q') search.value = ''
+  if (key === 'state') state.value = ''
+  if (key === 'mine') mine.value = false
+  if (key === 'date_from') dateFrom.value = ''
+  if (key === 'date_to') dateTo.value = ''
   const patch = (key === 'mine' ? { mine: false } : { [key]: undefined }) as MeetingFilterPatch
-  void router.replace({ query: patchMeetingListQuery(route.query, patch) })
+  void replaceListQuery(patchMeetingListQuery(liveListQuery(), patch))
 }
 function setProject(value: number | undefined) {
-  void router.replace({ query: patchMeetingListQuery(route.query, { project_id: value }) })
+  void replaceListQuery(patchMeetingListQuery(liveListQuery(), { project_id: value }))
 }
 function setOrganizer(value: unknown) {
   const selected = String(value)
-  void router.replace({ query: patchMeetingListQuery(route.query, { organizer_id: selected ? Number(selected) : undefined }) })
+  void replaceListQuery(patchMeetingListQuery(liveListQuery(), { organizer_id: selected ? Number(selected) : undefined }))
 }
 function setPage(next: number) {
   if (!hydrated.value || query.isFetching.value || next < 1 || next > pages.value) return
   offset.value = (next - 1) * limit
-  void router.replace({ query: patchMeetingListQuery(route.query, { offset: offset.value || undefined }) })
+  void replaceListQuery(patchMeetingListQuery(liveListQuery(), { offset: offset.value || undefined }))
 }
 </script>
 
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('nav.meetings')" />
-    <div class="w-full min-w-0">
-      <FilterBar
-        :title="t('filterCard.title')"
-        :active-count="activeFilterCount"
-        :clear-label="t('meetingsUi.clear')"
-        :disabled="!hydrated"
-        @clear="clearFilters"
-      >
-        <template #search>
-          <UInput id="meeting-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" />
-        </template>
-        <template #default>
-          <SharedFilterChoice data-testid="meeting-state" :label="t('meetingsUi.stateLabel')" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" @update:model-value="onStateChange" />
-          <SharedFilterField v-if="can('pmo.projects.read')" :label="t('meetingsFilters.project')" for="meeting-project">
-            <MeetingProjectFilter id="meeting-project" hide-label class="w-full" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-          </SharedFilterField>
-          <SharedFilterField :label="t('meetingsFilters.organizer')" for="meeting-organizer-search">
-            <UInput id="meeting-organizer-search" v-model="organizerSearch" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.organizerSearch')" :aria-label="t('meetingsFilters.organizerSearch')" />
-            <USelectMenu
-              id="meeting-organizer"
-              class="w-full"
-              value-key="value"
-              :model-value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'"
-              :items="[{ label: t('meetingsFilters.allOrganizers'), value: 'all' }, ...organizerOptions.map(person => ({ label: person.name, value: String(person.id) }))]"
-              :disabled="!hydrated || organizerQuery.isLoading.value"
-              :aria-label="t('meetingsFilters.organizer')"
-              @update:model-value="setOrganizer($event === 'all' ? '' : $event)"
+  <SharedListPage
+    :title="t('nav.meetings')"
+    :create-to="can('meetings.create') ? createTo : undefined"
+    :create-label="t('nav.newMeeting')"
+    create-test-id="meeting-new"
+    @click.capture="openCreate"
+  >
+    <template #filters>
+
+      <div class="w-full min-w-0">
+        <FilterBar
+          :title="t('filterCard.title')"
+          :active-count="activeFilterCount"
+          :clear-label="t('meetingsUi.clear')"
+          :disabled="!hydrated"
+          @clear="clearFilters"
+        >
+          <template #search>
+            <UInput id="meeting-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" />
+          </template>
+          <template #default>
+            <SharedFilterChoice data-testid="meeting-state" :label="t('meetingsUi.stateLabel')" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" @update:model-value="onStateChange" />
+            <SharedFilterField v-if="can('pmo.projects.read')" :label="t('meetingsFilters.project')" for="meeting-project">
+              <MeetingProjectFilter id="meeting-project" hide-label class="w-full" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+            </SharedFilterField>
+            <SharedFilterField :label="t('meetingsFilters.organizer')" for="meeting-organizer-search">
+              <UInput id="meeting-organizer-search" v-model="organizerSearch" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.organizerSearch')" :aria-label="t('meetingsFilters.organizerSearch')" />
+              <USelectMenu
+                id="meeting-organizer"
+                class="w-full"
+                value-key="value"
+                :model-value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'"
+                :items="[{ label: t('meetingsFilters.allOrganizers'), value: 'all' }, ...organizerOptions.map(person => ({ label: person.name, value: String(person.id) }))]"
+                :disabled="!hydrated || organizerQuery.isLoading.value"
+                :aria-label="t('meetingsFilters.organizer')"
+                @update:model-value="setOrganizer($event === 'all' ? '' : $event)"
+              />
+              <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
+              <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
+              <p v-else-if="!organizerOptions.length" class="text-xs text-muted">{{ t('meetingsFilters.noOrganizers') }}</p>
+            </SharedFilterField>
+            <SharedFilterField :label="t('meetingsFilters.fromDateLabel')" for="meeting-date-from">
+              <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full" :disabled="!hydrated" />
+            </SharedFilterField>
+            <SharedFilterField :label="t('meetingsFilters.toDateLabel')" for="meeting-date-to">
+              <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full" :disabled="!hydrated" />
+            </SharedFilterField>
+          </template>
+          <template #view>
+            <UTabs
+              data-testid="meeting-scope"
+              :model-value="mine ? 'mine' : 'all'"
+              :aria-label="t('meetingsFilters.scope')"
+              :items="[{ label: t('meetingsFilters.allMeetings'), value: 'all', disabled: !hydrated }, { label: t('meetingsUi.mine'), value: 'mine', disabled: !hydrated }]"
+              size="sm"
+              @update:model-value="onScopeChange"
             />
-            <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
-            <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
-            <p v-else-if="!organizerOptions.length" class="text-xs text-muted">{{ t('meetingsFilters.noOrganizers') }}</p>
-          </SharedFilterField>
-          <SharedFilterField :label="t('meetingsFilters.fromDateLabel')" for="meeting-date-from">
-            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full" :disabled="!hydrated" />
-          </SharedFilterField>
-          <SharedFilterField :label="t('meetingsFilters.toDateLabel')" for="meeting-date-to">
-            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full" :disabled="!hydrated" />
-          </SharedFilterField>
-        </template>
-        <template #view>
-          <UTabs
-            data-testid="meeting-scope"
-            :model-value="mine ? 'mine' : 'all'"
-            :aria-label="t('meetingsFilters.scope')"
-            :items="[{ label: t('meetingsFilters.allMeetings'), value: 'all', disabled: !hydrated }, { label: t('meetingsUi.mine'), value: 'mine', disabled: !hydrated }]"
-            size="sm"
-            @update:model-value="onScopeChange"
-          />
-        </template>
-        <template v-if="hasActiveFilters" #active>
-          <div class="flex flex-wrap items-center gap-2">
-            <SharedFilterChip v-if="search.trim()" :label="t('meetingsUi.searchValue', { value: search })" @remove="clearFilter('q')" />
-            <SharedFilterChip v-if="selectedState" :label="t(`meetingsUi.state.${selectedState}`)" @remove="clearFilter('state')" />
-            <SharedFilterChip v-if="routeFilters.mine" :label="t('meetingsUi.mine')" @remove="clearFilter('mine')" />
-            <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="clearFilter('project_id')" />
-            <SharedFilterChip v-if="routeFilters.organizerId" :label="selectedOrganizerLabel" @remove="clearFilter('organizer_id')" />
-            <SharedFilterChip v-if="routeFilters.dateFrom" :label="t('meetingsFilters.fromDate', { value: routeFilters.dateFrom })" @remove="clearFilter('date_from')" />
-            <SharedFilterChip v-if="routeFilters.dateTo" :label="t('meetingsFilters.toDate', { value: routeFilters.dateTo })" @remove="clearFilter('date_to')" />
-            <SharedFilterChip v-if="seriesId" :label="t('meetingsFilters.inheritedSeries')" @remove="clearFilter('series_id')" />
-          </div>
-        </template>
-      </FilterBar>
-    </div>
+          </template>
+          <template v-if="hasActiveFilters" #active>
+            <div class="flex flex-wrap items-center gap-2">
+              <SharedFilterChip v-if="search.trim()" :label="t('meetingsUi.searchValue', { value: search })" @remove="clearFilter('q')" />
+              <SharedFilterChip v-if="selectedState" :label="t(`meetingsUi.state.${selectedState}`)" @remove="clearFilter('state')" />
+              <SharedFilterChip v-if="routeFilters.mine" :label="t('meetingsUi.mine')" @remove="clearFilter('mine')" />
+              <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="clearFilter('project_id')" />
+              <SharedFilterChip v-if="routeFilters.organizerId" :label="selectedOrganizerLabel" @remove="clearFilter('organizer_id')" />
+              <SharedFilterChip v-if="routeFilters.dateFrom" :label="t('meetingsFilters.fromDate', { value: routeFilters.dateFrom })" @remove="clearFilter('date_from')" />
+              <SharedFilterChip v-if="routeFilters.dateTo" :label="t('meetingsFilters.toDate', { value: routeFilters.dateTo })" @remove="clearFilter('date_to')" />
+              <SharedFilterChip v-if="seriesId" :label="t('meetingsFilters.inheritedSeries')" @remove="clearFilter('series_id')" />
+            </div>
+          </template>
+        </FilterBar>
+      </div>
+    </template>
+
     <UAlert v-if="invalidDateRange" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="dateValidation.reversed ? t('meetingsFilters.reversedDates') : t('meetingsFilters.invalidDate')" />
-    <SharedPageState
+    <SharedDataTable
       v-else
+      :rows="query.data.value?.items ?? []"
+      :columns="columns"
+      row-key="id"
+      :row-to="meetingTo"
       :loading="query.isLoading.value"
       :error="query.error.value"
-      :empty="!query.isLoading.value && !(query.data.value?.items.length)"
       :empty-text="t('meetingsUi.empty')"
-      @retry="query.refetch"
+      :caption="t('nav.meetings')"
+      :page="page"
+      :pages="pages"
+      @update:page="setPage"
+      @retry="query.refetch()"
     >
-      <div class="min-w-0 overflow-hidden rounded-lg bg-default ring ring-default">
-        <ul class="grid divide-y divide-default md:hidden">
-          <li v-for="meeting in query.data.value?.items" :key="meeting.id">
-            <NuxtLink
-              :to="meetingTo(meeting)"
-              class="grid min-w-0 gap-2 p-3 hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-            >
-              <div class="flex min-w-0 items-start justify-between gap-2">
-                <span class="min-w-0 break-words font-medium text-primary">{{ meeting.name }}</span>
-                <UBadge :color="meetingStateColor(meeting.state)" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
-              </div>
-              <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
-                <RecordNumber :value="meetingRecordNumber(meeting)" />
-                <span>{{ meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale) : '—' }}</span>
-                <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
-                <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-              </div>
-            </NuxtLink>
-          </li>
-        </ul>
-        <div class="hidden overflow-x-auto md:block">
-          <UTable :data="query.data.value?.items ?? []" :columns="columns" :caption="t('nav.meetings')" :ui="{ caption: 'sr-only' }">
-            <template #id-cell="{ row }"><RecordNumber :value="meetingRecordNumber(row.original)" /></template>
-            <template #name-cell="{ row }">
-              <UButton color="primary" variant="link" class="p-0 font-medium whitespace-normal text-start" :to="meetingTo(row.original)">{{ row.original.name }}</UButton>
-            </template>
-            <template #meeting_date-cell="{ row }">{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</template>
-            <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
-            <template #state-cell="{ row }"><UBadge :color="meetingStateColor(row.original.state)" variant="subtle">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge></template>
-            <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
-          </UTable>
-        </div>
-      </div>
-    </SharedPageState>
-    <SharedPagination v-if="!invalidDateRange" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
-  </SharedPageContainer>
+      <template #id-cell="{ row }"><RecordNumber :value="meetingRecordNumber(row.original)" />
+      </template>
+      <template #name-cell="{ row }">
+        <NuxtLink
+          :to="meetingTo(row.original)"
+          @click.capture="openRecord($event, row.original)"
+          data-testid="meeting-row"
+          class="block min-w-0 font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >{{ row.original.name }}</NuxtLink>
+      </template>
+      <template #meeting_date-cell="{ row }">{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</template>
+      <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
+      <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" data-testid="meeting-row-state" />
+      </template>
+      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
+      <template #mobile-row="{ row }">
+        <NuxtLink :to="meetingTo(row)" @click.capture="openRecord($event, row)" class="grid min-w-0 gap-2 focus-visible:outline-none">
+          <div class="flex min-w-0 items-start justify-between gap-2">
+            <span class="min-w-0 break-words font-medium text-primary">{{ row.name }}</span>
+            <SharedStatusBadge v-bind="meetingStateBadgeProps(row.state, t)" class="shrink-0" />
+          </div>
+          <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+            <RecordNumber :value="meetingRecordNumber(row)" />
+            <span>{{ row.meeting_date ? formatCalendarDate(row.meeting_date, locale) : '—' }}</span>
+            <span v-if="row.start_datetime">{{ localTime(row.start_datetime) }}</span>
+            <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+          </div>
+        </NuxtLink>
+      </template>
+    </SharedDataTable>
+  </SharedListPage>
 </template>

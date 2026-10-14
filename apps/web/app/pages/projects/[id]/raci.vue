@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { inject } from 'vue'
+import RaciMatrix from '@/components/project/governance/RaciMatrix.vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { settleServerQueries } from '@/lib/vueQuerySsr'
 import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'
-import { RACI_ROLE_TONE } from '@/components/project/governance/state'
-import { STATUS_COLOR } from '@/utils/statusTone'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
-const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
@@ -35,11 +31,6 @@ const activeFilterCount = computed(() => Number(Boolean(taskSearch.value.trim())
 const error = ref<string | null>(null); const confirmRow = ref<ProjectRaci | null>(null)
 const assignments = computed(() => new Map(rows.data.value?.items.map(row => [`${row.task.id}:${row.stakeholder.id}`, row])))
 function assignment(taskId: number, stakeholderId: number) { return assignments.value.get(`${taskId}:${stakeholderId}`) }
-function roleColor(taskId: number, stakeholderId: number) {
-  const role = assignment(taskId, stakeholderId)?.role
-  return role ? STATUS_COLOR[RACI_ROLE_TONE[role]] : undefined
-}
-function nextTasks() { taskPage.value++ }
 function clearFilters() {
   router.replace({ query: { ...route.query, task_q: undefined, stakeholder_q: undefined, task_page: undefined, stakeholder_page: undefined } })
 }
@@ -60,52 +51,45 @@ async function deleteRow() {
   try { await remove.mutateAsync({ projectId: id.value, id: confirmRow.value.id }); confirmRow.value = null }
   catch (cause) { error.value = cause instanceof ApiError ? cause.message : t('errors.generic') }
 }
+const TASK_PAGE = 50
+const STAKEHOLDER_PAGE = 10
+const taskPageNumber = computed(() => taskPage.value + 1)
+const taskPages = computed(() => Math.max(1, taskPageNumber.value, Math.ceil((tasks.data.value?.total ?? 0) / TASK_PAGE)))
+const stakeholderPageNumber = computed(() => stakeholderPage.value + 1)
+const stakeholderPages = computed(() => Math.max(1, stakeholderPageNumber.value, Math.ceil((stakeholders.data.value?.total ?? 0) / STAKEHOLDER_PAGE)))
+const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value)
 </script>
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader
-      v-if="!isProjectOverlay"
-      :title="t('projects.governance.raci.title')"
-    />
-    <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
-      <template #search>
-        <div class="grid min-w-0 gap-3 sm:grid-cols-2">
-          <UFormField :label="t('projects.governance.raci.task')">
-            <UInput v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" class="w-full" />
-          </UFormField>
-          <UFormField :label="t('projects.governance.raci.stakeholder')">
-            <UInput v-model="stakeholderSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" class="w-full" />
-          </UFormField>
-        </div>
-      </template>
-      <template #view>
-        <UTabs
-          data-testid="raci-closed-scope"
-          :model-value="closed ? 'closed' : 'open'"
-          :items="[{ label: t('projects.governance.openTasks'), value: 'open', disabled: !hydrated || pending }, { label: t('projects.governance.closedTasks'), value: 'closed', disabled: !hydrated || pending }]"
-          size="sm"
-          @update:model-value="closed = $event === 'closed'"
-        />
-      </template>
-      <template #active>
-        <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-          <SharedFilterChip v-if="taskSearch.trim()" :label="`${t('projects.governance.raci.task')}: ${taskSearch}`" :disabled="pending" @remove="taskSearch = ''" />
-          <SharedFilterChip v-if="stakeholderSearch.trim()" :label="`${t('projects.governance.raci.stakeholder')}: ${stakeholderSearch}`" :disabled="pending" @remove="stakeholderSearch = ''" />
-        </div>
-      </template>
-    </FilterBar>
-    <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="raci-legend-title">
-      <div class="border-b border-default px-5 py-4"><h2 id="raci-legend-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.raciLegendTitle') }}</h2></div>
-      <div class="p-5 space-y-2">
-        <p class="text-sm text-muted">{{ t('projects.refresh.workspace.raciLegendDescription') }}</p>
-        <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+  <SharedListPage hide-header :title="t('projects.governance.raci.title')">
+    <template #filters>
+      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
+        <template #search>
+          <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+            <UFormField :label="t('projects.governance.raci.task')"><UInput v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" class="w-full" /></UFormField>
+            <UFormField :label="t('projects.governance.raci.stakeholder')"><UInput v-model="stakeholderSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" class="w-full" /></UFormField>
+          </div>
+        </template>
+        <template #view>
+          <UTabs data-testid="raci-closed-scope" :model-value="closed ? 'closed' : 'open'" :items="[{ label: t('projects.governance.openTasks'), value: 'open', disabled: !hydrated || pending }, { label: t('projects.governance.closedTasks'), value: 'closed', disabled: !hydrated || pending }]" size="sm" @update:model-value="closed = $event === 'closed'" />
+        </template>
+        <template #active>
+          <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
+            <SharedFilterChip v-if="taskSearch.trim()" :label="`${t('projects.governance.raci.task')}: ${taskSearch}`" :disabled="pending" @remove="taskSearch = ''" />
+            <SharedFilterChip v-if="stakeholderSearch.trim()" :label="`${t('projects.governance.raci.stakeholder')}: ${stakeholderSearch}`" :disabled="pending" @remove="stakeholderSearch = ''" />
+          </div>
+        </template>
+      </FilterBar>
+    </template>
+
+    <SharedRecordSection :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
+      <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <div><dt class="font-semibold">R — {{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
         <div><dt class="font-semibold">A — {{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
         <div><dt class="font-semibold">C — {{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
         <div><dt class="font-semibold">I — {{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
-        </dl>
-      </div>
-    </section>
+      </dl>
+    </SharedRecordSection>
+
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <!-- role="group" keeps the confirmation addressable by its question while the matrix stays locked. -->
     <SharedInlineConfirm
@@ -120,30 +104,34 @@ async function deleteRow() {
       @cancel="confirmRow = null"
       @confirm="deleteRow"
     />
-    <SharedPageState :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
-    <section v-if="!tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value && (!visibleTasks.length || !visibleStakeholders.length)" class="rounded-lg ring ring-default bg-default overflow-hidden" data-testid="raci-empty">
-      <div class="border-b border-default px-5 py-4"><h2 class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.raciEmptyTitle') }}</h2></div>
-      <div class="p-5 space-y-3">
-        <p v-if="!visibleTasks.length && !visibleStakeholders.length" class="text-sm text-muted">{{ t('projects.refresh.workspace.raciEmptyBoth') }}</p>
-        <p v-else-if="!visibleTasks.length" class="text-sm text-muted">{{ t('projects.refresh.workspace.raciEmptyTasks') }}</p>
-        <p v-else class="text-sm text-muted">{{ t('projects.refresh.workspace.raciEmptyStakeholders') }}</p>
-        <div class="flex flex-wrap gap-2">
+
+    <SharedPageState v-if="!settled" :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
+    <SharedEmptyState
+      v-else-if="!visibleTasks.length || !visibleStakeholders.length"
+      data-testid="raci-empty"
+      :title="t('projects.refresh.workspace.raciEmptyTitle')"
+      :description="t(!visibleTasks.length && !visibleStakeholders.length ? 'projects.refresh.workspace.raciEmptyBoth' : !visibleTasks.length ? 'projects.refresh.workspace.raciEmptyTasks' : 'projects.refresh.workspace.raciEmptyStakeholders')"
+    >
+      <template #action>
         <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="{ path: `/projects/${id}`, query: { ...route.query, tab: 'tasks' } }">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
         <UButton v-if="!visibleStakeholders.length && rows.data.value?.can_manage" color="neutral" variant="outline" icon="i-lucide-plus" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</UButton>
-        </div>
-      </div>
-    </section>
-    <section v-if="visibleTasks.length && visibleStakeholders.length" class="rounded-lg ring ring-default bg-default max-w-full overflow-x-auto overscroll-x-contain">
-      <table class="w-full min-w-max text-start text-sm"><caption class="p-3 text-start">{{ t('projects.governance.raci.matrixHelp') }}</caption><thead><tr class="border-b"><th scope="col" class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-default p-3 text-start">{{ t('app.recordNumber') }}</th><th scope="col" class="sticky start-28 z-10 min-w-48 bg-default p-3 text-start">{{ t('projects.governance.raci.task') }}</th><th v-for="item in visibleStakeholders" :key="item.id" scope="col" class="min-w-32 p-3 text-start"><NuxtLink class="underline" :to="{ path: `/projects/${id}/stakeholders/${item.id}`, query: { returnTo: route.fullPath } }">{{ item.name }}</NuxtLink></th></tr></thead>
-        <tbody><tr v-for="task in visibleTasks" :key="task.id" class="border-b"><td class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-default p-3"><RecordNumber :value="task.id" /></td><th scope="row" class="sticky start-28 z-10 bg-default p-3 text-start font-medium"><NuxtLink class="underline" :to="{ path: `/projects/${id}/tasks/${task.id}` }">{{ task.name }}</NuxtLink></th><td v-for="item in visibleStakeholders" :key="item.id" class="p-3">
-          <USelect v-if="rows.data.value?.can_manage" :model-value="assignment(task.id, item.id)?.role ?? 'none'" :items="[{ value: 'none', label: '—' }, ...['R', 'A', 'C', 'I'].map(role => ({ value: role, label: role }))]" :aria-label="`${task.name} — ${item.name} — ${t('projects.governance.raci.role')}`" class="min-w-24" :color="roleColor(task.id, item.id)" :disabled="!hydrated || pending || loading || !!confirmRow" @update:model-value="changeRole(task.id, item.id, $event)" /><UBadge v-else variant="subtle" :color="roleColor(task.id, item.id)">{{ assignment(task.id, item.id)?.role ?? '—' }}</UBadge>
-        </td></tr></tbody>
-      </table>
-      <p class="p-3 text-sm text-muted">{{ t('projects.governance.raci.legend') }}</p>
-    </section>
+      </template>
+    </SharedEmptyState>
+    <RaciMatrix
+      v-else
+      :project-id="id"
+      :tasks="visibleTasks"
+      :stakeholders="visibleStakeholders"
+      :assignments="assignments"
+      :can-manage="rows.data.value?.can_manage === true"
+      :locked="pending || loading || !!confirmRow"
+      :return-to="route.fullPath"
+      @change="changeRole"
+    />
+
     <div class="grid gap-3 sm:grid-cols-2">
-      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.task')"><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || !taskPage" :label="t('projects.governance.previous')" @click="taskPage--" /><span>{{ t('projects.governance.total', { total: tasks.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || (taskPage + 1) * 50 >= (tasks.data.value?.total ?? 0)" :label="t('projects.governance.next')" @click="nextTasks" /></nav>
-      <nav class="flex items-center gap-2" :aria-label="t('projects.governance.raci.stakeholder')"><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || !stakeholderPage" :label="t('projects.governance.previous')" @click="stakeholderPage--" /><span>{{ t('projects.governance.total', { total: stakeholders.data.value?.total ?? 0 }) }}</span><UButton color="neutral" variant="ghost" :disabled="!hydrated || loading || pending || (stakeholderPage + 1) * 10 >= (stakeholders.data.value?.total ?? 0)" :label="t('projects.governance.next')" @click="stakeholderPage++" /></nav>
+      <div role="group" :aria-label="t('projects.governance.raci.task')"><SharedPagination :page="taskPageNumber" :pages="taskPages" :disabled="loading || pending" @update:page="taskPage = $event - 1" /></div>
+      <div role="group" :aria-label="t('projects.governance.raci.stakeholder')"><SharedPagination :page="stakeholderPageNumber" :pages="stakeholderPages" :disabled="loading || pending" @update:page="stakeholderPage = $event - 1" /></div>
     </div>
-  </SharedPageContainer>
+  </SharedListPage>
 </template>

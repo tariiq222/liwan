@@ -1,17 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import SettingsLayout from '../../app/components/settings/SettingsLayout.vue'
+import SettingsPage from '../../app/components/shared/SettingsPage.vue'
 import PageState from '../../app/components/shared/PageState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/PageState',
   component: PageState,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/settings/access-log/index.vue:78') },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/users/[userId]/security.vue:29') },
   args: { loading: false, empty: false, error: undefined, emptyText: undefined },
   render: args => ({
-    components: { SettingsLayout, PageState },
+    components: { SettingsPage, PageState },
     setup: () => ({ args }),
-    template: `<main class="nasq-shell-main"><SettingsLayout width="list"><div id="results" class="nasq-settings-anchor"><PageState v-bind="args"><div class="rounded-lg ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsLayout></main>`,
+    template: `<main class="nasq-shell-main"><SettingsPage width="list"><div id="results" class="nasq-settings-anchor"><PageState v-bind="args"><div class="rounded-lg ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsPage></main>`,
   }),
 } satisfies Meta<typeof PageState>
 export default meta

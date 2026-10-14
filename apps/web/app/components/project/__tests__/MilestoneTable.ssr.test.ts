@@ -37,6 +37,17 @@ const RowActionsStub = defineComponent({
   },
 })
 
+// Render the DataTable's named cell slots using its public row contract.
+const DataTableStub = defineComponent({
+  props: { rows: { type: Array, required: true } },
+  setup(props, { slots }) {
+    return () => h('table', [h('tbody', (props.rows as object[]).map(original => h('tr', [
+      h('td', slots['name-cell']?.({ row: { original } })),
+      h('td', slots['actions-cell']?.({ row: { original } })),
+    ])))])
+  },
+})
+
 describe('MilestoneTable SSR', () => {
   it('keeps a disabled, explained delete action for a milestone with linked tasks', async () => {
     const milestone = {
@@ -82,6 +93,8 @@ describe('MilestoneTable SSR', () => {
     }
     const app = createSSRApp(defineComponent({ setup: () => bindings, render }))
     for (const name of ['UCard', 'SharedPageState', 'USkeleton', 'UBadge', 'UButton', 'USwitch']) app.component(name, Stub)
+    app.component('SharedDataTable', DataTableStub)
+    app.component('SharedStatusBadge', Stub)
     app.component('SharedRowActions', RowActionsStub)
     app.component('SharedInlineConfirm', Stub)
 

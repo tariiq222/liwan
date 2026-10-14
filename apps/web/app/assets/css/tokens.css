@@ -1,7 +1,7 @@
-/* Theme inputs layered on Nuxt UI's stock theme: the Arabic font and its size
-   modes, the brand primary derived at runtime (utils/brandTheme.ts), the
-   shell's rail colours, the chart palette, and the cream/dark display modes.
-   Component recipes are the library's own (Figma "Nuxt UI v4 (Community)"). */
+/* Nasq identity (midnight + lime), light/dark modes, dense type and shape on
+   Nuxt UI's stock theme: the Arabic font and its size modes, the brand primary
+   derived at runtime (utils/brandTheme.ts), the fixed shell rail, the chart
+   palette, 32px controls, 36px rows and the 4px radius base. */
 @theme {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   /* Keep pixel sizes stable on the 14px "small" root. */
@@ -10,18 +10,19 @@
   --text-base: 1rem;
   --text-lg: 1.142857rem;
   --text-xl: 1.428571rem;
+  --text-2xl: 1.714286rem;
 }
 :root {
   color-scheme: light;
   font-size: 14px;
-  /* Official Nuxt UI radius token: 0.5rem reads calmer than the 0.25rem default. */
-  --ui-radius: 0.5rem;
+  /* Official Nuxt UI radius token: 4px base, so rounded-md = 6px and rounded-lg = 8px. */
+  --ui-radius: 0.285714rem;
   /* Runtime branding (brandTheme.ts overwrites these from the company colour). */
-  --primary: #18181b;
+  --primary: #13234a;
   --primary-foreground: #fff;
-  --primary-hover: #2a2a2d;
+  --primary-hover: #2f3c5f;
   --primary-hover-foreground: #fff;
-  --primary-active: #3d3d3f;
+  --primary-active: #4a5573;
   --primary-active-foreground: #fff;
   --primary-fill: var(--primary);
   --primary-fill-foreground: var(--primary-foreground);
@@ -31,19 +32,30 @@
   --primary-fill-active-foreground: var(--primary-active-foreground);
   --primary-soft: color-mix(in srgb, var(--primary-fill) 18%, var(--ui-bg));
   --primary-soft-foreground: var(--ui-text);
-  --brand-link: #18181b;
+  /* Solid primary button in dark mode (brandTheme.ts darkSolid); light keeps the stock button. */
+  --primary-solid: var(--brand-link);
+  --primary-solid-foreground: #fff;
+  --primary-solid-hover: var(--primary-hover);
+  --primary-solid-hover-foreground: var(--primary-hover-foreground);
+  --brand-link: #13234a;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
-  --chart-1: #18181b;
-  --chart-2: #313136;
-  --chart-3: #4a4a50;
-  --chart-4: #63636a;
-  --chart-5: #7b7b83;
-  --chart-6: #94949c;
-  /* Shell: module rail and surfaces. */
-  --nasq-rail: color-mix(in srgb, var(--primary) 50%, #0a0c12);
-  --nasq-rail-deep: color-mix(in srgb, var(--primary) 36%, #0a0c12);
-  --rail-hover: #292d40;
+  --chart-1: #13234a;
+  --chart-2: #3a5191;
+  --chart-3: #6b7fb8;
+  --chart-4: #9ab0d8;
+  --chart-5: #5b6b8c;
+  --chart-6: #8b97b1;
+  /* Nasq identity and density. 2.285714rem = 32px and 2.571429rem = 36px at the 14px root. */
+  --nasq-midnight: #13234a;
+  --nasq-lime: #c8f031;
+  --nasq-lime-foreground: #13234a;
+  --nasq-control-h: 2.285714rem;
+  --nasq-row-h: 2.571429rem;
+  /* Shell: fixed midnight rail (not tenant-derived) and surfaces. */
+  --nasq-rail: #13234a;
+  --nasq-rail-deep: #0d1a38;
+  --rail-hover: #1f3160;
   --shell-background: var(--ui-bg);
   --shell-foreground: var(--ui-text);
   --context-surface: var(--ui-bg);
@@ -106,27 +118,32 @@
 }
 :root[data-font-size="medium"] { font-size: 16px; }
 :root[data-font-size="large"] { font-size: 18px; }
-/* Cream mode: the library palette warmed; geometry untouched. */
-:root.cream {
-  --ui-bg: #fffdf8;
-  --ui-bg-muted: #f6f1e7;
-  --ui-bg-elevated: #efe8d9;
-  --ui-bg-accented: #e4d9c6;
-  --ui-text: #3f3428;
-  --ui-text-highlighted: #30271f;
-  --ui-text-muted: #746753;
-  --ui-text-toned: #63533f;
-  --ui-text-dimmed: #8a7d68;
-  --ui-border: #d8cbb7;
-  --ui-border-muted: #e4d9c6;
-  --ui-border-accented: #c2b293;
-}
-/* Dark mode is the library's own; only the shell rail and badge text differ. */
+:root:lang(en) { font-size: 13px; }
+:root:lang(en)[data-font-size="medium"] { font-size: 15px; }
+:root:lang(en)[data-font-size="large"] { font-size: 17px; }
+/* Dark mode: midnight-tinted surfaces; the rail stays midnight. */
 .dark {
   color-scheme: dark;
-  --nasq-rail: color-mix(in srgb, var(--primary) 32%, #07080c);
-  --nasq-rail-deep: color-mix(in srgb, var(--primary) 20%, #07080c);
-  --rail-hover: #242936;
+  --ui-bg: #0a1124;
+  --ui-bg-muted: #0f182f;
+  --ui-bg-elevated: #15203b;
+  --ui-bg-accented: #1d2a48;
+  --ui-border: #22304f;
+  --ui-border-muted: #1a2642;
+  --ui-border-accented: #2c3b5e;
+  --ui-text: #e2e8f0;
+  --ui-text-highlighted: #f8fafc;
+  --ui-text-muted: #94a3b8;
+  --ui-text-toned: #cbd5e1;
+  --ui-text-dimmed: #94a3b8;
+  --nasq-rail: #0d1a38;
+  --nasq-rail-deep: #081129;
+  --rail-hover: #1a2a52;
+  /* Default-midnight dark solid primary; brandTheme.ts overwrites it from the company colour. */
+  --primary-solid: #3c66cd;
+  --primary-solid-foreground: #ffffff;
+  --primary-solid-hover: #3154a8;
+  --primary-solid-hover-foreground: #ffffff;
   --unread-count-foreground: var(--ui-bg);
 }
 /* `primary: 'brand'` in app.config reads this palette; brandTheme.ts keeps
@@ -148,6 +165,10 @@
    (text-muted-foreground, border-border, text-destructive, bg-card…) were
    retired: use Nuxt UI's text-muted, border-default, text-error, bg-default. */
 @theme inline {
+  --color-nasq-midnight: var(--nasq-midnight);
+  --color-nasq-lime: var(--nasq-lime);
+  --color-nasq-lime-foreground: var(--nasq-lime-foreground);
+  --color-nasq-rail: var(--nasq-rail);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-hover-foreground: var(--primary-hover-foreground);

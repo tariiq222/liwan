@@ -209,6 +209,13 @@ def pascal(name: str) -> str:
     return ''.join(part.capitalize() for part in name.split('-'))
 
 
+def component_tag(directory: str) -> re.Pattern[str]:
+    """A Nuxt tag of a component under components/<directory>/: PascalCase or kebab-case, with or without `Lazy`."""
+    return re.compile(
+        rf'<(?:Lazy)?{re.escape(pascal(directory))}[A-Z]|<(?:lazy-)?{re.escape(directory.lower())}-[a-z]',
+    )
+
+
 # Strings are matched first so a `//` inside one (a URL) does not start a comment.
 SOURCE_TOKEN = re.compile(
     r"""('(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"|`(?:\\.|[^`\\])*`)|(/\*.*?\*/|//[^\n]*|<!--.*?-->)""",
@@ -248,7 +255,7 @@ def foreign_component_uses(text: str, own_app: str, web_apps: dict, rel: str | N
             continue
         total += sum(1 for s in specifiers if re.search(rf'(?:^|/)modules/{re.escape(app)}(?:/|$)', s))
         for directory in dirs['components']:
-            total += len(re.findall(rf'<{pascal(directory)}[A-Z]', code))
+            total += len(component_tag(directory).findall(code))
             total += sum(1 for s in specifiers if re.search(rf'(?:^|/)components/{re.escape(directory)}(?:/|$)', s))
     return total
 
@@ -486,6 +493,12 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
                 rel = _rel(path, root)
                 if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                     _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps, rel))
+    # The foundation shell (layout and shell components) names no application (R3).
+    for folder in (web / 'app' / 'components' / 'shell', web / 'app' / 'layouts'):
+        for path in sorted(folder.rglob('*')) if folder.is_dir() else []:
+            rel = _rel(path, root)
+            if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
+                _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), '', web_apps, rel))
     return v, hard
 
 

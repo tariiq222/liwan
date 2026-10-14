@@ -22,44 +22,30 @@ const isListRoute = computed(() => {
   return rest === '' || rest === '/new'
 })
 
-// Register the shell title only while this list is on screen, so a milestone
-// record child can own the title without the parent overwriting it.
-const ListTitle = defineComponent({
-  setup() {
-    usePageHeader(() => t('projects.tabs.milestones'))
-    return () => null
-  },
-})
-
-function openCreate() {
-  router.push(`/projects/${projectId.value}/milestones/new`)
-}
+const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestones/new` }))
 </script>
 
 <template>
-  <SharedPageContainer v-if="isListRoute" width="list">
-    <ListTitle />
-    <div v-if="notFound" class="flex flex-col items-start gap-3">
-      <p class="text-muted">{{ t('projects.notFound') }}</p>
-      <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
-    </div>
-
-    <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-    <template v-else>
-      <div v-if="canCreate" class="flex justify-end">
-        <UButton
-          icon="i-lucide-plus"
-          data-testid="project-header-create"
-          :disabled="!hydrated"
-          :label="t('projects.milestones.new')"
-          @click="openCreate"
-        />
+  <template v-if="isListRoute">
+    <SharedPageContainer v-if="notFound || error" width="list">
+      <div v-if="notFound" class="flex flex-col items-start gap-3">
+        <p class="text-muted">{{ t('projects.notFound') }}</p>
+        <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
       </div>
-      <MilestoneTable v-if="project" :project-id="project.id" :can-manage="project.can_manage" embedded />
-      <!-- The frame above already shows the loading identity; this stands in
-           for the table body, not for a heading this page does not have. -->
-      <USkeleton v-else-if="isLoading || !hydrated" class="h-40 w-full" />
-    </template>
-  </SharedPageContainer>
+      <SharedPageState v-else :error="error" @retry="refetch" />
+    </SharedPageContainer>
+    <!-- The frame is this page's h1: hide-header draws no heading, the create button stays in the header row. -->
+    <SharedListPage
+      v-else
+      hide-header
+      :title="t('projects.tabs.milestones')"
+      :create-to="canCreate ? createTo : undefined"
+      :create-label="t('projects.milestones.new')"
+      create-test-id="project-header-create"
+    >
+      <MilestoneTable v-if="project" :project-id="project.id" :can-manage="project.can_manage" />
+      <SharedLoadingSkeleton v-else-if="isLoading || !hydrated" />
+    </SharedListPage>
+  </template>
   <NuxtPage />
 </template>

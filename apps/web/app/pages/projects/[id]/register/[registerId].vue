@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE } from '@/components/project/governance/state'
 import { useProject } from '@/composables/useProjects'
 import { useProjectRegisterItem } from '@/composables/useProjectGovernance'
 
@@ -7,64 +9,52 @@ const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const registerId = computed(() => Number(route.params.registerId))
 const item = useProjectRegisterItem(projectId, registerId)
-// The owning section list is fixed by this page's own route, so the return trip
-// is literal and carries only the state that list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/projects/${projectId.value}/register`, query: listQuery }
-})
+const listPaths = computed(() => [`/projects/${projectId.value}/register`])
+const backTo = computed(() => owningListBack(route.query, listPaths.value, route.hash))
+const editTo = computed(() => recordChildTo(`/projects/${projectId.value}/register/${registerId.value}/edit`, route.query, listPaths.value, route.hash))
 const access = useProject(projectId)
 const hydrated = useHydrated()
+const detailPath = computed(() => `/projects/${projectId.value}/register/${registerId.value}`)
 </script>
 
 <template>
-  <SharedPageContainer v-if="route.path.replace(/\/+$/, '') === `/projects/${projectId}/register/${registerId}`" width="detail">
-    <SharedPageHeader :title="item.data?.value?.title ?? t('projects.refresh.workspace.registerTitle')" :back-to="backTo" :back-label="t('projects.refresh.workspace.registerTitle')">
-      <template #actions>
-        <UButton v-if="item.data?.value && access.data.value?.can_manage && hydrated" data-testid="register-detail-edit" :to="`/projects/${projectId}/register/${registerId}/edit`">{{ t('app.edit') }}</UButton>
-      </template>
-    </SharedPageHeader>
-    <SharedPageState
-      :loading="item.isLoading.value"
-      :error="item.error.value"
-      :empty="!item.data.value"
-      @retry="item.refetch"
-    />
-    <section v-if="item.data?.value" class="grid gap-4">
-      <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="register-summary-title">
-        <div class="border-b border-default px-5 py-4"><h2 id="register-summary-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerSummary') }}</h2></div>
-        <div class="p-5 space-y-4">
-          <div class="flex flex-wrap gap-2 text-sm">
-        <span>{{ t(`projects.governance.register.${item.data.value.kind}`) }}</span>
-        <span>{{ t(`projects.governance.register.${item.data.value.priority}`) }}</span>
-        <span>{{ t(`projects.governance.register.${item.data.value.status}`) }}</span>
-        <span v-if="item.data.value.score !== null">{{ t('projects.governance.register.score') }}: {{ item.data.value.score }}</span>
-          </div>
-          <dl class="grid gap-4 sm:grid-cols-2">
-        <div v-for="field in (['owner', 'dueDate', 'probability', 'impact'] as const)" :key="field">
-          <dt class="text-sm text-muted">{{ t(`projects.governance.register.${field}`) }}</dt>
-          <dd>{{ field === 'owner' ? item.data.value.owner?.name || '—' : field === 'dueDate' ? item.data.value.due_date || '—' : item.data.value[field] ?? '—' }}</dd>
-        </div>
-          </dl>
-        </div>
-      </section>
-      <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="register-description-title">
-        <div class="border-b border-default px-5 py-4"><h2 id="register-description-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerDescription') }}</h2></div>
-        <div class="p-5"><p class="whitespace-pre-wrap">{{ item.data.value.description || '—' }}</p></div>
-      </section>
-      <section class="rounded-lg ring ring-default bg-default overflow-hidden" aria-labelledby="register-plan-title">
-        <div class="border-b border-default px-5 py-4"><h2 id="register-plan-title" class="text-lg font-semibold text-highlighted">{{ t('projects.refresh.workspace.registerPlan') }}</h2></div>
-        <div class="p-5 space-y-2">
-          <p class="whitespace-pre-wrap">{{ item.data.value.response || '—' }}</p>
-          <p v-if="item.data.value.task">
+  <SharedRecordPage
+    v-if="route.path.replace(/\/+$/, '') === detailPath"
+    :title="item.data?.value?.title ?? t('projects.refresh.workspace.registerTitle')"
+    :back-to="backTo"
+    :back-label="t('projects.refresh.workspace.registerTitle')"
+    :loading="item.isLoading.value"
+    :error="item.error.value"
+    @retry="item.refetch"
+  >
+    <template v-if="item.data?.value && access.data.value?.can_manage && hydrated" #actions>
+      <UButton data-testid="register-detail-edit" :to="editTo">{{ t('app.edit') }}</UButton>
+    </template>
+    <SharedEmptyState v-if="!item.data?.value" :title="t('app.noResults')" />
+    <template v-else>
+      <SharedRecordSection :title="t('projects.refresh.workspace.registerDescription')">
+        <p class="whitespace-pre-wrap text-sm">{{ item.data.value.description || '—' }}</p>
+      </SharedRecordSection>
+      <SharedRecordSection :title="t('projects.refresh.workspace.registerPlan')">
+        <p class="whitespace-pre-wrap text-sm">{{ item.data.value.response || '—' }}</p>
+        <p v-if="item.data.value.task" class="text-sm">
           <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>
           <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}` }">{{ item.data.value.task.name }}</NuxtLink>
-          </p>
-        </div>
-      </section>
-    </section>
-  </SharedPageContainer>
+        </p>
+      </SharedRecordSection>
+    </template>
+    <template v-if="item.data?.value" #aside>
+      <SharedPropertiesPanel :title="t('projects.refresh.workspace.registerSummary')">
+        <SharedPropertyRow :label="t('projects.governance.register.kind')" :value="t(`projects.governance.register.${item.data.value.kind}`)" />
+        <SharedPropertyRow :label="t('projects.governance.register.priority')"><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[item.data.value.priority]" :label="t(`projects.governance.register.${item.data.value.priority}`)" /></SharedPropertyRow>
+        <SharedPropertyRow :label="t('projects.governance.register.status')"><SharedStatusBadge :tone="REGISTER_STATUS_TONE[item.data.value.status]" :label="t(`projects.governance.register.${item.data.value.status}`)" /></SharedPropertyRow>
+        <SharedPropertyRow :label="t('projects.governance.register.score')" :value="item.data.value.score" />
+        <SharedPropertyRow :label="t('projects.governance.register.owner')" :value="item.data.value.owner?.name" />
+        <SharedPropertyRow :label="t('projects.governance.register.dueDate')" :value="item.data.value.due_date" />
+        <SharedPropertyRow :label="t('projects.governance.register.probability')" :value="item.data.value.probability" />
+        <SharedPropertyRow :label="t('projects.governance.register.impact')" :value="item.data.value.impact" />
+      </SharedPropertiesPanel>
+    </template>
+  </SharedRecordPage>
   <NuxtPage />
 </template>

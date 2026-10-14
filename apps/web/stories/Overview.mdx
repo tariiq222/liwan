@@ -9,7 +9,7 @@ import * as Surfaces from './nuxt-ui/Surfaces.stories'
 import * as PageContainer from './shared/PageContainer.stories'
 import * as PageHeader from './shared/PageHeader.stories'
 import * as FormSection from './shared/FormSection.stories'
-import * as SettingsLayout from './settings/SettingsLayout.stories'
+import * as SettingsPage from './shared/SettingsPage.stories'
 import * as PageState from './shared/PageState.stories'
 import * as EmptyState from './shared/EmptyState.stories'
 import * as RecordNumber from './shared/RecordNumber.stories'
@@ -17,18 +17,14 @@ import * as UnsavedChanges from './shared/UnsavedChanges.stories'
 import * as FilterBar from './shared/FilterBar.stories'
 import * as DateField from './shared/DateField.stories'
 import * as FileField from './shared/FileField.stories'
-import * as DescriptionEditor from './task/DescriptionEditor.stories'
+import * as DescriptionEditor from './shared/DescriptionEditor.stories'
 import * as ProjectFieldHelp from './project/ProjectFieldHelp.stories'
 import * as MeetingProjectFilter from './meetings/MeetingProjectFilter.stories'
 import * as MeetingPeopleFields from './meetings/MeetingPeopleFields.stories'
-import * as ProjectStatusBadge from './project/ProjectStatusBadge.stories'
-import * as StateBadge from './task/StateBadge.stories'
-import * as DeadlineBadge from './task/DeadlineBadge.stories'
-import * as AccessStateBadge from './access/AccessStateBadge.stories'
-import * as AccessBadge from './hr/AccessBadge.stories'
+import * as StatusBadge from './shared/StatusBadge.stories'
 import * as PrioritySelect from './task/PrioritySelect.stories'
 import * as StateMenu from './task/StateMenu.stories'
-import * as TagPicker from './task/TagPicker.stories'
+import * as TagPicker from './shared/TagPicker.stories'
 import * as ProjectMenu from './project/ProjectMenu.stories'
 import * as SidebarCreateAction from './shell/SidebarCreateAction.stories'
 import * as ChatAttachment from './chat/ChatAttachment.stories'
@@ -64,7 +60,7 @@ import * as ChartContainer from './charts/ChartContainer.stories'
 
 <Canvas of={PageContainer.List} />
 <Canvas of={PageHeader.WithActions} />
-<Canvas of={SettingsLayout.FormPage} />
+<Canvas of={SettingsPage.FormPage} />
 <Canvas of={FormSection.InForm} />
 <Canvas of={FormSection.Panel} />
 <Canvas of={PageState.ErrorState} />
@@ -85,11 +81,11 @@ import * as ChartContainer from './charts/ChartContainer.stories'
 
 ## الشارات
 
-<Canvas of={ProjectStatusBadge.InOverviewRow} />
-<Canvas of={StateBadge.AllStates} />
-<Canvas of={DeadlineBadge.AllDeadlines} />
-<Canvas of={AccessStateBadge.InMobileCard} />
-<Canvas of={AccessBadge.AllAccess} />
+<Canvas of={StatusBadge.ProjectStatus} />
+<Canvas of={StatusBadge.TaskState} />
+<Canvas of={StatusBadge.Deadline} />
+<Canvas of={StatusBadge.AccessState} />
+<Canvas of={StatusBadge.HrAccess} />
 
 ## المنتقيات والقوائم
 

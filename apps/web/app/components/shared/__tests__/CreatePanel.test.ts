@@ -73,7 +73,7 @@ function loadCreatePanel(): Component {
   }).outputText
   const bindings: Record<string, unknown> = {
     ...Object.fromEntries(Object.entries(Vue).filter(([name]) => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)).map(([name, value]) => [`_${name}`, value])),
-    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
+    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, useId: Vue.useId,
     useI18n: () => ({ t: (key: string) => key, localeProperties: Vue.ref({ dir: 'rtl' }) }),
     usePageHeader: () => undefined,
     useRouter: () => router,
@@ -184,5 +184,48 @@ describe('SharedCreatePanel', () => {
     // The stub's handler does not return the panel's async push; wait for the
     // router to settle on the destination instead of on the handler.
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/tasks'))
+  })
+
+  it('names its dialog by the h1 and describes it by the line under it', async () => {
+    router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/tasks', component: { template: '<div/>' } },
+        { path: '/tasks/new', component: { template: '<div/>' } },
+      ],
+    })
+    await router.push('/tasks/new')
+    await router.isReady()
+
+    const CreatePanel = loadCreatePanel()
+    let content: Record<string, unknown> | undefined
+    const app = renderer.createApp(defineComponent({
+      render: () => h(CreatePanel, { title: 'مهمة جديدة', description: 'تُضاف إلى المشروع', backTo: '/tasks' }),
+    }))
+    app.component('UButton', defineComponent({
+      inheritAttrs: false,
+      setup(_, { attrs }) { return () => h('button', attrs) },
+    }))
+    app.component('USlideover', defineComponent({
+      inheritAttrs: false,
+      props: { open: Boolean, title: String, description: String, side: String, dismissible: Boolean, ui: Object, content: Object },
+      emits: ['update:open'],
+      setup(props, { slots }) {
+        return () => {
+          content = props.content as Record<string, unknown> | undefined
+          return h('div', { role: 'dialog' }, [slots.header?.({ close: () => undefined }), slots.body?.()])
+        }
+      },
+    }))
+    const host = createHostNode()
+    app.mount(host)
+    mountedApps.push(app)
+
+    const heading = findNode(host, node => node.type === 'h1')
+    const description = findNode(host, node => node.type === 'p')
+    expect(heading?.props.id).toBeTruthy()
+    expect(content?.['aria-labelledby']).toBe(heading!.props.id)
+    expect(description?.props.id).toBeTruthy()
+    expect(content?.['aria-describedby']).toBe(description!.props.id)
   })
 })

@@ -180,6 +180,12 @@ async function renderDisplay(options: { legacy?: boolean; loading?: boolean; err
       return () => h('div', attrs, [slots.header?.(), slots.default?.()])
     },
   }))
+  app.component('SharedRecordSection', defineComponent({
+    inheritAttrs: false,
+    setup(_, { slots, attrs }) {
+      return () => h('section', attrs, [slots.actions?.(), slots.default?.()])
+    },
+  }))
   app.component('UButton', Passthrough)
   app.component('UCheckbox', Passthrough)
   return renderToString(app)

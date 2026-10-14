@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
+import type { RouteLocationNormalized } from 'vue-router'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import ProjectDashboardCharts from '@/components/project/dashboard/ProjectDashboardCharts.vue'
 import ProjectDashboardMetrics from '@/components/project/dashboard/ProjectDashboardMetrics.vue'
@@ -36,6 +37,41 @@ const search = ref(filters.q)
 const debouncedSearch = refDebounced(search, 250)
 let applyingRoute = false
 let writeQuery: Promise<void> = Promise.resolve()
+let pendingNavigation: RouteLocationNormalized | null = null
+let disposed = false
+let pendingOwnQuery: { target: string; navigation: RouteLocationNormalized | null } | null = null
+const dashboardPath = '/projects/dashboard'
+const isDashboard = () => router.currentRoute.value.path.replace(/\/+$/, '') === dashboardPath
+
+function resumeListWrites() {
+  pendingNavigation = null
+  // A failed own replacement must wait for a later edit, rather than retry itself.
+  if (!applyingRoute && isDashboard()) scheduleQueryWrite()
+}
+
+const removeNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => {
+  pendingNavigation = to
+  if (pendingOwnQuery && !pendingOwnQuery.navigation && to.fullPath === pendingOwnQuery.target) pendingOwnQuery.navigation = to
+})
+const removeAfterEach = router.afterEach((to, _from, failure) => {
+  if (to !== pendingNavigation) return
+  if (!failure && applyingRoute && isDashboard() && to !== pendingOwnQuery?.navigation) {
+    pendingOwnQuery = null
+    const parsed = parseRoute(to.query as Record<string, unknown>)
+    search.value = parsed.q
+    Object.assign(filters, parsed)
+  }
+  resumeListWrites()
+})
+const removeOnError = router.onError((_error, to) => {
+  if (to === pendingNavigation) resumeListWrites()
+})
+onScopeDispose(() => {
+  disposed = true
+  removeNavigationStart()
+  removeAfterEach()
+  removeOnError()
+})
 
 const analyticsFilters = computed(() => ({
   q: filters.q.trim() || undefined,
@@ -46,6 +82,9 @@ const rows = computed(() => analytics.data.value?.projects ?? [])
 const recentRows = computed(() => analytics.data.value?.recent_projects ?? [])
 const filtered = computed(() => Boolean(filters.q.trim()) || filters.status !== 'all')
 const activeFilterCount = computed(() => Number(Boolean(filters.q.trim())) + Number(filters.status !== 'all'))
+// Loading until hydrated keeps the first client render equal to SSR (the query may finish before hydration).
+const loadingState = computed(() => !hydrated.value || (analytics.isLoading.value && !analytics.data.value))
+const hasRows = computed(() => !loadingState.value && !analytics.error.value && rows.value.length > 0)
 
 function applyPatch(patch: Partial<DashboardRouteState>) {
   Object.assign(filters, {
@@ -56,14 +95,28 @@ function applyPatch(patch: Partial<DashboardRouteState>) {
 
 function scheduleQueryWrite() {
   writeQuery = writeQuery.then(async () => {
+    if (disposed || pendingNavigation || !isDashboard()) return
     const query = serializeRoute(filters)
-    const current = serializeRoute(parseRoute(route.query as Record<string, unknown>))
+    const writeStartedAt = router.currentRoute.value
+    const current = serializeRoute(parseRoute(writeStartedAt.query as Record<string, unknown>))
     if (sameRoute(query, current)) return
     applyingRoute = true
+    let writeSucceeded = false
+    const writeTarget = { target: router.resolve({ query, hash: writeStartedAt.hash }).fullPath, navigation: null as RouteLocationNormalized | null }
+    pendingOwnQuery = writeTarget
     try {
-      await router.replace({ query })
+      writeSucceeded = !(await router.replace({ query, hash: writeStartedAt.hash }))
     } finally {
       applyingRoute = false
+      const currentRoute = router.currentRoute.value
+      const ownsDraft = pendingOwnQuery === writeTarget
+      if (ownsDraft) pendingOwnQuery = null
+      // A newer external list owns controls once committed; an older write cannot reset later edits.
+      if (!disposed && ownsDraft && !writeSucceeded && currentRoute !== writeStartedAt && isDashboard()) {
+        const parsed = parseRoute(currentRoute.query as Record<string, unknown>)
+        search.value = parsed.q
+        Object.assign(filters, parsed)
+      }
     }
   }).catch(() => undefined)
 }
@@ -106,64 +159,47 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
 </script>
 
 <template>
-  <SharedPageContainer width="list" data-testid="project-dashboard-page">
-    <SharedPageHeader :title="t('projects.dashboard.title')" />
-
-    <div class="w-full min-w-0">
-      <FilterBar class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-        <template #search>
-          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" icon="i-lucide-search" class="min-w-52 flex-1" />
-        </template>
-        <template #default>
-          <SharedFilterChoice
-            data-testid="project-dashboard-status-filter"
-            :label="t('projects.filters.statusLabel')"
-            :items="statusOptions"
-            :model-value="filters.status"
-            :disabled="!hydrated"
-            @update:model-value="onStatusChange"
-          />
-        </template>
-        <template #active>
-          <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-            <SharedFilterChip v-if="filters.q.trim()" :label="t('projects.filters.searchValue', { value: filters.q })" @remove="clearSearch" />
-            <SharedFilterChip v-if="filters.status !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
-          </div>
-        </template>
-      </FilterBar>
-    </div>
-
-    <template v-if="!hydrated || (analytics.isLoading.value && !analytics.data.value)">
-      <div role="status" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" :aria-label="t('app.loading')">
-        <UCard v-for="n in 4" :key="n" :ui="{ body: 'flex items-start gap-4 p-5' }" aria-hidden="true">
-          <USkeleton class="size-10 shrink-0 rounded-md" />
-          <div class="grid flex-1 gap-2">
-            <USkeleton class="h-4 w-24" />
-            <USkeleton class="h-7 w-16" />
-          </div>
-        </UCard>
+  <SharedDashboardPage :title="t('projects.dashboard.title')" data-testid="project-dashboard-page">
+    <template #filters>
+      <div class="w-full min-w-0">
+        <FilterBar class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" icon="i-lucide-search" class="min-w-52 flex-1" />
+          </template>
+          <template #default>
+            <SharedFilterChoice
+              data-testid="project-dashboard-status-filter"
+              :label="t('projects.filters.statusLabel')"
+              :items="statusOptions"
+              :model-value="filters.status"
+              :disabled="!hydrated"
+              @update:model-value="onStatusChange"
+            />
+          </template>
+          <template #active>
+            <div v-if="filtered" class="flex flex-wrap items-center gap-2">
+              <SharedFilterChip v-if="filters.q.trim()" :label="t('projects.filters.searchValue', { value: filters.q })" @remove="clearSearch" />
+              <SharedFilterChip v-if="filters.status !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
+            </div>
+          </template>
+        </FilterBar>
       </div>
-      <div class="grid gap-5 xl:grid-cols-2" aria-hidden="true">
-        <USkeleton v-for="n in 6" :key="n" class="h-[350px] rounded-lg" />
-      </div>
-      <USkeleton class="h-64 rounded-lg" aria-hidden="true" />
     </template>
 
-    <UAlert
-      v-else-if="analytics.error.value"
-      data-testid="project-dashboard-analytics-error"
-      role="alert"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-circle-alert"
-      :title="t('projects.dashboard.analyticsError')"
-    >
-      <template #actions>
-        <UButton color="neutral" variant="outline" :disabled="!hydrated" :label="t('projects.dashboard.retryAnalytics')" @click="analytics.refetch()" />
-      </template>
-    </UAlert>
+    <template v-if="hasRows" #metrics>
+      <ProjectDashboardMetrics :rows="rows" />
+    </template>
 
-    <div v-else-if="rows.length === 0" data-testid="project-dashboard-empty">
+    <SharedLoadingSkeleton v-if="loadingState" variant="cards" :count="4" class="@min-[768px]:col-span-2" />
+    <SharedErrorState
+      v-else-if="analytics.error.value"
+      class="@min-[768px]:col-span-2"
+      data-testid="project-dashboard-analytics-error"
+      :error="analytics.error.value"
+      :title="t('projects.dashboard.analyticsError')"
+      @retry="analytics.refetch()"
+    />
+    <div v-else-if="rows.length === 0" class="@min-[768px]:col-span-2" data-testid="project-dashboard-empty">
       <SharedEmptyState
         :title="t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty')"
         :description="t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint')"
@@ -173,11 +209,9 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
         </template>
       </SharedEmptyState>
     </div>
-
     <template v-else>
-      <ProjectDashboardMetrics :rows="rows" />
       <ProjectDashboardCharts :rows="rows" />
-      <ProjectDashboardRecentProjects :rows="recentRows" />
+      <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" />
     </template>
-  </SharedPageContainer>
+  </SharedDashboardPage>
 </template>

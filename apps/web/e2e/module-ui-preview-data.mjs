@@ -1,4 +1,5 @@
 // Opt-in synthetic responses for internal module UI review. Never reads or writes Odoo data.
+import { hrPreviewData } from './hr-ui-preview-data.mjs'
 
 export const moduleUiCapabilities = [
   'access.users.read',
@@ -185,22 +186,6 @@ const employee = {
   active: true,
   access: { user_id: 1, login: 'sara', role: 'admin', active: true },
 }
-const department = {
-  id: 1,
-  name: DEPARTMENT.name,
-  parent_id: null,
-  manager: { id: 1, name: employee.name },
-  child_ids: [],
-  employee_count: 4,
-}
-const document = {
-  id: 1,
-  name: 'دليل إجراءات التشغيل',
-  department: DEPARTMENT,
-  body: 'يوضح هذا المستند إجراءات التشغيل المعتمدة للفريق.',
-  attachment_ids: [{ id: 1, name: 'دليل التشغيل.pdf', mimetype: 'application/pdf', file_size: 245760 }],
-  write_date: '2026-09-10T08:00:00+03:00',
-}
 
 const roleRef = {
   id: 1,
@@ -354,12 +339,7 @@ export function moduleUiPreviewData(path, url) {
   if (normalizedPath === '/api/v1/meeting-series/1/events') return page(events, parsedUrl)
   if (normalizedPath === '/api/v1/meeting-series/1/resolutions') return page([{ ...resolution, meeting_id: 1, meeting_name: meeting.name }], parsedUrl)
 
-  if (normalizedPath === '/api/v1/hr/employees') return page([employee], parsedUrl)
-  if (isId(normalizedPath, '/api/v1/hr/employees')) return employee
-  if (normalizedPath === '/api/v1/hr/departments') return page([department], parsedUrl)
-  if (isId(normalizedPath, '/api/v1/hr/departments')) return department
-  if (normalizedPath === '/api/v1/hr/documents') return page([document], parsedUrl)
-  if (isId(normalizedPath, '/api/v1/hr/documents')) return document
+  if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)
 
   if (normalizedPath === '/api/v1/admin/users') return page([adminUser], parsedUrl)
   if (normalizedPath === '/api/v1/admin/users/candidates') return page([candidate], parsedUrl)

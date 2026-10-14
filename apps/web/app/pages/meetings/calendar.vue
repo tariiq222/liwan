@@ -4,7 +4,7 @@ import { returnToQuery } from '@/utils/safeReturnTo'
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
-import { meetingStateColor } from '@/utils/meetingStatus'
+import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 
 const route = useRoute()
 const router = useRouter()
@@ -129,128 +129,117 @@ function goToday() {
 </script>
 
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader :title="t('nav.meetingCalendar')" />
-    <div class="flex items-center justify-between gap-3 rounded-lg bg-default p-3 ring ring-default">
-      <div class="flex items-center gap-2" role="group" :aria-label="monthLabel">
-        <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.previousPage')" @click="shift(-1)">
-          <UIcon name="i-lucide-chevron-left" class="size-4.5 rtl:rotate-180" aria-hidden="true" />
-        </UButton>
-        <span class="min-w-40 text-center text-sm font-medium text-highlighted" aria-live="polite">{{ monthLabel }}</span>
-        <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsUx.today')" @click="goToday" />
-        <UButton type="button" color="neutral" variant="ghost" square :disabled="!hydrated" :aria-label="t('projects.nextPage')" @click="shift(1)">
-          <UIcon name="i-lucide-chevron-right" class="size-4.5 rtl:rotate-180" aria-hidden="true" />
-        </UButton>
-      </div>
-    </div>
-    <p v-if="coverage.status === 'truncated'" class="text-sm text-warning" role="status">
-      {{ t('meetingsUx.calendarTruncated', { count: coverage.total }) }}
-    </p>
-    <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="text-sm text-muted" role="status">
-      {{ t('meetingsUx.calendarCoverageUnknown') }}
-    </p>
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
-      <div class="@container min-w-0 overflow-hidden rounded-lg bg-default ring ring-default">
-        <div class="@min-[600px]:hidden">
-          <div v-if="!agenda.length" class="p-3"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
-          <ul v-else class="grid divide-y divide-default">
-            <li v-for="meeting in agenda" :key="meeting.id">
-              <NuxtLink
-                :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                class="grid min-w-0 gap-1 p-3 hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-              >
-                <div class="flex min-w-0 items-start justify-between gap-2">
-                  <span class="min-w-0 break-words font-medium text-highlighted">{{ meeting.name }}</span>
-                  <UBadge :color="meetingStateColor(meeting.state)" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
-                </div>
-                <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
-                  <span>{{ localDate(meeting.meeting_date) }}</span>
-                  <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
-                  <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-                </div>
-              </NuxtLink>
-            </li>
-          </ul>
-        </div>
-        <div class="hidden @min-[600px]:grid @min-[900px]:grid-cols-[minmax(0,1fr)_18rem]">
-          <div class="min-w-0 overflow-x-auto">
-          <div class="min-w-[560px]">
-            <div class="grid grid-cols-7 border-b border-default text-center text-xs text-muted">
-              <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
-            </div>
-            <div class="grid grid-cols-7">
-              <div
-                v-for="cell in cells"
-                :key="cell.key"
-                class="relative min-h-28 border-e border-b border-default p-1 last:border-e-0"
-                :class="[cell.today ? 'bg-primary/10' : '', cell.key === selectedDay ? 'ring-2 ring-inset ring-primary' : '']"
-              >
-                <button
-                  v-if="cell.day"
-                  type="button"
-                  class="absolute inset-0 rounded-none hover:bg-elevated/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-                  :disabled="!hydrated"
-                  :aria-pressed="cell.key === selectedDay"
-                  :aria-label="t('meetingsUx.dayCardSelect', { date: localDate(cell.key) })"
-                  @click="selectedDay = cell.key"
-                />
-                <p v-if="cell.day" class="relative px-1 text-xs text-muted" aria-hidden="true">{{ cell.day }}</p>
+  <SharedTimelineFrame :title="t('nav.meetingCalendar')" :range-label="monthLabel" @prev="shift(-1)" @next="shift(1)" @today="goToday">
+    <div class="grid min-w-0 gap-4">
+      <p v-if="coverage.status === 'truncated'" class="text-sm text-warning" role="status">
+        {{ t('meetingsUx.calendarTruncated', { count: coverage.total }) }}
+      </p>
+      <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="text-sm text-muted" role="status">
+        {{ t('meetingsUx.calendarCoverageUnknown') }}
+      </p>
+      <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
+        <div class="@container min-w-0 overflow-hidden rounded-lg bg-default ring ring-default">
+          <div class="@min-[600px]:hidden">
+            <div v-if="!agenda.length" class="p-3"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
+            <ul v-else class="grid divide-y divide-default">
+              <li v-for="meeting in agenda" :key="meeting.id">
                 <NuxtLink
-                  v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
-                  :key="meeting.id"
                   :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                  class="relative mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  class="grid min-w-0 gap-1 p-3 hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                 >
-                  <span class="block truncate text-highlighted">{{ meeting.name }}</span>
-                  <span class="block truncate text-xs text-muted">
+                  <div class="flex min-w-0 items-start justify-between gap-2">
+                    <span class="min-w-0 break-words font-medium text-highlighted">{{ meeting.name }}</span>
+                    <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" class="shrink-0" />
+                  </div>
+                  <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+                    <span>{{ localDate(meeting.meeting_date) }}</span>
                     <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
                     <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-                    · {{ t(`meetingsUi.state.${meeting.state}`) }}
-                  </span>
-                </NuxtLink>
-              </div>
-            </div>
-          </div>
-          </div>
-          <aside class="min-w-0 border-t border-default @min-[900px]:border-s @min-[900px]:border-t-0" :aria-label="t('meetingsUx.dayCardTitle')">
-            <div class="flex items-start justify-between gap-2 border-b border-default p-3">
-              <div class="min-w-0">
-                <h2 class="text-sm font-semibold text-highlighted">{{ t('meetingsUx.dayCardTitle') }}</h2>
-                <p class="text-xs text-muted">{{ selectedDay ? localDate(selectedDay) : t('meetingsUx.dayCardHint') }}</p>
-              </div>
-              <UBadge v-if="selectedDay" color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }) }}</UBadge>
-            </div>
-            <div v-if="selectedDay && !selectedMeetings.length" class="p-3"><SharedEmptyState :title="t('meetingsUx.dayCardEmpty')" /></div>
-            <ul v-else-if="selectedDay" class="grid gap-2 p-3">
-              <li v-for="meeting in selectedMeetings" :key="meeting.id">
-                <UCard :ui="{ body: 'p-3 sm:p-3' }">
-                  <div class="flex min-w-0 items-start justify-between gap-2">
-                    <div class="min-w-0 grid gap-1">
-                      <p class="break-words text-sm font-medium text-highlighted">{{ meeting.name }}</p>
-                      <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                        <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
-                        <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-                        <UBadge :color="meetingStateColor(meeting.state)" variant="subtle" size="sm">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
-                      </div>
-                    </div>
-                    <UButton
-                      color="neutral"
-                      variant="ghost"
-                      size="sm"
-                      square
-                      icon="i-lucide-eye"
-                      class="shrink-0"
-                      :aria-label="`${t('meetingsUx.dayCardView')}: ${meeting.name}`"
-                      :title="t('meetingsUx.dayCardView')"
-                      :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                    />
                   </div>
-                </UCard>
+                </NuxtLink>
               </li>
             </ul>
-          </aside>
+          </div>
+          <div class="hidden @min-[600px]:grid @min-[900px]:grid-cols-[minmax(0,1fr)_18rem]">
+            <div class="min-w-0 overflow-x-auto">
+              <div class="min-w-[560px]">
+                <div class="grid grid-cols-7 border-b border-default text-center text-xs text-muted">
+                  <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
+                </div>
+                <div class="grid grid-cols-7">
+                  <div
+                    v-for="cell in cells"
+                    :key="cell.key"
+                    class="relative min-h-28 border-e border-b border-default p-1 last:border-e-0"
+                    :class="[cell.today ? 'bg-primary/10' : '', cell.key === selectedDay ? 'ring-2 ring-inset ring-primary' : '']"
+                  >
+                    <button
+                      v-if="cell.day"
+                      type="button"
+                      class="absolute inset-0 rounded-none hover:bg-elevated/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                      :disabled="!hydrated"
+                      :aria-pressed="cell.key === selectedDay"
+                      :aria-label="t('meetingsUx.dayCardSelect', { date: localDate(cell.key) })"
+                      @click="selectedDay = cell.key"
+                    />
+                    <p v-if="cell.day" class="relative px-1 text-xs text-muted" aria-hidden="true">{{ cell.day }}</p>
+                    <NuxtLink
+                      v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
+                      :key="meeting.id"
+                      :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+                      class="relative mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <span class="block truncate text-highlighted">{{ meeting.name }}</span>
+                      <span class="block truncate text-xs text-muted">
+                        <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+                        <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+                        · {{ t(`meetingsUi.state.${meeting.state}`) }}
+                      </span>
+                    </NuxtLink>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <aside class="min-w-0 border-t border-default @min-[900px]:border-s @min-[900px]:border-t-0" :aria-label="t('meetingsUx.dayCardTitle')">
+              <div class="flex items-start justify-between gap-2 border-b border-default p-3">
+                <div class="min-w-0">
+                  <h2 class="text-sm font-semibold text-highlighted">{{ t('meetingsUx.dayCardTitle') }}</h2>
+                  <p class="text-xs text-muted">{{ selectedDay ? localDate(selectedDay) : t('meetingsUx.dayCardHint') }}</p>
+                </div>
+                <UBadge v-if="selectedDay" color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }) }}</UBadge>
+              </div>
+              <div v-if="selectedDay && !selectedMeetings.length" class="p-3"><SharedEmptyState :title="t('meetingsUx.dayCardEmpty')" /></div>
+              <ul v-else-if="selectedDay" class="grid gap-2 p-3">
+                <li v-for="meeting in selectedMeetings" :key="meeting.id">
+                  <UCard :ui="{ body: 'p-3 sm:p-3' }">
+                    <div class="flex min-w-0 items-start justify-between gap-2">
+                      <div class="min-w-0 grid gap-1">
+                        <p class="break-words text-sm font-medium text-highlighted">{{ meeting.name }}</p>
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                          <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+                          <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+                          <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" size="sm" />
+                        </div>
+                      </div>
+                      <UButton
+                        color="neutral"
+                        variant="ghost"
+                        size="sm"
+                        square
+                        icon="i-lucide-eye"
+                        class="shrink-0"
+                        :aria-label="`${t('meetingsUx.dayCardView')}: ${meeting.name}`"
+                        :title="t('meetingsUx.dayCardView')"
+                        :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
+                      />
+                    </div>
+                  </UCard>
+                </li>
+              </ul>
+            </aside>
+          </div>
         </div>
-      </div>
-    </SharedPageState>
-  </SharedPageContainer>
+      </SharedPageState>
+    </div>
+  </SharedTimelineFrame>
 </template>

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.129",
+    "@nasq/commercial-contracts": "0.1.0",
     "@nasq/contracts": "^0.1.0",
     "@nuxt/ui": "4.11.1",
     "@nuxtjs/i18n": "^10.6.0",
@@ -36,11 +37,12 @@
     "vue": "^3.5.42",
     "vue-draggable-plus": "^0.6.1",
     "vue-router": "^5.3.0",
-    "zod": "^4.5.4",
-    "@nasq/commercial-contracts": "0.1.0"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.62.1",
+    "@storybook/addon-a11y": "10.6.0",
     "@storybook/addon-docs": "10.6.0",
     "@storybook/vue3-vite": "10.6.0",
     "@types/node": "^22.20.1",

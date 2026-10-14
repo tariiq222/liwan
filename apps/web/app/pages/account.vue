@@ -6,23 +6,14 @@ const { me } = useMe()
 </script>
 
 <template>
-  <SharedPageContainer width="form" class="nasq-account-page">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('account.title')" :description="t('account.description')" />
-    <UCard v-if="me" class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
-      <template #header><h2 class="text-lg font-semibold text-highlighted">{{ me.name }}</h2></template>
-      <dl class="grid gap-6 sm:grid-cols-2">
-        <div><dt class="text-sm text-muted">{{ t('auth.username') }}</dt><dd class="mt-2 font-medium" dir="ltr">{{ me.login }}</dd></div>
-        <div><dt class="text-sm text-muted">{{ t('account.company') }}</dt><dd class="mt-2 font-medium">{{ me.company.name }}</dd></div>
-      </dl>
-    </UCard>
-    <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
-      <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('account.passwordTitle') }}</h2></template>
+    <SharedPropertiesPanel v-if="me" :title="me.name">
+      <SharedPropertyRow :label="t('auth.username')"><bdi dir="ltr">{{ me.login }}</bdi></SharedPropertyRow>
+      <SharedPropertyRow :label="t('account.company')" :value="me.company.name" />
+    </SharedPropertiesPanel>
+    <SharedFormSection panel :title="t('account.passwordTitle')">
       <PasswordForm />
-    </UCard>
-  </SharedPageContainer>
+    </SharedFormSection>
+  </SharedSettingsPage>
 </template>
-
-<style scoped>
-.nasq-account-page { gap: 1.5rem; }
-.nasq-account-page dl > div { min-width: 0; }
-</style>

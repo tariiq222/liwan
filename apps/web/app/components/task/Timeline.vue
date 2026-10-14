@@ -59,16 +59,3 @@ function changeMessage(change: { field: string; label: string; old: unknown; new
   </ol>
   <p v-else class="py-2 text-sm text-muted">{{ props.emptyLabel ?? t('tasks.activity.empty') }}</p>
 </template>
-
-<style scoped>
-/* The connector between avatars is a pseudo-element; utilities cannot draw it
-   without a stack of arbitrary `after:` values. */
-.task-activity-item:not(:last-child)::after {
-  position: absolute;
-  inset-block: 1.75rem 0;
-  inset-inline-start: 0.8125rem;
-  width: 1px;
-  background: var(--ui-border);
-  content: '';
-}
-</style>

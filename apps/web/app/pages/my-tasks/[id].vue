@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { StatusTone } from '@/utils/statusTone'
 import type { PersonalTask } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, formatNasqDateTime } from '@/composables/calendarDate'
@@ -10,6 +11,8 @@ import MyTaskSubtasks from '@/components/my-tasks/MyTaskSubtasks.vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { changedFields, draftFromTask, type DetailDraft } from '@/utils/myTaskDetail'
 import { deadlineDay } from '@/utils/myTaskList'
+
+const STATE_TONE: Record<PersonalTask['state'], StatusTone> = { open: 'info', done: 'success', cancelled: 'neutral' }
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -39,7 +42,6 @@ const parentLink = computed(() => {
 })
 const notFound = computed(() => taskId.value === null || (error.value instanceof ApiError && error.value.status === 404))
 
-const STATE_COLOR = { open: 'info', done: 'success', cancelled: 'neutral' } as const
 
 // --- inline edit -------------------------------------------------------------------------------
 const editing = ref(false)
@@ -147,45 +149,38 @@ async function run(action: MyTaskTransition) {
 
 const title = computed(() => task.value?.name ?? t('myTasks.title'))
 const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(value), locale.value) || t('myTasks.detail.noDeadline')
-const panel = 'rounded-xl border border-default bg-default p-5'
 </script>
 
 <template>
-  <SharedPageContainer width="detail" data-testid="my-task-detail">
-    <SharedPageHeader :title="title" :back-to="returnTo" :back-label="t('myTasks.detail.back')">
-      <template v-if="task" #actions>
-        <span data-testid="my-task-state-live" aria-live="polite" aria-atomic="true">
-          <UBadge data-testid="my-task-state" variant="subtle" :color="STATE_COLOR[task.state]">{{ t(`myTasks.state.${task.state}`) }}</UBadge>
-        </span>
-        <UButton v-if="task.allowed_actions.write && !editing" type="button" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('myTasks.actions.edit')" :disabled="!hydrated || saving" @click="startEdit" />
-        <UButton v-if="task.allowed_actions.done" type="button" data-primary-action icon="i-lucide-check" :label="t('myTasks.actions.done')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('done')" />
-        <UButton v-if="task.allowed_actions.reopen" type="button" data-primary-action color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('myTasks.actions.reopen')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('reopen')" />
-        <UButton v-if="task.allowed_actions.cancel && !confirmingCancel" type="button" data-my-task-cancel color="error" variant="ghost" icon="i-lucide-ban" :label="t('myTasks.actions.cancel')" :disabled="!hydrated || transitioning" @click="askCancel" />
-      </template>
-    </SharedPageHeader>
+  <SharedRecordPage
+    data-testid="my-task-detail"
+    :title="title"
+    :back-to="returnTo"
+    :back-label="t('myTasks.detail.back')"
+    :loading="!task && !notFound && isLoading"
+    :error="task || notFound ? null : error"
+    @retry="refetch"
+  >
+    <template v-if="task" #actions>
+      <span data-testid="my-task-state-live" aria-live="polite" aria-atomic="true">
+        <SharedStatusBadge data-testid="my-task-state" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
+      </span>
+      <UButton v-if="task.allowed_actions.write && !editing" type="button" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('myTasks.actions.edit')" :disabled="!hydrated || saving" @click="startEdit" />
+      <UButton v-if="task.allowed_actions.done" type="button" data-primary-action icon="i-lucide-check" :label="t('myTasks.actions.done')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('done')" />
+      <UButton v-if="task.allowed_actions.reopen" type="button" data-primary-action color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('myTasks.actions.reopen')" :loading="transitioning" :disabled="!hydrated || transitioning" @click="run('reopen')" />
+      <UButton v-if="task.allowed_actions.cancel && !confirmingCancel" type="button" data-my-task-cancel color="error" variant="ghost" icon="i-lucide-ban" :label="t('myTasks.actions.cancel')" :disabled="!hydrated || transitioning" @click="askCancel" />
+    </template>
 
     <SharedEmptyState v-if="notFound" :title="t('myTasks.detail.notFound')" />
-    <SharedPageState v-else-if="!task" :loading="isLoading" :error="error" @retry="refetch" />
-
-    <template v-else>
-      <SharedInlineConfirm
-        v-if="confirmingCancel"
-        :title="t('myTasks.cancelConfirm.title')"
-        :description="t('myTasks.cancelConfirm.body')"
-        :confirm-label="t('myTasks.cancelConfirm.confirm')"
-        :cancel-label="t('myTasks.cancelConfirm.keep')"
-        :pending="transitioning"
-        @confirm="run('cancel')"
-        @cancel="keepTask"
-      />
+    <template v-else-if="task">
+      <SharedInlineConfirm v-if="confirmingCancel" :title="t('myTasks.cancelConfirm.title')" :description="t('myTasks.cancelConfirm.body')" :confirm-label="t('myTasks.cancelConfirm.confirm')" :cancel-label="t('myTasks.cancelConfirm.keep')" :pending="transitioning" @confirm="run('cancel')" @cancel="keepTask" />
       <p v-if="actionError" role="alert" class="text-sm text-error">{{ actionError }}</p>
-
       <p v-if="parentLink" class="text-sm text-muted">
         {{ t('myTasks.subtasks.parentOf') }}
         <NuxtLink :to="parentLink" class="text-brand-link underline">{{ task.parent!.name }}</NuxtLink>
       </p>
 
-      <section :class="panel" :aria-label="t('myTasks.detail.description')">
+      <SharedRecordSection :title="t('myTasks.detail.description')">
         <form v-if="editing && draft" class="grid gap-4" @submit.prevent="save">
           <UFormField :label="t('myTasks.form.name')" name="name" :error="fieldErrors.name" required>
             <UInput v-model="draft.name" class="w-full" :disabled="!hydrated || saving" />
@@ -217,44 +212,24 @@ const panel = 'rounded-xl border border-default bg-default p-5'
             <UButton type="submit" :label="t('myTasks.form.save')" :loading="saving" :disabled="!hydrated || saving" />
           </div>
         </form>
+        <p v-else class="whitespace-pre-wrap break-words text-sm text-default">{{ task.description || t('myTasks.detail.noDescription') }}</p>
+      </SharedRecordSection>
 
-        <dl v-else class="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-          <div class="sm:col-span-2">
-            <dt class="text-xs font-medium text-muted">{{ t('myTasks.detail.description') }}</dt>
-            <dd class="mt-1 whitespace-pre-wrap break-words text-sm text-default">{{ task.description || t('myTasks.detail.noDescription') }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium text-muted">{{ t('myTasks.detail.deadline') }}</dt>
-            <dd class="mt-1 text-sm text-default" data-testid="my-task-deadline">{{ deadlineText(task.date_deadline) }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium text-muted">{{ t('myTasks.detail.priority') }}</dt>
-            <dd class="mt-1 text-sm text-default" data-testid="my-task-priority">{{ t(`myTasks.priority.${task.priority}`) }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium text-muted">{{ t('myTasks.detail.assignees') }}</dt>
-            <dd class="mt-1 text-sm text-default">{{ task.assignees.map(person => person.name).join('، ') || t('myTasks.detail.noAssignees') }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium text-muted">{{ t('myTasks.detail.creator') }}</dt>
-            <dd class="mt-1 text-sm text-default">{{ task.creator.name }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium text-muted">{{ t('myTasks.detail.createdAt') }}</dt>
-            <dd class="mt-1 text-sm text-default">{{ formatNasqDateTime(task.created_at, locale) }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs font-medium text-muted">{{ t('myTasks.detail.updatedAt') }}</dt>
-            <dd class="mt-1 text-sm text-default">{{ formatNasqDateTime(task.updated_at, locale) }}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <div v-if="!task.is_subtask" :class="panel"><MyTaskSubtasks :task="task" /></div>
-      <div :class="panel"><MyTaskAttachments :task-id="task.id" :count="task.attachment_count" :can-write="task.allowed_actions.write" /></div>
-      <div :class="panel"><MyTaskComments :task-id="task.id" :can-write="task.allowed_actions.write" /></div>
-      <div v-if="task.allowed_actions.convert" :class="panel"><ConvertToProject :task-id="task.id" @converted="converted = true" /></div>
+      <MyTaskSubtasks v-if="!task.is_subtask" :task="task" />
+      <MyTaskAttachments :task-id="task.id" :count="task.attachment_count" :can-write="task.allowed_actions.write" />
+      <MyTaskComments :task-id="task.id" :can-write="task.allowed_actions.write" />
+      <ConvertToProject v-if="task.allowed_actions.convert" :task-id="task.id" @converted="converted = true" />
+    </template>
+    <template v-if="task && !notFound" #aside>
+      <SharedPropertiesPanel>
+        <SharedPropertyRow :label="t('myTasks.detail.deadline')"><span data-testid="my-task-deadline">{{ deadlineText(task.date_deadline) }}</span></SharedPropertyRow>
+        <SharedPropertyRow :label="t('myTasks.detail.priority')"><span data-testid="my-task-priority">{{ t(`myTasks.priority.${task.priority}`) }}</span></SharedPropertyRow>
+        <SharedPropertyRow :label="t('myTasks.detail.assignees')" :value="task.assignees.map(person => person.name).join('، ') || t('myTasks.detail.noAssignees')" />
+        <SharedPropertyRow :label="t('myTasks.detail.creator')" :value="task.creator.name" />
+        <SharedPropertyRow :label="t('myTasks.detail.createdAt')" :value="formatNasqDateTime(task.created_at, locale)" />
+        <SharedPropertyRow :label="t('myTasks.detail.updatedAt')" :value="formatNasqDateTime(task.updated_at, locale)" />
+      </SharedPropertiesPanel>
     </template>
     <SharedUnsavedChanges :dirty="dirty" />
-  </SharedPageContainer>
+  </SharedRecordPage>
 </template>

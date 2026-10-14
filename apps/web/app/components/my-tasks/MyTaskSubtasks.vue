@@ -58,8 +58,7 @@ async function toggle(sub: PersonalTask['subtasks'][number]) {
 </script>
 
 <template>
-  <section data-testid="my-task-subtasks" class="space-y-3" :aria-label="t('myTasks.subtasks.label')">
-    <h2 class="text-lg font-semibold text-highlighted">{{ t('myTasks.subtasks.title') }}</h2>
+  <SharedRecordSection data-testid="my-task-subtasks" :title="t('myTasks.subtasks.title')">
     <ul v-if="task.subtasks.length" class="divide-y divide-default">
       <li v-for="sub in task.subtasks" :key="sub.id" class="flex min-w-0 items-center gap-3 py-2">
         <NuxtLink
@@ -98,5 +97,5 @@ async function toggle(sub: PersonalTask['subtasks'][number]) {
       <UButton type="submit" size="sm" variant="outline" :loading="creating" :disabled="!hydrated || creating || !name.trim()" :label="t('myTasks.subtasks.add')" />
     </form>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-  </section>
+  </SharedRecordSection>
 </template>

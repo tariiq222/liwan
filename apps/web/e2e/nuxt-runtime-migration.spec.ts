@@ -177,7 +177,12 @@ test('mobile menu exposes visible module names and navigates successfully', asyn
   await page.getByTestId('mobile-navigation-trigger').click()
   const menu = page.locator('.nasq-mobile-menu')
   await expect(menu).toBeVisible()
-  const link = menu.getByRole('link', { name: 'مهامي', exact: true })
+  // The personal-work module and the PMO context both expose this label.
+  // Exercise the context destination this migration case has always checked.
+  await expect(menu.locator('a[href="/my-tasks"]')).toHaveAccessibleName('مهامي')
+  const link = menu.getByTestId('mobile-context-link-tasks')
+  await expect(link).toHaveAccessibleName('مهامي')
+  await expect(link).toHaveAttribute('href', '/tasks')
   await expect(link).toBeVisible()
   const label = link.locator('span').last()
   await expect(label).toHaveCSS('opacity', '1')

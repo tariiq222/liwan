@@ -6,8 +6,12 @@ test('the ⌘K search dialog navigates with the shortcut it advertises', async (
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
+  const authenticated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login' && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page.getByRole('navigation', { name: 'الانتقال إلى' })).toContainText('مهامي')
+  expect((await authenticated).status()).toBe(200)
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
+  await page.goto('/tasks')
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   // Focus a non-interactive heading; fixed coordinates can click a task row.
   await page.getByRole('heading', { name: 'مهامي' }).click()
 
@@ -19,7 +23,7 @@ test('the ⌘K search dialog navigates with the shortcut it advertises', async (
   await expect(input).toBeFocused()
   await expect(input).toHaveAttribute('placeholder', 'ابحث في الصفحات والمشاريع والمهام…')
 
-  await dialog.getByRole('link', { name: 'المشاريع', exact: true }).click()
+  await dialog.getByRole('option', { name: 'المشاريع', exact: true }).click()
   await expect(page).toHaveURL(/\/projects$/)
   await expect(dialog).toBeHidden()
 })
@@ -30,8 +34,12 @@ test('the search dialog receives shortcut characters once it has a query and clo
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill('admin')
   await page.getByLabel('كلمة المرور').fill('admin')
+  const authenticated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/auth/login' && response.request().method() === 'POST')
   await page.getByRole('button', { name: 'دخول' }).click()
-  await expect(page.getByRole('navigation', { name: 'الانتقال إلى' })).toContainText('مهامي')
+  expect((await authenticated).status()).toBe(200)
+  await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
+  await page.goto('/tasks')
+  await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
   // Focus a non-interactive heading; fixed coordinates can click a task row.
   await page.getByRole('heading', { name: 'مهامي' }).click()
 

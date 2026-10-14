@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import StateBadge from '@/components/operations/StateBadge.vue'
+import { operationsStateTone } from '@/composables/operations/state'
 import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationErrorKey, operationId, safeOperationReturnTo } from '@/composables/operations/forms'
 const route = useRoute()
@@ -30,7 +30,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
     <SharedPageHeader :title="process?.name ?? t('operations.process')" :back-to="backTo" :back-label="t('operations.nav.processes')"><template #actions><template v-if="process && can('operations.processes.manage')"><UButton color="neutral" variant="outline" :disabled="disabled" :to="{ path: `/operations/processes/${process.id}/edit`, query: { returnTo: backTo } }" :label="t('operations.edit')" /><UButton v-if="process.state === 'draft'" :disabled="disabled" :label="t('operations.publish')" @click="choose('publish')" /><UButton v-if="process.state !== 'archived'" color="error" variant="outline" :disabled="disabled" :label="t('operations.archive')" @click="choose('archive')" /></template></template></SharedPageHeader>
     <SharedPageState :loading="id !== null && query.isPending.value" :error="id === null ? { status: 404 } : query.error.value" @retry="hydrated && query.refetch()">
       <template v-if="process">
-        <StateBadge :state="process.state" />
+        <SharedStatusBadge :tone="operationsStateTone(process.state)" :label="t(`operations.states.${process.state}`)" />
         <UAlert v-if="error" role="alert" color="error" :title="t(`operations.errors.${operationErrorKey(error)}`)"><template #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="refresh" /></template></UAlert>
         <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'archive' ? 'operations.archiveHelp' : 'operations.publishHelp')" :confirm-label="t(`operations.${selected}`)" :color="selected === 'archive' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="selected = null" />
         <SharedFormSection :title="t('operations.description')"><p class="whitespace-pre-wrap text-sm leading-7">{{ process.description || t('operations.noDescription') }}</p></SharedFormSection>

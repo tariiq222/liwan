@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import RoleTable from '@/components/access/roles/RoleTable.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import { useAdminRoles, type AdminRoleListParams } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
@@ -23,7 +22,7 @@ function syncPage() { if (!isRolesList()) return; void router.replace({ query: a
 function setPage(next: number) { if (hydrated.value && next >= 1 && next <= pages.value) { filters.offset = (next - 1) * (filters.limit ?? 25); syncPage() } }
 watch(() => [route.query.q, route.query.type, route.query.status, route.query.offset], ([q, type, status, offset]) => { filters.q = String(q ?? ''); filters.type = type === 'custom' ? 'custom' : type === 'built_in' ? 'built_in' : undefined; filters.status = status === 'disabled' ? 'disabled' : status === 'active' ? 'active' : undefined; filters.offset = parseAdminOffset(offset) })
 const listQuery = computed(() => adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
-function openRole(id: number) { void navigateTo({ path: `/settings/roles/${id}`, query: listQuery.value }) }
+const roleTo = (role: { id: number }) => ({ path: `/settings/roles/${role.id}`, query: listQuery.value })
 function cloneRole(id: number) { void navigateTo({ path: '/settings/roles/new', query: { ...listQuery.value, clone: String(id) } }) }
 const allValue = '__all__'
 const typeOptions = computed(() => [{ value: allValue, label: t('access.roles.filters.allTypes') }, { value: 'built_in', label: t('access.roles.builtIn') }, { value: 'custom', label: t('access.roles.custom') }])
@@ -34,13 +33,11 @@ function clearSearch() { filters.q = ''; updateFilters() }
 </script>
 
 <template>
-  <SettingsLayout>
-    <SharedPageHeader :title="t('access.roles.title')">
-      <UButton v-if="can('access.roles.manage')" color="primary" icon="i-lucide-plus" :disabled="!hydrated" :label="t('access.roles.create')" @click="navigateTo({ path: '/settings/roles/new', query: listQuery })" />
-    </SharedPageHeader>
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <div v-else class="space-y-6">
-      <div id="filters" class="nasq-settings-anchor w-full min-w-0">
+  <SharedListPage data-testid="settings-layout" :title="t('access.roles.title')"
+    :create-to="can('access.roles.manage') ? { path: '/settings/roles/new', query: listQuery } : undefined"
+    :create-label="t('access.roles.create')" create-test-id="settings-role-new">
+    <template v-if="!forbidden" #filters>
+      <div id="filters" class="w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
             <UInput v-model="filters.q" class="w-full" :aria-label="t('access.roles.filters.search')" :placeholder="t('access.roles.filters.search')" :disabled="!hydrated" @change="updateFilters" />
@@ -58,12 +55,21 @@ function clearSearch() { filters.q = ''; updateFilters() }
           </template>
         </FilterBar>
       </div>
-      <div id="results" class="nasq-settings-anchor">
-        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.roles.empty')" @retry="query.refetch">
-          <RoleTable :roles="query.data.value?.items ?? []" :can-manage="can('access.roles.manage')" @open="openRole" @clone="cloneRole" />
-        </SharedPageState>
-        <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
-      </div>
+    </template>
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
+    <div v-else class="grid gap-3">
+      <RoleTable
+        id="results"
+        :roles="query.data.value?.items ?? []"
+        :can-manage="can('access.roles.manage')"
+        :loading="query.isLoading.value"
+        :error="query.error.value"
+        :empty-text="t('access.roles.empty')"
+        :to-for="roleTo"
+        @clone="cloneRole"
+        @retry="query.refetch"
+      />
+      <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
     </div>
-  </SettingsLayout>
+  </SharedListPage>
 </template>

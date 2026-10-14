@@ -35,7 +35,7 @@ for (const width of [390, 768, 1440]) {
     expect(analytics.recent_projects.map((row: { project: { name: string } }) => row.project.name)).toEqual([
       'مبادرة الاستدامة', 'اعتماد الجودة المؤسسية', 'تطوير الخدمات المساندة', 'برنامج الشراكات', 'قياس تجربة المستفيد',
     ])
-    const rows = page.getByTestId('recent-project-row')
+    const rows = page.getByTestId(width < 768 ? 'recent-project-card' : 'recent-project-row')
     await expect(rows).toHaveCount(5)
     for (let index = 0; index < 5; index++) await expect(rows.nth(index)).toContainText(analytics.recent_projects[index].project.name)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -73,7 +73,7 @@ test('analytics failure shows retry without stale charts', async ({ page }) => {
   await page.getByTestId('project-dashboard-analytics-error').getByRole('button', { name: 'إعادة المحاولة', exact: true }).click()
   await charts(page)
 })
-for (const mode of ['dark', 'cream'] as const) {
+for (const mode of ['dark', 'light'] as const) {
   test(`${mode} and large type on mobile`, async ({ page }, info) => {
     await page.setViewportSize({ width: 390, height: 1000 })
     await login(page)

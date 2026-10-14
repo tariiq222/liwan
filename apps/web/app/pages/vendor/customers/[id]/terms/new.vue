@@ -36,7 +36,7 @@ async function save(draft: TermsDraft) {
 <template>
   <SharedCreatePanel :title="t('vendor.customers.customizeTerms')" :back-to="detailTo" width="wide">
     <SharedPageState :loading="pending" :error="error" @retry="refresh">
-      <p v-if="!allowed">{{ t('vendor.forbidden') }}</p>
+      <SharedForbiddenState v-if="!allowed" />
       <UAlert v-else-if="!sub" color="neutral" variant="subtle" :title="t('vendor.customers.terms.needsSubscription')" />
       <div v-else class="space-y-6">
         <VendorCustomerTermsForm :busy="busy" :previewing="previewing" :error="saveError" :reset-key="resetKey" @preview="preview" @save="save" @cancel="navigateTo(detailTo)" />

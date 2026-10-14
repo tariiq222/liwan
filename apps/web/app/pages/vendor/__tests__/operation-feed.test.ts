@@ -5,7 +5,9 @@ import { renderToString } from '@vue/server-renderer'
 import * as Vue from 'vue'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
+import { invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/commercialBadges'
 import { safeReturnTo } from '../../../utils/safeReturnTo'
+import { formatNasqDateTime } from '../../../composables/calendarDate'
 
 async function page(name: string, data: unknown, source?: string) {
   const filename = resolve(import.meta.dirname, '..', name)
@@ -18,9 +20,11 @@ async function page(name: string, data: unknown, source?: string) {
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: any, key) => obj?.[key], messages) ?? key
   const bindings = {
+    formatNasqDateTime,
+    invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: () => {}, onBeforeUnmount: () => {},
-    definePageMeta: () => {}, useI18n: () => ({ t }), safeReturnTo, FilterBar: {},
+    definePageMeta: () => {}, useI18n: () => ({ t, locale: Vue.ref('en') }), safeReturnTo, FilterBar: {},
     useRoute: () => ({ params: { id: 'job-id' }, query: { source }, fullPath: '/vendor/operations?source=all' }),
     useRouter: () => ({ replace: vi.fn() }), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }),
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
@@ -36,7 +40,7 @@ async function page(name: string, data: unknown, source?: string) {
   const captured: { name: string, props: Record<string, any> }[] = []
   const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))), render }))
   for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(m => m[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
-    return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'SharedPageState' && attrs.empty ? 'Empty' : slots.default?.(), slots.header?.(), slots.actions?.(), slots.search?.()]) }
+    return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'SharedPageState' && attrs.empty ? 'Empty' : slots.default?.(), slots.header?.(), slots.actions?.(), name === 'SharedRecordPage' ? slots.aside?.() : null, slots.search?.()]) }
   } }))
   const html = await renderToString(app)
   scope.stop()
@@ -50,8 +54,8 @@ it('opts overview and list into the combined feed and carries source through lin
   const list = await page('operations/index.vue', { items: [operation], total: 1 })
   expect(list.request).toHaveBeenCalledWith('operations', expect.objectContaining({ query: expect.objectContaining({ source: 'all' }) }))
   expect(list.keys[0]).toContain(':all:')
-  expect(list.captured.find(node => node.name === 'NuxtLink')?.props.to.query).toMatchObject({ source: 'shared', returnTo: '/vendor/operations?source=all' })
-  expect(list.html).toContain('Created'); expect(list.html).not.toContain('Invalid Date')
+  expect(list.state.operationTo(operation).query).toMatchObject({ source: 'shared', returnTo: '/vendor/operations?source=all' })
+  expect(list.state.operationTime(operation)).toContain('Created'); expect(list.state.operationTime(operation)).not.toContain('Invalid Date')
 })
 it.each(['verified','needs_intervention'])('loads shared %s detail explicitly, translates safe reason, and offers no retry or polling', async status => {
   const detail = await page('operations/[id].vue', { ...operation, status, stage: status }, 'shared')
@@ -59,7 +63,7 @@ it.each(['verified','needs_intervention'])('loads shared %s detail explicitly, t
   expect(detail.keys[0]).toBe('vendor:operation:shared:job-id')
   expect(detail.state.canRetry.value).toBe(false); expect(detail.state.isActive.value).toBe(false)
   expect(detail.html).not.toContain('shared_execution_verified'); expect(detail.html).not.toContain('Retry operation')
-  expect(detail.html).toContain('Customer installation')
+  expect(detail.captured.find(c => c.name === 'SharedPropertyRow' && c.props.label === 'Operation')?.props.value).toContain('Set up customer workspace')
   expect(detail.captured.find(node => node.name === 'UAlert' && node.props.description?.includes('readiness'))).toBeDefined()
 })
 it('preserves legacy failed read-operation retry and active polling', async () => {
@@ -71,5 +75,5 @@ it('preserves legacy failed read-operation retry and active polling', async () =
 
 it('keeps navigation available when a combined-feed page is empty but has earlier records', async () => {
   const list = await page('operations/index.vue', { items: [], total: 28 })
-  expect(list.captured.find(node => node.name === 'SharedPagination')?.props.pages).toBe(2)
+  expect(list.captured.find(node => node.name === 'SharedDataTable')?.props.pages).toBe(2)
 })

@@ -1,16 +1,27 @@
 <script setup lang="ts">
+import { accessStateBadge } from '@/utils/accessStateBadge'
 import type { TableColumn } from '@nuxt/ui'
 import type { AdminUserSummary } from '@nasq/contracts'
-import AccessStateBadge from '@/components/access/AccessStateBadge.vue'
+import type { RouteLocationRaw } from 'vue-router'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import type { RowAction } from '@/components/shared/RowActions.vue'
 
-const props = defineProps<{ users: AdminUserSummary[] }>()
-const emit = defineEmits<{ open: [id: number] }>()
+// The users table on SharedDataTable (the settings list and a role's assigned users). A row opens the
+// account through `toFor` (background click, Enter and the name link). Pagination belongs to the page.
+const props = defineProps<{
+  users: AdminUserSummary[]
+  loading?: boolean
+  error?: unknown
+  emptyText?: string
+  toFor?: (user: AdminUserSummary) => RouteLocationRaw
+}>()
+defineEmits<{ retry: [] }>()
 const { t, locale } = useI18n()
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
-
-const actionsFor = (user: AdminUserSummary): RowAction[] => [{ label: t('access.view'), onSelect: () => emit('open', user.id) }]
+const rolesOf = (user: AdminUserSummary) => user.assignments.map(assignment => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles')
+const userTo = (user: AdminUserSummary): RouteLocationRaw => props.toFor?.(user) ?? `/settings/users/${user.id}`
+const badge = (user: AdminUserSummary) => accessStateBadge({ active: user.active, protected: user.protected })
+const actionsFor = (user: AdminUserSummary): RowAction[] => [{ label: t('access.view'), to: userTo(user) }]
 
 const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
   { accessorKey: 'id', header: t('app.recordNumber') },
@@ -24,40 +35,35 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
 </script>
 
 <template>
-  <div class="min-w-0 space-y-2">
-    <div class="hidden overflow-hidden rounded-lg bg-default ring ring-default md:block">
-      <div class="overflow-x-auto">
-        <UTable :data="users" :columns="columns" :caption="t('access.users.title')" :ui="{ caption: 'sr-only', th: '' }">
-          <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-          <template #name-cell="{ row }"><span class="font-medium">{{ row.original.name }}</span></template>
-          <template #login-cell="{ row }"><bdi dir="ltr">{{ row.original.login }}</bdi></template>
-          <template #employee-cell="{ row }">{{ row.original.employee?.name ?? t('access.users.noEmployee') }}</template>
-          <template #roles-cell="{ row }">{{ row.original.assignments.map((assignment) => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles') }}</template>
-          <template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template>
-          <template #actions-cell="{ row }">
-            <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.users.rowActions', { name: row.original.name })" /></div>
-          </template>
-        </UTable>
+  <SharedDataTable
+    :rows="users" :columns="columns" row-key="id" :row-to="userTo" :loading="loading" :error="error"
+    :empty-text="emptyText" :caption="t('access.users.title')" @retry="$emit('retry')"
+  >
+    <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+    <template #name-cell="{ row }">
+      <NuxtLink :to="userTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+    </template>
+    <template #login-cell="{ row }"><bdi dir="ltr">{{ row.original.login }}</bdi></template>
+    <template #employee-cell="{ row }">{{ row.original.employee?.name ?? t('access.users.noEmployee') }}</template>
+    <template #roles-cell="{ row }">{{ rolesOf(row.original) }}</template>
+    <template #active-cell="{ row }"><SharedStatusBadge :tone="badge(row.original).tone" :label="t(badge(row.original).labelKey)" /></template>
+    <template #actions-cell="{ row }">
+      <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.users.rowActions', { name: row.original.name })" /></div>
+    </template>
+    <template #mobile-row="{ row }">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
+          <NuxtLink :to="userTo(row)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
+        </div>
+        <SharedStatusBadge :tone="badge(row).tone" :label="t(badge(row).labelKey)" />
       </div>
-    </div>
-    <ul class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('access.users.title')">
-      <li v-for="user in users" :key="user.id" class="p-4">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <bdi class="block text-xs text-muted">#{{ user.id }}</bdi>
-            <p class="font-medium">{{ user.name }}</p>
-          </div>
-          <AccessStateBadge :active="user.active" :protected="user.protected" />
-        </div>
-        <dl class="mt-3 grid grid-cols-1 gap-2 text-xs text-muted">
-          <div><dt>{{ t('access.users.columns.login') }}</dt><dd dir="ltr">{{ user.login }}</dd></div>
-          <div><dt>{{ t('access.users.columns.employee') }}</dt><dd>{{ user.employee?.name ?? t('access.users.noEmployee') }}</dd></div>
-          <div><dt>{{ t('access.users.columns.roles') }}</dt><dd>{{ user.assignments.map((assignment) => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles') }}</dd></div>
-        </dl>
-        <div class="mt-3 flex justify-end">
-          <SharedRowActions :actions="actionsFor(user)" :label="t('access.users.rowActions', { name: user.name })" />
-        </div>
-      </li>
-    </ul>
-  </div>
+      <dl class="mt-3 grid grid-cols-1 gap-2 text-xs text-muted">
+        <div><dt>{{ t('access.users.columns.login') }}</dt><dd dir="ltr">{{ row.login }}</dd></div>
+        <div><dt>{{ t('access.users.columns.employee') }}</dt><dd>{{ row.employee?.name ?? t('access.users.noEmployee') }}</dd></div>
+        <div><dt>{{ t('access.users.columns.roles') }}</dt><dd>{{ rolesOf(row) }}</dd></div>
+      </dl>
+      <div class="mt-3 flex justify-end"><SharedRowActions :actions="actionsFor(row)" :label="t('access.users.rowActions', { name: row.name })" /></div>
+    </template>
+  </SharedDataTable>
 </template>

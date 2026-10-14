@@ -35,26 +35,35 @@ LOCALES = 'apps/web/i18n/locales/'
 # Reused building blocks that must each have a story (spec §1). Add a path here when a
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
-    'shared/PageHeader.vue', 'shared/PageState.vue', 'shared/PageContainer.vue', 'shared/UnsavedChanges.vue',
-    'shared/CreatePanel.vue',
     'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
-    'operations/ProcessForm.vue', 'operations/StateBadge.vue',
-    'shared/FormSection.vue', 'shared/RecordNumber.vue', 'settings/SettingsLayout.vue', 'shared/EmptyState.vue',
-    'shared/FilterBar.vue', 'shared/DateField.vue', 'task/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
+    'operations/ProcessForm.vue',
+    'shared/PageHeader.vue', 'shared/PageState.vue', 'shared/PageContainer.vue', 'shared/UnsavedChanges.vue',
+    'shared/LoadingSkeleton.vue', 'shared/ErrorState.vue', 'shared/ForbiddenState.vue', 'shared/NotFoundState.vue',
+    'shared/RecordPage.vue', 'shared/PropertiesPanel.vue', 'shared/PropertyRow.vue', 'shared/RecordSection.vue',
+    'shared/StatusBadge.vue',
+    'shared/CreatePanel.vue',
+    'shared/StandalonePage.vue',
+    'shared/DataTable.vue',
+    'shared/ListPage.vue', 'shared/ViewSwitch.vue',
+    'shared/BrandWordmark.vue',
+    'shared/FormSection.vue', 'shared/RecordNumber.vue', 'shared/SettingsPage.vue', 'shared/EmptyState.vue', 'shared/RouteTabs.vue',
+    'shared/FilterBar.vue', 'shared/DateField.vue', 'shared/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
     'meetings/MeetingPeopleFields.vue', 'shared/FileField.vue', 'project/ProjectFieldHelp.vue',
-    'project/ProjectStatusBadge.vue', 'task/StateBadge.vue', 'task/DeadlineBadge.vue', 'access/AccessStateBadge.vue',
-    'hr/AccessBadge.vue', 'task/PrioritySelect.vue', 'task/StateMenu.vue', 'task/TagPicker.vue',
-    'project/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'chat/ChatAttachment.vue', 'task/TaskCard.vue',
+    'task/PrioritySelect.vue', 'task/StateMenu.vue', 'shared/TagPicker.vue',
+    'project/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'shell/ShellFrame.vue', 'shell/ModuleRail.vue', 'shell/AppSidebar.vue', 'shell/ContextSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppearanceMenu.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'task/TaskCard.vue',
     'project/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
-    'project/workspace/ProjectWorkspaceTabs.vue', 'project/workspace/ProjectGovernanceTabs.vue',
+    'project/workspace/ProjectWorkspaceTabs.vue', 'project/governance/RaciMatrix.vue',
     'shared/RichText.vue', 'shared/Pagination.vue', 'shared/MetricTile.vue', 'shared/InlineConfirm.vue',
     'shared/RowActions.vue', 'shared/PersonPicker.vue', 'shared/FilterChip.vue', 'shared/FilterChoice.vue',
-    'shared/FilterField.vue', 'project/ProjectCharterForm.vue', 'my-tasks/MyTaskForm.vue',
-    'vendor/PriceBreakdown.vue', 'vendor/EntitlementSummary.vue', 'vendor/LifecycleBadge.vue', 'vendor/PriceListEditor.vue',
+    'shared/FilterField.vue', 'project/ProjectCharterForm.vue',
+    'vendor/PriceBreakdown.vue', 'vendor/EntitlementSummary.vue', 'vendor/PriceListEditor.vue',
     'vendor/CapacityLimitsEditor.vue', 'vendor/BundleForm.vue', 'vendor/PlanForm.vue', 'vendor/LifecyclePanel.vue',
-    'subscription/StateBadge.vue', 'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
-    'subscription/InvoiceLines.vue', 'subscription/BranchSummary.vue',
-    'vendor/SubscriptionSummary.vue', 'vendor/CustomerTermsForm.vue', 'vendor/InvoiceLines.vue', 'vendor/OrderStateBadge.vue', 'vendor/UsageMeters.vue',
+    'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
+    'subscription/BranchSummary.vue',
+    'vendor/SubscriptionSummary.vue', 'vendor/CustomerTermsForm.vue', 'vendor/UsageMeters.vue',
+    'shared/ChartPanel.vue', 'shared/DashboardPage.vue',
+    'shared/TimelineFrame.vue', 'shared/ConversationLayout.vue',
+    'shared/InvoiceLines.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
@@ -89,7 +98,8 @@ RETIRED_PACKAGES = {'@lucide/vue', 'lucide-vue-next'}
 # catalog agents build from; it is not a second UI library, so it cannot
 # become the drift this guard catches.
 REVIEWED_STORYBOOK_TOOLING = {
-    'storybook', '@storybook/vue3-vite', '@storybook/addon-docs',
+    'storybook', '@storybook/vue3-vite', '@storybook/addon-docs', '@storybook/addon-a11y',
+    '@axe-core/playwright',
     'msw', 'msw-storybook-addon', '@vitejs/plugin-vue', 'vite',
 }
 # Root-level dev-only agentic e2e runner tooling (e2e.config.ts, e2e/, docs/e2e.md).
@@ -397,7 +407,7 @@ OVERLAY_TAG = re.compile(r'</?(?:Dialog|AlertDialog|Sheet|Drawer|CommandDialog)(
 OVERLAY_IMPORT = re.compile(r'components/ui/(?:dialog|alert-dialog|sheet|drawer)(?:["\'/]|$)'
                             r'|components/ui/command/CommandDialog(?:\.vue)?["\']')
 NATIVE_POPUP = re.compile(r'(?:\bwindow\s*\.\s*)?\b(?:alert|confirm|prompt)\s*\(')
-OVERLAY_OWNERS = {COMPONENTS + 'GlobalSearch.vue'}
+OVERLAY_OWNERS = {COMPONENTS + 'shell/GlobalSearch.vue'}
 OVERLAY_ROOTS = (PAGES, LAYOUTS, COMPONENTS)
 
 
@@ -414,6 +424,25 @@ def overlay_errors(current: dict[str, str]) -> list[str]:
                 errors.append(path + ': overlay primitive import; a record or form is a routed page')
         if NATIVE_POPUP.search(text):
             errors.append(path + ': native alert/confirm/prompt; use SharedInlineConfirm')
+    return errors
+
+
+# Tasmim Plan 3: UCommandPalette (and Nuxt UI's two palette wrappers, UDashboardSearch and UContentSearch) render only in the approved search overlay, and no component
+# registers Nuxt UI defineShortcuts beside the shell keymap (apps/web/app/composables/shortcuts/keymap.ts).
+COMMAND_PALETTE_TAG = re.compile(r'<(?:Lazy|lazy-)?(?:UCommandPalette|u-command-palette|UDashboardSearch|u-dashboard-search|UContentSearch|u-content-search)[\s>/]')
+DEFINE_SHORTCUTS = re.compile(r'\bdefineShortcuts\s*\(')
+
+
+def keyboard_layer_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')) or '/__tests__/' in path:
+            continue
+        text = COMMENTS.sub('', source)
+        if path not in OVERLAY_OWNERS and COMMAND_PALETTE_TAG.search(text):
+            errors.append(path + ': a command palette (UCommandPalette, UDashboardSearch, UContentSearch) renders only in the header palette (shell/GlobalSearch.vue)')
+        if DEFINE_SHORTCUTS.search(text):
+            errors.append(path + ': defineShortcuts bypasses the shell keymap; use composables/shortcuts/keymap.ts')
     return errors
 
 
@@ -439,16 +468,16 @@ def whole_tree(current: dict[str, str]) -> bool:
     return APP + 'app.vue' in current
 
 
-# The theme inputs are the brand primary, the neutral palette, the official
-# --ui-radius token, the Arabic font and the display modes (DESIGN.md).
+# The theme inputs are the brand primary, the slate neutral, Nasq midnight/lime,
+# the official --ui-radius token, the Arabic font and the light/dark modes (DESIGN.md).
 ALLOWED_RECIPE_KEYS = frozenset((
     'colors', 'button', 'input', 'inputNumber', 'textarea', 'select', 'selectMenu', 'card', 'table', 'badge',
     'tabs', 'progress', 'avatar', 'dropdownMenu', 'popover', 'tooltip', 'slideover', 'modal', 'checkbox',
     'switch', 'formField',
 ))
 BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'slate'\s*\}")
-REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', ':root.cream', '.dark')
-RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radius:')
+REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--nasq-midnight', '--nasq-lime', '.dark')
+RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
 
 
 def theme_errors(current: dict[str, str]) -> list[str]:
@@ -468,8 +497,8 @@ def theme_errors(current: dict[str, str]) -> list[str]:
         for token in REQUIRED_TOKENS:
             if token not in tokens:
                 errors.append(f'{APP}assets/css/tokens.css: missing theme input {token}')
-        if not re.search(r'--ui-radius:\s*0\.5rem', tokens):
-            errors.append(f'{APP}assets/css/tokens.css: --ui-radius is the one official radius token')
+        if not re.search(r'--ui-radius:\s*0\.285714rem', tokens):
+            errors.append(f'{APP}assets/css/tokens.css: --ui-radius is the one official radius token (4px base: md 6px, lg 8px)')
     for token in RETIRED_TOKENS:
         if token in tokens:
             errors.append(f'{APP}assets/css/tokens.css: retired token {token}')
@@ -482,19 +511,22 @@ def theme_errors(current: dict[str, str]) -> list[str]:
 
 # Every internal page sits in one of the approved shells, and the width
 # vocabulary lives in CSS classes rather than ad-hoc max-width utilities.
-PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SettingsLayout', 'nasq-page-width-form',
-               'ChatWorkspace', 'TaskDetailPage')
+PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'nasq-page-width-form',
+               'ChatWorkspace', 'TaskDetailPage',
+               # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
+               'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
+               'SharedConversationLayout', 'SharedStandalonePage')
 # Route parents that render a list or <NuxtPage /> by route, plus the unshelled
 # roots. Each entry is a deliberate exception, not a backlog.
 PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
-    'index.vue', 'vendor/index.vue', 'vendor/catalog.vue', 'vendor/bundles.vue', 'vendor/plans.vue', 'vendor/customers.vue', 'vendor/invoices.vue', 'login.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
+    'index.vue', 'vendor/index.vue', 'vendor/catalog.vue', 'vendor/bundles.vue', 'vendor/plans.vue', 'vendor/customers.vue', 'vendor/invoices.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
     'projects.vue', 'project-templates.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
     'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
 ))
 AD_HOC_WIDTH = re.compile(r'nasq-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
                           r'|class="[^"]*max-w-(?:3xl|4xl|5xl|7xl)[^"]*"')
 PAGE_WIDTHS = tuple(re.compile(rf'\.nasq-page-width-{name}\s*\{{[^}}]*max-width:\s*{value}')
-                    for name, value in (('list', '100rem'), ('detail', '68rem'), ('form', '58rem')))
+                    for name, value in (('list', 'none'), ('detail', '68rem'), ('form', '58rem')))
 STATUS_TOKENS = ('--status-success', '--status-warning', '--status-info', '--status-danger',
                  '--status-danger-foreground', '--unread-count-foreground', '.nasq-status-text-warning',
                  '.nasq-unread-count')
@@ -543,33 +575,30 @@ def secret_render_errors(current: dict[str, str]) -> list[str]:
     return errors
 
 
-# DESIGN.md forbids a breadcrumb in the shell; the context heading and the
-# workspace tabs carry the context it used to duplicate.
-BREADCRUMB = re.compile(r'breadcrumb', re.I)
-BREADCRUMB_SCOPE = (
-    APP + 'layouts/default.vue', COMPONENTS + 'shell/ContextSidebar.vue', COMPONENTS + 'shell/MobileNavigation.vue',
-    APP + 'composables/useShellNavigation.ts', APP + 'assets/css/shell.css',
-    LOCALES + 'ar/common.json', LOCALES + 'en/common.json',
-)
+# The shell owns the one breadcrumb (Tasmim spec 2026-10-11 §5, DESIGN.md §3);
+# a page or another component never builds its own trail. Only the owner renders
+# the raw UBreadcrumb; the header that mounts it may use <ShellBreadcrumb> only
+# (any case, kebab or Pascal).
+BREADCRUMB_OWNER = COMPONENTS + 'shell/ShellBreadcrumb.vue'
+BREADCRUMB_HEADER = COMPONENTS + 'shell/ShellHeader.vue'
+BREADCRUMB_TAG = re.compile(r'<(?:u|shell)-?breadcrumb\b', re.I)
+RAW_BREADCRUMB_TAG = re.compile(r'<u-?breadcrumb\b', re.I)
 
 
 def breadcrumb_errors(current: dict[str, str]) -> list[str]:
-    return [path + ': no breadcrumb in the shell (DESIGN.md)'
-            for path in BREADCRUMB_SCOPE if BREADCRUMB.search(COMMENTS.sub('', current.get(path, '')))]
+    errors = []
+    for path, source in sorted(current.items()):
+        if not (path.startswith((PAGES, LAYOUTS, COMPONENTS)) and path.endswith('.vue')) or path == BREADCRUMB_OWNER:
+            continue
+        pattern = RAW_BREADCRUMB_TAG if path == BREADCRUMB_HEADER else BREADCRUMB_TAG
+        if pattern.search(COMMENTS.sub('', source)):
+            errors.append(path + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)')
+    return errors
 
 
-# Styling belongs to the shared sheets and Tailwind utilities. These files carry
-# a scoped block for a real reason (print, a third-party editor, canvas drawing);
-# a sixteenth owner is drift, so it needs review and an entry here.
-STYLE_OWNERS = frozenset((
-    COMPONENTS + 'settings/SettingsLayout.vue', COMPONENTS + 'shared/DashboardChart.client.vue',
-    COMPONENTS + 'shared/RichText.vue', COMPONENTS + 'project/ProjectOverview.vue',
-    COMPONENTS + 'project/dashboard/ProjectDashboardCharts.vue', COMPONENTS + 'task/Timeline.vue',
-    COMPONENTS + 'hr/DepartmentTree.vue', COMPONENTS + 'task/DescriptionEditor.vue',
-    COMPONENTS + 'hr/DocumentEditor.vue', COMPONENTS + 'hr/DepartmentOrgChart.vue',
-    COMPONENTS + 'meetings/MeetingMinutesDocument.vue', PAGES + 'login.vue', PAGES + 'account.vue',
-    PAGES + 'projects/[id]/charter.vue', PAGES + 'meetings/[id]/print.vue',
-))
+# Phase7: recipes live in shared sheets and Tailwind utilities.
+# Canvas coordinates and tenant colour variables remain data-bound.
+STYLE_OWNERS: frozenset[str] = frozenset()
 
 
 def scoped_style_errors(current: dict[str, str]) -> list[str]:
@@ -705,6 +734,39 @@ def toolbar_errors(current: dict[str, str]) -> list[str]:
             and SEARCH_CONTROL.search(source) and 'FilterBar' not in source]
 
 
+# Tasmim Plan 4 (spec §6): one StatusBadge driven by application tone maps, FilterCard
+# folded into FilterBar, and every contract template and state kept in Storybook.
+# Every *Badge.vue is rejected except the shared one; list a legitimate one here with a reason.
+STATUS_BADGE_OWNER = COMPONENTS + 'shared/StatusBadge.vue'
+BADGE_FILE = re.compile(r'Badge\.vue$')
+BADGE_ALLOWED = frozenset((STATUS_BADGE_OWNER,))
+FILTER_CARD_FILE = COMPONENTS + 'shared/FilterCard.vue'
+FILTER_CARD_TAG = re.compile(r'<(?:Lazy)?(?:Shared)?FilterCard\b|<(?:lazy-)?(?:shared-)?filter-card\b')
+CONTRACT_TEMPLATES: tuple[str, ...] = tuple(COMPONENTS + 'shared/' + name + '.vue' for name in (
+    'LoadingSkeleton', 'ErrorState', 'ForbiddenState', 'NotFoundState', 'EmptyState', 'PageState',
+    'StatusBadge', 'FilterBar', 'InvoiceLines', 'RouteTabs', 'SettingsPage',
+    'DataTable', 'ViewSwitch', 'ListPage', 'RecordPage', 'PropertiesPanel', 'PropertyRow', 'RecordSection',
+    'CreatePanel', 'FormSection', 'UnsavedChanges',
+    'DashboardPage', 'ChartPanel', 'TimelineFrame', 'ConversationLayout', 'StandalonePage',
+))
+
+
+def template_errors(current: dict[str, str]) -> list[str]:
+    errors = [path + ': one StatusBadge (shared/StatusBadge.vue) with an application tone map; no per-app badge'
+              for path in sorted(current)
+              if path.startswith(COMPONENTS) and BADGE_FILE.search(path) and path not in BADGE_ALLOWED]
+    if FILTER_CARD_FILE in current:
+        errors.append(FILTER_CARD_FILE + ': FilterCard is folded into FilterBar')
+    errors.extend(path + ': FilterCard is folded into FilterBar; use SharedFilterBar'
+                  for path, source in sorted(current.items())
+                  if path.startswith(APP) and path.endswith('.vue') and FILTER_CARD_TAG.search(COMMENTS.sub('', source)))
+    if whole_tree(current):
+        listed = set(STORYBOOK_COMPONENTS)
+        errors.extend(path + ': contract template must be listed in STORYBOOK_COMPONENTS'
+                      for path in CONTRACT_TEMPLATES if path not in listed)
+    return errors
+
+
 DECLARATION_LINE = re.compile(r'^\s*(?:import|export)\b')
 
 
@@ -790,6 +852,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     errors.extend(retired_pattern_errors(current))
     errors.extend(auto_import_errors(current))
     errors.extend(overlay_errors(current))
+    errors.extend(keyboard_layer_errors(current))
     errors.extend(recipe_errors(current))
     errors.extend(theme_errors(current))
     errors.extend(page_shell_errors(current))
@@ -801,6 +864,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     errors.extend(retired_artifact_errors(current))
     errors.extend(hr_boundary_errors(current))
     errors.extend(toolbar_errors(current))
+    errors.extend(template_errors(current))
     return errors
 
 

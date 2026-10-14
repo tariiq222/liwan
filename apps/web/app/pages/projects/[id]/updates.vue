@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { inject } from 'vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import ProjectUpdateList from '@/components/project/ProjectUpdateList.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
-const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const projectId = computed(() => {
   const value = Number(route.params.id)
   return Number.isInteger(value) && value > 0 ? value : null
@@ -22,25 +19,18 @@ const isListRoute = computed(() => {
   return rest === '' || rest === '/new'
 })
 
-function openCreate() {
-  if (!projectId.value || !project.value?.can_manage || !hydrated.value) return
-  router.push({ path: `/projects/${projectId.value}/updates/new`, query: returnToQuery(route.fullPath) })
-}
+const createTo = computed(() => project.value?.can_manage && project.value.active ? { path: `/projects/${projectId.value}/updates/new`, query: returnToQuery(route.fullPath) } : undefined)
 </script>
 
 <template>
-  <SharedPageContainer v-if="isListRoute" width="list">
-    <SharedPageHeader
-      v-if="!isProjectOverlay"
-      :title="t('projects.refresh.workspace.updatesTitle')"
-      :description="t('projects.updates.emptyHint')"
-    >
-      <template #actions>
-        <UButton v-if="project?.can_manage" data-testid="project-updates-create" icon="i-lucide-plus" :disabled="!hydrated" @click="openCreate">
-          {{ t('projects.updates.new') }}
-        </UButton>
-      </template>
-    </SharedPageHeader>
+  <SharedListPage
+    v-if="isListRoute"
+    hide-header
+    :title="t('projects.refresh.workspace.updatesTitle')"
+    :create-to="createTo"
+    :create-label="t('projects.updates.new')"
+    create-test-id="project-updates-create"
+  >
     <SharedPageState
       :loading="isLoading && !project"
       :error="notFound ? null : error"
@@ -48,8 +38,8 @@ function openCreate() {
       :empty-text="notFound ? t('projects.notFound') : t('projects.empty')"
       @retry="refetch"
     >
-      <ProjectUpdateList v-if="project" :project-id="project.id" :can-manage="project.can_manage" :show-create="false" />
+      <ProjectUpdateList v-if="project" :project-id="project.id" :can-manage="project.can_manage" />
     </SharedPageState>
-  </SharedPageContainer>
+  </SharedListPage>
   <NuxtPage />
 </template>

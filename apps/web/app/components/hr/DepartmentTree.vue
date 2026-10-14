@@ -152,34 +152,3 @@ function toggle(node: DepartmentTreeNode) {
   </UCard>
   <p v-else class="rounded-lg ring ring-default bg-default overflow-hidden py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
 </template>
-
-<style scoped>
-.dept-tree-row {
-  --dept-indent: 1.25rem;
-  padding-inline-start: calc(0.75rem + (var(--dept-depth, 0) * var(--dept-indent)));
-}
-@media (max-width: 640px) {
-  .dept-tree-row { --dept-indent: 0.7rem; }
-}
-.dept-tree-guide {
-  position: absolute;
-  inset-inline-start: calc(0.75rem + ((var(--dept-depth) - 1) * var(--dept-indent)) + 0.95rem);
-  inset-block-start: 0;
-  height: 50%;
-  width: 1px;
-  background: var(--ui-border);
-  pointer-events: none;
-}
-.dept-tree-guide::after {
-  content: "";
-  position: absolute;
-  inset-inline-start: 0;
-  inset-block-end: 0;
-  width: calc(var(--dept-indent) - 0.3rem);
-  height: 1px;
-  background: var(--ui-border);
-}
-.dept-tree-chevron { transition: transform 150ms ease-out; }
-.dept-tree-chevron-collapsed { transform: rotate(-90deg); }
-.dept-tree-chevron-collapsed:dir(rtl) { transform: rotate(90deg); }
-</style>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { invoiceStatusBadge, paymentAttemptBadge } from '@/utils/commercialBadges'
 import { formatVendorMoney } from '@/utils/vendorCommercial'
-import { invoiceStatusColor, invoicesReturnTo, isCreditRelated, isNotAvailable } from '@/utils/vendorSubscriptions'
+import { invoicesReturnTo, isCreditRelated, isNotAvailable, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
+import { formatNasqDate, formatNasqDateTime } from '@/composables/calendarDate'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
 const { can } = useVendorContext()
@@ -14,57 +16,48 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
   () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
 )
-const attemptTime = (value: string) => new Date(value).toLocaleString(locale.value)
+const attemptTime = (value: string) => formatNasqDateTime(value, locale.value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatVendorMoney(m, locale.value)
-const date = (v: string | null) => (v ? new Date(v).toLocaleDateString(locale.value) : t('app.notAvailable'))
+const date = (v: string | null) => (v ? formatNasqDate(v, locale.value) : t('app.notAvailable'))
 </script>
 <template>
-  <SharedPageContainer width="list">
-    <SharedPageHeader :title="data ? (data.number ?? t('vendor.invoices.draftNumber')) : t('vendor.invoices.details')" :back-to="backTo" />
+
+    <SharedRecordPage :title="data ? (data.number ?? t('vendor.invoices.draftNumber')) : t('vendor.invoices.details')" :back-to="backTo"  :loading="pending" :error="unavailable ? undefined : error" @retry="refresh">
     <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.invoices.notAvailable')" :description="t('vendor.invoices.notAvailableHint')" />
-    <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
-      <div v-if="data" class="space-y-6">
+
+      <div v-if="data && !unavailable" class="space-y-6">
         <UAlert color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.invoices.notOfficial')" :description="t('vendor.invoices.notOfficialHint')" />
-        <UCard>
-          <div class="flex flex-wrap items-center justify-between gap-3"><UBadge :color="invoiceStatusColor(data.status)" variant="subtle">{{ t(`vendor.invoices.status.${data.status}`) }}</UBadge><span class="text-sm text-muted">{{ t(`vendor.invoices.kind.${data.kind}`) }}</span></div>
-          <dl class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div><dt class="text-sm text-muted">{{ t('vendor.invoices.period') }}</dt><dd class="tabular-nums"><bdi dir="ltr">{{ data.period_start }} → {{ data.period_end }}</bdi></dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.invoices.issuedAt') }}</dt><dd>{{ date(data.issued_at) }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.invoices.dueAt') }}</dt><dd>{{ date(data.due_at) }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.invoices.paidAt') }}</dt><dd>{{ date(data.paid_at) }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('vendor.invoices.customer') }}</dt><dd><NuxtLink :to="{ path: `/vendor/customers/${encodeURIComponent(data.customer_id)}` }">{{ t('vendor.invoices.openCustomer') }}</NuxtLink></dd></div>
-          </dl>
-        </UCard>
-        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.invoices.lines') }}</h2></template><VendorInvoiceLines :lines="data.lines" /></UCard>
-        <UCard>
-          <dl class="space-y-2 tabular-nums">
-            <div class="flex justify-between gap-3"><dt class="text-muted">{{ t('vendor.invoices.subtotal') }}</dt><dd>{{ money(data.subtotal) }}</dd></div>
-            <div class="flex justify-between gap-3"><dt class="text-muted">{{ t('vendor.invoices.vat') }}</dt><dd>{{ money(data.tax) }}</dd></div>
-            <div class="flex justify-between gap-3 font-semibold"><dt>{{ t('vendor.invoices.total') }}</dt><dd>{{ money(data.total) }}</dd></div>
-          </dl>
-          <p class="mt-2 text-xs text-muted">{{ t('vendor.invoices.vatNote') }}</p>
-        </UCard>
-        <UCard v-if="canBilling"><template #header><h2 class="font-semibold">{{ t('vendor.invoices.attempts') }}</h2></template>
+
+        <SharedRecordSection :title="t('vendor.invoices.lines')"><SharedInvoiceLines :lines="vendorInvoiceLineViews(data.lines, t, locale)" :totals="[{label:t('vendor.invoices.subtotal'),value:money(data.subtotal)},{label:t('vendor.invoices.vat'),value:money(data.tax)},{label:t('vendor.invoices.total'),value:money(data.total)}]" /><p class="text-xs text-muted">{{ t('vendor.invoices.vatNote') }}</p></SharedRecordSection>
+
+        <SharedRecordSection v-if="canBilling" :title="t('vendor.invoices.attempts')">
           <SharedPageState :loading="attemptsPending" :error="attemptsError" @retry="refreshAttempts">
             <SharedEmptyState v-if="!attempts?.items.length" :title="t('vendor.invoices.attemptsNone')" icon="i-lucide-credit-card" />
             <ul v-else class="divide-y divide-default">
               <li v-for="attempt in attempts.items" :key="attempt.id" class="flex flex-wrap items-center justify-between gap-3 py-3" data-testid="payment-attempt">
-                <UBadge color="neutral" variant="subtle">{{ t(`vendor.invoices.attemptStatus.${attempt.status}`) }}</UBadge>
+                <SharedStatusBadge :tone="paymentAttemptBadge(attempt.status).tone" :label="t(paymentAttemptBadge(attempt.status).labelKey)" />
                 <span class="tabular-nums">{{ money(attempt.amount) }}</span>
                 <time :datetime="attempt.created_at" class="text-sm text-muted">{{ attemptTime(attempt.created_at) }}</time>
               </li>
             </ul>
           </SharedPageState>
-        </UCard>
-        <UCard><template #header><h2 class="font-semibold">{{ t('vendor.invoices.adjustments') }}</h2></template>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('vendor.invoices.adjustments')">
           <p class="text-sm" :class="isCreditRelated(data) ? '' : 'text-muted'">{{ isCreditRelated(data) ? t('vendor.invoices.creditPending') : t('vendor.invoices.adjustmentsNone') }}</p>
           <p class="mt-1 text-xs text-muted">{{ t('vendor.invoices.immutable') }}</p>
-        </UCard>
+        </SharedRecordSection>
         <details class="text-sm"><summary class="cursor-pointer text-muted">{{ t('vendor.customers.technical') }}</summary>
           <dl class="mt-3 space-y-2"><div><dt>{{ t('vendor.invoices.techId') }}</dt><dd dir="ltr">{{ data.id }}</dd></div><div v-if="data.order_id"><dt>{{ t('vendor.invoices.techOrder') }}</dt><dd dir="ltr">{{ data.order_id }}</dd></div></dl>
         </details>
       </div>
-    </SharedPageState>
-  </SharedPageContainer>
+
+  <template #aside><SharedPropertiesPanel v-if="data"><SharedPropertyRow :label="t('vendor.common.status')"><SharedStatusBadge :tone="invoiceStatusBadge(data.status, 'vendor.invoices.status').tone" :label="t(invoiceStatusBadge(data.status, 'vendor.invoices.status').labelKey)" /></SharedPropertyRow><SharedPropertyRow :label="t('vendor.invoices.kind.' + data.kind)" :value="t(`vendor.invoices.kind.${data.kind}`)" />
+            <SharedPropertyRow :label="t('vendor.invoices.period')"><bdi dir="ltr">{{ data.period_start }} → {{ data.period_end }}</bdi></SharedPropertyRow>
+            <SharedPropertyRow v-if="data.issued_at" :label="t('vendor.invoices.issuedAt')"><bdi dir="ltr">{{ date(data.issued_at) }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('vendor.invoices.issuedAt')" :value="null" />
+            <SharedPropertyRow v-if="data.due_at" :label="t('vendor.invoices.dueAt')"><bdi dir="ltr">{{ date(data.due_at) }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('vendor.invoices.dueAt')" :value="null" />
+            <SharedPropertyRow v-if="data.paid_at" :label="t('vendor.invoices.paidAt')"><bdi dir="ltr">{{ date(data.paid_at) }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('vendor.invoices.paidAt')" :value="null" />
+            <SharedPropertyRow :label="t('vendor.invoices.customer')"><NuxtLink :to="{ path: `/vendor/customers/${encodeURIComponent(data.customer_id)}` }">{{ t('vendor.invoices.openCustomer') }}</NuxtLink></SharedPropertyRow>
+          </SharedPropertiesPanel></template>
+</SharedRecordPage>
 </template>

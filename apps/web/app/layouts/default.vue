@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { isWorkspaceThemeRoute } from '@/utils/workspacePresentation'
-const { localeProperties } = useI18n()
-const dir = computed(() => localeProperties.value.dir ?? 'ltr')
 const route = useRoute()
 const workspaceTheme = computed(() => isWorkspaceThemeRoute(route.path))
-const projectTheme = computed(() => /^\/(projects|project-templates)(\/|$)/.test(route.path) || /^\/settings\/projects(\/|$)/.test(route.path))
-// Portaled project sheets, notifications and menus inherit the same tokens.
-useHead(() => ({ htmlAttrs: { 'data-project-theme': projectTheme.value ? 'true' : undefined, 'data-workspace-theme': workspaceTheme.value ? 'true' : undefined } }))
 // The deleted route sheet restored focus when it closed; an ordinary page has
 // no such moment, so a keyboard or screen-reader user pressing Escape on a
 // record used to land on the list with focus on <body>. Moving focus to the
@@ -46,13 +41,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div data-nasq-shell class="nasq-shell" :data-direction="dir">
-    <ShellHeader />
-    <AppSidebar />
-    <div class="nasq-shell-workspace">
-      <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="nasq-shell-main focus:outline-none" :class="{ 'nasq-page-content-motion': pageMotionActive }">
-        <slot />
-      </main>
-    </div>
-  </div>
+  <ShellFrame>
+    <template #header><ShellHeader /></template>
+    <template #sidebar><ShellAppSidebar /></template>
+    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="nasq-shell-main focus:outline-none" :class="{ 'nasq-page-content-motion': pageMotionActive }">
+      <slot />
+    </main>
+  </ShellFrame>
 </template>

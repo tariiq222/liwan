@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import type { ProjectDetail } from '@nasq/contracts'
+import type { ProjectDetail, ProjectStatus } from '@nasq/contracts'
 import { formatCalendarDate } from '@/composables/calendarDate'
+import { projectStatusBadge } from '@/composables/projectStatus'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
+import { badgeLabel } from '@/utils/statusBadge'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
-import ProjectStatusBadge from './ProjectStatusBadge.vue'
 
+// The main column of the project record: progress figures, tasks that need attention, the latest
+// update. The page puts the properties in the record's aside. Status and manager are shown once, by the
+// workspace frame, and are changed only in project settings.
 const props = defineProps<{ project: ProjectDetail }>()
 const { t, locale } = useI18n()
+const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const route = useRoute()
 const projectId = computed(() => props.project.id)
 const milestones = useMilestones(projectId)
@@ -20,11 +25,6 @@ const nearestMilestone = computed(() => {
 })
 const latestUpdate = computed(() => [...(updates.data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null)
 const openTaskCount = computed(() => Math.max(0, props.project.task_count - props.project.closed_task_count))
-const dateRange = computed(() => {
-  if (!props.project.date_start && !props.project.date_end) return t('projects.overview.noDates')
-  const format = (value: string | null) => value ? formatCalendarDate(value, locale.value) : '—'
-  return `${format(props.project.date_start)} — ${format(props.project.date_end)}`
-})
 
 function dateLabel(value: string | null) {
   return value ? formatCalendarDate(value, locale.value) : '—'
@@ -32,11 +32,8 @@ function dateLabel(value: string | null) {
 </script>
 
 <template>
-  <div data-testid="project-overview" class="nasq-page-width-detail project-overview space-y-6">
-    <!-- Status is shown by the frame header and changed only in project settings. -->
-    <p class="text-sm text-muted"><bdi>{{ dateRange }}</bdi></p>
-
-    <section class="project-overview-stats grid gap-6">
+  <div data-testid="project-overview" class="@container min-w-0 space-y-6">
+    <section class="grid gap-6 @min-[26rem]:grid-cols-2 @min-[36rem]:grid-cols-3">
       <SharedMetricTile
         icon="i-lucide-chart-no-axes-column-increasing"
         :label="t('projects.overview.progress')"
@@ -53,33 +50,28 @@ function dateLabel(value: string | null) {
         :value="openTaskCount"
         :hint="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })"
       />
+      <!-- Localized Arabic dates contain bidi marks; preserve the locale direction. -->
       <SharedMetricTile
-        icon="i-lucide-flag"
         :label="t('projects.overview.nextMilestone')"
         :value="nearestMilestone ? dateLabel(nearestMilestone.deadline) : null"
         :hint="nearestMilestone?.name ?? t('projects.overview.noUpcomingMilestone')"
       />
     </section>
 
-    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-      <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
-      <UCard data-testid="project-overview-latest-update">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <h2 class="text-lg font-semibold text-highlighted">{{ t('projects.overview.latestUpdate') }}</h2>
-            <NuxtLink
-              :to="`/projects/${project.id}/updates`"
-              class="text-xs text-muted underline underline-offset-4 hover:text-highlighted"
-            >
-              {{ t('projects.refresh.workspace.viewAllUpdates') }}
-            </NuxtLink>
-          </div>
-        </template>
-        <USkeleton v-if="updates.isLoading.value" class="h-10 w-full" />
+    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
+
+    <SharedRecordSection data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
+      <template #actions>
+        <NuxtLink :to="`/projects/${project.id}/updates`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
+          {{ t('projects.refresh.workspace.viewAllUpdates') }}
+        </NuxtLink>
+      </template>
+      <div class="rounded-lg bg-default p-4 ring ring-default">
+        <SharedLoadingSkeleton v-if="updates.isLoading.value" :count="1" />
         <SharedPageState v-else-if="updates.error.value" :error="updates.error.value" @retry="updates.refetch()" />
         <div v-else-if="latestUpdate" class="grid min-w-0 gap-2">
           <div class="flex min-w-0 items-center gap-2">
-            <ProjectStatusBadge :status="latestUpdate.status" />
+            <SharedStatusBadge v-bind="projectBadge(latestUpdate.status)" />
             <span class="truncate text-sm font-medium">{{ latestUpdate.name }}</span>
           </div>
           <p class="flex flex-wrap gap-x-2 text-xs text-muted">
@@ -89,29 +81,7 @@ function dateLabel(value: string | null) {
           </p>
         </div>
         <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
-      </UCard>
-    </div>
+      </div>
+    </SharedRecordSection>
   </div>
 </template>
-
-<style scoped>
-.project-overview-stats {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-@container project-overview (min-width: 35rem) {
-  .project-overview-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container project-overview (min-width: 48rem) {
-  .project-overview-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-.project-overview {
-  container: project-overview / inline-size;
-}
-</style>

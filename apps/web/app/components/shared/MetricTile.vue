@@ -8,7 +8,7 @@ const props = defineProps<{
   /** Unit shown after the value, e.g. "%". */
   unit?: string
   hint?: string
-  /** `ltr` for amounts, percentages and dates so digits and symbols keep their order. */
+  /** `ltr` for numbers and unmarked dates; bidi-marked dates inherit the locale direction. */
   valueDir?: 'ltr' | 'rtl'
 }>()
 const { t } = useI18n()
@@ -23,7 +23,7 @@ const known = computed(() => display.value !== t('app.notAvailable'))
     </span>
     <div class="grid min-w-0 flex-1 gap-1">
       <p class="text-sm text-muted">{{ props.label }}</p>
-      <p class="text-2xl font-semibold tracking-tight text-highlighted tabular-nums" :dir="props.valueDir">
+      <p class="wrap-anywhere text-2xl font-semibold tracking-tight text-highlighted tabular-nums" :dir="props.valueDir">
         {{ display }}<span v-if="known && props.unit" class="ms-1 text-sm font-normal tracking-normal text-muted">{{ props.unit }}</span>
       </p>
       <p v-if="props.hint" class="text-xs text-muted">{{ props.hint }}</p>

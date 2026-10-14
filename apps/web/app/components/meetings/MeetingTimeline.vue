@@ -4,7 +4,7 @@ import type { MeetingListItem } from '@nasq/contracts'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { groupMeetingsByMonth, meetingTimelinePhase } from '@/utils/meetingWorkspace'
-import { meetingStateColor } from '@/utils/meetingStatus'
+import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const props = withDefaults(defineProps<{
@@ -60,27 +60,44 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
 
 <template>
   <SharedEmptyState v-if="!meetings.length" :title="t('meetingTimeline.empty')" />
-  <div v-else-if="view === 'table'" class="min-w-0">
-    <ul class="grid divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden">
-      <li v-for="meeting in meetings" :key="meeting.id" class="grid gap-2 p-3" :class="meeting.id === nextMeetingId ? 'bg-primary/10' : ''">
+  <SharedDataTable
+    v-else-if="view === 'table'"
+    :rows="meetings"
+    :columns="tableColumns"
+    row-key="id"
+    :row-to="meetingTo"
+    :caption="t('meetingTimeline.session')"
+  >
+    <template #reference-cell="{ row }"><RecordNumber :value="row.original.reference || row.original.id" />
+    </template>
+    <template #name-cell="{ row }">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        <NuxtLink :to="meetingTo(row.original)" class="min-w-0 font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+        <UBadge v-if="row.original.id === nextMeetingId" color="primary" variant="subtle">{{ t('meetingTimeline.next') }}</UBadge>
+      </div>
+    </template>
+    <template #meeting_date-cell="{ row }"><span class="text-muted">{{ meetingDate(row.original) }}</span></template>
+    <template #state-cell="{ row }">
+      <SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" />
+      <span class="ms-2 text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span>
+    </template>
+    <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
+    <template #actions-cell="{ row }"><UButton color="primary" variant="link" size="sm" class="p-0" :to="meetingTo(row.original, 'minutes')" :label="t('meetingTimeline.openMinutes')" />
+    </template>
+    <template #mobile-row="{ row }">
+      <div class="grid gap-2">
         <div class="flex flex-wrap items-start justify-between gap-2">
-          <UButton color="primary" variant="link" class="min-w-0 p-0 font-medium whitespace-normal text-start" :to="meetingTo(meeting)">{{ meeting.name }}</UButton>
-          <UBadge :color="meetingStateColor(meeting.state)" variant="subtle" class="shrink-0">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
+          <NuxtLink :to="meetingTo(row)" class="min-w-0 font-medium text-primary">{{ row.name }}</NuxtLink>
+          <div class="flex shrink-0 items-center gap-1">
+            <UBadge v-if="row.id === nextMeetingId" color="primary" variant="subtle">{{ t('meetingTimeline.next') }}</UBadge>
+            <SharedStatusBadge v-bind="meetingStateBadgeProps(row.state, t)" />
+          </div>
         </div>
-        <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted"><RecordNumber :value="meeting.reference || meeting.id" /><span>{{ meetingDate(meeting) }}</span><span>{{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }) }}</span></div>
-        <UButton color="primary" variant="link" size="sm" class="w-fit p-0" :to="meetingTo(meeting, 'minutes')" :label="t('meetingTimeline.openMinutes')" />
-      </li>
-    </ul>
-    <div class="hidden overflow-x-auto rounded-lg bg-default ring ring-default md:block">
-      <UTable :data="meetings" :columns="tableColumns" :ui="{ base: 'min-w-[760px]' }">
-        <template #reference-cell="{ row }"><RecordNumber :value="row.original.reference || row.original.id" /></template>
-        <template #name-cell="{ row }"><UButton color="primary" variant="link" class="p-0 font-medium whitespace-normal text-start" :to="meetingTo(row.original)">{{ row.original.name }}</UButton></template>
-        <template #meeting_date-cell="{ row }"><span class="text-muted">{{ meetingDate(row.original) }}</span></template>
-        <template #state-cell="{ row }"><UBadge :color="meetingStateColor(row.original.state)" variant="subtle">{{ t(`meetingsUi.state.${row.original.state}`) }}</UBadge><span class="ms-2 text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span></template>
-        <template #actions-cell="{ row }"><UButton color="primary" variant="link" size="sm" class="p-0" :to="meetingTo(row.original, 'minutes')" :label="t('meetingTimeline.openMinutes')" /></template>
-      </UTable>
-    </div>
-  </div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted"><RecordNumber :value="row.reference || row.id" /><span>{{ meetingDate(row) }}</span><span>{{ t('meetingsUi.openCount', { count: row.open_resolution_count }) }}</span></div>
+        <UButton color="primary" variant="link" size="sm" class="w-fit p-0" :to="meetingTo(row, 'minutes')" :label="t('meetingTimeline.openMinutes')" />
+      </div>
+    </template>
+  </SharedDataTable>
   <div v-else class="space-y-6">
     <section v-for="group in groups" :key="group.key" :aria-labelledby="`meeting-month-${group.key}`">
       <h3 :id="`meeting-month-${group.key}`" class="mb-2 text-sm font-semibold text-muted">{{ group.label }}</h3>
@@ -91,7 +108,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
             <RecordNumber :value="meeting.reference || meeting.id" class="shrink-0" />
             <UButton color="primary" variant="link" class="min-w-0 flex-1 p-0 font-medium whitespace-normal text-start" :to="meetingTo(meeting)">{{ meeting.name }}</UButton>
             <UBadge v-if="meeting.id === nextMeetingId" color="primary" variant="subtle">{{ t('meetingTimeline.next') }}</UBadge>
-            <UBadge :color="meetingStateColor(meeting.state)" variant="subtle">{{ t(`meetingsUi.state.${meeting.state}`) }}</UBadge>
+            <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" />
           </div>
           <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
             <time :datetime="meeting.start_datetime || meeting.meeting_date || undefined" dir="ltr">{{ meetingDate(meeting) }}</time>

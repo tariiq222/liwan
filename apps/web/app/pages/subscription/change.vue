@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Quote } from '@nasq/commercial-contracts'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { QUOTE_IS_EXPIRED, safeIdemAction } from '@/utils/subscription'
 import { safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
@@ -49,9 +48,9 @@ async function accept() {
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
-  <SettingsLayout width="form">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('subscription.change.title')" :description="t('subscription.change.description')" back-to="/subscription" />
-    <p v-if="!allowed" class="text-muted">{{ t('subscription.forbidden') }}</p>
+    <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
       <form class="space-y-6" @submit.prevent="review">
         <UFormField :label="t('subscription.change.plan')"><USelect v-model="planId" :items="plans.map(p => ({ value: p.id, label: p.name }))" :placeholder="t('subscription.change.pickPlan')" :disabled="!hydrated" class="w-full" /></UFormField>
@@ -70,5 +69,5 @@ definePageMeta({ middleware: 'customer-commercial' })
       </form>
       <SharedUnsavedChanges :dirty="dirty" />
     </SharedPageState>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

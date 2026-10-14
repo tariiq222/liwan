@@ -62,7 +62,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useSsrQuerySeed: () => undefined, navigateTo: navigate,
     ApiError: class ApiError extends Error {},
     TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, FilterBar: {}, DocumentEditor: {},
-    ProjectStatusBadge: {}, ProjectWorkspaceTabs: {}, ProjectGovernanceTabs: {},
+    projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', ProjectWorkspaceTabs: {},
     ...overrides,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -96,13 +96,13 @@ describe('reviewed page navigation and form feedback', () => {
     const link = await propsFor(list, 'NuxtLink')
     const archive = await loadPage('archived-tasks.vue', link!.to as RouteLocationRaw)
     expect(archive.route.query.project_id).toBe('7')
-    expect((await propsFor(archive, 'SharedPageHeader'))!['back-to']).toBe(origin)
+    expect((await propsFor(archive, 'SharedListPage'))!['back-to']).toBe(origin)
     list.stop(); archive.stop()
   })
 
   it.each([undefined, 'https://evil.example', '//evil.example', '/settings/users'])('uses the project task fallback for an absent or unsafe archive return target %s', async returnTo => {
     const page = await loadPage('archived-tasks.vue', { path: '/archived-tasks', query: { project_id: '7', returnTo } })
-    expect((await propsFor(page, 'SharedPageHeader'))!['back-to']).toBe('/projects/7/tasks')
+    expect((await propsFor(page, 'SharedListPage'))!['back-to']).toBe('/projects/7/tasks')
     page.stop()
   })
 

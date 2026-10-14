@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createBrandTheme, DEFAULT_PRIMARY, MODE_SURFACES } from '../brandTheme'
+import { createBrandTheme, darkSolid, DEFAULT_PRIMARY, MODE_SURFACES } from '../brandTheme'
+import { contrastRatio, DARK_SURFACES } from '../nasqPalette'
 
 function channel(value: number) {
   const normalized = value / 255
@@ -77,16 +78,6 @@ describe('createBrandTheme', () => {
       expect(theme['--sidebar-ring']).toBe(theme['--ring'])
     })
 
-  it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', DEFAULT_PRIMARY])('preserves %s in cream mode with readable links and focus rings', (primary) => {
-    const theme = createBrandTheme(primary, 'cream')
-    expect(theme['--primary']).toBe(primary)
-    expect(contrast(primary, theme['--primary-foreground']!)).toBeGreaterThanOrEqual(4.5)
-    for (const surface of MODE_SURFACES.cream) {
-      expect(contrast(theme['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
-      expect(contrast(theme['--ring']!, surface)).toBeGreaterThanOrEqual(3)
-    }
-  })
-
   it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', DEFAULT_PRIMARY])('preserves %s in dark mode with readable links and focus rings', (primary) => {
     const theme = createBrandTheme(primary, 'dark')
     expect(theme['--primary']).toBe(primary)
@@ -100,7 +91,7 @@ describe('createBrandTheme', () => {
   })
 
   it.each(['#000000', '#18181b', '#ffffff', '#ffff00', '#0055ff'])('keeps primary fill readable on %s surfaces', (primary) => {
-    for (const mode of ['light', 'cream', 'dark'] as const) {
+    for (const mode of ['light', 'dark'] as const) {
       const surfaces = MODE_SURFACES[mode]
       const theme = createBrandTheme(primary, mode)
       expect(contrast(theme['--primary-fill']!, theme['--primary-fill-foreground']!)).toBeGreaterThanOrEqual(4.5)
@@ -111,7 +102,7 @@ describe('createBrandTheme', () => {
   })
 
   it.each(['#000000', '#ffffff', '#808080', '#ffff00', DEFAULT_PRIMARY])('keeps fill hover and pressed tones distinct and readable for %s', (primary) => {
-    for (const mode of ['light', 'cream', 'dark'] as const) {
+    for (const mode of ['light', 'dark'] as const) {
       const theme = createBrandTheme(primary, mode)
       expect(new Set([theme['--primary-fill'], theme['--primary-fill-hover'], theme['--primary-fill-active']]).size).toBe(3)
       for (const state of ['primary-fill', 'primary-fill-hover', 'primary-fill-active']) {
@@ -121,13 +112,6 @@ describe('createBrandTheme', () => {
         expect(contrast(theme['--primary-fill']!, surface), `${primary} ${mode} ${surface}`).toBeGreaterThanOrEqual(3)
       }
     }
-  })
-
-  it('lifts a near-black shell in dark mode without changing the stored primary', () => {
-    const theme = createBrandTheme(DEFAULT_PRIMARY, 'dark')
-    expect(theme['--primary']).toBe(DEFAULT_PRIMARY)
-    expect(theme['--shell-background']).not.toBe(DEFAULT_PRIMARY)
-    expect(contrast(theme['--shell-background']!, theme['--shell-foreground']!)).toBeGreaterThanOrEqual(4.5)
   })
 
   it('derives chart tones from the configured primary color', () => {
@@ -147,7 +131,7 @@ describe('createBrandTheme', () => {
 
   it.each(['#000000', '#ffffff', '#0055ff', '#d14a00', '#a855f7'])
     ('keeps every chart tone at least 3:1 against chart surfaces for %s', (primary) => {
-      for (const mode of ['light', 'cream', 'dark'] as const) {
+      for (const mode of ['light', 'dark'] as const) {
         const theme = createBrandTheme(primary, mode)
         const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
 
@@ -176,7 +160,7 @@ describe('createBrandTheme', () => {
   })
 
   it.each(['#000000', '#ffffff'])('keeps six chart tones distinct for extreme primary %s', (primary) => {
-    for (const mode of ['light', 'cream', 'dark'] as const) {
+    for (const mode of ['light', 'dark'] as const) {
       const theme = createBrandTheme(primary, mode)
       const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
 
@@ -219,11 +203,11 @@ describe('createBrandTheme', () => {
       '--primary-hover-foreground',
       '--primary-soft',
       '--primary-soft-foreground',
+      '--primary-solid',
+      '--primary-solid-foreground',
+      '--primary-solid-hover',
+      '--primary-solid-hover-foreground',
       '--ring',
-      '--shell-active',
-      '--shell-background',
-      '--shell-foreground',
-      '--shell-hover',
       '--sidebar-primary',
       '--sidebar-primary-foreground',
       '--sidebar-ring',
@@ -231,14 +215,14 @@ describe('createBrandTheme', () => {
   })
 
   it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', '#a855f7'])('keeps primary soft selection readable on %s', (primary) => {
-    for (const mode of ['light', 'cream', 'dark'] as const) {
+    for (const mode of ['light', 'dark'] as const) {
       const theme = createBrandTheme(primary, mode)
       expect(contrast(theme['--primary-soft']!, theme['--primary-soft-foreground']!), `${primary} ${mode}`).toBeGreaterThanOrEqual(4.5)
     }
   })
 
   it.each(['#000000', '#ffffff', '#ffff00', '#0055ff', '#a855f7'])('keeps primary soft selection distinct from fill on %s', (primary) => {
-    for (const mode of ['light', 'cream', 'dark'] as const) {
+    for (const mode of ['light', 'dark'] as const) {
       const theme = createBrandTheme(primary, mode)
       expect(theme['--primary-soft']).not.toBe(theme['--primary-fill'])
       expect(contrast(theme['--primary-fill']!, theme['--primary-fill-foreground']!), `${primary} ${mode}`).toBeGreaterThanOrEqual(4.5)
@@ -250,5 +234,82 @@ describe('createBrandTheme', () => {
     const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
     expect(theme['--chart-2']).toBe('#0055ff')
     expect(new Set(charts).size).toBe(6)
+  })
+})
+
+describe('Nasq palette in the brand engine', () => {
+  it('defaults to Nasq midnight', () => {
+    expect(DEFAULT_PRIMARY).toBe('#13234a')
+  })
+
+  it('no longer derives shell colours from the tenant primary', () => {
+    const theme = createBrandTheme('#e11d48', 'light')
+    for (const key of ['--shell-background', '--shell-foreground', '--shell-hover', '--shell-active']) {
+      expect(theme).not.toHaveProperty(key)
+    }
+  })
+
+  it.each(['#000000', '#ffffff', '#c8f031', '#ffff00', '#13234a', '#0055ff', '#e11d48', '#7c3aed'])(
+    'keeps %s readable on every surface in both modes',
+    (primary) => {
+      for (const mode of ['light', 'dark'] as const) {
+        const theme = createBrandTheme(primary, mode)
+        for (const surface of MODE_SURFACES[mode]) {
+          expect(contrastRatio(theme['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
+          expect(contrastRatio(theme['--ring']!, surface)).toBeGreaterThanOrEqual(3)
+        }
+      }
+    },
+  )
+
+  // Owner amendment 4 (CP2): the dark solid primary must stand out from the page, not read as a grey control.
+  const PAGE_SURFACES = [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated]
+  const SAMPLED_PRIMARIES = [DEFAULT_PRIMARY, '#000000', '#4c0519', '#18181b', '#0055ff', '#e11d48', '#7c3aed', '#0f766e', '#a855f7', '#facc15', '#ffffff', '#c8f031']
+  function saturation(hex: string): number {
+    const [r, g, b] = [1, 3, 5].map(index => Number.parseInt(hex.slice(index, index + 2), 16) / 255) as [number, number, number]
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const l = (max + min) / 2
+    return max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1))
+  }
+
+  it('keeps the dark solid primary readable and visible for sampled tenant primaries', () => {
+    for (const primary of SAMPLED_PRIMARIES) {
+      const theme = createBrandTheme(primary, 'dark')
+      const solid = theme['--primary-solid']!
+      expect(contrastRatio(solid, theme['--primary-solid-foreground']!), `${primary} label`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(theme['--primary-solid-hover']!, theme['--primary-solid-hover-foreground']!), `${primary} hover label`).toBeGreaterThanOrEqual(4.5)
+      for (const surface of PAGE_SURFACES) {
+        expect(contrastRatio(solid, surface), `${primary} on ${surface}`).toBeGreaterThanOrEqual(3)
+      }
+      // A chromatic brand keeps visible colour instead of greying out like --brand-link.
+      if (saturation(primary) >= 0.12) expect(saturation(solid), `${primary} saturation`).toBeGreaterThanOrEqual(0.5)
+      // The tenant choice itself is never rewritten.
+      expect(theme['--primary']).toBe(primary)
+    }
+  })
+
+  it('derives the default dark solid from midnight, never lime, and keeps light mode on midnight', () => {
+    const dark = createBrandTheme(DEFAULT_PRIMARY, 'dark')
+    expect(dark['--primary-solid']).toBe('#3c66cd')
+    expect(dark['--primary-solid-foreground']).toBe('#ffffff')
+    expect(dark['--primary-solid']).not.toBe('#c8f031')
+    // Links, text-primary and focus keep the lighter text tone.
+    expect(dark['--brand-link']).toBe('#a1a7b7')
+    const light = createBrandTheme(DEFAULT_PRIMARY, 'light')
+    expect(light['--primary']).toBe('#13234a')
+    expect(light['--brand-link']).toBe('#13234a')
+  })
+
+  it('keeps a tenant colour that already passes as its own dark solid', () => {
+    for (const primary of ['#e11d48', '#facc15', '#ffffff']) {
+      expect(createBrandTheme(primary, 'dark')['--primary-solid']).toBe(primary)
+    }
+  })
+})
+
+describe('darkSolid input', () => {
+  it('treats an invalid colour as the Nasq default', () => {
+    expect(darkSolid('not-a-colour')).toBe(darkSolid('#13234a'))
   })
 })

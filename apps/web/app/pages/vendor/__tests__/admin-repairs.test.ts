@@ -7,7 +7,9 @@ import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../../utils/vendorSubscriptions'
 import * as commercial from '../../../utils/vendorCommercial'
+import { invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/commercialBadges'
 import { safeReturnTo } from '../../../utils/safeReturnTo'
+import { formatNasqDate, formatNasqDateTime } from '../../../composables/calendarDate'
 
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
@@ -40,6 +42,8 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
   const hydrated = Vue.ref(options.hydrated ?? true)
   const slots = new Map<string, any>()
   const bindings = {
+    formatNasqDate, formatNasqDateTime,
+    invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     ...subscriptions, ...commercial, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),
     definePageMeta: () => {}, useHydrated: () => hydrated,
@@ -69,7 +73,7 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
     const captured: { name: string; props: Record<string, any> }[] = []
     const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))), render }))
     for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(m => m[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
-      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'NuxtPage' ? 'NESTED PAGE' : null, attrs.title as string, attrs.description as string, name === 'SharedPageState' && (attrs.loading || attrs.error) ? (attrs.loading ? 'LOADING' : 'ERROR') : slots.default?.(), slots.header?.(), slots.actions?.()]) }
+      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'NuxtPage' ? 'NESTED PAGE' : null, attrs.title as string, attrs.description as string, name === 'SharedStatusBadge' ? attrs.label as string : null, name === 'SharedPageState' && (attrs.loading || attrs.error) ? (attrs.loading ? 'LOADING' : 'ERROR') : slots.default?.(), slots.header?.(), slots.actions?.(), name === 'SharedRecordPage' ? slots.aside?.() : null]) }
     } }))
     return { html: await renderToString(app), captured }
   }
@@ -78,7 +82,8 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
 
 function apiWith(request: ReturnType<typeof vi.fn>) {
   const source = stripImports(readFileSync(resolve(import.meta.dirname, '../../../composables/useVendorSubscriptions.ts'), 'utf8')).replace('export function', 'function')
-  const bindings = { ...subscriptions, ...commercial, useVendorApi: () => ({ request }) }
+  const bindings = {
+    invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, ...subscriptions, ...commercial, useVendorApi: () => ({ request }) }
   return new Function(...Object.keys(bindings), transpile(`${source}\nreturn useVendorSubscriptions()`))(...Object.values(bindings))
 }
 
@@ -108,12 +113,12 @@ describe('customer detail repairs', () => {
     const result = await page('customers/[id].vue', { path })
     const { html, captured } = await result.rendered()
     expect(html).toContain('NESTED PAGE')
-    expect(captured.some(c => c.name === 'SharedPageContainer')).toBe(false)
+    expect(captured.some(c => c.name === 'SharedRecordPage')).toBe(false)
   })
   it('keeps customer detail and filtered back target on its own route', async () => {
     const { captured, html } = await (await page('customers/[id].vue')).rendered()
     expect(html).not.toContain('NESTED PAGE')
-    expect(captured.find(c => c.name === 'SharedPageHeader')?.props['back-to']).toBe('/vendor/customers?state=active')
+    expect(captured.find(c => c.name === 'SharedRecordPage')?.props['back-to']).toBe('/vendor/customers?state=active')
   })
   it.each([['paid', 'not_started'], ['failed', 'not_started'], ['awaiting_payment', 'queued']])('never offers cancellation for %s/%s', async (payment_state, fulfillment_state) => {
     const p = await page('customers/[id].vue', { subscription: { ...subscription, pending_order: { ...order, payment_state, fulfillment_state } } })

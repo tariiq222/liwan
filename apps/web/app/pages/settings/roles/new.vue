@@ -90,11 +90,10 @@ async function submit() {
 
 <template>
   <SharedCreatePanel :title="t('access.roles.createTitle')" :back-to="backTo" width="wide">
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <UForm v-else :state="{ nameAr, nameEn, description }" class="nasq-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }">
-        <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.details') }}</h2></template>
+      <SharedFormSection panel :title="t('access.roles.details')">
         <div class="space-y-4">
           <div class="nasq-form-grid">
             <UFormField :label="t('access.roles.nameArabic')" name="name-ar"><UInput id="name-ar" v-model="nameAr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
@@ -102,9 +101,8 @@ async function submit() {
           </div>
           <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea id="description" v-model="description" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
         </div>
-      </UCard>
-      <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ body: 'p-5 sm:p-6' }">
-        <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('access.roles.permissions') }}</h2></template>
+      </SharedFormSection>
+      <SharedFormSection panel :title="t('access.roles.permissions')">
         <fieldset class="space-y-4" :disabled="!hydrated || create.isPending.value">
           <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>
           <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="space-y-3">
@@ -126,7 +124,7 @@ async function submit() {
             </div>
           </section>
         </fieldset>
-      </UCard>
+      </SharedFormSection>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
       <footer class="nasq-form-footer justify-end"><UButton type="submit" color="primary" :disabled="!hydrated || create.isPending.value || !nameAr.trim()" :label="t('access.roles.create')" /></footer>
     </UForm>

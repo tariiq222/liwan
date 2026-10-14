@@ -73,8 +73,7 @@ async function uploadFile(event: Event) {
       <UForm v-if="query.data.value" :state="{ name, body }" class="space-y-6" method="post" @submit="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <UAlert v-if="saveError" color="error" variant="subtle" :description="saveError" />
-        <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
-          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.edit') }}</h2></template>
+        <SharedFormSection panel :title="t('hr.docs.edit')">
           <div class="grid gap-4">
             <UFormField :label="t('hr.docs.columns.name')" name="hr-doc-title" required :error="titleError">
               <UInput id="hr-doc-title" v-model="name" class="w-full" :disabled="!hydrated || updating" />
@@ -83,9 +82,8 @@ async function uploadFile(event: Event) {
               <DocumentEditor v-model="body" :document-id="documentId" :debounce="false" :disabled="updating" />
             </UFormField>
           </div>
-        </UCard>
-        <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
-          <template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.attachments') }}</h2></template>
+        </SharedFormSection>
+        <SharedFormSection panel :title="t('hr.docs.attachments')">
           <div class="space-y-3">
             <ul class="grid gap-1 text-sm">
               <li v-for="attachment in query.data.value.attachment_ids" :key="attachment.id">
@@ -96,7 +94,7 @@ async function uploadFile(event: Event) {
               <SharedFileField ref="fileField" id="hr-doc-upload" class="w-full" :disabled="!hydrated || uploading || updating" @change="uploadFile" />
             </UFormField>
           </div>
-        </UCard>
+        </SharedFormSection>
         <footer class="nasq-form-footer justify-end">
           <UButton type="button" color="neutral" variant="outline" :disabled="updating" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" color="primary" :loading="updating" :disabled="!hydrated || updating || uploading" :label="t('app.save')" />

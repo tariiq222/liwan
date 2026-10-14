@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import type { AppearanceMode } from '@/utils/appearance'
 import { createBrandTheme } from '@/utils/brandTheme'
+import { DARK_SURFACES } from '@/utils/nasqPalette'
 import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
 
 const props = defineProps<{
@@ -28,33 +29,19 @@ const modeSurfaceTokens: Record<AppearanceMode, Record<string, string>> = {
     '--ui-text-dimmed': '#656c7e',
     '--ui-text-toned': '#656c7e',
   },
-  cream: {
-    '--ui-bg': '#fffdf8',
-    '--ui-bg-muted': '#f6f1e7',
-    '--ui-bg-elevated': '#efe8d9',
-    '--ui-bg-accented': '#e4d9c6',
-    '--ui-border': '#d8cbb7',
-    '--ui-border-muted': '#e4d9c6',
-    '--ui-border-accented': '#c2b293',
-    '--ui-text': '#3f3428',
-    '--ui-text-highlighted': '#30271f',
-    '--ui-text-muted': '#746753',
-    '--ui-text-dimmed': '#746753',
-    '--ui-text-toned': '#63533f',
-  },
   dark: {
-    '--ui-bg': '#181b24',
-    '--ui-bg-muted': '#1e222c',
-    '--ui-bg-elevated': '#181b24',
-    '--ui-bg-accented': '#272c38',
-    '--ui-border': '#2d3340',
-    '--ui-border-muted': '#2d3340',
-    '--ui-border-accented': '#394150',
-    '--ui-text': '#f6f7fb',
-    '--ui-text-highlighted': '#f6f7fb',
-    '--ui-text-muted': '#a9b0bf',
-    '--ui-text-dimmed': '#a9b0bf',
-    '--ui-text-toned': '#a9b0bf',
+    '--ui-bg': DARK_SURFACES.bg,
+    '--ui-bg-muted': DARK_SURFACES.muted,
+    '--ui-bg-elevated': DARK_SURFACES.elevated,
+    '--ui-bg-accented': DARK_SURFACES.accented,
+    '--ui-border': DARK_SURFACES.border,
+    '--ui-border-muted': DARK_SURFACES.borderMuted,
+    '--ui-border-accented': DARK_SURFACES.borderAccented,
+    '--ui-text': '#e2e8f0',
+    '--ui-text-highlighted': '#e2e8f0',
+    '--ui-text-muted': '#94a3b8',
+    '--ui-text-dimmed': '#94a3b8',
+    '--ui-text-toned': '#94a3b8',
   },
 }
 const previewStyle = computed(() => {
@@ -102,7 +89,7 @@ const previewStyle = computed(() => {
     data-testid="branding-preview"
     :data-preview-primary="theme['--primary']"
     class="overflow-hidden rounded-xl"
-    :class="{ dark: previewMode === 'dark', cream: previewMode === 'cream' }"
+    :class="{ dark: previewMode === 'dark' }"
     :style="previewStyle"
   >
   <UCard class="rounded-lg ring ring-default bg-default overflow-hidden" :ui="{ header: '' }">
@@ -125,15 +112,6 @@ const previewStyle = computed(() => {
           <UButton
             type="button"
             size="xs"
-            :variant="previewMode === 'cream' ? 'soft' : 'ghost'"
-            color="neutral"
-            @click="previewMode = 'cream'"
-          >
-            {{ t('settings.branding.preview.modes.cream') }}
-          </UButton>
-          <UButton
-            type="button"
-            size="xs"
             :variant="previewMode === 'dark' ? 'soft' : 'ghost'"
             color="neutral"
             @click="previewMode = 'dark'"
@@ -144,7 +122,7 @@ const previewStyle = computed(() => {
       </div>
     </template>
     <div class="space-y-4">
-      <div class="flex items-center gap-3 rounded-lg px-4 py-3" style="background: var(--shell-background); color: var(--shell-foreground)">
+      <div class="flex items-center gap-3 rounded-lg bg-[var(--nasq-rail)] px-4 py-3 text-white">
         <img v-if="logoUrl" :src="logoUrl" :alt="name" class="size-12 rounded-md object-contain bg-white/80">
         <span class="font-semibold">{{ name }}</span>
       </div>

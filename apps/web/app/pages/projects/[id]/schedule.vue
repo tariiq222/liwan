@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { inject } from 'vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
@@ -12,7 +11,6 @@ const router = useRouter()
 const { t, te, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
-const isProjectOverlay = inject<boolean>(Symbol.for('nasq.project.overlay'), false)
 const projectId = computed(() => { const value = Number(route.params.id); return Number.isInteger(value) && value > 0 ? value : null })
 const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/projects/${route.params.id}/schedule`)
 const { data: projectData, error: projectError, refetch: refetchProject } = useProject(projectId)
@@ -35,31 +33,27 @@ const columnSpanLabel = computed(() => {
 const notFound = computed(() => projectId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
 function retry() { void Promise.all([refetchProject(), refetch()]) }
 
-function openTaskCreate() {
-  if (!projectId.value) return
-  router.push({ path: `/projects/${projectId.value}/tasks/new`, query: { ...route.query, ...returnToQuery(route.fullPath), tab: 'tasks' } })
-}
+const gantt = ref<InstanceType<typeof ScheduleGantt> | null>(null)
+const scales = computed(() => [{ value: 'week', label: t('projects.schedule.week') }, { value: 'month', label: t('projects.schedule.month') }])
+const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new`, query: { ...route.query, ...returnToQuery(route.fullPath), tab: 'tasks' } }))
 </script>
 
 <template>
-  <SharedPageContainer v-if="isBaseRoute" width="list">
-    <SharedPageHeader v-if="!isProjectOverlay" :title="t('projects.schedule.title')">
-      <UButton
-        v-if="project?.active && can('pmo.tasks.create')"
-        icon="i-lucide-plus"
-        data-testid="project-header-create"
-        :disabled="!hydrated"
-        :label="t('tasks.new')"
-        @click="openTaskCreate"
-      />
-    </SharedPageHeader>
-    <div class="flex flex-wrap items-center gap-3">
-      <nav class="inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default" :aria-label="t('projects.schedule.scale')">
-        <UButton type="button" color="neutral" size="sm" :variant="scale === 'week' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'week'" @click="scale = 'week'">{{ t('projects.schedule.week') }}</UButton>
-        <UButton type="button" color="neutral" size="sm" :variant="scale === 'month' ? 'soft' : 'ghost'" :disabled="!hydrated" :aria-pressed="scale === 'month'" @click="scale = 'month'">{{ t('projects.schedule.month') }}</UButton>
-      </nav>
-      <p v-if="columnSpanLabel" class="text-sm text-muted" data-testid="schedule-column-span" aria-live="polite">{{ columnSpanLabel }}</p>
-    </div>
+  <SharedTimelineFrame
+    v-if="isBaseRoute"
+    hide-header
+    :title="t('projects.schedule.title')"
+    :range-label="columnSpanLabel"
+    :scale="scale"
+    :scales="scales"
+    @prev="gantt?.scrollPage(-1)"
+    @next="gantt?.scrollPage(1)"
+    @today="gantt?.scrollToToday()"
+    @update:scale="scale = $event as ScheduleScale"
+  >
+    <template v-if="project?.active && can('pmo.tasks.create')" #actions>
+      <UButton icon="i-lucide-plus" data-testid="project-header-create" :disabled="!hydrated" :to="createTo" :label="t('tasks.new')" />
+    </template>
     <SharedPageState
       :loading="isLoading && !schedule"
       :error="projectError || error"
@@ -67,8 +61,8 @@ function openTaskCreate() {
       :empty-text="projectId === null || notFound ? t('projects.notFound') : t('projects.schedule.empty')"
       @retry="retry"
     >
-      <ScheduleGantt v-if="schedule" embedded :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" @update:scale="scale = $event" />
+      <ScheduleGantt v-if="schedule" ref="gantt" :schedule="schedule" :scale="scale" :project-start="project?.date_start" :project-end="project?.date_end" />
     </SharedPageState>
-  </SharedPageContainer>
+  </SharedTimelineFrame>
   <NuxtPage />
 </template>

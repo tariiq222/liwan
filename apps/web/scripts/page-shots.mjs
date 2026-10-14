@@ -1,12 +1,12 @@
 // Review helper: log into the mock stack and screenshot pages at three widths
-// in the three display modes. Usage: node scripts/page-shots.mjs <nuxtPort> <outDir> [path ...]
+// in the two display modes (light/dark). Usage: node scripts/page-shots.mjs <nuxtPort> <outDir> [path ...]
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const [port = '4097', outDir = 'page-shots', ...only] = process.argv.slice(2)
 const paths = only.length ? only : ['/projects', '/tasks', '/tasks/101', '/projects/1', '/settings/users']
 const widths = [1440, 390]
-const modes = ['light', 'cream', 'dark']
+const modes = ['light', 'dark']
 mkdirSync(outDir, { recursive: true })
 const browser = await chromium.launch()
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })

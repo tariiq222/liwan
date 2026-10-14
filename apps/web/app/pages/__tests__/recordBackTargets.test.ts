@@ -5,11 +5,14 @@ import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import { refDebounced } from '@vueuse/core'
+import { createHooks } from 'hookable'
 import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, type RouteLocationRaw, type Router } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 import { adminListQuery, adminPathWithQuery } from '../../composables/adminSettingsPaths'
 import { parsePositiveId } from '../../utils/routeParams'
+import { parseFinanceKind } from '../../utils/projectFinance'
+import { governanceFilters, governanceMatrixFilters } from '../../composables/projectGovernanceKeys'
 
 const webRoot = resolve(import.meta.dirname, '../../../')
 
@@ -36,8 +39,10 @@ function loadTemplateNavigation(router: Router) {
 // Each page is evaluated as its real <script setup> against a real vue-router,
 // so the back target is proven by resolving it, not read off the source.
 function loadSetupState(rel: string, router: Router) {
+  const hooks = createHooks()
   const file = resolve(webRoot, rel)
-  const descriptor = parse(readFileSync(file, 'utf8'), { filename: file }).descriptor
+  const source = readFileSync(file, 'utf8').replace('if (import.meta.server) await settleServerQueries(queryClient)', '')
+  const descriptor = parse(source, { filename: file }).descriptor
   const compiled = compileScript(descriptor, { id: 'record-back-targets', inlineTemplate: false }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
     .replace('export default', 'return')
@@ -50,8 +55,9 @@ function loadSetupState(rel: string, router: Router) {
     _defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, shallowRef: Vue.shallowRef, reactive: Vue.reactive,
     inject: () => false, nextTick: Vue.nextTick, refDebounced,
-    onMounted: () => undefined, onBeforeUnmount: () => undefined,
+    onMounted: () => undefined, onBeforeUnmount: () => undefined, onScopeDispose: Vue.onScopeDispose,
     useRoute: () => router.currentRoute.value, useRouter: () => router,
+    useNuxtApp: () => ({ hook: hooks.hook.bind(hooks) }),
     useI18n: () => ({ t: (k: string) => k, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHydrated: () => Vue.ref(true),
     useAccess: () => ({ can: () => true }),
@@ -63,11 +69,17 @@ function loadSetupState(rel: string, router: Router) {
     defineOptions: () => undefined,
     ApiError: class ApiError extends Error { status = 0 },
     // Real helpers, not stubs: these decide the ids the target is built from.
-    parsePositiveId, adminListQuery, adminPathWithQuery,
+    parsePositiveId, parseFinanceKind, adminListQuery, adminPathWithQuery,
     useProjectTemplateNavigation: () => loadTemplateNavigation(router),
+    useProjectTemplateList: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 0, can_manage: true, can_apply: true }) }),
     financeWriteAllowed: () => true,
     shouldKeepFinanceFormMounted: () => false,
-    governanceFilters: () => ({ q: '', offset: 0 }),
+    governanceFilters, governanceMatrixFilters,
+    useQueryClient: () => ({}),
+    useProjectRegister: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1, can_manage: true }) }),
+    useProjectStakeholders: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1, can_manage: true }) }),
+    useGovernanceTaskPage: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1 }) }),
+    useProjectRaci: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 1, can_manage: true }) }),
     createMeetingMinutesForm: () => ({}),
   }
   // Imported child components and data composables were stripped with the
@@ -109,6 +121,8 @@ function makeRouter() {
       { path: '/projects/:id/register/new', component: { template: '<div/>' } },
       { path: '/projects/:id/register/:registerId', component: { template: '<div/>' } },
       { path: '/projects/:id/register/:registerId/edit', component: { template: '<div/>' } },
+      { path: '/projects/:id/finance/new', component: { template: '<div/>' } },
+      { path: '/projects/:id/finance/:entryId', component: { template: '<div/>' } },
       { path: '/projects/:id/finance/:entryId/edit', component: { template: '<div/>' } },
       { path: '/projects/:id/milestones/:milestoneId/edit', component: { template: '<div/>' } },
       { path: '/projects/:id/stakeholders', component: { template: '<div/>' } },
@@ -201,7 +215,7 @@ describe('template catalog navigation preserves direct list state', () => {
       const scope = Vue.effectScope()
       try {
         const catalog = scope.run(() => loadSetupState('app/pages/project-templates/index.vue', router))!
-        const detailPath = catalog.detailPath as (id?: number) => RouteLocationRaw
+        const detailPath = (id?: number): RouteLocationRaw => id ? (catalog.itemTo as (item: { id: number }) => RouteLocationRaw)({ id }) : Vue.unref(catalog.createTo as Vue.Ref<RouteLocationRaw>)
         await router.push(detailPath(creating ? undefined : 7))
         expect(router.currentRoute.value.path).toBe(creating ? '/project-templates/new' : '/project-templates/7')
         expect(router.currentRoute.value.query).toEqual({ q: 'عقد', offset: '50' })
@@ -226,4 +240,80 @@ describe('template catalog navigation preserves direct list state', () => {
       }
     })
   }
+})
+
+describe('template catalog recovery from an empty offset page', () => {
+  it('keeps the current page in the page count so Previous stays reachable', async () => {
+    const router = makeRouter()
+    await router.push('/project-templates?offset=50')
+    await router.isReady()
+    const scope = Vue.effectScope()
+    try {
+      const catalog = scope.run(() => loadSetupState('app/pages/project-templates/index.vue', router))!
+      expect(Vue.unref(catalog.pageNumber as Vue.Ref<number>)).toBe(2)
+      expect(Vue.unref(catalog.pages as Vue.Ref<number>)).toBe(2)
+    } finally { scope.stop() }
+  })
+})
+
+// Finance creation kind is a form value; it must not replace the originating ledger filter.
+describe('finance navigation keeps normalized list context through forms', () => {
+  it('record -> edit -> record -> ledger keeps search, expense filter and offset', async () => {
+    const router = makeRouter()
+    const origin = '/projects/7/finance?q=عقد&kind=expense&offset=50#ledger'
+    await router.push({ path: '/projects/7/finance/5', query: { returnTo: origin } })
+    await router.isReady()
+    const scope = Vue.effectScope()
+    try {
+      let record = scope.run(() => loadSetupState('app/pages/projects/[id]/finance/[entryId].vue', router))!
+      await router.push(Vue.unref(record.editTo as Vue.Ref<RouteLocationRaw>))
+      expect(router.currentRoute.value.path).toBe('/projects/7/finance/5/edit')
+      const edit = scope.run(() => loadSetupState('app/pages/projects/[id]/finance/[entryId]/edit.vue', router))!
+      await router.push(Vue.unref(edit.backTo as Vue.Ref<RouteLocationRaw>))
+      expect(router.currentRoute.value.path).toBe('/projects/7/finance/5')
+      record = scope.run(() => loadSetupState('app/pages/projects/[id]/finance/[entryId].vue', router))!
+      await router.push(Vue.unref(record.backTo as Vue.Ref<RouteLocationRaw>))
+      expect(router.currentRoute.value.query).toEqual({ q: 'عقد', kind: 'expense', offset: '50' })
+      expect(router.currentRoute.value.hash).toBe('#ledger')
+    } finally { scope.stop() }
+  })
+  it('a new budget returns to the expense ledger with its original search and offset', async () => {
+    const router = makeRouter()
+    await router.push({ path: '/projects/7/finance/new', query: { kind: 'budget', returnTo: '/projects/7/finance?q=عقد&kind=expense&offset=50' } })
+    await router.isReady()
+    const scope = Vue.effectScope()
+    try {
+      const form = scope.run(() => loadSetupState('app/pages/projects/[id]/finance/new.vue', router))!
+      expect(Vue.unref(form.defaultKind as Vue.Ref<string>)).toBe('budget')
+      await router.push(Vue.unref(form.backTo as Vue.Ref<RouteLocationRaw>))
+      expect(router.currentRoute.value.query).toEqual({ q: 'عقد', kind: 'expense', offset: '50' })
+    } finally { scope.stop() }
+  })
+})
+
+describe('governance empty offset pages keep Previous reachable', () => {
+  it.each(['register', 'stakeholders'])('%s keeps its current page when total shrinks', async section => {
+    const router = makeRouter()
+    await router.push(`/projects/7/${section}?offset=50`)
+    await router.isReady()
+    const scope = Vue.effectScope()
+    try {
+      const state = scope.run(() => loadSetupState(`app/pages/projects/[id]/${section}.vue`, router))!
+      expect(Vue.unref(state.pageNumber as Vue.Ref<number>)).toBe(2)
+      expect(Vue.unref(state.pages as Vue.Ref<number>)).toBe(2)
+    } finally { scope.stop() }
+  })
+  it('RACI independently keeps both current task and stakeholder pages', async () => {
+    const router = makeRouter()
+    await router.push('/projects/7/raci?task_page=1&stakeholder_page=1')
+    await router.isReady()
+    const scope = Vue.effectScope()
+    try {
+      const state = scope.run(() => loadSetupState('app/pages/projects/[id]/raci.vue', router))!
+      expect(Vue.unref(state.taskPageNumber as Vue.Ref<number>)).toBe(2)
+      expect(Vue.unref(state.taskPages as Vue.Ref<number>)).toBe(2)
+      expect(Vue.unref(state.stakeholderPageNumber as Vue.Ref<number>)).toBe(2)
+      expect(Vue.unref(state.stakeholderPages as Vue.Ref<number>)).toBe(2)
+    } finally { scope.stop() }
+  })
 })

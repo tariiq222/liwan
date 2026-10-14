@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import UserSecurityForm from '@/components/access/users/UserSecurityForm.vue'
 import { nextAdminUserSecuritySuccess } from '@/composables/useAdminUsers'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 
 const route = useRoute()
@@ -23,12 +22,12 @@ onBeforeUnmount(() => { successKey.value = '' })
 </script>
 
 <template>
-  <SettingsLayout width="form">
+  <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('access.users.security')" :back-to="backTo" />
     <p v-if="successKey && !blocked" role="status" class="text-sm text-success">{{ t(successKey) }}</p>
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :loading="user.isLoading.value" :error="user.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="user.refetch">
       <UserSecurityForm v-if="user.data.value" :user="user.data.value" :on-success-key="setSecuritySuccess" />
     </SharedPageState>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

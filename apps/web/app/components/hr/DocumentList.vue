@@ -9,7 +9,7 @@ import { returnToQuery } from '@/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 
-const props = withDefaults(defineProps<{ departmentId: number; canWrite: boolean; embedded?: boolean }>(), { embedded: false })
+const props = defineProps<{ departmentId: number; canWrite: boolean }>()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
@@ -59,13 +59,10 @@ function setPage(next: number) {
   offset.value = (next - 1) * limit
   void router.replace({ query: { ...route.query, ...(offset.value ? { offset: offset.value } : { offset: undefined }) } })
 }
-function openRow(event: Event, document: HrDocument) {
-  if (!hydrated.value || (event.target as HTMLElement | null)?.closest('a, button')) return
-  void navigateTo(detailsTo(document))
-}
 function detailsTo(document: HrDocument) {
   return { path: `/hr/departments/${document.department.id}/documents/${document.id}`, query: returnToQuery(route.fullPath) }
 }
+function rowTo(document: HrDocument) { return detailsTo(document) }
 </script>
 
 <template>
@@ -85,34 +82,28 @@ function detailsTo(document: HrDocument) {
         </template>
       </FilterBar>
     </div>
-    <div class="min-w-0 space-y-2">
-      <div class="hidden overflow-hidden bg-default md:block" :class="props.embedded ? '' : 'rounded-lg ring ring-default'">
-        <div v-if="query.isLoading.value" class="divide-y divide-default" role="status" :aria-label="t('app.loading')">
-          <div v-for="n in 3" :key="n" class="flex items-center gap-4 px-4 py-3">
-            <USkeleton class="h-5 w-20" /><USkeleton class="h-5 flex-1" /><USkeleton class="h-5 w-24" />
-          </div>
-        </div>
-        <div v-else-if="items.length === 0" class="p-6"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
-        <div v-else class="overflow-x-auto">
-          <UTable :data="items" :columns="columns" :caption="t('hr.docs.title')" :ui="{ caption: 'sr-only', th: '', tr: 'cursor-pointer' }" @select="(event, row) => openRow(event, row.original)">
-            <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-            <template #name-cell="{ row }"><NuxtLink :to="detailsTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
-            <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>
-          </UTable>
-        </div>
-      </div>
-      <div v-if="query.isLoading.value" class="md:hidden space-y-2">
-        <USkeleton v-for="n in 3" :key="n" class="h-16 w-full rounded-lg" />
-      </div>
-      <div v-else-if="items.length === 0" class="md:hidden"><SharedEmptyState :title="t('hr.docs.empty')" /></div>
-      <ul v-else class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default md:hidden" :aria-label="t('hr.docs.title')">
-        <li v-for="document in items" :key="document.id" class="cursor-pointer p-4" @click="openRow($event, document)">
-          <bdi class="block text-xs text-muted">#{{ document.id }}</bdi>
-          <NuxtLink :to="detailsTo(document)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ document.name }}</NuxtLink>
-          <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(document.write_date) }}</p>
-        </li>
-      </ul>
-    </div>
-    <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value || hasPendingSearch" @update:page="setPage" />
+    <SharedDataTable
+      :rows="items"
+      :columns="columns"
+      row-key="id"
+      :row-to="rowTo"
+      :loading="query.isLoading.value"
+      :error="query.error.value"
+      :empty-text="t('hr.docs.empty')"
+      :caption="t('hr.docs.title')"
+      :page="page"
+      :pages="pages"
+      @update:page="setPage"
+      @retry="query.refetch"
+    >
+      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+      <template #name-cell="{ row }"><NuxtLink :to="detailsTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
+      <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>
+      <template #mobile-row="{ row }">
+        <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
+        <NuxtLink :to="detailsTo(row)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
+        <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(row.write_date) }}</p>
+      </template>
+    </SharedDataTable>
   </section>
 </template>

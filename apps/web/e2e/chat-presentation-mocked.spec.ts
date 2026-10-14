@@ -34,7 +34,7 @@ test('closing message search restores the thread and muted conversations stay ma
   await page.goto('/chat/42')
   await expect(page.locator('[data-message-id]')).toHaveCount(2)
   await expect(page.getByTestId('chat-list')).toContainText('مكتوم')
-  const searchButton = page.getByTestId('chat-thread').getByRole('button', { name: 'بحث في الرسائل' })
+  const searchButton = page.getByTestId('chat-thread-header').getByRole('button', { name: 'بحث في الرسائل' })
   await searchButton.click()
   const search = page.getByPlaceholder('بحث في الرسائل')
   await search.fill('أولى')

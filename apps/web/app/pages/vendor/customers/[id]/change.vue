@@ -44,7 +44,7 @@ async function place() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('vendor.customers.changeSubscription')" :description="t('vendor.customers.change.description')" :back-to="detailTo" />
     <SharedPageState :loading="pending" :error="error" @retry="refresh">
-      <p v-if="!can('vendor.subscriptions.manage')">{{ t('vendor.forbidden') }}</p>
+      <SharedForbiddenState v-if="!can('vendor.subscriptions.manage')" />
       <UAlert v-else-if="!data?.sub" color="neutral" variant="subtle" :title="t('vendor.customers.terms.needsSubscription')" />
       <UAlert v-else-if="data.sub.pending_order" color="warning" variant="subtle" :title="t('vendor.customers.change.pendingOrder')" />
       <form v-else class="space-y-5" novalidate @submit.prevent="place">

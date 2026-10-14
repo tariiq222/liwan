@@ -67,7 +67,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
 </script>
 
 <template>
-  <UCard data-testid="meeting-minutes-document">
+  <UCard data-testid="meeting-minutes-document" :ui="{ root: 'print:shadow-none print:ring-0', header: 'print:px-0', body: 'print:px-0' }">
     <template #header><h2 class="text-lg font-semibold text-highlighted">{{ title || t('meetingMinutesForm.documentTitle') }}</h2></template>
     <div class="grid gap-5">
       <dl class="grid min-w-0 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
@@ -86,7 +86,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
         <section v-if="legacyMinutesText" class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText }}</p></section>
         <div class="grid gap-3">
           <h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.topics') }}</h3>
-          <div class="overflow-x-auto rounded-lg ring ring-default">
+          <div class="overflow-x-auto rounded-lg ring ring-default print:overflow-visible print:ring-0">
             <table class="meeting-minutes-topic-table min-w-[980px] w-full text-sm">
               <thead><tr><th>{{ t('meetingMinutesForm.topicTitle') }}</th><th>{{ t('meetingMinutesForm.discussion') }}</th><th>{{ t('meetingMinutesForm.project') }}</th><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
               <tbody>
@@ -120,7 +120,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
         <section class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText || '—' }}</p></section>
         <section class="grid gap-2">
           <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h3>
-          <div class="overflow-x-auto rounded-lg ring ring-default">
+          <div class="overflow-x-auto rounded-lg ring ring-default print:overflow-visible print:ring-0">
             <table class="meeting-minutes-topic-table min-w-[700px] w-full text-sm">
               <thead><tr><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>
               <tbody><tr v-if="!legacyRecommendations.length"><td colspan="4" class="text-muted">{{ t('meetingsUi.emptyResolutions') }}</td></tr><tr v-for="item in legacyRecommendations" :key="item.id"><td>{{ item.name }}</td><td>{{ item.responsible?.name || '—' }}</td><td>{{ item.execution_period || '—' }}</td><td dir="ltr">{{ formatMeetingDate(item.deadline, locale) }}</td></tr></tbody>
@@ -131,10 +131,3 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
     </div>
   </UCard>
 </template>
-
-<style scoped>
-.meeting-minutes-topic-table { border-collapse: collapse; }
-.meeting-minutes-topic-table th,
-.meeting-minutes-topic-table td { padding: 9px 10px; border-block-end: 1px solid var(--ui-border); text-align: start; vertical-align: top; overflow-wrap: anywhere; }
-.meeting-minutes-topic-table th { background: var(--ui-bg-elevated); font-size: .75rem; font-weight: 600; white-space: nowrap; }
-</style>

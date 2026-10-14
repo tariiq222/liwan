@@ -93,7 +93,7 @@ test('closed tab shows a closed-specific empty state with no create action', asy
 test('task creation is a reloadable page with a safe return target', async ({ page }) => {
   await login(page)
   await page.goto('/tasks?q=return-check')
-  await page.getByRole('button', { name: 'مهمة جديدة' }).click()
+  await page.getByRole('link', { name: 'مهمة جديدة' }).click()
   await expect.poll(() => new URL(page.url()).searchParams.get('returnTo')).toBe('/tasks?q=return-check')
   await page.reload()
   await expect(page.getByRole('heading', { name: 'مهمة جديدة' })).toBeVisible()

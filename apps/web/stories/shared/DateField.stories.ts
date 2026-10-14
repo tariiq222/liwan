@@ -34,7 +34,7 @@ export const Disabled: Story = { name: 'معطّل', parameters: formContext, ar
 
 export const InFilterPopover: Story = {
   name: 'داخل نافذة الفلاتر',
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:237', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:355', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
   render: () => ({
     components: { DateField, FilterBar, PageContainer },
     setup: () => ({ t: useI18n().t, from: ref<string | null>(null) }),
@@ -44,7 +44,7 @@ export const InFilterPopover: Story = {
 
 export const WithTime: Story = {
   name: 'مع وقت',
-  parameters: storyContext('apps/web/app/components/task/TaskDetails.vue:212', 'موعد المهمة: التسمية تعرض التاريخ والوقت، وحقل الوقت في تذييل التقويم يُبقي النافذة مفتوحة بعد اختيار اليوم.'),
+  parameters: storyContext('apps/web/app/components/task/TaskProperties.vue:168', 'موعد المهمة: التسمية تعرض التاريخ والوقت، وحقل الوقت في تذييل التقويم يُبقي النافذة مفتوحة بعد اختيار اليوم.'),
   args: { modelValue: '2026-09-20' },
   render: args => ({
     components: { DateField, PageContainer },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
+import DescriptionEditor from '@/components/shared/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useCreateMeeting } from '@/composables/useMeetings'
 import { useMeetingSeries } from '@/composables/useMeetings'

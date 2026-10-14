@@ -1,5 +1,5 @@
 const DECLARATION = /(--[a-z0-9-]+)\s*:/gi
-const NOT_COLOR = /(radius|width|height|size|shadow|elevation|-z-|-type-|^--text-|^--font|spacing|duration|ease|gap|offset|opacity)/
+const NOT_COLOR = /(radius|width|height|size|shadow|elevation|-z-|-type-|^--text-|^--font|spacing|duration|ease|gap|offset|opacity|-h$)/
 
 export function parseTokenNames(css: string): string[] {
   const code = css.replace(/\/\*[\s\S]*?\*\//g, '')

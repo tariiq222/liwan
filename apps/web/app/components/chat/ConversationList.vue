@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import EmptyState from '@/components/shared/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
 import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
@@ -11,7 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{ 'update:routeState': [ChatListRoute]; denied: [] }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const { data, isError, isFetching, refetch, error } = useChatConversations(() => props.routeState)
+const { data, isLoading, isError, refetch, error } = useChatConversations(() => props.routeState)
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
 const q = ref(props.routeState.q)
@@ -95,44 +94,47 @@ function conversationTo(id: number) {
         :label="filterLabel(filter)"
       />
     </div>
-    <div v-if="isError" class="grid gap-2 p-4 text-center" role="alert">
-      <p class="text-sm text-error">{{ t('chat.unavailable') }}</p>
-      <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('app.retry')" @click="refetch()" />
-    </div>
-    <EmptyState v-else-if="!items.length" :title="props.routeState.q || props.routeState.filter !== 'all' ? t('chat.emptyFiltered') : t('chat.empty')" />
-    <ul v-else class="min-h-0 flex-1 overflow-y-auto">
-      <li v-for="item in items" :key="item.id">
-        <NuxtLink
-          :to="conversationTo(item.id)"
-          class="nasq-chat-conversation-link"
-          :data-selected="props.selectedId === item.id"
-          :aria-current="props.selectedId === item.id ? 'page' : undefined"
-        >
-          <span class="relative shrink-0">
-            <span class="nasq-chat-avatar">{{ initialsFor(item.name) }}</span>
-            <span
-              v-if="item.type === 'direct' && item.im_status"
-              class="absolute end-0 bottom-0 size-3 rounded-full border-2 border-(--ui-bg)"
-              :class="item.im_status === 'online' ? 'nasq-status-dot-success' : 'bg-(--ui-text-dimmed)'"
-              :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
-            />
-            <span v-else-if="item.type !== 'direct'" class="nasq-chat-avatar-badge" :title="t(`chat.${item.type}`)">
-              <UIcon name="i-lucide-users-round" class="size-3" aria-hidden="true" />
+    <SharedPageState
+      :loading="isLoading || !hydrated"
+      :error="isError ? error : undefined"
+      :empty="!items.length"
+      :empty-text="props.routeState.q || props.routeState.filter !== 'all' ? t('chat.emptyFiltered') : t('chat.empty')"
+      @retry="refetch()"
+    >
+      <ul class="min-h-0 flex-1 overflow-y-auto">
+        <li v-for="item in items" :key="item.id">
+          <NuxtLink
+            :to="conversationTo(item.id)"
+            class="nasq-chat-conversation-link"
+            :data-selected="props.selectedId === item.id"
+            :aria-current="props.selectedId === item.id ? 'page' : undefined"
+          >
+            <span class="relative shrink-0">
+              <span class="nasq-chat-avatar">{{ initialsFor(item.name) }}</span>
+              <span
+                v-if="item.type === 'direct' && item.im_status"
+                class="absolute end-0 bottom-0 size-3 rounded-full border-2 border-(--ui-bg)"
+                :class="item.im_status === 'online' ? 'nasq-status-dot-success' : 'bg-(--ui-text-dimmed)'"
+                :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
+              />
+              <span v-else-if="item.type !== 'direct'" class="nasq-chat-avatar-badge" :title="t(`chat.${item.type}`)">
+                <UIcon name="i-lucide-users-round" class="size-3" aria-hidden="true" />
+              </span>
             </span>
-          </span>
-          <span class="min-w-0 flex-1">
-            <span class="flex items-center justify-between gap-2">
-              <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
-              <time v-if="item.last_message_at" class="nasq-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-center justify-between gap-2">
+                <span class="truncate font-medium">{{ item.name }}{{ item.muted ? ` · ${t('chat.muted')}` : '' }}</span>
+                <time v-if="item.last_message_at" class="nasq-chat-list-time" :class="{ 'text-brand-link': item.unread_count }">{{ timeFmt.format(new Date(item.last_message_at)) }}</time>
+              </span>
+              <span class="flex items-center justify-between gap-2">
+                <span class="truncate text-sm text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
+                <UBadge v-if="item.unread_count" size="xs" variant="solid">{{ item.unread_count }}</UBadge>
+              </span>
             </span>
-            <span class="flex items-center justify-between gap-2">
-              <span class="truncate text-sm text-muted">{{ item.last_message_preview || t(`chat.${item.type}`) }}</span>
-              <UBadge v-if="item.unread_count" size="xs" variant="solid">{{ item.unread_count }}</UBadge>
-            </span>
-          </span>
-        </NuxtLink>
-      </li>
-    </ul>
+          </NuxtLink>
+        </li>
+      </ul>
+    </SharedPageState>
     <SharedPagination class="border-t border-default p-2" :page="currentPage" :pages="pageCount" @update:page="goToPage" />
   </section>
 </template>

@@ -1,15 +1,24 @@
 <script setup lang="ts">
+import { errorStateKind } from '@/utils/errorState'
+import EmptyState from './EmptyState.vue'
+import ErrorState from './ErrorState.vue'
+import ForbiddenState from './ForbiddenState.vue'
+import LoadingSkeleton from './LoadingSkeleton.vue'
+import NotFoundState from './NotFoundState.vue'
+
+// A thin facade over the shared states (Tasmim spec §6). The props and the retry
+// event its call sites use do not change; each branch is one shared state.
 const props = defineProps<{ loading?: boolean; error?: unknown; empty?: boolean; emptyText?: string }>()
 defineEmits<{ retry: [] }>()
-const errorKey = computed(() => {
-  const error = props.error as { status?: number; statusCode?: number } | null
-  const status = error?.status ?? error?.statusCode
-  return status === 403 ? 'errors.forbidden' : status === 404 ? 'errors.notFound' : status === 409 ? 'errors.conflict' : 'errors.generic'
-})
+const { t } = useI18n()
+const kind = computed(() => errorStateKind(props.error))
 </script>
+
 <template>
-  <div v-if="loading" role="status" class="space-y-3 py-8" :aria-label="$t('app.loading')"><USkeleton v-for="n in 3" :key="n" class="h-12" /></div>
-  <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="$t(errorKey)"><template #actions><UButton color="neutral" variant="outline" @click="$emit('retry')">{{ $t('app.retry') }}</UButton></template></UAlert>
-  <div v-else-if="empty" role="status" class="rounded-xl border border-dashed border-default px-6 py-10 text-center text-sm text-muted">{{ emptyText ?? $t('app.noResults') }}</div>
+  <LoadingSkeleton v-if="loading" />
+  <ForbiddenState v-else-if="error && kind === 'forbidden'" />
+  <NotFoundState v-else-if="error && kind === 'notFound'" />
+  <ErrorState v-else-if="error" :error="error" @retry="$emit('retry')" />
+  <EmptyState v-else-if="empty" :title="emptyText ?? t('app.noResults')" />
   <slot v-else />
 </template>

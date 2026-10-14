@@ -1,7 +1,7 @@
 import type { AppearanceMode } from './appearance'
+import { DARK_SURFACES, NASQ_MIDNIGHT, contrastRatio, relativeLuminance } from './nasqPalette'
 
-
-export const DEFAULT_PRIMARY = '#18181b'
+export const DEFAULT_PRIMARY = NASQ_MIDNIGHT
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 
@@ -18,24 +18,6 @@ function channels(hex: string): [number, number, number] {
   ]
 }
 
-function relativeLuminance(hex: string): number {
-  const linear = channels(hex).map((value) => {
-    const channel = value / 255
-    return channel <= 0.04045
-      ? channel / 12.92
-      : ((channel + 0.055) / 1.055) ** 2.4
-  })
-  return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!
-}
-
-function contrast(first: string, second: string): number {
-  const firstLuminance = relativeLuminance(first)
-  const secondLuminance = relativeLuminance(second)
-  const light = Math.max(firstLuminance, secondLuminance)
-  const dark = Math.min(firstLuminance, secondLuminance)
-  return (light + 0.05) / (dark + 0.05)
-}
-
 function toHex(values: number[]): string {
   return `#${values.map(value => Math.round(value).toString(16).padStart(2, '0')).join('')}`
 }
@@ -46,13 +28,12 @@ function mix(hex: string, target: string, amount: number): string {
 }
 
 function foregroundFor(background: string): string {
-  return contrast(background, '#000000') >= contrast(background, '#ffffff') ? '#000000' : '#ffffff'
+  return contrastRatio(background, '#000000') >= contrastRatio(background, '#ffffff') ? '#000000' : '#ffffff'
 }
 
 export const MODE_SURFACES: Record<AppearanceMode, string[]> = {
   light: ['#f6f7fb', '#ffffff', '#f8f9fc', '#eef1f7', '#f1f3f9', '#e5e8ef', '#d9dde7'],
-  cream: ['#f6f3ed', '#fffdf8', '#faf7f1', '#f6f1e7', '#efe8d9', '#e4d9c6', '#e8e0d4', '#d8cbb7'],
-  dark: ['#11131a', '#181b24', '#1e222c', '#272c38', '#2d3340', '#394150'],
+  dark: Object.values(DARK_SURFACES),
 }
 
 function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode): string {
@@ -61,14 +42,14 @@ function contrastTone(hex: string, minimumContrast: number, mode: AppearanceMode
   const target = mode === 'dark' ? 255 : 0
   for (let step = 0; step <= 100; step += 1) {
     const candidate = toHex(rgb.map(value => value + (target - value) * step / 100))
-    if (surfaces.every(surface => contrast(candidate, surface) >= minimumContrast)) return candidate
+    if (surfaces.every(surface => contrastRatio(candidate, surface) >= minimumContrast)) return candidate
   }
   return mode === 'dark' ? '#ffffff' : '#000000'
 }
 
 function chartBase(hex: string, mode: AppearanceMode): string {
   const surfaces = MODE_SURFACES[mode]
-  return surfaces.every(surface => contrast(hex, surface) >= 3) ? hex : contrastTone(hex, 3, mode)
+  return surfaces.every(surface => contrastRatio(hex, surface) >= 3) ? hex : contrastTone(hex, 3, mode)
 }
 
 function hexToHsl(hex: string): { h: number, s: number, l: number } {
@@ -179,17 +160,40 @@ function interaction(hex: string) {
   return { hex, foreground, hover, hoverForeground: foregroundFor(hover), active, activeForeground: foregroundFor(active) }
 }
 
+// The dark-mode solid primary button (owner amendment 4, CP2). --brand-link mixes the
+// primary toward white until it reads as text on every dark surface, which turns a deep
+// brand grey (#13234a -> #a1a7b7). The button keeps the hue instead, holds saturation at
+// 0.55 or more (near-neutral brands stay neutral), and takes the darkest lightness that
+// stands 3:1 off the page surfaces under a 4.5:1 label. A colour that already passes is kept.
+const SOLID_PAGE_SURFACES = [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated]
+
+function solidReadable(candidate: string): boolean {
+  return SOLID_PAGE_SURFACES.every(surface => contrastRatio(candidate, surface) >= 3)
+    && contrastRatio(candidate, foregroundFor(candidate)) >= 4.5
+}
+
+export function darkSolid(input: string): string {
+  const hex = normalizeHex(input)
+  if (solidReadable(hex)) return hex
+  const { h, s, l } = hexToHsl(hex)
+  const saturation = s < 0.12 ? s : Math.max(s, 0.55)
+  for (let step = Math.round(Math.max(l, 0.3) * 100); step <= 100; step += 1) {
+    const candidate = hslToHex(h, saturation, step / 100)
+    if (solidReadable(candidate)) return candidate
+  }
+  return '#ffffff'
+}
+
 export function createBrandTheme(input: string, mode: AppearanceMode = 'light'): Record<string, string> {
   const primary = interaction(normalizeHex(input))
   const fill = interaction(chartBase(primary.hex, mode))
-  const surface = mode === 'dark' ? '#181b24' : mode === 'cream' ? '#fffdf8' : '#ffffff'
+  const surface = mode === 'dark' ? DARK_SURFACES.bg : '#ffffff'
   const soft = mix(fill.hex, surface, 0.82)
   const link = contrastTone(primary.hex, 4.5, mode)
   const ring = contrastTone(primary.hex, 3, mode)
   const charts = chartFamilyFromPrimary(primary.hex, mode)
-  const shell = mode === 'dark' && relativeLuminance(primary.hex) < 0.05
-    ? interaction(mix(primary.hex, '#ffffff', 0.18))
-    : primary
+  // Read only by the dark solid button recipe (app.config.ts); light keeps the stock button.
+  const solid = interaction(mode === 'dark' ? darkSolid(primary.hex) : link)
 
   return {
     '--primary': primary.hex,
@@ -206,6 +210,10 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light'):
     '--primary-fill-active-foreground': fill.activeForeground,
     '--primary-soft': soft,
     '--primary-soft-foreground': foregroundFor(soft),
+    '--primary-solid': solid.hex,
+    '--primary-solid-foreground': solid.foreground,
+    '--primary-solid-hover': solid.hover,
+    '--primary-solid-hover-foreground': solid.hoverForeground,
     '--brand-link': link,
     '--ring': ring,
     '--chart-1': charts[0]!,
@@ -217,9 +225,5 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light'):
     '--sidebar-primary': primary.hex,
     '--sidebar-primary-foreground': primary.foreground,
     '--sidebar-ring': ring,
-    '--shell-background': shell.hex,
-    '--shell-foreground': shell.foreground,
-    '--shell-hover': shell.hover,
-    '--shell-active': shell.active,
   }
 }

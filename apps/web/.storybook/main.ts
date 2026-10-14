@@ -94,7 +94,7 @@ function importMetaEnvShim(): Plugin {
 
 const config: StorybookConfig = {
   stories: ['../stories/**/*.mdx', '../stories/**/*.stories.ts'],
-  addons: ['@storybook/addon-docs', 'msw-storybook-addon'],
+  addons: ['@storybook/addon-docs', '@storybook/addon-a11y', 'msw-storybook-addon'],
   framework: { name: '@storybook/vue3-vite', options: {} },
   staticDirs: ['../public', './public'],
   async viteFinal(viteConfig, { configType }) {

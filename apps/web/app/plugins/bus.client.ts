@@ -3,7 +3,7 @@ import { setBusQueryClient } from '../composables/useBus'
 
 // Client-only: opens exactly one bus WebSocket per tab once a user is
 // logged in, and tears it down on logout. `useMe()`'s `me` query is keyed
-// 'me' and shared with the rest of the app (middleware, AppSidebar,
+// 'me' and shared with the rest of the app (middleware, shell/AppSidebar,
 // authenticated pages, and the login/logout flows' `refreshNuxtData('me')`), so this
 // plugin reacts to the same login state everything else does rather than
 // fetching its own copy.
@@ -15,7 +15,7 @@ import { setBusQueryClient } from '../composables/useBus'
 //
 // The query client is captured here, not inside useBus() itself, because
 // this file's .client.ts suffix guarantees it never runs during SSR -
-// useBus() is also called from AppSidebar.vue, which does render during SSR,
+// useBus() is also called from shell/AppSidebar.vue, which does render during SSR,
 // and capturing there would latch the first SSR request's query client for
 // the lifetime of the Node process. See setBusQueryClient() in useBus.ts.
 export default defineNuxtPlugin({

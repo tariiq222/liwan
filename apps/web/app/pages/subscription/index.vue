@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
+import { subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@nasq/commercial-contracts'
 import { formatSubscriptionMoney } from '@/utils/subscription'
 import { entitledFeaturePrefixes } from '@/utils/entitlementApps'
@@ -27,50 +27,45 @@ async function setAutoRenew(enabled: boolean) {
 definePageMeta({ middleware: 'customer-commercial' })
 </script>
 <template>
-  <SettingsLayout width="detail">
+  <SharedSettingsPage width="detail">
     <SharedPageHeader :title="t('subscription.title')" :description="t('subscription.description')">
       <template #actions><UButton v-if="can('subscription.manage')" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated">{{ t('subscription.summary.change') }}</UButton></template>
     </SharedPageHeader>
-    <p v-if="!allowed" class="text-muted">{{ t('subscription.forbidden') }}</p>
+    <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
       <div v-if="data" class="space-y-6">
-        <UCard>
-          <template #header><div class="flex flex-wrap items-center justify-between gap-3"><h2 class="font-semibold">{{ t('subscription.summary.plan') }}</h2><SubscriptionStateBadge v-if="display" :state="display" /></div></template>
+        <SharedRecordSection :title="t('subscription.summary.plan')"><template #actions><SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" /></template>
           <p v-if="!data.sub.applied" class="text-sm text-muted">{{ t('subscription.summary.none') }}</p>
-          <dl v-else class="grid gap-3 sm:grid-cols-3">
-            <div><dt class="text-sm text-muted">{{ t('subscription.summary.cadence') }}</dt><dd class="font-medium">{{ data.sub.applied.cadence.count === 1 ? t(`subscription.cadence.${data.sub.applied.cadence.unit}.one`) : t(`subscription.cadence.${data.sub.applied.cadence.unit}.many`, { count: data.sub.applied.cadence.count }) }}</dd></div>
-            <div><dt class="text-sm text-muted">{{ t('subscription.summary.renewal') }}</dt><dd class="font-medium tabular-nums"><bdi dir="ltr">{{ data.sub.renewal_at ?? '—' }}</bdi></dd></div>
-          </dl>
+          <SharedPropertiesPanel v-else>
+            <SharedPropertyRow :label="t('subscription.summary.cadence')" :value="data.sub.applied.cadence.count === 1 ? t(`subscription.cadence.${data.sub.applied.cadence.unit}.one`) : t(`subscription.cadence.${data.sub.applied.cadence.unit}.many`, { count: data.sub.applied.cadence.count })" />
+            <SharedPropertyRow v-if="data.sub.renewal_at" :label="t('subscription.summary.renewal')"><bdi dir="ltr">{{ data.sub.renewal_at }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('subscription.summary.renewal')" :value="null" />
+          </SharedPropertiesPanel>
           <div v-if="data.sub.pending_order || data.sub.target" class="mt-4 rounded-lg bg-elevated p-3" data-testid="pending-change">
             <p class="font-medium">{{ t('subscription.summary.pending') }}</p>
             <p class="text-sm text-muted">{{ t('subscription.summary.pendingHint') }}</p>
             <UButton v-if="data.sub.pending_order" class="mt-2" size="sm" color="neutral" variant="outline" :to="{ path: '/subscription/status', query: { order: data.sub.pending_order.id } }">{{ t('subscription.summary.viewStatus') }}</UButton>
           </div>
-        </UCard>
-        <UCard>
-          <template #header><h2 class="font-semibold">{{ t('subscription.summary.services') }}</h2></template>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('subscription.summary.services')">
           <p v-if="!entitledApps.length" class="text-sm text-muted">{{ t('subscription.summary.noServices') }}</p>
           <ul v-else class="flex flex-wrap gap-2"><li v-for="app in entitledApps" :key="app"><UBadge color="neutral" variant="subtle">{{ appLabel(app) }}</UBadge></li></ul>
-        </UCard>
-        <UCard>
-          <template #header><h2 class="font-semibold">{{ t('subscription.usage.title') }}</h2></template>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('subscription.usage.title')">
           <SubscriptionUsagePanel v-if="data.usage" :usage="data.usage" />
           <p v-else class="text-sm text-muted" role="status">{{ t('subscription.usage.unavailableNote') }}</p>
-        </UCard>
-        <UCard>
-          <template #header><div class="flex items-center justify-between gap-3"><h2 class="font-semibold">{{ t('subscription.branches.title') }}</h2><UButton to="/subscription/branches" color="neutral" variant="link">{{ t('subscription.branches.title') }}</UButton></div></template>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('subscription.branches.title')"><template #actions><UButton to="/subscription/branches" color="neutral" variant="link">{{ t('subscription.branches.title') }}</UButton></template>
           <SubscriptionBranchSummary v-if="data.branches" :summary="data.branches" />
-        </UCard>
-        <UCard v-if="data.invoices">
-          <template #header><div class="flex items-center justify-between gap-3"><h2 class="font-semibold">{{ t('subscription.invoices.preview') }}</h2><UButton to="/subscription/invoices" color="neutral" variant="link">{{ t('subscription.invoices.all') }}</UButton></div></template>
+        </SharedRecordSection>
+        <SharedRecordSection v-if="data.invoices" :title="t('subscription.invoices.preview')"><template #actions><UButton to="/subscription/invoices" color="neutral" variant="link">{{ t('subscription.invoices.all') }}</UButton></template>
           <p v-if="!data.invoices.items.length" class="text-sm text-muted">{{ t('subscription.invoices.empty') }}</p>
           <ul v-else class="divide-y divide-default"><li v-for="inv in data.invoices.items.slice(0, 3)" :key="inv.id" class="flex justify-between gap-3 py-2"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(inv.id)}`">{{ inv.number ?? inv.id }}</NuxtLink><span class="tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></li></ul>
-        </UCard>
-        <UCard>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('subscription.autoRenew.title')">
           <SubscriptionAutoRenewControl :enabled="data.sub.auto_renew.enabled" :can-manage="can('subscription.manage')" :pending="arBusy" :hydrated="hydrated" @change="setAutoRenew" />
           <UAlert v-if="arError" class="mt-3" color="error" variant="subtle" :title="t('errors.generic')" />
-        </UCard>
+        </SharedRecordSection>
       </div>
     </SharedPageState>
-  </SettingsLayout>
+  </SharedSettingsPage>
 </template>

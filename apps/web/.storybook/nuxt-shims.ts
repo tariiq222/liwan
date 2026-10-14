@@ -7,7 +7,9 @@ import type { Router } from 'vue-router'
 import { ofetch } from 'ofetch'
 
 export { useRoute, useRouter } from 'vue-router'
-export { useHead } from '@unhead/vue'
+// Storybook has no head manager; preview.ts applies the <html> attributes and
+// brand theme itself, so a component's useHead() is a no-op here.
+export function useHead(_input?: unknown, _options?: unknown) { return { patch: () => {}, dispose: () => {} } }
 
 // --- fetch (MSW intercepts window.fetch underneath) -----------------------
 export const $fetch = ofetch.create({})
@@ -18,6 +20,7 @@ export function useRequestEvent(): undefined { return undefined }
 // --- app / config ----------------------------------------------------------
 let router: Router | null = null
 export function __setRouter(r: Router) { router = r }
+export function __getRouter(): Router | null { return router }
 const nuxtApp = {
   isHydrating: false,
   payload: {},

@@ -48,76 +48,30 @@ function onCancel() {
 </script>
 
 <template>
-  <SharedPageContainer :width="readonly ? 'list' : 'form'">
-    <SharedPageHeader
-      :title="t(readonly ? 'projects.charter.title' : 'projects.clarity.editCharter')"
-    >
+  <SharedStandalonePage v-if="readonly" variant="print">
+    <SharedPageHeader class="nasq-print-hide" :title="t('projects.charter.title')">
       <template #actions>
-        <UBadge
-          v-if="charterState"
-          data-testid="charter-state-badge"
-          :color="isDraft ? 'warning' : 'success'"
-          variant="subtle"
-          :label="t(`projects.charter.state.${charterState}`)"
-          :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`"
-        />
-        <UButton v-if="project?.can_manage && readonly" data-testid="project-charter-edit" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t(isDraft ? 'projects.charter.continueDraft' : 'app.edit') }}</UButton>
+        <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
+        <UButton v-if="project?.can_manage" data-testid="project-charter-edit" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t(isDraft ? 'projects.charter.continueDraft' : 'app.edit') }}</UButton>
       </template>
     </SharedPageHeader>
-    <UAlert
-      v-if="readonly && isDraft && project"
-      data-testid="charter-draft-banner"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-pencil-line"
-      :title="t('projects.charter.draftBanner')"
-    />
-    <template v-if="projectId === null">
-      <p class="text-muted">{{ t('projects.invalidId') }}</p>
-    </template>
-    <SharedPageState
-      v-else
-      :loading="isLoading && !project"
-      :error="notFound ? null : error"
-      :empty="notFound || (!isLoading && !error && !project)"
-      :empty-text="notFound ? t('projects.notFound') : t('projects.empty')"
-      @retry="refetch"
-    >
-      <div class="project-charter-print-scope">
-        <div :class="readonly ? undefined : 'rounded-lg ring ring-default bg-default overflow-hidden p-5'">
-            <ProjectCharterForm
-              mode="edit"
-              :project="project"
-              :readonly="readonly"
-              :milestones="milestones ?? []"
-              :milestones-loading="milestonesLoading"
-              :milestones-error="milestonesError"
-              @saved="onSaved"
-              @draft-saved="onDraftSaved"
-              @cancel="onCancel"
-              @retry-milestones="refetchMilestones"
-            />
-        </div>
-      </div>
+    <UAlert v-if="isDraft && project" class="nasq-print-hide" data-testid="charter-draft-banner" color="warning" variant="subtle" icon="i-lucide-pencil-line" :title="t('projects.charter.draftBanner')" />
+    <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
+    <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
+      <ProjectCharterForm mode="edit" :project="project" readonly :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @retry-milestones="refetchMilestones" />
+    </SharedPageState>
+  </SharedStandalonePage>
+  <SharedPageContainer v-else width="form">
+    <SharedPageHeader :title="t('projects.clarity.editCharter')">
+      <template #actions>
+        <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
+      </template>
+    </SharedPageHeader>
+    <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
+    <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
+      <SharedFormSection panel>
+        <ProjectCharterForm mode="edit" :project="project" :readonly="false" :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @saved="onSaved" @draft-saved="onDraftSaved" @cancel="onCancel" @retry-milestones="refetchMilestones" />
+      </SharedFormSection>
     </SharedPageState>
   </SharedPageContainer>
 </template>
-
-<style scoped>
-@media print {
-  :global(body *) {
-    visibility: hidden;
-  }
-
-  :global(.project-charter-print-scope),
-  :global(.project-charter-print-scope *) {
-    visibility: visible;
-  }
-
-  :global(.project-charter-print-scope) {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-  }
-}
-</style>

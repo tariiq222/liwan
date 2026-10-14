@@ -19,6 +19,17 @@ const Passthrough = defineComponent({
   },
 })
 
+const RecordStub = defineComponent({
+  inheritAttrs: false,
+  props: ['title', 'description', 'backTo', 'backLabel', 'loading', 'error'],
+  setup(props, { slots }) {
+    return () => h('div', {
+      'data-testid': 'record-stub', 'data-title': props.title, 'data-description': props.description,
+      'data-back': JSON.stringify(props.backTo), 'data-loading': String(Boolean(props.loading)),
+    }, [slots.actions?.(), ...(props.loading ? [] : [slots.default?.()])])
+  },
+})
+
 function loadPage(setup: () => Record<string, unknown>) {
   const parsed = parse(source, { filename })
   if (!parsed.descriptor.template) throw new Error('no template')
@@ -38,8 +49,7 @@ function loadPage(setup: () => Record<string, unknown>) {
 async function renderPage(setup: () => Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(loadPage(setup)) })
   app.component('Button', Passthrough)
-  app.component('SharedPageContainer', Passthrough)
-  app.component('SharedPageHeader', Passthrough)
+  app.component('SharedRecordPage', RecordStub)
   app.component('ArrowLeft', defineComponent({ setup: () => () => null }))
   app.component('ArrowRight', defineComponent({ setup: () => () => null }))
   return renderToString(app)
@@ -59,7 +69,7 @@ describe('notification digest page production template', () => {
 
   it('shows invalid id as an error, not an empty list', async () => {
     const html = await renderPage(() => ({
-      t, hydrated: true, isRtl: false, idInvalid: true, isError: false, isLoading: false,
+      t, backTo: { path: '/notifications', query: {} }, hydrated: true, isRtl: false, idInvalid: true, isError: false, isLoading: false,
       items: [], overdueCount: 0, queryErrorMessage: 'err', isFetchNextPageError: false,
       hasNextPage: false, isFetching: false, isFetchingNextPage: false,
       ArrowLeft: 'span', ArrowRight: 'span',
@@ -72,7 +82,7 @@ describe('notification digest page production template', () => {
 
   it('preserves first-page rows when the next page fails and offers retry', async () => {
     const html = await renderPage(() => ({
-      t, hydrated: false, isRtl: false, idInvalid: false, isError: false, isLoading: false,
+      t, backTo: { path: '/notifications', query: {} }, hydrated: false, isRtl: false, idInvalid: false, isError: false, isLoading: false,
       items: [{ id: 9, name: 'Overdue A', project: { name: 'P' } }],
       overdueCount: 2, queryErrorMessage: 'err', isFetchNextPageError: true,
       hasNextPage: true, isFetching: false, isFetchingNextPage: false,
@@ -82,8 +92,19 @@ describe('notification digest page production template', () => {
     expect(html).toContain('Overdue A')
     expect(html).toContain('data-testid="digest-next-error"')
     expect(html).toContain('data-testid="digest-retry-page"')
-    expect(html).toContain('data-testid="digest-back"')
+    expect(html).toContain('data-back="{&quot;path&quot;:&quot;/notifications&quot;,&quot;query&quot;:{}}"')
     expect(html).toContain('disabled')
+  })
+
+  it('shows the template skeleton, not a text line, while the first page loads', async () => {
+    const html = await renderPage(() => ({
+      t, backTo: { path: '/notifications', query: {} }, hydrated: true, idInvalid: false, isError: false, isLoading: true,
+      items: [], overdueCount: 0, queryErrorMessage: '', isFetchNextPageError: false,
+      hasNextPage: false, isFetching: true, isFetchingNextPage: false,
+      retryDigest: () => {}, retryNextPage: () => {}, openTask: () => {},
+    }))
+    expect(html).toContain('data-loading="true"')
+    expect(html).not.toContain('notifications.loading')
   })
 
   it('catches fetchNextPage rejection in production source', () => {

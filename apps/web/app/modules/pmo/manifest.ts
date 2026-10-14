@@ -14,9 +14,9 @@ const manifest: AppManifest = {
   ],
   defaultRail: 'projects',
   nav: [
-    { to: '/projects/dashboard', labelKey: 'nav.home', icon: 'i-lucide-house', shortcut: 'h', capability: 'pmo.projects.read', module: 'home' },
-    { to: '/projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', shortcut: '2', capability: 'pmo.projects.read', module: 'projects' },
-    { to: '/tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', shortcut: '1', capability: 'pmo.tasks.read', module: 'projects' },
+    { to: '/projects/dashboard', labelKey: 'nav.home', icon: 'i-lucide-house', shortcut: 'h', goKey: 'h', capability: 'pmo.projects.read', module: 'home' },
+    { to: '/projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', shortcut: '2', goKey: 'p', capability: 'pmo.projects.read', module: 'projects' },
+    { to: '/tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', shortcut: '1', goKey: 't', capability: 'pmo.tasks.read', module: 'projects' },
     { to: '/project-templates', labelKey: 'nav.projectTemplates', icon: 'i-lucide-layout-template', shortcut: 't', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/projects/settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', shortcut: '4', capability: 'pmo.settings.manage', module: 'projects' },
   ],
@@ -58,6 +58,10 @@ const manifest: AppManifest = {
     ],
   },
   search: [projectsSearch, tasksSearch],
+  commands: [
+    { id: 'pmo.new-project', labelKey: 'nav.newProject', icon: 'i-lucide-folder-kanban', to: '/projects/new', capability: 'pmo.projects.create' },
+    { id: 'pmo.new-task', labelKey: 'tasks.new', icon: 'i-lucide-check-square', to: '/tasks/new', capability: 'pmo.tasks.create' },
+  ],
   returnToPaths: ['/archived-tasks'],
   isNavActive(path, target) {
     if (target === '/tasks') return path === '/archived-tasks' ? true : undefined

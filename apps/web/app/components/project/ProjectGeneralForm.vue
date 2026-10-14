@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectDetail, ProjectPatch, Visibility } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import TagPicker from '@/components/task/TagPicker.vue'
+import TagPicker from '@/components/shared/TagPicker.vue'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useUpdateProject } from '@/composables/useProjects'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DescriptionEditor from '@/components/task/DescriptionEditor.vue'
+import DescriptionEditor from '@/components/shared/DescriptionEditor.vue'
 import { ApiError } from '@/composables/useApi'
 import { useCreateProjectUpdate } from '@/composables/useProjectUpdates'
 import { isDirtySnapshot } from '@/lib/formDirty'

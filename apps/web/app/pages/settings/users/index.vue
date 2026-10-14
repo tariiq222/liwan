@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import UserTable from '@/components/access/users/UserTable.vue'
-import SettingsLayout from '@/components/settings/SettingsLayout.vue'
 import FilterBar from '@/components/shared/FilterBar.vue'
 import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
@@ -58,7 +57,7 @@ watch(() => [route.query.q, route.query.status, route.query.role_id, route.query
   filters.offset = parseAdminOffset(offset)
 })
 const listQuery = computed(() => adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
-function openUser(id: number) { void navigateTo({ path: `/settings/users/${id}`, query: listQuery.value }) }
+const userTo = (user: { id: number }) => ({ path: `/settings/users/${user.id}`, query: listQuery.value })
 const allValue = '__all__'
 const statusOptions = computed(() => [{ value: allValue, label: t('access.users.filters.allStatuses') }, { value: 'active', label: t('access.active') }, { value: 'stopped', label: t('access.disabled') }])
 const roleOptions = computed(() => [{ value: allValue, label: t('access.users.filters.allRoles') }, ...(roles.data.value?.items ?? []).map(role => ({ value: String(role.id), label: role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar }))])
@@ -70,13 +69,15 @@ function clearSearch() { filters.q = ''; updateFilters() }
 </script>
 
 <template>
-  <SettingsLayout>
-    <SharedPageHeader :title="t('access.users.title')">
-      <UButton v-if="can('access.users.grant')" color="primary" icon="i-lucide-plus" :disabled="!hydrated" :label="t('access.users.grantAccount')" @click="navigateTo({ path: '/settings/users/new', query: listQuery })" />
-    </SharedPageHeader>
-    <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <div v-else class="space-y-6">
-      <div id="filters" class="nasq-settings-anchor w-full min-w-0">
+  <SharedListPage
+    data-testid="settings-layout"
+    :title="t('access.users.title')"
+    :create-to="can('access.users.grant') ? { path: '/settings/users/new', query: listQuery } : undefined"
+    :create-label="t('access.users.grantAccount')"
+    create-test-id="settings-user-new"
+  >
+    <template v-if="!forbidden" #filters>
+      <div id="filters" class="w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
             <UInput v-model="filters.q" class="w-full" :aria-label="t('access.users.filters.search')" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" />
@@ -96,12 +97,20 @@ function clearSearch() { filters.q = ''; updateFilters() }
           </template>
         </FilterBar>
       </div>
-      <div id="results" class="nasq-settings-anchor">
-        <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && query.data.value?.items.length === 0" :empty-text="t('access.users.empty')" @retry="query.refetch">
-          <UserTable :users="query.data.value?.items ?? []" @open="openUser" />
-        </SharedPageState>
-        <SharedPagination class="mt-4" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
-      </div>
+    </template>
+
+    <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
+    <div v-else class="grid gap-3">
+      <UserTable
+        id="results"
+        :users="query.data.value?.items ?? []"
+        :loading="query.isLoading.value"
+        :error="query.error.value"
+        :empty-text="t('access.users.empty')"
+        :to-for="userTo"
+        @retry="query.refetch"
+      />
+      <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
     </div>
-  </SettingsLayout>
+  </SharedListPage>
 </template>

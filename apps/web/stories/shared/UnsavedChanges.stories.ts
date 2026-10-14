@@ -3,7 +3,7 @@ import { defineComponent, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import SettingsLayout from '../../app/components/settings/SettingsLayout.vue'
+import SettingsPage from '../../app/components/shared/SettingsPage.vue'
 import FormSection from '../../app/components/shared/FormSection.vue'
 import UnsavedChanges from '../../app/components/shared/UnsavedChanges.vue'
 import { storyContext } from '../support/context'
@@ -11,7 +11,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/UnsavedChanges',
   component: UnsavedChanges,
-  parameters: { layout: 'fullscreen' },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' } },
   args: { dirty: true },
 } satisfies Meta<typeof UnsavedChanges>
 export default meta
@@ -21,7 +21,7 @@ export const GuardsLeavingDirtyForm: Story = {
   name: 'داخل نموذج عند مغادرة الصفحة',
   parameters: storyContext('apps/web/app/pages/settings/users/new.vue:105'),
   render: args => ({
-    components: { SettingsLayout },
+    components: { SettingsPage },
     setup() {
       const router = useRouter()
       const { t } = useI18n()
@@ -35,7 +35,7 @@ export const GuardsLeavingDirtyForm: Story = {
       onMounted(() => router.push('/__story/unsaved-form'))
       return { t, leave: () => router.push('/__story/elsewhere') }
     },
-    template: `<main class="nasq-shell-main"><SettingsLayout width="form"><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsLayout></main>`,
+    template: `<main class="nasq-shell-main"><SettingsPage width="form"><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsPage></main>`,
   }),
   play: async ({ canvasElement, args }) => {
     const leave = await within(canvasElement).findByTestId('leave')

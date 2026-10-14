@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-for (const [mode, fontSize, width] of [['light', 'small', 1440], ['dark', 'large', 768], ['cream', 'medium', 390]] as const) {
+for (const [mode, fontSize, width] of [['light', 'small', 1440], ['dark', 'large', 768], ['light', 'medium', 390]] as const) {
   test(`project surfaces render in ${mode}, ${fontSize}, ${width}px`, async ({ page, context, baseURL }, testInfo) => {
     test.setTimeout(120_000)
     if (!baseURL?.includes(':3469')) throw new Error('Isolated migration runtime required')

@@ -29,7 +29,7 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { $api } = useApi()
 const { connected } = useBus()
-const { data, isFetching, isError, error } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
+const { data, isFetching, isError, error, refetch } = useChatMessages(() => props.conversationId, {}, () => props.q || '')
 const { mutateAsync: markRead } = useMarkChatRead(() => props.conversationId)
 const { mutateAsync: patchMessage } = usePatchChatMessage(() => props.conversationId)
 const { mutateAsync: reactMessage } = useReactChatMessage(() => props.conversationId)
@@ -269,7 +269,8 @@ watch(() => props.denied, (value) => { if (value) seal() })
     <div class="flex justify-center p-2">
       <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetching || loadingOlder || !items.length || sealed" :label="t('chat.loadOlder')" @click="loadOlder" />
     </div>
-    <div v-if="(isError || sealed) && !items.length" class="p-4 text-sm text-error" role="alert">{{ t('chat.unavailable') }}</div>
+    <SharedErrorState v-if="isError && !items.length" :error="error" :title="t('chat.unavailable')" class="m-4" @retry="refetch()" />
+    <SharedEmptyState v-else-if="sealed && !items.length" :title="t('chat.unavailable')" class="m-4" />
     <div ref="scroller" class="nasq-chat-scroller min-h-0 flex-1 overflow-y-auto px-4 py-2" data-testid="chat-scroller" @scroll="onScroll">
       <ol class="flex flex-col gap-1">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">

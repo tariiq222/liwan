@@ -1,11 +1,14 @@
 <script setup lang="ts">
+import type { TaskState } from '@nasq/contracts'
+import { taskStateBadge } from '@/composables/taskState'
+import { badgeLabel } from '@/utils/statusBadge'
 import type { TaskDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useTaskDependencies, useTaskDependencyCandidates, useUpdateTaskDependencies } from '@/composables/useTaskDependencies'
-import StateBadge from './StateBadge.vue'
 
 const props = defineProps<{ task: TaskDetail }>()
 const { t } = useI18n()
+const stateBadge = (state: TaskState) => { const entry = taskStateBadge(state); return { tone: entry.tone, label: badgeLabel(entry, state, t) } }
 const hydrated = useHydrated()
 const toast = useToast()
 const q = ref('')
@@ -59,7 +62,7 @@ function remove(id: number) {
     <div class="space-y-3">
       <ul v-if="dependencies.length" class="grid gap-1">
         <li v-for="dep in dependencies" :key="dep.id" class="flex min-w-0 items-center gap-2 rounded-lg border border-transparent p-0.5 transition-colors hover:border-default hover:bg-elevated focus-within:border-primary">
-          <StateBadge :state="dep.state" />
+          <SharedStatusBadge v-bind="stateBadge(dep.state)" />
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ dep.name }}</span>
           <UButton
             v-if="task.can_manage_dependencies"

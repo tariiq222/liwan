@@ -1,6 +1,8 @@
-import type { Money, Quote, SubscriptionDisplayState, UsageMetric, UsageSnapshot } from '@nasq/commercial-contracts'
+import type { Invoice, Money, Quote, SubscriptionDisplayState, UsageMetric, UsageSnapshot } from '@nasq/commercial-contracts'
 
+import { invoiceLineQuantities, type InvoiceLineView } from './invoiceLines'
 import { humanizeId } from './labelFallback'
+import { statusBadgeEntry, type StatusBadgeEntry } from './statusBadge'
 
 export type { SubscriptionDisplayState }
 export const DISPLAY_STATE_KEYS: Record<SubscriptionDisplayState, string> = {
@@ -9,6 +11,17 @@ export const DISPLAY_STATE_KEYS: Record<SubscriptionDisplayState, string> = {
 }
 export const DISPLAY_STATE_COLORS: Record<SubscriptionDisplayState, 'warning' | 'info' | 'success' | 'error' | 'neutral'> = {
   awaiting_payment: 'warning', activating: 'info', active: 'success', failed: 'error', inactive: 'neutral',
+}
+
+const DISPLAY_STATE_TONES: Record<SubscriptionDisplayState, StatusBadgeEntry['tone']> = {
+  awaiting_payment: 'warning', activating: 'info', active: 'success', failed: 'destructive', inactive: 'neutral',
+}
+
+export function subscriptionStateBadge(state: SubscriptionDisplayState): StatusBadgeEntry {
+  return statusBadgeEntry(
+    Object.fromEntries((Object.keys(DISPLAY_STATE_TONES) as SubscriptionDisplayState[]).map(key => [key, { tone: DISPLAY_STATE_TONES[key], labelKey: DISPLAY_STATE_KEYS[key] }])) as Record<SubscriptionDisplayState, StatusBadgeEntry>,
+    state,
+  )
 }
 
 export function formatSubscriptionMoney(money: Money, locale = 'ar'): string {
@@ -69,4 +82,33 @@ export function usageMetricLabel(metric: Pick<UsageMetric, 'key' | 'unit'>, t: (
   const byUnit = `subscription.usage.${metric.unit}`
   if (te(byUnit)) return t(byUnit)
   return humanizeId(metric.key)
+}
+
+/** The customer invoice: list lines (× quantity · free · paid), the "not official" notice and the totals. */
+export function subscriptionInvoiceView(invoice: Invoice, t: (key: string) => string, locale: string) {
+  const money = (value: Invoice['total']) => formatSubscriptionMoney(value, locale)
+  const lines: InvoiceLineView[] = invoice.lines.map((line) => {
+    const q = invoiceLineQuantities(line)
+    return {
+      id: line.key,
+      description: line.description,
+      cells: [
+        { key: 'quantity', label: '', value: `× ${line.quantity}` },
+        ...(q.free === null ? [] : [
+          { key: 'free', label: t('subscription.invoices.free'), value: String(q.free) },
+          { key: 'paid', label: t('subscription.invoices.paidQty'), value: String(q.paid) },
+        ]),
+      ],
+      amount: money(line.amount),
+    }
+  })
+  return {
+    lines,
+    notice: t('subscription.invoices.notOfficial'),
+    totals: [
+      { label: t('subscription.invoices.subtotal'), value: money(invoice.subtotal) },
+      { label: t('subscription.invoices.tax'), value: money(invoice.tax) },
+      { label: t('subscription.invoices.total'), value: money(invoice.total) },
+    ],
+  }
 }

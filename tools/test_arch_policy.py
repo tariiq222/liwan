@@ -28,7 +28,9 @@ from arch_policy import (
 RANKS = {'nasq_core': 0, 'nasq_platform': 1, 'nasq_api': 2, 'nasq_pmo': 4, 'nasq_hr': 4, 'nasq_meetings_pmo': 5}
 WEB_APPS = {
     'pmo': {'components': ['project', 'task'], 'pages': ['projects', 'tasks']},
+    'meetings': {'components': ['meetings'], 'pages': ['meetings']},
     'hr': {'components': ['hr'], 'pages': ['hr']},
+    'chat': {'components': ['chat'], 'pages': ['chat']},
 }
 COMMERCIAL = {
     'pages': {'subscription': 'customer-commercial'},
@@ -209,6 +211,17 @@ class TestPureRules(unittest.TestCase):
         self.assertTrue(is_test_path(Path('apps/web/app/utils/a.test.ts')))
         self.assertFalse(is_test_path(Path('odoo-addons/nasq_pmo/models/project_task.py')))
 
+    def test_every_app_folder_is_caught_in_every_tag_form(self):
+        for directory, name in (('project', 'Project'), ('task', 'Task'), ('meetings', 'Meetings'),
+                                ('hr', 'Hr'), ('chat', 'Chat')):
+            for tag in (f'<{name}Card />', f'<Lazy{name}Card />', f'<{directory}-card />', f'<lazy-{directory}-card />'):
+                with self.subTest(tag=tag):
+                    self.assertEqual(foreign_component_uses(tag, '', WEB_APPS), 1)
+
+    def test_html_and_own_tags_are_not_foreign(self):
+        self.assertEqual(foreign_component_uses('<hr /><hr><Hrx />', '', WEB_APPS), 0)
+        self.assertEqual(foreign_component_uses('<LazyChatPanel /><chat-panel />', 'chat', WEB_APPS), 0)
+
 
 class TestAppToken(unittest.TestCase):
     RANKS = {
@@ -289,6 +302,27 @@ class TestCollect(unittest.TestCase):
             'odoo-addons/nasq_pmo/models/feature_registry.py',
             HEADER + "X = {'key': 'pmo.enabled', 'owner': 'nasq_pmo'}\n",
         )
+
+    def test_shell_and_layout_name_no_application(self):
+        self.clean_tree()
+        self.write('apps/web/app/components/shell/ContextSidebar.vue',
+                   "<script setup>import L from '@/components/hr/List.vue'</script><template><TaskRow /></template>\n")
+        self.write('apps/web/app/layouts/default.vue', '<template><ProjectMenu /></template>\n')
+        self.write('apps/web/app/components/shell/ShellHeader.vue',
+                   "<script setup>import N from '@/components/notifications/NotificationCenter.vue'</script>\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R3'], {
+            'web apps/web/app/components/shell/ContextSidebar.vue': 2,
+            'web apps/web/app/layouts/default.vue': 1,
+        })
+
+    def test_shell_flags_lazy_kebab_and_module_imports_of_any_app(self):
+        self.clean_tree()
+        self.write('apps/web/app/components/shell/ShellHeader.vue',
+                   "<script setup>import m from '@/modules/chat/manifest'</script>"
+                   "<template><LazyChatSidebarPanel /><meetings-card /></template>\n")
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R3'], {'web apps/web/app/components/shell/ShellHeader.vue': 3})
 
     def test_clean_tree_has_no_violations(self):
         self.clean_tree()

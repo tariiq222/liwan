@@ -1,163 +1,85 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import { h } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import type { FinanceEntry, FinanceSummary } from '@nasq/contracts'
-import { useMediaQuery } from '@vueuse/core'
-import EmptyState from '@/components/shared/EmptyState.vue'
-import { formatCalendarDate } from '@/composables/calendarDate'
-import { formatMoney } from '@/utils/projectFinance'
-import { returnToQuery } from '@/utils/safeReturnTo'
 import RecordNumber from '@/components/shared/RecordNumber.vue'
 import type { RowAction } from '@/components/shared/RowActions.vue'
+import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatMoney } from '@/utils/projectFinance'
+import { recordChildTo } from '@/utils/recordListOrigin'
 
+// The ledger on SharedDataTable. A row link, Enter and a background click open the entry through `rowTo`;
+// the empty state, the error and the paging belong to the page.
 const props = defineProps<{
   projectId: number
   items: FinanceEntry[]
   summary: FinanceSummary
   isLoading: boolean
-  filtered: boolean
+  rowTo: (item: FinanceEntry) => RouteLocationRaw
   canManage?: boolean
-  createTo?: RouteLocationRaw
 }>()
-const emit = defineEmits<{ open: [id: number] }>()
 const { t, locale } = useI18n()
-const hydrated = useHydrated()
-const route = useRoute()
-const compactRecords = useMediaQuery('(max-width: 767px)', { ssrWidth: 1024 })
-const loading = computed(() => props.isLoading || !hydrated.value)
-const showCreate = computed(() => Boolean(props.canManage && props.createTo && !props.filtered))
-const budgets = computed(() => {
-  const names = new Map<number, string>()
-  for (const item of props.items) {
-    if (item.kind === 'budget') names.set(item.id, item.title)
-  }
-  return names
-})
-const columns = computed(() => [
+const router = useRouter()
+function openLiveEntry(event: MouseEvent, item: FinanceEntry) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  void router.push(props.rowTo(item))
+}
+const budgets = computed(() => new Map(props.items.filter(item => item.kind === 'budget').map(item => [item.id, item.title])))
+const columns = computed<TableColumn<FinanceEntry>[]>(() => [
   { id: 'record', header: t('app.recordNumber') },
   { id: 'title', header: t('projects.finance.columns.title') },
   { id: 'kind', header: t('projects.finance.columns.kind') },
   { id: 'amount', header: t('projects.finance.columns.amount') },
   { id: 'date', header: t('projects.finance.columns.date') },
   { id: 'budget', header: t('projects.finance.columns.budget') },
-  ...(props.canManage ? [{ id: 'actions', header: '', meta: { class: { th: 'w-0', td: 'w-0 text-end' } } }] : []),
+  ...(props.canManage ? [{ id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } }] : []),
 ])
-
 // Deletion stays on the entry page, where its inline confirmation lives.
 function entryActions(item: FinanceEntry): RowAction[] {
-  return [{
-    label: t('app.edit'),
-    icon: 'i-lucide-pencil',
-    to: { path: `/projects/${props.projectId}/finance/${item.id}/edit`, query: returnToQuery(route.fullPath) },
-  }]
+  return [{ label: t('app.edit'), icon: 'i-lucide-pencil', to: recordChildTo(`/projects/${props.projectId}/finance/${item.id}/edit`, router.resolve(props.rowTo(item)).query, [`/projects/${props.projectId}/finance`]) }]
 }
-
 function budgetLabel(item: FinanceEntry) {
   if (!item.budget_entry_id) return '—'
   return budgets.value.get(item.budget_entry_id) ?? t('projects.finance.linkedBudget', { id: item.budget_entry_id })
 }
-
-function open(id: number) {
-  if (!hydrated.value) return
-  emit('open', id)
-}
-
-function onSelect(_event: Event, row: { original: FinanceEntry }) {
-  open(row.original.id)
-}
+const dateLabel = (item: FinanceEntry) => (item.expense_date ? formatCalendarDate(item.expense_date, locale.value) : '—')
 </script>
 
 <template>
-  <div v-if="loading" class="rounded-lg ring ring-default bg-default overflow-hidden grid gap-3 p-4" role="status" :aria-label="$t('app.loading')">
-    <USkeleton v-for="n in 5" :key="n" :class="compactRecords ? 'h-24 w-full' : 'h-5 w-full'" />
-  </div>
-  <EmptyState
-    v-else-if="items.length === 0"
-    :title="t(filtered ? 'projects.finance.filteredEmpty' : 'projects.finance.empty')"
-    :description="t(filtered ? 'projects.finance.filteredEmptyHint' : 'projects.finance.emptyHint')"
-  >
-    <template v-if="showCreate" #action>
-      <UButton icon="i-lucide-plus" :disabled="!hydrated" :to="createTo">{{ t('projects.finance.newBudget') }}</UButton>
+  <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="isLoading" :caption="t('projects.finance.columns.title')">
+    <template #record-cell="{ row }"><RecordNumber :value="row.original.reference || row.original.id" /></template>
+    <template #title-cell="{ row }">
+      <div data-testid="finance-entry-row" class="min-w-0">
+        <NuxtLink :to="rowTo(row.original)" @click="openLiveEntry($event, row.original)" class="block truncate font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
+      </div>
     </template>
-  </EmptyState>
-  <div v-else-if="compactRecords" class="rounded-lg ring ring-default bg-default overflow-hidden">
-      <ul class="grid divide-y divide-default" :aria-label="t('projects.finance.columns.title')">
-        <li
-          v-for="item in items"
-          :key="item.id"
-          class="grid cursor-pointer gap-3 p-4"
-          data-testid="finance-entry-row"
-          role="link"
-          tabindex="0"
-          @click="open(item.id)"
-          @keydown.enter.prevent="open(item.id)"
-          @keydown.space.prevent="open(item.id)"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <RecordNumber :value="item.reference || item.id" />
-              <UButton
-                color="neutral"
-                variant="link"
-                class="mt-1 block p-0 text-start font-medium whitespace-normal"
-                :to="{ path: `/projects/${projectId}/finance/${item.id}`, query: returnToQuery(route.fullPath) }"
-                @click.stop
-              >
-                {{ item.title }}
-              </UButton>
-            </div>
-            <div class="flex shrink-0 items-center gap-2">
-              <span class="text-sm">{{ t(`projects.finance.kind.${item.kind}`) }}</span>
-              <SharedRowActions v-if="canManage" :actions="entryActions(item)" :label="t('projects.finance.actionsNamed', { name: item.title })" />
-            </div>
+    <template #kind-cell="{ row }">{{ t(`projects.finance.kind.${row.original.kind}`) }}</template>
+    <template #amount-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
+    <template #date-cell="{ row }">{{ dateLabel(row.original) }}</template>
+    <template #budget-cell="{ row }"><span class="truncate">{{ budgetLabel(row.original) }}</span></template>
+    <template #actions-cell="{ row }">
+      <SharedRowActions :actions="entryActions(row.original)" :label="t('projects.finance.actionsNamed', { name: row.original.title })" />
+    </template>
+    <template #mobile-row="{ row: item }">
+      <div data-testid="finance-entry-card" class="grid gap-3">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <RecordNumber :value="item.reference || item.id" />
+            <NuxtLink :to="rowTo(item)" @click="openLiveEntry($event, item)" class="mt-1 block font-medium text-highlighted hover:underline">{{ item.title }}</NuxtLink>
           </div>
-          <dl class="grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <dt class="text-muted">{{ t('projects.finance.columns.amount') }}</dt>
-              <dd dir="ltr" class="tabular-nums">{{ formatMoney(item.amount, summary.currency) }}</dd>
-            </div>
-            <div>
-              <dt class="text-muted">{{ t('projects.finance.columns.date') }}</dt>
-              <dd>{{ item.expense_date ? formatCalendarDate(item.expense_date, locale) : '—' }}</dd>
-            </div>
-            <div class="col-span-2">
-              <dt class="text-muted">{{ t('projects.finance.columns.budget') }}</dt>
-              <dd>{{ budgetLabel(item) }}</dd>
-            </div>
-          </dl>
-        </li>
-      </ul>
-  </div>
-  <div v-else class="rounded-lg ring ring-default bg-default overflow-hidden">
-    <UTable
-      :data="items"
-      :columns="columns"
-      :caption="t('projects.finance.columns.title')"
-      :ui="{ caption: 'sr-only', thead: '' }"
-      :on-select="hydrated ? onSelect : undefined"
-    >
-      <template #record-cell="{ row }">
-        <RecordNumber :value="row.original.reference || row.original.id" />
-      </template>
-      <template #title-cell="{ row }">
-        <div data-testid="finance-entry-row">
-          <UButton
-            color="neutral"
-            variant="link"
-            class="block truncate p-0 font-medium text-start"
-            :to="{ path: `/projects/${projectId}/finance/${row.original.id}`, query: returnToQuery(route.fullPath) }"
-            @click.stop
-          >
-            {{ row.original.title }}
-          </UButton>
+          <div class="flex shrink-0 items-center gap-2">
+            <span class="text-sm">{{ t(`projects.finance.kind.${item.kind}`) }}</span>
+            <SharedRowActions v-if="canManage" :actions="entryActions(item)" :label="t('projects.finance.actionsNamed', { name: item.title })" />
+          </div>
         </div>
-      </template>
-      <template #kind-cell="{ row }">{{ t(`projects.finance.kind.${row.original.kind}`) }}</template>
-      <template #amount-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
-      <template #date-cell="{ row }">{{ row.original.expense_date ? formatCalendarDate(row.original.expense_date, locale) : '—' }}</template>
-      <template #budget-cell="{ row }"><span class="truncate">{{ budgetLabel(row.original) }}</span></template>
-      <template #actions-cell="{ row }">
-        <SharedRowActions :actions="entryActions(row.original)" :label="t('projects.finance.actionsNamed', { name: row.original.title })" />
-      </template>
-    </UTable>
-  </div>
+        <dl class="grid grid-cols-2 gap-3 text-xs">
+          <div><dt class="text-muted">{{ t('projects.finance.columns.amount') }}</dt><dd dir="ltr" class="tabular-nums">{{ formatMoney(item.amount, summary.currency) }}</dd></div>
+          <div><dt class="text-muted">{{ t('projects.finance.columns.date') }}</dt><dd>{{ dateLabel(item) }}</dd></div>
+          <div class="col-span-2"><dt class="text-muted">{{ t('projects.finance.columns.budget') }}</dt><dd>{{ budgetLabel(item) }}</dd></div>
+        </dl>
+      </div>
+    </template>
+  </SharedDataTable>
 </template>
