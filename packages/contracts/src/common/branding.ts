@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const BrandingSchema = z.object({
   name: z.string().min(1),
-  logo_url: z.string().min(1),
+  logo_url: z.string().min(1).nullable(),
   primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   secondary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).nullable().optional(),
   font: z.string().min(1),

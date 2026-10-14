@@ -157,8 +157,9 @@ def _branding(raw):
     for key in ('primary_color', 'secondary_color'):
         if key in value:
             _require(type(value[key]) is str and re.fullmatch(r'#[0-9a-fA-F]{6}', value[key]))
-    _require(type(value['logo_url']) is str and re.fullmatch(
-        r'/web/binary/company_logo\?company=[1-9][0-9]{0,18}&v=(?:0|[0-9]{20})-[0-9a-f]{12}', value['logo_url']))
+    # null when the tenant has no logo of its own (Odoo's stock logo is never exposed).
+    _require(value['logo_url'] is None or (type(value['logo_url']) is str and re.fullmatch(
+        r'/web/binary/company_logo\?company=[1-9][0-9]{0,18}&v=(?:0|[0-9]{20})-[0-9a-f]{12}', value['logo_url'])))
     return value
 
 
