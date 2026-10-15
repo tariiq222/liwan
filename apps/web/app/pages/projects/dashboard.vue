@@ -4,6 +4,7 @@ import { refDebounced } from '@vueuse/core'
 import type { RouteLocationNormalized } from 'vue-router'
 import FilterBar from '@/components/shared/data/FilterBar.vue'
 import ProjectDashboardCharts from '@/components/pmo/projects/dashboard/ProjectDashboardCharts.vue'
+import PendingCharterReviews from '@/components/pmo/projects/dashboard/PendingCharterReviews.vue'
 import ProjectDashboardMetrics from '@/components/pmo/projects/dashboard/ProjectDashboardMetrics.vue'
 import ProjectDashboardRecentProjects from '@/components/pmo/projects/dashboard/ProjectDashboardRecentProjects.vue'
 import { useProjectDashboardAnalytics } from '@/composables/useProjectDashboardAnalytics'
@@ -210,6 +211,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       </SharedEmptyState>
     </div>
     <template v-else>
+      <PendingCharterReviews class="@min-[768px]:col-span-2" />
       <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" :all-rows="rows" />
       <ProjectDashboardCharts :rows="rows" />
     </template>

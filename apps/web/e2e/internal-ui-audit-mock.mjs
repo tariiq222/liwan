@@ -72,25 +72,63 @@ const PROJECTS = [
   {
     id: 1, name: 'مشروع ألفا', status: 'on_track', progress: 40, task_count: 3, closed_task_count: 1,
     active: true, can_manage: true, manager: { id: 2, name: 'Admin' }, date_end: '2035-12-31',
-    allowed_actions: ['read', 'write', 'archive'],
+    allowed_actions: ['read', 'write', 'archive'], charter_state: 'approved',
   },
   {
     id: 2, name: 'مشروع بيتا', status: 'off_track', progress: 10, task_count: 1, closed_task_count: 0,
     active: true, can_manage: true, manager: { id: 2, name: 'Admin' }, date_end: '2035-06-30',
-    allowed_actions: ['read', 'write', 'archive'],
+    allowed_actions: ['read', 'write', 'archive'], charter_state: 'approved',
   },
   {
     id: 3, name: 'مشروع جاما', status: 'at_risk', progress: 55, task_count: 2, closed_task_count: 0,
     active: true, can_manage: false, manager: { id: 2, name: 'Admin' }, date_end: '2035-03-01',
-    allowed_actions: ['read'],
+    allowed_actions: ['read'], charter_state: 'approved',
   },
 ]
 
 const COPIES = []
 
+// Charter approval fixtures. Their charters live in CHARTER_STATE (project id -> charter + write token) so the
+// transition routes can mutate them; POST /api/v1/__mock/reset-charters restores the seeds between spec runs.
+// They stay out of PROJECTS so list-based specs keep their three rows; only charter_review=1 lists them.
+const MOCK_USER = { id: 2, name: 'Admin' }
+const NOW = () => new Date().toISOString().slice(0, 19)
+const PERSON_NAMES = { 2: 'Admin', 5: 'نورة الحربي', 6: 'سارة محمد' }
+const REVIEW_BASE = {
+  status: 'on_track', progress: 0, task_count: 0, closed_task_count: 0,
+  active: true, can_manage: true, manager: { id: 5, name: 'نورة الحربي' }, date_end: '2035-12-31',
+  allowed_actions: ['read', 'write', 'archive'],
+}
+const REVIEW_PROJECTS = [
+  { ...REVIEW_BASE, id: 8001, name: 'ميثاق بانتظار الاعتماد' },
+  { ...REVIEW_BASE, id: 8002, name: 'ميثاق أُعيد للتعديل' },
+]
+const CHARTER_STATE = new Map()
+function seedReviewCharters() {
+  CHARTER_STATE.clear()
+  CHARTER_STATE.set(8001, {
+    updated_at: 'v1',
+    charter: {
+      ...CHARTER, code: 'P-8001', state: 'submitted', approval_required: true, can_review: true,
+      submitted_by: { id: 5, name: 'نورة الحربي' }, submitted_at: '2026-10-14T09:00:00',
+    },
+  })
+  CHARTER_STATE.set(8002, {
+    updated_at: 'v1',
+    charter: {
+      ...CHARTER, code: 'P-8002', state: 'draft', approval_required: true, can_review: false,
+      return_note: 'أضف مؤشرات قياس واضحة للأهداف.',
+    },
+  })
+}
+seedReviewCharters()
+const allProjects = () => [...PROJECTS, ...COPIES, ...REVIEW_PROJECTS]
+const stateOf = p => CHARTER_STATE.get(p.id) ?? { charter: CHARTER, updated_at: 'v1' }
+const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state })
+
 function projectDetail(p) {
   return {
-    ...p,
+    ...listItem(p),
     stages: STAGES,
     description_html: '<p>وصف</p>',
     privacy_visibility: 'employees',
@@ -102,8 +140,8 @@ function projectDetail(p) {
     allow_task_dependencies: false,
     completion_approval: 'none',
     completion_approver: null,
-    updated_at: 'v1',
-    charter: CHARTER,
+    updated_at: stateOf(p).updated_at,
+    charter: stateOf(p).charter,
   }
 }
 
@@ -323,11 +361,82 @@ async function handle(req, res) {
     if (url.searchParams.get('minimal') === '1') {
       return json(res, 200, PROJECTS.map(p => ({ id: p.id, name: p.name })))
     }
-    return json(res, 200, { items: PROJECTS, total: PROJECTS.length, can_create: true, can_list_archived: true })
+    // charter_review=1 is the sponsor's "waiting for me" list: charters submitted and reviewable by the caller.
+    const items = url.searchParams.get('charter_review') === '1'
+      ? allProjects().filter(p => stateOf(p).charter.state === 'submitted' && stateOf(p).charter.can_review).map(listItem)
+      : PROJECTS.map(listItem)
+    return json(res, 200, { items, total: items.length, can_create: true, can_list_archived: true })
+  }
+  if (method === 'POST' && path === '/api/v1/projects') {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    if (!name) return json(res, 422, { code: 'invalid', message: 'name is required', field: 'name' })
+    const sponsorId = body.charter?.sponsor_id ?? null
+    const id = 9000 + COPIES.length
+    const created = { ...REVIEW_BASE, id, name, status: null, manager: { id: body.user_id ?? 2, name: PERSON_NAMES[body.user_id ?? 2] ?? 'Admin' } }
+    COPIES.push(created)
+    CHARTER_STATE.set(id, {
+      updated_at: 'v1',
+      charter: {
+        ...CHARTER, code: `P-${id}`, state: 'draft', approval_required: SETTINGS.require_charter_approval,
+        sponsor: sponsorId ? { id: sponsorId, name: PERSON_NAMES[sponsorId] ?? 'Admin' } : null,
+      },
+    })
+    return json(res, 201, projectDetail(created))
+  }
+  // Charter transitions mirror the server: the write token must match, and each action has a required state.
+  const transition = match(path, '/api/v1/projects/:id/charter/:action')
+  if (method === 'POST' && transition && ['submit', 'approve', 'return', 'withdraw'].includes(transition.action)) {
+    const p = allProjects().find(item => String(item.id) === transition.id)
+    if (!p) return fail(res, 404, 'not_found', 'project not found')
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const entry = stateOf(p)
+    if (body.expected_updated_at !== entry.updated_at) return fail(res, 409, 'stale_write', 'the project changed since it was loaded')
+    const charter = { ...entry.charter }
+    const wrongState = () => fail(res, 409, 'charter_state', 'the charter is not in a state that allows this action')
+    switch (transition.action) {
+      case 'submit': {
+        if (charter.state !== 'draft') return wrongState()
+        const selfApproved = !charter.approval_required || charter.sponsor?.id === MOCK_USER.id
+        charter.state = selfApproved ? 'approved' : 'submitted'
+        if (selfApproved) Object.assign(charter, { approved_by: MOCK_USER, approved_at: NOW() })
+        else Object.assign(charter, { submitted_by: MOCK_USER, submitted_at: NOW(), return_note: '' })
+        break
+      }
+      case 'approve':
+        if (charter.state !== 'submitted' || !charter.can_review) return wrongState()
+        Object.assign(charter, { state: 'approved', can_review: false, approved_by: MOCK_USER, approved_at: NOW() })
+        break
+      case 'return': {
+        if (charter.state !== 'submitted' || !charter.can_review) return wrongState()
+        const note = typeof body.note === 'string' ? body.note.trim() : ''
+        if (!note) return json(res, 422, { code: 'invalid', message: 'a return note is required', field: 'note' })
+        Object.assign(charter, { state: 'draft', can_review: false, submitted_by: null, submitted_at: null, return_note: note })
+        break
+      }
+      default:
+        if (charter.state !== 'submitted') return wrongState()
+        Object.assign(charter, { state: 'draft', can_review: false, submitted_by: null, submitted_at: null })
+    }
+    CHARTER_STATE.set(p.id, { charter, updated_at: `v${Number(entry.updated_at.slice(1)) + 1}` })
+    return json(res, 200, projectDetail(p))
+  }
+  if (method === 'POST' && path === '/api/v1/__mock/reset-charters') {
+    seedReviewCharters()
+    COPIES.length = 0
+    return json(res, 200, { ok: true })
+  }
+  if (method === 'PATCH' && path === '/api/v1/settings/projects') {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    Object.assign(SETTINGS, body)
+    return json(res, 200, SETTINGS)
   }
   const project = match(path, '/api/v1/projects/:id')
   if (method === 'GET' && project) {
-    const p = [...PROJECTS, ...COPIES].find(item => String(item.id) === project.id)
+    const p = allProjects().find(item => String(item.id) === project.id)
     if (!p) return fail(res, 404, 'not_found', 'project not found')
     return json(res, 200, projectDetail(p))
   }
