@@ -6234,7 +6234,10 @@
                     "type": "array"
                   },
                   "captured_at": {
-                    "type": "string"
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "end_datetime": {
                     "type": [
@@ -6509,7 +6512,6 @@
                   }
                 },
                 "required": [
-                  "captured_at",
                   "name",
                   "meeting_date",
                   "start_datetime",
@@ -7522,7 +7524,10 @@
             "type": "array"
           },
           "captured_at": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "end_datetime": {
             "type": [
@@ -7797,7 +7802,6 @@
           }
         },
         "required": [
-          "captured_at",
           "name",
           "meeting_date",
           "start_datetime",
@@ -9484,322 +9488,331 @@
                   "type": "integer"
                 },
                 "snapshot": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "agenda": {
-                      "type": "string"
-                    },
-                    "attendees": {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "id": {
-                            "maximum": 9007199254740991,
-                            "minimum": -9007199254740991,
-                            "type": "integer"
-                          },
-                          "name": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "captured_at": {
-                      "type": "string"
-                    },
-                    "end_datetime": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "location": {
-                      "type": "string"
-                    },
-                    "meeting_date": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "minutes": {
-                      "type": "string"
-                    },
-                    "minutes_form": {
+                  "anyOf": [
+                    {
                       "additionalProperties": false,
                       "properties": {
-                        "approver_name": {
-                          "maxLength": 500,
+                        "agenda": {
                           "type": "string"
                         },
-                        "approver_title": {
-                          "maxLength": 500,
-                          "type": "string"
-                        },
-                        "chairperson": {
-                          "maxLength": 500,
-                          "type": "string"
-                        },
-                        "closing": {
-                          "maxLength": 50000,
-                          "type": "string"
-                        },
-                        "opening": {
-                          "maxLength": 50000,
-                          "type": "string"
-                        },
-                        "topics": {
+                        "attendees": {
                           "items": {
                             "additionalProperties": false,
                             "properties": {
-                              "discussion": {
-                                "maxLength": 50000,
+                              "id": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "captured_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "end_datetime": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "location": {
+                          "type": "string"
+                        },
+                        "meeting_date": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "minutes": {
+                          "type": "string"
+                        },
+                        "minutes_form": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "approver_name": {
+                              "maxLength": 500,
+                              "type": "string"
+                            },
+                            "approver_title": {
+                              "maxLength": 500,
+                              "type": "string"
+                            },
+                            "chairperson": {
+                              "maxLength": 500,
+                              "type": "string"
+                            },
+                            "closing": {
+                              "maxLength": 50000,
+                              "type": "string"
+                            },
+                            "opening": {
+                              "maxLength": 50000,
+                              "type": "string"
+                            },
+                            "topics": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "discussion": {
+                                    "maxLength": 50000,
+                                    "type": "string"
+                                  },
+                                  "key": {
+                                    "maxLength": 200,
+                                    "minLength": 1,
+                                    "type": "string"
+                                  },
+                                  "project_id": {
+                                    "anyOf": [
+                                      {
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 9007199254740991,
+                                        "type": "integer"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "resolution_ids": {
+                                    "items": {
+                                      "exclusiveMinimum": 0,
+                                      "maximum": 9007199254740991,
+                                      "type": "integer"
+                                    },
+                                    "maxItems": 200,
+                                    "type": "array"
+                                  },
+                                  "title": {
+                                    "maxLength": 500,
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "key",
+                                  "title",
+                                  "discussion",
+                                  "project_id",
+                                  "resolution_ids"
+                                ],
+                                "type": "object"
+                              },
+                              "maxItems": 100,
+                              "type": "array"
+                            }
+                          },
+                          "required": [
+                            "opening",
+                            "closing",
+                            "chairperson",
+                            "approver_name",
+                            "approver_title",
+                            "topics"
+                          ],
+                          "type": "object"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "organizer": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "resolutions": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "deadline": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "execution_period": {
                                 "type": "string"
                               },
-                              "key": {
-                                "maxLength": 200,
-                                "minLength": 1,
+                              "id": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "meeting_name": {
                                 "type": "string"
                               },
-                              "project_id": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "priority": {
+                                "enum": [
+                                  "0",
+                                  "1",
+                                  "2",
+                                  "3"
+                                ],
+                                "type": "string"
+                              },
+                              "project": {
                                 "anyOf": [
                                   {
-                                    "exclusiveMinimum": 0,
-                                    "maximum": 9007199254740991,
-                                    "type": "integer"
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "id": {
+                                        "maximum": 9007199254740991,
+                                        "minimum": -9007199254740991,
+                                        "type": "integer"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name"
+                                    ],
+                                    "type": "object"
                                   },
                                   {
                                     "type": "null"
                                   }
                                 ]
                               },
-                              "resolution_ids": {
-                                "items": {
-                                  "exclusiveMinimum": 0,
-                                  "maximum": 9007199254740991,
-                                  "type": "integer"
-                                },
-                                "maxItems": 200,
-                                "type": "array"
+                              "responsible": {
+                                "anyOf": [
+                                  {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                      "id": {
+                                        "maximum": 9007199254740991,
+                                        "minimum": -9007199254740991,
+                                        "type": "integer"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name"
+                                    ],
+                                    "type": "object"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               },
-                              "title": {
-                                "maxLength": 500,
+                              "result": {
+                                "type": "string"
+                              },
+                              "state": {
+                                "enum": [
+                                  "open",
+                                  "in_progress",
+                                  "done",
+                                  "cancelled"
+                                ],
                                 "type": "string"
                               }
                             },
                             "required": [
-                              "key",
-                              "title",
-                              "discussion",
-                              "project_id",
-                              "resolution_ids"
+                              "id",
+                              "name",
+                              "deadline",
+                              "priority",
+                              "state",
+                              "responsible",
+                              "result"
                             ],
                             "type": "object"
                           },
-                          "maxItems": 100,
                           "type": "array"
+                        },
+                        "secretary": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "start_datetime": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
                         }
                       },
                       "required": [
-                        "opening",
-                        "closing",
-                        "chairperson",
-                        "approver_name",
-                        "approver_title",
-                        "topics"
+                        "name",
+                        "meeting_date",
+                        "start_datetime",
+                        "end_datetime",
+                        "location",
+                        "organizer",
+                        "secretary",
+                        "attendees",
+                        "agenda",
+                        "minutes",
+                        "resolutions"
                       ],
                       "type": "object"
                     },
-                    "name": {
-                      "type": "string"
-                    },
-                    "organizer": {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "id": {
-                              "maximum": 9007199254740991,
-                              "minimum": -9007199254740991,
-                              "type": "integer"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "resolutions": {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "deadline": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "execution_period": {
-                            "type": "string"
-                          },
-                          "id": {
-                            "maximum": 9007199254740991,
-                            "minimum": -9007199254740991,
-                            "type": "integer"
-                          },
-                          "meeting_name": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "priority": {
-                            "enum": [
-                              "0",
-                              "1",
-                              "2",
-                              "3"
-                            ],
-                            "type": "string"
-                          },
-                          "project": {
-                            "anyOf": [
-                              {
-                                "additionalProperties": false,
-                                "properties": {
-                                  "id": {
-                                    "maximum": 9007199254740991,
-                                    "minimum": -9007199254740991,
-                                    "type": "integer"
-                                  },
-                                  "name": {
-                                    "type": "string"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "name"
-                                ],
-                                "type": "object"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "responsible": {
-                            "anyOf": [
-                              {
-                                "additionalProperties": false,
-                                "properties": {
-                                  "id": {
-                                    "maximum": 9007199254740991,
-                                    "minimum": -9007199254740991,
-                                    "type": "integer"
-                                  },
-                                  "name": {
-                                    "type": "string"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "name"
-                                ],
-                                "type": "object"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "result": {
-                            "type": "string"
-                          },
-                          "state": {
-                            "enum": [
-                              "open",
-                              "in_progress",
-                              "done",
-                              "cancelled"
-                            ],
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "deadline",
-                          "priority",
-                          "state",
-                          "responsible",
-                          "result"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "secretary": {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "id": {
-                              "maximum": 9007199254740991,
-                              "minimum": -9007199254740991,
-                              "type": "integer"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "start_datetime": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
+                    {
+                      "type": "null"
                     }
-                  },
-                  "required": [
-                    "captured_at",
-                    "name",
-                    "meeting_date",
-                    "start_datetime",
-                    "end_datetime",
-                    "location",
-                    "organizer",
-                    "secretary",
-                    "attendees",
-                    "agenda",
-                    "minutes",
-                    "resolutions"
-                  ],
-                  "type": "object"
+                  ]
                 }
               },
               "required": [
@@ -9868,322 +9881,331 @@
             "type": "integer"
           },
           "snapshot": {
-            "additionalProperties": false,
-            "properties": {
-              "agenda": {
-                "type": "string"
-              },
-              "attendees": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "id": {
-                      "maximum": 9007199254740991,
-                      "minimum": -9007199254740991,
-                      "type": "integer"
-                    },
-                    "name": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "captured_at": {
-                "type": "string"
-              },
-              "end_datetime": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "location": {
-                "type": "string"
-              },
-              "meeting_date": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "minutes": {
-                "type": "string"
-              },
-              "minutes_form": {
+            "anyOf": [
+              {
                 "additionalProperties": false,
                 "properties": {
-                  "approver_name": {
-                    "maxLength": 500,
+                  "agenda": {
                     "type": "string"
                   },
-                  "approver_title": {
-                    "maxLength": 500,
-                    "type": "string"
-                  },
-                  "chairperson": {
-                    "maxLength": 500,
-                    "type": "string"
-                  },
-                  "closing": {
-                    "maxLength": 50000,
-                    "type": "string"
-                  },
-                  "opening": {
-                    "maxLength": 50000,
-                    "type": "string"
-                  },
-                  "topics": {
+                  "attendees": {
                     "items": {
                       "additionalProperties": false,
                       "properties": {
-                        "discussion": {
-                          "maxLength": 50000,
+                        "id": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "captured_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "end_datetime": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "meeting_date": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "minutes": {
+                    "type": "string"
+                  },
+                  "minutes_form": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "approver_name": {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      "approver_title": {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      "chairperson": {
+                        "maxLength": 500,
+                        "type": "string"
+                      },
+                      "closing": {
+                        "maxLength": 50000,
+                        "type": "string"
+                      },
+                      "opening": {
+                        "maxLength": 50000,
+                        "type": "string"
+                      },
+                      "topics": {
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "discussion": {
+                              "maxLength": 50000,
+                              "type": "string"
+                            },
+                            "key": {
+                              "maxLength": 200,
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "project_id": {
+                              "anyOf": [
+                                {
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991,
+                                  "type": "integer"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "resolution_ids": {
+                              "items": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              "maxItems": 200,
+                              "type": "array"
+                            },
+                            "title": {
+                              "maxLength": 500,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "key",
+                            "title",
+                            "discussion",
+                            "project_id",
+                            "resolution_ids"
+                          ],
+                          "type": "object"
+                        },
+                        "maxItems": 100,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "opening",
+                      "closing",
+                      "chairperson",
+                      "approver_name",
+                      "approver_title",
+                      "topics"
+                    ],
+                    "type": "object"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "organizer": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "resolutions": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "deadline": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "execution_period": {
                           "type": "string"
                         },
-                        "key": {
-                          "maxLength": 200,
-                          "minLength": 1,
+                        "id": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "meeting_name": {
                           "type": "string"
                         },
-                        "project_id": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "priority": {
+                          "enum": [
+                            "0",
+                            "1",
+                            "2",
+                            "3"
+                          ],
+                          "type": "string"
+                        },
+                        "project": {
                           "anyOf": [
                             {
-                              "exclusiveMinimum": 0,
-                              "maximum": 9007199254740991,
-                              "type": "integer"
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "type": "object"
                             },
                             {
                               "type": "null"
                             }
                           ]
                         },
-                        "resolution_ids": {
-                          "items": {
-                            "exclusiveMinimum": 0,
-                            "maximum": 9007199254740991,
-                            "type": "integer"
-                          },
-                          "maxItems": 200,
-                          "type": "array"
+                        "responsible": {
+                          "anyOf": [
+                            {
+                              "additionalProperties": false,
+                              "properties": {
+                                "id": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": -9007199254740991,
+                                  "type": "integer"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ],
+                              "type": "object"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
-                        "title": {
-                          "maxLength": 500,
+                        "result": {
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "open",
+                            "in_progress",
+                            "done",
+                            "cancelled"
+                          ],
                           "type": "string"
                         }
                       },
                       "required": [
-                        "key",
-                        "title",
-                        "discussion",
-                        "project_id",
-                        "resolution_ids"
+                        "id",
+                        "name",
+                        "deadline",
+                        "priority",
+                        "state",
+                        "responsible",
+                        "result"
                       ],
                       "type": "object"
                     },
-                    "maxItems": 100,
                     "type": "array"
+                  },
+                  "secretary": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "start_datetime": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   }
                 },
                 "required": [
-                  "opening",
-                  "closing",
-                  "chairperson",
-                  "approver_name",
-                  "approver_title",
-                  "topics"
+                  "name",
+                  "meeting_date",
+                  "start_datetime",
+                  "end_datetime",
+                  "location",
+                  "organizer",
+                  "secretary",
+                  "attendees",
+                  "agenda",
+                  "minutes",
+                  "resolutions"
                 ],
                 "type": "object"
               },
-              "name": {
-                "type": "string"
-              },
-              "organizer": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "resolutions": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "deadline": {
-                      "type": [
-                        "string",
-                        "null"
-                      ]
-                    },
-                    "execution_period": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "maximum": 9007199254740991,
-                      "minimum": -9007199254740991,
-                      "type": "integer"
-                    },
-                    "meeting_name": {
-                      "type": "string"
-                    },
-                    "name": {
-                      "type": "string"
-                    },
-                    "priority": {
-                      "enum": [
-                        "0",
-                        "1",
-                        "2",
-                        "3"
-                      ],
-                      "type": "string"
-                    },
-                    "project": {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "id": {
-                              "maximum": 9007199254740991,
-                              "minimum": -9007199254740991,
-                              "type": "integer"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "responsible": {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "id": {
-                              "maximum": 9007199254740991,
-                              "minimum": -9007199254740991,
-                              "type": "integer"
-                            },
-                            "name": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "name"
-                          ],
-                          "type": "object"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "result": {
-                      "type": "string"
-                    },
-                    "state": {
-                      "enum": [
-                        "open",
-                        "in_progress",
-                        "done",
-                        "cancelled"
-                      ],
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "name",
-                    "deadline",
-                    "priority",
-                    "state",
-                    "responsible",
-                    "result"
-                  ],
-                  "type": "object"
-                },
-                "type": "array"
-              },
-              "secretary": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "start_datetime": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "captured_at",
-              "name",
-              "meeting_date",
-              "start_datetime",
-              "end_datetime",
-              "location",
-              "organizer",
-              "secretary",
-              "attendees",
-              "agenda",
-              "minutes",
-              "resolutions"
-            ],
-            "type": "object"
+            ]
           }
         },
         "required": [
