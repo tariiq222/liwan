@@ -12,6 +12,7 @@ PARAM_DEFAULT_APPROVAL = 'nasq_pmo.default_completion_approval'
 PARAM_REMINDERS_ENABLED = 'nasq_pmo.deadline_reminders_enabled'
 PARAM_REMINDERS_DAYS = 'nasq_pmo.deadline_reminders_days_before'
 PARAM_DIGEST_ENABLED = 'nasq_pmo.overdue_digest_enabled'
+PARAM_REQUIRE_CHARTER_APPROVAL = 'nasq_pmo.require_charter_approval'
 CREATORS = ('managers', 'employees')
 APPROVAL_DEFAULTS = ('none', 'project_manager')
 MAX_STAGES = 20
@@ -35,6 +36,7 @@ PSC_DEFAULTS = {
     'deadline_reminders_enabled': True,
     'deadline_reminders_days_before': 1,
     'overdue_digest_enabled': True,
+    'require_charter_approval': False,
 }
 
 
@@ -153,6 +155,7 @@ class NasqPmoSettings(models.AbstractModel):
                 PARAM_REMINDERS_DAYS, 1, 0, MAX_REMINDER_DAYS,
             ),
             'overdue_digest_enabled': self._get_bool(PARAM_DIGEST_ENABLED, True),
+            'require_charter_approval': self._get_bool(PARAM_REQUIRE_CHARTER_APPROVAL, False),
         }
 
     def _legacy_get(self):
@@ -245,6 +248,14 @@ class NasqPmoSettings(models.AbstractModel):
             writes.append((
                 self._company_key(PARAM_DIGEST_ENABLED),
                 'true' if vals['overdue_digest_enabled'] else 'false',
+            ))
+        if 'require_charter_approval' in vals:
+            if not isinstance(vals['require_charter_approval'], bool):
+                field, msg = 'require_charter_approval', "require_charter_approval must be a boolean"
+                raise _invalid(field, msg)
+            writes.append((
+                self._company_key(PARAM_REQUIRE_CHARTER_APPROVAL),
+                'true' if vals['require_charter_approval'] else 'false',
             ))
         return writes
 

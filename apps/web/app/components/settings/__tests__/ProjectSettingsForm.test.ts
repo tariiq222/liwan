@@ -86,6 +86,7 @@ describe('ProjectSettingsForm production template', () => {
         deadline_reminders_enabled: true,
         deadline_reminders_days_before: 1,
         overdue_digest_enabled: true,
+        require_charter_approval: false,
       },
       rows: [{ id: 's-0', name: 'A', fold: false }],
       CREATOR_OPTIONS: [

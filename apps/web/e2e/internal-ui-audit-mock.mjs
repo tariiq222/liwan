@@ -191,6 +191,7 @@ const SETTINGS = {
   deadline_reminders_enabled: false,
   deadline_reminders_days_before: 3,
   overdue_digest_enabled: false,
+  require_charter_approval: false,
 }
 
 function json(res, status, body, extra = {}) {

@@ -94,6 +94,7 @@ class TestProjectAdminModel(TransactionCase):
                 'deadline_reminders_enabled': True,
                 'deadline_reminders_days_before': 1,
                 'overdue_digest_enabled': True,
+                'require_charter_approval': False,
             },
         )
         self.assertEqual(

@@ -27,6 +27,7 @@ describe('project settings controls contracts', () => {
       deadline_reminders_enabled: true,
       deadline_reminders_days_before: 3,
       overdue_digest_enabled: false,
+      require_charter_approval: false,
     })
     expect(parsed.require_end_date_on_create).toBe(true)
     expect(parsed.deadline_reminders_days_before).toBe(3)
@@ -35,6 +36,23 @@ describe('project settings controls contracts', () => {
       default_stages: [{ name: 'A', fold: false }],
       deadline_reminders_days_before: 31,
     })).toThrow()
+  })
+
+  it('requires the charter approval policy flag', () => {
+    const full = {
+      project_creators: 'managers',
+      default_stages: [{ name: 'A', fold: false }],
+      require_manager_on_create: true,
+      require_end_date_on_create: true,
+      default_completion_approval: 'none',
+      deadline_reminders_enabled: true,
+      deadline_reminders_days_before: 1,
+      overdue_digest_enabled: true,
+      require_charter_approval: false,
+    }
+    expect(ProjectSettingsSchema.safeParse(full).success).toBe(true)
+    const { require_charter_approval: _omitted, ...rest } = full
+    expect(ProjectSettingsSchema.safeParse(rest).success).toBe(false)
   })
 
   it('keeps create defaults creator-gated and create payload strict', () => {

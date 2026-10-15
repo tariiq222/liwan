@@ -212,6 +212,7 @@ describe('Milestone / ProjectUpdate / Settings', () => {
       require_manager_on_create: true, require_end_date_on_create: true,
       default_completion_approval: 'none', deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1, overdue_digest_enabled: true,
+      require_charter_approval: false,
     }).default_stages).toHaveLength(1)
     expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()
     expect(StageOrderBodySchema.parse({ ids: [2, 1] }).ids).toEqual([2, 1])
