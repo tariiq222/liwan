@@ -58,9 +58,6 @@ suite('commercial B1 atomic orders', () => {
     const firstQuote = await createQuoteForCustomer(pool, { customer_id:id, request:request() })
     const input = accept(firstQuote), first = await acceptQuote(pool, input, vendor)
     const adapter = new SimulatorAdapter()
-    // The simulator numbers references per instance; advance past retained SQL fixtures.
-    const used = Number((await pool.query("SELECT COALESCE(max(substring(provider_ref FROM '^sim_inv_([0-9]+)$')::int),0) AS n FROM payment_attempts WHERE provider='simulator'")).rows[0].n)
-    for (let i=0;i<used;i++) await adapter.createAttempt({attempt_id:randomUUID(),order_id:randomUUID(),amount:money(1),description:'Reference reservation',success_url:'https://nasq.test',back_url:'https://nasq.test',callback_url:'https://nasq.test',expires_at:new Date().toISOString()})
     const attempt = await createPaymentAttempt(pool, { order_id:first.order.id, customer_id:id, adapter, allowedOrigin:'https://nasq.test', return_path:'/subscription' })
     if (initialPayment === 'failed') {
       adapter.settle(attempt.provider_ref, 'failed')
