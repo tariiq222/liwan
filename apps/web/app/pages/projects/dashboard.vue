@@ -210,8 +210,8 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       </SharedEmptyState>
     </div>
     <template v-else>
+      <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" :all-rows="rows" />
       <ProjectDashboardCharts :rows="rows" />
-      <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" />
     </template>
   </SharedDashboardPage>
 </template>

@@ -30,9 +30,13 @@ export type ProjectDashboardMetric = {
 
 export type DashboardCurrency = ProjectReportRow['finance']['currency']
 
+/** Semantic colour of one mark; the chart resolves it to a status or brand token. */
+export type ChartTone = 'success' | 'info' | 'warning' | 'danger' | 'neutral' | 'primary'
+
 export type ChartDatum = {
   name: string
   value: number
+  tone?: ChartTone
 }
 
 export type ProjectProgressState = 'tracked' | 'no_tasks' | 'unknown'
@@ -68,6 +72,8 @@ export type DashboardBarSeries = {
 
 export type DashboardBarDatum = {
   name: string
+  /** Colours this category's bar; without it the series colour applies. */
+  tone?: ChartTone
   values: Record<string, number | null>
   displayValues?: Record<string, string>
   projectId?: number
@@ -83,6 +89,8 @@ export type DashboardBarChart = {
   series: readonly DashboardBarSeries[]
   palette: ChartPalette
   maxValue?: number
+  /** Axis and label format of the value scale; counts by default. */
+  valueFormat?: 'number' | 'percent'
 }
 
 export type DashboardChart = DashboardDonutChart | DashboardBarChart
@@ -117,6 +125,9 @@ export function projectChartLabels(t: (key: string) => string): ChartLabels {
 }
 
 const STATUS_ORDER: Array<ProjectStatus | null> = ['on_track', 'at_risk', 'off_track', 'on_hold', 'done', null]
+const STATUS_TONE: Record<ProjectStatus | 'unset', ChartTone> = {
+  on_track: 'success', at_risk: 'warning', off_track: 'danger', on_hold: 'neutral', done: 'info', unset: 'neutral',
+}
 
 function percent(value: number, total: number): number {
   return total > 0 ? Math.round((value / total) * 1000) / 10 : 0
@@ -150,12 +161,27 @@ export function projectStatusDoughnutData(rows: readonly ProjectReportRow[], lab
   return STATUS_ORDER.map(status => ({
     name: status ? labels.status[status] : labels.status.unset,
     value: counts.get(status) ?? 0,
+    tone: STATUS_TONE[status ?? 'unset'],
   }))
 }
 
 export function projectStatusDoughnutChart(rows: readonly ProjectReportRow[], labels: ChartLabels, centerSubLabel: string): DashboardDonutChart {
   const data = projectStatusDoughnutData(rows, labels)
   return { kind: 'donut', data, palette: 'status', total: rows.length, centerLabel: String(rows.length), centerSubLabel }
+}
+
+/** A part-to-whole of five categories or fewer reads better as ranked bars than as a pie. */
+export const PIE_MAX_CATEGORIES = 5
+
+/** Project count per status as horizontal bars, empty statuses left out, each bar in its status colour. */
+export function projectStatusBarChart(rows: readonly ProjectReportRow[], labels: ChartLabels): DashboardBarChart {
+  const data = projectStatusDoughnutData(rows, labels).filter(item => item.value > 0)
+  return {
+    kind: 'bar', orientation: 'horizontal', palette: 'status', valueFormat: 'number',
+    maxValue: Math.max(1, ...data.map(item => item.value)),
+    data: data.map(item => ({ name: item.name, tone: item.tone, values: { count: item.value } })),
+    series: [{ key: 'count', label: '' }],
+  }
 }
 
 export type TaskComposition = { closed: number; openOnTime: number; overdue: number; available: boolean }
@@ -182,9 +208,9 @@ export function projectTaskCompositionData(rows: readonly ProjectReportRow[], la
   const task = projectTaskComposition(rows)
   if (!task.available) return []
   return [
-    { name: labels.taskClosed, value: task.closed },
-    { name: labels.taskOpenOnTime, value: task.openOnTime },
-    { name: labels.taskOverdue, value: task.overdue },
+    { name: labels.taskClosed, value: task.closed, tone: 'success' },
+    { name: labels.taskOpenOnTime, value: task.openOnTime, tone: 'info' },
+    { name: labels.taskOverdue, value: task.overdue, tone: 'danger' },
   ]
 }
 
@@ -232,7 +258,11 @@ export function projectBudgetHealthData(rows: readonly ProjectReportRow[], label
     else if (row.finance.over_budget || row.finance.actual > row.finance.planned) over++
     else within++
   }
-  return [{ name: labels.budgetUnknown, value: unknown }, { name: labels.budgetWithin, value: within }, { name: labels.budgetOver, value: over }]
+  return [
+    { name: labels.budgetUnknown, value: unknown, tone: 'neutral' },
+    { name: labels.budgetWithin, value: within, tone: 'success' },
+    { name: labels.budgetOver, value: over, tone: 'danger' },
+  ]
 }
 
 export function projectBudgetHealthChart(rows: readonly ProjectReportRow[], labels: ChartLabels, centerSubLabel: string): DashboardDonutChart {
@@ -262,7 +292,7 @@ export function projectProgressByProjectData(rows: readonly ProjectReportRow[], 
 export function projectProgressByProjectChart(rows: readonly ProjectReportRow[], labels: ChartLabels): DashboardBarChart {
   const data = projectProgressByProjectData(rows, labels)
   return {
-    kind: 'bar', orientation: 'horizontal', palette: 'primary', maxValue: 100,
+    kind: 'bar', orientation: 'horizontal', palette: 'primary', maxValue: 100, valueFormat: 'percent',
     data: data.map(item => ({
       name: item.name,
       projectId: item.projectId,
