@@ -50,7 +50,7 @@ export function daysRemaining(deadlineIso: string | null | undefined, now: Date 
   return Math.round((deadlineUTC - nowUTC) / 86_400_000)
 }
 
-export function deadlineLabel(days: number | null, t: (key: string, params?: Record<string, unknown>) => string): string {
+export function deadlineLabel(days: number | null, t: (key: string, params?: Record<string, unknown>, plural?: number) => string): string {
   if (days === null) return t('tasks.deadline.none')
   if (days === 0) return t('tasks.deadline.today')
   if (days === 1) return t('tasks.deadline.tomorrow')
