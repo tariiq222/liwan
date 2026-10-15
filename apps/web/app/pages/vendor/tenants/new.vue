@@ -59,7 +59,7 @@ const errorKey = computed(() => (saveError.value ? (sharedEnabled.value ? commer
 const backTo = computed(() => safeReturnTo(route.query.returnTo, '/vendor/tenants', ['/vendor/tenants']))
 </script>
 <template>
-  <SharedCreatePanel :title="t('vendor.tenants.create')" :back-to="backTo" width="wide">
+  <SharedCreatePanel :title="t('vendor.tenants.create')" :back-to="backTo">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedForbiddenState v-if="!can('vendor.tenants.manage')" />
     <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!plans && !plansError)" :error="error || catalogError || plansError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPlans() }">

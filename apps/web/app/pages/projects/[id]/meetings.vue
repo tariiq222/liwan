@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
+import RecordNumber from '@/components/shared/data/RecordNumber.vue'
 import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { useMeetings } from '@/composables/useMeetings'
@@ -85,7 +85,7 @@ function setPage(next: number) {
       <template #meeting_date-cell="{ row }"><bdi>{{ dateLabel(row.original.meeting_date) }}</bdi></template>
       <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
       <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" /></template>
-      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
+      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</template>
       <template #mobile-row="{ row: meeting }">
         <div class="grid min-w-0 gap-2">
           <div class="flex min-w-0 items-start justify-between gap-2">

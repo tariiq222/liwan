@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import PersonPicker from '../../app/components/shared/PersonPicker.vue'
+import PersonPicker from '../../app/components/shared/form/PersonPicker.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/PersonPicker',
   component: PersonPicker,
-  parameters: storyContext('apps/web/app/components/project/ProjectCharterFields.vue:235', 'يبحث في /api/v1/people. `options` يقصر الاختيار على قائمة ثابتة مثل مشاركي الاجتماع.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCharterFields.vue:235', 'يبحث في /api/v1/people. `options` يقصر الاختيار على قائمة ثابتة مثل مشاركي الاجتماع.'),
   args: { modelValue: null, multiple: false, valueKey: 'user_id', placeholder: 'اختر المدير' },
   render: args => ({
     components: { PersonPicker },
@@ -18,7 +18,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Single: Story = { name: 'اختيار واحد' }
-export const Multiple: Story = { name: 'اختيار متعدد', parameters: storyContext('apps/web/app/components/task/AssigneePicker.vue:58'), args: { multiple: true, modelValue: [], valueKey: 'id', placeholder: 'المسؤولون' } }
+export const Multiple: Story = { name: 'اختيار متعدد', parameters: storyContext('apps/web/app/components/pmo/tasks/AssigneePicker.vue:11'), args: { multiple: true, modelValue: [], valueKey: 'id', placeholder: 'المسؤولون' } }
 export const FixedOptions: Story = {
   name: 'من قائمة ثابتة',
   parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:75'),

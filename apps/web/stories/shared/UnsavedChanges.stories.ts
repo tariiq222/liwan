@@ -3,9 +3,9 @@ import { defineComponent, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import SettingsPage from '../../app/components/shared/SettingsPage.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
-import UnsavedChanges from '../../app/components/shared/UnsavedChanges.vue'
+import SettingsPage from '../../app/components/shared/layout/SettingsPage.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import UnsavedChanges from '../../app/components/shared/form/UnsavedChanges.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { PersonalTask } from '@nasq/contracts'
 import {
-  attachmentProblem, changedFields, commentProblem, draftFromTask, MAX_ATTACHMENT_BYTES, oldestFirst,
+  attachmentProblem, changedFields, commentProblem, draftFromTask, oldestFirst,
 } from '../myTaskDetail'
+import { MAX_ATTACHMENT_BYTES } from '../attachmentFile'
 
 const task: PersonalTask = {
   id: 7, name: 'اشترِ الورق', description: 'ورق A4', state: 'open', priority: 'normal',

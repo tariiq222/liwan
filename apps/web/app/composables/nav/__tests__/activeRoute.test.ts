@@ -56,14 +56,12 @@ describe('activeProjectSection', () => {
 describe('shell route classification', () => {
   it('keeps the primary module active for direct and nested routes', () => {
     expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
-    expect(activeShellModule('/archived-tasks')).toBe('projects')
     expect(activeShellModule('/tasks')).toBe('projects')
     expect(activeShellModule('/tasks/44')).toBe('projects')
     expect(activeShellModule('/projects/dashboard')).toBe('home')
     expect(activeShellModule('/projects')).toBe('projects')
     expect(activeShellModule('/projects/new')).toBe('projects')
-    expect(activeShellModule('/reports')).toBe('projects')
-    expect(activeShellModule('/account')).toBe('settings')
+    expect(activeShellModule('/account')).toBeNull()
     expect(contextModuleFor('home')).toBe('projects')
     expect(contextModuleFor('meetings')).toBe('meetings')
     expect(activeShellModule('/meetings/calendar')).toBe('meetings')

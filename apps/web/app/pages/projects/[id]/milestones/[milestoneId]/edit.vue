@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MilestoneForm from '@/components/project/MilestoneForm.vue'
+import MilestoneForm from '@/components/pmo/projects/MilestoneForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteMilestone, useMilestones } from '@/composables/useMilestones'
 import { useProject } from '@/composables/useProjects'
@@ -62,7 +62,7 @@ async function confirmDelete() {
       <template v-else-if="milestone && projectId">
       <SharedFormSection panel class="space-y-5">
         <MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" :milestone="milestone" @saved="router.push(backTo)" @cancel="router.push(backTo)" />
-        <div v-if="milestone.task_count > 0" class="rounded-md border border-default p-3 text-sm text-muted">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }) }}</div>
+        <div v-if="milestone.task_count > 0" class="rounded-md border border-default p-3 text-sm text-muted">{{ t('projects.milestones.hasTasks', { count: milestone.task_count }, milestone.task_count) }}</div>
         <SharedInlineConfirm
           v-if="deleteOpen"
           data-testid="milestone-delete-confirm"

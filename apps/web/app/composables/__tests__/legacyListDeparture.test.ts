@@ -71,7 +71,7 @@ function mountRealTitle(testCase: typeof cases[number], view: Awaited<ReturnType
   let template: string
   let stopRow = () => {}
   if (personal) {
-    filename = resolve(import.meta.dirname, '../../components/my-tasks/MyTaskRow.vue')
+    filename = resolve(import.meta.dirname, '../../components/personal-tasks/MyTaskRow.vue')
     const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
     const script = compileScript(descriptor, { id: 'real-my-task-title' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
     const bindings = { _defineComponent: Vue.defineComponent, computed: Vue.computed, useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), deadlineDay: myTaskList.deadlineDay, isOverdue: myTaskList.isOverdue, formatCalendarDate: () => '' }

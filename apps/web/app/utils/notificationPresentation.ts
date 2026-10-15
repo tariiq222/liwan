@@ -1,4 +1,5 @@
 import { MeetingNotificationSchema, NotificationKindSchema, TaskNotificationKindSchema, type NotificationKind } from '@nasq/contracts'
+import { formatDateTime } from './formatDate'
 
 /** Today's kinds keep their literal type; a newer application's kind is any other string. */
 export type NotificationPreviewKind = NotificationKind | (string & {})
@@ -43,41 +44,13 @@ export function parseNotificationDate(value: string | null | undefined): Date | 
 
 export function formatNotificationTimestamp(
   value: string | null | undefined,
-  locale: string,
+  _locale: string,
   timeZone = 'UTC',
 ): { datetime: string; label: string } | null {
   const date = parseNotificationDate(value)
   if (!date) return null
 
-  let formatter: Intl.DateTimeFormat
-  try {
-    formatter = new Intl.DateTimeFormat(locale, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      calendar: 'gregory',
-      timeZone,
-    })
-  } catch {
-    // Keep formatting deterministic when a stale or unsupported user timezone
-    // reaches the client. UTC is also the parser's explicit fallback.
-    try {
-      formatter = new Intl.DateTimeFormat(locale, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-        calendar: 'gregory',
-        timeZone: 'UTC',
-      })
-    } catch {
-      formatter = new Intl.DateTimeFormat('en', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-        calendar: 'gregory',
-        timeZone: 'UTC',
-      })
-    }
-  }
-
-  return { datetime: date.toISOString(), label: formatter.format(date) }
+  return { datetime: date.toISOString(), label: formatDateTime(date, timeZone) }
 }
 
 export function notificationPreviewCaptionKey(kind: NotificationPreviewKind): string {

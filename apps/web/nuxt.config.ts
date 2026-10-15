@@ -37,7 +37,20 @@ export default defineNuxtConfig({
     },
   },
   // Discover runtime components; specialist chart adapters also use explicit imports.
-  components: [{ path: '~/components', ignore: ['**/__tests__/**'] }],
+  // Application folders keep their historical auto-import names through `prefix`
+  // (components/pmo/projects/ProjectTable.vue stays ProjectTable); the shared groups
+  // drop their group folder (components/shared/data/DataTable.vue is SharedDataTable). Specific folders
+  // come first: a file belongs to the first entry whose path contains it.
+  components: [
+    { path: '~/components/pmo/projects', prefix: 'Project', ignore: ['**/__tests__/**'] },
+    { path: '~/components/pmo/tasks', prefix: 'Task', ignore: ['**/__tests__/**'] },
+    { path: '~/components/personal-tasks', prefix: 'MyTasks', ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/layout', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/data', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/form', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/feedback', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
+    { path: '~/components', ignore: ['**/__tests__/**'] },
+  ],
   app: {
     head: {
       title: 'nasq',
@@ -103,6 +116,9 @@ export default defineNuxtConfig({
   // shared mode they are removed entirely and the edge sends every Odoo path to the guard
   // (deploy/shared/Caddyfile). Dedicated keeps every rule unchanged.
   routeRules: {
+    // Retired customer URLs keep working: permanent redirects that carry the query string along.
+    '/archived-tasks': { redirect: { to: '/tasks?scope=archived', statusCode: 301 } },
+    '/reports': { redirect: { to: '/projects/dashboard', statusCode: 301 } },
     // Keep future security/cache rules outside this proxy-only spread.
     ...(shared ? {} : {
     // Odoo's public login bootstrap also loads translations outside /web/.

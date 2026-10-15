@@ -32,7 +32,7 @@
     },
     "setStatus": "Project status",
     "statusUpdated": "Project status updated",
-    "progressOf": "{closed} of {total} tasks",
+    "progressOf": "{closed} of {total} task | {closed} of {total} tasks",
     "projectId": "Project #{id}",
     "summary": {
       "displayed": "Shown on this page",
@@ -60,9 +60,10 @@
       "completedOf": "{closed} of {total} completed",
       "workflowStages": "Workflow stages",
       "noDescription": "No description has been added.",
-      "completedSummary": "{closed} of {total} tasks completed",
+      "completedSummary": "{closed} of {total} task completed | {closed} of {total} tasks completed",
       "nextMilestone": "Nearest milestone",
       "noUpcomingMilestone": "No upcoming milestone",
+      "noMilestones": "This project has no milestones",
       "latestUpdate": "Latest update",
       "noUpdates": "No updates yet",
       "needsAttention": "Needs your attention",
@@ -85,6 +86,9 @@
     "createForbidden": "You may not create projects",
     "create": {
       "defaultsHint": "A manager defaults to you. Choose an end date when it is required. Required fields apply only at creation.",
+      "defaultManagerSelf": "You are the default manager.",
+      "defaultManagerOther": "The default manager comes from project settings and you can change it.",
+      "defaultsHintBase": "Choose an end date when it is required. Required fields apply only at creation.",
       "managerRequired": "Choose a project manager",
       "endDateRequired": "Choose an end date",
       "chooseEndDate": "Choose an end date",
@@ -119,6 +123,7 @@
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": {
       "label": "Project actions",
+      "open": "View",
       "settings": "Project settings",
       "archive": "Archive project",
       "unarchive": "Unarchive",
@@ -169,7 +174,7 @@
       "fold": "Collapse in board",
       "delete": "Delete",
       "deleteConfirm": "Delete this stage?",
-      "notEmpty": "This stage holds {count} tasks",
+      "notEmpty": "This stage holds {count} task | This stage holds {count} tasks",
       "deleted": "Stage deleted",
       "empty": "No stages yet"
     },
@@ -210,7 +215,7 @@
       "markReached": "Mark reached",
       "reopen": "Reopen",
       "delete": "Delete",
-      "hasTasks": "{count} tasks are linked to this milestone",
+      "hasTasks": "{count} task is linked to this milestone | {count} tasks are linked to this milestone",
       "empty": "No milestones yet",
       "emptyHint": "Add a milestone to track an important delivery date.",
       "tasksOf": "{done} of {total}",
@@ -233,7 +238,7 @@
       "taskProgress": "Task progress: {percent}%",
       "continueToTasks": "Continue to tasks",
       "openProjectFile": "Set project dates in the charter",
-      "deleteBlocked": "Delete (linked to {count} tasks)",
+      "deleteBlocked": "Delete (linked to {count} task) | Delete (linked to {count} tasks)",
       "deleteConfirm": "Delete milestone “{name}”?",
       "actionsNamed": "Actions for milestone {name}",
       "nameRequired": "Enter a milestone name."
@@ -427,6 +432,7 @@
       "weekLabel": "Week {n}",
       "month": "Month",
       "monthLabel": "Month {n}",
+      "columnSpanGrouped": "{span} — columns grouped",
       "columnSpan": {
         "week": {
           "one": "Each column = 1 week",
@@ -449,7 +455,8 @@
       "invalidDates": "Enter two valid dates, with the start on or before the end.",
       "saved": "Schedule saved",
       "saveError": "Could not save the schedule",
-      "today": "Today"
+      "today": "Today",
+      "groupedColumns": "This project is long, so each column groups several time units. Hover a column heading to see its range."
     },
     "governance": {
       "stakeholders": "Stakeholders",
@@ -554,8 +561,8 @@
       "utilization": "Utilization",
       "overBudget": "Over budget",
       "onBudget": "Within budget",
-      "budgetCount": "{count} budget rows",
-      "expenseCount": "{count} expenses",
+      "budgetCount": "{count} budget row | {count} budget rows",
+      "expenseCount": "{count} expense | {count} expenses",
       "unknown": "Unknown",
       "search": "Search titles…",
       "searchBudgets": "Search budget titles…",
@@ -650,11 +657,11 @@
       }
     },
     "dashboard": {
-      "title": "Projects home",
+      "title": "Overview",
       "description": "A live summary of project status, tasks, and budgets for the current filters.",
       "summaryTitle": "Project summary",
       "summaryDescription": "Metrics and totals cover every matching project, not only the current page.",
-      "projectCount": "Matching projects",
+      "projectCount": "Projects",
       "attentionCount": "Needs attention",
       "overdueCount": "Overdue tasks",
       "statusTitle": "Project status distribution",
@@ -687,7 +694,7 @@
       "tableDescription": "The full table with search, filters, and pagination.",
       "metrics": {
         "metricsLabel": "Project metrics",
-        "projects": "Matching projects",
+        "projects": "Projects",
         "active": "Active projects",
         "taskProgress": "Task completion",
         "budgeted": "Budgeted projects"
@@ -726,7 +733,9 @@
         "noTaskItems": "No recorded tasks are available to show for these projects.",
         "noProgressData": "There is no progress data to show.",
         "noBudgetData": "There is no budget data to show.",
-        "noFinanceData": "There is no finance comparison for this currency."
+        "noFinanceData": "There is no finance comparison for this currency.",
+        "budgetCenterLabel": "Projects",
+        "financeDescriptionSingle": "Planned versus actual for each project, in one currency."
       },
       "recentTitle": "Recently updated projects",
       "recentDescription": "The five projects with the latest modification timestamps.",
@@ -737,12 +746,29 @@
       "noRecentProjects": "No projects have been updated yet.",
       "allProjects": "All projects",
       "analyticsError": "Could not load project statistics. Try again.",
-      "retryAnalytics": "Retry"
+      "retryAnalytics": "Retry",
+      "kpi": {
+        "projects": "Total projects",
+        "active": "Active projects",
+        "taskProgress": "Tasks completed",
+        "budgeted": "Projects with a budget"
+      },
+      "attention": {
+        "title": "Project follow-up",
+        "description": "Start with what is late, at risk, or changed most recently.",
+        "tabsLabel": "Project view",
+        "tabRecent": "Recently updated",
+        "tabLate": "Late",
+        "tabAtRisk": "At risk",
+        "overdueTasks": "Overdue tasks",
+        "emptyLate": "No projects have overdue tasks.",
+        "emptyAtRisk": "No projects are at risk."
+      }
     },
     "refresh": {
       "workspace": {
-        "needsAttentionPreviewEmpty": "No overdue tasks appear in the first loaded tasks shown in this preview.",
-        "resultCount": "{count} projects match the current filters",
+        "needsAttentionPreviewEmpty": "No overdue tasks among the tasks shown.",
+        "resultCount": "{count} project matches the current filters | {count} projects match the current filters",
         "viewAllUpdates": "View update history",
         "updatesTitle": "Project update history",
         "updatesDescription": "The latest 50 project updates, newest first.",

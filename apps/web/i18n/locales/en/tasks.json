@@ -23,9 +23,10 @@
     },
     "filters": {
       "open": "Open",
+      "scopeLabel": "Task scope",
       "closed": "Done",
       "allStates": "All states",
-      "selectedStates": "{count} states",
+      "selectedStates": "{count} state | {count} states",
       "allProjects": "All projects",
       "stateLabel": "State",
       "projectLabel": "Project",
@@ -48,16 +49,16 @@
     },
     "priority": {
       "0": "Normal",
-      "1": "Important",
-      "2": "High",
+      "1": "High",
+      "2": "Very high",
       "3": "Urgent"
     },
     "deadline": {
       "none": "No deadline",
       "today": "Today",
       "tomorrow": "Tomorrow",
-      "inDays": "In {n} days",
-      "overdueDays": "{n} days overdue"
+      "inDays": "In {n} day | In {n} days",
+      "overdueDays": "{n} day overdue | {n} days overdue"
     },
     "detail": {
       "next": "Next",
@@ -109,7 +110,7 @@
       "metrics": "Metrics",
       "age": "Age",
       "cycle": "Cycle time",
-      "days": "{n} days",
+      "days": "{n} day | {n} days",
       "created": "Created",
       "updated": "Last updated",
       "unassigned": "Unassigned",
@@ -173,6 +174,9 @@
       "activeField": "Active"
     },
     "kanban": {
+      "groupBy": "Group board by",
+      "groupStatus": "By status",
+      "groupStage": "By stage",
       "moveTo": "Move to…",
       "emptyColumn": "No tasks",
       "unstaged": "No stage",

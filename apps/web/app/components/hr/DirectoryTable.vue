@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import type { TableColumn } from '@nuxt/ui'
-import FilterBar from '@/components/shared/FilterBar.vue'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
-import type { RowAction } from '@/components/shared/RowActions.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
+import { avatarProps } from '@/utils/avatarTone'
+import type { RowAction } from '@/components/shared/data/RowActions.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'
@@ -107,11 +107,10 @@ function employeeTo(id: number) {
 function rowTo(employee: HrEmployee) { return employeeTo(employee.id) }
 
 const columns = computed<TableColumn<HrEmployee>[]>(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
   { accessorKey: 'name', header: t('hr.directory.columns.name') },
-  { accessorKey: 'job_title', header: t('hr.directory.columns.jobTitle') },
   { accessorKey: 'department', header: t('hr.directory.columns.department') },
   { accessorKey: 'manager', header: t('hr.directory.columns.manager') },
+  { accessorKey: 'status', header: t('hr.directory.columns.status') },
   { accessorKey: 'access', header: t('hr.directory.columns.account') },
   ...(showActions.value ? [{ accessorKey: 'manage', header: t('hr.directory.columns.actions') } as TableColumn<HrEmployee>] : []),
 ])
@@ -196,33 +195,39 @@ function clearFilters() {
       @update:page="setPage"
       @retry="refetch"
     >
-      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
       <template #name-cell="{ row }">
-        <NuxtLink :to="employeeTo(row.original.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name">{{ row.original.name }}</NuxtLink>
+        <div class="flex min-w-0 items-center gap-2">
+          <UAvatar v-bind="avatarProps(row.original.name, row.original.id)" size="xs" />
+          <NuxtLink :to="employeeTo(row.original.id)" class="shrink-0 rounded font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name">{{ row.original.name }}</NuxtLink>
+          <span v-if="row.original.job_title" class="min-w-0 truncate text-xs text-muted">{{ row.original.job_title }}</span>
+        </div>
       </template>
-      <template #job_title-cell="{ row }">{{ row.original.job_title || '—' }}</template>
-      <template #department-cell="{ row }">{{ row.original.department?.name ?? '—' }}</template>
-      <template #manager-cell="{ row }">{{ row.original.manager?.name ?? '—' }}</template>
-      <template #access-cell="{ row }"><SharedStatusBadge variant="outline" data-testid="hr-access-badge" :tone="hrAccessBadge(row.original.access).tone" :label="t(hrAccessBadge(row.original.access).labelKey)" /></template>
+      <template #department-cell="{ row }"><template v-if="row.original.department?.name">{{ row.original.department.name }}</template><template v-else><span aria-hidden="true" class="text-xs font-normal text-dimmed">—</span><span class="sr-only">{{ t('states.noValue') }}</span></template></template>
+      <template #manager-cell="{ row }">
+        <div v-if="row.original.manager" class="flex min-w-0 items-center gap-1.5">
+          <UAvatar v-bind="avatarProps(row.original.manager.name, row.original.manager.id)" size="2xs" />
+          <span class="truncate">{{ row.original.manager.name }}</span>
+        </div>
+        <template v-else><span aria-hidden="true" class="text-xs font-normal text-dimmed">—</span><span class="sr-only">{{ t('states.noValue') }}</span></template>
+      </template>
+      <template #status-cell="{ row }"><SharedStatusBadge size="sm" :tone="row.original.active ? 'success' : 'neutral'" :label="t(row.original.active ? 'hr.directory.status.active' : 'hr.directory.status.archived')" /></template>
+      <template #access-cell="{ row }"><SharedStatusBadge size="sm" data-testid="hr-access-badge" :tone="hrAccessBadge(row.original.access).tone" :label="t(hrAccessBadge(row.original.access).labelKey)" /></template>
       <template v-if="showActions" #manage-cell="{ row }">
         <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('hr.directory.rowActions', { name: row.original.name })" /></div>
       </template>
       <template #mobile-row="{ row }">
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0">
-            <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
-            <NuxtLink :to="employeeTo(row.id)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name">{{ row.name }}</NuxtLink>
+        <div class="flex items-start gap-3">
+          <UAvatar v-bind="avatarProps(row.name, row.id)" size="md" />
+          <div class="min-w-0 flex-1">
+            <NuxtLink :to="employeeTo(row.id)" class="rounded font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" data-testid="hr-employee-name">{{ row.name }}</NuxtLink>
+            <p v-if="row.job_title" class="truncate text-xs text-muted">{{ row.job_title }}</p>
+            <p v-if="row.department?.name || row.manager?.name" class="mt-1 truncate text-xs text-muted">{{ [row.department?.name, row.manager?.name].filter(Boolean).join(' · ') }}</p>
           </div>
-          <div class="flex shrink-0 items-center gap-2">
-            <SharedStatusBadge variant="outline" data-testid="hr-access-badge" :tone="hrAccessBadge(row.access).tone" :label="t(hrAccessBadge(row.access).labelKey)" />
+          <div class="flex shrink-0 items-center gap-1">
+            <SharedStatusBadge size="sm" data-testid="hr-access-badge" :tone="hrAccessBadge(row.access).tone" :label="t(hrAccessBadge(row.access).labelKey)" />
             <SharedRowActions v-if="showActions" :actions="actionsFor(row)" :label="t('hr.directory.rowActions', { name: row.name })" />
           </div>
         </div>
-        <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
-          <div><dt>{{ t('hr.directory.columns.jobTitle') }}</dt><dd>{{ row.job_title || '—' }}</dd></div>
-          <div><dt>{{ t('hr.directory.columns.department') }}</dt><dd>{{ row.department?.name ?? '—' }}</dd></div>
-          <div><dt>{{ t('hr.directory.columns.manager') }}</dt><dd>{{ row.manager?.name ?? '—' }}</dd></div>
-        </dl>
       </template>
     </SharedDataTable>
   </div>

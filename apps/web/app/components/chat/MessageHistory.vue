@@ -2,6 +2,7 @@
 import { ChatMessageListSchema, type ChatMessage } from '@nasq/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
+import { formatDate, formatTime } from '@/utils/formatDate'
 import {
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
@@ -47,8 +48,7 @@ const jumpCount = ref(0)
 const sealed = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | undefined
 
-const timeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', calendar: 'gregory' }))
-const dayFmt = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', calendar: 'gregory' }))
+const timeFmt = { format: (value: Date) => formatTime(value) }
 
 const rows = computed(() => {
   const out: Array<{ kind: 'day'; key: string } | { kind: 'message'; item: ChatMessage }> = []
@@ -274,7 +274,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
     <div ref="scroller" class="nasq-chat-scroller min-h-0 flex-1 overflow-y-auto px-4 py-2" data-testid="chat-scroller" @scroll="onScroll">
       <ol class="flex flex-col gap-1">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">
-          <li v-if="row.kind === 'day'" class="nasq-chat-day">{{ dayFmt.format(new Date(`${row.key}T00:00:00Z`)) }}</li>
+          <li v-if="row.kind === 'day'" class="nasq-chat-day">{{ formatDate(row.key) }}</li>
           <li
             v-else
             :data-message-id="row.item.id"

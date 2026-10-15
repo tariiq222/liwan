@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChartContainer from '../../app/components/charts/ChartContainer.vue'
-import DashboardChart from '../../app/components/shared/DashboardChart.client.vue'
+import DashboardChart from '../../app/components/shared/data/DashboardChart.client.vue'
 import { dashboardCharts } from '../fixtures/projectReports'
 import { storyContext } from '../support/context'
 
@@ -11,7 +11,7 @@ export default meta
 
 export const Default: StoryObj<typeof meta> = {
   name: 'عبر DashboardChart',
-  parameters: storyContext('apps/web/app/components/shared/DashboardChart.client.vue:172', 'حاوية الرسم تتكرر مرتين داخل `DashboardChart` (دائري وأعمدة)، ولا تُستخدم خارجه. غيّر لون الهوية لرؤية `--chart-*` تتبدل.'),
+  parameters: storyContext('apps/web/app/components/shared/data/DashboardChart.client.vue:224', 'حاوية الرسم تتكرر مرتين داخل `DashboardChart` (دائري وأعمدة)، ولا تُستخدم خارجه. غيّر لون الهوية لرؤية `--chart-*` تتبدل.'),
   render: () => ({
     components: { DashboardChart },
     setup() {

@@ -54,7 +54,8 @@ function hasInformativeSummary(event: MeetingEvent) {
 </script>
 
 <template>
-  <SharedRecordSection :title="t('meetingMinutesForm.history')" data-testid="meeting-event-list">
+  <section data-testid="meeting-event-list" class="space-y-3" aria-labelledby="meeting-event-list-title">
+    <h2 id="meeting-event-list-title" class="sr-only">{{ t('meetingMinutesForm.history') }}</h2>
     <SharedPageState :loading="loading" :error="error" :empty="!events.length" :empty-text="t('meetingMinutesForm.noHistory')" @retry="emit('retry')">
       <ol class="grid gap-2">
         <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-lg bg-default p-3 ring ring-default">
@@ -66,5 +67,5 @@ function hasInformativeSummary(event: MeetingEvent) {
       </ol>
     </SharedPageState>
     <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
-  </SharedRecordSection>
+  </section>
 </template>

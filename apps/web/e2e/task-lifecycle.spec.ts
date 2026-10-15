@@ -65,7 +65,7 @@ test('a creator can restore an archived task from the dedicated page', async ({ 
   expect(archived.ok()).toBeTruthy()
 
   const returnTo = `/projects/${projectId}/tasks?view=board&filter=closed`
-  await page.goto(`/archived-tasks?filter=mine&returnTo=${encodeURIComponent(returnTo)}`)
+  await page.goto(`/tasks?scope=archived&filter=mine&returnTo=${encodeURIComponent(returnTo)}`)
   const row = page.locator('li').filter({ hasText: `E2E archived task ${stamp}` })
   await expect(row).toBeVisible()
   const restored = page.waitForResponse((response) => response.url().includes(`/api/v1/tasks/${taskId}/unarchive`) && response.request().method() === 'POST')

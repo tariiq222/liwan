@@ -145,7 +145,6 @@ describe('projects dashboard navigation', () => {
     expect(modules.find(item => item.id === 'home')?.to).toBe('/projects/dashboard')
     expect(modules.find(item => item.id === 'projects')?.to).toBe('/projects')
     expect(modules.map(item => item.id as string)).not.toContain('reports')
-    expect(activeShellModule('/reports')).toBe('projects')
     expect(activeShellModule('/projects/dashboard')).toBe('home')
   })
   it('orders creation, overview, all projects, and my tasks with real capability gates', () => {

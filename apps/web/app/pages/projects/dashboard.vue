@@ -2,10 +2,10 @@
 import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import type { RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@/components/shared/FilterBar.vue'
-import ProjectDashboardCharts from '@/components/project/dashboard/ProjectDashboardCharts.vue'
-import ProjectDashboardMetrics from '@/components/project/dashboard/ProjectDashboardMetrics.vue'
-import ProjectDashboardRecentProjects from '@/components/project/dashboard/ProjectDashboardRecentProjects.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
+import ProjectDashboardCharts from '@/components/pmo/projects/dashboard/ProjectDashboardCharts.vue'
+import ProjectDashboardMetrics from '@/components/pmo/projects/dashboard/ProjectDashboardMetrics.vue'
+import ProjectDashboardRecentProjects from '@/components/pmo/projects/dashboard/ProjectDashboardRecentProjects.vue'
 import { useProjectDashboardAnalytics } from '@/composables/useProjectDashboardAnalytics'
 import { parseReportStatus, type ProjectReportStatusFilter } from '@/utils/projectFinance'
 
@@ -210,8 +210,8 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       </SharedEmptyState>
     </div>
     <template v-else>
+      <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" :all-rows="rows" />
       <ProjectDashboardCharts :rows="rows" />
-      <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" />
     </template>
   </SharedDashboardPage>
 </template>

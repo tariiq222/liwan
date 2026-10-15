@@ -85,7 +85,8 @@ test.describe('Plan 6c: the meeting record', () => {
 
     test('cancelling asks inline, with the series scope, and Cancel changes nothing', async ({ page }) => {
       await open(page, '/meetings/1')
-      await page.locator('[data-slot="page-header"]').getByRole('button', { name: 'إلغاء' }).click()
+      await page.getByTestId('meeting-more-actions').click()
+      await page.getByRole('menuitem', { name: 'إلغاء الاجتماع' }).click()
       const confirm = page.getByTestId('inline-confirm')
       await expect(confirm).toBeVisible()
       await expect(confirm).toContainText(NAME)

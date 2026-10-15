@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNasqDateTime } from '@/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/commercialBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@nasq/commercial-contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
@@ -105,7 +106,7 @@ async function retry() {
           <ol v-if="data.events?.length" class="grid gap-3">
             <li v-for="(event, index) in data.events" :key="`${event.at}:${index}`" class="border-s-2 border-default ps-3">
               <p class="font-medium">{{ t(`vendor.operations.stages.${event.stage}`, event.stage) }} · {{ t(`vendor.status.${event.status}`) }}</p>
-              <time class="text-xs text-muted" :datetime="event.at">{{ new Date(event.at).toLocaleString() }}</time>
+              <time class="text-xs text-muted" :datetime="event.at">{{ formatNasqDateTime(event.at) }}</time>
             </li>
           </ol>
           <p v-else class="text-sm text-muted">{{ t('vendor.operations.noEvents') }}</p>

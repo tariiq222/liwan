@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, defineComponent, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import CreatePanel from '../../app/components/shared/CreatePanel.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
-import UnsavedChanges from '../../app/components/shared/UnsavedChanges.vue'
+import CreatePanel from '../../app/components/shared/layout/CreatePanel.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import UnsavedChanges from '../../app/components/shared/form/UnsavedChanges.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

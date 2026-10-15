@@ -1,12 +1,11 @@
 import type { PersonalTask } from '@nasq/contracts'
+import { MAX_ATTACHMENT_BYTES } from './attachmentFile'
 import { deadlineDay } from './myTaskList'
 
 // Pure helpers of the personal task detail page: draft diffing and
 // client-side attachment / comment checks. The server stays the authority for every rule.
 
-export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 export const COMMENT_MAX_LENGTH = 5000
-export const ATTACHMENT_ACCEPT = '.txt,.pdf,.png,.jpg,.jpeg,.docx,.xlsx,text/plain,application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 const ALLOWED_TYPES: Record<string, readonly string[]> = {
   pdf: ['application/pdf'],
@@ -75,17 +74,4 @@ export function commentProblem(text: string): CommentProblem | null {
 /** Comments read oldest first; ties keep the server's id order. */
 export function oldestFirst<T extends { id: number; created_at: string }>(rows: readonly T[]): T[] {
   return [...rows].sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : a.id - b.id))
-}
-
-export function fileToBase64(file: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result ?? '')
-      const comma = result.indexOf(',')
-      resolve(comma >= 0 ? result.slice(comma + 1) : result)
-    }
-    reader.onerror = () => reject(reader.error ?? new Error('read failed'))
-    reader.readAsDataURL(file)
-  })
 }

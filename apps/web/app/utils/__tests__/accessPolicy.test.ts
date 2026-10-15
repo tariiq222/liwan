@@ -31,7 +31,7 @@ describe('access policy navigation', () => {
     expect(postLoginPath(taskReader, '/notifications')).toBe('/notifications')
     expect(postLoginPath({ capabilities: [] }, '/notifications')).toBe('/account')
     expect(postLoginPath({ role: 'admin' }, '/notifications')).toBe('/account')
-    expect(postLoginPath(meetingReader, '/archived-tasks')).toBe('/meetings')
+    expect(postLoginPath(meetingReader, '/tasks?scope=archived')).toBe('/meetings')
     expect(postLoginPath(taskReader, '/meetings')).toBe('/tasks')
   })
   it('honors only local, accessible post-login destinations', () => {

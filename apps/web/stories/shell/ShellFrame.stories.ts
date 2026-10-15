@@ -39,28 +39,28 @@ const frame = (sidebar: 'open' | 'closed' = 'open', before?: () => void) => ({
 
 export const Default: Story = {
   name: 'الإطار الكامل',
-  parameters: storyContext('apps/web/app/layouts/default.vue:44'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:46'),
   loaders: [at('/tasks')],
   render: () => frame(),
 }
 
 export const Collapsed: Story = {
   name: 'القائمة السياقية مطويّة',
-  parameters: storyContext('apps/web/app/layouts/default.vue:44', 'القائمة السياقية بعرض 48px: يبقى زر الطي والأيقونات فقط.'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:46', 'القائمة السياقية بعرض 48px: يبقى زر الطي والأيقونات فقط.'),
   loaders: [at('/tasks')],
   render: () => frame('closed'),
 }
 
 export const Console: Story = {
   name: 'الكونسول',
-  parameters: { ...storyContext('apps/web/app/layouts/default.vue:44'), msw: { handlers: { api: vendorShellHandlers } } },
+  parameters: { ...storyContext('apps/web/app/layouts/default.vue:46'), msw: { handlers: { api: vendorShellHandlers } } },
   loaders: [at('/vendor/overview')],
   render: () => frame(),
 }
 
 export const BrightTenant: Story = {
   name: 'لون مؤسسة ساطع',
-  parameters: storyContext('apps/web/app/layouts/default.vue:44', 'لون المؤسسة لا يغيّر شريط الموديولات (المواصفة §3).'),
+  parameters: storyContext('apps/web/app/layouts/default.vue:46', 'لون المؤسسة لا يغيّر شريط الموديولات (المواصفة §3).'),
   loaders: [at('/tasks')],
   render: (_args, { globals }) => frame('open', () => {
     const theme = createBrandTheme('#ff00ff', globals.appearance === 'dark' ? 'dark' : 'light')

@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
-import DescriptionEditor from '../../app/components/shared/DescriptionEditor.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import DescriptionEditor from '../../app/components/shared/form/DescriptionEditor.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { ClientOnly } from '../../.storybook/nuxt-shims'
 import { storyContext } from '../support/context'
 

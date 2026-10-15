@@ -55,8 +55,8 @@
     },
     "priorityLabel": {
       "0": "Normal",
-      "1": "Important",
-      "2": "Very important",
+      "1": "High",
+      "2": "Very high",
       "3": "Urgent"
     },
     "resolutionState": {
@@ -89,7 +89,7 @@
     "startWork": "Start work",
     "followedAsTask": "Follow this on the linked task.",
     "previousResolutions": "Previous meeting recommendations",
-    "openCount": "{count} open recommendations",
+    "openCount": "{count} open recommendation | {count} open recommendations",
     "overdueCount": "{count} overdue",
     "allStates": "All states",
     "stateLabel": "State",
@@ -112,6 +112,7 @@
     }
   },
   "meetingsUx": {
+    "cancelMeetingAction": "Cancel meeting",
     "context": {
       "series": "Series: {name}",
       "project": "Project: {name}"
@@ -144,7 +145,7 @@
     "seriesFilter": "Series filter: {id}",
     "timeUnavailable": "Time not set",
     "today": "Today",
-    "calendarTruncated": "This month has {count} meetings; only the first 2,000 are shown.",
+    "calendarTruncated": "This month has {count} meeting. | This month has {count} meetings; only the first 2,000 are shown.",
     "calendarCoverageUnknown": "The total could not be confirmed. Review the loaded entries before treating this calendar as complete.",
     "countLoading": "Loading series count…",
     "countUnavailable": "Series count unavailable",
@@ -166,8 +167,8 @@
     "completionNotes": "Completion notes",
     "priorityLabel": {
       "0": "Normal",
-      "1": "Important",
-      "2": "High",
+      "1": "High",
+      "2": "Very high",
       "3": "Urgent"
     },
     "validation": {
@@ -196,7 +197,7 @@
     "scheduleSummaryTitle": "Schedule summary",
     "seriesSettingsScope": "These defaults apply to meetings added later. Existing meetings keep their saved values.",
     "seriesSettingsSaveError": "Could not save the series settings. Review the fields and try again.",
-    "terminationCount": "{count} meetings",
+    "terminationCount": "{count} meeting | {count} meetings",
     "terminationOpen": "No termination set",
     "openMeetingForReopen": "Open the meeting page",
     "browserTimeZone": "Times use your browser timezone: {zone}.",
@@ -206,7 +207,7 @@
     "dayCardTitle": "Day events",
     "dayCardHint": "Select a day in the calendar to see its meetings.",
     "dayCardEmpty": "No meetings on this day.",
-    "dayCardCount": "{count} meetings",
+    "dayCardCount": "{count} meeting | {count} meetings",
     "dayCardView": "View",
     "dayCardSelect": "Show meetings on {date}"
   },

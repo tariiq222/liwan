@@ -1,3 +1,5 @@
+import { formatDate } from './formatDate'
+
 type TimelineTranslate = (key: string, params?: Record<string, unknown>) => string
 
 const FIELD_LABELS: Record<string, string> = {
@@ -33,7 +35,7 @@ export function timelineFieldLabel(field: string, serverLabel: string, t: Timeli
   return key ? t(key) : (serverLabel || t('tasks.activity.unknownField'))
 }
 
-function formatDate(value: string, locale: string, t: TimelineTranslate): string {
+function formatTimelineDate(value: string, _locale: string, t: TimelineTranslate): string {
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
   if (dateOnly) {
     const year = Number(dateOnly[1]); const month = Number(dateOnly[2]); const day = Number(dateOnly[3])
@@ -44,8 +46,7 @@ function formatDate(value: string, locale: string, t: TimelineTranslate): string
     ? new Date(Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3])))
     : new Date(value)
   if (Number.isNaN(date.getTime())) return t('tasks.activity.invalidValue')
-  const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', calendar: 'gregory', timeZone: 'UTC' })
-  return formatter.format(date)
+  return formatDate(dateOnly ? value : date, 'UTC')
 }
 
 function formatEnum(field: string, value: string, t: TimelineTranslate): string | null {
@@ -88,7 +89,7 @@ export function formatTimelineValue(field: string, value: unknown, locale: strin
   }
   if (DATE_FIELDS.has(field)) {
     if (typeof value !== 'string') return t('tasks.activity.invalidValue')
-    return formatDate(value, locale, t)
+    return formatTimelineDate(value, locale, t)
   }
   if (typeof value === 'string') return formatEnum(field, value, t) ?? value
   if (typeof value === 'number') return formatEnum(field, String(value), t) ?? String(value)

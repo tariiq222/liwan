@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import Pagination from '../../app/components/shared/Pagination.vue'
+import Pagination from '../../app/components/shared/data/Pagination.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/Pagination',
   component: Pagination,
-  parameters: storyContext('apps/web/app/pages/projects/index.vue:306', 'تحت الجدول. تختفي حين تتسع صفحة واحدة لكل السجلات.'),
+  parameters: storyContext('apps/web/app/pages/projects/index.vue:313', 'تحت الجدول. تختفي حين تتسع صفحة واحدة لكل السجلات.'),
   args: { page: 1, pages: 8, disabled: false },
   render: args => ({
     components: { Pagination },

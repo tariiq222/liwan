@@ -67,7 +67,7 @@ async function openNotification(item: BellNotification) {
       data-testid="notification-bell"
       :aria-label="hydrated && data?.unread_count ? `${t('notifications.title')}، ${data.unread_count} ${t('notifications.unread')}` : t('notifications.title')"
       color="neutral"
-      variant="outline"
+      variant="ghost"
       square
       :disabled="!hydrated"
       class="relative text-muted"

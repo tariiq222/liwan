@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectCreateForm from '@/components/project/ProjectCreateForm.vue'
+import ProjectCreateForm from '@/components/pmo/projects/ProjectCreateForm.vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useProjectList } from '@/composables/useProjects'
 import { createdProjectLocation, draftedProjectLocation } from '@/utils/projectCharter'
@@ -34,7 +34,7 @@ function onDrafted(id: number, step: CharterWizardStep) {
 </script>
 
 <template>
-  <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo" width="wide">
+  <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo">
     <SharedPageState
       :loading="isLoading"
       :error="listError"

@@ -7,7 +7,7 @@ const isProjectSettings = (path: string) => path === '/projects/settings' || pat
 const manifest: AppManifest = {
   id: 'pmo',
   feature: 'pmo.enabled',
-  routePrefixes: ['/projects', '/tasks', '/reports', '/archived-tasks'],
+  routePrefixes: ['/projects', '/tasks'],
   rail: [
     { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard', order: 10 },
     { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', order: 20 },
@@ -32,12 +32,10 @@ const manifest: AppManifest = {
     { path: '/projects/dashboard', capability: 'pmo.projects.read' },
     { path: '/tasks', capability: 'pmo.tasks.read' },
     { path: '/projects', capability: 'pmo.projects.read' },
-    { path: '/reports', capability: 'pmo.projects.read' },
     { path: '/projects/settings', capability: 'pmo.settings.manage', late: true },
   ],
   routeCapabilities: [
     { pattern: /^\/projects\/settings(?:\/|$)/, capability: 'pmo.settings.manage' },
-    { pattern: /^\/archived-tasks$/, capability: 'pmo.tasks.read' },
     { pattern: /^\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/[^/]+\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/new$/, capability: 'pmo.projects.create' },
@@ -58,9 +56,7 @@ const manifest: AppManifest = {
     { id: 'pmo.new-project', labelKey: 'nav.newProject', icon: 'i-lucide-folder-kanban', to: '/projects/new', capability: 'pmo.projects.create' },
     { id: 'pmo.new-task', labelKey: 'tasks.new', icon: 'i-lucide-check-square', to: '/tasks/new', capability: 'pmo.tasks.create' },
   ],
-  returnToPaths: ['/archived-tasks'],
   isNavActive(path, target) {
-    if (target === '/tasks') return path === '/archived-tasks' ? true : undefined
     if (target !== '/projects') return undefined
     if (path === '/projects/dashboard' || path.startsWith('/projects/dashboard/')) return false
     if (isProjectSettings(path)) return false

@@ -28,7 +28,8 @@
         "department": "Department",
         "manager": "Manager",
         "account": "Account",
-        "actions": "Actions"
+        "actions": "Actions",
+        "status": "Status"
       },
       "access": {
         "noAccount": "No account",
@@ -41,7 +42,11 @@
       "filteredEmpty": "No employees match these filters",
       "filteredEmptyHint": "Change or clear the filters.",
       "searchValue": "Search: {value}",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "status": {
+        "active": "Active",
+        "archived": "Archived"
+      }
     },
     "card": {
       "title": "Employee card",
@@ -71,9 +76,9 @@
       "deleteConfirm": "Delete {name}?",
       "deleted": "Department deleted",
       "inUse": "This department is in use.",
-      "employeeReason": "{count} employee(s)",
-      "childReason": "{count} child department(s)",
-      "documentReason": "{count} document(s)",
+      "employeeReason": "{count} employee | {count} employees",
+      "childReason": "{count} child department | {count} child departments",
+      "documentReason": "{count} document | {count} documents",
       "newTitle": "Add department",
       "editTitle": "Edit department",
       "create": "Create department",

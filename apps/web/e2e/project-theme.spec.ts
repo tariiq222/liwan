@@ -97,7 +97,7 @@ test('project typography scales with preference and releases its scope on client
   await appearance(page, 'light', 'small')
   for (const [size, root, label] of [['small', 14, 'صغير'], ['medium', 16, 'وسط'], ['large', 18, 'كبير']] as const) {
     if (size !== 'small') {
-      await page.getByTestId('appearance-menu').click()
+      await page.getByTestId('account-menu').click()
       const item = page.getByRole('menuitemcheckbox', { name: label, exact: true })
       await expect(item).toBeVisible()
       await expect(item).toHaveAttribute('aria-checked', 'false')

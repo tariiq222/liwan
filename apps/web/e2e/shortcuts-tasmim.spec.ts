@@ -109,7 +109,7 @@ test.describe('Tasmim palette and shortcuts', () => {
     await expect(page.getByTestId('command-palette')).toHaveAttribute('data-view', 'shortcuts')
     await page.keyboard.press('Escape')
     await expect(dialog(page)).toBeHidden()
-    await page.getByTestId('appearance-menu').click()
+    await page.getByTestId('account-menu').click()
     await expect(page.locator('[data-dismissable-layer]')).not.toHaveCount(0)
     // Record whether the page saw g unprevented: the shell must leave a plain key alone while a menu is open.
     await page.evaluate(() => {
@@ -128,7 +128,7 @@ test.describe('Tasmim palette and shortcuts', () => {
 
   test('Cmd+K does not open the palette over an open menu', async ({ page }) => {
     await hydrated(page, '/tasks')
-    await page.getByTestId('appearance-menu').click()
+    await page.getByTestId('account-menu').click()
     await expect(page.getByRole('menu')).toBeVisible()
     await page.keyboard.press('ControlOrMeta+k')
     await expect(page.getByRole('dialog')).toHaveCount(0)

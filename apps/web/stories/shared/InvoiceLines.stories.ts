@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import InvoiceLines from '../../app/components/shared/InvoiceLines.vue'
+import InvoiceLines from '../../app/components/shared/data/InvoiceLines.vue'
 import { subscriptionInvoiceView } from '../../app/utils/subscription'
 import { vendorInvoiceLineViews } from '../../app/utils/vendorSubscriptions'
 import { invoice as customerInvoice } from '../subscription/fixtures'

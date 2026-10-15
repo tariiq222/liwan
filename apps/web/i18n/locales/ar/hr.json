@@ -28,7 +28,8 @@
         "department": "القسم",
         "manager": "المدير",
         "account": "الحساب",
-        "actions": "الإجراءات"
+        "actions": "الإجراءات",
+        "status": "الحالة"
       },
       "access": {
         "noAccount": "بدون حساب",
@@ -41,7 +42,11 @@
       "filteredEmpty": "لا موظفون يطابقون الفلاتر",
       "filteredEmptyHint": "غيّر الفلاتر أو امسحها.",
       "searchValue": "بحث: {value}",
-      "clear": "مسح الفلاتر"
+      "clear": "مسح الفلاتر",
+      "status": {
+        "active": "نشط",
+        "archived": "مؤرشف"
+      }
     },
     "card": {
       "title": "بطاقة الموظف",
@@ -71,9 +76,9 @@
       "deleteConfirm": "حذف {name}؟",
       "deleted": "تم حذف القسم",
       "inUse": "القسم مستخدم.",
-      "employeeReason": "{count} موظف",
-      "childReason": "{count} قسم فرعي",
-      "documentReason": "{count} مستند",
+      "employeeReason": "لا موظفين | موظف واحد | موظفان | {count} موظفين | {count} موظفًا | {count} موظف",
+      "childReason": "لا أقسام فرعية | قسم فرعي واحد | قسمان فرعيان | {count} أقسام فرعية | {count} قسمًا فرعيًا | {count} قسم فرعي",
+      "documentReason": "لا مستندات | مستند واحد | مستندان | {count} مستندات | {count} مستندًا | {count} مستند",
       "newTitle": "إضافة قسم",
       "editTitle": "تعديل القسم",
       "create": "إنشاء القسم",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createBrandTheme, darkSolid, DEFAULT_PRIMARY, MODE_SURFACES } from '../brandTheme'
+import { CATEGORICAL_CHART_COLORS, createBrandTheme, darkLink, darkSolid, DEFAULT_PRIMARY, MODE_SURFACES, STATUS_CHART_COLORS } from '../brandTheme'
 import { contrastRatio, DARK_SURFACES } from '../nasqPalette'
 
 function channel(value: number) {
@@ -114,49 +114,56 @@ describe('createBrandTheme', () => {
     }
   })
 
-  it('derives chart tones from the configured primary color', () => {
+  it('takes chart series 1 from the tenant primary and keeps series 2-6 fixed', () => {
     const first = createBrandTheme('#0055ff')
-    const second = createBrandTheme('#d14a00')
-    const firstCharts = Array.from({ length: 6 }, (_, index) => first[`--chart-${index + 1}`]!)
-    const secondCharts = Array.from({ length: 6 }, (_, index) => second[`--chart-${index + 1}`]!)
+    const second = createBrandTheme(DEFAULT_PRIMARY)
+    const series = (theme: Record<string, string>) => Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
 
-    expect(firstCharts).not.toEqual(secondCharts)
-    expect(firstCharts.every(value => /^#[0-9a-f]{6}$/.test(value))).toBe(true)
-    expect(secondCharts.every(value => /^#[0-9a-f]{6}$/.test(value))).toBe(true)
-    expect(new Set(firstCharts).size).toBe(6)
-    expect(new Set(secondCharts).size).toBe(6)
-    expect(first['--primary']).toBe('#0055ff')
-    expect(first['--chart-2']).toBe('#0055ff')
+    expect(first['--chart-1']).toBe('#0055ff')
+    expect(first['--chart-1']).not.toBe(second['--chart-1'])
+    expect(series(first).slice(1)).toEqual([...CATEGORICAL_CHART_COLORS.light])
+    expect(series(second).slice(1)).toEqual([...CATEGORICAL_CHART_COLORS.light])
+    expect(series(createBrandTheme('#0055ff', 'dark')).slice(1)).toEqual([...CATEGORICAL_CHART_COLORS.dark])
+    expect(new Set(series(first)).size).toBe(6)
+    expect(new Set(series(second)).size).toBe(6)
   })
 
-  it.each(['#000000', '#ffffff', '#0055ff', '#d14a00', '#a855f7'])
-    ('keeps every chart tone at least 3:1 against chart surfaces for %s', (primary) => {
+  it('replaces a fixed series that the tenant primary collides with', () => {
+    const teal = createBrandTheme('#0d9488')
+    const charts = Array.from({ length: 6 }, (_, index) => teal[`--chart-${index + 1}`]!)
+    expect(charts[1]).toBe('#ea580c')
+    expect(charts).not.toContain('#0d9488')
+    expect(new Set(charts).size).toBe(6)
+  })
+
+  // A chart sits on a card: white in light mode, the page surfaces in dark mode.
+  const CHART_SURFACES = { light: ['#ffffff'], dark: [DARK_SURFACES.canvas, DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated] } as const
+
+  it.each(['#000000', '#ffffff', '#0055ff', '#d14a00', '#a855f7', DEFAULT_PRIMARY])
+    ('keeps every chart and status series at least 3:1 against the card surface for %s', (primary) => {
       for (const mode of ['light', 'dark'] as const) {
         const theme = createBrandTheme(primary, mode)
         const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
+        const status = Object.keys(STATUS_CHART_COLORS[mode]).map(key => theme[`--chart-status-${key}`]!)
 
         expect(new Set(charts).size, `${primary} ${mode} chart uniqueness`).toBe(6)
-        for (const chart of charts) {
-          for (const surface of MODE_SURFACES[mode]) {
-            expect(contrast(chart, surface), `${primary} ${mode} ${chart} on ${surface}`).toBeGreaterThanOrEqual(3)
+        for (const color of [...charts, ...status]) {
+          for (const surface of CHART_SURFACES[mode]) {
+            expect(contrast(color, surface), `${primary} ${mode} ${color} on ${surface}`).toBeGreaterThanOrEqual(3)
           }
         }
       }
     })
 
-  it('spreads chart tones across neighbouring hues for a chromatic brand', () => {
-    const theme = createBrandTheme('#0055ff')
-    const hues = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
-      .map((hex) => {
-        const [r, g, b] = [1, 3, 5].map(index => Number.parseInt(hex.slice(index, index + 2), 16) / 255)
-        const max = Math.max(r!, g!, b!)
-        const min = Math.min(r!, g!, b!)
-        const d = max - min
-        if (d === 0) return 0
-        const h = max === r ? ((g! - b!) / d) % 6 : max === g ? (b! - r!) / d + 2 : (r! - g!) / d + 4
-        return (h * 60 + 360) % 360
-      })
-    expect(new Set(hues.map(hue => Math.round(hue / 25))).size).toBeGreaterThanOrEqual(4)
+  it('exports the status series as the fixed colours the status badges use, apart from the tenant', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const a = createBrandTheme('#0055ff', mode)
+      const b = createBrandTheme('#d14a00', mode)
+      for (const [key, value] of Object.entries(STATUS_CHART_COLORS[mode])) {
+        expect(a[`--chart-status-${key}`]).toBe(value)
+        expect(b[`--chart-status-${key}`]).toBe(value)
+      }
+    }
   })
 
   it.each(['#000000', '#ffffff'])('keeps six chart tones distinct for extreme primary %s', (primary) => {
@@ -189,6 +196,11 @@ describe('createBrandTheme', () => {
       '--chart-4',
       '--chart-5',
       '--chart-6',
+      '--chart-status-error',
+      '--chart-status-info',
+      '--chart-status-neutral',
+      '--chart-status-success',
+      '--chart-status-warning',
       '--primary',
       '--primary-active',
       '--primary-active-foreground',
@@ -227,13 +239,6 @@ describe('createBrandTheme', () => {
       expect(theme['--primary-soft']).not.toBe(theme['--primary-fill'])
       expect(contrast(theme['--primary-fill']!, theme['--primary-fill-foreground']!), `${primary} ${mode}`).toBeGreaterThanOrEqual(4.5)
     }
-  })
-
-  it('keeps charts in one primary-derived family', () => {
-    const theme = createBrandTheme('#0055ff')
-    const charts = Array.from({ length: 6 }, (_, index) => theme[`--chart-${index + 1}`]!)
-    expect(theme['--chart-2']).toBe('#0055ff')
-    expect(new Set(charts).size).toBe(6)
   })
 })
 
@@ -295,7 +300,10 @@ describe('Nasq palette in the brand engine', () => {
     expect(dark['--primary-solid-foreground']).toBe('#ffffff')
     expect(dark['--primary-solid']).not.toBe('#c8f031')
     // Links, text-primary and focus keep the lighter text tone.
-    expect(dark['--brand-link']).toBe('#a1a7b7')
+    expect(dark['--brand-link']).toBe(darkLink(DEFAULT_PRIMARY))
+    // The link keeps the brand hue (periwinkle, not the grey a white mix gives) and stands 4.5:1 off every dark surface.
+    expect(saturation(dark['--brand-link']!)).toBeGreaterThanOrEqual(0.4)
+    for (const surface of MODE_SURFACES.dark) expect(contrastRatio(dark['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
     const light = createBrandTheme(DEFAULT_PRIMARY, 'light')
     expect(light['--primary']).toBe('#13234a')
     expect(light['--brand-link']).toBe('#13234a')

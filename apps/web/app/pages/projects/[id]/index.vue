@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectOverview from '@/components/project/ProjectOverview.vue'
+import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
@@ -42,8 +42,9 @@ function dateLabel(value: string | null | undefined) {
     </div>
   </SharedPageContainer>
   <!-- The workspace frame above is this page's h1, so hide-header draws no heading here. The title still
-       names the page for the shell. -->
-  <SharedRecordPage v-else hide-header :title="t('nav.projectSummary')" :loading="loading" :error="error" @retry="refetch">
+       names the page for the shell. The frame and its tabs span the full list width, so the record drops its 68rem
+       cap and the summary tiles line up with the tab strip. -->
+  <SharedRecordPage v-else hide-header class="!max-w-none" :title="t('nav.projectSummary')" :loading="loading" :error="error" @retry="refetch">
     <template v-if="canCopy" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BrandWordmark from '@/components/shared/BrandWordmark.vue'
+import BrandWordmark from '@/components/shared/layout/BrandWordmark.vue'
 import type { ShellRailItem } from '@/composables/nav/sidebarModel'
 
 // The module rail (spec §3, §5): always Nasq midnight, 64px, icon over a small
@@ -12,8 +12,8 @@ const props = defineProps<{
 }>()
 const { t } = useI18n()
 const groups = computed(() => [
-  { key: 'modules', items: props.modules, label: t('nav.modules'), class: 'nasq-module-rail-links' },
-  { key: 'utility', items: props.utility, label: t('nav.settings'), class: 'nasq-module-rail-utility' },
+  { key: 'modules', items: props.modules, label: t('nav.railApps'), class: 'nasq-module-rail-links' },
+  { key: 'utility', items: props.utility, label: t('nav.railAdmin'), class: 'nasq-module-rail-utility' },
 ].filter(group => group.items.length))
 </script>
 
@@ -36,7 +36,8 @@ const groups = computed(() => [
       >
         <span v-if="item.id === props.activeId" data-slot="indicator" class="nasq-module-rail-indicator" aria-hidden="true" />
         <UIcon :name="item.icon" class="nasq-shell-icon" aria-hidden="true" />
-        <span data-slot="label">{{ t(item.labelKey) }}</span>
+        <!-- Up to two lines instead of an ellipsis: «My to-dos» must stay readable at 64px. -->
+        <span data-slot="label" class="line-clamp-2 whitespace-normal! text-balance break-words">{{ t(item.labelKey) }}</span>
       </NuxtLink>
     </nav>
   </aside>

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'apps/web/app'
 UI = APP / 'components/ui'
 CHARTS = APP / 'components/charts'
-CHART_OWNER = 'apps/web/app/components/shared/DashboardChart.client.vue'
+CHART_OWNER = 'apps/web/app/components/shared/data/DashboardChart.client.vue'
 WRAPPERS = re.compile(r'\bnasq-(?:panel(?:-header|-body)?|metrics|metric(?:-title|-value|-foot)?|form-section-heading|settings-section-heading|project-toolbar|tabs|view-switch|settings-nav)\b')
 COMMENT = re.compile(r'<!--[\s\S]*?-->|/\*[\s\S]*?\*/|^\s*//[^\n]*', re.M)
 

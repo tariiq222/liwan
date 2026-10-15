@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectCharterReferenceForm from '@/components/settings/ProjectCharterReferenceForm.vue'
+import ProjectCharterReferenceForm from '@/components/pmo/projects/settings/ProjectCharterReferenceForm.vue'
 import { isCharterCatalogResource } from '@/composables/useProjectCharterCatalogs'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 

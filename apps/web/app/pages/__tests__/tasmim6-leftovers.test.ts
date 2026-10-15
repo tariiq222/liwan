@@ -6,11 +6,11 @@ const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('the pilot leftovers use the shared pieces', () => {
   it('recent projects is a record section over a data table', () => {
-    const source = read('components/project/dashboard/ProjectDashboardRecentProjects.vue')
+    const source = read('components/pmo/projects/dashboard/ProjectDashboardRecentProjects.vue')
     for (const needle of ['<SharedRecordSection', 'id="project-dashboard-recent"', '<SharedDataTable', '#mobile-row']) expect(source).toContain(needle)
     for (const gone of ['useMediaQuery', '<UTable', '<UCard']) expect(source).not.toContain(gone)
   })
   it('the overview draws no skeleton of its own', () => {
-    for (const file of ['components/project/ProjectOverview.vue', 'components/project/ProjectOverviewTasks.vue']) expect(read(file)).not.toContain('<USkeleton')
+    for (const file of ['components/pmo/projects/ProjectOverview.vue', 'components/pmo/projects/ProjectOverviewTasks.vue']) expect(read(file)).not.toContain('<USkeleton')
   })
 })

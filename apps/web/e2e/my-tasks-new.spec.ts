@@ -96,7 +96,7 @@ test('saving posts the exact body once and redirects to the new task', async ({ 
   await page.keyboard.press('Escape')
 
   await page.getByRole('combobox', { name: 'الأولوية' }).click()
-  await page.getByRole('option', { name: 'عالية' }).click()
+  await page.getByRole('option', { name: 'مرتفعة' }).click()
 
   await page.getByRole('button', { name: 'المسؤولون' }).click()
   await page.getByRole('option', { name: PERSON.name }).click()
