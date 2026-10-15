@@ -43,7 +43,7 @@ describe('project record header and list contracts', () => {
   })
 
   it('labels every template column and leads with the number', () => {
-    const page = read('pages/project-templates/index.vue')
+    const page = read('pages/projects/templates/index.vue')
     expect(page.indexOf("id: 'number'")).toBeLessThan(page.indexOf("id: 'name'"))
     expect(page).not.toContain("class: 'sr-only'")
     expect(page).toContain("id: 'actions'")

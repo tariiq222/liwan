@@ -29,8 +29,7 @@
       ],
       "pages": [
         "projects",
-        "tasks",
-        "project-templates"
+        "tasks"
       ]
     },
     "meetings": {

@@ -24,7 +24,7 @@ test('real login form rejects invalid credentials then loads a real capability i
     expect(me.company.id).toBe(fixture.company);
     expect(me.capabilities).toContain('hr.employees.manage');
 });
-for (const path of ['/projects', '/projects/dashboard', '/tasks', '/project-templates', '/hr', '/hr/departments', '/hr/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/projects/settings', '/settings/users', '/settings/roles', '/settings/branding', '/operations']) {
+for (const path of ['/projects', '/projects/dashboard', '/tasks', '/projects/templates', '/hr', '/hr/departments', '/hr/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/projects/settings', '/settings/users', '/settings/roles', '/settings/branding', '/operations']) {
     test(`real backend renders ${path} without server failures`, async ({ page }) => {
         await login(page);
         const failures: string[] = [];
@@ -71,7 +71,7 @@ test('finance budget create, record edit and list return use real stored values'
 });
 test('project template create applies through Odoo and its tasks render on direct refresh', async ({ page }) => {
     await login(page);
-    await open(page, '/project-templates/new');
+    await open(page, '/projects/templates/new');
     const dialog = page.getByRole('dialog');
     const name = `قالب حقيقي ${Date.now()}`;
     await dialog.locator('[name=template-name]').fill(name);
@@ -82,7 +82,7 @@ test('project template create applies through Odoo and its tasks render on direc
     const created = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/project-templates' && r.request().method() === 'POST');
     await dialog.getByRole('button', { name: 'حفظ', exact: true }).click();
     const template = await body(await created, 201);
-    await expect(page).toHaveURL(new RegExp(`/project-templates/${template.id}`));
+    await expect(page).toHaveURL(new RegExp(`/projects/templates/${template.id}`));
     await page.reload();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
     const applied = await body(await page.request.post(`/api/v1/project-templates/${template.id}/apply`, { data: { name: `مشروع ${name}`, start_date: '2030-05-01' } }), 201);

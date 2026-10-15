@@ -519,8 +519,8 @@ PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage',
 # Route parents that render a list or <NuxtPage /> by route, plus the unshelled
 # roots. Each entry is a deliberate exception, not a backlog.
 PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
-    'index.vue', 'vendor/index.vue', 'vendor/catalog.vue', 'vendor/bundles.vue', 'vendor/plans.vue', 'vendor/customers.vue', 'vendor/invoices.vue', 'reports.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
-    'projects.vue', 'project-templates.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
+    'index.vue', 'vendor/index.vue', 'vendor/catalog.vue', 'vendor/bundles.vue', 'vendor/plans.vue', 'vendor/customers.vue', 'vendor/invoices.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
+    'projects.vue', 'projects/templates.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
     'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
 ))
 AD_HOC_WIDTH = re.compile(r'nasq-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'

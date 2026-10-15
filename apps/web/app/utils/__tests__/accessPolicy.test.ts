@@ -31,7 +31,7 @@ describe('access policy navigation', () => {
     expect(postLoginPath(taskReader, '/notifications')).toBe('/notifications')
     expect(postLoginPath({ capabilities: [] }, '/notifications')).toBe('/account')
     expect(postLoginPath({ role: 'admin' }, '/notifications')).toBe('/account')
-    expect(postLoginPath(meetingReader, '/archived-tasks')).toBe('/meetings')
+    expect(postLoginPath(meetingReader, '/tasks?scope=archived')).toBe('/meetings')
     expect(postLoginPath(taskReader, '/meetings')).toBe('/tasks')
   })
   it('honors only local, accessible post-login destinations', () => {
@@ -94,15 +94,15 @@ describe('access policy navigation', () => {
     expect(isNavPathActive('/chat/42/info', '/chat')).toBe(true)
   })
   it('gates template editing and retains accessible template deep links after login', () => {
-    expect(requiredCapabilityForPath('/project-templates')).toBe('pmo.projects.read')
-    expect(requiredCapabilityForPath('/project-templates/7')).toBe('pmo.projects.read')
-    expect(requiredCapabilityForPath('/project-templates/7/use')).toBe('pmo.projects.read')
-    expect(requiredCapabilityForPath('/project-templates/new')).toBe('pmo.settings.manage')
-    expect(requiredCapabilityForPath('/project-templates/7/edit')).toBe('pmo.settings.manage')
+    expect(requiredCapabilityForPath('/projects/templates')).toBe('pmo.projects.read')
+    expect(requiredCapabilityForPath('/projects/templates/7')).toBe('pmo.projects.read')
+    expect(requiredCapabilityForPath('/projects/templates/7/use')).toBe('pmo.projects.read')
+    expect(requiredCapabilityForPath('/projects/templates/new')).toBe('pmo.settings.manage')
+    expect(requiredCapabilityForPath('/projects/templates/7/edit')).toBe('pmo.settings.manage')
     const reader = { capabilities: ['pmo.projects.read'] }
-    expect(postLoginPath(reader, '/project-templates/7?returnTo=%2Fprojects')).toBe('/project-templates/7?returnTo=%2Fprojects')
-    expect(postLoginPath(reader, '/project-templates/7/edit')).toBe('/projects/dashboard')
-    expect(postLoginPath({ capabilities: [] }, '/project-templates')).toBe('/account')
+    expect(postLoginPath(reader, '/projects/templates/7?returnTo=%2Fprojects')).toBe('/projects/templates/7?returnTo=%2Fprojects')
+    expect(postLoginPath(reader, '/projects/templates/7/edit')).toBe('/projects/dashboard')
+    expect(postLoginPath({ capabilities: [] }, '/projects/templates')).toBe('/account')
   })
 
   it("reaches a newer application's capability through its own feature, without navigation", () => {

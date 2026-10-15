@@ -259,7 +259,7 @@ async function openProject(id: number) {
     :views="views"
   >
     <template #actions>
-      <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
+      <UButton color="neutral" variant="outline" :to="{ path: '/projects/templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
     </template>
 
     <template #filters>

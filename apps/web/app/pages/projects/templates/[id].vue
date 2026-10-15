@@ -11,7 +11,7 @@ const { data: template, isLoading, error, refetch } = useProjectTemplate(id)
 const remove = useDeleteProjectTemplate()
 const confirmDelete = ref(false)
 const { backTo, templatePath } = useProjectTemplateNavigation()
-const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/project-templates/${id.value}`)
+const isBaseRoute = computed(() => route.path.replace(/\/+$/, '') === `/projects/templates/${id.value}`)
 function deleteTemplate() { if (!id.value) return; remove.mutate(id.value, { onSuccess: () => { toast.add({ title: t('projects.templates.deleted'), color: 'success', icon: 'i-lucide-circle-check' }); router.push(backTo.value) } }) }
 </script>
 

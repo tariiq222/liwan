@@ -11,7 +11,7 @@ import * as errorState from '../../../utils/errorState'
 import { loadShared } from '../../shared/__tests__/helpers/renderShared'
 import { describe, expect, it } from 'vitest'
 
-const pages = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/project-templates')
+const pages = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/templates')
 const listSource = readFileSync(resolve(pages, 'index.vue'), 'utf8')
 
 const Passthrough = defineComponent({
@@ -80,13 +80,13 @@ function listSetup(overrides: Record<string, unknown> = {}) {
     canApply: false,
     search: ref(''),
     router: { push: () => {} },
-    itemTo: () => '/project-templates/1',
+    itemTo: () => '/projects/templates/1',
     goPage: () => {},
     pageSize: 50,
     offset: 50,
     total: 0,
     items: [],
-    createTo: undefined, columns: [], rowTo: () => '/project-templates/1',
+    createTo: undefined, columns: [], rowTo: () => '/projects/templates/1',
     pageNumber: Math.floor(Number(overrides.offset ?? 50) / 50) + 1,
     pages: Math.max(Math.floor(Number(overrides.offset ?? 50) / 50) + 1, Math.ceil(Number(overrides.total ?? 0) / 50), 1),
     list: {

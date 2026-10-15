@@ -10,7 +10,7 @@ const widthClass = computed(() => `nasq-page-width-${props.width}`)
 const route = useRoute()
 const workspaceArea = computed(() => isWorkspaceThemeRoute(route.path))
 const projectRecord = computed(() => /^\/projects\/\d+(\/|$)/.test(route.path))
-const projectArea = computed(() => /^\/(projects|project-templates)(\/|$)/.test(route.path) || /^\/settings\/projects(\/|$)/.test(route.path))
+const projectArea = computed(() => /^\/projects(\/|$)/.test(route.path) || /^\/settings\/projects(\/|$)/.test(route.path))
 </script>
 
 <template>

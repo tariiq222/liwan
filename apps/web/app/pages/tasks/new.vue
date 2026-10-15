@@ -7,7 +7,7 @@ const router = useRouter()
 const { t } = useI18n()
 const toast = useToast()
 const hydrated = useHydrated()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/archived-tasks', '/projects']))
+const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/projects']))
 function created(id: number) {
   toast.add({ title: t('tasks.created'), color: 'success' })
   // Hand the list's own state to the new task as plain query, so its back link
