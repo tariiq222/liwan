@@ -327,8 +327,7 @@ class Runner:
 
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
-                  'companyName': self.request['companyName'],
-                  'packageAdmin': self.request['job'].get('packageAuthority') is not None}
+                  'companyName': self.request['companyName']}
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
 result = {'verified': False}
@@ -354,21 +353,25 @@ try:
             assignment = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('role_id', '=', role.id), ('company_id', '=', profile.root_company_id.id)])
             if not assignment:
                 env['nasq.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})
-        if values['packageAdmin']:
-            # The stock nasq install seeds admin as vendor support. A package
-            # customer administrator is counted against users.limit instead.
-            support = env.ref('nasq_core.group_vendor_support')
-            admin._nasq_access_write({'group_ids': [(3, support.id, 0)]}, 'access.users.assign_roles')
-            # Role creation above may have synced support's wildcard grants.
-            # Re-derive permission groups from retained customer assignments;
-            # the existing service preserves unrelated explicit groups.
-            admin._nasq_sync_capability_groups()
-            env.flush_all()
-    if values['packageAdmin']:
-        service = env['nasq.entitlement.service']
-        assert not admin.share and not admin.has_group('nasq_core.group_vendor_support')
-        assert admin.id not in service._nasq_excluded_user_ids()
-        assert service._nasq_count_users() >= 1
+        # The stock nasq install seeds admin as vendor support. The first
+        # administrator of a shared SaaS tenant is always the customer's own
+        # (package or catalog provisioning alike), so it is counted against
+        # users.limit and is not vendor support.
+        support = env.ref('nasq_core.group_vendor_support')
+        admin._nasq_access_write({'group_ids': [(3, support.id, 0)]}, 'access.users.assign_roles')
+        # Role creation above may have synced support's wildcard grants.
+        # Re-derive permission groups from retained customer assignments;
+        # the existing service preserves unrelated explicit groups.
+        admin._nasq_sync_capability_groups()
+        env.flush_all()
+    service = env['nasq.entitlement.service']
+    assert not admin.share and not admin.has_group('nasq_core.group_vendor_support')
+    assert admin.id not in service._nasq_excluded_user_ids()
+    # Removing support is not a quota claim, so check the applied limit here:
+    # a tenant must not be born over its own users.limit.
+    users = service._nasq_count_users()
+    limit = service._nasq_limit_value('users.limit')
+    assert users >= 1 and (limit is None or users <= limit)
     assert admin.login == values['login'] and admin.name == values['name']
     assert profile.root_company_id.name == values['companyName']
     assigned = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('company_id', '=', profile.root_company_id.id)]).mapped('role_id.key')
