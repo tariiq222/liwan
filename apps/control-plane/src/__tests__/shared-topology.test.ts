@@ -61,11 +61,14 @@ function nuxt(mode: string) {
   runInNewContext(source, context)
   return context.result
 }
-it('only removes the seven dedicated proxy rules and enforces same-origin WS in shared compile', () => {
+it('only removes the seven dedicated proxy rules, keeps the redirects, and enforces same-origin WS in shared compile', () => {
   const dedicated = nuxt('dedicated'); const shared = nuxt('shared')
-  expect(Object.keys(dedicated.routeRules)).toHaveLength(7)
-  expect(Object.values(dedicated.routeRules).every((v: any) => v.proxy)).toBe(true)
-  expect(shared.routeRules).toEqual({})
+  // Retired-URL redirects never reach Odoo, so both lanes keep them; only the proxies go.
+  const redirects = { '/archived-tasks': { redirect: { to: '/tasks?scope=archived', statusCode: 301 } }, '/reports': { redirect: { to: '/projects/dashboard', statusCode: 301 } } }
+  const proxies = Object.entries(dedicated.routeRules).filter(([k]) => !(k in redirects))
+  expect(proxies).toHaveLength(7)
+  expect(proxies.every(([, v]: [string, any]) => v.proxy)).toBe(true)
+  expect(shared.routeRules).toEqual(redirects)
   expect(shared.runtimeConfig.public.wsUrl).toBe('')
   expect(shared.runtimeConfig.odooDb).toBe('')
   expect(shared.nitro.devProxy).toBeUndefined()
