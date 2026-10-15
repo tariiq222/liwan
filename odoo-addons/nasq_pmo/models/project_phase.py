@@ -24,7 +24,7 @@ class ProjectPhase(models.Model):
     # PMBOK process groups as a lifecycle; monitoring is continuous, not a phase.
     nasq_phase = fields.Selection(
         [(phase, phase.title()) for phase in PHASES],
-        default='initiating', required=True, copy=False, index=True,
+        default='initiating', required=True, copy=False,
     )
 
     def _nasq_phase_neighbours(self):
