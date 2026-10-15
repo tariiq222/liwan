@@ -11,7 +11,7 @@ import {
   projectProgressBandData,
   projectProgressBandsChart,
   projectProgressByProjectChart,
-  projectStatusDoughnutChart,
+  projectStatusBarChart,
   projectTaskCompositionChart,
   projectChartLabels,
   type ChartLabels,
@@ -39,10 +39,10 @@ const progressBandsHasData = computed(() => projectProgressBandData(props.rows, 
 const budgetHasData = computed(() => props.rows.length > 0)
 const financeHasData = computed(() => selectedCurrency.value != null && projectFinanceComparisonData(props.rows, selectedCurrency.value.id).length > 0)
 
-const statusChart = computed(() => projectStatusDoughnutChart(props.rows, labels.value, t('projects.dashboard.charts.statusTitle')))
+const statusChart = computed(() => projectStatusBarChart(props.rows, labels.value))
 const taskChart = computed(() => projectTaskCompositionChart(props.rows, labels.value, t('projects.dashboard.charts.taskTitle')))
 const progressBandsChart = computed(() => projectProgressBandsChart(props.rows, labels.value))
-const budgetChart = computed(() => projectBudgetHealthChart(props.rows, labels.value, t('projects.dashboard.charts.budgetHealthTitle')))
+const budgetChart = computed(() => projectBudgetHealthChart(props.rows, labels.value, t('projects.dashboard.charts.budgetCenterLabel')))
 const projectProgressChart = computed(() => projectProgressByProjectChart(props.rows, labels.value))
 const financeChart = computed(() => selectedCurrency.value ? projectFinanceComparisonChart(props.rows, selectedCurrency.value.id, labels.value) : null)
 </script>
@@ -53,10 +53,10 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
     :title="t('projects.dashboard.charts.statusTitle')"
     :description="t('projects.dashboard.charts.statusDescription')"
     :chart="statusChart"
-    variant="pie"
     :has-data="statusHasData"
     :empty-text="t('projects.dashboard.charts.noStatusData')"
     :accessible-label="t('projects.dashboard.charts.statusTitle')"
+    height="240px"
   />
   <DashboardChartPanel
     test-id="chart-tasks"
@@ -83,7 +83,7 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
     :title="t('projects.dashboard.charts.budgetHealthTitle')"
     :description="t('projects.dashboard.charts.budgetHealthDescription')"
     :chart="budgetChart"
-    variant="donut"
+    variant="donut-text"
     :has-data="budgetHasData"
     :empty-text="t('projects.dashboard.charts.noBudgetData')"
     :accessible-label="t('projects.dashboard.charts.budgetHealthTitle')"
@@ -104,11 +104,11 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
     class="@min-[768px]:col-span-2"
     data-testid="chart-project-finance"
     :title="t('projects.dashboard.charts.financeTitle')"
-    :description="t('projects.dashboard.charts.financeDescription')"
+    :description="t(currencies.length > 1 ? 'projects.dashboard.charts.financeDescription' : 'projects.dashboard.charts.financeDescriptionSingle')"
     :empty="!financeHasData"
     :empty-text="t('projects.dashboard.charts.noFinanceData')"
   >
-    <template v-if="currencies.length" #actions>
+    <template v-if="currencies.length > 1" #actions>
       <USelect
         data-testid="chart-currency-filter"
         :model-value="selectedCurrency ? String(selectedCurrency.id) : undefined"
@@ -120,6 +120,7 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
         @update:model-value="value => { selectedCurrencyId = Number(value) }"
       />
     </template>
+    <p v-if="currencies.length === 1 && selectedCurrency" class="mb-2 text-sm text-muted" data-testid="chart-currency-label">{{ selectedCurrency.name }} ({{ selectedCurrency.symbol }})</p>
     <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
   </SharedChartPanel>
 </template>

@@ -109,3 +109,13 @@ describe('dashboard chart labels', () => {
     expect(labels.unavailable).toBe('projects.dashboard.unknown')
   })
 })
+
+describe('project status bars', () => {
+  it('draws only present statuses as bars in their status tones', async () => {
+    const { projectStatusBarChart } = await import('../projectChartData')
+    const chart = projectStatusBarChart([row(1), row(2, { project: { id: 2, name: 'P2', status: 'at_risk' } })], labels)
+    expect(chart.orientation).toBe('horizontal')
+    expect(chart.valueFormat).toBe('number')
+    expect(chart.data.map(item => [item.name, item.tone, item.values.count])).toEqual([['On track', 'success', 1], ['At risk', 'warning', 1]])
+  })
+})

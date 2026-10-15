@@ -451,7 +451,8 @@
       "invalidDates": "Enter two valid dates, with the start on or before the end.",
       "saved": "Schedule saved",
       "saveError": "Could not save the schedule",
-      "today": "Today"
+      "today": "Today",
+      "groupedColumns": "This project is long, so each column groups several time units. Hover a column heading to see its range."
     },
     "templates": {
       "title": "Project templates",
@@ -813,7 +814,9 @@
         "noTaskItems": "No recorded tasks are available to show for these projects.",
         "noProgressData": "There is no progress data to show.",
         "noBudgetData": "There is no budget data to show.",
-        "noFinanceData": "There is no finance comparison for this currency."
+        "noFinanceData": "There is no finance comparison for this currency.",
+        "budgetCenterLabel": "Projects",
+        "financeDescriptionSingle": "Planned versus actual for each project, in one currency."
       },
       "recentTitle": "Recently updated projects",
       "recentDescription": "The five projects with the latest modification timestamps.",
@@ -824,7 +827,24 @@
       "noRecentProjects": "No projects have been updated yet.",
       "allProjects": "All projects",
       "analyticsError": "Could not load project statistics. Try again.",
-      "retryAnalytics": "Retry"
+      "retryAnalytics": "Retry",
+      "kpi": {
+        "projects": "Total projects",
+        "active": "Active projects",
+        "taskProgress": "Tasks completed",
+        "budgeted": "Projects with a budget"
+      },
+      "attention": {
+        "title": "Project follow-up",
+        "description": "Start with what is late, at risk, or changed most recently.",
+        "tabsLabel": "Project view",
+        "tabRecent": "Recently updated",
+        "tabLate": "Late",
+        "tabAtRisk": "At risk",
+        "overdueTasks": "Overdue tasks",
+        "emptyLate": "No projects have overdue tasks.",
+        "emptyAtRisk": "No projects are at risk."
+      }
     },
     "refresh": {
       "workspace": {
