@@ -25,7 +25,7 @@ SOURCE_ROOTS = (*APP_SOURCES, PREVIEW)
 LEGACY = APP + 'components/ui/'
 CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
-MANIFESTS = ('package.json', 'apps/web/package.json')
+MANIFESTS = ('package.json', 'apps/web/package.json', 'packages/ui/package.json')
 STORIES = 'apps/web/stories/'
 STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
@@ -140,6 +140,9 @@ REVIEWED_STORYBOOK_TOOLING = {
 REVIEWED_E2E_TOOLING = {
     '@ai-sdk/openai', '@ai-sdk/openai-compatible', '@e2e-dev/web', 'ai', 'e2e', 'playwright',
 }
+
+# Test-only SFC compilation and server rendering used by the layer's unit tests (no runtime import).
+REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescript'}
 
 
 def source_file(path: str) -> bool:
@@ -874,7 +877,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source
     # below), since Storybook is a viewer, not a second UI library.
-    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING | REVIEWED_E2E_TOOLING
+    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING | REVIEWED_E2E_TOOLING | REVIEWED_TEST_TOOLING
     names = legacy_names(baseline)
     has_ui = '@nuxt/ui' in json.loads(current.get('apps/web/package.json', '{}')).get('dependencies', {})
     baseline_versions = dependency_versions(baseline)
