@@ -562,12 +562,12 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/projects/[id]/raci.vue:120"
+          "context": "apps/web/app/pages/projects/[id]/raci.vue:111"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/projects/[id]/raci.vue:120"
+          "context": "apps/web/app/pages/projects/[id]/raci.vue:111"
         }
       ]
     },
@@ -1816,7 +1816,7 @@
         {
           "id": "Row",
           "name": "صف مؤشرات",
-          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:35"
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:34"
         }
       ]
     },
