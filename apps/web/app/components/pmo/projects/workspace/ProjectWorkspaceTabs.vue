@@ -6,7 +6,7 @@ import { useProject } from '@/composables/useProjects'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 
 // The project workspace's tab strips (Tasmim spec §6 merge). `sections` is the main strip; `governance` is the
-// sub-strip under it on every governance page. Both are route tabs and keep their own test ids.
+// sub-strip on the canvas under the frame band on every governance page, in the same underline look. Both are route tabs and keep their own test ids.
 const props = withDefaults(defineProps<{
   projectId: number
   active?: boolean
@@ -41,7 +41,7 @@ const governance = computed(() => props.level === 'governance')
   <SharedRouteTabs
     :items="governance ? governanceItems : sectionItems"
     :ariaLabel="t(governance ? 'projects.workspace.subtabsLabel' : 'projects.workspace.tabsLabel')"
-    class="[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    :class="['[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', governance ? '' : '-mb-px border-b-0!']"
     :data-testid="governance ? 'project-governance-tabs' : 'project-workspace-tabs'"
   />
 </template>

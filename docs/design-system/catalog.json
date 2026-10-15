@@ -649,7 +649,10 @@
           "payload": "[]"
         }
       ],
-      "slots": [],
+      "slots": [
+        "state",
+        "actions"
+      ],
       "nuxtUi": [
         "UButton",
         "UStepper"
@@ -788,17 +791,17 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:95"
+          "context": "apps/web/app/pages/projects/[id].vue:112"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:95"
+          "context": "apps/web/app/pages/projects/[id].vue:112"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:95"
+          "context": "apps/web/app/pages/projects/[id].vue:112"
         }
       ]
     },
@@ -2848,12 +2851,12 @@
         {
           "id": "Document",
           "name": "مستند",
-          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:88"
         },
         {
           "id": "Preview",
           "name": "معاينة داخل بطاقة",
-          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:88"
         }
       ]
     },
@@ -3521,6 +3524,11 @@
           "name": "id",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "panel",
+          "type": "boolean",
+          "required": false
         }
       ],
       "events": [],
@@ -3533,6 +3541,11 @@
         {
           "id": "WithActions",
           "name": "قسم بإجراء",
+          "context": "unused"
+        },
+        {
+          "id": "Panel",
+          "name": "بطاقة بعنوان وإجراء",
           "context": "unused"
         }
       ]
@@ -3620,6 +3633,12 @@
           "name": "title",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "width",
+          "type": "\"list\" | \"detail\"",
+          "required": false,
+          "default": "\"detail\""
         }
       ],
       "events": [],
