@@ -60,7 +60,7 @@ definePageMeta({ middleware: 'customer-commercial' })
         <UFormField :label="t('subscription.change.cadence')"><USelect v-model="cadenceKey" :items="cadences.map((c: any) => ({ value: `${c.unit}:${c.count}`, label: c.count === 1 ? t(`subscription.cadence.${c.unit}.one`) : t(`subscription.cadence.${c.unit}.many`, { count: c.count }) }))" :disabled="!hydrated" class="w-full" /></UFormField>
         <UFormField :label="t('subscription.change.branches')"><UInputNumber v-model="extra" :min="0" :disabled="!hydrated" /></UFormField>
         <UAlert v-if="notice" role="alert" :color="notice === 'failed' ? 'error' : 'warning'" variant="subtle" :title="t(`subscription.change.${notice}`)"><template v-if="notice !== 'failed'" #actions><UButton size="sm" color="neutral" variant="outline" :disabled="busy" @click="review">{{ t('subscription.change.requote') }}</UButton></template></UAlert>
-        <VendorPriceBreakdown :quote="quote" :pending="busy" />
+        <SharedCommercePriceBreakdown :quote="quote" :pending="busy" />
         <p v-if="redirecting" role="status" class="text-sm text-muted">{{ t('subscription.change.redirecting') }}</p>
         <div class="flex gap-2">
           <UButton type="submit" :disabled="!hydrated || busy || !planId" :loading="busy && !quote">{{ t('subscription.change.review') }}</UButton>

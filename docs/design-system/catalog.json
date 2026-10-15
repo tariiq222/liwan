@@ -909,6 +909,77 @@
       ]
     },
     {
+      "name": "PriceBreakdown",
+      "file": "apps/web/app/components/shared/commerce/PriceBreakdown.vue",
+      "story": "apps/web/stories/shared/CommercePriceBreakdown.stories.ts",
+      "title": "Shared/Commerce/PriceBreakdown",
+      "props": [
+        {
+          "name": "quote",
+          "type": "{ id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; entitlement_digest: string; requested_extra_branches: number; cadence: { unit: \"month\" | \"year\"; count: number; }; effective_date: string; policy_revision_id: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; }[]; due_now: { currency: string; exponent: number; minor: number; }; next_renewal: { currency: string; exponent: number; minor: number; }; next_renewal_at: string; expires_at: string; digest: string; } | null",
+          "required": false
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "includedExtraBranches",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "hqIncluded",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Quoted",
+          "name": "Quoted",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Loading",
+          "name": "Loading",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Recomputing",
+          "name": "Recomputing",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Failed",
+          "name": "Failed",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        }
+      ]
+    },
+    {
       "name": "SharedConversationLayout",
       "file": "apps/web/app/components/shared/ConversationLayout.vue",
       "story": "apps/web/stories/shared/ConversationLayout.stories.ts",
@@ -4296,77 +4367,6 @@
           "id": "Conflict",
           "name": "Conflict",
           "context": "apps/web/app/pages/vendor/plans/new.vue:25"
-        }
-      ]
-    },
-    {
-      "name": "VendorPriceBreakdown",
-      "file": "apps/web/app/components/vendor/PriceBreakdown.vue",
-      "story": "apps/web/stories/vendor/PriceBreakdown.stories.ts",
-      "title": "Vendor/PriceBreakdown",
-      "props": [
-        {
-          "name": "quote",
-          "type": "{ id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; entitlement_digest: string; requested_extra_branches: number; cadence: { unit: \"month\" | \"year\"; count: number; }; effective_date: string; policy_revision_id: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; }[]; due_now: { currency: string; exponent: number; minor: number; }; next_renewal: { currency: string; exponent: number; minor: number; }; next_renewal_at: string; expires_at: string; digest: string; } | null",
-          "required": false
-        },
-        {
-          "name": "pending",
-          "type": "boolean",
-          "required": false
-        },
-        {
-          "name": "error",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "includedExtraBranches",
-          "type": "number",
-          "required": false
-        },
-        {
-          "name": "hqIncluded",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "retry",
-          "payload": "[]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UAlert",
-        "UButton"
-      ],
-      "stories": [
-        {
-          "id": "Quoted",
-          "name": "Quoted",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Loading",
-          "name": "Loading",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Recomputing",
-          "name": "Recomputing",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Failed",
-          "name": "Failed",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Empty",
-          "name": "Empty",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
         }
       ]
     },
