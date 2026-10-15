@@ -33,9 +33,9 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     origin=`http://127.0.0.1:${address.port}`
   })
   afterAll(async () => { if(server)await new Promise<void>(resolve=>server.close(()=>resolve()));await pool.end() })
-  async function call(path:string, options:{body?:unknown;capabilities?:string[];issuer?:string;badSignature?:boolean;tamperPrincipal?:boolean}={}) {
+  async function call(path:string, options:{body?:unknown;capabilities?:string[];issuer?:string;badSignature?:boolean;tamperPrincipal?:boolean;tenantId?:string}={}) {
     const method=options.body===undefined?'GET':'POST', raw=options.body===undefined?'':JSON.stringify(options.body)
-    const principal={actor_id:'7',kind:'customer',tenant_id:tenant,capabilities:options.capabilities??['billing.read']}
+    const principal={actor_id:'7',kind:'customer',tenant_id:options.tenantId??tenant,capabilities:options.capabilities??['billing.read']}
     const header=Buffer.from(JSON.stringify(principal)).toString('base64')
     const signed=signServiceRequest({method,path,body:`nasq-principal:${header}\n${raw}`,actor:7,
       issuer:options.issuer??config.customerCommercialIssuer,key:options.badSignature?'wrong-test-key-'.repeat(4):config.customerCommercialServiceKey})
@@ -54,5 +54,16 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     expect(response.status).toBe(400);expect(await response.json()).toMatchObject({code:'forbidden_field',field})
   })
   it('requires the endpoint capability',async()=>{expect((await call('/v1/customer/invoices',{capabilities:[]})).status).toBe(403)})
+  it('resolves a shared web registry tenant id through its enabled binding only',async()=>{
+    const slug=`t${tenant.replaceAll('-','')}`
+    expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',[tenant,slug,`${slug}.test`,`nasq_scratch_${slug.slice(1)}`])
+    expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)
+    await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1',[tenant])
+    const response=await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})
+    expect(response.status).toBe(200);expect(await response.json()).toMatchObject({id:ownInvoice})
+    expect((await call(`/v1/customer/invoices/${otherInvoice}`,{tenantId:slug})).status).toBe(404)
+    expect((await call('/v1/customer/invoices',{tenantId:'Not-A-Slug'})).status).toBe(401)
+  })
   it('hides another tenant invoice',async()=>{expect((await call(`/v1/customer/invoices/${otherInvoice}`)).status).toBe(404)})
 })

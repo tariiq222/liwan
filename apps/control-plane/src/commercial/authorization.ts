@@ -9,7 +9,8 @@ export function requireVendor(principal: Principal, ...capabilities: string[]) {
   if (principal.kind !== 'vendor') throw new CommercialHttpError('forbidden', 403)
   requireCapability(principal, ...capabilities)
 }
-const wire = z.strictObject({ actor_id: z.string().regex(/^[1-9][0-9]*$/), kind: z.literal('customer'), tenant_id: z.uuid(), capabilities: z.array(z.enum(CUSTOMER_CAPABILITIES)) })
+// tenant_id is the control tenant id (dedicated web) or the shared registry tenant id (shared web, see shared_registry_bindings).
+const wire = z.strictObject({ actor_id: z.string().regex(/^[1-9][0-9]*$/), kind: z.literal('customer'), tenant_id: z.union([z.uuid(), z.string().regex(/^[a-z][a-z0-9_-]{0,62}$/)]), capabilities: z.array(z.enum(CUSTOMER_CAPABILITIES)) })
 /** customer_id is deliberately absent from the signed wire protocol; the DB binding supplies it. */
 export function parseCustomerPrincipal(header: string, customerId: string): Principal {
   try {

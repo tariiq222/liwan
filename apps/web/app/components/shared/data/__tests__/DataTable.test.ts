@@ -47,7 +47,7 @@ const options = (patch: SharedRenderOptions = {}): SharedRenderOptions => ({
     '@/utils/errorState': errorState,
   },
   globals: { navigateTo: vi.fn() },
-  stubs: { UTable: TableStub, UCheckbox: CheckboxStub, NuxtLink: LinkStub, UPagination: Vue.defineComponent({ setup: () => () => h('nav') }) },
+  stubs: { UTable: TableStub, UCheckbox: CheckboxStub, NuxtLink: LinkStub, UPagination: Vue.defineComponent({ props: { ui: Object }, setup: props => () => h('nav', { 'data-ui-list': (props.ui as { list?: string } | undefined)?.list }) }) },
   ...patch,
 })
 const render = (props: Record<string, unknown>, slots: Record<string, (...args: unknown[]) => VNode> = {}, patch?: SharedRenderOptions) =>
@@ -66,6 +66,8 @@ describe('SharedDataTable', () => {
     expect(html).toMatch(/<li[^>]*data-row-index="1"[^>]*tabindex="-1"/)
     expect(html).toContain('mobile:Portal')
     expect(html).toContain('data-testid="shared-pagination"')
+    // Page buttons wrap so pagination never widens a 390px page.
+    expect(html).toMatch(/data-ui-list="[^"]*flex-wrap/)
   })
 
   it('shows the table on every width when there is no mobile row slot', async () => {

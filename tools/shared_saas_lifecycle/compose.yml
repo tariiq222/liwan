@@ -141,6 +141,9 @@ services:
       CONTROL_DATABASE_URL: postgresql://nasq_control:${CONTROL_DB_PASSWORD:?}@control-db:5432/nasq_control_scratch_lifecycle
       CONTROL_INSTALLATION_ID: saas-lifecycle-vendor
       CONTROL_SERVICE_KEY: ${CONTROL_SERVICE_KEY:?}
+      INTERNAL_EFFECT_KEY: ${INTERNAL_EFFECT_KEY:?}
+      INTERNAL_EFFECT_URL: https://effect-worker:4188
+      INTERNAL_EFFECT_CA: ${NASQ_LIFECYCLE_STATE:?}/effect-cert.pem
       CONTROL_HOST: 0.0.0.0
       CONTROL_PORT: "4187"
       CONTROL_TLS_KEY: ${NASQ_LIFECYCLE_STATE:?}/control-key.pem
@@ -156,7 +159,7 @@ services:
       - ${NASQ_REPO_ROOT:?}:/repo
       - ${NASQ_REPO_ROOT:?}:${NASQ_REPO_ROOT:?}
       - control_modules:/repo/node_modules
-    networks: [control]
+    networks: [control, control_effect]
     depends_on:
       control-db: {condition: service_healthy}
     healthcheck:
@@ -168,13 +171,21 @@ services:
     image: ${CONTROL_IMAGE:?}
     working_dir: /repo
     command: [npm, -w, apps/control-plane, run, 'worker:shared']
-    environment: *control-env
+    environment:
+      <<: *control-env
+      INTERNAL_EFFECT_HOST: effect-worker
+      INTERNAL_EFFECT_PORT: "4188"
+      INTERNAL_EFFECT_TLS_KEY: ${NASQ_LIFECYCLE_STATE:?}/effect-key.pem
+      INTERNAL_EFFECT_TLS_CERT: ${NASQ_LIFECYCLE_STATE:?}/effect-cert.pem
     volumes:
       - ${NASQ_REPO_ROOT:?}:/repo
       - ${NASQ_REPO_ROOT:?}:${NASQ_REPO_ROOT:?}
       - control_modules:/repo/node_modules
       - /var/run/docker.sock:/var/run/docker.sock
-    networks: [control]
+    networks:
+      control: {}
+      control_effect:
+        aliases: [effect-worker]
     depends_on:
       control-api: {condition: service_healthy}
   restore-db:
@@ -295,6 +306,9 @@ networks:
   control:
     external: true
     name: ${NASQ_PROJECT:?}_control
+  control_effect:
+    external: true
+    name: ${NASQ_PROJECT:?}_control_effect
   restore_edge:
     external: true
     name: ${NASQ_PROJECT:?}_restore_edge

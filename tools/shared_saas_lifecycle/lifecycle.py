@@ -31,7 +31,7 @@ def network_subnets(project: str) -> dict[str, str]:
     occupied = [ipaddress.ip_network(c['Subnet']) for n in networks
                 for c in (n['IPAM']['Config'] or []) if c.get('Subnet')]
     result = {}
-    for name in ('edge', 'guard_web', 'guard_odoo', 'database', 'vendor', 'vendor_database', 'control', 'restore_edge', 'restore_database', 'restore_guard_web', 'restore_guard_odoo'):
+    for name in ('edge', 'guard_web', 'guard_odoo', 'database', 'vendor', 'vendor_database', 'control', 'control_effect', 'restore_edge', 'restore_database', 'restore_guard_web', 'restore_guard_odoo'):
         existing = next((n for n in networks if n['Name'] == f'{project}_{name}'), None)
         if existing:
             result['NET_' + name.upper()] = existing['IPAM']['Config'][0]['Subnet']
@@ -58,7 +58,7 @@ def prepare_networks(project: str) -> None:
             continue
         command = ['docker', 'network', 'create', '--subnet', subnet,
                    '--label', 'com.docker.compose.project=' + project]
-        if short in ('database', 'guard_web', 'guard_odoo', 'vendor_database', 'restore_database', 'restore_guard_web', 'restore_guard_odoo'):
+        if short in ('database', 'guard_web', 'guard_odoo', 'vendor_database', 'control_effect', 'restore_database', 'restore_guard_web', 'restore_guard_odoo'):
             command.append('--internal')
         subprocess.run([*command, name], check=True, stdout=subprocess.DEVNULL)
 
@@ -112,6 +112,7 @@ def prepare() -> None:
         'NASQ_REPO_ROOT': str(ROOT), 'NASQ_LIFECYCLE_STATE': str(directory),
         'DB_PASSWORD': secrets.token_hex(24), 'VENDOR_DB_PASSWORD': secrets.token_hex(24),
         'CONTROL_DB_PASSWORD': secrets.token_hex(24), 'CONTROL_SERVICE_KEY': secrets.token_hex(32),
+        'INTERNAL_EFFECT_KEY': secrets.token_hex(32),
         'PROXY_TOKEN': secrets.token_hex(32),
         'SESSION_KEYS': json.dumps({'k1': secrets.token_hex(32)}, separators=(',', ':')),
         'ODOO_IMAGE': os.environ.get('NASQ_LIFECYCLE_ODOO_IMAGE', 'sha256:cdc9894289ed7aed9ab3380fc37233e73bc85ab38942f87bc17e8d7d513ce790'),
@@ -147,6 +148,13 @@ def prepare() -> None:
                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     (directory / 'control-key.pem').chmod(0o600)
     (directory / 'control-cert.pem').chmod(0o644)
+    subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '7',
+                    '-subj', '/CN=effect-worker', '-addext', 'subjectAltName=DNS:effect-worker',
+                    '-keyout', str(directory / 'effect-key.pem'),
+                    '-out', str(directory / 'effect-cert.pem')],
+                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    (directory / 'effect-key.pem').chmod(0o600)
+    (directory / 'effect-cert.pem').chmod(0o644)
     subprocess.run(['python3', str(ROOT / 'deploy/classification.py'), 'fixture',
                     '--database', 'nasq_vendor_scratch', '--mode', 'non_saas',
                     '--output', str(directory / 'classifications/vendor.json')], check=True)

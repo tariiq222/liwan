@@ -45,9 +45,11 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
       renewal_at=CASE WHEN applied_revision_id IS NULL OR $3='renewal' THEN COALESCE((SELECT period_end FROM renewals WHERE order_id=$5),$4::date,renewal_at) ELSE renewal_at END,
       revision=revision+1 WHERE id=$1`, [order.subscription_id, order.target_revision_id, order.kind, order.snapshot.period_end??null, order.id])
     if(!order.applied_revision_id){
+      // The HQ branch is the tenant's root company; a first activation without it is an incomplete observation.
+      if(!Number.isSafeInteger(receipt.root_company_id) || receipt.root_company_id!<1)throw Error('observed_mismatch')
       await client.query(`INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state,odoo_company_id,order_id,activated_at)
         VALUES($1,$2,$3,'المقر الرئيسي','hq','included','active',$4,$5,now()) ON CONFLICT DO NOTHING`,
-        [randomUUID(),order.subscription_id,order.tenant_id,receipt.root_company_id??null,order.id])
+        [randomUUID(),order.subscription_id,order.tenant_id,receipt.root_company_id,order.id])
       await enqueueOutbox(client,{kind:'invitation.issue',aggregate_id:order.subscription_id,dedupe_key:'first-activation',payload:{subscription_id:order.subscription_id}})
     }
     await activateBranches(client, { order_id: order.id, bindings: receipt.branch_bindings })

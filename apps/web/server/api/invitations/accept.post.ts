@@ -16,7 +16,9 @@ export default defineEventHandler(async (event) => {
   try {
     const response = await $fetch.raw(new URL('/v1/invitations/accept', base).toString(), {
       method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', accept: 'application/json' },
-      redirect: 'error', signal: AbortSignal.timeout(10000),
+      // Longer than control-api's own effect wait (215s), so a slow Odoo effect that still succeeds is not reported
+      // to the browser as a failure after the password has already changed.
+      redirect: 'error', signal: AbortSignal.timeout(230000),
     })
     setResponseStatus(event, response.status)
     const login = (response._data as { login?: unknown } | null)?.login

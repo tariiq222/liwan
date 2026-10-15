@@ -38,6 +38,15 @@ python3 $L compose exec -T proxy cat /data/caddy/pki/authorities/local/root.crt 
 sca_curl https://vendor.saas.commercial.nasq.test/login -o /dev/null -w '%{http_code}\n'
 npx playwright test --config tools/saas_commercial_acceptance/playwright.config.mjs
 ```
+`bootstrap-catalog` grants the fixture every vendor capability the journey uses and creates the
+`commercial-acceptance-v2` commercial catalog release (idempotent).
+
+## Results
+`commercial_acceptance.py run <E??|all>` reads each case result from the evidence JSON its spec or driver wrote
+during that invocation; a Playwright exit code never marks a case PASS. E01–E03 have no live spec and stay `NOT RUN`.
+`commercial_acceptance.py report <run-id>` prints the matrix; add `--update-doc` to copy the evidence results into
+`docs/verification/saas-commercial-integrated-acceptance.md` (nothing else edits that tracked file).
+
 `status`: `python3 $L state` and `python3 $L compose ps`. `prepare` refuses to overwrite `.state/current.json`.
 The guard stays unhealthy until the first tenant binding exists (empty registry fails closed), so do not `--wait` it.
 

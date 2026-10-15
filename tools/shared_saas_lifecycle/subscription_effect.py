@@ -133,7 +133,7 @@ def collect(profile):
         owner = item['module']
         gates[key] = sorted(k for k, other in definitions.items()
                             if other['type'] == 'boolean' and other['module'] == owner and owner != 'nasq_platform')
-    return {'database': env.cr.dbname, 'commercial_revision_id': profile.commercial_revision_id or None,
+    return {'database': env.cr.dbname, 'root_company_id': root.id, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
@@ -254,11 +254,13 @@ def parse_output(stdout):
 
 
 def validate_observation(value):
-    keys = {'database', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
+    keys = {'database', 'root_company_id', 'commercial_revision_id', 'commercial_digest', 'commercial_applied_at',
             'features', 'modules', 'branches', 'usage', 'limit_gates'}
     if set(value) != keys:
         raise EffectError('observation_invalid')
     odoo_effect.validate_database(value['database'])
+    if type(value['root_company_id']) is not int or value['root_company_id'] < 1:
+        raise EffectError('observation_invalid')
     validate_features(value['features'])
     for field in ('commercial_revision_id', 'commercial_digest', 'commercial_applied_at'):
         if value[field] is not None and not isinstance(value[field], str):
@@ -395,7 +397,7 @@ class SubscriptionEffect:
         by_id = {b['branch_id']: b for b in observed['branches']}
         extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
         return {**extra, 'order_id': request['order_id'], 'database': observed['database'],
-                'tenant_id': observed['database'],
+                'tenant_id': observed['database'], 'root_company_id': observed['root_company_id'],
                 'target_revision_id': request['target_revision_id'],
                 'observed_entitlement_digest': observed['commercial_digest'],
                 'observed_at': self.clock(),

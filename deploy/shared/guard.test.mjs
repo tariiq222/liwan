@@ -109,3 +109,10 @@ test('actual HTTP guard login/MFA/content/BFF, cookie propagation and fresh disa
   result = await call(url, '/api/v1/me', { host: targets[0].host, cookie })
   assert.equal(result.status, 403)
 })
+test('the web CSRF header passes to the Nuxt hop only; other x-nasq headers stay forbidden', () => {
+  const web = requestPlan(req(0, { 'x-nasq-csrf': 'c'.repeat(48) }, '/api/commercial/v1/branch-quotes'), registry, token, codec)
+  assert.equal(web.odoo, false); assert.equal(web.headers['x-nasq-csrf'], 'c'.repeat(48))
+  const odoo = requestPlan(req(0, { 'x-nasq-csrf': 'c'.repeat(48) }), registry, token, codec)
+  assert.equal(odoo.odoo, true); assert.equal(odoo.headers['x-nasq-csrf'], undefined)
+  for (const header of ['x-nasq-principal', 'x-nasq-tenant-revision', 'x-nasq-csrf-other']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }, '/api/commercial/v1/branch-quotes'), registry, token, codec))
+})

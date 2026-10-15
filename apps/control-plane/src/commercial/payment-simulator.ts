@@ -3,7 +3,7 @@
 // State is process-local: the worker's reconcileUnknownAttempts uses its own
 // adapter and cannot see API-side attempts/settlement. Local acceptance settles
 // synchronously through the API's shared adapter and normal webhook handler.
-import { timingSafeEqual } from 'node:crypto'
+import { randomBytes, timingSafeEqual } from 'node:crypto'
 import {
   PaymentError, toBytes,
   type AdapterHeaders, type ChargeTokenInput, type CreateAttemptInput, type CreateAttemptResult,
@@ -38,6 +38,8 @@ export class SimulatorAdapter implements PaymentAdapter {
   private readonly tokens = new Map<string, string>()
   private readonly charges = new Map<string, ProviderEvent>()
   private seq = 0
+  // References must stay unique across restarts: payment_attempts keeps every earlier ref.
+  private readonly instance = randomBytes(4).toString('hex')
   private readonly defaultOutcome: SimOutcome
 
   constructor(cfg: SimulatorConfig = {}) {
@@ -58,7 +60,7 @@ export class SimulatorAdapter implements PaymentAdapter {
     if (existing) return { provider_ref: existing.ref, redirect_url: `https://sim.test/pay/${existing.ref}`, status: 'pending' }
     const n = ++this.seq
     const a: SimAttempt = {
-      input: i, ref: `sim_inv_${n}`, payment_id: `sim_pay_${n}`, status: 'pending',
+      input: i, ref: `sim_inv_${this.instance}_${n}`, payment_id: `sim_pay_${this.instance}_${n}`, status: 'pending',
       outcome: this.outcomes.get(i.attempt_id) ?? this.defaultOutcome,
     }
     this.attempts.set(a.ref, a); this.byAttempt.set(i.attempt_id, a)

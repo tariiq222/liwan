@@ -59,9 +59,13 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     await client.query('DELETE FROM service_nonces WHERE expires_at<now()')
     const nonce=await client.query("INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval '60 seconds') ON CONFLICT DO NOTHING RETURNING nonce",[signed.issuer,signed.nonce])
     if (!nonce.rowCount) throw new CommercialHttpError('unauthorized',401)
-    const customer=await client.query('SELECT id FROM customers WHERE tenant_id=$1',[unbound.tenant_id])
+    // A shared web signs the registry tenant id; the enabled binding maps it to the control tenant.
+    const tenantId=z.uuid().safeParse(unbound.tenant_id).success?unbound.tenant_id:
+      (await client.query('SELECT control_tenant_id FROM shared_registry_bindings WHERE tenant_id=$1 AND enabled=true',[unbound.tenant_id])).rows[0]?.control_tenant_id
+    if (!tenantId) throw new CommercialHttpError('not_found',404)
+    const customer=await client.query('SELECT id FROM customers WHERE tenant_id=$1',[tenantId])
     if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
-    return parseCustomerPrincipal(header,customer.rows[0].id)
+    return {...parseCustomerPrincipal(header,customer.rows[0].id),tenant_id:tenantId as string}
   })
   assertNoCustomerIdentity(Object.fromEntries(url.searchParams))
   if(input.raw) { let body:unknown; try{body=JSON.parse(input.raw)}catch{throw new CommercialHttpError('invalid',400,'body')} assertNoCustomerIdentity(body) }

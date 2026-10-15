@@ -31,11 +31,18 @@ export async function login(page, origin, credentials) {
   await expect(submit).toBeEnabled(); await submit.click()
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
 }
-export async function browserFetch(page, path, options = {}) {
-  return page.evaluate(async ({ path, options }) => {
+// csrf: send the double-submit token the product UI sends on customer commercial mutations
+// (cookie nasq_csrf -> header x-nasq-csrf); a GET to csrfSeed issues the cookie when absent.
+export async function browserFetch(page, path, options = {}, csrf = null) {
+  return page.evaluate(async ({ path, options, csrf }) => {
+    const token = () => document.cookie.split('; ').find(c => c.startsWith('nasq_csrf='))?.slice('nasq_csrf='.length)
+    if (csrf) {
+      if (!token()) await fetch(csrf.seed)
+      options = { ...options, headers: { ...(options.headers ?? {}), ...(token() ? { 'x-nasq-csrf': token() } : {}) } }
+    }
     const r = await fetch(path, options)
     return { status: r.status, text: await r.text() }
-  }, { path, options })
+  }, { path, options, csrf })
 }
 
 export async function edge(host, path, cookie, extra = {}) {
