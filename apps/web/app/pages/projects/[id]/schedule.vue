@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
-import ScheduleGantt from '@/components/project/schedule/ScheduleGantt.vue'
+import ScheduleGantt from '@/components/pmo/projects/schedule/ScheduleGantt.vue'
 import { buildScheduleAxis, scheduleColumnSpan, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@/utils/safeReturnTo'
 

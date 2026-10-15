@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectTemplateEditor from '@/components/project/templates/ProjectTemplateEditor.vue'
+import ProjectTemplateEditor from '@/components/pmo/projects/templates/ProjectTemplateEditor.vue'
 import { useProjectTemplate, useUpdateProjectTemplate, useProjectTemplateNavigation } from '@/composables/useProjectTemplates'
 
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const toast = useToast()

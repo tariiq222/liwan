@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { recordParentTo } from '@/utils/recordListOrigin'
-import StakeholderForm from '@/components/project/governance/StakeholderForm.vue'
+import StakeholderForm from '@/components/pmo/projects/governance/StakeholderForm.vue'
 import { useProject } from '@/composables/useProjects'
 import { useProjectStakeholder } from '@/composables/useProjectGovernance'
 

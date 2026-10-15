@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/InlineConfirm',
   component: InlineConfirm,
-  parameters: storyContext('apps/web/app/components/project/ProjectMenu.vue:74', 'تأكيد داخل الصفحة للإجراء الهدّام: الإلغاء أولًا ثم الإجراء، ولا نافذة منبثقة.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectMenu.vue:74', 'تأكيد داخل الصفحة للإجراء الهدّام: الإلغاء أولًا ثم الإجراء، ولا نافذة منبثقة.'),
   args: { title: 'أرشفة المشروع؟', description: 'تُخفى المهام والمعالم من القوائم ويمكن استعادتها لاحقًا.', confirmLabel: 'أرشفة', pending: false, disabled: false, color: 'error', onConfirm: fn(), onCancel: fn() },
   render: args => ({
     components: { InlineConfirm },

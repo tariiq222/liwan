@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectCreateForm from '@/components/project/ProjectCreateForm.vue'
+import ProjectCreateForm from '@/components/pmo/projects/ProjectCreateForm.vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useProjectList } from '@/composables/useProjects'
 import { createdProjectLocation, draftedProjectLocation } from '@/utils/projectCharter'

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import TaskArchivedList from '@/components/task/TaskArchivedList.vue'
-import TaskBoard from '@/components/task/TaskBoard.vue'
-import TaskTable from '@/components/task/TaskTable.vue'
-import TaskToolbar from '@/components/task/TaskToolbar.vue'
+import TaskArchivedList from '@/components/pmo/tasks/TaskArchivedList.vue'
+import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
+import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
+import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import { returnToQuery } from '@/utils/safeReturnTo'
 

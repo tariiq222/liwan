@@ -29,6 +29,12 @@ STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
 STORY_SUFFIXES = {'.vue', '.ts', '.mjs', '.mdx'}
 COMPONENTS = APP + 'components/'
+# Component folders registered in apps/web/nuxt.config.ts with an explicit `prefix`:
+# their auto-import names start with the prefix instead of the folder path.
+COMPONENT_PREFIXES = {
+    'pmo/projects/': 'Project',
+    'pmo/tasks/': 'Task',
+}
 PAGES = APP + 'pages/'
 LAYOUTS = APP + 'layouts/'
 LOCALES = 'apps/web/i18n/locales/'
@@ -48,14 +54,14 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'shared/BrandWordmark.vue',
     'shared/FormSection.vue', 'shared/RecordNumber.vue', 'shared/SettingsPage.vue', 'shared/EmptyState.vue', 'shared/RouteTabs.vue',
     'shared/FilterBar.vue', 'shared/DateField.vue', 'shared/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
-    'meetings/MeetingPeopleFields.vue', 'shared/FileField.vue', 'project/ProjectFieldHelp.vue',
-    'task/PrioritySelect.vue', 'task/StateMenu.vue', 'shared/TagPicker.vue',
-    'project/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'shell/ShellFrame.vue', 'shell/ModuleRail.vue', 'shell/AppSidebar.vue', 'shell/ContextSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppearanceMenu.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'task/TaskCard.vue',
-    'project/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
-    'project/workspace/ProjectWorkspaceTabs.vue', 'project/governance/RaciMatrix.vue',
+    'meetings/MeetingPeopleFields.vue', 'shared/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
+    'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/TagPicker.vue',
+    'pmo/projects/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'shell/ShellFrame.vue', 'shell/ModuleRail.vue', 'shell/AppSidebar.vue', 'shell/ContextSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppearanceMenu.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
+    'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
+    'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
     'shared/RichText.vue', 'shared/Pagination.vue', 'shared/MetricTile.vue', 'shared/InlineConfirm.vue',
     'shared/RowActions.vue', 'shared/PersonPicker.vue', 'shared/FilterChip.vue', 'shared/FilterChoice.vue',
-    'shared/FilterField.vue', 'project/ProjectCharterForm.vue',
+    'shared/FilterField.vue', 'pmo/projects/ProjectCharterForm.vue',
     'shared/AttachmentList.vue', 'shared/CommentComposer.vue', 'shared/CommentThread.vue', 'shared/Checklist.vue',
     'shared/commerce/PriceBreakdown.vue', 'vendor/EntitlementSummary.vue', 'vendor/PriceListEditor.vue',
     'vendor/CapacityLimitsEditor.vue', 'vendor/BundleForm.vue', 'vendor/PlanForm.vue', 'vendor/LifecyclePanel.vue',
@@ -132,8 +138,16 @@ def resolve_specifier(path: str, specifier: str) -> str | None:
     return None
 
 
+def nuxt_relative(relative: str) -> str:
+    """A path under components/ with a prefixed folder replaced by its Nuxt prefix (pmo/tasks/X.vue -> Task/X.vue)."""
+    for folder, prefix in COMPONENT_PREFIXES.items():
+        if relative.startswith(folder):
+            return prefix + '/' + relative[len(folder):]
+    return relative
+
+
 def component_names(component: str) -> set[str]:
-    relative = component[len(COMPONENTS):]
+    relative = nuxt_relative(component[len(COMPONENTS):])
     stem = relative.rsplit('/', 1)[-1].removesuffix('.vue').removesuffix('.client')
     prefix = ''.join(part[:1].upper() + part[1:] for part in relative.split('/')[:-1])
     return {stem, prefix + stem}
@@ -394,7 +408,7 @@ def auto_import_errors(current: dict[str, str]) -> list[str]:
     for path in sorted(current):
         if path.startswith(COMPONENTS) and path.endswith(('.vue', '.ts')):
             # Nuxt joins the directory segments and the basename, ignoring case.
-            stem = path[len(COMPONENTS):].rsplit('.', 1)[0]
+            stem = nuxt_relative(path[len(COMPONENTS):]).rsplit('.', 1)[0]
             components.setdefault(stem.replace('/', '-').lower(), []).append(path)
     errors.extend(f'{name}: component name is claimed by {" + ".join(sorted(files))}; '
                   'a non-component helper belongs in app/utils'
@@ -679,8 +693,8 @@ def locale_parity_errors(current: dict[str, str]) -> list[str]:
 # page. These files and class names are its remains, and a reappearance is the
 # regression, whichever file brings it back.
 RETIRED_FILES = (
-    COMPONENTS + 'project/workspace/ProjectRouteHost.vue',
-    COMPONENTS + 'project/workspace/ProjectRouteModal.vue',
+    COMPONENTS + 'pmo/projects/workspace/ProjectRouteHost.vue',
+    COMPONENTS + 'pmo/projects/workspace/ProjectRouteModal.vue',
     APP + 'utils/projectOverlayRoute.ts',
 )
 RETIRED_ARTIFACT = re.compile(r'nasq-sheet-in|nasq-sheet-out|project-overlay-enter|project-overlay-exit'

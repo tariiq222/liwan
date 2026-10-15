@@ -6,11 +6,11 @@ import { chromium, type Browser, type Page } from 'playwright'
 import ts from 'typescript'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { RACI_ROLE_TONE } from '../governance/state'
-import { STATUS_COLOR } from '../../../utils/statusTone'
+import { STATUS_COLOR } from '../../../../utils/statusTone'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const webRoot = resolve(here, '../../../../')
-const root = resolve(here, '../../../pages/projects/[id]')
+const webRoot = resolve(here, '../../../../../')
+const root = resolve(here, '../../../../pages/projects/[id]')
 const raciPath = resolve(root, 'raci.vue')
 const raci = readFileSync(raciPath, 'utf8')
 const matrixPath = resolve(here, '../governance/RaciMatrix.vue')

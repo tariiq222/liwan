@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DashboardChartPanel from '../../../app/components/project/dashboard/DashboardChartPanel.vue'
+import DashboardChartPanel from '../../../app/components/pmo/projects/dashboard/DashboardChartPanel.vue'
 import PageContainer from '../../../app/components/shared/PageContainer.vue'
 import type { DashboardChart } from '../../../app/utils/projectChartData'
 import { dashboardCharts } from '../../fixtures/projectReports'
@@ -32,10 +32,10 @@ function panel(key: ChartKey, title: string, options: { variant?: 'pie' | 'donut
   })
 }
 
-export const StatusPie: Story = { name: 'حالات المشاريع (pie)', parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51'), render: panel('status', 'projects.dashboard.charts.statusTitle', { variant: 'pie' }) }
-export const TaskDonutText: Story = { name: 'تركيب المهام (donut-text)', parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51'), render: panel('tasks', 'projects.dashboard.charts.taskTitle', { variant: 'donut-text' }) }
-export const ProgressBands: Story = { name: 'شرائح التقدم (bar)', parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51'), render: panel('progressBands', 'projects.dashboard.charts.progressBandsTitle', { height: '240px' }) }
-export const BudgetDonut: Story = { name: 'صحة الميزانية (donut)', parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51'), render: panel('budget', 'projects.dashboard.charts.budgetHealthTitle', { variant: 'donut', height: '240px' }) }
-export const ProjectProgress: Story = { name: 'تقدم المشاريع (bar عريض)', parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51'), render: panel('projectProgress', 'projects.dashboard.charts.projectProgressTitle', { height: '360px', wide: true }) }
-export const Loading: Story = { name: 'تحميل', parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51'), render: panel('status', 'projects.dashboard.charts.statusTitle', { variant: 'pie', loading: true }) }
-export const NoData: Story = { name: 'بلا بيانات', parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51'), render: panel('status', 'projects.dashboard.charts.statusTitle', { variant: 'pie', hasData: false }) }
+export const StatusPie: Story = { name: 'حالات المشاريع (pie)', parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51'), render: panel('status', 'projects.dashboard.charts.statusTitle', { variant: 'pie' }) }
+export const TaskDonutText: Story = { name: 'تركيب المهام (donut-text)', parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51'), render: panel('tasks', 'projects.dashboard.charts.taskTitle', { variant: 'donut-text' }) }
+export const ProgressBands: Story = { name: 'شرائح التقدم (bar)', parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51'), render: panel('progressBands', 'projects.dashboard.charts.progressBandsTitle', { height: '240px' }) }
+export const BudgetDonut: Story = { name: 'صحة الميزانية (donut)', parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51'), render: panel('budget', 'projects.dashboard.charts.budgetHealthTitle', { variant: 'donut', height: '240px' }) }
+export const ProjectProgress: Story = { name: 'تقدم المشاريع (bar عريض)', parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51'), render: panel('projectProgress', 'projects.dashboard.charts.projectProgressTitle', { height: '360px', wide: true }) }
+export const Loading: Story = { name: 'تحميل', parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51'), render: panel('status', 'projects.dashboard.charts.statusTitle', { variant: 'pie', loading: true }) }
+export const NoData: Story = { name: 'بلا بيانات', parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51'), render: panel('status', 'projects.dashboard.charts.statusTitle', { variant: 'pie', hasData: false }) }

@@ -20,7 +20,7 @@ type Story = StoryObj<typeof meta>
 
 export const FinanceComparison: Story = {
   name: 'المخطط مقابل الفعلي',
-  parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:124', 'بطاقة المالية عريضة داخل شبكة لوحة المشاريع؛ الاستخدام الآخر داخل `DashboardChartPanel` له قصصه.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:124', 'بطاقة المالية عريضة داخل شبكة لوحة المشاريع؛ الاستخدام الآخر داخل `DashboardChartPanel` له قصصه.'),
   render: () => ({
     components: { DashboardChart, PageContainer },
     setup() {

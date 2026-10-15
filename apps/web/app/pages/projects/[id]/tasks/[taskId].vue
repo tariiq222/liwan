@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import TaskDetailPage from '@/components/task/TaskDetailPage.vue'
+import TaskDetailPage from '@/components/pmo/tasks/TaskDetailPage.vue'
 import { projectTaskParams } from '@/composables/projectTaskParams'
 
 function toPositiveInt(v: unknown): number | null {

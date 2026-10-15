@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../TaskCompletionApproval.vue')
 const source = readFileSync(filename, 'utf8')
-const useTasksSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../composables/useTasks.ts'), 'utf8')
+const useTasksSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../../composables/useTasks.ts'), 'utf8')
 
 const Passthrough = defineComponent({
   inheritAttrs: false,

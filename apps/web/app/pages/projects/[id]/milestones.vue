@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MilestoneTable from '@/components/project/MilestoneTable.vue'
+import MilestoneTable from '@/components/pmo/projects/MilestoneTable.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'

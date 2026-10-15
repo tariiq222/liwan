@@ -11,7 +11,7 @@ import type { ProjectCreateDefaults } from '@nasq/contracts'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../ProjectCreateForm.vue')
 const source = readFileSync(filename, 'utf8')
-const settingsSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../composables/useProjectSettings.ts'), 'utf8')
+const settingsSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../../composables/useProjectSettings.ts'), 'utf8')
 
 const Passthrough = defineComponent({
   inheritAttrs: false,

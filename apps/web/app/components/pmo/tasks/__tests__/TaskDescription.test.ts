@@ -6,9 +6,9 @@ import type { TaskDetail } from '@nasq/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
-import { isDirtySnapshot } from '../../../lib/formDirty'
-import { richTextHasContent } from '../../../utils/richText'
-import { sanitizeHtml } from '../../../utils/sanitize'
+import { isDirtySnapshot } from '../../../../lib/formDirty'
+import { richTextHasContent } from '../../../../utils/richText'
+import { sanitizeHtml } from '../../../../utils/sanitize'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../TaskDescription.vue')
 const source = readFileSync(filename, 'utf8')

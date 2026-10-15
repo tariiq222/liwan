@@ -6,8 +6,8 @@ const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('the project frame uses one tab helper', () => {
   it('the governance strip is a level of ProjectWorkspaceTabs', () => {
-    expect(existsSync(resolve(app, 'components/project/workspace/ProjectGovernanceTabs.vue'))).toBe(false)
-    const tabs = read('components/project/workspace/ProjectWorkspaceTabs.vue')
+    expect(existsSync(resolve(app, 'components/pmo/projects/workspace/ProjectGovernanceTabs.vue'))).toBe(false)
+    const tabs = read('components/pmo/projects/workspace/ProjectWorkspaceTabs.vue')
     expect(tabs).toContain("level?: 'sections' | 'governance'")
     expect(tabs).toContain('project-governance-tabs')
     const frame = read('pages/projects/[id].vue')

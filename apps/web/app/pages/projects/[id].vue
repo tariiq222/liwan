@@ -2,7 +2,7 @@
 import type { ProjectStatus } from '@nasq/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { badgeLabel } from '@/utils/statusBadge'
-import ProjectWorkspaceTabs from '@/components/project/workspace/ProjectWorkspaceTabs.vue'
+import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'

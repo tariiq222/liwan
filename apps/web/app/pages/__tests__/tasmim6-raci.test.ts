@@ -9,7 +9,7 @@ describe('the RACI page stays on the list template with a purpose-built matrix',
     const page = read('pages/projects/[id]/raci.vue')
     for (const needle of ['<SharedListPage', 'hide-header', '<RaciMatrix', '<SharedRecordSection', '<SharedPagination']) expect(page).toContain(needle)
     for (const gone of ['<table', '<SharedPageHeader', '<section class="rounded-lg']) expect(page).not.toContain(gone)
-    const matrix = read('components/project/governance/RaciMatrix.vue')
+    const matrix = read('components/pmo/projects/governance/RaciMatrix.vue')
     expect(matrix).toContain('<table')
     expect(matrix).not.toContain('<style')
   })

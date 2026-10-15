@@ -6,21 +6,21 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
 import { ProjectTemplateApplySchema } from '@nasq/contracts'
-import { isDirtySnapshot } from '../../../lib/formDirty'
-import { validateMilestoneDates, validateTaskDates } from '../../../utils/projectDateBounds'
-import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy } from '../../../utils/taskCreatePolicy'
-import { buildMilestonePatch } from '../../../utils/milestonePayload'
+import { isDirtySnapshot } from '../../../../lib/formDirty'
+import { validateMilestoneDates, validateTaskDates } from '../../../../utils/projectDateBounds'
+import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy } from '../../../../utils/taskCreatePolicy'
+import { buildMilestonePatch } from '../../../../utils/milestonePayload'
 
 const forms = [
-  { file: 'components/project/MilestoneForm.vue', field: 'name', label: 'projects.milestones.name' },
-  { file: 'components/project/ProjectUpdateForm.vue', field: 'title', label: 'projects.updates.title' },
-  { file: 'components/project/governance/StakeholderForm.vue', field: 'name', label: 'projects.governance.stakeholder.name' },
-  { file: 'components/project/governance/RegisterForm.vue', field: 'title', label: 'projects.governance.register.itemTitle' },
+  { file: 'components/pmo/projects/MilestoneForm.vue', field: 'name', label: 'projects.milestones.name' },
+  { file: 'components/pmo/projects/ProjectUpdateForm.vue', field: 'title', label: 'projects.updates.title' },
+  { file: 'components/pmo/projects/governance/StakeholderForm.vue', field: 'name', label: 'projects.governance.stakeholder.name' },
+  { file: 'components/pmo/projects/governance/RegisterForm.vue', field: 'title', label: 'projects.governance.register.itemTitle' },
 ]
-const taskFile = 'components/task/TaskCreateForm.vue'
+const taskFile = 'components/pmo/tasks/TaskCreateForm.vue'
 const applyFile = 'pages/projects/templates/[id]/apply.vue'
 async function load(file: string, locale = 'ar', props: Record<string, unknown> = {}) {
-  const appRoot = resolve(import.meta.dirname, '../../..')
+  const appRoot = resolve(import.meta.dirname, '../../../..')
   const filename = resolve(appRoot, file)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'required-feedback' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')

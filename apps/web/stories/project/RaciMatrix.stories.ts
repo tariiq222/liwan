@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import RaciMatrix from '../../app/components/project/governance/RaciMatrix.vue'
+import RaciMatrix from '../../app/components/pmo/projects/governance/RaciMatrix.vue'
 import { storyContext } from '../support/context'
 const meta = {
   title: 'Project/RaciMatrix', component: RaciMatrix,

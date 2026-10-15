@@ -24,7 +24,7 @@ export const InForm: Story = {
 
 export const Panel: Story = {
   name: 'لوحة إعدادات',
-  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:46', 'لوحة `panel` داخل `div.nasq-settings-cards` من صفحات الإعدادات؛ محتوى المثال توضيحي.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:46', 'لوحة `panel` داخل `div.nasq-settings-cards` من صفحات الإعدادات؛ محتوى المثال توضيحي.'),
   render: () => ({
     components: { SettingsPage, FormSection },
     setup: () => ({ t: useI18n().t, modes: ['light', 'dark'] }),

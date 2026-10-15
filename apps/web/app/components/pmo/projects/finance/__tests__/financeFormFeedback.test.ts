@@ -5,11 +5,11 @@ import { renderToString } from '@vue/server-renderer'
 import * as Vue from 'vue'
 import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
-import * as finance from '../../../../utils/projectFinance'
-import { ApiError } from '../../../../composables/useApi'
-import * as fields from '../../../../../../../node_modules/@nuxt/ui/dist/runtime/composables/useFormField.js'
+import * as finance from '../../../../../utils/projectFinance'
+import { ApiError } from '../../../../../composables/useApi'
+import * as fields from '../../../../../../../../node_modules/@nuxt/ui/dist/runtime/composables/useFormField.js'
 
-const root = resolve(import.meta.dirname, '../../../../../../..')
+const root = resolve(import.meta.dirname, '../../../../../../../..')
 const currency = { id: 1, name: 'SAR', symbol: 'SAR', decimal_places: 2 }
 const translations = JSON.parse(readFileSync(resolve(root, 'apps/web/i18n/locales/ar/projects.json'), 'utf8'))
 function t(key: string) { return key.split('.').reduce((value, part) => value?.[part], translations) ?? key }
@@ -29,7 +29,7 @@ async function form(options: { pending?: boolean, hydrated?: boolean, writeAllow
   const create = vi.fn(async ({ body }: { body: unknown }) => ({ id: 1, ...body as object }))
   const emitted = vi.fn()
   const scope = Vue.effectScope()
-  const compiled = compile(resolve(root, 'apps/web/app/components/project/finance/FinanceEntryForm.vue'), {
+  const compiled = compile(resolve(root, 'apps/web/app/components/pmo/projects/finance/FinanceEntryForm.vue'), {
     // Bind runtime functions explicitly; namespace metadata is not a valid parameter.
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
     ...finance, _defineComponent: Vue.defineComponent, ApiError, FinanceBudgetPicker: {},

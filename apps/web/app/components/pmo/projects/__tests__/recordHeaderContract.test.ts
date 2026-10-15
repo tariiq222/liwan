@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const app = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+const app = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('project record header and list contracts', () => {
@@ -26,7 +26,7 @@ describe('project record header and list contracts', () => {
   })
 
   it('uses UCollapsible, not native details, for optional charter sections', () => {
-    const display = read('components/project/ProjectCharterDisplay.vue')
+    const display = read('components/pmo/projects/ProjectCharterDisplay.vue')
     expect(display).toContain('<UCollapsible')
     expect(display).not.toContain('<details')
   })
@@ -36,10 +36,10 @@ describe('project record header and list contracts', () => {
   })
 
   it('gives every project row an action control', () => {
-    const menu = read('components/project/ProjectMenu.vue')
+    const menu = read('components/pmo/projects/ProjectMenu.vue')
     expect(menu).toContain('<SharedRowActions')
-    expect(read('components/project/ProjectCardBody.vue')).toContain(':to="toFor(project)"')
-    expect(read('components/project/ProjectTable.vue')).toContain(':to="toFor(row.original)"')
+    expect(read('components/pmo/projects/ProjectCardBody.vue')).toContain(':to="toFor(project)"')
+    expect(read('components/pmo/projects/ProjectTable.vue')).toContain(':to="toFor(row.original)"')
   })
 
   it('labels every template column and leads with the number', () => {

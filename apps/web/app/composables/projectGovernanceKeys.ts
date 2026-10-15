@@ -1,6 +1,6 @@
 // Governance cache keys and route-filter parsers, kept beside `projectKeys`
 // so composables never import from `components/`. Tone maps stay in
-// `components/project/governance/state.ts` (presentation only).
+// `components/pmo/projects/governance/state.ts` (presentation only).
 import type { ProjectRegisterKind, ProjectRegisterStatus, ProjectRegisterPriority } from '@nasq/contracts'
 import { projectKeys } from './projectKeys'
 

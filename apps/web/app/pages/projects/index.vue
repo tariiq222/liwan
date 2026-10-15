@@ -4,8 +4,8 @@ import { refDebounced } from '@vueuse/core'
 import { onScopeDispose } from 'vue'
 import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
 import FilterBar from '@/components/shared/FilterBar.vue'
-import ProjectTable from '@/components/project/ProjectTable.vue'
-import ProjectCards from '@/components/project/ProjectCards.vue'
+import ProjectTable from '@/components/pmo/projects/ProjectTable.vue'
+import ProjectCards from '@/components/pmo/projects/ProjectCards.vue'
 import {
   PROJECT_PAGE,
   parseProjectListRoute,

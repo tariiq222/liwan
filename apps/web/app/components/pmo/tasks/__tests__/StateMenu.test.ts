@@ -8,7 +8,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { computed, createSSRApp, defineComponent, h, type RenderFunction } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { STATE_LABEL_KEY } from '../../../composables/taskState'
+import { STATE_LABEL_KEY } from '../../../../composables/taskState'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../StateMenu.vue')
 const source = readFileSync(filename, 'utf8')

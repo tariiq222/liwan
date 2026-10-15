@@ -24,8 +24,8 @@ import {
   stepForField,
   type CharterWizardStep,
 } from '@/utils/charterSteps'
-import ProjectCharterFields from '@/components/project/ProjectCharterFields.vue'
-import ProjectCharterDisplay from '@/components/project/ProjectCharterDisplay.vue'
+import ProjectCharterFields from '@/components/pmo/projects/ProjectCharterFields.vue'
+import ProjectCharterDisplay from '@/components/pmo/projects/ProjectCharterDisplay.vue'
 
 const props = defineProps<{
   mode: 'create' | 'edit'

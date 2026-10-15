@@ -9,7 +9,7 @@ describe('finance stays on its templates', () => {
     const page = read('pages/projects/[id]/finance.vue')
     for (const needle of ['<SharedListPage', 'hide-header', 'liveListPath']) expect(page).toContain(needle)
     expect(page).not.toContain('<SharedPageHeader')
-    const table = read('components/project/finance/FinanceEntryTable.vue')
+    const table = read('components/pmo/projects/finance/FinanceEntryTable.vue')
     expect(table).toContain('<SharedDataTable')
     for (const gone of ['useMediaQuery', '<UTable', '<USkeleton']) expect(table).not.toContain(gone)
   })

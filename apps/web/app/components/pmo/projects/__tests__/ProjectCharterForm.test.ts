@@ -7,7 +7,7 @@ import {
   isCharterDraftDirty,
   nativeDateSnapshot,
   charterPatchBody,
-} from '../../../utils/projectCharter'
+} from '../../../../utils/projectCharter'
 
 // The form's markup is rendered in ProjectCharterSteps.test.ts and driven end to
 // end by e2e/project-charter.spec.ts; what is decided in these helpers is the

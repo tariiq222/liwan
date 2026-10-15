@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useProjectCreateDefaults } from '@/composables/useProjectSettings'
-import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
+import ProjectCharterForm from '@/components/pmo/projects/ProjectCharterForm.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import type { CharterWizardStep } from '@/utils/charterSteps'
 

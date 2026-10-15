@@ -37,7 +37,14 @@ export default defineNuxtConfig({
     },
   },
   // Discover runtime components; specialist chart adapters also use explicit imports.
-  components: [{ path: '~/components', ignore: ['**/__tests__/**'] }],
+  // Application folders keep their historical auto-import names through `prefix`
+  // (components/pmo/projects/ProjectTable.vue stays ProjectTable). Specific folders
+  // come first: a file belongs to the first entry whose path contains it.
+  components: [
+    { path: '~/components/pmo/projects', prefix: 'Project', ignore: ['**/__tests__/**'] },
+    { path: '~/components/pmo/tasks', prefix: 'Task', ignore: ['**/__tests__/**'] },
+    { path: '~/components', ignore: ['**/__tests__/**'] },
+  ],
   app: {
     head: {
       title: 'nasq',

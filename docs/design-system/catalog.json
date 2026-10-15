@@ -408,7 +408,7 @@
     },
     {
       "name": "ProjectDashboardChartPanel",
-      "file": "apps/web/app/components/project/dashboard/DashboardChartPanel.vue",
+      "file": "apps/web/app/components/pmo/projects/dashboard/DashboardChartPanel.vue",
       "story": "apps/web/stories/project/dashboard/DashboardChartPanel.stories.ts",
       "title": "Project/DashboardChartPanel",
       "props": [
@@ -472,43 +472,43 @@
         {
           "id": "StatusPie",
           "name": "حالات المشاريع (pie)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "TaskDonutText",
           "name": "تركيب المهام (donut-text)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "ProgressBands",
           "name": "شرائح التقدم (bar)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "BudgetDonut",
           "name": "صحة الميزانية (donut)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "ProjectProgress",
           "name": "تقدم المشاريع (bar عريض)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "Loading",
           "name": "تحميل",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "NoData",
           "name": "بلا بيانات",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         }
       ]
     },
     {
       "name": "ProjectGovernanceRaciMatrix",
-      "file": "apps/web/app/components/project/governance/RaciMatrix.vue",
+      "file": "apps/web/app/components/pmo/projects/governance/RaciMatrix.vue",
       "story": "apps/web/stories/project/RaciMatrix.stories.ts",
       "title": "Project/RaciMatrix",
       "props": [
@@ -573,7 +573,7 @@
     },
     {
       "name": "ProjectCharterForm",
-      "file": "apps/web/app/components/project/ProjectCharterForm.vue",
+      "file": "apps/web/app/components/pmo/projects/ProjectCharterForm.vue",
       "story": "apps/web/stories/project/ProjectCharterForm.stories.ts",
       "title": "Project/ProjectCharterForm",
       "props": [
@@ -658,18 +658,18 @@
         {
           "id": "CreateWizard",
           "name": "إنشاء مشروع على خطوات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:64"
         },
         {
           "id": "WaitingForDefaults",
           "name": "قبل تحميل متطلبات الإنشاء",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:64"
         }
       ]
     },
     {
       "name": "ProjectFieldHelp",
-      "file": "apps/web/app/components/project/ProjectFieldHelp.vue",
+      "file": "apps/web/app/components/pmo/projects/ProjectFieldHelp.vue",
       "story": "apps/web/stories/project/ProjectFieldHelp.stories.ts",
       "title": "Project/ProjectFieldHelp",
       "props": [
@@ -699,13 +699,13 @@
         {
           "id": "BesideFieldLabel",
           "name": "بجانب عنوان الحقل",
-          "context": "apps/web/app/components/project/ProjectCharterFields.vue:132"
+          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:132"
         }
       ]
     },
     {
       "name": "ProjectMenu",
-      "file": "apps/web/app/components/project/ProjectMenu.vue",
+      "file": "apps/web/app/components/pmo/projects/ProjectMenu.vue",
       "story": "apps/web/stories/project/ProjectMenu.stories.ts",
       "title": "Project/ProjectMenu",
       "props": [
@@ -749,18 +749,18 @@
         {
           "id": "OnProjectCard",
           "name": "على بطاقة المشروع",
-          "context": "apps/web/app/components/project/ProjectCardBody.vue:48"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:48"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/components/project/ProjectCardBody.vue:48"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:48"
         }
       ]
     },
     {
       "name": "ProjectWorkspaceTabs",
-      "file": "apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue",
+      "file": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue",
       "story": "apps/web/stories/project/ProjectWorkspaceTabs.stories.ts",
       "title": "Project/ProjectWorkspaceTabs",
       "props": [
@@ -803,7 +803,157 @@
       ]
     },
     {
-      "name": "AttachmentList",
+      "name": "TaskPrioritySelect",
+      "file": "apps/web/app/components/pmo/tasks/PrioritySelect.vue",
+      "story": "apps/web/stories/task/PrioritySelect.stories.ts",
+      "title": "Task/PrioritySelect",
+      "props": [
+        {
+          "name": "task",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "required": true
+        },
+        {
+          "name": "labelledby",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "\"outline\" | \"soft\"",
+          "required": false,
+          "default": "\"soft\""
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "InTaskRow",
+          "name": "في صف المهمة",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:130"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "بلا صلاحية تعديل",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:130"
+        }
+      ]
+    },
+    {
+      "name": "TaskStateMenu",
+      "file": "apps/web/app/components/pmo/tasks/StateMenu.vue",
+      "story": "apps/web/stories/task/StateMenu.stories.ts",
+      "title": "Task/StateMenu",
+      "props": [
+        {
+          "name": "task",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "required": true
+        },
+        {
+          "name": "canApprove",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UDropdownMenu",
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "InTaskRow",
+          "name": "في صف المهمة",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+        },
+        {
+          "id": "NoTransitions",
+          "name": "بلا انتقالات متاحة",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+        },
+        {
+          "id": "TransitionForbidden",
+          "name": "انتقال مرفوض",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+        }
+      ]
+    },
+    {
+      "name": "TaskCard",
+      "file": "apps/web/app/components/pmo/tasks/TaskCard.vue",
+      "story": "apps/web/stories/task/TaskCard.stories.ts",
+      "title": "Task/TaskCard",
+      "props": [
+        {
+          "name": "task",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "required": true
+        },
+        {
+          "name": "stages",
+          "type": "globalThis.BoardStage[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "currentStageId",
+          "type": "number | null",
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "moveTargets",
+          "type": "{ label: string; disabled?: boolean | undefined; onSelect: () => void; }[]",
+          "required": false,
+          "default": "undefined"
+        },
+        {
+          "name": "showProject",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        }
+      ],
+      "events": [
+        {
+          "name": "open",
+          "payload": "[id: number]"
+        },
+        {
+          "name": "move",
+          "payload": "[stage: globalThis.BoardStage]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAvatar",
+        "UButton",
+        "UCard",
+        "UDropdownMenu",
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "InBoardColumn",
+          "name": "داخل عمود اللوحة",
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+        },
+        {
+          "id": "ProjectBoard",
+          "name": "في لوحة المشروع (بلا اسم المشروع)",
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+        }
+      ]
+    },
+    {
+      "name": "SharedAttachmentList",
       "file": "apps/web/app/components/shared/AttachmentList.vue",
       "story": "apps/web/stories/shared/AttachmentList.stories.ts",
       "title": "Shared/AttachmentList",
@@ -1006,7 +1156,7 @@
       ]
     },
     {
-      "name": "Checklist",
+      "name": "SharedChecklist",
       "file": "apps/web/app/components/shared/Checklist.vue",
       "story": "apps/web/stories/shared/Checklist.stories.ts",
       "title": "Shared/Checklist",
@@ -1091,7 +1241,7 @@
       ]
     },
     {
-      "name": "CommentComposer",
+      "name": "SharedCommentComposer",
       "file": "apps/web/app/components/shared/CommentComposer.vue",
       "story": "apps/web/stories/shared/CommentComposer.stories.ts",
       "title": "Shared/CommentComposer",
@@ -1226,7 +1376,7 @@
       ]
     },
     {
-      "name": "CommentThread",
+      "name": "SharedCommentThread",
       "file": "apps/web/app/components/shared/CommentThread.vue",
       "story": "apps/web/stories/shared/CommentThread.stories.ts",
       "title": "Shared/CommentThread",
@@ -1286,7 +1436,7 @@
       ]
     },
     {
-      "name": "PriceBreakdown",
+      "name": "SharedCommercePriceBreakdown",
       "file": "apps/web/app/components/shared/commerce/PriceBreakdown.vue",
       "story": "apps/web/stories/shared/CommercePriceBreakdown.stories.ts",
       "title": "Shared/Commerce/PriceBreakdown",
@@ -1489,7 +1639,7 @@
         {
           "id": "FinanceComparison",
           "name": "المخطط مقابل الفعلي",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:124"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:124"
         }
       ]
     },
@@ -1749,7 +1899,7 @@
         {
           "id": "WithTime",
           "name": "مع وقت",
-          "context": "apps/web/app/components/task/TaskProperties.vue:203"
+          "context": "apps/web/app/components/pmo/tasks/TaskProperties.vue:203"
         }
       ]
     },
@@ -1842,12 +1992,12 @@
         {
           "id": "InTaskTable",
           "name": "داخل جدول المهام",
-          "context": "apps/web/app/components/task/TaskTable.vue:75"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:75"
         },
         {
           "id": "InTaskListMobile",
           "name": "داخل قائمة المهام على الجوال",
-          "context": "apps/web/app/components/task/TaskTable.vue:75"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:75"
         }
       ]
     },
@@ -2235,7 +2385,7 @@
         {
           "id": "Panel",
           "name": "لوحة إعدادات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:46"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:46"
         }
       ]
     },
@@ -2303,17 +2453,17 @@
         {
           "id": "Archive",
           "name": "أرشفة",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:74"
+          "context": "apps/web/app/components/pmo/projects/ProjectMenu.vue:74"
         },
         {
           "id": "Pending",
           "name": "قيد التنفيذ",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:74"
+          "context": "apps/web/app/components/pmo/projects/ProjectMenu.vue:74"
         },
         {
           "id": "Blocked",
           "name": "غير متاح",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:74"
+          "context": "apps/web/app/components/pmo/projects/ProjectMenu.vue:74"
         }
       ]
     },
@@ -2540,7 +2690,7 @@
         {
           "id": "Row",
           "name": "صف مؤشرات",
-          "context": "apps/web/app/components/project/finance/FinanceSummaryCards.vue:35"
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:35"
         }
       ]
     },
@@ -2885,12 +3035,12 @@
         {
           "id": "Single",
           "name": "اختيار واحد",
-          "context": "apps/web/app/components/project/ProjectCharterFields.vue:235"
+          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:235"
         },
         {
           "id": "Multiple",
           "name": "اختيار متعدد",
-          "context": "apps/web/app/components/task/AssigneePicker.vue:11"
+          "context": "apps/web/app/components/pmo/tasks/AssigneePicker.vue:11"
         },
         {
           "id": "FixedOptions",
@@ -3147,12 +3297,12 @@
         {
           "id": "Document",
           "name": "مستند",
-          "context": "apps/web/app/components/project/ProjectUpdateList.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:64"
         },
         {
           "id": "Preview",
           "name": "معاينة داخل بطاقة",
-          "context": "apps/web/app/components/project/ProjectUpdateList.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:64"
         }
       ]
     },
@@ -3183,7 +3333,7 @@
         {
           "id": "Workspace",
           "name": "أقسام المشروع",
-          "context": "apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue:41"
+          "context": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue:41"
         }
       ]
     },
@@ -3220,12 +3370,12 @@
         {
           "id": "Menu",
           "name": "قائمة إجراءات",
-          "context": "apps/web/app/components/project/MilestoneTable.vue:183"
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:183"
         },
         {
           "id": "SingleAction",
           "name": "إجراء واحد",
-          "context": "apps/web/app/components/project/MilestoneTable.vue:183"
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:183"
         }
       ]
     },
@@ -3416,12 +3566,12 @@
         {
           "id": "InProjectSettings",
           "name": "في إعدادات المشروع",
-          "context": "apps/web/app/components/project/ProjectGeneralForm.vue:190"
+          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:190"
         },
         {
           "id": "WithoutCreate",
           "name": "بلا صلاحية إنشاء وسم",
-          "context": "apps/web/app/components/project/ProjectGeneralForm.vue:190"
+          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:190"
         }
       ]
     },
@@ -4141,156 +4291,6 @@
           "id": "Unavailable",
           "name": "Unavailable",
           "context": "apps/web/app/pages/subscription/index.vue:54"
-        }
-      ]
-    },
-    {
-      "name": "TaskPrioritySelect",
-      "file": "apps/web/app/components/task/PrioritySelect.vue",
-      "story": "apps/web/stories/task/PrioritySelect.stories.ts",
-      "title": "Task/PrioritySelect",
-      "props": [
-        {
-          "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
-          "required": true
-        },
-        {
-          "name": "labelledby",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "variant",
-          "type": "\"outline\" | \"soft\"",
-          "required": false,
-          "default": "\"soft\""
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "USelect"
-      ],
-      "stories": [
-        {
-          "id": "InTaskRow",
-          "name": "في صف المهمة",
-          "context": "apps/web/app/components/task/TaskTable.vue:130"
-        },
-        {
-          "id": "ReadOnly",
-          "name": "بلا صلاحية تعديل",
-          "context": "apps/web/app/components/task/TaskTable.vue:130"
-        }
-      ]
-    },
-    {
-      "name": "TaskStateMenu",
-      "file": "apps/web/app/components/task/StateMenu.vue",
-      "story": "apps/web/stories/task/StateMenu.stories.ts",
-      "title": "Task/StateMenu",
-      "props": [
-        {
-          "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
-          "required": true
-        },
-        {
-          "name": "canApprove",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UDropdownMenu",
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "InTaskRow",
-          "name": "في صف المهمة",
-          "context": "apps/web/app/components/task/TaskTable.vue:129"
-        },
-        {
-          "id": "NoTransitions",
-          "name": "بلا انتقالات متاحة",
-          "context": "apps/web/app/components/task/TaskTable.vue:129"
-        },
-        {
-          "id": "TransitionForbidden",
-          "name": "انتقال مرفوض",
-          "context": "apps/web/app/components/task/TaskTable.vue:129"
-        }
-      ]
-    },
-    {
-      "name": "TaskCard",
-      "file": "apps/web/app/components/task/TaskCard.vue",
-      "story": "apps/web/stories/task/TaskCard.stories.ts",
-      "title": "Task/TaskCard",
-      "props": [
-        {
-          "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
-          "required": true
-        },
-        {
-          "name": "stages",
-          "type": "globalThis.BoardStage[]",
-          "required": false,
-          "default": "[]"
-        },
-        {
-          "name": "currentStageId",
-          "type": "number | null",
-          "required": false,
-          "default": "null"
-        },
-        {
-          "name": "moveTargets",
-          "type": "{ label: string; disabled?: boolean | undefined; onSelect: () => void; }[]",
-          "required": false,
-          "default": "undefined"
-        },
-        {
-          "name": "showProject",
-          "type": "boolean",
-          "required": false,
-          "default": "true"
-        }
-      ],
-      "events": [
-        {
-          "name": "open",
-          "payload": "[id: number]"
-        },
-        {
-          "name": "move",
-          "payload": "[stage: globalThis.BoardStage]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UAvatar",
-        "UButton",
-        "UCard",
-        "UDropdownMenu",
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "InBoardColumn",
-          "name": "داخل عمود اللوحة",
-          "context": "apps/web/app/components/task/TaskBoard.vue:277"
-        },
-        {
-          "id": "ProjectBoard",
-          "name": "في لوحة المشروع (بلا اسم المشروع)",
-          "context": "apps/web/app/components/task/TaskBoard.vue:277"
         }
       ]
     },

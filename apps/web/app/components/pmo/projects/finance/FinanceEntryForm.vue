@@ -2,7 +2,7 @@
 import type { FinanceEntry, FinanceKind } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useCreateFinanceEntry, useProjectFinanceEntry, useUpdateFinanceEntry } from '@/composables/useProjectFinance'
-import FinanceBudgetPicker from '@/components/project/finance/FinanceBudgetPicker.vue'
+import FinanceBudgetPicker from '@/components/pmo/projects/finance/FinanceBudgetPicker.vue'
 import {
   financeCreateBody,
   draftFromEntry,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import RaciMatrix from '@/components/project/governance/RaciMatrix.vue'
+import RaciMatrix from '@/components/pmo/projects/governance/RaciMatrix.vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { settleServerQueries } from '@/lib/vueQuerySsr'
 import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'

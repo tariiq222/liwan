@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones } from '@/composables/useMilestones'
-import ProjectCharterForm from '@/components/project/ProjectCharterForm.vue'
+import ProjectCharterForm from '@/components/pmo/projects/ProjectCharterForm.vue'
 
 const route = useRoute()
 const router = useRouter()

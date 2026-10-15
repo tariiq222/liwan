@@ -6,8 +6,8 @@ import type { CharterDraft, CharterFieldKey } from '@/utils/projectCharter'
 import { CHARTER_FIELD_KEYS, PROJECT_PRIORITIES } from '@/utils/projectCharter'
 import { charterStepsForType } from '@/utils/charterSteps'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import ProjectCharterRows from '@/components/project/ProjectCharterRows.vue'
-import ProjectFieldHelp from '@/components/project/ProjectFieldHelp.vue'
+import ProjectCharterRows from '@/components/pmo/projects/ProjectCharterRows.vue'
+import ProjectFieldHelp from '@/components/pmo/projects/ProjectFieldHelp.vue'
 
 const draft = defineModel<CharterDraft>({ required: true })
 const props = defineProps<{

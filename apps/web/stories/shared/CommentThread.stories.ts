@@ -14,7 +14,7 @@ const comments = [
 const meta = {
   title: 'Shared/CommentThread',
   component: CommentThread,
-  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskComments.vue:47', 'قائمة تعليقات نصية مرتبة من الأقدم، مع فتحة `composer` لنموذج الكتابة. سجل المهمة الغني (HTML وتغييرات الحقول) يبقى في `task/Timeline.vue`.'),
+  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskComments.vue:47', 'قائمة تعليقات نصية مرتبة من الأقدم، مع فتحة `composer` لنموذج الكتابة. سجل المهمة الغني (HTML وتغييرات الحقول) يبقى في `pmo/tasks/Timeline.vue`.'),
   args: { comments, emptyText: 'لا تعليقات بعد', unknownAuthor: 'مستخدم غير معروف', onRetry: fn() },
   render: args => ({
     components: { CommentThread, CommentComposer },

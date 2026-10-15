@@ -2,7 +2,7 @@
 import { recordParentTo } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
-import FinanceEntryForm from '@/components/project/finance/FinanceEntryForm.vue'
+import FinanceEntryForm from '@/components/pmo/projects/finance/FinanceEntryForm.vue'
 import {
   financeWriteAllowed,
   shouldKeepFinanceFormMounted,

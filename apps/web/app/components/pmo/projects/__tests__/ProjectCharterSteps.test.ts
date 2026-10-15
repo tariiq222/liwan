@@ -38,8 +38,8 @@ function compileSfcTemplate(filename: string) {
   return new Function('Vue', runnableCode)(Vue) as RenderFunction
 }
 
-import { CHARTER_FIELD_KEYS, type CharterFieldKey } from '../../../utils/projectCharter'
-import { CHARTER_STEP_FIELDS, charterStepsForType } from '../../../utils/charterSteps'
+import { CHARTER_FIELD_KEYS, type CharterFieldKey } from '../../../../utils/projectCharter'
+import { CHARTER_STEP_FIELDS, charterStepsForType } from '../../../../utils/charterSteps'
 
 async function renderFields(fields: readonly CharterFieldKey[] = CHARTER_FIELD_KEYS) {
   const render = compileSfcTemplate(fieldsFilename)

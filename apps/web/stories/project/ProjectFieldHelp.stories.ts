@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import ProjectFieldHelp from '../../app/components/project/ProjectFieldHelp.vue'
+import ProjectFieldHelp from '../../app/components/pmo/projects/ProjectFieldHelp.vue'
 import PageContainer from '../../app/components/shared/PageContainer.vue'
 import { storyContext } from '../support/context'
 
@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const BesideFieldLabel: Story = {
   name: 'بجانب عنوان الحقل',
-  parameters: storyContext('apps/web/app/components/project/ProjectCharterFields.vue:132', 'اضغط أيقونة ⓘ لفتح التلميح.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCharterFields.vue:132', 'اضغط أيقونة ⓘ لفتح التلميح.'),
   render: args => ({
     components: { ProjectFieldHelp, PageContainer },
     setup() {

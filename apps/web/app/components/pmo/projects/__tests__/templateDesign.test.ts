@@ -6,12 +6,12 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { createSSRApp, defineComponent, h, ref, type RenderFunction } from 'vue'
-import * as dataTable from '../../../utils/dataTable'
-import * as errorState from '../../../utils/errorState'
-import { loadShared } from '../../shared/__tests__/helpers/renderShared'
+import * as dataTable from '../../../../utils/dataTable'
+import * as errorState from '../../../../utils/errorState'
+import { loadShared } from '../../../shared/__tests__/helpers/renderShared'
 import { describe, expect, it } from 'vitest'
 
-const pages = resolve(dirname(fileURLToPath(import.meta.url)), '../../../pages/projects/templates')
+const pages = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../pages/projects/templates')
 const listSource = readFileSync(resolve(pages, 'index.vue'), 'utf8')
 
 const Passthrough = defineComponent({

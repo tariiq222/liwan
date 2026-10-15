@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CharterDraft, DeliverableDraft, ObjectiveDraft } from '@/utils/projectCharter'
 import { emptyDeliverable, emptyObjective } from '@/utils/projectCharter'
-import ProjectFieldHelp from '@/components/project/ProjectFieldHelp.vue'
+import ProjectFieldHelp from '@/components/pmo/projects/ProjectFieldHelp.vue'
 
 const draft = defineModel<CharterDraft>({ required: true })
 const props = withDefaults(defineProps<{

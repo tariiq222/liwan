@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
-import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE } from '@/components/project/governance/state'
+import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE } from '@/components/pmo/projects/governance/state'
 import { useProject } from '@/composables/useProjects'
 import { useProjectRegisterItem } from '@/composables/useProjectGovernance'
 

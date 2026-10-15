@@ -94,14 +94,14 @@ describe('reviewed page navigation and form feedback', () => {
     const origin = '/projects/7/tasks?view=board&q=abc#board'
     const list = await loadPage(projectTasks, origin)
     const link = await propsFor(list, 'NuxtLink')
-    const archive = await loadPage('../components/task/TaskArchivedList.vue', link!.to as RouteLocationRaw)
+    const archive = await loadPage('../components/pmo/tasks/TaskArchivedList.vue', link!.to as RouteLocationRaw)
     expect(archive.route.query.project_id).toBe('7')
     expect((await propsFor(archive, 'SharedListPage'))!['back-to']).toBe(origin)
     list.stop(); archive.stop()
   })
 
   it.each([undefined, 'https://evil.example', '//evil.example', '/settings/users'])('uses the project task fallback for an absent or unsafe archive return target %s', async returnTo => {
-    const page = await loadPage('../components/task/TaskArchivedList.vue', { path: '/tasks', query: { scope: 'archived', project_id: '7', returnTo } })
+    const page = await loadPage('../components/pmo/tasks/TaskArchivedList.vue', { path: '/tasks', query: { scope: 'archived', project_id: '7', returnTo } })
     expect((await propsFor(page, 'SharedListPage'))!['back-to']).toBe('/projects/7/tasks')
     page.stop()
   })

@@ -439,6 +439,14 @@ class StaticGateTest(unittest.TestCase):
         self.assertEqual(len(collision), 1)
         self.assertIn("task-card", collision[0])
 
+    def test_prefixed_component_folders_use_their_nuxt_names(self):
+        # nuxt.config.ts registers pmo/tasks with prefix Task: pmo/tasks/Card.vue is TaskCard.
+        collision = policy.auto_import_errors({
+            self.COMPONENTS + "pmo/tasks/Card.vue": "", self.COMPONENTS + "task/card.ts": ""})
+        self.assertEqual(len(collision), 1)
+        self.assertIn("task-card", collision[0])
+        self.assertIn("TaskCard", policy.component_names(self.COMPONENTS + "pmo/tasks/Card.vue"))
+
     # --- business overlays -----------------------------------------------------
 
     def test_overlay_tag_and_native_popup_are_reported(self):

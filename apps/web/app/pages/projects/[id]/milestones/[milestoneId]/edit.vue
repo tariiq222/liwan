@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MilestoneForm from '@/components/project/MilestoneForm.vue'
+import MilestoneForm from '@/components/pmo/projects/MilestoneForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteMilestone, useMilestones } from '@/composables/useMilestones'
 import { useProject } from '@/composables/useProjects'
