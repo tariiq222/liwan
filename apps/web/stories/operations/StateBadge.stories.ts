@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import StatusBadge from '../../app/components/shared/StatusBadge.vue'
 import { operationsStateTone } from '../../app/composables/operations/state'
 import { storyContext } from '../support/context'
-const meta = { title: 'Operations/StateBadge', component: StatusBadge, parameters: { a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/operations/[id]/index.vue:66') }, args: { tone: 'info', label: '' } } satisfies Meta<typeof StatusBadge>
+const meta = { title: 'Operations/StateBadge', component: StatusBadge, parameters: { a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/operations/[id]/index.vue:67') }, args: { tone: 'info', label: '' } } satisfies Meta<typeof StatusBadge>
 export default meta
 type Story = StoryObj<typeof meta>
 const state = (value: string): Story => ({ render: () => ({ components: { StatusBadge }, setup: () => ({ t: useI18n().t, value, operationsStateTone }), template: '<StatusBadge :tone="operationsStateTone(value)" :label="t(`operations.states.${value}`)" />' }) })

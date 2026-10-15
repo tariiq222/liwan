@@ -32,7 +32,7 @@
         {
           "id": "Default",
           "name": "عبر DashboardChart",
-          "context": "apps/web/app/components/shared/DashboardChart.client.vue:172"
+          "context": "apps/web/app/components/shared/DashboardChart.client.vue:224"
         }
       ]
     },
@@ -658,12 +658,12 @@
         {
           "id": "CreateWizard",
           "name": "إنشاء مشروع على خطوات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:54"
+          "context": "apps/web/app/components/project/ProjectCreateForm.vue:64"
         },
         {
           "id": "WaitingForDefaults",
           "name": "قبل تحميل متطلبات الإنشاء",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:54"
+          "context": "apps/web/app/components/project/ProjectCreateForm.vue:64"
         }
       ]
     },
@@ -719,6 +719,11 @@
           "type": "boolean",
           "required": false,
           "default": "false"
+        },
+        {
+          "name": "to",
+          "type": "string | it | et",
+          "required": false
         }
       ],
       "events": [
@@ -783,17 +788,17 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:99"
+          "context": "apps/web/app/pages/projects/[id].vue:95"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:99"
+          "context": "apps/web/app/pages/projects/[id].vue:95"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:99"
+          "context": "apps/web/app/pages/projects/[id].vue:95"
         }
       ]
     },
@@ -974,7 +979,8 @@
           "name": "width",
           "type": "\"form\" | \"wide\"",
           "required": false,
-          "default": "\"form\""
+          "default": "\"form\"",
+          "description": "Deprecated and ignored: every create panel has the one width below."
         }
       ],
       "events": [],
@@ -1035,7 +1041,7 @@
         {
           "id": "FinanceComparison",
           "name": "المخطط مقابل الفعلي",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:123"
+          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:124"
         }
       ]
     },
@@ -1295,7 +1301,7 @@
         {
           "id": "WithTime",
           "name": "مع وقت",
-          "context": "apps/web/app/components/task/TaskProperties.vue:168"
+          "context": "apps/web/app/components/task/TaskProperties.vue:203"
         }
       ]
     },
@@ -1388,12 +1394,12 @@
         {
           "id": "InTaskTable",
           "name": "داخل جدول المهام",
-          "context": "apps/web/app/components/task/TaskTable.vue:71"
+          "context": "apps/web/app/components/task/TaskTable.vue:75"
         },
         {
           "id": "InTaskListMobile",
           "name": "داخل قائمة المهام على الجوال",
-          "context": "apps/web/app/components/task/TaskTable.vue:71"
+          "context": "apps/web/app/components/task/TaskTable.vue:75"
         }
       ]
     },
@@ -1485,7 +1491,7 @@
         {
           "id": "InMeetingAttachments",
           "name": "داخل مرفقات الاجتماع",
-          "context": "apps/web/app/pages/meetings/[id].vue:593"
+          "context": "apps/web/app/pages/meetings/[id].vue:621"
         },
         {
           "id": "InDocumentCard",
@@ -1495,7 +1501,7 @@
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/[id].vue:593"
+          "context": "apps/web/app/pages/meetings/[id].vue:621"
         }
       ]
     },
@@ -1560,22 +1566,22 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:267"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:267"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:267"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:267"
         }
       ]
     },
@@ -1781,7 +1787,7 @@
         {
           "id": "Panel",
           "name": "لوحة إعدادات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:37"
+          "context": "apps/web/app/components/project/ProjectCreateForm.vue:46"
         }
       ]
     },
@@ -1849,17 +1855,17 @@
         {
           "id": "Archive",
           "name": "أرشفة",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:67"
+          "context": "apps/web/app/components/project/ProjectMenu.vue:74"
         },
         {
           "id": "Pending",
           "name": "قيد التنفيذ",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:67"
+          "context": "apps/web/app/components/project/ProjectMenu.vue:74"
         },
         {
           "id": "Blocked",
           "name": "غير متاح",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:67"
+          "context": "apps/web/app/components/project/ProjectMenu.vue:74"
         }
       ]
     },
@@ -2335,17 +2341,17 @@
         {
           "id": "UnderTable",
           "name": "تحت جدول",
-          "context": "apps/web/app/pages/projects/index.vue:310"
+          "context": "apps/web/app/pages/projects/index.vue:317"
         },
         {
           "id": "MiddlePage",
           "name": "صفحة وسطى",
-          "context": "apps/web/app/pages/projects/index.vue:310"
+          "context": "apps/web/app/pages/projects/index.vue:317"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:310"
+          "context": "apps/web/app/pages/projects/index.vue:317"
         }
       ]
     },
@@ -2436,7 +2442,7 @@
         {
           "id": "Multiple",
           "name": "اختيار متعدد",
-          "context": "apps/web/app/components/task/AssigneePicker.vue:58"
+          "context": "apps/web/app/components/task/AssigneePicker.vue:11"
         },
         {
           "id": "FixedOptions",
@@ -2904,22 +2910,22 @@
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
         },
         {
           "id": "Completed",
           "name": "Completed",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
         },
         {
           "id": "Returned",
           "name": "Returned",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
         },
         {
           "id": "Rejected",
           "name": "Rejected",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
         }
       ]
     },
@@ -3140,7 +3146,7 @@
         {
           "id": "Default",
           "name": "الحساب",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         }
       ]
     },
@@ -3160,7 +3166,7 @@
         {
           "id": "Default",
           "name": "زر المظهر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "unused"
         }
       ]
     },
@@ -3177,7 +3183,7 @@
         {
           "id": "Default",
           "name": "الشريط والقائمة السياقية",
-          "context": "apps/web/app/layouts/default.vue:46"
+          "context": "apps/web/app/layouts/default.vue:48"
         }
       ]
     },
@@ -3259,17 +3265,17 @@
         {
           "id": "Projects",
           "name": "المشاريع مع عدّاد",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:35"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:37"
         },
         {
           "id": "WithSections",
           "name": "أقسام بعناوين",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:35"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:37"
         },
         {
           "id": "Collapsed",
           "name": "مطوية",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:35"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:37"
         }
       ]
     },
@@ -3292,32 +3298,32 @@
         {
           "id": "Default",
           "name": "زر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteMain",
           "name": "لوحة الأوامر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteSearch",
           "name": "نتائج البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteError",
           "name": "تعذّر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteShortcuts",
           "name": "اختصارات لوحة المفاتيح",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteReadOnly",
           "name": "قارئ بلا صلاحية إنشاء",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         }
       ]
     },
@@ -3376,7 +3382,7 @@
         {
           "id": "Open",
           "name": "القائمة مفتوحة",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:67"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:70"
         }
       ]
     },
@@ -3416,12 +3422,12 @@
         {
           "id": "Default",
           "name": "المشاريع نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         },
         {
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         }
       ]
     },
@@ -3446,12 +3452,12 @@
         {
           "id": "Trail",
           "name": "ثلاثة مستويات",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:84"
         },
         {
           "id": "Single",
           "name": "مستوى واحد",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:84"
         }
       ]
     },
@@ -3460,7 +3466,13 @@
       "file": "apps/web/app/components/shell/ShellFrame.vue",
       "story": "apps/web/stories/shell/ShellFrame.stories.ts",
       "title": "Shell/ShellFrame",
-      "props": [],
+      "props": [
+        {
+          "name": "noSidebar",
+          "type": "boolean",
+          "required": false
+        }
+      ],
       "events": [],
       "slots": [
         "header",
@@ -3472,22 +3484,22 @@
         {
           "id": "Default",
           "name": "الإطار الكامل",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         },
         {
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         },
         {
           "id": "Console",
           "name": "الكونسول",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         },
         {
           "id": "BrightTenant",
           "name": "لون مؤسسة ساطع",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         }
       ]
     },
@@ -3506,12 +3518,12 @@
         {
           "id": "Default",
           "name": "مهامي",
-          "context": "apps/web/app/layouts/default.vue:45"
+          "context": "apps/web/app/layouts/default.vue:47"
         },
         {
           "id": "Console",
           "name": "الكونسول",
-          "context": "apps/web/app/layouts/default.vue:45"
+          "context": "apps/web/app/layouts/default.vue:47"
         }
       ]
     },
@@ -3716,12 +3728,12 @@
         {
           "id": "InTaskRow",
           "name": "في صف المهمة",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
+          "context": "apps/web/app/components/task/TaskTable.vue:130"
         },
         {
           "id": "ReadOnly",
           "name": "بلا صلاحية تعديل",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
+          "context": "apps/web/app/components/task/TaskTable.vue:130"
         }
       ]
     },
@@ -3753,17 +3765,17 @@
         {
           "id": "InTaskRow",
           "name": "في صف المهمة",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
+          "context": "apps/web/app/components/task/TaskTable.vue:129"
         },
         {
           "id": "NoTransitions",
           "name": "بلا انتقالات متاحة",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
+          "context": "apps/web/app/components/task/TaskTable.vue:129"
         },
         {
           "id": "TransitionForbidden",
           "name": "انتقال مرفوض",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
+          "context": "apps/web/app/components/task/TaskTable.vue:129"
         }
       ]
     },
@@ -3781,12 +3793,20 @@
         {
           "name": "stages",
           "type": "globalThis.BoardStage[]",
-          "required": true
+          "required": false,
+          "default": "[]"
         },
         {
           "name": "currentStageId",
           "type": "number | null",
-          "required": true
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "moveTargets",
+          "type": "{ label: string; disabled?: boolean | undefined; onSelect: () => void; }[]",
+          "required": false,
+          "default": "undefined"
         },
         {
           "name": "showProject",
@@ -3817,12 +3837,12 @@
         {
           "id": "InBoardColumn",
           "name": "داخل عمود اللوحة",
-          "context": "apps/web/app/components/task/TaskBoard.vue:152"
+          "context": "apps/web/app/components/task/TaskBoard.vue:277"
         },
         {
           "id": "ProjectBoard",
           "name": "في لوحة المشروع (بلا اسم المشروع)",
-          "context": "apps/web/app/components/task/TaskBoard.vue:152"
+          "context": "apps/web/app/components/task/TaskBoard.vue:277"
         }
       ]
     },

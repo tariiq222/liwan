@@ -11,7 +11,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Project/ProjectCharterForm',
   component: ProjectCharterForm,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/project/ProjectCreateForm.vue:64') },
   args: { mode: 'create', createDefaults: projectCreateDefaults, defaultManagerName: 'Admin', disabled: false },
   render: args => ({
     components: { FormSection, PageContainer, ProjectCharterForm },
@@ -24,10 +24,10 @@ type Story = StoryObj<typeof meta>
 
 export const CreateWizard: Story = {
   name: 'إنشاء مشروع على خطوات',
-  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54', 'اختر التصنيف في الخطوة الأولى لتتغيّر الخطوات التالية. «حفظ كمسودة» متاح في كل خطوة.'),
+  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:64', 'اختر التصنيف في الخطوة الأولى لتتغيّر الخطوات التالية. «حفظ كمسودة» متاح في كل خطوة.'),
 }
 export const WaitingForDefaults: Story = {
   name: 'قبل تحميل متطلبات الإنشاء',
   args: { createDefaults: undefined, disabled: true },
-  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
+  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:64', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
 }

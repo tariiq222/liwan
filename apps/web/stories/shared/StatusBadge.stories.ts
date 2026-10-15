@@ -38,17 +38,17 @@ export const TaskState: Story = {
 }
 export const Deadline: Story = {
   name: 'موعد المهمة',
-  parameters: storyContext('apps/web/app/components/task/TaskCard.vue:88'),
+  parameters: storyContext('apps/web/app/components/task/TaskCard.vue:101'),
   render: row('<StatusBadge v-for="(c, i) in cases" :key="i" :tone="deadlineTone(c[0], c[1])" :label="deadlineLabel(c[0], t)" />', () => ({ cases: [[-3, false], [0, false], [1, false], [10, false], [-3, true], [null, false]], deadlineTone, deadlineLabel })),
 }
 export const AccessState: Story = {
   name: 'حالة الوصول',
-  parameters: storyContext('apps/web/app/components/access/users/UserTable.vue:49'),
+  parameters: storyContext('apps/web/app/components/access/users/UserTable.vue:54'),
   render: row('<StatusBadge v-for="(r, i) in rows" :key="i" :tone="accessStateBadge(r).tone" :label="t(accessStateBadge(r).labelKey)" />', () => ({ rows: [{ active: true }, { active: false }, { active: true, protected: true }, { active: true, readOnly: true }], accessStateBadge })),
 }
 export const HrAccess: Story = {
   name: 'حساب الموظف',
-  parameters: storyContext('apps/web/app/components/hr/DirectoryTable.vue:206'),
+  parameters: storyContext('apps/web/app/components/hr/DirectoryTable.vue:213'),
   render: row('<StatusBadge v-for="(a, i) in accesses" :key="i" variant="outline" :tone="hrAccessBadge(a).tone" :label="t(hrAccessBadge(a).labelKey)" />', () => ({
     accesses: [null, { user_id: 7, login: 'sara', role: 'employee', active: true }, { user_id: 2, login: 'admin', role: 'admin', active: true }, { user_id: 9, login: 'm', role: 'employee', active: false }],
     hrAccessBadge,

@@ -18,7 +18,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Single: Story = { name: 'اختيار واحد' }
-export const Multiple: Story = { name: 'اختيار متعدد', parameters: storyContext('apps/web/app/components/task/AssigneePicker.vue:58'), args: { multiple: true, modelValue: [], valueKey: 'id', placeholder: 'المسؤولون' } }
+export const Multiple: Story = { name: 'اختيار متعدد', parameters: storyContext('apps/web/app/components/task/AssigneePicker.vue:11'), args: { multiple: true, modelValue: [], valueKey: 'id', placeholder: 'المسؤولون' } }
 export const FixedOptions: Story = {
   name: 'من قائمة ثابتة',
   parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:75'),
