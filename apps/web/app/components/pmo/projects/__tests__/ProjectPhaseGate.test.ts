@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h } from 'vue'
 import type { ProjectPhaseState } from '@nasq/contracts'
-import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows } from '../../../../composables/projectPhase'
+import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, isGateCardVisible } from '../../../../composables/projectPhase'
 import { renderTemplate } from './helpers/renderTemplate'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../ProjectPhaseGate.vue')
@@ -14,6 +14,7 @@ async function render(state: ProjectPhaseState, opts: { canManage?: boolean; ste
     t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${Object.values(params).join('|')}` : key),
     project: { id: 7 }, state, rows: gateCheckRows(7, state.next_checks), canManage,
     canAdvance: canMoveForward(state, canManage), isClosed: state.current === 'closed',
+    isVisible: isGateCardVisible(state, canManage),
     phaseLabel: (phase: string) => (PHASE_LABEL_KEY as Record<string, string>)[phase], stepBack: opts.stepBack ?? false,
     isPending: false, hydrated: true, run: () => {},
   }, {
@@ -44,6 +45,13 @@ describe('ProjectPhaseGate', () => {
     expect(w.has('project-phase-move')).toBe(false)
     expect(w.has('project-phase-check-charter_approved')).toBe(true)
     expect(w.has('project-phase-fix')).toBe(false)
+  })
+  it('hides the whole card from a non-manager when the gate has no check', async () => {
+    const state: ProjectPhaseState = { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [] }
+    const w = await render(state, { canManage: false })
+    expect(w.has('project-phase-gate')).toBe(false)
+    expect(w.html).not.toContain('projects.phase.gateTitle')
+    expect((await render(state)).has('project-phase-gate')).toBe(true)
   })
   it('offers a step back with an inline confirmation', async () => {
     const state: ProjectPhaseState = { current: 'executing', next: 'closing', previous: 'planning', next_checks: [] }

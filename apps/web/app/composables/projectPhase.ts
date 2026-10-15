@@ -40,6 +40,10 @@ export function gateCheckRows(projectId: number, checks: readonly ProjectPhaseGa
 export const canMoveForward = (state: ProjectPhaseState, canManage: boolean): boolean =>
   canManage && state.next !== null && state.next_checks.every(check => check.ok)
 
+/** The gate card shows for a manager, a closed project or any check; a reader would otherwise see a bare heading. */
+export const isGateCardVisible = (state: ProjectPhaseState, canManage: boolean): boolean =>
+  canManage || state.current === 'closed' || state.next_checks.length > 0
+
 /** What a failed phase move tells the user: a locale key and toast colour; server text is never shown. */
 export function phaseFailure(error: unknown): { key: string; color: 'warning' | 'error' } {
   const { status, code } = (typeof error === 'object' && error !== null ? error : {}) as { status?: number; code?: string }
