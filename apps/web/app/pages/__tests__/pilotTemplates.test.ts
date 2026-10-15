@@ -20,7 +20,7 @@ describe('the pilot pages stay on their templates', () => {
     expect(source, 'no hand-made page header').not.toContain('<SharedPageHeader')
   })
 
-  it.each(['components/project/ProjectTable.vue', 'components/task/TaskTable.vue'])('%s renders through SharedDataTable', (file) => {
+  it.each(['components/pmo/projects/ProjectTable.vue', 'components/pmo/tasks/TaskTable.vue'])('%s renders through SharedDataTable', (file) => {
     const source = read(file)
     expect(source).toContain('<SharedDataTable')
     expect(source).not.toContain('<UTable')
@@ -28,15 +28,15 @@ describe('the pilot pages stay on their templates', () => {
   })
 
   it('the dashboard charts are chart panels, with no scoped style and no hand-made card', () => {
-    expect(read('components/project/dashboard/DashboardChartPanel.vue')).toContain('<ChartPanel')
-    const charts = read('components/project/dashboard/ProjectDashboardCharts.vue')
+    expect(read('components/pmo/projects/dashboard/DashboardChartPanel.vue')).toContain('<ChartPanel')
+    const charts = read('components/pmo/projects/dashboard/ProjectDashboardCharts.vue')
     expect(charts).toContain('<SharedChartPanel')
     expect(charts).not.toContain('<UCard')
     expect(charts).not.toContain('<style')
   })
 
   it('the project overview has no scoped style and no container hack', () => {
-    const source = read('components/project/ProjectOverview.vue')
+    const source = read('components/pmo/projects/ProjectOverview.vue')
     expect(source).not.toContain('<style')
     expect(source).not.toContain('nasq-page-width')
   })

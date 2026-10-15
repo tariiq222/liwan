@@ -14,7 +14,7 @@
 | توكنات الأسطح والتحكم | `apps/web/app/assets/css/tokens.css`, `apps/web/app/assets/css/components.css`, `apps/web/app/assets/css/shell.css` |
 | لون الهوية | `apps/web/app/utils/brandTheme.ts`؛ الإدخال هو `primary_color` وتُشتق منه حالات التفاعل والروابط والاختيار والرسوم |
 | حالة المظهر والخط | `apps/web/app/composables/useAppearance.ts` و`apps/web/app/utils/appearance.ts`؛ الحالة وcookie هنا |
-| الرسوم | `apps/web/app/components/shared/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
+| الرسوم | `apps/web/app/components/shared/data/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
 | ملكية المكونات | [فهرس المكونات](components.md)؛ كل مسار فيه يبدأ بـ `apps/web/app/components/` |
 
 مدخلات الثيم (كما في DESIGN.md §1): لون الهوية من العميل (الافتراضي الأزرق
@@ -27,7 +27,7 @@
 المحايدات وأساليب الحالة منفصلة عن لون الهوية؛ `brandTheme.ts` يشتق عائلة
 `--primary*` و`--chart-*` من اللون الأساسي لكل مظهر، مع إبقاء توكنات النجاح
 والتحذير والخطأ والمعلومة دلالية. الشعار المؤقت في
-`apps/web/app/components/shared/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
+`apps/web/app/components/shared/layout/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
 أو بياناته أو مساراته التجريبية إلى التشغيل.
 
 ## حدود الاستخدام

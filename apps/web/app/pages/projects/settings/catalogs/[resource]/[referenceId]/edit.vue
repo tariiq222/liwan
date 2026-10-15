@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
-import ProjectCharterReferenceForm from '@/components/project/settings/ProjectCharterReferenceForm.vue'
+import ProjectCharterReferenceForm from '@/components/pmo/projects/settings/ProjectCharterReferenceForm.vue'
 import { isCharterCatalogResource, useCharterCatalogItem } from '@/composables/useProjectCharterCatalogs'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 

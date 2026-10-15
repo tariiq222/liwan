@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import ProjectWorkspaceTabs from '../../app/components/project/workspace/ProjectWorkspaceTabs.vue'
+import ProjectWorkspaceTabs from '../../app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

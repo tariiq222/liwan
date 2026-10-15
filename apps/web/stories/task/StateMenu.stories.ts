@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import PrioritySelect from '../../app/components/task/PrioritySelect.vue'
-import StateMenu from '../../app/components/task/StateMenu.vue'
+import PrioritySelect from '../../app/components/pmo/tasks/PrioritySelect.vue'
+import StateMenu from '../../app/components/pmo/tasks/StateMenu.vue'
 import { makeTask } from '../fixtures/pmo'
 import { transitionForbidden } from '../handlers/api'
 import { storyContext } from '../support/context'
@@ -10,7 +10,7 @@ const meta = {
   title: 'Task/StateMenu',
   component: StateMenu,
   args: { task: makeTask() },
-  parameters: storyContext('apps/web/app/components/task/TaskTable.vue:129', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:129', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px.'),
   render: args => ({
     components: { PrioritySelect, StateMenu },
     setup: () => ({ task: useStoryTask(() => args.task) }),

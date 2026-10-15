@@ -3,7 +3,7 @@ import { formatNasqDateTime } from '@/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { operationStatusBadge } from '@/utils/commercialBadges'
 import type { OperationFeed } from '@nasq/commercial-contracts'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { request } = useVendorApi()
 const tenantId = computed({ get: () => typeof route.query.tenant_id === 'string' ? route.query.tenant_id : '', set: value => router.replace({ query: { ...route.query, tenant_id: value || undefined } }) })

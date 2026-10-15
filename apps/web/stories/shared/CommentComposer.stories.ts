@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
 import { ref } from 'vue'
-import CommentComposer from '../../app/components/shared/CommentComposer.vue'
+import CommentComposer from '../../app/components/shared/form/CommentComposer.vue'
 import { storyContext } from '../support/context'
 
 // The form keeps no draft and sends nothing: `v-model`, validation and the request are the app's.
 const meta = {
   title: 'Shared/CommentComposer',
   component: CommentComposer,
-  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskComments.vue:56', 'حقل تعليق وزر نشر. التطبيق يملك النص والتحقق والطلب؛ ويعلّق قائمة الإشارات `@` و`/` على الفتحة `below` وأحداث الحقل كما في `task/CommentComposer.vue`.'),
+  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskComments.vue:56', 'حقل تعليق وزر نشر. التطبيق يملك النص والتحقق والطلب؛ ويعلّق قائمة الإشارات `@` و`/` على الفتحة `below` وأحداث الحقل كما في `pmo/tasks/CommentComposer.vue`.'),
   args: { modelValue: '', placeholder: 'اكتب تعليقًا', submitLabel: 'نشر التعليق', onSubmit: fn() },
   render: args => ({
     components: { CommentComposer },

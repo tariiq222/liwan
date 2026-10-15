@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import TaskCreateForm from '@/components/task/TaskCreateForm.vue'
+import TaskCreateForm from '@/components/pmo/tasks/TaskCreateForm.vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 
 const route = useRoute()

@@ -9,7 +9,7 @@ describe('the schedule stays on the timeline template', () => {
     const page = read('pages/projects/[id]/schedule.vue')
     for (const needle of ['<SharedTimelineFrame', 'hide-header', 'scrollPage', 'project-header-create']) expect(page).toContain(needle)
     expect(page).not.toContain('<SharedPageHeader')
-    const gantt = read('components/project/schedule/ScheduleGantt.vue')
+    const gantt = read('components/pmo/projects/schedule/ScheduleGantt.vue')
     for (const gone of ['embedded', "emit('update:scale'", 'projects.schedule.timeline']) expect(gantt).not.toContain(gone)
     expect(gantt).toContain('defineExpose')
   })

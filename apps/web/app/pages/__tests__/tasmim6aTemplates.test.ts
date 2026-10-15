@@ -21,10 +21,10 @@ describe('every 6a page is on its template', () => {
     ['pages/projects/[id]/finance/[entryId].vue', ['<SharedRecordPage']],
     ['pages/projects/[id]/register/[registerId].vue', ['<SharedRecordPage']],
     ['pages/projects/[id]/stakeholders/[stakeholderId].vue', ['<SharedRecordPage']],
-    ['components/task/TaskDetailPanel.vue', ['<SharedRecordPage', '<TaskProperties']],
+    ['components/pmo/tasks/TaskDetailPanel.vue', ['<SharedRecordPage', '<TaskProperties']],
     ['pages/my-tasks/[id].vue', ['<SharedRecordPage']],
     ['pages/my-tasks/index.vue', ['<SharedListPage', '<SharedDataTable']],
-    ['components/task/TaskArchivedList.vue', ['<SharedListPage', '<SharedDataTable']],
+    ['components/pmo/tasks/TaskArchivedList.vue', ['<SharedListPage', '<SharedDataTable']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)
@@ -33,7 +33,7 @@ describe('every 6a page is on its template', () => {
     if (headerOwners.includes(file)) expect(source.match(/<SharedPageHeader\b/g)).toHaveLength(file.endsWith('/charter.vue') ? 2 : 1)
     else expect(source, 'no hand-made page header').not.toContain('<SharedPageHeader')
   })
-  it.each(['components/project/MilestoneTable.vue', 'components/project/finance/FinanceEntryTable.vue'])('%s renders through SharedDataTable', (file) => {
+  it.each(['components/pmo/projects/MilestoneTable.vue', 'components/pmo/projects/finance/FinanceEntryTable.vue'])('%s renders through SharedDataTable', (file) => {
     const source = read(file)
     expect(source).toContain('<SharedDataTable')
     expect(source).not.toContain('<UTable')

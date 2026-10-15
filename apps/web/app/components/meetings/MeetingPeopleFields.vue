@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PickedPerson } from '@/components/shared/PersonPicker.vue'
+import type { PickedPerson } from '@/components/shared/form/PersonPicker.vue'
 import { mergeMeetingPeople, type MeetingPerson } from '@/utils/meetingPeople'
 
 // Meeting attendees and secretary are res.users ids, so both pickers carry

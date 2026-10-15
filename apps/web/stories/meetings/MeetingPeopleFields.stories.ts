@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MeetingPeopleFields from '../../app/components/meetings/MeetingPeopleFields.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

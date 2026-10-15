@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import SettingsPage from '../../app/components/shared/SettingsPage.vue'
-import PageState from '../../app/components/shared/PageState.vue'
+import SettingsPage from '../../app/components/shared/layout/SettingsPage.vue'
+import PageState from '../../app/components/shared/feedback/PageState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

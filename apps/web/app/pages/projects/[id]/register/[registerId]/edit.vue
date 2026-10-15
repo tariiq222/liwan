@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { recordParentTo } from '@/utils/recordListOrigin'
-import RegisterForm from '@/components/project/governance/RegisterForm.vue'
+import RegisterForm from '@/components/pmo/projects/governance/RegisterForm.vue'
 import { useProject } from '@/composables/useProjects'
 import { useProjectRegisterItem } from '@/composables/useProjectGovernance'
 

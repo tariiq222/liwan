@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import Checklist from '../../app/components/shared/Checklist.vue'
+import Checklist from '../../app/components/shared/data/Checklist.vue'
 import { storyContext } from '../support/context'
 
 const item = (id: number, name: string, extra = {}) => ({ id, name, to: `/my-tasks/${id}`, toggleLabel: 'إنجاز', toggleIcon: 'i-lucide-check', ...extra })
@@ -14,7 +14,7 @@ const items = [
 const meta = {
   title: 'Shared/Checklist',
   component: Checklist,
-  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55', 'قائمة قصيرة لبنود مرتبطة (المهام الفرعية): كل صف يفتح صفحته، مع تبديل اختياري للإنجاز ونموذج إضافة باسم. المعالجان `add` و`toggle` يمرّرهما التطبيق، ويمكن وضع شارة حالة في الفتحة `leading`.'),
+  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55', 'قائمة قصيرة لبنود مرتبطة (المهام الفرعية): كل صف يفتح صفحته، مع تبديل اختياري للإنجاز ونموذج إضافة باسم. المعالجان `add` و`toggle` يمرّرهما التطبيق، ويمكن وضع شارة حالة في الفتحة `leading`.'),
   args: {
     items,
     emptyText: 'لا مهام فرعية بعد',

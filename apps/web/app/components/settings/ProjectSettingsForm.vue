@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProjectSettings } from '@nasq/contracts'
-import StageListEditor from '@/components/project/StageListEditor.vue'
+import StageListEditor from '@/components/pmo/projects/StageListEditor.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProjectSettings, useUpdateProjectSettings } from '@/composables/useProjectSettings'
 

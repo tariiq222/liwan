@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo, SERIES_LIST_PATHS } from '@/utils/recordListOrigin'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'

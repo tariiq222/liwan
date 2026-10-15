@@ -4,9 +4,9 @@ import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import { useProject } from '@/composables/useProjects'
-import FinanceEntryTable from '@/components/project/finance/FinanceEntryTable.vue'
-import FinanceSummaryCards from '@/components/project/finance/FinanceSummaryCards.vue'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FinanceEntryTable from '@/components/pmo/projects/finance/FinanceEntryTable.vue'
+import FinanceSummaryCards from '@/components/pmo/projects/finance/FinanceSummaryCards.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import {
   FINANCE_PAGE,
   parseFinanceKind,

@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
 import { ref } from 'vue'
-import CommentComposer from '../../app/components/shared/CommentComposer.vue'
-import CommentThread from '../../app/components/shared/CommentThread.vue'
+import CommentComposer from '../../app/components/shared/form/CommentComposer.vue'
+import CommentThread from '../../app/components/shared/data/CommentThread.vue'
 import { storyContext } from '../support/context'
 
 const comments = [
@@ -14,7 +14,7 @@ const comments = [
 const meta = {
   title: 'Shared/CommentThread',
   component: CommentThread,
-  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskComments.vue:47', 'قائمة تعليقات نصية مرتبة من الأقدم، مع فتحة `composer` لنموذج الكتابة. سجل المهمة الغني (HTML وتغييرات الحقول) يبقى في `task/Timeline.vue`.'),
+  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskComments.vue:47', 'قائمة تعليقات نصية مرتبة من الأقدم، مع فتحة `composer` لنموذج الكتابة. سجل المهمة الغني (HTML وتغييرات الحقول) يبقى في `pmo/tasks/Timeline.vue`.'),
   args: { comments, emptyText: 'لا تعليقات بعد', unknownAuthor: 'مستخدم غير معروف', onRetry: fn() },
   render: args => ({
     components: { CommentThread, CommentComposer },

@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy } from '../taskCreatePolicy'
 
-const taskFormSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../components/task/TaskCreateForm.vue'), 'utf8')
+const taskFormSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../components/pmo/tasks/TaskCreateForm.vue'), 'utf8')
 const projectTaskPageSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../pages/projects/[id]/tasks/new.vue'), 'utf8')
 
 describe('guided task creation policy', () => {

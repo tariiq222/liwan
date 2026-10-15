@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import AttachmentList from '../../app/components/shared/AttachmentList.vue'
+import AttachmentList from '../../app/components/shared/data/AttachmentList.vue'
 import { storyContext } from '../support/context'
 
 const labels = {
@@ -21,7 +21,7 @@ const attachments = [
 const meta = {
   title: 'Shared/AttachmentList',
   component: AttachmentList,
-  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskAttachments.vue:7', 'قائمة مرفقات سجل مع حذف بتأكيد مضمّن وحقل رفع واحد؛ يستخدمها تطبيقا المهام (المشاريع والمهام الشخصية). المعالجان `uploadFile` و`deleteFile` يمرّرهما التطبيق ويبلّغ عن فشلهما عبر `error`.'),
+  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7', 'قائمة مرفقات سجل مع حذف بتأكيد مضمّن وحقل رفع واحد؛ يستخدمها تطبيقا المهام (المشاريع والمهام الشخصية). المعالجان `uploadFile` و`deleteFile` يمرّرهما التطبيق ويبلّغ عن فشلهما عبر `error`.'),
   args: { attachments, labels, canWrite: true, uploadFile: fn(async () => {}), deleteFile: fn(async () => {}), uploadId: 'story-attachment-upload' },
   render: args => ({
     components: { AttachmentList },

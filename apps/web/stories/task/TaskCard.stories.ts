@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { fn } from 'storybook/test'
-import TaskCard from '../../app/components/task/TaskCard.vue'
+import TaskCard from '../../app/components/pmo/tasks/TaskCard.vue'
 import { boardStages, makeTask } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -15,7 +15,7 @@ const meta = {
   title: 'Task/TaskCard',
   component: TaskCard,
   args: { task: tasks[0]!, stages: boardStages, currentStageId: 11, showProject: true, onOpen: fn(), onMove: fn() },
-  parameters: storyContext('apps/web/app/components/task/TaskBoard.vue:277', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/task/TaskBoard.vue:249`؛ بطاقة لكل مهمة.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskBoard.vue:277', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/pmo/tasks/TaskBoard.vue:249`؛ بطاقة لكل مهمة.'),
 } satisfies Meta<typeof TaskCard>
 export default meta
 type Story = StoryObj<typeof meta>

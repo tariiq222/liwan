@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { LocationQueryRaw } from 'vue-router'
-import TaskBoard from '@/components/task/TaskBoard.vue'
-import TaskTable from '@/components/task/TaskTable.vue'
-import TaskToolbar from '@/components/task/TaskToolbar.vue'
+import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
+import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
+import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'

@@ -3,8 +3,8 @@ import { accessBadge } from '@/components/access/accessBadge'
 import type { TableColumn } from '@nuxt/ui'
 import type { AdminUserSummary } from '@nasq/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
-import type { RowAction } from '@/components/shared/RowActions.vue'
+import RecordNumber from '@/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/data/RowActions.vue'
 
 // The users table on SharedDataTable (the settings list and a role's assigned users). A row opens the
 // account through `toFor` (background click, Enter and the name link). Pagination belongs to the page.

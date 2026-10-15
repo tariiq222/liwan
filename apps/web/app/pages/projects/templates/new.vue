@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectTemplateEditor from '@/components/project/templates/ProjectTemplateEditor.vue'
+import ProjectTemplateEditor from '@/components/pmo/projects/templates/ProjectTemplateEditor.vue'
 import { useCreateProjectTemplate, useProjectTemplateList, useProjectTemplateNavigation } from '@/composables/useProjectTemplates'
 
 const router = useRouter()
