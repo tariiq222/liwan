@@ -191,6 +191,7 @@ class TestMeetingHistory(NasqMeetingsCase):
             fields.Datetime.to_datetime('2026-09-08 08:00:00'),
             'Second delivery review',
         )
+        second.write({'minutes': '<p>Second review minutes</p>'})
         self._complete(second)
 
         previous = next(item for item in second.minutes_snapshot['resolutions'] if item['name'] == 'Carry this item')
@@ -222,3 +223,44 @@ class TestMeetingHistory(NasqMeetingsCase):
         response = self.api('GET', f'/api/v1/meetings/{meeting.id}')
         self.assertEqual(response.status_code, 403, response.text)
         self.assertNotIn('minutes_snapshot', response.text)
+
+    def test_snapshot_hides_resolutions_of_occurrences_the_reader_cannot_open(self):
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Restricted series', 'organizer_id': self.manager.id,
+        })
+        first = series.action_add_occurrence(
+            fields.Datetime.to_datetime('2026-09-01 07:00:00'),
+            fields.Datetime.to_datetime('2026-09-01 08:00:00'),
+            'Managers only',
+        )
+        self.env['cyan.meeting.resolution'].create({
+            'meeting_id': first.id, 'name': 'Confidential item',
+            'responsible_id': self.manager.id, 'deadline': '2026-09-05',
+        })
+        second = series.action_add_occurrence(
+            fields.Datetime.to_datetime('2026-09-08 07:00:00'),
+            fields.Datetime.to_datetime('2026-09-08 08:00:00'),
+            'Open review',
+        )
+        second.write({'attendee_ids': [(4, self.history_reader.id)], 'minutes': '<p>Reviewed</p>'})
+        self.env['cyan.meeting.resolution'].create({
+            'meeting_id': second.id, 'name': 'Shared item',
+            'responsible_id': self.history_reader.id, 'deadline': '2026-09-12',
+        })
+        self._complete(second)
+        self.assertEqual(
+            sorted(row['name'] for row in second.with_user(self.manager).minutes_snapshot['resolutions']),
+            ['Confidential item', 'Shared item'],
+        )
+
+        self.authenticate('meeting_history_reader', 'meeting_history_reader_pass')
+        detail = self.api('GET', f'/api/v1/meetings/{second.id}')
+        self.assertEqual(detail.status_code, 200, detail.text)
+        self.assertEqual([row['name'] for row in detail.json()['minutes_snapshot']['resolutions']], ['Shared item'])
+        versions = self.api('GET', f'/api/v1/meetings/{second.id}/versions')
+        self.assertEqual(versions.status_code, 200, versions.text)
+        self.assertEqual(versions.json()['total'], 1)
+        self.assertEqual(
+            [row['name'] for row in versions.json()['items'][0]['snapshot']['resolutions']], ['Shared item'],
+        )
+        self.assertNotIn('Confidential item', detail.text + versions.text)

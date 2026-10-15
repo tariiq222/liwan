@@ -19,17 +19,16 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
 
 <template>
   <div v-if="show" data-testid="project-finance-summary" class="grid gap-3">
-    <section v-if="mode === 'need-budget'" class="flex flex-wrap items-center justify-between gap-3 text-sm">
+    <SharedRecordSection v-if="mode === 'need-budget'" panel :title="t('projects.finance.actual')">
+      <template #actions>
+        <UButton v-if="canManage" icon="i-lucide-plus" :disabled="!hydrated" :to="budgetTo">{{ t('projects.finance.newBudget') }}</UButton>
+        <UButton color="neutral" variant="outline" :to="charterTo" :label="t('projects.refresh.finance.viewCharter')" />
+      </template>
       <div class="space-y-1">
-        <p class="text-muted">{{ t('projects.finance.actual') }}</p>
         <p class="text-2xl font-medium tracking-tight text-highlighted tabular-nums" dir="ltr">{{ formatNullableAmount(summary.actual, currency, unknown) }}</p>
         <p class="text-xs text-muted">{{ t('projects.finance.budgetUnknown') }} · {{ t('projects.finance.expenseCount', { count: summary.expense_count }, summary.expense_count) }}</p>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <UButton v-if="canManage" icon="i-lucide-plus" :disabled="!hydrated" :to="budgetTo">{{ t('projects.finance.newBudget') }}</UButton>
-        <UButton color="neutral" variant="outline" :to="charterTo" :label="t('projects.refresh.finance.viewCharter')" />
-      </div>
-    </section>
+    </SharedRecordSection>
 
     <section v-else-if="mode === 'dashboard'" class="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>:last-child:nth-child(odd)]:col-span-2 sm:[&>:last-child:nth-child(odd)]:col-span-1 max-sm:[&_[data-slot=body]]:gap-2 max-sm:[&_[data-slot=body]]:p-3 max-sm:[&_[data-slot=body]>span]:hidden">
       <SharedMetricTile
@@ -60,13 +59,14 @@ const show = computed(() => mode.value !== 'empty' || props.summary.charter_esti
       </SharedMetricTile>
     </section>
 
-    <div v-if="showCharter" data-testid="project-finance-charter" class="flex flex-wrap items-center justify-between gap-3 text-sm">
+    <SharedRecordSection v-if="showCharter" panel data-testid="project-finance-charter" :title="t('projects.finance.charterEstimate')">
+      <template #actions>
+        <UButton color="neutral" variant="outline" :to="charterTo" :label="t('projects.refresh.finance.viewCharter')" />
+      </template>
       <div class="space-y-1">
-        <p class="text-muted">{{ t('projects.finance.charterEstimate') }}</p>
-        <p v-if="summary.charter_estimate != null" class="font-medium tabular-nums text-highlighted" dir="ltr">{{ formatNullableAmount(summary.charter_estimate, currency, unknown) }}</p>
+        <p v-if="summary.charter_estimate != null" class="text-sm font-medium tabular-nums text-highlighted" dir="ltr">{{ formatNullableAmount(summary.charter_estimate, currency, unknown) }}</p>
         <p class="text-xs text-muted">{{ t('projects.finance.charterHint') }}</p>
       </div>
-      <UButton color="neutral" variant="outline" :to="charterTo" :label="t('projects.refresh.finance.viewCharter')" />
-    </div>
+    </SharedRecordSection>
   </div>
 </template>

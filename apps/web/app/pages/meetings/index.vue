@@ -200,7 +200,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return formatNasqTime(parsed, locale.value)
+  return hydrated.value ? formatNasqTime(parsed, locale.value) : ''
 }
 
 function meetingRecordNumber(meeting: { reference: string; id: number }) {

@@ -6,7 +6,7 @@ type MeetingVersion = {
   number: number
   captured_at: string
   actor: { id: number; name: string } | null
-  snapshot: Record<string, unknown>
+  snapshot: Record<string, unknown> | null
 }
 
 const props = withDefaults(defineProps<{

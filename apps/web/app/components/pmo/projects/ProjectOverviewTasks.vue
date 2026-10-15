@@ -20,13 +20,13 @@ function deadlineLabel(value: string | null) {
 </script>
 
 <template>
-  <SharedRecordSection data-testid="project-active-tasks" :title="t('projects.overview.needsAttention')">
+  <SharedRecordSection panel data-testid="project-active-tasks" :title="t('projects.overview.needsAttention')">
     <template #actions>
       <NuxtLink :to="`/projects/${props.projectId}/tasks`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
         {{ t('projects.overview.viewTasks') }}
       </NuxtLink>
     </template>
-    <div class="rounded-lg bg-default p-4 ring ring-default">
+    <div>
       <div v-if="isLoading" class="space-y-3" data-testid="project-active-tasks-loading">
         <SharedLoadingSkeleton :count="3" />
       </div>

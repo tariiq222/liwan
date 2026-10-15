@@ -3,6 +3,7 @@ from datetime import date, datetime, timezone
 from urllib.parse import urlsplit
 
 from odoo import fields, http
+from odoo.exceptions import UserError
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import (
@@ -61,6 +62,25 @@ def _parse_url(value, field='meeting_url'):
     if not value or parsed.scheme not in {'http', 'https'} or not parsed.netloc or any(char.isspace() for char in value):
         raise ApiError(422, 'invalid', '%s must be a valid HTTP(S) URL' % field, field=field)
     return value
+
+
+def _validate_internal_user(user_id, field):
+    parsed = parse_positive_int(user_id, field)
+    if not request.env['nasq.directory']._nasq_people([parsed]):
+        raise ApiError(422, 'invalid', '%s must be an active internal user in the current company' % field, field=field)
+    return parsed
+
+
+def _validate_internal_users(user_ids, field):
+    if not isinstance(user_ids, list):
+        raise ApiError(422, 'invalid', '%s must be a list' % field, field=field)
+    parsed = [parse_positive_int(item, field) for item in user_ids]
+    if not parsed:
+        return []
+    users = request.env['nasq.directory']._nasq_people(parsed)
+    if set(users.ids) != set(parsed):
+        raise ApiError(422, 'invalid', '%s must contain only active internal users in the current company' % field, field=field)
+    return parsed
 
 
 def _user_calendar_day(value):
@@ -209,10 +229,10 @@ class MeetingController(http.Controller):
         if 'secretary_id' in body:
             vals['secretary_id'] = (
                 False if secretary_id is None
-                else parse_positive_int(secretary_id, 'secretary_id')
+                else _validate_internal_user(secretary_id, 'secretary_id')
             )
-        if isinstance(attendee_ids, list):
-            vals['attendee_ids'] = [(6, 0, [parse_positive_int(item, 'attendee_ids') for item in attendee_ids])]
+        if attendee_ids is not None:
+            vals['attendee_ids'] = [(6, 0, _validate_internal_users(attendee_ids, 'attendee_ids'))]
         if isinstance(agenda, str):
             vals['agenda'] = agenda
         if series_id:
@@ -252,11 +272,9 @@ class MeetingController(http.Controller):
         if 'meeting_date' in payload:
             vals['meeting_date'] = _parse_day(payload['meeting_date'], 'meeting_date')
         if 'secretary_id' in payload:
-            vals['secretary_id'] = parse_positive_int(payload['secretary_id'], 'secretary_id') if payload['secretary_id'] else False
+            vals['secretary_id'] = _validate_internal_user(payload['secretary_id'], 'secretary_id') if payload['secretary_id'] else False
         if 'attendee_ids' in payload:
-            if not isinstance(payload['attendee_ids'], list):
-                raise ApiError(422, 'invalid', 'attendee_ids must be a list', field='attendee_ids')
-            vals['attendee_ids'] = [(6, 0, [parse_positive_int(item, 'attendee_ids') for item in payload['attendee_ids']])]
+            vals['attendee_ids'] = [(6, 0, _validate_internal_users(payload['attendee_ids'], 'attendee_ids'))]
         schedule_days = {}
         for field in ('start_datetime', 'end_datetime'):
             value, present = _parse_schedule_value(payload, field, allow_null=True)
@@ -314,7 +332,10 @@ class MeetingController(http.Controller):
         meeting = get_record('cyan.meeting.minute', meeting_id)
         if scope not in {'this', 'this_and_following'}:
             raise ApiError(422, 'invalid', 'invalid scope', field='scope')
-        meeting.action_cancel_scope(scope)
+        try:
+            meeting.action_cancel_scope(scope)
+        except UserError as e:
+            raise ApiError(403, 'transition_forbidden', str(e)) from e
         return dump_meeting(meeting, detail=True)
 
     @http.route('/api/v1/meetings/<int:meeting_id>/resolutions', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -382,6 +403,10 @@ class MeetingController(http.Controller):
     def complete_meeting(self, meeting_id, **_):
         request.env['nasq.access.service']._nasq_require_capability('meetings.read')
         meeting = get_record('cyan.meeting.minute', meeting_id)
+        gap = meeting._nasq_completion_gap()
+        if gap:
+            field, message = gap
+            raise ApiError(422, 'invalid', message, field=field)
         meeting.action_done()
         return dump_meeting(meeting, detail=True)
 

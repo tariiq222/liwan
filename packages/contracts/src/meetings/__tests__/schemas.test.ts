@@ -71,6 +71,12 @@ describe('meeting contracts', () => {
     }).attendees).toHaveLength(1)
   })
 
+  it('strips unknown response keys but still rejects unknown request keys', () => {
+    expect(MeetingListSchema.parse({ items: [{ ...ITEM, server_only: 1 }], total: 1 }).items[0]).not.toHaveProperty('server_only')
+    expect(MeetingCreateSchema.safeParse({ name: 'Strict', server_only: 1 }).success).toBe(false)
+    expect(MeetingPatchSchema.safeParse({ name: 'Strict', server_only: 1 }).success).toBe(false)
+  })
+
   it('keeps minutes_snapshot additive for legacy detail payloads', () => {
     const legacy = {
       id: 1,
