@@ -20,7 +20,8 @@ suite('legacy → SaaS commercial migration (C1)', () => {
   const pool = new Pool({ connectionString: url, max: 6 })
   const actor = { issuer: `c1-${randomUUID()}`, actorUid: 7 }
   const reason = 'Legacy migration fixture'
-  const T = { catalogOnly: randomUUID(), pkg: randomUUID(), nonSaas: randomUUID(), noBilling: randomUUID(), zero: randomUUID() }
+  const T = { catalogOnly: randomUUID(), pkg: randomUUID(), nonSaas: randomUUID(), noBilling: randomUUID(), zero: randomUUID(), commercial: randomUUID(), enrolling: randomUUID() }
+  const commercialCustomers = { bound: randomUUID(), enrolling: randomUUID() }
   let version = '', pkgAuthority: any, pkgJob: any, pkgRevision: any
   let runningJobId = '', jobCountBefore = 0, publishedIds: string[] = [], tenantsBefore: string[] = [], policyBefore: Record<string, string> = {}
 
@@ -76,6 +77,12 @@ suite('legacy → SaaS commercial migration (C1)', () => {
       VALUES($1,$2,$7,$3,$4,$5,7,'run','running',$6,1,now()+interval '1 hour')`, [runningJobId, T.catalogOnly, { operation: 'provision', binding: cb }, 'a'.repeat(64), actor.issuer, randomUUID(), `run-${runningJobId}`])
     await addTenant(T.noBilling) // no catalog, no policy, no billing at all
     await addTenant(T.nonSaas, { mode: 'non_saas', hosting: 'customer_hosted', desired: { n: 1 } })
+    // tenants the commercial journey provisioned: one bound to its customer, one still being enrolled
+    await addTenant(T.commercial, { catalog_version: version, catalog_tier: 'projects', desired: { c: 1 } })
+    await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [commercialCustomers.bound, 'Commercial bound', T.commercial])
+    await pool.query("INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,'active')", [randomUUID(), commercialCustomers.bound, T.commercial])
+    await addTenant(T.enrolling)
+    await pool.query('INSERT INTO customers(id,name,enrollment_request_id) VALUES($1,$2,$3)', [commercialCustomers.enrolling, 'Commercial enrolling', T.enrolling])
 
     publishedIds = (await pool.query("SELECT id FROM package_revisions WHERE status='published' ORDER BY id")).rows.map(r => r.id)
     tenantsBefore = await tenantRowSnapshot(pool)
@@ -87,7 +94,7 @@ suite('legacy → SaaS commercial migration (C1)', () => {
   it('dry-run reports counts, writes nothing, and leaves no run row', async () => {
     const before = { m: await countOf('legacy_mappings'), c: await countOf('customers'), s: await countOf('subscriptions'), b: await countOf('bundle_revisions'), r: await countOf('catalog_releases'), runs: await countOf('migration_runs') }
     const rep = await migrateLegacyToSaas(pool, { mode: 'dry_run' })
-    expect(rep.counts).toEqual({ saas_package: 2, saas_catalog_only: 2, non_saas: 1, package_published: 2, package_skipped: 2, errors: 0 })
+    expect(rep.counts).toEqual({ saas_package: 2, saas_catalog_only: 2, saas_commercial: 2, non_saas: 1, package_published: 2, package_skipped: 2, errors: 0 })
     expect(rep.errors).toEqual([])
     expect({ m: await countOf('legacy_mappings'), c: await countOf('customers'), s: await countOf('subscriptions'), b: await countOf('bundle_revisions'), r: await countOf('catalog_releases'), runs: await countOf('migration_runs') }).toEqual(before)
     expect(await tenantRowSnapshot(pool)).toEqual(tenantsBefore)
@@ -131,7 +138,7 @@ suite('legacy → SaaS commercial migration (C1)', () => {
 
   it('creates customers pending+setup_required for saas tenants only; non-saas excluded', async () => {
     const saas = [T.catalogOnly, T.pkg, T.noBilling, T.zero]
-    const cu = (await pool.query('SELECT * FROM customers ORDER BY id')).rows
+    const cu = (await pool.query('SELECT * FROM customers WHERE NOT (id = ANY($1::uuid[])) ORDER BY id', [Object.values(commercialCustomers)])).rows
     expect(cu).toHaveLength(4)
     for (const t of saas) {
       const c = cu.find(x => x.tenant_id === t)!
@@ -146,6 +153,21 @@ suite('legacy → SaaS commercial migration (C1)', () => {
     expect(cu.find(x => x.tenant_id === T.nonSaas)).toBeUndefined()
   })
 
+  it('skips commercially provisioned tenants: no mapping, customer or subscription is written for them', async () => {
+    const ids = [T.commercial, T.enrolling]
+    expect((await mappings()).filter(x => ids.includes(x.source_id))).toEqual([])
+    const owned = (await pool.query('SELECT id,tenant_id,enrollment_request_id,commercial_setup_required FROM customers WHERE tenant_id = ANY($1::uuid[]) OR enrollment_request_id = ANY($1::uuid[]) ORDER BY name', [ids])).rows
+    expect(owned).toEqual([
+      { id: commercialCustomers.bound, tenant_id: T.commercial, enrollment_request_id: null, commercial_setup_required: false },
+      { id: commercialCustomers.enrolling, tenant_id: null, enrollment_request_id: T.enrolling, commercial_setup_required: false },
+    ])
+    expect((await pool.query('SELECT customer_id,state,legacy_source FROM subscriptions WHERE tenant_id = ANY($1::uuid[])', [ids])).rows)
+      .toEqual([{ customer_id: commercialCustomers.bound, state: 'active', legacy_source: null }])
+    const rerun = await migrateLegacyToSaas(pool, { mode: 'run' })
+    expect(rerun.errors).toEqual([]); expect(rerun.counts.saas_commercial).toBe(2); expect(rerun.created).toEqual({})
+    expect(rerun.skipped_commercial.sort()).toEqual([...ids].sort())
+  })
+
   it('creates no quote/order/invoice/payment rows and leaves tenants, policies and shared jobs untouched', async () => {
     for (const t of COMMERCIAL_ZERO) expect(await countOf(t)).toBe(0)
     expect(await tenantRowSnapshot(pool)).toEqual(tenantsBefore)
@@ -156,5 +178,33 @@ suite('legacy → SaaS commercial migration (C1)', () => {
 
   it('legacy package job authority still resolves for the migrated tenant', async () => {
     expect(await resolvePackageJobAuthority(pool, pkgJob)).toEqual(pkgAuthority)
+  })
+  it('honours a commercial enrollment that appears after the inventory and counts it as commercial', async () => {
+    const late = randomUUID(), customer = randomUUID()
+    await addTenant(late)
+    const report = await migrateLegacyToSaas(pool, { mode: 'run', afterRow: async n => {
+      if (n === 1) await pool.query('INSERT INTO customers(id,name,enrollment_request_id) VALUES($1,$2,$3)', [customer, 'Late enrolment', late])
+    } })
+    expect(report.errors).toEqual([])
+    expect(report.skipped_commercial).toContain(late)
+    expect(report.counts).toMatchObject({ saas_catalog_only: 2, saas_commercial: 3 })
+    expect((await pool.query('SELECT id FROM customers WHERE tenant_id=$1 OR enrollment_request_id=$1', [late])).rows).toEqual([{ id: customer }])
+    expect((await mappings()).filter(x => x.source_id === late)).toEqual([])
+  })
+
+  it('reports, never skips, a tenant whose ownership is not proven or is contested', async () => {
+    const boundOnly = randomUUID(), contested = randomUUID()
+    await addTenant(boundOnly)
+    await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [randomUUID(), 'Bound without subscription', boundOnly])
+    await addTenant(contested)
+    await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [uuidv5(`customer:${contested}`), 'Legacy', contested])
+    await pool.query('INSERT INTO customers(id,name,enrollment_request_id) VALUES($1,$2,$3)', [randomUUID(), 'Enrolling', contested])
+    const report = await migrateLegacyToSaas(pool, { mode: 'dry_run' })
+    expect(report.errors.sort((a, b) => a.source_id.localeCompare(b.source_id))).toEqual([
+      { source_kind: 'tenant', source_id: boundOnly, code: 'customer_conflict' },
+      { source_kind: 'tenant', source_id: contested, code: 'ownership_conflict' },
+    ].sort((a, b) => a.source_id.localeCompare(b.source_id)))
+    expect(report.skipped_commercial).not.toContain(boundOnly)
+    expect(report.skipped_commercial).not.toContain(contested)
   })
 })

@@ -148,6 +148,9 @@ html { caret-color: var(--brand-link); }
     color: #000;
   }
   .nasq-print * { box-shadow: none !important; }
+  /* SharedRecordSection panel: a card on screen, flat on paper. */
+  .nasq-print .nasq-record-panel { background: transparent; border-radius: 0; break-inside: avoid; }
+  .nasq-print .nasq-record-panel > header { border-color: #000; }
   /* A wide document (the minutes' topic table) asks for landscape: the named page below is chosen by .nasq-print-landscape. */
   @page nasq-landscape { size: A4 landscape; margin: 12mm; }
   .nasq-print-landscape { page: nasq-landscape; }

@@ -356,7 +356,10 @@ function discardToServer() {
       :milestones-loading="milestonesLoading"
       :milestones-error="milestonesError"
       @retry-milestones="emit('retryMilestones')"
-    />
+    >
+      <template #state><slot name="state" /></template>
+      <template #actions><slot name="actions" /></template>
+    </ProjectCharterDisplay>
     <form v-else class="grid gap-6" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
       <div class="grid gap-3">
         <UStepper

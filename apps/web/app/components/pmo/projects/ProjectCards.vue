@@ -28,11 +28,11 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
 
 <template>
   <SharedLoadingSkeleton v-if="isLoading" variant="cards" :count="6" />
-  <div v-else class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+  <div v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
     <article
       v-for="project in items"
       :key="project.id"
-      class="cursor-pointer rounded-lg bg-default p-5 ring ring-default transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      class="cursor-pointer rounded-lg bg-default p-4 ring ring-default transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       data-testid="project-card"
       tabindex="0"
       :aria-labelledby="`project-card-${project.id}`"

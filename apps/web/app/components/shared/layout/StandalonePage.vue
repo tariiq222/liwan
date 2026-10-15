@@ -5,11 +5,15 @@
 // the shell (assets/css/components.css, @media print); its `footer` (print and back
 // actions) is not printed. The card's `#header` slot replaces the title heading when the page
 // needs more than a title (a logo and a sentence); the slot's owner then draws the `<h1>`.
+// `width` sets the on-screen width of a `print` page: `detail` for a document of its own,
+// `list` inside a frame whose tabs and band span the page (the project charter).
 const props = withDefaults(defineProps<{
   variant?: 'card' | 'print'
   title?: string
+  width?: 'detail' | 'list'
 }>(), {
   variant: 'card',
+  width: 'detail',
 })
 </script>
 
@@ -27,7 +31,7 @@ const props = withDefaults(defineProps<{
       </template>
     </UCard>
   </main>
-  <article v-else class="nasq-print nasq-page-width-detail grid min-w-0 gap-6" data-template="standalone-page" data-variant="print">
+  <article v-else :class="['nasq-print grid min-w-0 gap-6', props.width === 'list' ? 'nasq-page-width-list' : 'nasq-page-width-detail']" data-template="standalone-page" data-variant="print">
     <h1 v-if="props.title" class="text-2xl font-semibold text-highlighted">{{ props.title }}</h1>
     <slot />
     <footer v-if="$slots.footer" class="nasq-print-hide flex flex-wrap items-center justify-end gap-2">
