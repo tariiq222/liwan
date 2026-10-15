@@ -1,4 +1,4 @@
-import { TaskNotificationKindSchema } from '@nasq/contracts'
+import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@nasq/contracts'
 import type { AppManifest } from '../types'
 import { projectsSearch, tasksSearch } from './search'
 
@@ -44,6 +44,7 @@ const manifest: AppManifest = {
     capabilities: ['pmo.tasks.read'],
     kinds: [
       ...TaskNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/tasks/${row.task_id}`, title: (row: Record<string, unknown>) => String(row.task_name) })),
+      ...ProjectNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/projects/${row.project_id}/charter`, title: (row: Record<string, unknown>) => String(row.project_name) })),
       {
         kind: 'overdue_digest',
         href: row => `/notification-digests/${row.digest_id}`,

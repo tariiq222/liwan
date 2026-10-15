@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useNotifications, useMarkNotificationRead, isDigestNotification, isKnownNotification, type BellNotification } from '@/composables/useNotifications'
 import { bellKindFor } from '@/modules/surfaces'
-import { formatNotificationTimestamp, genericNotificationText, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
+import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind, notificationPreviewCaptionKey } from '@/utils/notificationPresentation'
 
 const { t, locale, localeProperties } = useI18n()
 const toast = useToast()
@@ -113,7 +113,7 @@ async function openNotification(item: BellNotification) {
                 <span class="min-w-0 break-words text-xs text-toned">{{ t(notificationPreviewCaptionKey(item.kind)) }}</span>
                 <span v-if="!item.is_read" class="sr-only">{{ t('notifications.unread') }}</span>
                 <span v-if="previewTitle(item)" class="min-w-0 break-words line-clamp-2 text-start text-sm font-medium"><bdi dir="auto">{{ previewTitle(item) }}</bdi></span>
-                <span v-if="item.kind === 'comment' || item.kind === 'mention' || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-toned"><bdi dir="auto">{{ item.body }}</bdi></span>
+                <span v-if="isUserWrittenNotificationKind(item.kind) || isDigestNotification(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-toned"><bdi dir="auto">{{ item.body }}</bdi></span>
                 <span v-else-if="previewSecondary(item)" class="min-w-0 break-words line-clamp-2 text-start text-xs text-toned"><bdi dir="auto">{{ previewSecondary(item) }}</bdi></span>
                 <time v-if="notificationTimestamp(item)" :datetime="notificationTimestamp(item)?.datetime" class="text-xs text-toned">{{ notificationTimestamp(item)?.label }}</time>
               </span>
