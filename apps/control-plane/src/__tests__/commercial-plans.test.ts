@@ -79,6 +79,10 @@ suite('commercial plans', () => {
     expect(codes(await mk({ platform_limits: { 'branches.extra_limit': 3 } }))).toContain('platform_limit_derived')
     expect(codes(await mk({ platform_limits: { 'projects.max_projects': 3 } }))).toContain('limit_not_supported')
     expect((await mk({ platform_limits: { 'users.limit': 10, 'storage.limit_mb': 100 } })).status).toBe(200)
+    // The required customer administrator counts against users.limit; http.ts maps this ZodError to 422 invalid.
+    await expect(api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 0, 'storage.limit_mb': null } })))
+      .rejects.toMatchObject({ issues: [expect.objectContaining({ path: ['platform_limits', 'users.limit'] })] })
+    expect((await mk({ platform_limits: { 'users.limit': 1, 'storage.limit_mb': null } })).status).toBe(200)
     const unpriced = await publishedBundle({ prices: [] })
     expect(codes(await mk({ optional_bundle_revision_ids: [unpriced.id] }))).toContain('price_missing')
     expect((await mk({ included_bundle_revision_ids: [unpriced.id] })).status).toBe(200)
