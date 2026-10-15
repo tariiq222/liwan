@@ -14,7 +14,7 @@ const items = [
 const meta = {
   title: 'Shared/Checklist',
   component: Checklist,
-  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55', 'قائمة قصيرة لبنود مرتبطة (المهام الفرعية): كل صف يفتح صفحته، مع تبديل اختياري للإنجاز ونموذج إضافة باسم. المعالجان `add` و`toggle` يمرّرهما التطبيق، ويمكن وضع شارة حالة في الفتحة `leading`.'),
+  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55', 'قائمة قصيرة لبنود مرتبطة (المهام الفرعية): كل صف يفتح صفحته، مع تبديل اختياري للإنجاز ونموذج إضافة باسم. المعالجان `add` و`toggle` يمرّرهما التطبيق، ويمكن وضع شارة حالة في الفتحة `leading`.'),
   args: {
     items,
     emptyText: 'لا مهام فرعية بعد',

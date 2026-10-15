@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import MyTaskForm from '@/components/my-tasks/MyTaskForm.vue'
+import MyTaskForm from '@/components/personal-tasks/MyTaskForm.vue'
 import { useCreateMyTask } from '@/composables/useMyTasks'
 import { ApiError } from '@/composables/useApi'
 import { myTaskFormField } from '@/utils/myTaskPayload'

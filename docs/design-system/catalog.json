@@ -1025,27 +1025,27 @@
         {
           "id": "Writable",
           "name": "قابل للتعديل",
-          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
         },
         {
           "id": "ReadOnly",
           "name": "للقراءة فقط",
-          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
         },
         {
           "id": "Empty",
           "name": "بلا مرفقات",
-          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
         },
         {
           "id": "Loading",
           "name": "قيد التحميل",
-          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
         },
         {
           "id": "WithError",
           "name": "خطأ من الرفع",
-          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
         }
       ]
     },
@@ -1221,22 +1221,22 @@
         {
           "id": "Editable",
           "name": "قابلة للتعديل",
-          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
         },
         {
           "id": "ReadOnly",
           "name": "للقراءة فقط",
-          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
         },
         {
           "id": "Empty",
           "name": "بلا بنود",
-          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
         },
         {
           "id": "WithError",
           "name": "خطأ من الخادم",
-          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
         }
       ]
     },
@@ -1351,27 +1351,27 @@
         {
           "id": "Plain",
           "name": "نص عادي",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
         },
         {
           "id": "WithLabel",
           "name": "بعنوان وتلميح",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
         },
         {
           "id": "Pending",
           "name": "أثناء النشر",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
         },
         {
           "id": "TooLong",
           "name": "تعليق أطول من المسموح",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
         },
         {
           "id": "ServerError",
           "name": "خطأ من الخادم",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
         }
       ]
     },
@@ -1421,17 +1421,17 @@
         {
           "id": "WithComposer",
           "name": "مع نموذج الكتابة",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:47"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
         },
         {
           "id": "Empty",
           "name": "بلا تعليقات",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:47"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
         },
         {
           "id": "Loading",
           "name": "قيد التحميل",
-          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:47"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
         }
       ]
     },

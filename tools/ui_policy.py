@@ -34,6 +34,7 @@ COMPONENTS = APP + 'components/'
 COMPONENT_PREFIXES = {
     'pmo/projects/': 'Project',
     'pmo/tasks/': 'Task',
+    'personal-tasks/': 'MyTasks',
 }
 PAGES = APP + 'pages/'
 LAYOUTS = APP + 'layouts/'

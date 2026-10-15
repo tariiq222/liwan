@@ -8,7 +8,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/CommentComposer',
   component: CommentComposer,
-  parameters: storyContext('apps/web/app/components/my-tasks/MyTaskComments.vue:56', 'حقل تعليق وزر نشر. التطبيق يملك النص والتحقق والطلب؛ ويعلّق قائمة الإشارات `@` و`/` على الفتحة `below` وأحداث الحقل كما في `pmo/tasks/CommentComposer.vue`.'),
+  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskComments.vue:56', 'حقل تعليق وزر نشر. التطبيق يملك النص والتحقق والطلب؛ ويعلّق قائمة الإشارات `@` و`/` على الفتحة `below` وأحداث الحقل كما في `pmo/tasks/CommentComposer.vue`.'),
   args: { modelValue: '', placeholder: 'اكتب تعليقًا', submitLabel: 'نشر التعليق', onSubmit: fn() },
   render: args => ({
     components: { CommentComposer },

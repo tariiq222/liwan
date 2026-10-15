@@ -43,6 +43,7 @@ export default defineNuxtConfig({
   components: [
     { path: '~/components/pmo/projects', prefix: 'Project', ignore: ['**/__tests__/**'] },
     { path: '~/components/pmo/tasks', prefix: 'Task', ignore: ['**/__tests__/**'] },
+    { path: '~/components/personal-tasks', prefix: 'MyTasks', ignore: ['**/__tests__/**'] },
     { path: '~/components', ignore: ['**/__tests__/**'] },
   ],
   app: {
