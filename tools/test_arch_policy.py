@@ -22,6 +22,7 @@ from arch_policy import (
     rule_totals,
     sql_on_odoo_tables,
     sudo_calls,
+    ui_layer_violations,
     unregistered_addons,
 )
 
@@ -337,6 +338,39 @@ class TestCollect(unittest.TestCase):
                    "<template><LazyChatSidebarPanel /><meetings-card /></template>\n")
         violations, _ = collect(self.root, self.layers)
         self.assertEqual(violations['R3'], {'web apps/web/app/components/shell/ShellHeader.vue': 3})
+
+    def test_shell_of_the_ui_layer_names_no_application(self):
+        self.clean_tree()
+        self.write('packages/ui/app/components/shell/ShellHeader.vue', '<template><TaskRow /></template>\n')
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R3'], {'web packages/ui/app/components/shell/ShellHeader.vue': 1})
+
+    def test_ui_layer_importing_an_app_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('packages/ui/app/components/Bad.vue', "<script setup>import x from 'apps/web/app/x'</script>\n")
+        self.write('packages/ui/app/composables/useBad.ts', "import { y } from '@/composables/y'\n")
+        self.write('packages/ui/app/assets/css/bad.css', "@import '~/assets/x.css';\n")
+        self.write('packages/ui/app/components/Good.vue', "<script setup>import z from './Good2.vue'</script>\n")
+        self.write('packages/ui/app/components/__tests__/Bad.test.ts', "import x from 'apps/web/app/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], [
+            'packages/ui/app/assets/css/bad.css',
+            'packages/ui/app/components/Bad.vue',
+            'packages/ui/app/composables/useBad.ts',
+        ])
+
+    def test_clean_ui_layer_passes(self):
+        self.clean_tree()
+        self.write('packages/ui/app/components/Good.vue', "<script setup>import { ref } from 'vue'</script>\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual(hard, [])
+
+    def test_ui_layer_patterns(self):
+        for bad in ("import a from 'odoo-addons/x'", "import '@nasq/contracts'", "from '~/x'", "require('../../apps/web/x')",
+                    "import c from '../control-plane/x'"):
+            self.assertEqual(ui_layer_violations(bad), 1, bad)
+        for good in ("import a from 'vue'", "import b from '@nasq/ui/app/x'", "import c from './apps-list'"):
+            self.assertEqual(ui_layer_violations(good), 0, good)
 
     def test_clean_tree_has_no_violations(self):
         self.clean_tree()
