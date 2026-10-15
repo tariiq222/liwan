@@ -29,8 +29,6 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 .schedule-gantt-focus { position: absolute; inset-block: 0; width: 0; pointer-events: none; }
 .schedule-gantt-track { position: relative; direction: ltr; min-height: 64px; border-block-end: 1px solid var(--border); background-image: linear-gradient(to right, var(--border) 1px, transparent 1px); background-size: calc(100% / var(--gantt-cols, 6)) 100%; background-repeat: repeat-x; }
 .schedule-gantt-dates { position: absolute; inset-inline-start: 10px; inset-block-end: 3px; font-size: 0.6875rem; color: var(--muted-foreground); }
-.schedule-gantt-today { position: absolute; inset-block: 0; border-inline-start: 1px dashed var(--foreground); opacity: 0.6; pointer-events: none; }
-.schedule-gantt-today-key { height: 12px; border-inline-start: 1px dashed var(--foreground); }
 .schedule-gantt-bar { position: absolute; top: 50%; height: 18px; min-width: 8px; border-radius: 999px; transform: translateY(-50%); }
 .schedule-gantt-bar-info { background: var(--status-info); }
 .schedule-gantt-bar-success { background: var(--status-success); }
