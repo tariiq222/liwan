@@ -11,6 +11,10 @@ import { returnToQuery } from '../../utils/safeReturnTo'
 import * as tabs from '../../utils/meetingTabs'
 import * as filters from '../../utils/meetingListFilters'
 import { parseOffset, firstQuery } from '../../utils/routeQuery'
+import { parsePositiveId } from '../../utils/routeParams'
+import { ApiError } from '../../composables/useApi'
+import { isCalendarDate } from '../../composables/calendarDate'
+import { useMeetingListQuerySync } from '../../composables/useMeetingListQuerySync'
 
 const root = resolve(import.meta.dirname, '../..')
 const read = (file: string) => readFileSync(resolve(root, file), 'utf8')
@@ -30,7 +34,7 @@ async function load(file: string, url: RouteLocationRaw) {
     ...recordNavigation,
     // Namespace metadata such as Node's `module.exports` is not a Function parameter.
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick,
-    ...tabs, ...filters, parseOffset, firstQuery, returnToQuery, _defineComponent: Vue.defineComponent,
+    ...tabs, ...filters, parseOffset, firstQuery, parsePositiveId, isCalendarDate, ApiError, returnToQuery, useMeetingListQuerySync, _defineComponent: Vue.defineComponent,
     onMounted: () => {}, onBeforeUnmount: () => {}, onUnmounted: () => {}, onScopeDispose: Vue.onScopeDispose,
     useNuxtApp: () => ({ hook: hooks.hook }),
     useRoute: () => router.currentRoute.value, useRouter: () => router,
@@ -67,6 +71,7 @@ function templateTo(page: Awaited<ReturnType<typeof load>>, marker: string, loca
   return new Function('scope', `with(scope) { return (${expression}) }`)(Object.assign(Object.create(Vue.proxyRefs(page.state)), locals)) as RouteLocationRaw
 }
 const meeting = 'pages/meetings/[id].vue'
+const resolutionsTab = 'components/meetings/MeetingResolutionsTab.vue'
 const employee = 'pages/hr/employees/[employeeId].vue'
 const series = 'pages/meetings/series/[id].vue'
 
@@ -100,12 +105,14 @@ describe('meeting and employee owning-list return context', () => {
   ])('keeps %s inside its meeting and preserves the calendar origin', async (marker, file) => {
     const origin = '/meetings/calendar?year=2026&month=10#day-9'
     const detail = await load(meeting, { path: '/meetings/7', query: { returnTo: origin, tab: 'minutes' }, hash: '#minutes' })
-    const child = await load(file, templateTo(detail, marker, { item: { id: 9 } }))
+    // The resolution links live in the resolutions tab component, which takes the meeting id as a prop.
+    const owner = marker.includes('Resolution') ? await load(resolutionsTab, { path: '/meetings/7', query: { returnTo: origin, tab: 'minutes' }, hash: '#minutes' }) : detail
+    const child = await load(file, templateTo(owner, marker, { item: { id: 9 }, meetingId: 7 }))
     expect(target(child).path).toBe('/meetings/7')
     const returned = await load(meeting, child.state.backTo.value)
     expect(target(returned).fullPath).toBe(origin)
     expect(returned.router.currentRoute.value.hash).toBe('#minutes')
-    detail.stop(); child.stop(); returned.stop()
+    detail.stop(); owner.stop(); child.stop(); returned.stop()
   })
 
   it('preserves series-list context through series settings', async () => {

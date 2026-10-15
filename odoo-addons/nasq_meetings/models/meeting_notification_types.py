@@ -12,7 +12,7 @@ from odoo.addons.nasq_meetings.serializers.meeting_notification import (
 )
 
 MEETING_KINDS = (
-    'meeting_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
+    'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
     'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
 )
 

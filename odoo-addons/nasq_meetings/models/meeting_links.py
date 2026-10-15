@@ -68,6 +68,6 @@ class NasqMeetingLinks(models.AbstractModel):
         return set()
 
     @api.model
-    def _nasq_readable_links(self, meeting, resolutions):
+    def _nasq_readable_links(self, resolutions):
         """``{resolution_id: {'task_id', 'state', 'company_id', 'project_id'}}`` of links the caller can read now."""
         return {}

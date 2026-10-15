@@ -85,8 +85,8 @@ class NasqMeetingProjectLinks(models.AbstractModel):
         return linked | {task.resolution_id for task in tasks}
 
     @api.model
-    def _nasq_readable_links(self, meeting, resolutions):
-        links = super()._nasq_readable_links(meeting, resolutions)
+    def _nasq_readable_links(self, resolutions):
+        links = super()._nasq_readable_links(resolutions)
         Task = self.env['project.task']
         can_read_tasks = self.env['nasq.access.service']._nasq_has_capability(
             self.env.user, 'pmo.tasks.read',

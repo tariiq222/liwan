@@ -8,7 +8,7 @@ from dateutil.rrule import MONTHLY, WEEKLY, rrule
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .meeting_minute import _CALENDAR_IMPORT
+from .meeting_minute import _CALENDAR_IMPORT, _SERIES_GENERATION
 from odoo.addons.calendar.models.calendar_recurrence import weekday_to_field
 
 MAX_OCCURRENCES = 60
@@ -189,6 +189,7 @@ class NasqMeetingSeries(models.Model):
             event_vals['month_by'] = 'date'
             event_vals['day'] = local_start.day
         token = _CALENDAR_IMPORT.set(True)
+        generation = _SERIES_GENERATION.set(True)
         try:
             event = self.env['calendar.event'].create(event_vals)
             recurrence = event.recurrence_id or self.env['calendar.recurrence'].search([
@@ -207,7 +208,13 @@ class NasqMeetingSeries(models.Model):
                 meeting._cyan_link_calendar_event(occurrence)
                 meetings |= meeting
         finally:
+            _SERIES_GENERATION.reset(generation)
             _CALENDAR_IMPORT.reset(token)
+        # One invitation names the series instead of one per occurrence.
+        meetings[:1]._nasq_notify_partners(
+            self._nasq_participants().mapped('partner_id') - self.env.user.partner_id,
+            'meeting_series_invite', self.name, key=f'meeting-series-invite:{self.id}',
+        )
         return meetings
 
 
