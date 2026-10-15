@@ -9,6 +9,7 @@ class NasqMeetingMailMessage(models.Model):
     # and the opaque id of the meeting a bell row points at.
     nasq_notification_kind = fields.Selection(selection_add=[
         ('meeting_invite', 'Meeting invite'),
+        ('meeting_series_invite', 'Meeting series invite'),
         ('meeting_resolution', 'Meeting resolution'),
         ('meeting_converted', 'Meeting converted'),
         ('meeting_changed', 'Meeting changed'),

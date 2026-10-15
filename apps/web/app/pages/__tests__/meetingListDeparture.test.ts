@@ -5,6 +5,7 @@ import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, onBeforeRouteLeave, onBeforeRouteUpdate, RouterLink, RouterView, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
 import { createHooks } from 'hookable'
+import { useMeetingListQuerySync } from '../../composables/useMeetingListQuerySync'
 import { expect, it } from 'vitest'
 import * as filters from '../../utils/meetingListFilters'
 import { parseOffset } from '../../utils/routeQuery'
@@ -33,7 +34,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
     ...filters, parseOffset, _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
     useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, returnToQuery,
-    useNuxtApp: () => ({ hook: hooks.hook.bind(hooks) }),
+    useMeetingListQuerySync, useNuxtApp: () => ({ hook: hooks.hook.bind(hooks) }),
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true),
     useAccess: () => ({ can: () => permission.value }),
     usePeople: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) }),

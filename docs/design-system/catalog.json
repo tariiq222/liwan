@@ -65,6 +65,286 @@
       ]
     },
     {
+      "name": "MeetingsMeetingAttachmentsTab",
+      "file": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue",
+      "story": "apps/web/stories/meetings/MeetingAttachmentsTab.stories.ts",
+      "title": "Meetings/MeetingAttachmentsTab",
+      "props": [
+        {
+          "name": "meetingId",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "canEdit",
+          "type": "boolean",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "count",
+          "payload": "[count: number]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UCard"
+      ],
+      "stories": [
+        {
+          "id": "Editable",
+          "name": "مع رفع وحذف",
+          "context": "apps/web/app/pages/meetings/[id].vue:275"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "للقراءة فقط",
+          "context": "apps/web/app/pages/meetings/[id].vue:275"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا مرفقات",
+          "context": "apps/web/app/pages/meetings/[id].vue:275"
+        }
+      ]
+    },
+    {
+      "name": "MeetingsMeetingEventList",
+      "file": "apps/web/app/components/meetings/MeetingEventList.vue",
+      "story": "apps/web/stories/meetings/MeetingEventList.stories.ts",
+      "title": "Meetings/MeetingEventList",
+      "props": [
+        {
+          "name": "events",
+          "type": "MeetingEvent[]",
+          "required": true
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "total",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "required": false,
+          "default": "1"
+        },
+        {
+          "name": "pageSize",
+          "type": "number",
+          "required": false,
+          "default": "25"
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        },
+        {
+          "name": "page",
+          "payload": "[page: number]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Populated",
+          "name": "سجل الأحداث",
+          "context": "apps/web/app/pages/meetings/[id].vue:234"
+        },
+        {
+          "id": "Paginated",
+          "name": "سجل بصفحات متعددة",
+          "context": "apps/web/app/pages/meetings/series/[id].vue:313"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا أحداث",
+          "context": "apps/web/app/pages/meetings/[id].vue:234"
+        },
+        {
+          "id": "Loading",
+          "name": "جارٍ التحميل",
+          "context": "apps/web/app/pages/meetings/[id].vue:234"
+        }
+      ]
+    },
+    {
+      "name": "MeetingsMeetingMinutesDocument",
+      "file": "apps/web/app/components/meetings/MeetingMinutesDocument.vue",
+      "story": "apps/web/stories/meetings/MeetingMinutesDocument.stories.ts",
+      "title": "خطة الإطلاق",
+      "props": [
+        {
+          "name": "form",
+          "type": "MeetingMinutesFormValue | null",
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "meeting",
+          "type": "MeetingMetadata",
+          "required": true
+        },
+        {
+          "name": "snapshot",
+          "type": "Partial<MeetingMetadata> | null",
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "recommendations",
+          "type": "MeetingMinutesRecommendation[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "legacyAgenda",
+          "type": "string | null",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "legacyMinutes",
+          "type": "string | null",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "legacyRecommendations",
+          "type": "MeetingMinutesRecommendation[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UCard"
+      ],
+      "stories": [
+        {
+          "id": "Structured",
+          "name": "محضر منظّم",
+          "context": "apps/web/app/pages/meetings/[id].vue:198"
+        },
+        {
+          "id": "Legacy",
+          "name": "محضر نصي قديم",
+          "context": "apps/web/app/pages/meetings/[id]/print.vue:82"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا مواضيع",
+          "context": "apps/web/app/pages/meetings/[id].vue:198"
+        }
+      ]
+    },
+    {
+      "name": "MeetingsMeetingMinutesForm",
+      "file": "apps/web/app/components/meetings/MeetingMinutesForm.vue",
+      "story": "apps/web/stories/meetings/MeetingMinutesForm.stories.ts",
+      "title": "خطة الإطلاق",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "MeetingMinutesFormValue",
+          "required": true
+        },
+        {
+          "name": "meeting",
+          "type": "MeetingMetadata",
+          "required": true
+        },
+        {
+          "name": "recommendations",
+          "type": "MeetingMinutesRecommendation[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "legacyAgenda",
+          "type": "string | null",
+          "required": false,
+          "default": "\"\""
+        },
+        {
+          "name": "readonly",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[value: MeetingMinutesFormValue]"
+        },
+        {
+          "name": "save-and-create-resolution",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UCheckbox",
+        "UInput",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Populated",
+          "name": "نموذج معبّأ",
+          "context": "apps/web/app/pages/meetings/[id]/minutes.vue:113"
+        },
+        {
+          "id": "Empty",
+          "name": "نموذج فارغ",
+          "context": "apps/web/app/pages/meetings/[id]/minutes.vue:113"
+        },
+        {
+          "id": "Pending",
+          "name": "أثناء الحفظ",
+          "context": "apps/web/app/pages/meetings/[id]/minutes.vue:113"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "للقراءة فقط",
+          "context": "apps/web/app/pages/meetings/[id]/minutes.vue:113"
+        }
+      ]
+    },
+    {
       "name": "MeetingsMeetingPeopleFields",
       "file": "apps/web/app/components/meetings/MeetingPeopleFields.vue",
       "story": "apps/web/stories/meetings/MeetingPeopleFields.stories.ts",
@@ -187,6 +467,245 @@
           "id": "WithLabel",
           "name": "بعنوان ظاهر في الفلاتر",
           "context": "apps/web/app/pages/meetings/series.vue:214"
+        }
+      ]
+    },
+    {
+      "name": "MeetingsMeetingRecordTabs",
+      "file": "apps/web/app/components/meetings/MeetingRecordTabs.vue",
+      "story": "apps/web/stories/meetings/MeetingRecordTabs.stories.ts",
+      "title": "Meetings/MeetingRecordTabs",
+      "props": [
+        {
+          "name": "tabs",
+          "type": "{ key: string; label: string; to: RouteLocationRaw; active: boolean }[]",
+          "required": true
+        },
+        {
+          "name": "logTabStart",
+          "type": "number",
+          "required": true,
+          "description": "Index of the first log tab; the strip draws a divider before it."
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Summary",
+          "name": "تبويب الملخص",
+          "context": "apps/web/app/pages/meetings/[id].vue:136"
+        },
+        {
+          "id": "LogTab",
+          "name": "تبويب السجل بعد الفاصل",
+          "context": "apps/web/app/pages/meetings/[id].vue:136"
+        }
+      ]
+    },
+    {
+      "name": "MeetingsMeetingResolutionsTab",
+      "file": "apps/web/app/components/meetings/MeetingResolutionsTab.vue",
+      "story": "apps/web/stories/meetings/MeetingResolutionsTab.stories.ts",
+      "title": "Meetings/MeetingResolutionsTab",
+      "props": [
+        {
+          "name": "meeting",
+          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"cancelled\" | \"confirmed\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; write_date: string; agenda: string; minutes: string; location: string; meeting_url: string; can_edit: boolean; can_manage: boolean; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"open\" | \"in_progress\" | \"cancelled\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; execution_state?: \"done\" | \"open\" | \"in_progress\" | \"cancelled\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; series: { id: number; name: string; } | null; project: { id: number; name: string; } | null; previous_resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"open\" | \"in_progress\" | \"cancelled\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; meeting_id: number; meeting_name: string; execution_state?: \"done\" | \"open\" | \"in_progress\" | \"cancelled\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; minutes_snapshot?: { name: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; location: string; organizer: { id: number; name: string; } | null; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; agenda: string; minutes: string; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"open\" | \"in_progress\" | \"cancelled\"; responsible: { id: number; name: string; } | null; result: string; meeting_name?: string | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; captured_at?: string | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; } | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; }",
+          "required": true
+        },
+        {
+          "name": "meetingId",
+          "type": "number",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "update:busy",
+          "payload": "[busy: boolean]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge",
+        "UButton",
+        "UCard",
+        "UInput",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "WithResolutions",
+          "name": "توصيات بحالات مختلفة",
+          "context": "apps/web/app/pages/meetings/[id].vue:273"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا توصيات",
+          "context": "apps/web/app/pages/meetings/[id].vue:273"
+        }
+      ]
+    },
+    {
+      "name": "MeetingsMeetingTimeline",
+      "file": "apps/web/app/components/meetings/MeetingTimeline.vue",
+      "story": "apps/web/stories/meetings/MeetingTimeline.stories.ts",
+      "title": "Meetings/MeetingTimeline",
+      "props": [
+        {
+          "name": "meetings",
+          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"cancelled\" | \"confirmed\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; }[]",
+          "required": true
+        },
+        {
+          "name": "nextMeetingId",
+          "type": "number | null",
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "view",
+          "type": "\"timeline\" | \"table\"",
+          "required": false,
+          "default": "\"timeline\""
+        },
+        {
+          "name": "preserveOrder",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "returnTo",
+          "type": "string",
+          "required": false,
+          "default": "undefined"
+        },
+        {
+          "name": "now",
+          "type": "Date",
+          "required": false,
+          "default": "undefined"
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge",
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Timeline",
+          "name": "خط زمني",
+          "context": "apps/web/app/pages/meetings/series/[id].vue:267"
+        },
+        {
+          "id": "Table",
+          "name": "جدول",
+          "context": "apps/web/app/pages/meetings/series/[id].vue:268"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا لقاءات",
+          "context": "apps/web/app/pages/meetings/series/[id].vue:268"
+        }
+      ]
+    },
+    {
+      "name": "MeetingsMeetingVersionList",
+      "file": "apps/web/app/components/meetings/MeetingVersionList.vue",
+      "story": "apps/web/stories/meetings/MeetingVersionList.stories.ts",
+      "title": "Meetings/MeetingVersionList",
+      "props": [
+        {
+          "name": "versions",
+          "type": "MeetingVersion[]",
+          "required": true
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "total",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "required": false,
+          "default": "1"
+        },
+        {
+          "name": "pageSize",
+          "type": "number",
+          "required": false,
+          "default": "25"
+        },
+        {
+          "name": "selectedId",
+          "type": "number | null",
+          "required": false,
+          "default": "null"
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        },
+        {
+          "name": "page",
+          "payload": "[page: number]"
+        },
+        {
+          "name": "select",
+          "payload": "[version: MeetingVersion]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Populated",
+          "name": "نسخ المحضر",
+          "context": "apps/web/app/pages/meetings/[id].vue:246"
+        },
+        {
+          "id": "Selected",
+          "name": "نسخة محددة",
+          "context": "apps/web/app/pages/meetings/[id].vue:246"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا نسخ",
+          "context": "apps/web/app/pages/meetings/[id].vue:246"
+        },
+        {
+          "id": "Loading",
+          "name": "جارٍ التحميل",
+          "context": "apps/web/app/pages/meetings/[id].vue:246"
         }
       ]
     },
@@ -1555,7 +2074,7 @@
         {
           "id": "Readonly",
           "name": "للقراءة فقط",
-          "context": "apps/web/app/pages/meetings/[id]/minutes.vue:116"
+          "context": "apps/web/app/pages/meetings/[id]/minutes.vue:125"
         }
       ]
     },
@@ -3089,12 +3608,12 @@
         {
           "id": "ActiveRow",
           "name": "صف الفلاتر النشطة",
-          "context": "apps/web/app/pages/meetings/index.vue:373"
+          "context": "apps/web/app/pages/meetings/index.vue:295"
         },
         {
           "id": "Disabled",
           "name": "معطّلة",
-          "context": "apps/web/app/pages/meetings/index.vue:373"
+          "context": "apps/web/app/pages/meetings/index.vue:295"
         }
       ]
     },
@@ -3147,22 +3666,22 @@
         {
           "id": "Chips",
           "name": "شرائح",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
+          "context": "apps/web/app/pages/meetings/index.vue:256"
         },
         {
           "id": "Multiple",
           "name": "اختيار متعدد",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
+          "context": "apps/web/app/pages/meetings/index.vue:256"
         },
         {
           "id": "Segment",
           "name": "شريط مقسّم",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
+          "context": "apps/web/app/pages/meetings/index.vue:256"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
+          "context": "apps/web/app/pages/meetings/index.vue:256"
         }
       ]
     },
@@ -3193,7 +3712,7 @@
         {
           "id": "InFilterPanel",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:335"
+          "context": "apps/web/app/pages/meetings/index.vue:257"
         }
       ]
     },
@@ -3810,7 +4329,7 @@
         {
           "id": "InFilterPopover",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:355"
+          "context": "apps/web/app/pages/meetings/index.vue:277"
         },
         {
           "id": "WithTime",
@@ -3866,7 +4385,7 @@
         {
           "id": "InMeetingAttachments",
           "name": "داخل مرفقات الاجتماع",
-          "context": "apps/web/app/pages/meetings/[id].vue:621"
+          "context": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83"
         },
         {
           "id": "InDocumentCard",
@@ -3876,7 +4395,7 @@
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/[id].vue:621"
+          "context": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83"
         }
       ]
     },

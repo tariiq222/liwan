@@ -16,6 +16,7 @@ from odoo.addons.nasq_meetings.serializers.meeting import (
 )
 
 MAX_WORKSPACE_PAGE = 100
+RESOLUTION_STATES = {'open', 'in_progress', 'done', 'cancelled'}
 
 
 def _page_args():
@@ -90,39 +91,30 @@ class MeetingWorkspaceController(http.Controller):
         series = get_record('nasq.meeting.series', series_id)
         limit, offset = _page_args()
         args = request.httprequest.args
-        query = (args.get('q') or '').strip().casefold()
+        query = (args.get('q') or '').strip()
         state = (args.get('state') or '').strip()
-        if state and state not in {'open', 'in_progress', 'done', 'cancelled', 'active', 'overdue'}:
+        if state and state not in RESOLUTION_STATES | {'active', 'overdue'}:
             raise ApiError(422, 'invalid', 'invalid state', field='state')
-        meetings = series.meeting_ids.filtered(lambda meeting: meeting.company_id == request.env.company)
+        domain = [
+            ('meeting_id.series_id', '=', series.id),
+            ('meeting_id.company_id', '=', request.env.company.id),
+        ]
+        if query:
+            domain += ['|', ('name', 'ilike', query), ('meeting_id.name', 'ilike', query)]
+        if state in RESOLUTION_STATES:
+            domain.append(('state', '=', state))
+        elif state:
+            domain.append(('state', 'in', ('open', 'in_progress')))
+        if state == 'overdue':
+            domain.append(('deadline', '<', fields.Date.context_today(request.env.user)))
         Resolution = request.env['cyan.meeting.resolution']
-        domain = [('meeting_id', 'in', meetings.ids)]
-        records = Resolution.search(domain, order='id asc')
+        # ``meeting_id`` orders by the meeting's own order (latest occurrence first).
+        records = Resolution.search(domain, order='meeting_id, sequence, id', limit=limit, offset=offset)
+        readable = request.env['nasq.meeting.links']._nasq_readable_links(records)
         items = []
-        seen = set()
         for resolution in records:
-            if resolution.id in seen:
-                continue
-            meeting = resolution.meeting_id
-            if query and query not in (resolution.name or '').casefold() and query not in (meeting.name or '').casefold():
-                continue
-            row = dump_resolution(resolution)
-            projected_state = row.get('execution_state') or row.get('state')
-            if state in {'open', 'in_progress', 'done', 'cancelled'} and projected_state != state:
-                continue
-            if state in {'active', 'overdue'} and projected_state not in {'open', 'in_progress'}:
-                continue
-            if state == 'overdue' and (not resolution.deadline or resolution.deadline >= fields.Date.context_today(request.env.user)):
-                continue
-            seen.add(resolution.id)
-            row['meeting_id'] = meeting.id
-            row['meeting_name'] = meeting.name
-            items.append((
-                (str(meeting.meeting_date or ''), str(meeting.start_datetime or ''), meeting.id),
-                resolution.sequence,
-                resolution.id,
-                row,
-            ))
-        items.sort(key=lambda item: (item[0], -item[1], -item[2]), reverse=True)
-        ordered = [item[3] for item in items]
-        return {'items': ordered[offset:offset + limit], 'total': len(ordered)}
+            row = dump_resolution(resolution, readable.get(resolution.id))
+            row['meeting_id'] = resolution.meeting_id.id
+            row['meeting_name'] = resolution.meeting_id.name
+            items.append(row)
+        return {'items': items, 'total': Resolution.search_count(domain)}

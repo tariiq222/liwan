@@ -11,6 +11,8 @@ import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPrev
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
 import { firstQuery } from '@/utils/routeQuery'
+import { parsePositiveId } from '@/utils/routeParams'
+import { ApiError } from '@/composables/useApi'
 
 type SeriesTab = 'sessions' | 'followup' | 'history' | 'details'
 const tabs: SeriesTab[] = ['sessions', 'followup', 'history', 'details']
@@ -21,9 +23,12 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const { me } = useMe()
-const id = computed(() => Number(route.params.id))
-const isDetail = computed(() => route.path === `/meetings/series/${id.value}`)
+const id = computed(() => parsePositiveId(route.params.id))
+// This page is also the parent of `[id]/edit`: only the bare record path is the detail view.
+const isDetail = computed(() => route.path === `/meetings/series/${route.params.id}`)
 const query = useMeetingSeries(computed(() => isDetail.value ? id.value : null))
+// An id that is not a canonical positive integer has no record to load and shows the same not-found state as an unknown id.
+const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const backTo = computed(() => owningListBack(route.query, SERIES_LIST_PATHS, route.hash))
 const now = ref(new Date())
 const headerDescription = computed(() => query.data.value ? `${query.data.value.organizer?.name || t('meetingTimeline.noOrganizer')} · ${t(`meetingsUi.recurrence.${query.data.value.recurrence}`)}` : undefined)
@@ -180,11 +185,11 @@ function setHistoryPage(page: number) {
 <template>
   <SharedRecordPage
     v-if="isDetail"
-    :title="query.data.value?.name ?? (query.error.value ? t('nav.meetingSeries') : '')"
+    :title="query.data.value?.name ?? (pageError ? t('nav.meetingSeries') : '')"
     :description="headerDescription"
     :back-to="backTo"
     :loading="query.isLoading.value"
-    :error="query.error.value"
+    :error="pageError"
     @retry="query.refetch()"
   >
     <template #actions>

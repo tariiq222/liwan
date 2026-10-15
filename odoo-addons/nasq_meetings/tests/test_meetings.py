@@ -576,3 +576,71 @@ class TestMeetingsApi(NasqMeetingsCase):
         meeting.invalidate_recordset()
         self.assertEqual(meeting.state, 'done')
         self.assertTrue(event.active)
+
+    def test_patch_with_a_stale_write_date_is_a_conflict(self):
+        self._grant_meeting_create()
+        meeting = self.env['cyan.meeting.minute'].create({
+            'name': 'Concurrent minutes', 'state': 'draft', 'organizer_id': self.employee.id,
+            'meeting_date': '2026-09-08',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        detail = self.api('GET', f'/api/v1/meetings/{meeting.id}').json()
+        self.assertEqual(detail['write_date'], fields.Datetime.to_string(meeting.write_date).replace(' ', 'T') + 'Z')
+        stale = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {
+            'minutes': '<p>stale</p>', 'write_date': '2000-01-01T00:00:00Z',
+        })
+        self.assertEqual(stale.status_code, 409, stale.text)
+        self.assertEqual((stale.json()['code'], stale.json()['field']), ('conflict', 'write_date'))
+        meeting.invalidate_recordset()
+        self.assertFalse(meeting.minutes)
+        malformed = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'minutes': '<p>x</p>', 'write_date': 'yesterday'})
+        self.assertEqual(malformed.status_code, 422, malformed.text)
+        current = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {
+            'minutes': '<p>fresh</p>', 'write_date': detail['write_date'],
+        })
+        self.assertEqual(current.status_code, 200, current.text)
+        self.assertEqual(current.json()['minutes'], '<p>fresh</p>')
+        self.assertIn('write_date', current.json())
+
+    def test_patch_with_null_series_id_detaches_the_meeting(self):
+        self._grant_meeting_create()
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Detach series', 'recurrence': 'none', 'organizer_id': self.employee.id,
+        })
+        meeting = self.env['cyan.meeting.minute'].create({
+            'name': 'Detached occurrence', 'state': 'draft', 'organizer_id': self.employee.id,
+            'series_id': series.id, 'meeting_date': '2026-09-08',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'series_id': None})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIsNone(response.json()['series_id'])
+        self.assertIsNone(response.json()['series'])
+        meeting.invalidate_recordset()
+        self.assertFalse(meeting.series_id)
+        self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {'series_id': 0}).status_code, 422)
+
+    def test_non_manager_transitions_and_attendee_edits_answer_403(self):
+        self._grant_meeting_create()
+        own = self.env['cyan.meeting.minute'].create({
+            'name': 'Organizer without manage', 'state': 'draft', 'organizer_id': self.employee.id,
+            'meeting_date': '2026-09-08',
+        })
+        self.manager.group_ids |= self.env.ref('nasq_meetings.group_cap_meetings_read')
+        attended = self.env['cyan.meeting.minute'].create({
+            'name': 'Attended only', 'state': 'draft', 'organizer_id': self.manager.id,
+            'attendee_ids': [(6, 0, self.employee.ids)], 'meeting_date': '2026-09-08',
+        })
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for action in ('complete', 'cancel', 'reopen'):
+            response = self.api('POST', f'/api/v1/meetings/{own.id}/{action}', {})
+            self.assertEqual(response.status_code, 403, (action, response.text))
+            self.assertEqual(response.json()['code'], 'forbidden', action)
+        own.invalidate_recordset()
+        self.assertEqual(own.state, 'draft')
+        edit = self.api('PATCH', f'/api/v1/meetings/{attended.id}', {'name': 'Hijacked'})
+        self.assertEqual(edit.status_code, 403, edit.text)
+        self.assertEqual(edit.json()['code'], 'forbidden')
+        attended.invalidate_recordset()
+        self.assertEqual(attended.name, 'Attended only')
+        self.assertEqual(self.api('PATCH', f'/api/v1/meetings/{own.id}', {'name': 'Renamed by organizer'}).status_code, 200)

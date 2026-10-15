@@ -173,7 +173,7 @@ class NasqMeetingHistory(models.Model):
         readable = {}
         if all_resolution_ids:
             resolutions = self.env['cyan.meeting.resolution'].browse(all_resolution_ids).exists()
-            readable = links._nasq_readable_links(self, resolutions)
+            readable = links._nasq_readable_links(resolutions)
 
         resolutions = []
         for origin, resolution in origins:

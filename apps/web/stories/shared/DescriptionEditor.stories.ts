@@ -29,6 +29,6 @@ export const WithContent: Story = {
 }
 export const Readonly: Story = {
   name: 'للقراءة فقط',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:116'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:125'),
   args: { readonly: true, modelValue: '<p>محضر معتمد لا يمكن تعديله.</p>' },
 }

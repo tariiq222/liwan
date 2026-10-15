@@ -8,6 +8,8 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 _CALENDAR_IMPORT = ContextVar('nasq_calendar_import', default=False)
 _CALENDAR_OUTBOUND = ContextVar('nasq_calendar_outbound', default=frozenset())
 _SCOPE_SCHEDULE_WRITE = ContextVar('nasq_scope_schedule_write', default=False)
+# Set by a series while it creates its occurrences: the series sends one invite per participant.
+_SERIES_GENERATION = ContextVar('nasq_series_generation', default=False)
 
 
 class CyanMeetingMinute(models.Model):
@@ -44,6 +46,8 @@ class CyanMeetingMinute(models.Model):
         for meeting in records:
             if not _CALENDAR_IMPORT.get():
                 meeting._nasq_sync_calendar()
+            if _SERIES_GENERATION.get():
+                continue
             partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
             meeting._nasq_notify_partners(partners, 'meeting_invite', meeting.name, key=f'meeting-invite:{meeting.id}')
         return records
@@ -172,6 +176,7 @@ class CyanMeetingMinute(models.Model):
         Resolution = self.env['cyan.meeting.resolution']
         resolutions = Resolution.search([
             ('state', 'not in', ('done', 'cancelled')),
+            ('meeting_id.state', '!=', 'cancelled'),
             ('deadline', '<', today),
         ])
         # A recommendation followed on a linked record (a converted task) gets no overdue reminder.
