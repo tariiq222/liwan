@@ -293,5 +293,7 @@ export function useMoveProjectPhase() {
       qc.setQueryData(projectKeys.detail(id), detail)
       invalidateProjectCaches(qc)
     },
+    // A refused gate or a stale token both mean the cached checks and write token are out of date.
+    onError: (_error, { id }) => qc.invalidateQueries({ queryKey: projectKeys.detail(id) }),
   })
 }

@@ -54,7 +54,7 @@ describe('ProjectPhaseGate', () => {
   })
   it('says a closed project is closed', async () => {
     const w = await render({ current: 'closed', next: null, previous: 'closing', next_checks: [] })
-    expect(w.has('project-phase-closed')).toBe(true)
+    expect(w.has('project-phase-closed-notice')).toBe(true)
     expect(w.has('project-phase-move')).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
 import type { ProjectPhaseState } from '@nasq/contracts'
 import { describe, expect, it } from 'vitest'
-import { canMoveForward, gateCheckRows, phaseErrorKey, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
+import { canMoveForward, gateCheckRows, phaseFailure, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
 
 describe('phaseSteps', () => {
   it('marks earlier steps done, the current one, and later steps upcoming', () => {
@@ -35,11 +35,19 @@ describe('canMoveForward', () => {
   })
 })
 
-describe('phaseErrorKey', () => {
-  it('maps codes to locale keys and never to server text', () => {
-    expect(phaseErrorKey(409, 'phase_gate')).toBe('projects.phase.errors.gate')
-    expect(phaseErrorKey(409, 'phase_step')).toBe('projects.phase.errors.step')
-    expect(phaseErrorKey(403, 'forbidden')).toBe('projects.phase.errors.forbidden')
-    expect(phaseErrorKey(500, undefined)).toBe('errors.generic')
+describe('phaseFailure', () => {
+  const failure = (status: number, code: string) => phaseFailure(Object.assign(new Error('server text'), { status, code }))
+  it('warns on a stale write', () => {
+    expect(failure(409, 'stale_write')).toEqual({ key: 'projects.phase.stale', color: 'warning' })
+  })
+  it('maps gate, step and permission failures to locale keys', () => {
+    expect(failure(409, 'phase_gate')).toEqual({ key: 'projects.phase.errors.gate', color: 'error' })
+    expect(failure(409, 'phase_step')).toEqual({ key: 'projects.phase.errors.step', color: 'error' })
+    expect(failure(403, 'forbidden')).toEqual({ key: 'projects.phase.errors.forbidden', color: 'error' })
+  })
+  it('falls back to the generic message for anything else, never server text', () => {
+    expect(failure(500, 'boom')).toEqual({ key: 'errors.generic', color: 'error' })
+    expect(phaseFailure(new Error('offline'))).toEqual({ key: 'errors.generic', color: 'error' })
+    expect(phaseFailure(undefined)).toEqual({ key: 'errors.generic', color: 'error' })
   })
 })

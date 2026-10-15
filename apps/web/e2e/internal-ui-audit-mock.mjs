@@ -442,12 +442,13 @@ async function handle(req, res) {
   if (method === 'POST' && phaseMove) {
     const p = allProjects().find(item => String(item.id) === phaseMove.id)
     if (!p) return fail(res, 404, 'not_found', 'project not found')
-    if (!p.can_manage) return fail(res, 403, 'forbidden', 'not allowed')
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     if (!PHASES.includes(body.phase)) return json(res, 422, { code: 'invalid', message: 'unknown phase', field: 'phase' })
+    if (!/^v\d+$/.test(body.expected_updated_at ?? '')) return json(res, 422, { code: 'invalid', message: 'expected_updated_at is required', field: 'expected_updated_at' })
     const entry = stateOf(p)
     if (body.expected_updated_at !== entry.updated_at) return fail(res, 409, 'stale_write', 'the project changed since it was loaded')
+    if (!p.can_manage) return fail(res, 403, 'forbidden', 'not allowed')
     const state = phaseState(p)
     if (body.phase !== state.next && body.phase !== state.previous) return fail(res, 409, 'phase_step', 'a project moves one phase at a time')
     if (body.phase === state.next && !state.next_checks.every(check => check.ok)) {

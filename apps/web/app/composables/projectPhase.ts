@@ -40,10 +40,12 @@ export function gateCheckRows(projectId: number, checks: readonly ProjectPhaseGa
 export const canMoveForward = (state: ProjectPhaseState, canManage: boolean): boolean =>
   canManage && state.next !== null && state.next_checks.every(check => check.ok)
 
-/** Locale key for a phase-move failure; server text is never shown. */
-export function phaseErrorKey(status: number | undefined, code: string | undefined): string {
-  if (code === 'phase_gate') return 'projects.phase.errors.gate'
-  if (code === 'phase_step') return 'projects.phase.errors.step'
-  if (status === 403) return 'projects.phase.errors.forbidden'
-  return 'errors.generic'
+/** What a failed phase move tells the user: a locale key and toast colour; server text is never shown. */
+export function phaseFailure(error: unknown): { key: string; color: 'warning' | 'error' } {
+  const { status, code } = (typeof error === 'object' && error !== null ? error : {}) as { status?: number; code?: string }
+  if (status === 409 && code === 'stale_write') return { key: 'projects.phase.stale', color: 'warning' }
+  if (code === 'phase_gate') return { key: 'projects.phase.errors.gate', color: 'error' }
+  if (code === 'phase_step') return { key: 'projects.phase.errors.step', color: 'error' }
+  if (status === 403) return { key: 'projects.phase.errors.forbidden', color: 'error' }
+  return { key: 'errors.generic', color: 'error' }
 }

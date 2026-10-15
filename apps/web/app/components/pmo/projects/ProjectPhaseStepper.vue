@@ -14,7 +14,7 @@ const steps = computed(() => phaseSteps(props.current))
       <span class="font-semibold text-highlighted">{{ t(PHASE_LABEL_KEY[current]) }}</span>
       <span class="tabular-nums text-muted">{{ t('projects.phase.position', { current: phaseNumber(current), total: PHASE_COUNT }) }}</span>
     </p>
-    <ol class="hidden items-center gap-2 text-sm sm:flex">
+    <ol class="hidden flex-wrap items-center gap-x-2 gap-y-1 text-sm sm:flex">
       <li
         v-for="(step, index) in steps"
         :key="step.phase"
@@ -32,7 +32,7 @@ const steps = computed(() => phaseSteps(props.current))
           <UIcon v-if="step.state === 'done'" name="i-lucide-check" class="size-3.5" />
           <template v-else>{{ index + 1 }}</template>
         </span>
-        {{ t(PHASE_LABEL_KEY[step.phase]) }}
+        <span v-if="step.state === 'done'" class="sr-only">{{ t('projects.phase.met') }}: </span>{{ t(PHASE_LABEL_KEY[step.phase]) }}
         <UIcon v-if="index < steps.length - 1" name="i-lucide-chevron-left" class="size-4 text-muted ltr:rotate-180" aria-hidden="true" />
       </li>
     </ol>

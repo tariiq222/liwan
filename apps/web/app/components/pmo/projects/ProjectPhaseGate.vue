@@ -1,9 +1,6 @@
 <script setup lang="ts">
-import { useQueryClient } from '@tanstack/vue-query'
 import type { ProjectDetail, ProjectPhase } from '@nasq/contracts'
-import { ApiError } from '@/composables/useApi'
-import { projectKeys } from '@/composables/projectKeys'
-import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, phaseErrorKey } from '@/composables/projectPhase'
+import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, phaseFailure } from '@/composables/projectPhase'
 import { useMoveProjectPhase } from '@/composables/useProjects'
 
 // The gate into the next phase: what it asks, a fix link per unmet check, and the
@@ -13,7 +10,6 @@ const props = defineProps<{ project: ProjectDetail }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
-const qc = useQueryClient()
 const { mutateAsync: move, isPending } = useMoveProjectPhase()
 
 const state = computed(() => props.project.phase_state)
@@ -31,20 +27,15 @@ async function run(phase: ProjectPhase) {
     stepBack.value = false
   } catch (error) {
     stepBack.value = false
-    const stale = error instanceof ApiError && error.status === 409 && error.code === 'stale_write'
-    toast.add({
-      title: stale ? t('projects.phase.stale') : t(phaseErrorKey(error instanceof ApiError ? error.status : undefined, error instanceof ApiError ? error.code : undefined)),
-      color: stale ? 'warning' : 'error',
-    })
-    // A refused gate or a stale token both mean the cached checks are out of date.
-    void qc.invalidateQueries({ queryKey: projectKeys.detail(props.project.id) })
+    const { key, color } = phaseFailure(error)
+    toast.add({ title: t(key), color })
   }
 }
 </script>
 
 <template>
   <section class="nasq-print-hide flex flex-col gap-3 rounded-lg border border-default p-4" data-testid="project-phase-gate">
-    <p v-if="isClosed" class="font-medium text-highlighted" data-testid="project-phase-closed">{{ t('projects.phase.closedNotice') }}</p>
+    <p v-if="isClosed" class="font-medium text-highlighted" data-testid="project-phase-closed-notice">{{ t('projects.phase.closedNotice') }}</p>
     <template v-else-if="state.next">
       <h2 class="text-base font-semibold text-highlighted">{{ t('projects.phase.gateTitle', { phase: phaseLabel(state.next) }) }}</h2>
       <ul v-if="rows.length" class="flex flex-col gap-2" data-testid="project-phase-checks">

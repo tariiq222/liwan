@@ -20,6 +20,10 @@ describe('ProjectPhaseStepper', () => {
     expect(html).toMatch(/data-testid="project-phase-initiating" data-state="done"/)
     expect(html).toMatch(/data-testid="project-phase-planning" data-state="current"/)
   })
+  it('names done steps for screen readers', async () => {
+    expect((await render('planning')).match(/projects\.phase\.met/g)).toHaveLength(1)
+    expect(await render('initiating')).not.toContain('projects.phase.met')
+  })
   it('gives the phone a compact current label with n of 5', async () => {
     expect(await render('executing')).toContain('projects.phase.steps.executing')
     expect(await render('executing')).toContain('projects.phase.position:3|5')
