@@ -1,5 +1,5 @@
 // Relative import: this module is unit-tested directly under plain vitest.
-import { plainShortcutBlocked, shortcutKey, type ShortcutKeyEvent } from '../shortcuts/keymap'
+import { plainShortcutBlocked, shortcutKey, type ShortcutKeyEvent } from '@nasq/ui/app/composables/shortcuts/keymap'
 
 export type SidebarShortcutEvent = ShortcutKeyEvent
 

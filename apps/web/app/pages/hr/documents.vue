@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
-import RecordNumber from '@/components/shared/data/RecordNumber.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
 import { useHrDocuments, type HrDocument } from '@/composables/useHrDocuments'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@/utils/safeReturnTo'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { UsageSnapshot } from '@nasq/commercial-contracts'
 import { formatBytes, usageDisplay } from '@/utils/vendorSubscriptions'
-import { formatDateTime } from '@/utils/formatDate'
+import { formatDateTime } from '@nasq/ui/app/utils/formatDate'
 import { usageMetricLabel } from '@/utils/subscription'
 const props = defineProps<{ usage?: UsageSnapshot | null }>()
 const { t, te, locale } = useI18n()

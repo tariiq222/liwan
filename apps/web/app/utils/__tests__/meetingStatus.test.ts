@@ -3,7 +3,7 @@ import {
   meetingStateBadge, meetingStateBadgeProps, meetingStateColor,
   resolutionStateBadge, resolutionStateBadgeProps, resolutionStateColor,
 } from '../meetingStatus'
-import { STATUS_COLOR } from '../statusTone'
+import { STATUS_COLOR } from '@nasq/ui/app/utils/statusTone'
 
 describe('meeting status colours', () => {
   it('maps every meeting state to one semantic badge colour', () => {

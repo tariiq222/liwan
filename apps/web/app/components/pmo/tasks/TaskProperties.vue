@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
 import { CalendarDate, parseDate } from '@internationalized/date'
-import { formatNasqDate } from '@/composables/calendarDate'
+import { formatNasqDate } from '@nasq/ui/app/composables/calendarDate'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import { useUpdateTask } from '@/composables/useTasks'
 import { useMilestones } from '@/composables/useMilestones'

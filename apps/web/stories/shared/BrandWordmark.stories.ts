@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import BrandWordmark from '../../app/components/shared/layout/BrandWordmark.vue'
+import BrandWordmark from '@nasq/ui/app/components/shared/layout/BrandWordmark.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

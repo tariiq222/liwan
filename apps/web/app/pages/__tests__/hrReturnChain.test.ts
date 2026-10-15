@@ -6,6 +6,7 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
+import { layerFile } from '@nasq/ui/test/helpers/layerFile'
 import { returnToQuery } from '../../utils/safeReturnTo'
 import { fitOrgChart, layoutDepartmentOrgChart, nextOrgScale } from '../../lib/departmentOrgChart'
 import { buildDepartmentTree, filterDepartmentTree } from '../../lib/departmentTree'
@@ -115,7 +116,7 @@ describe('HR producer to consumer return chain', () => {
     const formProps = (await prop(create, 'DocumentCreateForm'))
     const form = await load('components/hr/DocumentCreateForm.vue', create.router.currentRoute.value.fullPath, { departmentId: 4, backTo: formProps['back-to'] })
     expect((await prop(form, 'UButton', p => p.label === 'app.cancel')).to).toEqual(create.state.backTo.value)
-    const panel = await load('components/shared/layout/CreatePanel.vue', create.router.currentRoute.value.fullPath, { title: 'New', backTo: (await prop(create, 'SharedCreatePanel'))['back-to'] })
+    const panel = await load(layerFile('app/components/shared/layout/CreatePanel.vue'), create.router.currentRoute.value.fullPath, { title: 'New', backTo: (await prop(create, 'SharedCreatePanel'))['back-to'] })
     await panel.state.onOpenUpdate(false)
     expect(panel.router.currentRoute.value.fullPath).toBe(producer.router.currentRoute.value.fullPath)
     form.state.name.value = 'Created'

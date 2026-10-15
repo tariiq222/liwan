@@ -1,12 +1,13 @@
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import * as statusTone from '../../../../utils/statusTone'
-import { renderShared } from '../../__tests__/helpers/renderShared'
+import * as statusTone from '@nasq/ui/app/utils/statusTone'
+import { renderShared } from '@nasq/ui/test/helpers/renderShared'
 
 const lines = [
   { id: 'a', description: 'Base', kind: { label: 'Base fee', tone: 'neutral' }, cells: [{ key: 'free', label: 'Free', value: '2' }, { key: 'period', label: 'Period', value: '2026-10-01 → 2026-10-31' }], amount: 'SAR 3.00' },
   { id: 'b', description: 'Discount', cells: [{ key: 'free', label: 'Free', value: '—' }, { key: 'period', label: 'Period', value: '2026-10-01 → 2026-10-31' }], amount: '-SAR 0.50' },
 ]
-const render = (props: Record<string, unknown>) => renderShared('InvoiceLines', props, {}, { modules: { '@/utils/statusTone': statusTone } })
+const render = (props: Record<string, unknown>) => renderShared(resolve(import.meta.dirname, '../InvoiceLines.vue'), props, {}, { modules: { '@nasq/ui/app/utils/statusTone': statusTone } })
 
 describe('InvoiceLines', () => {
   it('draws a table: description, the cell columns from the first line, then the amount', async () => {

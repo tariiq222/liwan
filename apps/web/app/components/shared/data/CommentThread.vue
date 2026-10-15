@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatNasqDateTime } from '@/composables/calendarDate'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
 export interface SharedComment { id: number; authorName: string | null; createdAt: string; body: string }
 

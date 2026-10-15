@@ -1,4 +1,4 @@
-import type { StatusTone } from '@/utils/statusTone'
+import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
 
 // Application-owned tone map; the shared badge owns the visual recipe.
 const tones: Record<string, StatusTone> = { draft: 'neutral', waiting: 'neutral', pending: 'info', returned: 'warning', rejected: 'destructive', withdrawn: 'neutral', done: 'success', approved: 'success', published: 'success', archived: 'neutral' }

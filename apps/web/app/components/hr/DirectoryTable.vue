@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import type { TableColumn } from '@nuxt/ui'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import { avatarProps } from '@/utils/avatarTone'
-import type { RowAction } from '@/components/shared/data/RowActions.vue'
+import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
 import { returnToQuery } from '@/utils/safeReturnTo'

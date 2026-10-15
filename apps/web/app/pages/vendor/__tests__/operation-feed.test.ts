@@ -7,7 +7,7 @@ import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
 import { invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/commercialBadges'
 import { safeReturnTo } from '../../../utils/safeReturnTo'
-import { formatNasqDateTime } from '../../../composables/calendarDate'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
 async function page(name: string, data: unknown, source?: string) {
   const filename = resolve(import.meta.dirname, '..', name)

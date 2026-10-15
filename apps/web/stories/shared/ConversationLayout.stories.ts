@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import ConversationLayout from '../../app/components/shared/layout/ConversationLayout.vue'
-import EmptyState from '../../app/components/shared/feedback/EmptyState.vue'
+import ConversationLayout from '@nasq/ui/app/components/shared/layout/ConversationLayout.vue'
+import EmptyState from '@nasq/ui/app/components/shared/feedback/EmptyState.vue'
 import { storyContext } from '../support/context'
 
 const PEOPLE = ['سارة القحطاني', 'فريق المشاريع', 'خالد العتيبي']

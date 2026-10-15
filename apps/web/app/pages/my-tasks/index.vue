@@ -2,9 +2,9 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import MyTaskRow from '@/components/personal-tasks/MyTaskRow.vue'
-import { sectionTabsUi } from '@/utils/sectionTabs'
+import { sectionTabsUi } from '@nasq/ui/app/utils/sectionTabs'
 import { useMyTaskPages } from '@/composables/useMyTaskPages'
 import {
   dedupeById,

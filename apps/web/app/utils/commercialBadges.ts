@@ -1,5 +1,5 @@
 import { statusBadgeEntry, type StatusBadgeEntry } from './statusBadge'
-import type { StatusTone } from './statusTone'
+import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
 
 // Status tones for the vendor console and the subscription pages (DESIGN.md §2: tones are fixed; cancelled and void read as errors).
 // Pages translate `labelKey` at the call site and hand both to SharedStatusBadge. These maps take plain

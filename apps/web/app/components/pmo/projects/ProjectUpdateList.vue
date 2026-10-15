@@ -3,7 +3,7 @@ import type { ProjectStatus } from '@nasq/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { badgeLabel } from '@/utils/statusBadge'
 import type { ProjectUpdate } from '@nasq/contracts'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import { returnToQuery } from '@/utils/safeReturnTo'
 

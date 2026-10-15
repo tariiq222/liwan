@@ -8,6 +8,7 @@ import { refDebounced } from '@vueuse/core'
 import { createHooks } from 'hookable'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as hrSearch from '../useHrSearch'
+import { layerFile } from '@nasq/ui/test/helpers/layerFile'
 import { returnToQuery } from '../../utils/safeReturnTo'
 
 const testCase = { file: 'hr/documents.vue', base: '/hr/documents' }
@@ -72,7 +73,7 @@ function mountRealLink(view: Awaited<ReturnType<typeof mountList>>, part: 'name'
   const context: Record<string, unknown> = { ...view.state, row: part === 'name' ? { original: document } : document }
   if (part === 'create') {
     const start = /<SharedListPage\b[\s\S]*?>/.exec(template)![0].replace('SharedListPage', 'div')
-    const shared = readFileSync(resolve(import.meta.dirname, '../../components/shared/layout/ListPage.vue'), 'utf8')
+    const shared = readFileSync(layerFile('app/components/shared/layout/ListPage.vue'), 'utf8')
     const button = /<UButton\b[\s\S]*?<\/UButton>/.exec(shared)![0].replace(/UButton/g, 'RouterLink')
     markup = `${start}${button}</div>`
     context.props = { createTo: view.state.createTo.value }

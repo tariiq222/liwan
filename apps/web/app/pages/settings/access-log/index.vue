@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AuditAction } from '@nasq/contracts'
 import AuditTable from '@/components/access/audit/AuditTable.vue'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import { useAdminAuditLog, type AdminAuditListParams } from '@/composables/useAdminAudit'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'

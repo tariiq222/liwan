@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatNasqDateTime } from '@/composables/calendarDate'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/commercialBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@nasq/commercial-contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'

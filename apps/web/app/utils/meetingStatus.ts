@@ -1,5 +1,5 @@
 import { badgeLabel, statusBadgeEntry, type StatusBadgeEntry } from './statusBadge'
-import { STATUS_COLOR, type StatusTone } from './statusTone'
+import { STATUS_COLOR, type StatusTone } from '@nasq/ui/app/utils/statusTone'
 
 export type MeetingState = 'draft' | 'confirmed' | 'done' | 'cancelled'
 export type ResolutionState = 'open' | 'in_progress' | 'done' | 'cancelled'

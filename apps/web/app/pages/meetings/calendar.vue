@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMeetings } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
+import { formatCalendarDate, formatNasqTime } from '@nasq/ui/app/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'

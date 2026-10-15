@@ -9,7 +9,7 @@ import * as subscriptions from '../../../utils/vendorSubscriptions'
 import * as commercial from '../../../utils/vendorCommercial'
 import { invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/commercialBadges'
 import { safeReturnTo } from '../../../utils/safeReturnTo'
-import { formatNasqDate, formatNasqDateTime } from '../../../composables/calendarDate'
+import { formatNasqDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')

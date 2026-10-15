@@ -1,5 +1,5 @@
 import type { LocationQueryRaw } from 'vue-router'
-import { isCalendarDate } from '../composables/calendarDate'
+import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { parsePositiveId } from './routeParams'
 import { firstQuery } from './routeQuery'
 

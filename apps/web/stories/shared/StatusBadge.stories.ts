@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ProjectStatusSchema, TaskStateSchema } from '@nasq/contracts'
 import { useI18n } from 'vue-i18n'
-import StatusBadge from '../../app/components/shared/data/StatusBadge.vue'
+import StatusBadge from '@nasq/ui/app/components/shared/data/StatusBadge.vue'
 import { projectStatusBadge } from '../../app/composables/projectStatus'
 import { deadlineLabel, deadlineTone, taskStateBadge } from '../../app/composables/taskState'
 import { accessStateBadge } from '../../app/utils/accessStateBadge'

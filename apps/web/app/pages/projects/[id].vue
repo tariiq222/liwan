@@ -7,7 +7,7 @@ import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
 import { safeReturnTo } from '@/utils/safeReturnTo'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 
 const route = useRoute()
 const { t, locale } = useI18n()

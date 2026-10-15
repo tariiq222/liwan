@@ -6,7 +6,7 @@ import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellModel } from '@/composables/useShellModel'
 import { sidebarModel } from '@/composables/nav/sidebarModel'
 import { isSidebarToggleShortcut } from '@/composables/nav/sidebarShortcut'
-import { overlayOwnsEscape } from '@/composables/useEscapeBack'
+import { overlayOwnsEscape } from '@nasq/ui/app/composables/useEscapeBack'
 import { hasNoContextSidebar } from './noContextRoutes'
 
 // Desktop navigation: the module rail and the context sidebar, fed by one model.

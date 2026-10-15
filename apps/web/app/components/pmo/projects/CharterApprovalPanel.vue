@@ -2,7 +2,7 @@
 import { useQueryClient } from '@tanstack/vue-query'
 import { CHARTER_RETURN_NOTE_MAX, type ProjectCharterAction, type ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
-import { formatNasqDate } from '@/composables/calendarDate'
+import { formatNasqDate } from '@nasq/ui/app/composables/calendarDate'
 import { projectKeys } from '@/composables/projectKeys'
 import { useCharterTransition } from '@/composables/useProjects'
 

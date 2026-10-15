@@ -3,7 +3,7 @@ import { recordParentTo, SERIES_LIST_PATHS } from '@/utils/recordListOrigin'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { usePatchMeetingSeriesSettings } from '@/composables/useMeetingSeriesSettings'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()

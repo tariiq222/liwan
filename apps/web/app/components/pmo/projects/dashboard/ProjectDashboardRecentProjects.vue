@@ -5,8 +5,8 @@ import { badgeLabel } from '@/utils/statusBadge'
 import type { TableColumn } from '@nuxt/ui'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import type { DashboardProject } from '@/utils/projectChartData'
-import RecordNumber from '@/components/shared/data/RecordNumber.vue'
-import { formatNasqDateTime } from '@/composables/calendarDate'
+import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
 // The dashboard's actionable table: recently updated, late (overdue tasks) and at-risk projects.
 // `rows` is the recent list; `allRows` is every matching project, the source of the late and at-risk views.

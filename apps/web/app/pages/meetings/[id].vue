@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import MeetingVersionList from '@/components/meetings/MeetingVersionList.vue'
@@ -21,7 +21,7 @@ import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps, resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
 import { filterMeetingResolutions, resolutionActions } from '@/utils/meetingWorkspace'
-import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
+import { routeTabClass, routeTabsStripClass } from '@nasq/ui/app/utils/sectionTabs'
 import { meetingTabFromRoute, meetingTabQuery, type MeetingTab } from '@/utils/meetingTabs'
 
 const route = useRoute()

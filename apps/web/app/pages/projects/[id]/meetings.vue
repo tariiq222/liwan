@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
-import RecordNumber from '@/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useMeetings } from '@/composables/useMeetings'
 import { useProject } from '@/composables/useProjects'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'

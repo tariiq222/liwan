@@ -1,6 +1,6 @@
 import type { TaskState } from '@nasq/contracts'
 import { MANAGER_STATES } from '@nasq/contracts'
-import type { StatusTone } from '../utils/statusTone'
+import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
 import { statusBadgeEntry, type StatusBadgeEntry } from '../utils/statusBadge'
 
 // Pure state/priority helpers, kept free of Nuxt/vue-query imports so they can

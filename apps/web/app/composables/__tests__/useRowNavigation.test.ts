@@ -1,9 +1,9 @@
 import * as Vue from 'vue'
 import { defineComponent, h, nextTick, ref, type App } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createHostNode, hostRenderer, type HostNode } from '../../__tests__/helpers/hostRenderer'
-import { useHydrated } from '../useHydrated'
-import { useRowNavigation } from '../useRowNavigation'
+import { createHostNode, hostRenderer, type HostNode } from '@nasq/ui/test/helpers/hostRenderer'
+import { useHydrated } from '@nasq/ui/app/composables/useHydrated'
+import { useRowNavigation } from '@nasq/ui/app/composables/useRowNavigation'
 import { useShellShortcuts } from '../useShellShortcuts'
 
 // The composables reach for Nuxt auto-imports; the real ones are wired here (as useEscapeBack.test.ts does).

@@ -6,7 +6,7 @@ import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import { useProject } from '@/composables/useProjects'
 import FinanceEntryTable from '@/components/pmo/projects/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/pmo/projects/finance/FinanceSummaryCards.vue'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import {
   FINANCE_PAGE,
   parseFinanceKind,

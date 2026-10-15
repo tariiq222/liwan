@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { isWorkspaceThemeRoute } from '@/utils/workspacePresentation'
+import { isWorkspaceThemeRoute } from '@nasq/ui/app/utils/workspacePresentation'
 import { hasNoContextSidebar } from '@/components/shell/noContextRoutes'
 const route = useRoute()
 const workspaceTheme = computed(() => isWorkspaceThemeRoute(route.path))

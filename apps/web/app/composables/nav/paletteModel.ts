@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessPolicy'
 import { appCommands } from '../../modules/surfaces'
 import type { AppCommand, AppSearchRow } from '../../modules/types'
-import { CHORD_START_KEY, SHORTCUT_HELP } from '../shortcuts/keymap'
+import { CHORD_START_KEY, SHORTCUT_HELP } from '@nasq/ui/app/composables/shortcuts/keymap'
 import type { NavItem } from './shellModules'
 
 /** Rows one search section shows; UCommandPalette cuts every group at `fuse.resultLimit` (default 12). */

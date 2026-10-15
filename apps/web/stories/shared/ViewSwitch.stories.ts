@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ViewSwitch from '../../app/components/shared/data/ViewSwitch.vue'
+import ViewSwitch from '@nasq/ui/app/components/shared/data/ViewSwitch.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/ViewSwitch',
   component: ViewSwitch,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/shared/layout/ListPage.vue:59', 'مبدّل القائمة واللوحة؛ تربطه `SharedListPage` بمعامل `?view=` في الرابط.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/layout/ListPage.vue:59', 'مبدّل القائمة واللوحة؛ تربطه `SharedListPage` بمعامل `?view=` في الرابط.') },
 } satisfies Meta<typeof ViewSwitch>
 export default meta
 type Story = StoryObj

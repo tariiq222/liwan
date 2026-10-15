@@ -1,5 +1,5 @@
-import { shortcutKey } from './shortcuts/keymap'
-import { isEditableKeyTarget } from './useEscapeBack'
+import { shortcutKey } from '@nasq/ui/app/composables/shortcuts/keymap'
+import { isEditableKeyTarget } from '@nasq/ui/app/composables/useEscapeBack'
 
 type Shortcut = { shortcut: string; to: string }
 type KeyboardLikeEvent = Pick<KeyboardEvent, 'key'> & { code?: string; target?: unknown; keyCode?: number }

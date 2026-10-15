@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import SettingsPage from '../../app/components/shared/layout/SettingsPage.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import SettingsPage from '@nasq/ui/app/components/shared/layout/SettingsPage.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

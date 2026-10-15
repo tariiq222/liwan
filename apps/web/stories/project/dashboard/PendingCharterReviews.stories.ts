@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { http, HttpResponse } from 'msw'
 import PendingCharterReviews from '../../../app/components/pmo/projects/dashboard/PendingCharterReviews.vue'
-import PageContainer from '../../../app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { project } from '../../fixtures/pmo'
 import { storyContext } from '../../support/context'
 
