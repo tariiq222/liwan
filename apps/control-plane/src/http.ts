@@ -15,6 +15,8 @@ import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
 import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
 import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
+import { resolveSession } from './admin-auth/sessions.js'
+import { STEP_UP_CAPABILITIES } from './admin-auth/roles.js'
 import { adminAuthHttp } from './admin-auth/routes.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
@@ -181,7 +183,7 @@ export async function resolveTargetLane(config: Config, targetId: string, commer
   return { kind: 'compose-local', target: { kind: 'customer', commercial_mode: 'saas' }, inventoryPath: config.managedInventoryPath, stateDir: config.stateDir, descriptorDigest: digest, descriptorBytes, catalogVersion: release.catalog_version as string, catalogSha256: release.catalog_sha256 as string, allowedOperations: entry.allowed_operations as string[] }
 }
 
-async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: Config): Promise<{ actor: number; capabilities: VendorCapability[] }> {
+async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: Config): Promise<{ actor: number; capabilities: VendorCapability[]; stepUpFresh: boolean; method: string }> {
   const signed = verifyServiceRequest({ method: req.method ?? '', path: req.url ?? '', body: raw, key: config.key, headers: req.headers })
   if (!signed || typeof signed.actor !== 'number' || signed.issuer !== config.installationId) throw new ApiError(401, 'unauthorized', 'Invalid service assertion')
   const actor = signed.actor
@@ -189,14 +191,23 @@ async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: 
     await client.query('DELETE FROM service_nonces WHERE expires_at < now()')
     const nonce = await client.query('INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval \'60 seconds\') ON CONFLICT DO NOTHING RETURNING nonce', [signed.issuer, signed.nonce])
     if (!nonce.rowCount) throw new ApiError(401, 'unauthorized', 'Replayed service assertion')
+    let session
+    try { session = await resolveSession(client, req.headers['x-nasq-session'], new Date()) } catch { throw new ApiError(401, 'unauthorized', 'Session is not valid') }
+    if (session.accountId !== actor) throw new ApiError(401, 'unauthorized', 'Session is not valid')
     const membership = await client.query('SELECT capabilities FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL', [signed.issuer, actor])
     if (!membership.rowCount) throw new ApiError(403, 'forbidden', 'Vendor membership is not active')
-    return { actor, capabilities: membership.rows[0].capabilities as VendorCapability[] }
+    return { actor, capabilities: membership.rows[0].capabilities as VendorCapability[], stepUpFresh: session.stepUpFresh, method: (req.method ?? '').toUpperCase() }
   })
 }
 
-function requireCapability(auth: { capabilities: VendorCapability[] }, capability: VendorCapability): void {
+function requireCapability(auth: { capabilities: VendorCapability[]; stepUpFresh?: boolean; method?: string }, capability: VendorCapability): void {
   if (!auth.capabilities.includes(capability)) throw new ApiError(403, 'forbidden', 'Vendor capability is required')
+  if (auth.method !== 'GET' && STEP_UP_CAPABILITIES.includes(capability) && !auth.stepUpFresh) throw new ApiError(403, 'step_up_required', 'Confirm with your passkey')
+}
+
+/** Catalog publication always needs a fresh passkey confirmation. */
+export function requireStepUp(auth: { stepUpFresh?: boolean }): void {
+  if (!auth.stepUpFresh) throw new ApiError(403, 'step_up_required', 'Confirm with your passkey')
 }
 
 function pageFrom(url: URL): number {
@@ -356,9 +367,9 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       const eventResponse=await paymentEventsHttp(pool,{method,pathname,raw,headers:req.headers},paymentRuntime)
       if(eventResponse)return respond(res,eventResponse.status,eventResponse.data)
       const auth = await authorize(pool, req, raw, config)
-      const packageResponse = await packageHttp(pool,{method,pathname,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities,repositoryRoot:config.repositoryRoot})
+      const packageResponse = await packageHttp(pool,{method,pathname,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,repositoryRoot:config.repositoryRoot})
       if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
-      const commercialInput={method,pathname,search:url.search,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities}
+      const commercialInput={method,pathname,search:url.search,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh}
       const invitationResponse = await invitationVendorHttp(pool, commercialInput)
       if (invitationResponse) return respond(res, invitationResponse.status, invitationResponse.data)
       let commercialResponse
@@ -544,6 +555,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const input = parseJson(raw, reasonRequestSchema)
         const id = catalogMatch[1]
         const action = catalogMatch[2]
+        if (action === 'publish') requireStepUp(auth)
         const current = await pool.query('SELECT status,source_sha256,solution FROM catalog_entries WHERE id=$1', [id])
         if (!current.rowCount) throw new ApiError(404, 'not_found', 'Catalog entry not found')
         if (current.rows[0].status !== (action === 'validate' ? 'draft' : 'validated')) throw new ApiError(409, 'conflict', 'Catalog transition is unavailable')

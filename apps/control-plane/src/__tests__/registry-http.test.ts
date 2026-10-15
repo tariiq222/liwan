@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import type { Pool } from 'pg'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signMock as signServiceRequest, mockSessionQuery } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 
 const key = 'registry-http-synthetic-key-'.repeat(2)
@@ -15,6 +15,8 @@ const client = {
       seenNonces.add(nonceKey)
       return {rowCount:1,rows:[{nonce:params[1]}]}
     }
+    const session = mockSessionQuery(sql, params)
+    if (session) return session
     if (sql.startsWith('SELECT capabilities FROM vendor_memberships')) return { rowCount: 1, rows: [{ capabilities: params[1] === 7 ? ['vendor.tenants.manage'] : ['vendor.read'] }] }
     throw new Error('unexpected SQL')
   },

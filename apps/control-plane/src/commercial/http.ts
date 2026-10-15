@@ -7,10 +7,11 @@ import { CommercialHttpError } from './lifecycle.js'
 import { listPolicies } from './policies.js'
 import { getQuote, previewQuote } from './quotes.js'
 import { quotePreviewRequestSchema } from '@nasq/commercial-contracts'
+import { STEP_UP_CAPABILITIES } from '../admin-auth/roles.js'
 import { createPlan, getPlan, listPlans, mutatePlan } from './plans.js'
 
 type Act = 'edit' | 'delete' | 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions'
-export type CommercialInput = { method: string; pathname: string; search?: string; raw: string; issuer: string; actor: number; capabilities: VendorCapability[] }
+export type CommercialInput = { method: string; pathname: string; search?: string; raw: string; issuer: string; actor: number; capabilities: VendorCapability[]; stepUpFresh?: boolean }
 type Extra = (pool: Pool, input: CommercialInput, url: URL) => Promise<{ status: number; data: unknown } | null>
 const extras: Extra[] = []
 /** Later stages (plans, policies, quotes) register route handlers here. */
@@ -25,6 +26,8 @@ export function parseBody<T>(raw: string, schema: z.ZodType<T>): T {
 }
 export function need(input: CommercialInput, ...caps: VendorCapability[]) {
   for (const c of caps) if (!input.capabilities.includes(c)) throw new CommercialHttpError('forbidden', 403)
+  // Reads never need a fresh passkey confirmation; sensitive mutations do.
+  if (input.method !== 'GET' && !input.stepUpFresh && caps.some((c) => STEP_UP_CAPABILITIES.includes(c))) throw new CommercialHttpError('step_up_required', 403)
 }
 
 /** Returns null only when this route is outside /v1/commercial. */

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signMock as signServiceRequest, mockSessionQuery } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 
 type Tenant = Record<string, unknown>
@@ -43,6 +43,8 @@ describe('managed registration HTTP slice', () => {
   const client = {
     async query(sql: string, params: unknown[] = []) {
       queries.push(sql)
+      const session = mockSessionQuery(sql, params)
+      if (session) return session
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql)) return { rowCount: 0, rows: [] }
       if (sql.startsWith('DELETE FROM service_nonces')) return { rowCount: 0, rows: [] }
       if (sql.startsWith('INSERT INTO service_nonces')) return { rowCount: 1, rows: [{ nonce: 'fresh' }] }

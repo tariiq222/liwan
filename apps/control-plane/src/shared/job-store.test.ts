@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { createApp } from '../http.js'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signMock as signServiceRequest, mockSessionQuery } from '../__tests__/helpers/vendor-session.js'
 import type { Pool } from 'pg'
 import { enqueueSharedJob, bindQueuedRequest, deriveSharedPolicy } from './job-store.js'
 import { businessKey, payloadDigest } from './provisioning.js'
@@ -47,6 +47,7 @@ it('enqueues and replays signed HTTP backup through actual store with registry-o
     const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
     if(['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('SELECT pg_advisory')||sql.startsWith('DELETE FROM service_nonces'))return result()
     if(sql.startsWith('INSERT INTO service_nonces'))return result([{nonce:params[1]}])
+    const session=mockSessionQuery(sql,params);if(session)return session
     if(sql.includes('FROM vendor_memberships'))return result([{capabilities:['vendor.operations.run']}])
     if(sql.includes('FROM tenants'))return result([{}])
     if(sql.includes('FROM shared_registry_bindings'))return result([{...binding,host:'a.invalid'}])

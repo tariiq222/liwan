@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { vendorSession } from './helpers/vendor-session.js'
 import { migrate } from '../db.js'
 import { createApp } from '../http.js'
 import { claimNext, executeClaimed, expireLeases, finishClaim } from '../worker.js'
@@ -25,6 +25,8 @@ else describe('control-plane PostgreSQL integration', () => {
   let server: ReturnType<ReturnType<typeof createApp>['listen']>
   let origin: string
   let fixtureDir: string
+  let s7: Awaited<ReturnType<typeof vendorSession>>
+  let s8: Awaited<ReturnType<typeof vendorSession>>
 
   beforeAll(async () => {
     await migrate(pool)
@@ -39,7 +41,7 @@ else describe('control-plane PostgreSQL integration', () => {
     await writeFile(config.inventoryPath, JSON.stringify({ version:2,targets:{'scratch-one':{database:'scratch_control_a',kind:'scratch',classification_file:classification},'scratch-two':{database:'scratch_control_b',kind:'scratch',classification_file:classification2}} }))
     const source = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))
     await pool.query('INSERT INTO catalog_entries(id,version,status,solution,source_sha256,published_at) VALUES($1,$2,$3,$4,$5,now())', [crypto.randomUUID(),'test-v1','published',JSON.parse(source.toString('utf8')),createHash('sha256').update(source).digest('hex')])
-    await pool.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES ($1,$2,$3)', [config.installationId, 7, ['vendor.read','vendor.tenants.manage','vendor.operations.run']])
+    s7 = await vendorSession(pool, config.installationId, ['vendor.read','vendor.tenants.manage','vendor.operations.run'])
     server = createApp(pool, config).listen(0, '127.0.0.1')
     await new Promise<void>((resolve) => server.once('listening', resolve))
     const address = server.address()
@@ -48,25 +50,27 @@ else describe('control-plane PostgreSQL integration', () => {
   })
   afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); await pool.end(); await rm(fixtureDir, { recursive:true, force:true }) })
 
-  async function call(method: string, path: string, body = '', nonce?: string, actor = 7) {
-    const headers = signServiceRequest({ method, path, body, actor, issuer: config.installationId, key, nonce })
+  async function call(method: string, path: string, body = '', nonce?: string, session = s7) {
+    const headers = session.headers(method, path, body, nonce)
     return fetch(origin + path, { method, headers: { ...headers, 'content-type': 'application/json' }, body: body || undefined })
   }
 
   it('requires a valid signature, stores nonce, and denies replay', async () => {
     expect((await fetch(origin + '/v1/context')).status).toBe(401)
+    const noMembership = await vendorSession(pool, config.installationId, [])
+    await pool.query('DELETE FROM vendor_memberships WHERE actor_uid=$1', [noMembership.accountId])
     const nonce = crypto.randomUUID()
     expect((await call('GET','/v1/context','',nonce)).status).toBe(200)
     expect((await call('GET','/v1/context','',nonce)).status).toBe(401)
-    expect((await call('GET','/v1/context','',undefined,8)).status).toBe(403)
-    const other = signServiceRequest({ method:'GET',path:'/v1/context',actor:7,issuer:'wrong-installation',key })
+    expect((await call('GET','/v1/context','',undefined,noMembership)).status).toBe(403)
+    const other = (await vendorSession(pool, 'wrong-installation', ['vendor.read'])).headers('GET','/v1/context')
     expect((await fetch(origin+'/v1/context',{headers:other})).status).toBe(401)
   })
 
   it('revocation denies the next signed request', async () => {
-    await pool.query('UPDATE vendor_memberships SET revoked_at = now() WHERE issuer=$1 AND actor_uid=7', [config.installationId])
+    await pool.query('UPDATE vendor_memberships SET revoked_at = now() WHERE issuer=$1 AND actor_uid=$2', [config.installationId, s7.accountId])
     expect((await call('GET','/v1/context')).status).toBe(403)
-    await pool.query('UPDATE vendor_memberships SET revoked_at = NULL WHERE issuer=$1 AND actor_uid=7', [config.installationId])
+    await pool.query('UPDATE vendor_memberships SET revoked_at = NULL WHERE issuer=$1 AND actor_uid=$2', [config.installationId, s7.accountId])
   })
 
   it('registers tenant and durably deduplicates queued operation by actor, tenant and payload', async () => {
@@ -96,9 +100,9 @@ else describe('control-plane PostgreSQL integration', () => {
 
   it('rejects a globally reused request ID across actors without exposing the original', async () => {
     const row = await pool.query("SELECT tenant_id,request_id FROM operations WHERE type='tenant.create' LIMIT 1")
-    await pool.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,$2,$3)', [config.installationId,8,['vendor.operations.run']])
+    s8 = await vendorSession(pool, config.installationId, ['vendor.operations.run'])
     const body = JSON.stringify({type:'tenant.create',request_id:row.rows[0].request_id,reason:'Another actor'})
-    const response = await call('POST',`/v1/tenants/${row.rows[0].tenant_id}/operations`,body,undefined,8)
+    const response = await call('POST',`/v1/tenants/${row.rows[0].tenant_id}/operations`,body,undefined,s8)
     expect(response.status).toBe(409)
     expect(JSON.stringify(await response.json())).not.toContain(row.rows[0].tenant_id)
   })
@@ -106,11 +110,11 @@ else describe('control-plane PostgreSQL integration', () => {
   it('rechecks the grant immediately before worker execution', async () => {
     const claim = await claimNext(pool)
     expect(claim).not.toBeNull()
-    await pool.query('UPDATE vendor_memberships SET revoked_at=now() WHERE issuer=$1 AND actor_uid=7', [config.installationId])
+    await pool.query('UPDATE vendor_memberships SET revoked_at=now() WHERE issuer=$1 AND actor_uid=$2', [config.installationId, s7.accountId])
     await executeClaimed(pool, claim!, config)
     const row = await pool.query('SELECT status,stage FROM operations WHERE id=$1', [claim!.operation.id])
     expect(row.rows[0]).toEqual({ status:'failed', stage:'grant_revoked' })
-    await pool.query('UPDATE vendor_memberships SET revoked_at=NULL WHERE issuer=$1 AND actor_uid=7', [config.installationId])
+    await pool.query('UPDATE vendor_memberships SET revoked_at=NULL WHERE issuer=$1 AND actor_uid=$2', [config.installationId, s7.accountId])
   })
 
   it('never records a late worker success after its mutation lease expires', async () => {
@@ -136,7 +140,7 @@ else describe('control-plane PostgreSQL integration', () => {
     expect(response.status).toBe(409)
     expect((await response.json() as {code:string}).code).toBe('reconciliation_required')
     const queuedId = crypto.randomUUID()
-    await pool.query("INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest) VALUES($1,$2,7,$3,'backup',$4,'Already queued','{}','queued-before-intervention')", [queuedId,id,config.installationId,crypto.randomUUID()])
+    await pool.query("INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest) VALUES($1,$2,$5,$3,'backup',$4,'Already queued','{}','queued-before-intervention')", [queuedId,id,config.installationId,crypto.randomUUID(),s7.accountId])
     const claimed = await claimNext(pool)
     expect(claimed).toBeNull()
     const blocked = await pool.query('SELECT status,stage FROM operations WHERE id=$1',[queuedId])
@@ -161,9 +165,9 @@ else describe('control-plane PostgreSQL integration', () => {
     const tenant = await pool.query("SELECT id FROM tenants WHERE inventory_target='scratch-one' LIMIT 1")
     expect(tenant.rowCount).toBe(1)
     await pool.query(`INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest,status,stage,result)
-      VALUES($1,$2,7,$3,'tenant.create',$4,'Markerless incomplete create','{}','markerless-fixture','needs_intervention','deployment_incomplete',$5)`, [
+      VALUES($1,$2,$6,$3,'tenant.create',$4,'Markerless incomplete create','{}','markerless-fixture','needs_intervention','deployment_incomplete',$5)`, [
       crypto.randomUUID(), tenant.rows[0].id, config.installationId, crypto.randomUUID(),
-      {status:'ok',policy_verified:true,deployment_ready:false},
+      {status:'ok',policy_verified:true,deployment_ready:false}, s7.accountId,
     ])
 
     const blocked = await call('POST',`/v1/tenants/${tenant.rows[0].id}/operations`,JSON.stringify({type:'backup',request_id:crypto.randomUUID(),reason:'Markerless result stays unresolved'}))

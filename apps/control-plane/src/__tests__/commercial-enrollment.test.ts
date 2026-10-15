@@ -115,7 +115,7 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
   })
   it('accepts optional enrollment identity and rejects malformed administrator email',async()=>{
     const api=async(_method:string,_path:string,body:unknown)=>{
-      try{const r=await routesB(pool,{method:'POST',pathname:'/v1/commercial/customers',search:'',issuer:'test',actor:7,capabilities:['vendor.tenants.manage','vendor.subscriptions.manage'],raw:JSON.stringify(body)},new URL('http://localhost/v1/commercial/customers'));return {status:r!.status,body:r!.data}}
+      try{const r=await routesB(pool,{method:'POST',pathname:'/v1/commercial/customers',search:'',issuer:'test',actor:7,capabilities:['vendor.tenants.manage','vendor.subscriptions.manage'],stepUpFresh:true,raw:JSON.stringify(body)},new URL('http://localhost/v1/commercial/customers'));return {status:r!.status,body:r!.data}}
       catch(e){return {status:(e as {status:number}).status}}
     }
     const created=await api('POST','/customers',{name:'HTTP enrollment',admin_name:'Admin',admin_login:'admin@example.test'})

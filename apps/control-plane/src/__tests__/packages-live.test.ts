@@ -76,7 +76,7 @@ suite('package immutable lifecycle and enrollment authority SQL',()=>{
   await expect(transaction(pool,c=>resolvePackageAuthority(c,stale.id,true,sourceOptions))).rejects.toMatchObject({code:'package_source_mismatch',status:422,field:'catalog_version'})
  })
  it('keeps reads and refuses every HTTP write once Track A is retired',async()=>{
-  const request={repositoryRoot:sourceOptions.repositoryRoot,method:'POST',pathname:'/v1/packages',raw:JSON.stringify(input),issuer:actor.issuer,actor:7,capabilities:['vendor.read'] as ('vendor.read')[]}
+  const request={repositoryRoot:sourceOptions.repositoryRoot,method:'POST',pathname:'/v1/packages',raw:JSON.stringify(input),issuer:actor.issuer,actor:7,stepUpFresh:true,capabilities:['vendor.read'] as ('vendor.read')[]}
   await expect(packageHttp(pool,request)).rejects.toMatchObject({status:403})
   await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage']})).rejects.toMatchObject({status:410,code:'packages_retired'})
   await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage'],pathname:`/v1/packages/${published.id}/restore`,raw:JSON.stringify({revision:published.revision,reason:'Retired'})})).rejects.toMatchObject({status:410})

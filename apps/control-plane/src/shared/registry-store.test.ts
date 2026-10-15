@@ -1,5 +1,5 @@
 import { createApp } from '../http.js'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signMock as signServiceRequest, mockSessionQuery } from '../__tests__/helpers/vendor-session.js'
 import { withPublicationLock } from './registry-publisher.js'
 import { expect, it } from 'vitest'
 import { registryMutationSchema, publishRegistryMutation, recoverRegistry } from './registry-store.js'
@@ -22,6 +22,8 @@ function fixture() {
     async query(sql: string, values: unknown[] = []) {
       queries.push(sql)
       const result = (rows: unknown[] = []) => ({ rowCount: rows.length, rows })
+      const session = mockSessionQuery(sql, values)
+      if (session) return session
       if (sql === 'SELECT pg_advisory_lock($1)') { const before = tail; tail = new Promise<void>(r => { releaseLock = r }); await before; return result() }
       if (sql === 'SELECT pg_advisory_unlock($1)') { releaseLock(); return result() }
       if (sql === 'BEGIN') { backup = structuredClone(state); return result() }

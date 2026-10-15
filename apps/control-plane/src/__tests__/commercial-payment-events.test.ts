@@ -94,7 +94,7 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     const cancel=vi.spyOn(f.adapter,'cancelAttempt')
     await expect(cancelOrder(pool,{order_id:f.order_id,principal:{...principal,customer_id:randomUUID()},reason:'Cancel purchase',adapter:f.adapter})).rejects.toMatchObject({status:404})
     const pathname=`/v1/commercial/orders/${f.order_id}/cancel`
-    expect(await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({reason:'Cancel purchase'}),issuer:'vendor-test',actor:7,capabilities:['vendor.subscriptions.manage']},new URL(pathname,'https://nasq.test'),{adapter:f.adapter,allowedOrigin:'https://nasq.test'})).toMatchObject({status:200,data:{id:f.order_id}})
+    expect(await routesB(pool,{method:'POST',pathname,raw:JSON.stringify({reason:'Cancel purchase'}),issuer:'vendor-test',actor:7,capabilities:['vendor.subscriptions.manage'],stepUpFresh:true},new URL(pathname,'https://nasq.test'),{adapter:f.adapter,allowedOrigin:'https://nasq.test'})).toMatchObject({status:200,data:{id:f.order_id}})
     expect(cancel).toHaveBeenCalledWith(a.provider_ref)
     expect(await state(f.order_id)).toMatchObject({cancelled:true,fulfillment_state:'not_started'})
     expect((await pool.query('SELECT target_revision_id,revision FROM subscriptions WHERE id=$1',[order.subscription_id])).rows[0]).toEqual({target_revision_id:null,revision:2})

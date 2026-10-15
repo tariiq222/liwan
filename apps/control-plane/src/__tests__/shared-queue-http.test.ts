@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import type { Pool } from 'pg'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signMock as signServiceRequest, mockSessionQuery } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 vi.mock('../shared/job-store.js', () => ({ enqueueSharedJob: vi.fn() }))
@@ -8,7 +8,8 @@ const key='shared-queue-http-synthetic-key-'.repeat(2)
 const tenant='ad03d956-efef-4f80-baf3-9c23ea46e945'
 const path=`/v1/shared/tenants/${tenant}/jobs`
 const config={installationId:'queue-test',key,inventoryPath:'/unused',stateDir:'/unused',repositoryRoot:'/unused',python:'python3',tenantRegistryPath:'/unused/registry.json'}
-const client={release(){},async query(sql:string){
+const client={release(){},async query(sql:string,params:unknown[]=[]){
+  const session=mockSessionQuery(sql,params);if(session)return session
   if(sql.startsWith('SELECT capabilities'))return {rows:[{capabilities:['vendor.operations.run']}],rowCount:1}
   if(sql.startsWith('INSERT INTO service_nonces'))return {rows:[{nonce:'fresh'}],rowCount:1}
   if(['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('DELETE FROM service_nonces'))return {rows:[],rowCount:0}
