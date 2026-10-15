@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { catalogApplicationsFromSolution, catalogDigest } from '../commercial/catalog.js'
 import { CommercialError, compileEntitlements } from '../commercial/entitlements.js'
-import { admitsRequiredAdmin, customerTermsRevisionSchema, planCreateSchema } from '../commercial/schemas.js'
+import { admitsRequiredAdmin, customerTermsRevisionSchema, planCreateSchema, planRevisionSchema } from '../commercial/schemas.js'
 import type { BundleRevision, CatalogRelease, PlanRevision } from '../commercial/types.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -135,6 +135,7 @@ describe('commercial catalog and entitlement compiler', () => {
     expect(customerTermsRevisionSchema.safeParse(terms(1)).success).toBe(true)
     expect(customerTermsRevisionSchema.safeParse(terms(0)).success).toBe(false)
     expect(customerTermsRevisionSchema.safeParse({ ...terms(1), limits: { 'storage.limit_mb': 0 } }).success).toBe(true)
+    expect(planRevisionSchema.safeParse({ ...plan, platform_limits: { 'users.limit': 0, 'storage.limit_mb': null } }).success).toBe(false)
   })
   it('opens a non-selectable boolean of a core or included application', () => {
     const input = fixture()

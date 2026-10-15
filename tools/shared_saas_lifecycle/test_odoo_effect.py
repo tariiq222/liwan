@@ -223,7 +223,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
         'Traceback: synthetic-traceback; path=/synthetic/private'
     )
 
-    def assert_preflight_failure(self, error, expected_stdout):
+    def assert_preflight_failure(self, error, expected_stdout, users_limit=None):
         """Exercise real main/observe/preflight, with no runtime or file access."""
         config = {'schemaVersion': 1, 'projectName': 'nasq-shared-diagnostic',
                   'composeFile': '/synthetic/compose.yml', 'envFile': '/synthetic/runtime.env',
@@ -235,7 +235,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                            'binding': {'database': database, 'filestore': database},
                            'policy': {'schema_version': 1, 'channel': 'control_plane',
                                       'modules': ['nasq_core', 'nasq_platform', 'nasq_api'],
-                                      'features': {'users.limit': None, 'storage.limit_mb': None,
+                                      'features': {'users.limit': users_limit, 'storage.limit_mb': None,
                                                    'branches.extra_limit': 0}},
                            'catalog': {'sourceSha256': digest}}}
         base = ['docker', 'compose', '--project-name', config['projectName'],
@@ -297,8 +297,12 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                     guards.append(guard)
             result = odoo_effect.main()
 
-        self.assertEqual(events, [('command', args) for args in commands] + [('catalog', digest)])
-        resolver.assert_called_once_with(digest)
+        catalog = [] if users_limit is not None else [('catalog', digest)]
+        self.assertEqual(events, [('command', args) for args in commands] + catalog)
+        if users_limit is None:
+            resolver.assert_called_once_with(digest)
+        else:
+            resolver.assert_not_called()
         self.assertEqual(paths.call_args_list, [unittest.mock.call(config[key])
                                               for key in ('composeFile', 'envFile', 'stateDir')])
         exists.assert_called_once_with(Path(config['stateDir']) / 'runtime-gate')
@@ -321,6 +325,12 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
     def test_main_reports_ambiguous_pinned_catalog_through_real_preflight(self):
         self.assert_preflight_failure(self.catalog_error('catalog_source_ambiguous'),
                                       '{"error_code":"catalog_source_ambiguous"}\n')
+
+    def test_preflight_refuses_a_users_limit_without_room_for_the_admin(self):
+        # Refused before catalog resolution, reserve and install: no half-provisioned tenant.
+        for limit in (0, -1, 1.5, True, '1'):
+            with self.subTest(limit=limit):
+                self.assert_preflight_failure(None, '{"error_code":"shared_effect_unverified"}\n', users_limit=limit)
 
     def test_main_keeps_untyped_unknown_and_near_match_errors_opaque(self):
         errors = [odoo_effect.EffectError(self.SYNTHETIC_DIAGNOSTIC),

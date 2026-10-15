@@ -83,6 +83,13 @@ suite('commercial plans', () => {
     await expect(api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 0, 'storage.limit_mb': null } })))
       .rejects.toMatchObject({ issues: [expect.objectContaining({ path: ['platform_limits', 'users.limit'] })] })
     expect((await mk({ platform_limits: { 'users.limit': 1, 'storage.limit_mb': null } })).status).toBe(200)
+    // schema_023 holds the same floor in the database, so no stored plan or terms can carry a 0.
+    const old = (await api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 1, 'storage.limit_mb': null } }))).body
+    await expect(pool.query(`UPDATE plan_revisions SET platform_limits=jsonb_set(platform_limits,'{users.limit}','0'),edit_revision=edit_revision+1 WHERE id=$1`, [old.id]))
+      .rejects.toThrow('plan_revisions_users_limit_admits_admin')
+    const floor = async (limits: unknown) => (await pool.query('SELECT commercial_users_limit_admits_admin($1::jsonb) AS ok', [JSON.stringify(limits)])).rows[0].ok
+    expect(await Promise.all([null, {}, { 'users.limit': null }, { 'users.limit': 1 }, { 'storage.limit_mb': 0 }].map(floor))).toEqual([true, true, true, true, true])
+    expect(await Promise.all([{ 'users.limit': 0 }, { 'users.limit': -1 }, { 'users.limit': 1.5 }, { 'users.limit': '1' }, { 'users.limit': true }].map(floor))).toEqual([false, false, false, false, false])
     const unpriced = await publishedBundle({ prices: [] })
     expect(codes(await mk({ optional_bundle_revision_ids: [unpriced.id] }))).toContain('price_missing')
     expect((await mk({ included_bundle_revision_ids: [unpriced.id] })).status).toBe(200)

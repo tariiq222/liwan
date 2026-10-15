@@ -18,7 +18,7 @@ export const capacityMapSchema = z.record(z.string().regex(dotted), z.number().i
  * them: a positive integer, or null for unlimited. One rule for packages, plans, terms and the compiler. */
 export const USERS_LIMIT_KEY = 'users.limit'
 export const admitsRequiredAdmin = (value: unknown) => value === null || (Number.isInteger(value) && (value as number) >= 1)
-/** Plan platform limits and customer terms limits: a capacity map whose users.limit admits the administrator. */
+/** Plan platform limits and customer terms limits, stored and input alike; schema_023 holds the same rule in the database. */
 export const sellableLimitsSchema = capacityMapSchema.refine(m => !Object.hasOwn(m, USERS_LIMIT_KEY) || admitsRequiredAdmin(m[USERS_LIMIT_KEY]), {
   message: 'users.limit must allow the required customer administrator', path: [USERS_LIMIT_KEY],
 })
