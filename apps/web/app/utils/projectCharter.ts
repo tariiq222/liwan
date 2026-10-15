@@ -520,5 +520,12 @@ export function charterAfterSave(wasApproved: boolean, savedState: ProjectCharte
 // Why the submit step failed, in words for the manager.
 export function submitFailureReason(e: unknown, t: (key: string) => string): string {
   if (!(e instanceof ApiError)) return t('errors.generic')
-  return e.code === 'charter_state' ? t('projects.charter.lockedWhileSubmitted') : e.message
+  if (e.code === 'charter_state') return t('projects.charter.lockedWhileSubmitted')
+  if (e.code === 'invalid' && e.field === 'sponsor_id') return t('projects.charter.sponsorRequired')
+  return e.message
+}
+
+// Under the approval policy a draft needs a sponsor before it can be sent.
+export function sponsorMissingForSubmit(approvalRequired: boolean, wasApproved: boolean, sponsorId: number | null | undefined): boolean {
+  return approvalRequired && !wasApproved && !sponsorId
 }

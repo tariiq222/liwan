@@ -22,7 +22,7 @@ const {
   refetch: refetchMilestones,
 } = useMilestones(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
-const readonly = computed(() => route.query.edit !== '1' || !(project.value?.can_manage ?? false))
+const readonly = computed(() => route.query.edit !== '1' || !(project.value?.can_manage ?? false) || project.value?.charter.state === 'submitted')
 const charterState = computed(() => project.value?.charter.state ?? null)
 const isDraft = computed(() => charterState.value === 'draft')
 
@@ -32,10 +32,11 @@ function leaveEdit() {
 
 function onSaved(outcome: 'saved' | 'approved' | 'submitted' | 'reopened') {
   const titles = { saved: 'projects.charter.saved', approved: 'projects.charter.finalized', submitted: 'projects.charter.submitted', reopened: 'projects.charter.reopened' }
+  const reopened = outcome === 'reopened'
   toast.add({
     title: t(titles[outcome]),
-    color: 'success',
-    icon: 'i-lucide-circle-check',
+    color: reopened ? 'warning' : 'success',
+    icon: reopened ? 'i-lucide-triangle-alert' : 'i-lucide-circle-check',
   })
   leaveEdit()
 }
@@ -74,6 +75,7 @@ function onCancel() {
     </SharedPageHeader>
     <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
     <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
+      <UAlert v-if="project && charterState === 'draft' && project.charter.return_note" class="mb-4" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="project.charter.return_note" />
       <SharedFormSection panel>
         <ProjectCharterForm mode="edit" :project="project" :readonly="false" :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @saved="onSaved" @draft-saved="onDraftSaved" @cancel="onCancel" @retry-milestones="refetchMilestones" />
       </SharedFormSection>

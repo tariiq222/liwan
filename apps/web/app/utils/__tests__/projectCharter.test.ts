@@ -12,6 +12,7 @@ import {
   draftedProjectLocation,
   charterAfterSave,
   submitFailureReason,
+  sponsorMissingForSubmit,
   emptyCharterDraft,
   hasCharterWriteContent,
   isCharterDraftDirty,
@@ -370,8 +371,17 @@ describe('charter submit decisions', () => {
 
   it('explains why a submit failed', () => {
     const t = (key: string) => key
-    expect(submitFailureReason(new ApiError(422, 'invalid', 'Sponsor needed', 'sponsor_id'), t)).toBe('Sponsor needed')
+    expect(submitFailureReason(new ApiError(422, 'invalid', 'Sponsor needed', 'name'), t)).toBe('Sponsor needed')
+    expect(submitFailureReason(new ApiError(422, 'invalid', 'Choose a sponsor', 'sponsor_id'), t)).toBe('projects.charter.sponsorRequired')
+    expect(submitFailureReason(new ApiError(422, 'invalid', 'Other', 'note'), t)).toBe('Other')
     expect(submitFailureReason(new ApiError(409, 'charter_state', 'x'), t)).toBe('projects.charter.lockedWhileSubmitted')
     expect(submitFailureReason(new Error('boom'), t)).toBe('errors.generic')
+  })
+
+  it('blocks a submit without a sponsor only under the approval policy', () => {
+    expect(sponsorMissingForSubmit(true, false, null)).toBe(true)
+    expect(sponsorMissingForSubmit(true, false, 7)).toBe(false)
+    expect(sponsorMissingForSubmit(false, false, null)).toBe(false)
+    expect(sponsorMissingForSubmit(true, true, null)).toBe(false)
   })
 })

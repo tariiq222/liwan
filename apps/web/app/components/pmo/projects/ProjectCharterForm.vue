@@ -8,6 +8,7 @@ import {
   canOverwriteWithLatest,
   charterAfterSave,
   submitFailureReason,
+  sponsorMissingForSubmit,
   charterCreateBody,
   charterErrorsForFields,
   draftFromProject,
@@ -291,6 +292,11 @@ const lastIntent = ref<'draft' | 'submit'>('submit')
 async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'submit') {
   error.value = null
   if (!applyValidation()) return
+  if (intent === 'submit' && props.mode === 'edit' && sponsorMissingForSubmit(!!props.project?.charter.approval_required, baselineApproved.value, draft.value.sponsorId)) {
+    goTo('basics')
+    error.value = t('projects.charter.sponsorRequired')
+    return
+  }
   const preserved = draft.value
   lastIntent.value = intent
   try {
@@ -459,6 +465,7 @@ function discardToServer() {
       </div>
       <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
+      <p v-if="project?.charter.approval_required && baselineApproved" class="text-sm text-muted" data-testid="charter-save-reopens-hint">{{ t('projects.charter.saveReopensHint') }}</p>
       <div class="flex flex-wrap items-center gap-2" data-testid="charter-wizard-actions">
         <UButton type="button" color="neutral" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
         <div class="ms-auto flex flex-wrap gap-2">

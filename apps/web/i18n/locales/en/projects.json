@@ -406,6 +406,8 @@
       "submitted": "Charter submitted for approval",
       "savedNotSubmitted": "Your changes were saved but the charter was not submitted.",
       "lockedWhileSubmitted": "The charter is waiting for approval. Withdraw the request first to edit it.",
+      "sponsorRequired": "Choose a sponsor who can open projects before sending the charter for approval.",
+      "saveReopensHint": "Saving any change returns the charter to draft and needs a new approval.",
       "reopened": "The approved charter changed and went back to draft. Submit it for approval again.",
       "finalized": "Charter finalized",
       "continueDraft": "Continue draft",
