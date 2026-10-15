@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { isWorkspaceThemeRoute } from '../../../utils/workspacePresentation'
 const props = withDefaults(defineProps<{
   width?: 'list' | 'detail' | 'form'
 }>(), {
@@ -8,7 +7,8 @@ const props = withDefaults(defineProps<{
 
 const widthClass = computed(() => `nasq-page-width-${props.width}`)
 const route = useRoute()
-const workspaceArea = computed(() => isWorkspaceThemeRoute(route.path))
+const isPlainRoute = usePlainRoute()
+const workspaceArea = computed(() => !isPlainRoute(route.path))
 const projectRecord = computed(() => /^\/projects\/\d+(\/|$)/.test(route.path))
 const projectArea = computed(() => /^\/projects(\/|$)/.test(route.path) || /^\/settings\/projects(\/|$)/.test(route.path))
 </script>

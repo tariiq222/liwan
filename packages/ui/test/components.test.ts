@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const FORBIDDEN = ["from '@/", "from '~/", 'apps/web', '$fetch(', 'useMe(', '/api/']
+const FORBIDDEN_IMPORT = /from\s+['"](?:@|~)\//
+const FORBIDDEN = ['@nasq/contracts', 'apps/web', '$fetch(', 'useMe(', 'useApi(', '/api/']
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -22,6 +23,7 @@ describe('ui layer components', () => {
     expect(files.length).toBeGreaterThan(0)
     for (const file of files) {
       const source = readFileSync(file, 'utf8')
+      expect(FORBIDDEN_IMPORT.test(source), `${relative(root, file)} imports through an app alias`).toBe(false)
       for (const token of FORBIDDEN) expect(source.includes(token), `${relative(root, file)} contains ${token}`).toBe(false)
     }
   })

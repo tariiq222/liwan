@@ -2,13 +2,13 @@ import * as Vue from 'vue'
 import { h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import * as errorState from '../../../../utils/errorState'
-import * as workspacePresentation from '../../../../utils/workspacePresentation'
 import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
 const options: SharedRenderOptions = {
-  modules: { '../../../utils/errorState': errorState, '../../../utils/workspacePresentation': workspacePresentation },
+  modules: { '../../../utils/errorState': errorState },
   globals: {
     useRoute: () => ({ path: '/projects/1', query: {} }),
+    usePlainRoute: () => () => false,
     usePageHeader: () => undefined,
     useEscapeBack: () => undefined,
     useProjectFrameHeading: () => Vue.ref(false),

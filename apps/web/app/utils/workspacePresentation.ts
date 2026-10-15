@@ -1,4 +1,4 @@
-/** Workspace routes keep a stable frame (no entrance motion, workspace spacing); chat, login and meeting print do not. */
-export function isWorkspaceThemeRoute(path: string): boolean {
-  return !/^\/(?:chat|login)(\/|$)/.test(path) && !/^\/meetings\/[1-9]\d*\/print\/?$/.test(path)
+/** Chat, login and meeting print keep their own frame: no workspace theme (stable spacing, no entrance motion). */
+export function isPlainRoute(path: string): boolean {
+  return /^\/(?:chat|login)(\/|$)/.test(path) || /^\/meetings\/[1-9]\d*\/print\/?$/.test(path)
 }

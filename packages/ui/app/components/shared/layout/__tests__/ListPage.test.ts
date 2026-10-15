@@ -2,7 +2,6 @@ import * as Vue from 'vue'
 import { h, type VNode } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import * as listView from '../../../../utils/listView'
-import * as workspacePresentation from '../../../../utils/workspacePresentation'
 import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
 const views = [
@@ -14,9 +13,10 @@ const TooltipStub = Vue.defineComponent({ setup: (_, { slots }) => () => h('span
 
 function options(query: Record<string, string> = {}, patch: SharedRenderOptions = {}): SharedRenderOptions {
   return {
-    modules: { '../../../utils/listView': listView, '../../../utils/workspacePresentation': workspacePresentation },
+    modules: { '../../../utils/listView': listView },
     globals: {
       useRoute: () => ({ path: '/tasks', query }),
+      usePlainRoute: () => () => false,
       useRouter: () => ({ replace: vi.fn() }),
       usePageHeader: () => undefined,
       useEscapeBack: () => undefined,
