@@ -126,7 +126,7 @@ type VersionSnapshot = {
   minutes_form?: MeetingMinutesFormValue | null
   resolutions?: MeetingMinutesRecommendation[]
 }
-type VersionRow = { id: number; number: number; captured_at: string; actor: { id: number; name: string } | null; snapshot: VersionSnapshot }
+type VersionRow = { id: number; number: number; captured_at: string; actor: { id: number; name: string } | null; snapshot: VersionSnapshot | null }
 const eventRows = computed(() => (eventQuery.data.value as unknown as { items: Array<{ id: number; meeting_id: number; meeting_name: string; occurred_at: string; actor: { id: number; name: string } | null; kind: string; summary: string }>; total: number } | undefined)?.items ?? [])
 const eventTotal = computed(() => (eventQuery.data.value as unknown as { total?: number } | undefined)?.total ?? 0)
 const versionRows = computed(() => (versionQuery.data.value as unknown as { items: VersionRow[]; total: number } | undefined)?.items ?? [])
@@ -270,11 +270,24 @@ async function convertResolution(resolutionId: number) {
 
 function requestMeetingAction(action: 'confirm' | 'complete' | 'reopen' | 'cancel') {
   if (!hydrated.value || transitioning.value) return
-  if (action === 'cancel') pendingMeetingAction.value = query.data.value?.series_id
+  if (action === 'confirm') void executeMeetingAction({ action })
+  else pendingMeetingAction.value = action === 'cancel' && query.data.value?.series_id
     ? { action, scope: 'this' }
     : { action }
-  else void executeMeetingAction({ action })
 }
+
+const meetingActionConfirm = computed(() => {
+  const pending = pendingMeetingAction.value
+  const meeting = query.data.value
+  if (!pending || !meeting) return null
+  if (pending.action === 'complete') return { color: 'warning' as const, title: t('meetingsUx.confirmComplete'), label: t('meetingsUi.complete') }
+  if (pending.action === 'reopen') return { color: 'warning' as const, title: t('meetingsUx.confirmReopen'), label: t('meetingsUi.reopen') }
+  return {
+    color: 'error' as const,
+    title: t('meetingsUx.confirmMeetingAction', { name: meeting.name, scope: pending.scope === 'this_and_following' ? t('meetingsUi.scopeFollowing') : t('meetingsUi.scopeThis') }),
+    label: t('meetingsUi.confirm'),
+  }
+})
 
 async function executeMeetingAction(pending: { action: 'confirm' | 'complete' | 'reopen' | 'cancel'; scope?: 'this' | 'this_and_following' }) {
   if (!pending || !hydrated.value || transitioning.value || !id.value) return
@@ -364,10 +377,10 @@ async function confirmResolutionAction() {
 
     <div v-if="query.data.value" class="grid min-w-0 gap-4">
       <SharedInlineConfirm
-        v-if="pendingMeetingAction"
-        color="error"
-        :title="t('meetingsUx.confirmMeetingAction', { name: query.data.value.name, scope: pendingMeetingAction.scope === 'this_and_following' ? t('meetingsUi.scopeFollowing') : t('meetingsUi.scopeThis') })"
-        :confirm-label="t('meetingsUi.confirm')"
+        v-if="pendingMeetingAction && meetingActionConfirm"
+        :color="meetingActionConfirm.color"
+        :title="meetingActionConfirm.title"
+        :confirm-label="meetingActionConfirm.label"
         :pending="transitioning"
         @cancel="pendingMeetingAction = null"
         @confirm="confirmMeetingAction"
@@ -481,11 +494,11 @@ async function confirmResolutionAction() {
           @page="goToVersionPage"
           @select="selectVersion"
         />
-        <div v-if="selectedVersion" class="flex justify-end">
+        <div v-if="selectedVersion?.snapshot" class="flex justify-end">
           <UButton color="neutral" variant="outline" size="sm" :to="childTo(`/meetings/${id}/print`, { ...route.query, version_id: String(selectedVersion.id) })" :label="t('meetingMinutesForm.printPreview')" />
         </div>
         <MeetingMinutesDocument
-          v-if="selectedVersion"
+          v-if="selectedVersion?.snapshot"
           :meeting="query.data.value"
           :snapshot="selectedVersion.snapshot"
           :form="selectedVersion.snapshot.minutes_form"

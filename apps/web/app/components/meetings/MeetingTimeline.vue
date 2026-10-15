@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<{
 
 const route = useRoute()
 const { t, locale } = useI18n()
+const hydrated = useHydrated()
 const now = computed(() => props.now ?? new Date())
 const groups = computed(() => groupMeetingsByMonth(props.meetings, locale.value, now.value, t('meetingTimeline.unknownDate'), props.preserveOrder))
 const tableColumns = computed<TableColumn<MeetingListItem>[]>(() => [
@@ -36,13 +37,14 @@ function phase(meeting: MeetingListItem) {
 function localTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return t('meetingTimeline.unknownDate')
-  return formatNasqTime(parsed, locale.value)
+  return hydrated.value ? formatNasqTime(parsed, locale.value) : ''
 }
 
 function meetingDate(meeting: MeetingListItem) {
   if (meeting.meeting_date) {
     const date = formatCalendarDate(meeting.meeting_date, locale.value)
-    return meeting.start_datetime ? `${date} · ${localTime(meeting.start_datetime)}` : date
+    const time = meeting.start_datetime ? localTime(meeting.start_datetime) : ''
+    return time ? `${date} · ${time}` : date
   }
   return meeting.start_datetime ? localTime(meeting.start_datetime) : t('meetingTimeline.unknownDate')
 }

@@ -3,6 +3,7 @@ import base64
 from unittest.mock import patch
 
 from odoo import fields
+from odoo.exceptions import UserError
 from odoo.tests import new_test_user, tagged
 
 from .common import NasqMeetingsCase
@@ -484,3 +485,94 @@ class TestMeetingsApi(NasqMeetingsCase):
         self.assertEqual(self.api('GET', '/api/v1/notifications').json(), {'items': [], 'total': 0, 'unread_count': 0})
         self.assertEqual(self.api('POST', f'/api/v1/notifications/{row.id}/read', {}).status_code, 404)
         self.assertEqual(self.api('POST', '/api/v1/notifications/read-all', {}).json(), {'updated': 0})
+
+    def _outsider(self):
+        other = self.env['res.company'].create({'name': 'Outsider Co'})
+        return new_test_user(
+            self.env, login='api_outsider', password='api_outsider_pass_123', name='Omar',
+            groups='nasq_core.group_employee', company_id=other.id, company_ids=[other.id],
+        )
+
+    def test_create_and_patch_reject_people_outside_the_current_company(self):
+        self._grant_meeting_create()
+        outsider = self._outsider()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        base = {'name': 'People check', 'meeting_date': '2026-09-08'}
+        for field, body in [
+            ('attendee_ids', {**base, 'attendee_ids': [self.manager.id, outsider.id]}),
+            ('secretary_id', {**base, 'secretary_id': outsider.id}),
+        ]:
+            response = self.api('POST', '/api/v1/meetings', body)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertEqual(response.json()['field'], field)
+        created = self.api('POST', '/api/v1/meetings', {**base, 'attendee_ids': [self.manager.id]})
+        self.assertEqual(created.status_code, 201, created.text)
+        meeting_id = created.json()['id']
+        for field, body in [
+            ('attendee_ids', {'attendee_ids': [outsider.id]}),
+            ('secretary_id', {'secretary_id': outsider.id}),
+        ]:
+            response = self.api('PATCH', f'/api/v1/meetings/{meeting_id}', body)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertEqual(response.json()['field'], field)
+
+    def _manager_meeting(self, **values):
+        self.manager.group_ids |= (
+            self.env.ref('nasq_meetings.group_cap_meetings_read')
+            | self.env.ref('nasq_meetings.group_cap_meetings_manage')
+        )
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'إدارة اكتمال الاجتماع', 'key': 'meeting_completion_manager',
+            'type': 'custom', 'permission_ids': [(6, 0, self.env['nasq.access.permission'].search([
+                ('key', 'in', ['meetings.read', 'meetings.manage']),
+            ]).ids)],
+        })
+        self.env['nasq.access.assignment'].create({
+            'user_id': self.manager.id, 'company_id': self.env.company.id, 'role_id': role.id,
+        })
+        vals = {'name': 'Completion guard', 'state': 'draft', 'organizer_id': self.manager.id, 'meeting_date': '2026-09-08', **values}
+        return self.env['cyan.meeting.minute'].create(vals)
+
+    def test_complete_requires_schedule_and_minutes(self):
+        meeting = self._manager_meeting()
+        meeting.with_user(self.manager).action_confirm()
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        response = self.api('POST', f'/api/v1/meetings/{meeting.id}/complete', {})
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()['field'], 'start_datetime')
+        meeting.with_user(self.manager).write({
+            'start_datetime': '2026-09-08 07:00:00', 'end_datetime': '2026-09-08 08:00:00',
+        })
+        response = self.api('POST', f'/api/v1/meetings/{meeting.id}/complete', {})
+        self.assertEqual(response.status_code, 422, response.text)
+        self.assertEqual(response.json()['field'], 'minutes')
+        with self.assertRaises(UserError):
+            meeting.with_user(self.manager).write({'state': 'done'})
+        self.assertEqual(meeting.state, 'confirmed')
+        meeting.with_user(self.manager).write({'minutes': '<p>Decisions</p>'})
+        response = self.api('POST', f'/api/v1/meetings/{meeting.id}/complete', {})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['state'], 'done')
+
+    def test_cancel_refuses_done_meeting_and_archives_the_calendar_event(self):
+        meeting = self._manager_meeting(
+            start_datetime='2026-09-08 07:00:00', end_datetime='2026-09-08 08:00:00',
+            minutes='<p>Decisions</p>',
+        )
+        event = meeting.calendar_event_id
+        self.assertTrue(event)
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        cancelled = self.api('POST', f'/api/v1/meetings/{meeting.id}/cancel', {})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        self.assertFalse(event.active)
+        reopened = self.api('POST', f'/api/v1/meetings/{meeting.id}/reopen', {})
+        self.assertEqual(reopened.status_code, 200, reopened.text)
+        self.assertTrue(event.active)
+        self.assertEqual(self.api('POST', f'/api/v1/meetings/{meeting.id}/confirm', {}).status_code, 200)
+        self.assertEqual(self.api('POST', f'/api/v1/meetings/{meeting.id}/complete', {}).status_code, 200)
+        refused = self.api('POST', f'/api/v1/meetings/{meeting.id}/cancel', {})
+        self.assertEqual(refused.status_code, 403, refused.text)
+        self.assertEqual(refused.json()['code'], 'transition_forbidden')
+        meeting.invalidate_recordset()
+        self.assertEqual(meeting.state, 'done')
+        self.assertTrue(event.active)
