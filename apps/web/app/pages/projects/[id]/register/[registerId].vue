@@ -32,12 +32,12 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
     </template>
     <SharedEmptyState v-if="!item.data?.value" :title="t('app.noResults')" />
     <template v-else>
-      <SharedRecordSection :title="t('projects.refresh.workspace.registerDescription')">
+      <SharedRecordSection panel :title="t('projects.refresh.workspace.registerDescription')">
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.description || '—' }}</p>
       </SharedRecordSection>
-      <SharedRecordSection :title="t('projects.refresh.workspace.registerPlan')">
+      <SharedRecordSection panel :title="t('projects.refresh.workspace.registerPlan')">
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.response || '—' }}</p>
-        <p v-if="item.data.value.task" class="text-sm">
+        <p v-if="item.data.value.task" class="mt-2 text-sm">
           <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>
           <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}` }">{{ item.data.value.task.name }}</NuxtLink>
         </p>

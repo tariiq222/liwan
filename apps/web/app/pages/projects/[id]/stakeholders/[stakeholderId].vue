@@ -32,8 +32,8 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
       <UButton data-testid="stakeholder-detail-edit" :to="editTo">{{ t('app.edit') }}</UButton>
     </template>
     <SharedEmptyState v-if="!item.data?.value" :title="notFound ? t('projects.notFound') : t('app.noResults')" />
-    <SharedRecordSection v-else :title="t('projects.refresh.workspace.stakeholderContact')">
-      <dl class="grid gap-4 text-sm">
+    <SharedRecordSection v-else panel :title="t('projects.refresh.workspace.stakeholderContact')">
+      <dl class="grid gap-4 text-sm sm:grid-cols-2">
         <div><dt class="text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt><dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd></div>
         <div><dt class="text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></div>
       </dl>
