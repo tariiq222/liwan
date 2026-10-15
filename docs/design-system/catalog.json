@@ -65,7 +65,7 @@
       ]
     },
     {
-      "name": "MeetingAttachmentsTab",
+      "name": "MeetingsMeetingAttachmentsTab",
       "file": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue",
       "story": "apps/web/stories/meetings/MeetingAttachmentsTab.stories.ts",
       "title": "Meetings/MeetingAttachmentsTab",
@@ -471,7 +471,7 @@
       ]
     },
     {
-      "name": "MeetingRecordTabs",
+      "name": "MeetingsMeetingRecordTabs",
       "file": "apps/web/app/components/meetings/MeetingRecordTabs.vue",
       "story": "apps/web/stories/meetings/MeetingRecordTabs.stories.ts",
       "title": "Meetings/MeetingRecordTabs",
@@ -512,7 +512,7 @@
       ]
     },
     {
-      "name": "MeetingResolutionsTab",
+      "name": "MeetingsMeetingResolutionsTab",
       "file": "apps/web/app/components/meetings/MeetingResolutionsTab.vue",
       "story": "apps/web/stories/meetings/MeetingResolutionsTab.stories.ts",
       "title": "Meetings/MeetingResolutionsTab",
@@ -1320,17 +1320,17 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:112"
+          "context": "apps/web/app/pages/projects/[id].vue:114"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:112"
+          "context": "apps/web/app/pages/projects/[id].vue:114"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:112"
+          "context": "apps/web/app/pages/projects/[id].vue:114"
         }
       ]
     },
