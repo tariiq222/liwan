@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener, useMediaQuery } from '@vueuse/core'
-import ModuleRail from './ModuleRail.vue'
+import ModuleRail from '@nasq/ui/app/components/shell/ModuleRail.vue'
 import ContextSidebar from './ContextSidebar.vue'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellModel } from '@/composables/useShellModel'

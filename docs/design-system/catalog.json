@@ -1910,7 +1910,7 @@
       "props": [
         {
           "name": "modules",
-          "type": "ShellRailItem[]",
+          "type": "globalThis.ShellRailItem[]",
           "required": true
         },
         {
@@ -1962,51 +1962,6 @@
       ]
     },
     {
-      "name": "ShellModuleRail",
-      "file": "apps/web/app/components/shell/ModuleRail.vue",
-      "story": "apps/web/stories/shell/ModuleRail.stories.ts",
-      "title": "Shell/ModuleRail",
-      "props": [
-        {
-          "name": "modules",
-          "type": "ShellRailItem[]",
-          "required": true
-        },
-        {
-          "name": "utility",
-          "type": "ShellRailItem[]",
-          "required": true
-        },
-        {
-          "name": "activeId",
-          "type": "string | null",
-          "required": true
-        },
-        {
-          "name": "homeTo",
-          "type": "string",
-          "required": true
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "Default",
-          "name": "المشاريع نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
-        },
-        {
-          "id": "SettingsActive",
-          "name": "الإعدادات نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
-        }
-      ]
-    },
-    {
       "name": "ShellBreadcrumb",
       "file": "apps/web/app/components/shell/ShellBreadcrumb.vue",
       "story": "apps/web/stories/shell/ShellBreadcrumb.stories.ts",
@@ -2033,48 +1988,6 @@
           "id": "Single",
           "name": "مستوى واحد",
           "context": "apps/web/app/components/shell/ShellHeader.vue:84"
-        }
-      ]
-    },
-    {
-      "name": "ShellFrame",
-      "file": "apps/web/app/components/shell/ShellFrame.vue",
-      "story": "apps/web/stories/shell/ShellFrame.stories.ts",
-      "title": "Shell/ShellFrame",
-      "props": [
-        {
-          "name": "noSidebar",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [
-        "header",
-        "sidebar",
-        "default"
-      ],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "Default",
-          "name": "الإطار الكامل",
-          "context": "apps/web/app/layouts/default.vue:46"
-        },
-        {
-          "id": "Collapsed",
-          "name": "القائمة السياقية مطويّة",
-          "context": "apps/web/app/layouts/default.vue:46"
-        },
-        {
-          "id": "Console",
-          "name": "الكونسول",
-          "context": "apps/web/app/layouts/default.vue:46"
-        },
-        {
-          "id": "BrightTenant",
-          "name": "لون مؤسسة ساطع",
-          "context": "apps/web/app/layouts/default.vue:46"
         }
       ]
     },
@@ -4920,6 +4833,93 @@
           "id": "Schedule",
           "name": "جدول بمقياس أسبوعي وشهري",
           "context": "unused"
+        }
+      ]
+    },
+    {
+      "name": "ModuleRail",
+      "file": "packages/ui/app/components/shell/ModuleRail.vue",
+      "story": "apps/web/stories/shell/ModuleRail.stories.ts",
+      "title": "Shell/ModuleRail",
+      "props": [
+        {
+          "name": "modules",
+          "type": "globalThis.ShellRailItem[]",
+          "required": true
+        },
+        {
+          "name": "utility",
+          "type": "globalThis.ShellRailItem[]",
+          "required": true
+        },
+        {
+          "name": "activeId",
+          "type": "string | null",
+          "required": true
+        },
+        {
+          "name": "homeTo",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "المشاريع نشطة",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
+        },
+        {
+          "id": "SettingsActive",
+          "name": "الإعدادات نشطة",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
+        }
+      ]
+    },
+    {
+      "name": "ShellFrame",
+      "file": "packages/ui/app/components/shell/ShellFrame.vue",
+      "story": "apps/web/stories/shell/ShellFrame.stories.ts",
+      "title": "Shell/ShellFrame",
+      "props": [
+        {
+          "name": "noSidebar",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "header",
+        "sidebar",
+        "default"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "الإطار الكامل",
+          "context": "apps/web/app/layouts/default.vue:46"
+        },
+        {
+          "id": "Collapsed",
+          "name": "القائمة السياقية مطويّة",
+          "context": "apps/web/app/layouts/default.vue:46"
+        },
+        {
+          "id": "Console",
+          "name": "الكونسول",
+          "context": "apps/web/app/layouts/default.vue:46"
+        },
+        {
+          "id": "BrightTenant",
+          "name": "لون مؤسسة ساطع",
+          "context": "apps/web/app/layouts/default.vue:46"
         }
       ]
     }

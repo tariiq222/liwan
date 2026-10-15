@@ -45,6 +45,7 @@ LAYER_COMPONENTS = frozenset(
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'RecordNumber', 'RowActions', 'StatusBadge', 'ViewSwitch')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
+    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellFrame')]
 )
 
 

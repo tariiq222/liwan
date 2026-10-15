@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const webLocales = join(root, '../../apps/web/i18n/locales')
 const LANGS = ['ar', 'en']
-const ROOTS = ['app', 'states', 'filterCard', 'errors', 'brand']
+const ROOTS = ['app', 'states', 'filterCard', 'errors', 'brand', 'nav']
 
 type Tree = { [key: string]: string | Tree }
 
@@ -50,10 +50,12 @@ describe('ui layer messages', () => {
     expect(paths(uiMessages('ar')).sort()).toEqual(paths(uiMessages('en')).sort())
   })
 
-  it('does not repeat a key path that apps/web common.json owns', () => {
+  it('does not repeat a key path that an apps/web locale file owns', () => {
     for (const lang of LANGS) {
       const own = new Set(paths(uiMessages(lang)))
-      expect(paths(load(join(webLocales, lang, 'common.json'))).filter(key => own.has(key)), lang).toEqual([])
+      for (const file of readdirSync(join(webLocales, lang)).filter(name => name.endsWith('.json'))) {
+        expect(paths(load(join(webLocales, lang, file))).filter(key => own.has(key)), `${lang}/${file}`).toEqual([])
+      }
     }
   })
 })

@@ -33,6 +33,12 @@
     "remove": "Remove filter",
     "title": "Search and filters"
   },
+  "nav": {
+    "home": "Overview",
+    "modules": "Modules",
+    "railApps": "Applications",
+    "railAdmin": "Administration"
+  },
   "states": {
     "bulkActions": "Actions on selected rows",
     "chartEmpty": "There is not enough data to draw this chart.",

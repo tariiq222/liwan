@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BrandWordmark from '@nasq/ui/app/components/shared/layout/BrandWordmark.vue'
-import type { ShellRailItem } from '@/composables/nav/sidebarModel'
+import type { ShellRailItem } from '../../types/shell'
 
 // The module rail (spec §3, §5): always Nasq midnight, 64px, icon over a small
 // label; the active module carries a lime bar on the rail's inline-start edge.
@@ -19,7 +19,7 @@ const groups = computed(() => [
 
 <template>
   <aside data-testid="module-rail" class="nasq-module-rail" :aria-label="t('nav.modules')">
-    <NuxtLink :to="props.homeTo" class="nasq-module-rail-brand" :aria-label="`${t('app.productName')} — ${t('nav.home')}`">
+    <NuxtLink :to="props.homeTo" class="nasq-module-rail-brand" :aria-label="`${t('brand.name')} — ${t('nav.home')}`">
       <BrandWordmark size="sm" inverted />
     </NuxtLink>
     <nav v-for="group in groups" :key="group.key" :class="group.class" :aria-label="group.label">
