@@ -131,7 +131,8 @@ npm -w apps/control-plane run admin -- migrate-saas-commercial --dry-run --repor
 npm -w apps/control-plane run admin -- migrate-saas-commercial --run --report /abs/path/run.json
 ```
 
-- dry-run لا يعدّل بيانات؛ يصنّف (saas_package / saas_catalog_only / non_saas) ويعدّ الأخطاء لكل صف ويخرج `source_digest`. الخروج 2 إذا وُجدت أخطاء صفوف.
+- dry-run لا يعدّل بيانات؛ يصنّف (saas_package / saas_catalog_only / saas_commercial / non_saas) ويعدّ الأخطاء لكل صف ويخرج `source_digest`. الخروج 2 إذا وُجدت أخطاء صفوف.
+- `saas_commercial`: مستأجر يملكه المسار التجاري (عميل غير قديم سجّله أو له اشتراك عليه). يُتخطّى ولا يُكتب له شيء، وتظهر معرفاته في `skipped_commercial`. عميل مربوط بلا اشتراك ولا تسجيل يبقى `customer_conflict`، ووجود العميل القديم مع عميل تجاري معًا `ownership_conflict`.
 - شرط: نسخة احتياطية/قاعدة scratch أولًا؛ راجع `errors` وعدّاد كل فئة قبل `--run`.
 - القاعدة: عميل بلا سعر مسجل يبقى على سياسته الحالية ويوسم «يحتاج إعداد اتفاق تجاري»؛ لا فاتورة صفرية ولا دين ولا سعر مخترع. إعادة التشغيل تعطي نفس النتيجة (idempotent بمعرف uuidv5 ثابت).
 - **[بعد C2]** إثبات الاستئناف بعد انقطاع وتطابق counts/hashes على نسخة scratch يتبع C1/C2؛ لم يُعد قبوله في هذا الدليل. الأعمدة القديمة لا تُسقط في التسليم الأول.
