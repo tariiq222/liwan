@@ -359,6 +359,14 @@ class TestCollect(unittest.TestCase):
             'packages/ui/app/composables/useBad.ts',
         ])
 
+    def test_ui_layer_css_and_node_modules(self):
+        self.clean_tree()
+        self.write('packages/ui/app/assets/css/a.css', "a { background: url(../../../../apps/web/a.png) }\n")
+        self.write('packages/ui/app/assets/css/b.css', "@source '../../../../../apps/web/app';\n")
+        self.write('packages/ui/node_modules/dep/index.ts', "import x from 'apps/web/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], ['packages/ui/app/assets/css/a.css', 'packages/ui/app/assets/css/b.css'])
+
     def test_clean_ui_layer_passes(self):
         self.clean_tree()
         self.write('packages/ui/app/components/Good.vue', "<script setup>import { ref } from 'vue'</script>\n")
@@ -367,9 +375,14 @@ class TestCollect(unittest.TestCase):
 
     def test_ui_layer_patterns(self):
         for bad in ("import a from 'odoo-addons/x'", "import '@nasq/contracts'", "from '~/x'", "require('../../apps/web/x')",
-                    "import c from '../control-plane/x'"):
+                    "import c from '../control-plane/x'",
+                    "import d from '~~/x'", "export * from '@@/x'", "const m = import('@/x')", "import.meta.glob('../../apps/web/*.ts')",
+                    "import.meta.glob(['/apps/web/a.ts'])", "@source '../../apps/web/app';", "background: url(../../apps/web/a.png);",
+                    "@import url('~/x.css');"):
             self.assertEqual(ui_layer_violations(bad), 1, bad)
-        for good in ("import a from 'vue'", "import b from '@nasq/ui/app/x'", "import c from './apps-list'"):
+        for good in ("import a from 'vue'", "import b from '@nasq/ui/app/x'", "import c from './apps-list'",
+                    "// moved from apps/web/app/x", "/* imported from @/composables by the app */", "see apps/web/app/x for import details",
+                    "background: url(./a.png);", "@source '../app';"):
             self.assertEqual(ui_layer_violations(good), 0, good)
 
     def test_clean_tree_has_no_violations(self):
