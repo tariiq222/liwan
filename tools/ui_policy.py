@@ -56,6 +56,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'shared/RichText.vue', 'shared/Pagination.vue', 'shared/MetricTile.vue', 'shared/InlineConfirm.vue',
     'shared/RowActions.vue', 'shared/PersonPicker.vue', 'shared/FilterChip.vue', 'shared/FilterChoice.vue',
     'shared/FilterField.vue', 'project/ProjectCharterForm.vue',
+    'shared/AttachmentList.vue', 'shared/CommentComposer.vue', 'shared/CommentThread.vue', 'shared/Checklist.vue',
     'vendor/PriceBreakdown.vue', 'vendor/EntitlementSummary.vue', 'vendor/PriceListEditor.vue',
     'vendor/CapacityLimitsEditor.vue', 'vendor/BundleForm.vue', 'vendor/PlanForm.vue', 'vendor/LifecyclePanel.vue',
     'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
