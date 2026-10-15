@@ -44,10 +44,10 @@ class PhysicalBoundaryTests(unittest.TestCase):
 class PackageAdministratorScriptTests(unittest.TestCase):
     """Execute the generated control flow with a minimal Odoo protocol double.
 
-    This verifies package/legacy branching and fail-closed readback, not ORM or
+    This verifies package and catalog provisioning and fail-closed readback, not ORM or
     actual quota semantics; the parent owns fresh isolated Odoo acceptance.
     """
-    def run_script(self, *, package=True, snapshot=False, support=True, count=None):
+    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None):
         writes = []
         roles = {'existing_customer_role'}
         company = SimpleNamespace(id=1, name='Company')
@@ -122,6 +122,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                         _nasq_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
                         _nasq_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
                         _nasq_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
+                        _nasq_limit_value=lambda key: limit if key == 'users.limit' else None,
                     )
                 if model == 'nasq.access.role':
                     return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
@@ -179,12 +180,41 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         self.assertEqual(result, {'verified': True, 'uid': 2})
         self.assertEqual(writes, [])
 
-    def test_legacy_apply_and_snapshot_keep_original_support_behavior(self):
-        for snapshot in (False, True):
-            result, writes, admin, _roles = self.run_script(package=False, snapshot=snapshot, count=0)
-            self.assertEqual(result, {'verified': True, 'uid': 2})
-            self.assertTrue(admin.support_member)
-            self.assertFalse(any(entry[0] == 'sync' or (entry[0] == 'user' and 'group_ids' in entry[1]) for entry in writes))
+    def test_catalog_apply_treats_first_admin_as_counted_customer(self):
+        # A commercial tenant provisioned from the catalog (no package authority)
+        # gets the same customer administrator as a package tenant.
+        result, writes, admin, roles = self.run_script(package=False)
+        self.assertEqual(result, {'verified': True, 'uid': 2})
+        self.assertFalse(admin.support_member)
+        self.assertEqual(roles, {'existing_customer_role', 'system_admin', 'pmo_manager', 'hr_manager'})
+        self.assertIn(('user', {'group_ids': [(3, 99, 0)]}, 'access.users.assign_roles'), writes)
+        self.assertTrue(any(entry[0] == 'sync' for entry in writes))
+
+    def test_catalog_snapshot_refuses_support_or_missing_count_without_writes(self):
+        for support, count in [(True, 1), (False, 0)]:
+            with self.subTest(support=support, count=count):
+                result, writes, _admin, _roles = self.run_script(package=False, snapshot=True, support=support, count=count)
+                self.assertEqual(result, {'verified': False})
+                self.assertEqual(writes, [])
+        result, writes, _admin, _roles = self.run_script(package=False, snapshot=True, support=False, count=1)
+        self.assertEqual(result, {'verified': True, 'uid': 2})
+        self.assertEqual(writes, [])
+
+    def test_apply_refuses_a_tenant_born_over_its_users_limit(self):
+        for package in (True, False):
+            with self.subTest(package=package):
+                result, writes, _admin, _roles = self.run_script(package=package, limit=0)
+                self.assertEqual(result, {'verified': False})
+                self.assertNotIn(('commit',), writes)
+        result, _writes, _admin, _roles = self.run_script(package=False, limit=1)
+        self.assertEqual(result, {'verified': True, 'uid': 2})
+
+    def test_admin_script_has_no_package_branch(self):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.database = 'nasq_scratch_' + 'a' * 32
+        runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'job': {'policy': {}}}
+        text = runner.admin_script('known-secret', snapshot=False)
+        self.assertNotIn('packageAdmin', text)
 
 class DiagnosticsAndCatalogTests(unittest.TestCase):
     SYNTHETIC_DIAGNOSTIC = (
