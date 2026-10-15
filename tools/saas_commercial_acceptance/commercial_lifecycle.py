@@ -91,7 +91,7 @@ def compose(state: dict, args: list[str], **kwargs):
         raise ValueError('This harness retains resources; use stop. Removal needs separate authorization.')
     return subprocess.run(['docker', 'compose', '--project-name', state['projectName'],
                            '--env-file', state['envFile'], '-f', state['composeFile'], *args],
-                          cwd=ROOT, check=True, **kwargs)
+                          cwd=ROOT, **{'check': True, **kwargs})
 
 
 def prepare() -> None:

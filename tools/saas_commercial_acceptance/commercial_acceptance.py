@@ -4,6 +4,9 @@
 Refuses unless the env pointer is project nasq-saas-commercial-acceptance and the control DB is the scratch one.
 Playwright specs do the live browser/API work; E14 (backup/restore) and E16 (migration/non_saas) are driven here.
 Evidence: tools/saas_commercial_acceptance/.evidence/<run-id>/E??.json (git-ignored). Payment is SIMULATED, never Moyasar.
+A case result comes only from its evidence JSON, written by the spec or driver that ran it; a Playwright exit code never
+marks a case PASS, and a case without fresh evidence stays NOT RUN. The tracked verification document is updated only by
+`report <run-id> --update-doc`, from that evidence.
 Nothing here runs at import time; no teardown commands are issued.
 """
 from __future__ import annotations
@@ -27,7 +30,9 @@ from tools.saas_commercial_acceptance import commercial_readback as RB  # noqa: 
 MATRIX = json.loads((HERE / 'matrix.json').read_text())
 CASES = [c['id'] for c in MATRIX['cases']]
 SPEC = {'journey': 'commercial-journey.spec.mjs', 'isolation': 'commercial-isolation.spec.mjs', 'pages': 'commercial-pages.spec.mjs'}
-SPEC_FOR = {**{f'E{n:02d}': 'journey' for n in range(1, 13)}, 'E13': 'isolation', 'E15': 'pages'}
+# Cases a spec actually exercises and persists; E01-E03 have no live spec (see matrix.json covered_by).
+SPEC_FOR = {**{f'E{n:02d}': 'journey' for n in range(4, 13)}, 'E13': 'isolation', 'E15': 'pages'}
+DOC = ROOT / 'docs/verification/saas-commercial-integrated-acceptance.md'
 EXPECTED_CONTROL_DB = RB.CONTROL_DB
 
 
@@ -77,24 +82,63 @@ def write_case(run_id: str, case: str, result: str, reason: str, **extra) -> Non
     temporary = directory / f'{case}.json.tmp'
     temporary.write_text(encoded)
     temporary.replace(directory / f'{case}.json')
-    doc = ROOT / 'docs/verification/saas-commercial-integrated-acceptance.md'
-    text = doc.read_text()
-    lines = text.splitlines()
-    for i, line in enumerate(lines):
-        if line.startswith(f'| {case} |'):
-            cells = line.split('|')
-            cells[4] = f' {result} '
-            cells[5] = ' ' + str(extra.get('linked_ids', '')).replace('|', '/') + ' '
-            cells[6] = f' Run `{run_id}`: {reason.replace(chr(10), " ").replace("|", "/")}. Evidence: `tools/saas_commercial_acceptance/.evidence/{run_id}/{case}.json`; `{case}.journey.json` when present. '
-            lines[i] = '|'.join(cells)
-            break
-    header = f'## Live run {run_id}'
-    if header not in text:
-        info = build_info()
-        lines += ['', header, f'- Started UTC: {now()}; Git `{info["git_sha"]}`, dirty={info["git_dirty"]}.', '- Scope: isolated acceptance project only; no commit, no product edits, no teardown. Simulator/Mailpit only.', '- Image IDs: ' + json.dumps(info['images']) + '.']
-    lines += [f'- {now()} {case}: {result}; {extra.get("command", "persisted serial journey")}; exit={extra.get("exit_code", "see case evidence")}.']
-    doc.write_text('\n'.join(lines) + '\n')
     print(f'{case}: {result} - {reason}')
+
+
+def load_case(run_id: str, case: str, since: str | None = None) -> dict | None:
+    """The case's evidence for RUN_ID, or None when absent, foreign or older than SINCE (ISO UTC)."""
+    path = HERE / '.evidence' / run_id / f'{case}.json'
+    try:
+        value = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    if (not isinstance(value, dict) or value.get('case') != case or value.get('run_id') != run_id
+            or value.get('result') not in {'PASS', 'FAIL', 'BLOCKED'}):
+        return None
+    if since is not None:
+        try:
+            if datetime.fromisoformat(value['at']) < datetime.fromisoformat(since):
+                return None
+        except (KeyError, TypeError, ValueError):
+            return None
+    return value
+
+
+def update_doc(run_id: str) -> None:
+    """Copy this run's evidence results into the tracked matrix; cases without evidence are left as they are."""
+    lines = DOC.read_text().splitlines()
+    found = {c: load_case(run_id, c) for c in CASES}
+    for i, line in enumerate(lines):
+        case = next((c for c in CASES if line.startswith(f'| {c} |')), None)
+        evidence = found.get(case) if case else None
+        if not evidence:
+            continue
+        cells = line.split('|')
+        reason = str(evidence.get('reason', '')).replace('|', '/')
+        cells[4] = f" {evidence['result']} "
+        if 'linked_ids' in evidence:
+            cells[5] = ' ' + str(evidence['linked_ids']).replace('|', '/') + ' '
+        cells[6] = f' Run `{run_id}`: {reason}. Evidence: `tools/saas_commercial_acceptance/.evidence/{run_id}/{case}.json`; `{case}.journey.json` when present. '
+        lines[i] = '|'.join(cells)
+    header = f'## Live run {run_id}'
+    info = build_info()
+    block = [header, f'- Recorded UTC: {now()}; Git `{info["git_sha"]}`, dirty={info["git_dirty"]}.',
+             '- Scope: isolated acceptance project only. Simulator/Mailpit only. Results copied from case evidence JSON.',
+             '- Image IDs: ' + json.dumps(info['images']) + '.']
+    for case in CASES:
+        evidence = found[case]
+        result = evidence['result'] if evidence else 'NOT RUN'
+        block.append(f'- {case}: {result}' + (f"; evidence at {evidence['at']}; exit={evidence.get('exit_code', 'n/a')}." if evidence else '; no case evidence in this run.'))
+    # Rerunning replaces this run's section in place instead of appending a second copy.
+    if header in lines:
+        start = lines.index(header)
+        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith('## ')), len(lines))
+        while end > start + 1 and not lines[end - 1].strip():
+            end -= 1
+        lines[start:end] = block
+    else:
+        lines += [''] + block
+    DOC.write_text('\n'.join(lines) + '\n')
 
 
 def playwright(run_id: str, spec: str, grep: str | None) -> tuple[int, list[str]]:
@@ -174,18 +218,35 @@ def run_case(run_id: str, case: str) -> None:
         return case_e14(run_id)
     if case == 'E16':
         return case_e16(run_id)
-    spec = SPEC_FOR[case]
-    grep = case if spec == 'journey' else None
-    code, cmd = playwright(run_id, spec, grep)
-    write_case(run_id, case, 'PASS' if code == 0 else 'FAIL', f'playwright exit {code}', command=' '.join(cmd), exit_code=code)
+    spec = SPEC_FOR.get(case)
+    if spec is None:
+        print(f'{case}: NOT RUN - no live spec covers this case')
+        return
+    run_spec(run_id, spec)
+
+
+def run_spec(run_id: str, spec: str) -> None:
+    """Run one spec, then report each of its cases from the evidence it wrote during this run."""
+    started = now()
+    # The journey is one serial test persisting E04-E12; a --grep would select it whole or not at all.
+    code, cmd = playwright(run_id, spec, None)
+    for case in [c for c, s in SPEC_FOR.items() if s == spec]:
+        evidence = load_case(run_id, case, since=started)
+        if evidence:
+            print(f"{case}: {evidence['result']} - {evidence.get('reason', '')}")
+        elif code != 0:
+            # A crashed spec is a failure of this case, never a pass.
+            write_case(run_id, case, 'FAIL', f'{SPEC[spec]} exited {code} without persisting {case} evidence (see playwright-{spec}.log)',
+                       command=' '.join(cmd), exit_code=code)
+        else:
+            print(f'{case}: NOT RUN - {SPEC[spec]} exited 0 without persisting {case} evidence')
 
 
 def report(run_id: str) -> None:
     d = run_dir(run_id)
     rows = []
     for c in CASES:
-        f = d / f'{c}.json'
-        r = json.loads(f.read_text()) if f.exists() else {'result': 'NOT RUN', 'reason': ''}
+        r = load_case(run_id, c) or {'result': 'NOT RUN', 'reason': ''}
         rows.append(f"| {c} | {r['result']} | {r.get('reason', '')} |")
     out = '| ID | Result | Reason |\n|---|---|---|\n' + '\n'.join(rows)
     (d / 'report.md').write_text(out + '\n')
@@ -208,6 +269,7 @@ def main() -> None:
     p.add_argument('--result', choices=['PASS', 'FAIL', 'BLOCKED'])
     p.add_argument('--reason', default='')
     p.add_argument('--exit-code', type=int, default=0)
+    p.add_argument('--update-doc', action='store_true', help='report: copy evidence results into the tracked verification document')
     p.add_argument('target', nargs='?', default='all', help='E01..E16 or all (run); run id for report/prepare-data')
     p.add_argument('--run-id', default=os.environ.get('NASQ_SCA_RUN_ID') or datetime.now(timezone.utc).strftime('run-%Y%m%dT%H%M%SZ'))
     a = p.parse_args()
@@ -218,15 +280,16 @@ def main() -> None:
     if a.action == 'prepare-data':
         prepare_data(a.run_id)
     elif a.action == 'report':
-        report(a.run_id)
+        report(a.target if a.target != 'all' else a.run_id)
+        if a.update_doc:
+            update_doc(a.target if a.target != 'all' else a.run_id)
     else:
         os.environ['NASQ_SCA_RUN_ID'] = a.run_id
         if a.target == 'all':
-            # Journey (E01-E12) is one serial spec; run it once, then the rest.
             guard()
-            code, cmd = playwright(a.run_id, 'journey', None)
-            for c in CASES[:12]:
-                write_case(a.run_id, c, 'PASS' if code == 0 else 'FAIL', f'journey spec exit {code} (see playwright-journey.log)', command=' '.join(cmd), exit_code=code)
+            for c in ('E01', 'E02', 'E03'):
+                run_case(a.run_id, c)
+            run_spec(a.run_id, 'journey')
             for c in ('E13', 'E14', 'E15', 'E16'):
                 run_case(a.run_id, c)
         elif a.target in CASES:
