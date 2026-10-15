@@ -46,6 +46,7 @@ function evaluatedDetailPage() {
     useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useAccess: () => ({ can: () => true }),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     useMeetingEvents: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
@@ -121,6 +122,7 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeeting: () => mutation,
     createMeetingMinutesForm,
@@ -145,6 +147,7 @@ function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<stri
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useMeetingSeries: () => ({ data: series, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeetingSeriesSettings: () => mutation,
     formatCalendarDate: (value: string) => value,
@@ -183,6 +186,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeeting: () => ({ mutateAsync, isPending: ref(false), error: ref(null) }),
     safeReturnTo: (value: unknown, fallback: string) => typeof value === 'string' ? value : fallback,

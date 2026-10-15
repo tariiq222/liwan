@@ -21,7 +21,14 @@ describe('meeting workspace wire compatibility', () => {
     const parsed = MeetingVersionListSchema.parse({ items: [version, { ...version, id: 2, number: 2, snapshot: { ...snapshot, minutes_form: form } }], total: 2 })
     expect(parsed.items[0]?.snapshot.minutes_form).toBeUndefined()
     expect(parsed.items[1]?.snapshot.minutes_form?.topics[0]?.resolution_ids).toEqual([17])
-    expect(MeetingVersionListSchema.safeParse({ items: [{ ...version, snapshot: { ...snapshot, raw_task_id: 9 } }], total: 1 }).success).toBe(false)
+    const stripped = MeetingVersionListSchema.parse({ items: [{ ...version, snapshot: { ...snapshot, raw_task_id: 9 } }], total: 1 })
+    expect(stripped.items[0]?.snapshot).not.toHaveProperty('raw_task_id')
+  })
+  it('accepts a version whose snapshot is missing or undated', () => {
+    const version = { id: 3, number: 3, captured_at: snapshot.captured_at, actor: null, snapshot: null }
+    expect(MeetingVersionListSchema.parse({ items: [version], total: 1 }).items[0]?.snapshot).toBeNull()
+    const undated = { ...version, snapshot: { ...snapshot, captured_at: null } }
+    expect(MeetingVersionListSchema.parse({ items: [undated], total: 1 }).items[0]?.snapshot?.captured_at).toBeNull()
   })
   it('supports an empty activity history without fabricated entries', () => {
     expect(MeetingEventListSchema.parse({ items: [], total: 0 })).toEqual({ items: [], total: 0 })

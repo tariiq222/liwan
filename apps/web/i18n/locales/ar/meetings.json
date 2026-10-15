@@ -113,6 +113,9 @@
   },
   "meetingsUx": {
     "cancelMeetingAction": "إلغاء الاجتماع",
+    "editForbidden": "ليست لديك صلاحية تعديل هذا الاجتماع.",
+    "confirmComplete": "إكمال الاجتماع؟ بعد الإكمال يصبح المحضر مقفلًا.",
+    "confirmReopen": "إعادة فتح الاجتماع؟",
     "context": {
       "series": "الاجتماع الدوري: {name}",
       "project": "المشروع: {name}"

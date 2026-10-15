@@ -113,11 +113,12 @@ function loadMoreMeetings() {
 function localTime(value: string | null) {
   if (!value) return '—'
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? '—' : formatNasqTime(parsed, locale.value)
+  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatNasqTime(parsed, locale.value) : ''
 }
 function occurrenceLabel(meeting: { meeting_date: string | null; start_datetime: string | null }) {
   const date = meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale.value) : t('meetingTimeline.unknownDate')
-  return meeting.start_datetime ? `${date} · ${localTime(meeting.start_datetime)}` : date
+  const time = meeting.start_datetime ? localTime(meeting.start_datetime) : ''
+  return time ? `${date} · ${time}` : date
 }
 const canAddOccurrence = computed(() => {
   const series = query.data.value

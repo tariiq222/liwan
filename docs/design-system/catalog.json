@@ -81,6 +81,16 @@
           "required": false
         },
         {
+          "name": "attendeesError",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "secretaryError",
+          "type": "string",
+          "required": false
+        },
+        {
           "name": "attendeeIds",
           "type": "number[]",
           "required": true

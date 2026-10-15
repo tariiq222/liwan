@@ -46,17 +46,26 @@ def dump_minutes_form(meeting, form):
     }
 
 
+def _visible_snapshot_rows(meeting, snapshot):
+    """The snapshot's resolution rows whose recommendation the caller may read now.
+
+    Same visibility as ``dump_previous_resolutions``: a row of an earlier occurrence
+    the caller cannot open stays out of the version history and the frozen minutes.
+    """
+    rows = [row for row in snapshot.get('resolutions', []) if isinstance(row, dict) and row.get('id')]
+    Resolution = meeting.env['cyan.meeting.resolution']
+    visible = Resolution.browse([row['id'] for row in rows]).exists()._filtered_access('read')
+    visible_ids = set(visible.ids)
+    return [row for row in rows if row['id'] in visible_ids], visible
+
+
 def dump_snapshot_payload(meeting, snapshot):
     """Project a server-built snapshot through current visibility rules."""
     if not isinstance(snapshot, dict):
         return None
     links = _links(meeting)
-    snapshot_rows = [row for row in snapshot.get('resolutions', []) if isinstance(row, dict)]
-    readable = {}
-    resolution_ids = [row.get('id') for row in snapshot_rows if row.get('id')]
-    if resolution_ids:
-        resolutions = meeting.env['cyan.meeting.resolution'].browse(resolution_ids).exists()
-        readable = links._nasq_readable_links(meeting, resolutions)
+    snapshot_rows, resolutions = _visible_snapshot_rows(meeting, snapshot)
+    readable = links._nasq_readable_links(meeting, resolutions)
     result = {
         'captured_at': snapshot.get('captured_at'),
         'name': snapshot.get('name', ''),
@@ -87,8 +96,7 @@ def dump_snapshot_payload(meeting, snapshot):
                 'execution_period': row.get('execution_period') or '',
                 'project': row.get('project') or links._nasq_project_ref_by_id(meeting, row.get('project_id')),
             }
-            for row in snapshot.get('resolutions', [])
-            if isinstance(row, dict)
+            for row in snapshot_rows
         ],
     }
     form = dump_minutes_form(meeting, snapshot.get('minutes_form'))
@@ -98,10 +106,8 @@ def dump_snapshot_payload(meeting, snapshot):
 
 
 def dump_minutes_snapshot(meeting):
-    """Expose only a completed meeting's frozen, server-built payload."""
-    if meeting.state != 'done' or not isinstance(meeting.minutes_snapshot, dict):
-        return None
-    return dump_snapshot_payload(meeting, meeting.minutes_snapshot)
+    """A completed meeting's frozen payload, already projected by ``_compute_minutes_snapshot``."""
+    return meeting.minutes_snapshot or None
 
 
 def dump_event(event, meeting=None):
@@ -248,9 +254,11 @@ def dump_previous_resolutions(meeting):
         return []
     rows = []
     current_key = _meeting_order_key(meeting)
-    others = meeting.series_id.meeting_ids.filtered(
-        lambda item: item.id != meeting.id and _meeting_order_key(item) < current_key,
-    )
+    # A search applies the caller's record rules even when another environment
+    # of the same transaction has already cached the series' full occurrence list.
+    others = meeting.env['cyan.meeting.minute'].search([
+        ('series_id', '=', meeting.series_id.id), ('id', '!=', meeting.id),
+    ]).filtered(lambda item: _meeting_order_key(item) < current_key)
     readable = _links(meeting)._nasq_readable_links(meeting, others.mapped('resolution_ids'))
     for other in others.sorted(key=_meeting_order_key):
         for resolution in other.resolution_ids:

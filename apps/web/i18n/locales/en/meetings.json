@@ -113,6 +113,9 @@
   },
   "meetingsUx": {
     "cancelMeetingAction": "Cancel meeting",
+    "editForbidden": "You do not have permission to edit this meeting.",
+    "confirmComplete": "Complete this meeting? Once completed, the minutes are locked.",
+    "confirmReopen": "Reopen this meeting?",
     "context": {
       "series": "Series: {name}",
       "project": "Project: {name}"
