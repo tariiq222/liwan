@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
-import ScheduleGantt from '@/components/project/schedule/ScheduleGantt.vue'
+import ScheduleGantt from '@/components/pmo/projects/schedule/ScheduleGantt.vue'
 import { buildScheduleAxis, scheduleColumnSpan, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
@@ -28,7 +28,9 @@ const columnSpanLabel = computed(() => {
   })
   const span = scheduleColumnSpan(axis, scale.value, locale.value)
   const key = `projects.schedule.columnSpan.${span.unit}.${span.form}`
-  return t(te(key) ? key : `projects.schedule.columnSpan.${span.unit}.other`, { n: span.count })
+  const label = t(te(key) ? key : `projects.schedule.columnSpan.${span.unit}.other`, { n: span.count })
+  // Columns are grouped once the axis unit exceeds one nominal week or month.
+  return axis.unitDays > (scale.value === 'month' ? 30 : 7) ? t('projects.schedule.columnSpanGrouped', { span: label }) : label
 })
 const notFound = computed(() => projectId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
 function retry() { void Promise.all([refetchProject(), refetch()]) }

@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DateField from '../../app/components/shared/DateField.vue'
-import FilterBar from '../../app/components/shared/FilterBar.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import DateField from '../../app/components/shared/form/DateField.vue'
+import FilterBar from '../../app/components/shared/data/FilterBar.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -44,7 +44,7 @@ export const InFilterPopover: Story = {
 
 export const WithTime: Story = {
   name: 'مع وقت',
-  parameters: storyContext('apps/web/app/components/task/TaskProperties.vue:168', 'موعد المهمة: التسمية تعرض التاريخ والوقت، وحقل الوقت في تذييل التقويم يُبقي النافذة مفتوحة بعد اختيار اليوم.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskProperties.vue:203', 'موعد المهمة: التسمية تعرض التاريخ والوقت، وحقل الوقت في تذييل التقويم يُبقي النافذة مفتوحة بعد اختيار اليوم.'),
   args: { modelValue: '2026-09-20' },
   render: args => ({
     components: { DateField, PageContainer },

@@ -60,7 +60,9 @@ function target(page: Awaited<ReturnType<typeof load>>) { return page.router.res
 // Evaluate the actual template's bound location, including row-local variables.
 function templateTo(page: Awaited<ReturnType<typeof load>>, marker: string, locals: Record<string, unknown> = {}) {
   const tag = [...read(page.file).matchAll(/<(?:UButton|NuxtLink)\b[\s\S]*?>/g)].find(match => match[0].includes(marker))?.[0]
-  const expression = tag?.match(/:to="([^"]+)"/)?.[1]
+  // A menu item (`{ label: t('…'), to: childTo(…) }`) carries the link when the action lives in a dropdown.
+  const item = read(page.file).match(new RegExp(`label: ${marker.replace(/[()'.]/g, '\\$&')}[^\\n]*?\\bto: (.+?) \\}\\]`))?.[1]?.replace(/\.value\b/g, '') // script refs are unwrapped by the proxy
+  const expression = item ?? tag?.match(/:to="([^"]+)"/)?.[1]
   if (!expression) throw new Error(`No link: ${marker}`)
   return new Function('scope', `with(scope) { return (${expression}) }`)(Object.assign(Object.create(Vue.proxyRefs(page.state)), locals)) as RouteLocationRaw
 }

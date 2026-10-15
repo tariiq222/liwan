@@ -378,7 +378,7 @@ test('charter create/edit round-trip persists every field through the UI and API
   await pickCalendarDay(page, 'date_start', 4)
   await pickCalendarDay(page, 'date_end', 12)
   await page.getByTestId('charter-field-priority').getByRole('combobox').click()
-  await page.getByRole('option', { name: 'عالية' }).click()
+  await page.getByRole('option', { name: 'مرتفعة' }).click()
   await nextStep(page)
   await expect(page).toHaveURL(/step=budget/)
   await expect(page.locator('#charter-currency')).toBeDisabled()

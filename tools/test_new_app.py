@@ -217,7 +217,7 @@ class TestNewApp(unittest.TestCase):
         ids = (
             'Zzprobe', 'a', '1zzprobe', 'zzprobe-x', 'x' * 22, 'a_', '_a', 'a__b', 'zz probe',
             'hr', 'pmo', 'chat', 'meetings', 'core', 'web', 'tools', 'notify', 'api',
-            'reports', 'index', 'search', 'account', 'archived_tasks', 'project_templates', 'access', 'common',
+            'notification_digests', 'index', 'search', 'account', 'vendor', 'notifications', 'subscription', 'access', 'common',
             'nasq_zzprobe', 'customer', 'customer_zzprobe', 'customerzzprobe',
         )
         for app in ids:
@@ -382,15 +382,15 @@ class TestNewApp(unittest.TestCase):
         self.assertTrue((self.root / 'odoo-addons/nasq_zzprobe/__manifest__.py').is_file())
 
     def test_reserved_route_id_needs_a_distinct_route(self):
-        # `tasks` is a shell route; `reports` is a page route taken by pages/reports.vue.
-        for app in ('tasks', 'reports'):
+        # `tasks` is a shell route; `notification_digests` is a page route taken by pages/notification-digests/.
+        for app in ('tasks', 'notification_digests'):
             for extra in ((), ('--route', app)):
                 code, _, err = run(self.root, app, *extra, '--name-ar', 'س', '--name-en', 'S')
                 self.assertEqual(code, 1, (app, extra))
                 self.assertIn('NEW_APP_REFUSED', err)
-        code, _, err = run(self.root, 'reports', '--route', 'my-reports', '--name-ar', 'التقارير', '--name-en', 'Reports')
+        code, _, err = run(self.root, 'notification_digests', '--route', 'my-digests', '--name-ar', 'الملخصات', '--name-en', 'Digests')
         self.assertEqual(code, 0, err)
-        for relative in ('apps/web/app/modules/reports', 'odoo-addons/nasq_reports', 'apps/web/app/pages/my-reports'):
+        for relative in ('apps/web/app/modules/notification_digests', 'odoo-addons/nasq_notification_digests', 'apps/web/app/pages/my-digests'):
             self.assertTrue((self.root / relative).is_dir(), relative)
 
     def test_edge_proxy_routes_are_reserved(self):

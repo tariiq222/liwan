@@ -69,7 +69,7 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
           <UFormField :label="t('vendor.pricing.quote.extraBranches')"><UInput v-model="extra" inputmode="numeric" dir="ltr" class="w-full" :disabled="!hydrated" /></UFormField>
         </div>
         <div v-if="view.optional_bundle_revision_ids.length" class="flex flex-wrap gap-4"><UCheckbox v-for="x in view.optional_bundle_revision_ids" :key="x" :model-value="optional.includes(x)" :label="bundleName(x)" :disabled="!hydrated" @update:model-value="optional = $event === true ? [...optional, x] : optional.filter(o => o !== x)" /></div>
-        <VendorPriceBreakdown :quote="quote" :pending="quotePending" :error="quoteError" @retry="recompute" />
+        <SharedCommercePriceBreakdown :quote="quote" :pending="quotePending" :error="quoteError" @retry="recompute" />
       </SharedRecordSection>
       <VendorLifecyclePanel class="mt-6" kind="plan" :view="view" @done="done" @reload="refresh" />
       <details class="mt-6"><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.pricing.technical') }}</summary>

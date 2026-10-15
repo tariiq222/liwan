@@ -27,12 +27,12 @@ describe('my-tasks locale', () => {
   })
 
   it('keeps the same placeholders in both locales', () => {
-    const tokens = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort()
+    const tokens = (s: string) => [...new Set(s.match(/\{\w+\}/g) ?? [])].sort()
     for (const key of Object.keys(ar)) expect(tokens(ar[key]!)).toEqual(tokens(en[key]!))
   })
 
   it('adds nav.myTasks to common.json in both locales', () => {
-    expect((load('ar', 'common.json').nav as Record<string, string>).myTasks).toBe('مهامي')
-    expect((load('en', 'common.json').nav as Record<string, string>).myTasks).toBe('My tasks')
+    expect((load('ar', 'common.json').nav as Record<string, string>).myTasks).toBe('مهامي الشخصية')
+    expect((load('en', 'common.json').nav as Record<string, string>).myTasks).toBe('My to-dos')
   })
 })

@@ -26,7 +26,7 @@ async function createRelease() {
 }
 </script>
 <template>
-  <SharedCreatePanel :title="t('vendor.bundles.create')" :back-to="backTo" width="wide">
+  <SharedCreatePanel :title="t('vendor.bundles.create')" :back-to="backTo">
     <SharedPageState :loading="pending" :error="error" @retry="refresh">
       <p v-if="!can('vendor.catalog.manage')">{{ t('vendor.forbidden') }}</p>
       <form v-else-if="!releases.length" class="space-y-4" novalidate data-testid="release-create" @submit.prevent="createRelease">

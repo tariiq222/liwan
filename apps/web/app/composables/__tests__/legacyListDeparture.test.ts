@@ -11,7 +11,7 @@ import * as myTaskList from '../../utils/myTaskList'
 
 const cases = [
   { file: 'my-tasks/index.vue', base: '/my-tasks' },
-  { file: 'project-templates/index.vue', base: '/project-templates' },
+  { file: 'projects/templates/index.vue', base: '/projects/templates' },
 ]
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 afterEach(() => vi.unstubAllGlobals())
@@ -73,7 +73,7 @@ function mountRealTitle(testCase: typeof cases[number], view: Awaited<ReturnType
   let template: string
   let stopRow = () => {}
   if (personal) {
-    filename = resolve(import.meta.dirname, '../../components/my-tasks/MyTaskRow.vue')
+    filename = resolve(import.meta.dirname, '../../components/personal-tasks/MyTaskRow.vue')
     const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
     const script = compileScript(descriptor, { id: 'real-my-task-title' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
     const bindings = { _defineComponent: Vue.defineComponent, computed: Vue.computed, useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), deadlineDay: myTaskList.deadlineDay, isOverdue: myTaskList.isOverdue, formatCalendarDate: () => '' }
@@ -298,7 +298,7 @@ describe.each(cases)('$base pending list writes', testCase => {
       await expect.poll(() => view.router.currentRoute.value.query.q).toBe('review')
       expect(view.router.currentRoute.value.hash).toBe('#ledger')
       expect(view.router.currentRoute.value.query.context).toBe('keep')
-      if (testCase.base === '/project-templates') expect(view.router.currentRoute.value.query.offset).toBeUndefined()
+      if (testCase.base === '/projects/templates') expect(view.router.currentRoute.value.query.offset).toBeUndefined()
       else expect(view.state.rowTo({ source: 'personal', id: 51 }).query.returnTo).toContain('#ledger')
     } finally { view.app.unmount() }
   })

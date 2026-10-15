@@ -9,7 +9,7 @@ describe('updates and meetings stay on the list template', () => {
     const page = read('pages/projects/[id]/updates.vue')
     for (const needle of ['<SharedListPage', 'hide-header', 'create-test-id="project-updates-create"']) expect(page).toContain(needle)
     expect(page).not.toContain('<SharedPageHeader')
-    const feed = read('components/project/ProjectUpdateList.vue')
+    const feed = read('components/pmo/projects/ProjectUpdateList.vue')
     for (const gone of ['<UCard :ui="{ body: \'p-0\' }">', '<USkeleton', 'showCreate']) expect(feed).not.toContain(gone)
   })
   it('meetings is a hide-header list page over a data table', () => {

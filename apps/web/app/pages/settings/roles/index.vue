@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import RoleTable from '@/components/access/roles/RoleTable.vue'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import { useAdminRoles, type AdminRoleListParams } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery, adminQueryWithOffset, parseAdminOffset } from '@/composables/adminSettingsPaths'
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectUpdateForm from '@/components/project/ProjectUpdateForm.vue'
+import ProjectUpdateForm from '@/components/pmo/projects/ProjectUpdateForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 

@@ -32,7 +32,7 @@
         {
           "id": "Default",
           "name": "عبر DashboardChart",
-          "context": "apps/web/app/components/shared/DashboardChart.client.vue:172"
+          "context": "apps/web/app/components/shared/data/DashboardChart.client.vue:224"
         }
       ]
     },
@@ -408,7 +408,7 @@
     },
     {
       "name": "ProjectDashboardChartPanel",
-      "file": "apps/web/app/components/project/dashboard/DashboardChartPanel.vue",
+      "file": "apps/web/app/components/pmo/projects/dashboard/DashboardChartPanel.vue",
       "story": "apps/web/stories/project/dashboard/DashboardChartPanel.stories.ts",
       "title": "Project/DashboardChartPanel",
       "props": [
@@ -472,43 +472,43 @@
         {
           "id": "StatusPie",
           "name": "حالات المشاريع (pie)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "TaskDonutText",
           "name": "تركيب المهام (donut-text)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "ProgressBands",
           "name": "شرائح التقدم (bar)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "BudgetDonut",
           "name": "صحة الميزانية (donut)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "ProjectProgress",
           "name": "تقدم المشاريع (bar عريض)",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "Loading",
           "name": "تحميل",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         },
         {
           "id": "NoData",
           "name": "بلا بيانات",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:51"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:51"
         }
       ]
     },
     {
       "name": "ProjectGovernanceRaciMatrix",
-      "file": "apps/web/app/components/project/governance/RaciMatrix.vue",
+      "file": "apps/web/app/components/pmo/projects/governance/RaciMatrix.vue",
       "story": "apps/web/stories/project/RaciMatrix.stories.ts",
       "title": "Project/RaciMatrix",
       "props": [
@@ -573,7 +573,7 @@
     },
     {
       "name": "ProjectCharterForm",
-      "file": "apps/web/app/components/project/ProjectCharterForm.vue",
+      "file": "apps/web/app/components/pmo/projects/ProjectCharterForm.vue",
       "story": "apps/web/stories/project/ProjectCharterForm.stories.ts",
       "title": "Project/ProjectCharterForm",
       "props": [
@@ -658,18 +658,18 @@
         {
           "id": "CreateWizard",
           "name": "إنشاء مشروع على خطوات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:54"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:64"
         },
         {
           "id": "WaitingForDefaults",
           "name": "قبل تحميل متطلبات الإنشاء",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:54"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:64"
         }
       ]
     },
     {
       "name": "ProjectFieldHelp",
-      "file": "apps/web/app/components/project/ProjectFieldHelp.vue",
+      "file": "apps/web/app/components/pmo/projects/ProjectFieldHelp.vue",
       "story": "apps/web/stories/project/ProjectFieldHelp.stories.ts",
       "title": "Project/ProjectFieldHelp",
       "props": [
@@ -699,13 +699,13 @@
         {
           "id": "BesideFieldLabel",
           "name": "بجانب عنوان الحقل",
-          "context": "apps/web/app/components/project/ProjectCharterFields.vue:132"
+          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:132"
         }
       ]
     },
     {
       "name": "ProjectMenu",
-      "file": "apps/web/app/components/project/ProjectMenu.vue",
+      "file": "apps/web/app/components/pmo/projects/ProjectMenu.vue",
       "story": "apps/web/stories/project/ProjectMenu.stories.ts",
       "title": "Project/ProjectMenu",
       "props": [
@@ -719,6 +719,11 @@
           "type": "boolean",
           "required": false,
           "default": "false"
+        },
+        {
+          "name": "to",
+          "type": "string | it | et",
+          "required": false
         }
       ],
       "events": [
@@ -744,18 +749,18 @@
         {
           "id": "OnProjectCard",
           "name": "على بطاقة المشروع",
-          "context": "apps/web/app/components/project/ProjectCardBody.vue:48"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:48"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/components/project/ProjectCardBody.vue:48"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:48"
         }
       ]
     },
     {
       "name": "ProjectWorkspaceTabs",
-      "file": "apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue",
+      "file": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue",
       "story": "apps/web/stories/project/ProjectWorkspaceTabs.stories.ts",
       "title": "Project/ProjectWorkspaceTabs",
       "props": [
@@ -783,58 +788,341 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:99"
+          "context": "apps/web/app/pages/projects/[id].vue:95"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:99"
+          "context": "apps/web/app/pages/projects/[id].vue:95"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:99"
+          "context": "apps/web/app/pages/projects/[id].vue:95"
         }
       ]
     },
     {
-      "name": "SharedBrandWordmark",
-      "file": "apps/web/app/components/shared/BrandWordmark.vue",
-      "story": "apps/web/stories/shared/BrandWordmark.stories.ts",
-      "title": "Shared/BrandWordmark",
+      "name": "TaskPrioritySelect",
+      "file": "apps/web/app/components/pmo/tasks/PrioritySelect.vue",
+      "story": "apps/web/stories/task/PrioritySelect.stories.ts",
+      "title": "Task/PrioritySelect",
       "props": [
         {
-          "name": "size",
-          "type": "\"md\" | \"sm\" | \"lg\"",
-          "required": false,
-          "default": "\"md\""
+          "name": "task",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "required": true
         },
         {
-          "name": "inverted",
-          "type": "boolean",
+          "name": "labelledby",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "\"outline\" | \"soft\"",
           "required": false,
-          "default": "false"
+          "default": "\"soft\""
         }
       ],
       "events": [],
       "slots": [],
-      "nuxtUi": [],
+      "nuxtUi": [
+        "USelect"
+      ],
       "stories": [
         {
-          "id": "Default",
-          "name": "Default",
-          "context": "unused"
+          "id": "InTaskRow",
+          "name": "في صف المهمة",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:130"
         },
         {
-          "id": "OnRail",
-          "name": "OnRail",
-          "context": "unused"
+          "id": "ReadOnly",
+          "name": "بلا صلاحية تعديل",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:130"
+        }
+      ]
+    },
+    {
+      "name": "TaskStateMenu",
+      "file": "apps/web/app/components/pmo/tasks/StateMenu.vue",
+      "story": "apps/web/stories/task/StateMenu.stories.ts",
+      "title": "Task/StateMenu",
+      "props": [
+        {
+          "name": "task",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "required": true
+        },
+        {
+          "name": "canApprove",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UDropdownMenu",
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "InTaskRow",
+          "name": "في صف المهمة",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+        },
+        {
+          "id": "NoTransitions",
+          "name": "بلا انتقالات متاحة",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+        },
+        {
+          "id": "TransitionForbidden",
+          "name": "انتقال مرفوض",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+        }
+      ]
+    },
+    {
+      "name": "TaskCard",
+      "file": "apps/web/app/components/pmo/tasks/TaskCard.vue",
+      "story": "apps/web/stories/task/TaskCard.stories.ts",
+      "title": "Task/TaskCard",
+      "props": [
+        {
+          "name": "task",
+          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "required": true
+        },
+        {
+          "name": "stages",
+          "type": "globalThis.BoardStage[]",
+          "required": false,
+          "default": "[]"
+        },
+        {
+          "name": "currentStageId",
+          "type": "number | null",
+          "required": false,
+          "default": "null"
+        },
+        {
+          "name": "moveTargets",
+          "type": "{ label: string; disabled?: boolean | undefined; onSelect: () => void; }[]",
+          "required": false,
+          "default": "undefined"
+        },
+        {
+          "name": "showProject",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        }
+      ],
+      "events": [
+        {
+          "name": "open",
+          "payload": "[id: number]"
+        },
+        {
+          "name": "move",
+          "payload": "[stage: globalThis.BoardStage]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAvatar",
+        "UButton",
+        "UCard",
+        "UDropdownMenu",
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "InBoardColumn",
+          "name": "داخل عمود اللوحة",
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+        },
+        {
+          "id": "ProjectBoard",
+          "name": "في لوحة المشروع (بلا اسم المشروع)",
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+        }
+      ]
+    },
+    {
+      "name": "SharedCommercePriceBreakdown",
+      "file": "apps/web/app/components/shared/commerce/PriceBreakdown.vue",
+      "story": "apps/web/stories/shared/CommercePriceBreakdown.stories.ts",
+      "title": "Shared/Commerce/PriceBreakdown",
+      "props": [
+        {
+          "name": "quote",
+          "type": "{ id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; entitlement_digest: string; requested_extra_branches: number; cadence: { unit: \"month\" | \"year\"; count: number; }; effective_date: string; policy_revision_id: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; }[]; due_now: { currency: string; exponent: number; minor: number; }; next_renewal: { currency: string; exponent: number; minor: number; }; next_renewal_at: string; expires_at: string; digest: string; } | null",
+          "required": false
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "includedExtraBranches",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "hqIncluded",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Quoted",
+          "name": "Quoted",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Loading",
+          "name": "Loading",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Recomputing",
+          "name": "Recomputing",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Failed",
+          "name": "Failed",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        },
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
+        }
+      ]
+    },
+    {
+      "name": "SharedAttachmentList",
+      "file": "apps/web/app/components/shared/data/AttachmentList.vue",
+      "story": "apps/web/stories/shared/AttachmentList.stories.ts",
+      "title": "Shared/AttachmentList",
+      "props": [
+        {
+          "name": "attachments",
+          "type": "SharedAttachment[]",
+          "required": true
+        },
+        {
+          "name": "labels",
+          "type": "SharedAttachmentLabels",
+          "required": true
+        },
+        {
+          "name": "uploadFile",
+          "type": "(file: File) => Promise<void>",
+          "required": true
+        },
+        {
+          "name": "deleteFile",
+          "type": "(id: number) => Promise<void>",
+          "required": true
+        },
+        {
+          "name": "accept",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "canWrite",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "loadError",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uploadId",
+          "type": "string",
+          "required": false,
+          "default": "\"attachment-upload\""
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Writable",
+          "name": "قابل للتعديل",
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "للقراءة فقط",
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا مرفقات",
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "Loading",
+          "name": "قيد التحميل",
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "WithError",
+          "name": "خطأ من الرفع",
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:7"
         }
       ]
     },
     {
       "name": "SharedChartPanel",
-      "file": "apps/web/app/components/shared/ChartPanel.vue",
+      "file": "apps/web/app/components/shared/data/ChartPanel.vue",
       "story": "apps/web/stories/shared/ChartPanel.stories.ts",
       "title": "Shared/ChartPanel",
       "props": [
@@ -904,104 +1192,153 @@
       ]
     },
     {
-      "name": "SharedConversationLayout",
-      "file": "apps/web/app/components/shared/ConversationLayout.vue",
-      "story": "apps/web/stories/shared/ConversationLayout.stories.ts",
-      "title": "Shared/ConversationLayout",
+      "name": "SharedChecklist",
+      "file": "apps/web/app/components/shared/data/Checklist.vue",
+      "story": "apps/web/stories/shared/Checklist.stories.ts",
+      "title": "Shared/Checklist",
       "props": [
         {
-          "name": "hasSelection",
-          "type": "boolean",
+          "name": "items",
+          "type": "SharedChecklistItem[]",
           "required": true
         },
         {
-          "name": "infoOpen",
-          "type": "boolean",
-          "required": false,
-          "default": "false"
-        }
-      ],
-      "events": [],
-      "slots": [
-        "list",
-        "header",
-        "thread",
-        "composer",
-        "empty",
-        "info"
-      ],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "Selected",
-          "name": "محادثة مختارة",
-          "context": "apps/web/app/components/chat/ChatWorkspace.vue:15"
-        },
-        {
-          "id": "NothingSelected",
-          "name": "لا محادثة مختارة",
-          "context": "apps/web/app/components/chat/ChatWorkspace.vue:15"
-        },
-        {
-          "id": "Info",
-          "name": "مع لوحة المعلومات",
-          "context": "apps/web/app/components/chat/ChatWorkspace.vue:15"
-        }
-      ]
-    },
-    {
-      "name": "SharedCreatePanel",
-      "file": "apps/web/app/components/shared/CreatePanel.vue",
-      "story": "apps/web/stories/shared/CreatePanel.stories.ts",
-      "title": "Shared/CreatePanel",
-      "props": [
-        {
-          "name": "title",
+          "name": "emptyText",
           "type": "string",
           "required": true
         },
         {
-          "name": "backTo",
-          "type": "RouteLocationRaw",
+          "name": "addPlaceholder",
+          "type": "string",
           "required": true
         },
         {
-          "name": "description",
+          "name": "addLabel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "add",
+          "type": "(name: string) => Promise<boolean | void>",
+          "required": true
+        },
+        {
+          "name": "toggle",
+          "type": "((item: SharedChecklistItem) => Promise<void>)",
+          "required": false
+        },
+        {
+          "name": "canAdd",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "doneLabel",
           "type": "string",
           "required": false
         },
         {
-          "name": "width",
-          "type": "\"form\" | \"wide\"",
-          "required": false,
-          "default": "\"form\""
+          "name": "error",
+          "type": "string",
+          "required": false
         }
       ],
       "events": [],
       "slots": [
-        "default",
-        "footer"
+        "leading"
       ],
       "nuxtUi": [
+        "UBadge",
         "UButton",
-        "USlideover"
+        "UInput"
       ],
       "stories": [
         {
-          "id": "Form",
-          "name": "نموذج إنشاء",
-          "context": "apps/web/app/pages/tasks/new.vue:20"
+          "id": "Editable",
+          "name": "قابلة للتعديل",
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
         },
         {
-          "id": "FormTemplate",
-          "name": "قالب النموذج",
-          "context": "apps/web/app/pages/settings/users/new.vue:102"
+          "id": "ReadOnly",
+          "name": "للقراءة فقط",
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا بنود",
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
+        },
+        {
+          "id": "WithError",
+          "name": "خطأ من الخادم",
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
+        }
+      ]
+    },
+    {
+      "name": "SharedCommentThread",
+      "file": "apps/web/app/components/shared/data/CommentThread.vue",
+      "story": "apps/web/stories/shared/CommentThread.stories.ts",
+      "title": "Shared/CommentThread",
+      "props": [
+        {
+          "name": "comments",
+          "type": "SharedComment[]",
+          "required": true
+        },
+        {
+          "name": "emptyText",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "unknownAuthor",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [
+        "composer"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "WithComposer",
+          "name": "مع نموذج الكتابة",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا تعليقات",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
+        },
+        {
+          "id": "Loading",
+          "name": "قيد التحميل",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
         }
       ]
     },
     {
       "name": "SharedDashboardChart",
-      "file": "apps/web/app/components/shared/DashboardChart.client.vue",
+      "file": "apps/web/app/components/shared/data/DashboardChart.client.vue",
       "story": "apps/web/stories/shared/DashboardChart.stories.ts",
       "title": "Shared/DashboardChart",
       "props": [
@@ -1035,56 +1372,13 @@
         {
           "id": "FinanceComparison",
           "name": "المخطط مقابل الفعلي",
-          "context": "apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:123"
-        }
-      ]
-    },
-    {
-      "name": "SharedDashboardPage",
-      "file": "apps/web/app/components/shared/DashboardPage.vue",
-      "story": "apps/web/stories/shared/DashboardPage.stories.ts",
-      "title": "Shared/DashboardPage",
-      "props": [
-        {
-          "name": "title",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "description",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "hideHeader",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [
-        "actions",
-        "filters",
-        "metrics",
-        "default"
-      ],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "Default",
-          "name": "لوحة كاملة",
-          "context": "unused"
-        },
-        {
-          "id": "ChartStates",
-          "name": "مخطط يُحمَّل وآخر بلا بيانات",
-          "context": "unused"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:124"
         }
       ]
     },
     {
       "name": "SharedDataTable",
-      "file": "apps/web/app/components/shared/DataTable.vue",
+      "file": "apps/web/app/components/shared/data/DataTable.vue",
       "story": "apps/web/stories/shared/DataTable.stories.ts",
       "title": "Shared/DataTable",
       "props": [
@@ -1206,8 +1500,934 @@
       ]
     },
     {
+      "name": "SharedFilterBar",
+      "file": "apps/web/app/components/shared/data/FilterBar.vue",
+      "story": "apps/web/stories/shared/FilterBar.stories.ts",
+      "title": "Shared/FilterBar",
+      "props": [
+        {
+          "name": "inline",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "activeCount",
+          "type": "number",
+          "required": false,
+          "default": "0"
+        },
+        {
+          "name": "clearLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "defaultOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "events": [
+        {
+          "name": "clear",
+          "payload": "[]"
+        }
+      ],
+      "slots": [
+        "search",
+        "default",
+        "view",
+        "actions",
+        "active"
+      ],
+      "nuxtUi": [
+        "UBadge",
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "InPageToolbar",
+          "name": "شريط أدوات صفحة",
+          "context": "apps/web/app/pages/projects/index.vue:267"
+        },
+        {
+          "id": "WithActiveFilters",
+          "name": "مع فلاتر نشطة",
+          "context": "apps/web/app/pages/projects/index.vue:267"
+        },
+        {
+          "id": "FiltersOpen",
+          "name": "نافذة الفلاتر مفتوحة",
+          "context": "apps/web/app/pages/projects/index.vue:267"
+        },
+        {
+          "id": "Disabled",
+          "name": "معطّل",
+          "context": "apps/web/app/pages/projects/index.vue:267"
+        }
+      ]
+    },
+    {
+      "name": "SharedFilterChip",
+      "file": "apps/web/app/components/shared/data/FilterChip.vue",
+      "story": "apps/web/stories/shared/FilterChip.stories.ts",
+      "title": "Shared/FilterChip",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "remove",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "ActiveRow",
+          "name": "صف الفلاتر النشطة",
+          "context": "apps/web/app/pages/meetings/index.vue:373"
+        },
+        {
+          "id": "Disabled",
+          "name": "معطّلة",
+          "context": "apps/web/app/pages/meetings/index.vue:373"
+        }
+      ]
+    },
+    {
+      "name": "SharedFilterChoice",
+      "file": "apps/web/app/components/shared/data/FilterChoice.vue",
+      "story": "apps/web/stories/shared/FilterChoice.stories.ts",
+      "title": "Shared/FilterChoice",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "items",
+          "type": "FilterChoiceItem[]",
+          "required": true
+        },
+        {
+          "name": "modelValue",
+          "type": "string | string[]",
+          "required": true,
+          "description": "A string for single choice, an array for multiple choice."
+        },
+        {
+          "name": "layout",
+          "type": "\"chips\" | \"segment\"",
+          "required": false,
+          "default": "\"chips\""
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[string | string[]]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Chips",
+          "name": "شرائح",
+          "context": "apps/web/app/pages/meetings/index.vue:334"
+        },
+        {
+          "id": "Multiple",
+          "name": "اختيار متعدد",
+          "context": "apps/web/app/pages/meetings/index.vue:334"
+        },
+        {
+          "id": "Segment",
+          "name": "شريط مقسّم",
+          "context": "apps/web/app/pages/meetings/index.vue:334"
+        },
+        {
+          "id": "Disabled",
+          "name": "معطّل",
+          "context": "apps/web/app/pages/meetings/index.vue:334"
+        }
+      ]
+    },
+    {
+      "name": "SharedFilterField",
+      "file": "apps/web/app/components/shared/data/FilterField.vue",
+      "story": "apps/web/stories/shared/FilterField.stories.ts",
+      "title": "Shared/FilterField",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "for",
+          "type": "string",
+          "required": false,
+          "description": "Id of the single control this label names; omit when the field wraps a button group."
+        }
+      ],
+      "events": [],
+      "slots": [
+        "default"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "InFilterPanel",
+          "name": "داخل نافذة الفلاتر",
+          "context": "apps/web/app/pages/meetings/index.vue:335"
+        }
+      ]
+    },
+    {
+      "name": "SharedInvoiceLines",
+      "file": "apps/web/app/components/shared/data/InvoiceLines.vue",
+      "story": "apps/web/stories/shared/InvoiceLines.stories.ts",
+      "title": "Shared/InvoiceLines",
+      "props": [
+        {
+          "name": "lines",
+          "type": "globalThis.InvoiceLineView[]",
+          "required": true
+        },
+        {
+          "name": "totals",
+          "type": "{ label: string; value: string; }[]",
+          "required": false
+        },
+        {
+          "name": "notice",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "layout",
+          "type": "\"list\" | \"table\"",
+          "required": false,
+          "default": "\"table\""
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "CustomerList",
+          "name": "فاتورة العميل (قائمة وإجماليات)",
+          "context": "apps/web/app/pages/subscription/invoices/[id].vue:16"
+        },
+        {
+          "id": "VendorTable",
+          "name": "فاتورة المورّد (جدول)",
+          "context": "apps/web/app/pages/vendor/invoices/[id].vue:32"
+        }
+      ]
+    },
+    {
+      "name": "SharedMetricTile",
+      "file": "apps/web/app/components/shared/data/MetricTile.vue",
+      "story": "apps/web/stories/shared/MetricTile.stories.ts",
+      "title": "Shared/MetricTile",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string | number | null",
+          "required": true
+        },
+        {
+          "name": "icon",
+          "type": "`i-lucide-${string}`",
+          "required": false
+        },
+        {
+          "name": "unit",
+          "type": "string",
+          "required": false,
+          "description": "Unit shown after the value, e.g. \"%\"."
+        },
+        {
+          "name": "hint",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "valueDir",
+          "type": "\"ltr\" | \"rtl\"",
+          "required": false,
+          "description": "`ltr` for numbers and unmarked dates; bidi-marked dates inherit the locale direction."
+        }
+      ],
+      "events": [],
+      "slots": [
+        "default"
+      ],
+      "nuxtUi": [
+        "UCard",
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "Row",
+          "name": "صف مؤشرات",
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:35"
+        }
+      ]
+    },
+    {
+      "name": "SharedPagination",
+      "file": "apps/web/app/components/shared/data/Pagination.vue",
+      "story": "apps/web/stories/shared/Pagination.stories.ts",
+      "title": "Shared/Pagination",
+      "props": [
+        {
+          "name": "page",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "pages",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "update:page",
+          "payload": "[page: number]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UPagination"
+      ],
+      "stories": [
+        {
+          "id": "UnderTable",
+          "name": "تحت جدول",
+          "context": "apps/web/app/pages/projects/index.vue:317"
+        },
+        {
+          "id": "MiddlePage",
+          "name": "صفحة وسطى",
+          "context": "apps/web/app/pages/projects/index.vue:317"
+        },
+        {
+          "id": "Fetching",
+          "name": "أثناء التحميل",
+          "context": "apps/web/app/pages/projects/index.vue:317"
+        }
+      ]
+    },
+    {
+      "name": "SharedRecordNumber",
+      "file": "apps/web/app/components/shared/data/RecordNumber.vue",
+      "story": "apps/web/stories/shared/RecordNumber.stories.ts",
+      "title": "Shared/RecordNumber",
+      "props": [
+        {
+          "name": "value",
+          "type": "string | number | null",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "InTableCell",
+          "name": "داخل خلية جدول",
+          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
+        },
+        {
+          "id": "InMobileCard",
+          "name": "داخل بطاقة الجوال",
+          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
+        },
+        {
+          "id": "EmptyValue",
+          "name": "بدون رقم",
+          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
+        }
+      ]
+    },
+    {
+      "name": "SharedRowActions",
+      "file": "apps/web/app/components/shared/data/RowActions.vue",
+      "story": "apps/web/stories/shared/RowActions.stories.ts",
+      "title": "Shared/RowActions",
+      "props": [
+        {
+          "name": "actions",
+          "type": "RowAction[]",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true,
+          "description": "Names the record for the menu button, e.g. \"إجراءات مشروع ألفا\"."
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UDropdownMenu"
+      ],
+      "stories": [
+        {
+          "id": "Menu",
+          "name": "قائمة إجراءات",
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:183"
+        },
+        {
+          "id": "SingleAction",
+          "name": "إجراء واحد",
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:183"
+        }
+      ]
+    },
+    {
+      "name": "SharedStatusBadge",
+      "file": "apps/web/app/components/shared/data/StatusBadge.vue",
+      "story": "apps/web/stories/operations/StateBadge.stories.ts",
+      "title": "Operations/StateBadge",
+      "props": [
+        {
+          "name": "tone",
+          "type": "globalThis.StatusTone",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "variant",
+          "type": "\"subtle\" | \"outline\"",
+          "required": false,
+          "default": "\"subtle\""
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "\"md\" | \"sm\"",
+          "required": false,
+          "default": "\"md\""
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge"
+      ],
+      "stories": [
+        {
+          "id": "Pending",
+          "name": "Pending",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
+        },
+        {
+          "id": "Completed",
+          "name": "Completed",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
+        },
+        {
+          "id": "Returned",
+          "name": "Returned",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
+        },
+        {
+          "id": "Rejected",
+          "name": "Rejected",
+          "context": "apps/web/app/pages/operations/[id]/index.vue:67"
+        }
+      ]
+    },
+    {
+      "name": "SharedViewSwitch",
+      "file": "apps/web/app/components/shared/data/ViewSwitch.vue",
+      "story": "apps/web/stories/shared/ViewSwitch.stories.ts",
+      "title": "Shared/ViewSwitch",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "options",
+          "type": "globalThis.ListViewOption[]",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[value: string]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UTooltip"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "جدول ولوحة",
+          "context": "apps/web/app/components/shared/layout/ListPage.vue:59"
+        }
+      ]
+    },
+    {
+      "name": "SharedEmptyState",
+      "file": "apps/web/app/components/shared/feedback/EmptyState.vue",
+      "story": "apps/web/stories/shared/EmptyState.stories.ts",
+      "title": "Shared/EmptyState",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "icon",
+        "action"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "InTaskTable",
+          "name": "داخل جدول المهام",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:75"
+        },
+        {
+          "id": "InTaskListMobile",
+          "name": "داخل قائمة المهام على الجوال",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:75"
+        }
+      ]
+    },
+    {
+      "name": "SharedErrorState",
+      "file": "apps/web/app/components/shared/feedback/ErrorState.vue",
+      "story": "apps/web/stories/shared/ErrorState.stories.ts",
+      "title": "Shared/ErrorState",
+      "props": [
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Generic",
+          "name": "خطأ عام",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:21"
+        },
+        {
+          "id": "Conflict",
+          "name": "تعارض 409",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:21"
+        }
+      ]
+    },
+    {
+      "name": "SharedForbiddenState",
+      "file": "apps/web/app/components/shared/feedback/ForbiddenState.vue",
+      "story": "apps/web/stories/shared/ForbiddenState.stories.ts",
+      "title": "Shared/ForbiddenState",
+      "props": [
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "بلا صلاحية",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:19"
+        }
+      ]
+    },
+    {
+      "name": "SharedLoadingSkeleton",
+      "file": "apps/web/app/components/shared/feedback/LoadingSkeleton.vue",
+      "story": "apps/web/stories/shared/LoadingSkeleton.stories.ts",
+      "title": "Shared/LoadingSkeleton",
+      "props": [
+        {
+          "name": "variant",
+          "type": "\"record\" | \"rows\" | \"cards\"",
+          "required": false,
+          "default": "\"rows\""
+        },
+        {
+          "name": "count",
+          "type": "number",
+          "required": false,
+          "default": "3"
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "USkeleton"
+      ],
+      "stories": [
+        {
+          "id": "Rows",
+          "name": "صفوف قائمة",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:18"
+        },
+        {
+          "id": "Record",
+          "name": "سجل",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:18"
+        },
+        {
+          "id": "Cards",
+          "name": "بطاقات لوحة",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:18"
+        }
+      ]
+    },
+    {
+      "name": "SharedNotFoundState",
+      "file": "apps/web/app/components/shared/feedback/NotFoundState.vue",
+      "story": "apps/web/stories/shared/NotFoundState.stories.ts",
+      "title": "Shared/NotFoundState",
+      "props": [
+        {
+          "name": "backTo",
+          "type": "string | it | et",
+          "required": false
+        },
+        {
+          "name": "backLabel",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "WithBack",
+          "name": "مع رابط الرجوع",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:20"
+        },
+        {
+          "id": "Bare",
+          "name": "بلا رابط",
+          "context": "apps/web/app/components/shared/feedback/PageState.vue:20"
+        }
+      ]
+    },
+    {
+      "name": "SharedPageState",
+      "file": "apps/web/app/components/shared/feedback/PageState.vue",
+      "story": "apps/web/stories/shared/PageState.stories.ts",
+      "title": "Shared/PageState",
+      "props": [
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "empty",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "emptyText",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [
+        "default"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Loading",
+          "name": "تحميل",
+          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
+        },
+        {
+          "id": "ErrorState",
+          "name": "خطأ عام",
+          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
+        },
+        {
+          "id": "Forbidden",
+          "name": "غير مصرح",
+          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
+        },
+        {
+          "id": "NotFound",
+          "name": "غير موجود",
+          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
+        },
+        {
+          "id": "Empty",
+          "name": "فارغ",
+          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
+        },
+        {
+          "id": "Content",
+          "name": "المحتوى",
+          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
+        }
+      ]
+    },
+    {
+      "name": "SharedCommentComposer",
+      "file": "apps/web/app/components/shared/form/CommentComposer.vue",
+      "story": "apps/web/stories/shared/CommentComposer.stories.ts",
+      "title": "Shared/CommentComposer",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "submitLabel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "help",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fieldId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "problem",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "maxLength",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "textareaAria",
+          "type": "Record<string, string | undefined>",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "submit",
+          "payload": "[]"
+        },
+        {
+          "name": "input",
+          "payload": "[event: Event]"
+        },
+        {
+          "name": "update:modelValue",
+          "payload": "[value: string]"
+        },
+        {
+          "name": "keydown",
+          "payload": "[event: KeyboardEvent]"
+        },
+        {
+          "name": "click",
+          "payload": "[event: Event]"
+        },
+        {
+          "name": "keyup",
+          "payload": "[event: Event]"
+        },
+        {
+          "name": "blur",
+          "payload": "[]"
+        }
+      ],
+      "slots": [
+        "below"
+      ],
+      "nuxtUi": [
+        "UButton",
+        "UFormField",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Plain",
+          "name": "نص عادي",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "WithLabel",
+          "name": "بعنوان وتلميح",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "Pending",
+          "name": "أثناء النشر",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "TooLong",
+          "name": "تعليق أطول من المسموح",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "ServerError",
+          "name": "خطأ من الخادم",
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+        }
+      ]
+    },
+    {
       "name": "SharedDateField",
-      "file": "apps/web/app/components/shared/DateField.vue",
+      "file": "apps/web/app/components/shared/form/DateField.vue",
       "story": "apps/web/stories/shared/DateField.stories.ts",
       "title": "Shared/DateField",
       "props": [
@@ -1295,13 +2515,13 @@
         {
           "id": "WithTime",
           "name": "مع وقت",
-          "context": "apps/web/app/components/task/TaskProperties.vue:168"
+          "context": "apps/web/app/components/pmo/tasks/TaskProperties.vue:203"
         }
       ]
     },
     {
       "name": "SharedDescriptionEditor",
-      "file": "apps/web/app/components/shared/DescriptionEditor.vue",
+      "file": "apps/web/app/components/shared/form/DescriptionEditor.vue",
       "story": "apps/web/stories/shared/DescriptionEditor.stories.ts",
       "title": "Shared/DescriptionEditor",
       "props": [
@@ -1362,85 +2582,8 @@
       ]
     },
     {
-      "name": "SharedEmptyState",
-      "file": "apps/web/app/components/shared/EmptyState.vue",
-      "story": "apps/web/stories/shared/EmptyState.stories.ts",
-      "title": "Shared/EmptyState",
-      "props": [
-        {
-          "name": "title",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "description",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [
-        "icon",
-        "action"
-      ],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "InTaskTable",
-          "name": "داخل جدول المهام",
-          "context": "apps/web/app/components/task/TaskTable.vue:71"
-        },
-        {
-          "id": "InTaskListMobile",
-          "name": "داخل قائمة المهام على الجوال",
-          "context": "apps/web/app/components/task/TaskTable.vue:71"
-        }
-      ]
-    },
-    {
-      "name": "SharedErrorState",
-      "file": "apps/web/app/components/shared/ErrorState.vue",
-      "story": "apps/web/stories/shared/ErrorState.stories.ts",
-      "title": "Shared/ErrorState",
-      "props": [
-        {
-          "name": "error",
-          "type": "unknown",
-          "required": false
-        },
-        {
-          "name": "title",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "retry",
-          "payload": "[]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UAlert",
-        "UButton"
-      ],
-      "stories": [
-        {
-          "id": "Generic",
-          "name": "خطأ عام",
-          "context": "apps/web/app/components/shared/PageState.vue:21"
-        },
-        {
-          "id": "Conflict",
-          "name": "تعارض 409",
-          "context": "apps/web/app/components/shared/PageState.vue:21"
-        }
-      ]
-    },
-    {
       "name": "SharedFileField",
-      "file": "apps/web/app/components/shared/FileField.vue",
+      "file": "apps/web/app/components/shared/form/FileField.vue",
       "story": "apps/web/stories/shared/FileField.stories.ts",
       "title": "Shared/FileField",
       "props": [
@@ -1485,7 +2628,7 @@
         {
           "id": "InMeetingAttachments",
           "name": "داخل مرفقات الاجتماع",
-          "context": "apps/web/app/pages/meetings/[id].vue:593"
+          "context": "apps/web/app/pages/meetings/[id].vue:621"
         },
         {
           "id": "InDocumentCard",
@@ -1495,299 +2638,13 @@
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/[id].vue:593"
-        }
-      ]
-    },
-    {
-      "name": "SharedFilterBar",
-      "file": "apps/web/app/components/shared/FilterBar.vue",
-      "story": "apps/web/stories/shared/FilterBar.stories.ts",
-      "title": "Shared/FilterBar",
-      "props": [
-        {
-          "name": "inline",
-          "type": "boolean",
-          "required": false
-        },
-        {
-          "name": "title",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "activeCount",
-          "type": "number",
-          "required": false,
-          "default": "0"
-        },
-        {
-          "name": "clearLabel",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "disabled",
-          "type": "boolean",
-          "required": false,
-          "default": "false"
-        },
-        {
-          "name": "defaultOpen",
-          "type": "boolean",
-          "required": false,
-          "default": "false"
-        }
-      ],
-      "events": [
-        {
-          "name": "clear",
-          "payload": "[]"
-        }
-      ],
-      "slots": [
-        "search",
-        "default",
-        "view",
-        "actions",
-        "active"
-      ],
-      "nuxtUi": [
-        "UBadge",
-        "UButton"
-      ],
-      "stories": [
-        {
-          "id": "InPageToolbar",
-          "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
-        },
-        {
-          "id": "WithActiveFilters",
-          "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
-        },
-        {
-          "id": "FiltersOpen",
-          "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
-        },
-        {
-          "id": "Disabled",
-          "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:260"
-        }
-      ]
-    },
-    {
-      "name": "SharedFilterChip",
-      "file": "apps/web/app/components/shared/FilterChip.vue",
-      "story": "apps/web/stories/shared/FilterChip.stories.ts",
-      "title": "Shared/FilterChip",
-      "props": [
-        {
-          "name": "label",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "disabled",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "remove",
-          "payload": "[]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UButton"
-      ],
-      "stories": [
-        {
-          "id": "ActiveRow",
-          "name": "صف الفلاتر النشطة",
-          "context": "apps/web/app/pages/meetings/index.vue:373"
-        },
-        {
-          "id": "Disabled",
-          "name": "معطّلة",
-          "context": "apps/web/app/pages/meetings/index.vue:373"
-        }
-      ]
-    },
-    {
-      "name": "SharedFilterChoice",
-      "file": "apps/web/app/components/shared/FilterChoice.vue",
-      "story": "apps/web/stories/shared/FilterChoice.stories.ts",
-      "title": "Shared/FilterChoice",
-      "props": [
-        {
-          "name": "label",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "items",
-          "type": "FilterChoiceItem[]",
-          "required": true
-        },
-        {
-          "name": "modelValue",
-          "type": "string | string[]",
-          "required": true,
-          "description": "A string for single choice, an array for multiple choice."
-        },
-        {
-          "name": "layout",
-          "type": "\"chips\" | \"segment\"",
-          "required": false,
-          "default": "\"chips\""
-        },
-        {
-          "name": "disabled",
-          "type": "boolean",
-          "required": false,
-          "default": "false"
-        }
-      ],
-      "events": [
-        {
-          "name": "update:modelValue",
-          "payload": "[string | string[]]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UButton"
-      ],
-      "stories": [
-        {
-          "id": "Chips",
-          "name": "شرائح",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
-        },
-        {
-          "id": "Multiple",
-          "name": "اختيار متعدد",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
-        },
-        {
-          "id": "Segment",
-          "name": "شريط مقسّم",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
-        },
-        {
-          "id": "Disabled",
-          "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/index.vue:334"
-        }
-      ]
-    },
-    {
-      "name": "SharedFilterField",
-      "file": "apps/web/app/components/shared/FilterField.vue",
-      "story": "apps/web/stories/shared/FilterField.stories.ts",
-      "title": "Shared/FilterField",
-      "props": [
-        {
-          "name": "label",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "for",
-          "type": "string",
-          "required": false,
-          "description": "Id of the single control this label names; omit when the field wraps a button group."
-        }
-      ],
-      "events": [],
-      "slots": [
-        "default"
-      ],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "InFilterPanel",
-          "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:335"
-        }
-      ]
-    },
-    {
-      "name": "SharedForbiddenState",
-      "file": "apps/web/app/components/shared/ForbiddenState.vue",
-      "story": "apps/web/stories/shared/ForbiddenState.stories.ts",
-      "title": "Shared/ForbiddenState",
-      "props": [
-        {
-          "name": "description",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "Default",
-          "name": "بلا صلاحية",
-          "context": "apps/web/app/components/shared/PageState.vue:19"
-        }
-      ]
-    },
-    {
-      "name": "SharedFormSection",
-      "file": "apps/web/app/components/shared/FormSection.vue",
-      "story": "apps/web/stories/shared/FormSection.stories.ts",
-      "title": "Shared/FormSection",
-      "props": [
-        {
-          "name": "title",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "description",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "panel",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [
-        "default"
-      ],
-      "nuxtUi": [
-        "UCard"
-      ],
-      "stories": [
-        {
-          "id": "InForm",
-          "name": "قسم داخل نموذج",
-          "context": "apps/web/app/pages/settings/users/new.vue:106"
-        },
-        {
-          "id": "Panel",
-          "name": "لوحة إعدادات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:37"
+          "context": "apps/web/app/pages/meetings/[id].vue:621"
         }
       ]
     },
     {
       "name": "SharedInlineConfirm",
-      "file": "apps/web/app/components/shared/InlineConfirm.vue",
+      "file": "apps/web/app/components/shared/form/InlineConfirm.vue",
       "story": "apps/web/stories/shared/InlineConfirm.stories.ts",
       "title": "Shared/InlineConfirm",
       "props": [
@@ -1849,46 +2706,139 @@
         {
           "id": "Archive",
           "name": "أرشفة",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:67"
+          "context": "apps/web/app/components/pmo/projects/ProjectMenu.vue:74"
         },
         {
           "id": "Pending",
           "name": "قيد التنفيذ",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:67"
+          "context": "apps/web/app/components/pmo/projects/ProjectMenu.vue:74"
         },
         {
           "id": "Blocked",
           "name": "غير متاح",
-          "context": "apps/web/app/components/project/ProjectMenu.vue:67"
+          "context": "apps/web/app/components/pmo/projects/ProjectMenu.vue:74"
         }
       ]
     },
     {
-      "name": "SharedInvoiceLines",
-      "file": "apps/web/app/components/shared/InvoiceLines.vue",
-      "story": "apps/web/stories/shared/InvoiceLines.stories.ts",
-      "title": "Shared/InvoiceLines",
+      "name": "SharedPersonPicker",
+      "file": "apps/web/app/components/shared/form/PersonPicker.vue",
+      "story": "apps/web/stories/shared/PersonPicker.stories.ts",
+      "title": "Shared/PersonPicker",
       "props": [
         {
-          "name": "lines",
-          "type": "globalThis.InvoiceLineView[]",
+          "name": "modelValue",
+          "type": "number | number[] | null",
           "required": true
         },
         {
-          "name": "totals",
-          "type": "{ label: string; value: string; }[]",
+          "name": "multiple",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "known",
+          "type": "PickedPerson[]",
           "required": false
         },
         {
-          "name": "notice",
+          "name": "valueKey",
+          "type": "\"id\" | \"user_id\"",
+          "required": false,
+          "default": "\"id\""
+        },
+        {
+          "name": "placeholder",
           "type": "string",
           "required": false
         },
         {
-          "name": "layout",
-          "type": "\"list\" | \"table\"",
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "exclude",
+          "type": "number[]",
+          "required": false
+        },
+        {
+          "name": "options",
+          "type": "PickedPerson[]",
+          "required": false
+        },
+        {
+          "name": "id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ariaLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "ariaLabelledby",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[value: number | number[] | null]"
+        },
+        {
+          "name": "resolve",
+          "payload": "[people: PickedPerson[]]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "USelectMenu"
+      ],
+      "stories": [
+        {
+          "id": "Single",
+          "name": "اختيار واحد",
+          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:235"
+        },
+        {
+          "id": "Multiple",
+          "name": "اختيار متعدد",
+          "context": "apps/web/app/components/pmo/tasks/AssigneePicker.vue:11"
+        },
+        {
+          "id": "FixedOptions",
+          "name": "من قائمة ثابتة",
+          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:75"
+        }
+      ]
+    },
+    {
+      "name": "SharedRichText",
+      "file": "apps/web/app/components/shared/form/RichText.vue",
+      "story": "apps/web/stories/shared/RichText.stories.ts",
+      "title": "Shared/RichText",
+      "props": [
+        {
+          "name": "html",
+          "type": "string | null",
+          "required": true
+        },
+        {
+          "name": "size",
+          "type": "\"md\" | \"sm\"",
           "required": false,
-          "default": "\"table\""
+          "default": "\"md\"",
+          "description": "`sm` for previews inside cards and lists."
+        },
+        {
+          "name": "tag",
+          "type": "\"div\" | \"span\"",
+          "required": false,
+          "default": "\"div\""
         }
       ],
       "events": [],
@@ -1896,20 +2846,328 @@
       "nuxtUi": [],
       "stories": [
         {
-          "id": "CustomerList",
-          "name": "فاتورة العميل (قائمة وإجماليات)",
-          "context": "apps/web/app/pages/subscription/invoices/[id].vue:16"
+          "id": "Document",
+          "name": "مستند",
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:64"
         },
         {
-          "id": "VendorTable",
-          "name": "فاتورة المورّد (جدول)",
-          "context": "apps/web/app/pages/vendor/invoices/[id].vue:32"
+          "id": "Preview",
+          "name": "معاينة داخل بطاقة",
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:64"
+        }
+      ]
+    },
+    {
+      "name": "SharedTagPicker",
+      "file": "apps/web/app/components/shared/form/TagPicker.vue",
+      "story": "apps/web/stories/shared/TagPicker.stories.ts",
+      "title": "Shared/TagPicker",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "{ id: number; name: string; color: number; }[]",
+          "required": true
+        },
+        {
+          "name": "canCreate",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "labelledby",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[{ ids: number[]; resolved: { id: number; name: string; color: number; }[]; }]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UBadge",
+        "UButton",
+        "UIcon",
+        "USelectMenu"
+      ],
+      "stories": [
+        {
+          "id": "InProjectSettings",
+          "name": "في إعدادات المشروع",
+          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:190"
+        },
+        {
+          "id": "WithoutCreate",
+          "name": "بلا صلاحية إنشاء وسم",
+          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:190"
+        }
+      ]
+    },
+    {
+      "name": "SharedUnsavedChanges",
+      "file": "apps/web/app/components/shared/form/UnsavedChanges.vue",
+      "story": "apps/web/stories/shared/UnsavedChanges.stories.ts",
+      "title": "Shared/UnsavedChanges",
+      "props": [
+        {
+          "name": "dirty",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "guardRouteUpdates",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "ignoreQueryKeys",
+          "type": "readonly string[]",
+          "required": false,
+          "default": "[]"
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UModal"
+      ],
+      "stories": [
+        {
+          "id": "GuardsLeavingDirtyForm",
+          "name": "داخل نموذج عند مغادرة الصفحة",
+          "context": "apps/web/app/pages/settings/users/new.vue:105"
+        },
+        {
+          "id": "CleanForm",
+          "name": "نموذج بلا تعديلات",
+          "context": "apps/web/app/pages/settings/users/new.vue:105"
+        }
+      ]
+    },
+    {
+      "name": "SharedBrandWordmark",
+      "file": "apps/web/app/components/shared/layout/BrandWordmark.vue",
+      "story": "apps/web/stories/shared/BrandWordmark.stories.ts",
+      "title": "Shared/BrandWordmark",
+      "props": [
+        {
+          "name": "size",
+          "type": "\"md\" | \"sm\" | \"lg\"",
+          "required": false,
+          "default": "\"md\""
+        },
+        {
+          "name": "inverted",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "unused"
+        },
+        {
+          "id": "OnRail",
+          "name": "OnRail",
+          "context": "unused"
+        }
+      ]
+    },
+    {
+      "name": "SharedConversationLayout",
+      "file": "apps/web/app/components/shared/layout/ConversationLayout.vue",
+      "story": "apps/web/stories/shared/ConversationLayout.stories.ts",
+      "title": "Shared/ConversationLayout",
+      "props": [
+        {
+          "name": "hasSelection",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "infoOpen",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "events": [],
+      "slots": [
+        "list",
+        "header",
+        "thread",
+        "composer",
+        "empty",
+        "info"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Selected",
+          "name": "محادثة مختارة",
+          "context": "apps/web/app/components/chat/ChatWorkspace.vue:15"
+        },
+        {
+          "id": "NothingSelected",
+          "name": "لا محادثة مختارة",
+          "context": "apps/web/app/components/chat/ChatWorkspace.vue:15"
+        },
+        {
+          "id": "Info",
+          "name": "مع لوحة المعلومات",
+          "context": "apps/web/app/components/chat/ChatWorkspace.vue:15"
+        }
+      ]
+    },
+    {
+      "name": "SharedCreatePanel",
+      "file": "apps/web/app/components/shared/layout/CreatePanel.vue",
+      "story": "apps/web/stories/shared/CreatePanel.stories.ts",
+      "title": "Shared/CreatePanel",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "backTo",
+          "type": "RouteLocationRaw",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "width",
+          "type": "\"form\" | \"wide\"",
+          "required": false,
+          "default": "\"form\"",
+          "description": "Deprecated and ignored: every create panel has the one width below."
+        }
+      ],
+      "events": [],
+      "slots": [
+        "default",
+        "footer"
+      ],
+      "nuxtUi": [
+        "UButton",
+        "USlideover"
+      ],
+      "stories": [
+        {
+          "id": "Form",
+          "name": "نموذج إنشاء",
+          "context": "apps/web/app/pages/tasks/new.vue:20"
+        },
+        {
+          "id": "FormTemplate",
+          "name": "قالب النموذج",
+          "context": "apps/web/app/pages/settings/users/new.vue:102"
+        }
+      ]
+    },
+    {
+      "name": "SharedDashboardPage",
+      "file": "apps/web/app/components/shared/layout/DashboardPage.vue",
+      "story": "apps/web/stories/shared/DashboardPage.stories.ts",
+      "title": "Shared/DashboardPage",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "hideHeader",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "actions",
+        "filters",
+        "metrics",
+        "default"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "لوحة كاملة",
+          "context": "unused"
+        },
+        {
+          "id": "ChartStates",
+          "name": "مخطط يُحمَّل وآخر بلا بيانات",
+          "context": "unused"
+        }
+      ]
+    },
+    {
+      "name": "SharedFormSection",
+      "file": "apps/web/app/components/shared/layout/FormSection.vue",
+      "story": "apps/web/stories/shared/FormSection.stories.ts",
+      "title": "Shared/FormSection",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "panel",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "default"
+      ],
+      "nuxtUi": [
+        "UCard"
+      ],
+      "stories": [
+        {
+          "id": "InForm",
+          "name": "قسم داخل نموذج",
+          "context": "apps/web/app/pages/settings/users/new.vue:106"
+        },
+        {
+          "id": "Panel",
+          "name": "لوحة إعدادات",
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:46"
         }
       ]
     },
     {
       "name": "SharedListPage",
-      "file": "apps/web/app/components/shared/ListPage.vue",
+      "file": "apps/web/app/components/shared/layout/ListPage.vue",
       "story": "apps/web/stories/shared/ListPage.stories.ts",
       "title": "Shared/ListPage",
       "props": [
@@ -1994,141 +3252,8 @@
       ]
     },
     {
-      "name": "SharedLoadingSkeleton",
-      "file": "apps/web/app/components/shared/LoadingSkeleton.vue",
-      "story": "apps/web/stories/shared/LoadingSkeleton.stories.ts",
-      "title": "Shared/LoadingSkeleton",
-      "props": [
-        {
-          "name": "variant",
-          "type": "\"record\" | \"rows\" | \"cards\"",
-          "required": false,
-          "default": "\"rows\""
-        },
-        {
-          "name": "count",
-          "type": "number",
-          "required": false,
-          "default": "3"
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "USkeleton"
-      ],
-      "stories": [
-        {
-          "id": "Rows",
-          "name": "صفوف قائمة",
-          "context": "apps/web/app/components/shared/PageState.vue:18"
-        },
-        {
-          "id": "Record",
-          "name": "سجل",
-          "context": "apps/web/app/components/shared/PageState.vue:18"
-        },
-        {
-          "id": "Cards",
-          "name": "بطاقات لوحة",
-          "context": "apps/web/app/components/shared/PageState.vue:18"
-        }
-      ]
-    },
-    {
-      "name": "SharedMetricTile",
-      "file": "apps/web/app/components/shared/MetricTile.vue",
-      "story": "apps/web/stories/shared/MetricTile.stories.ts",
-      "title": "Shared/MetricTile",
-      "props": [
-        {
-          "name": "label",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "value",
-          "type": "string | number | null",
-          "required": true
-        },
-        {
-          "name": "icon",
-          "type": "`i-lucide-${string}`",
-          "required": false
-        },
-        {
-          "name": "unit",
-          "type": "string",
-          "required": false,
-          "description": "Unit shown after the value, e.g. \"%\"."
-        },
-        {
-          "name": "hint",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "valueDir",
-          "type": "\"ltr\" | \"rtl\"",
-          "required": false,
-          "description": "`ltr` for numbers and unmarked dates; bidi-marked dates inherit the locale direction."
-        }
-      ],
-      "events": [],
-      "slots": [
-        "default"
-      ],
-      "nuxtUi": [
-        "UCard",
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "Row",
-          "name": "صف مؤشرات",
-          "context": "apps/web/app/components/project/finance/FinanceSummaryCards.vue:35"
-        }
-      ]
-    },
-    {
-      "name": "SharedNotFoundState",
-      "file": "apps/web/app/components/shared/NotFoundState.vue",
-      "story": "apps/web/stories/shared/NotFoundState.stories.ts",
-      "title": "Shared/NotFoundState",
-      "props": [
-        {
-          "name": "backTo",
-          "type": "string | it | et",
-          "required": false
-        },
-        {
-          "name": "backLabel",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "WithBack",
-          "name": "مع رابط الرجوع",
-          "context": "apps/web/app/components/shared/PageState.vue:20"
-        },
-        {
-          "id": "Bare",
-          "name": "بلا رابط",
-          "context": "apps/web/app/components/shared/PageState.vue:20"
-        }
-      ]
-    },
-    {
       "name": "SharedPageContainer",
-      "file": "apps/web/app/components/shared/PageContainer.vue",
+      "file": "apps/web/app/components/shared/layout/PageContainer.vue",
       "story": "apps/web/stories/shared/PageContainer.stories.ts",
       "title": "Shared/PageContainer",
       "props": [
@@ -2148,12 +3273,12 @@
         {
           "id": "List",
           "name": "صفحة قائمة",
-          "context": "apps/web/app/components/shared/ListPage.vue:42"
+          "context": "apps/web/app/components/shared/layout/ListPage.vue:42"
         },
         {
           "id": "Detail",
           "name": "صفحة تفاصيل",
-          "context": "apps/web/app/components/shared/RecordPage.vue:31"
+          "context": "apps/web/app/components/shared/layout/RecordPage.vue:31"
         },
         {
           "id": "Form",
@@ -2164,7 +3289,7 @@
     },
     {
       "name": "SharedPageHeader",
-      "file": "apps/web/app/components/shared/PageHeader.vue",
+      "file": "apps/web/app/components/shared/layout/PageHeader.vue",
       "story": "apps/web/stories/shared/PageHeader.stories.ts",
       "title": "Shared/PageHeader",
       "props": [
@@ -2230,224 +3355,8 @@
       ]
     },
     {
-      "name": "SharedPageState",
-      "file": "apps/web/app/components/shared/PageState.vue",
-      "story": "apps/web/stories/shared/PageState.stories.ts",
-      "title": "Shared/PageState",
-      "props": [
-        {
-          "name": "loading",
-          "type": "boolean",
-          "required": false
-        },
-        {
-          "name": "error",
-          "type": "unknown",
-          "required": false
-        },
-        {
-          "name": "empty",
-          "type": "boolean",
-          "required": false
-        },
-        {
-          "name": "emptyText",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "retry",
-          "payload": "[]"
-        }
-      ],
-      "slots": [
-        "default"
-      ],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "Loading",
-          "name": "تحميل",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
-        },
-        {
-          "id": "ErrorState",
-          "name": "خطأ عام",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
-        },
-        {
-          "id": "Forbidden",
-          "name": "غير مصرح",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
-        },
-        {
-          "id": "NotFound",
-          "name": "غير موجود",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
-        },
-        {
-          "id": "Empty",
-          "name": "فارغ",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
-        },
-        {
-          "id": "Content",
-          "name": "المحتوى",
-          "context": "apps/web/app/pages/settings/users/[userId]/security.vue:29"
-        }
-      ]
-    },
-    {
-      "name": "SharedPagination",
-      "file": "apps/web/app/components/shared/Pagination.vue",
-      "story": "apps/web/stories/shared/Pagination.stories.ts",
-      "title": "Shared/Pagination",
-      "props": [
-        {
-          "name": "page",
-          "type": "number",
-          "required": true
-        },
-        {
-          "name": "pages",
-          "type": "number",
-          "required": true
-        },
-        {
-          "name": "disabled",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "update:page",
-          "payload": "[page: number]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UPagination"
-      ],
-      "stories": [
-        {
-          "id": "UnderTable",
-          "name": "تحت جدول",
-          "context": "apps/web/app/pages/projects/index.vue:310"
-        },
-        {
-          "id": "MiddlePage",
-          "name": "صفحة وسطى",
-          "context": "apps/web/app/pages/projects/index.vue:310"
-        },
-        {
-          "id": "Fetching",
-          "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:310"
-        }
-      ]
-    },
-    {
-      "name": "SharedPersonPicker",
-      "file": "apps/web/app/components/shared/PersonPicker.vue",
-      "story": "apps/web/stories/shared/PersonPicker.stories.ts",
-      "title": "Shared/PersonPicker",
-      "props": [
-        {
-          "name": "modelValue",
-          "type": "number | number[] | null",
-          "required": true
-        },
-        {
-          "name": "multiple",
-          "type": "boolean",
-          "required": false,
-          "default": "false"
-        },
-        {
-          "name": "known",
-          "type": "PickedPerson[]",
-          "required": false
-        },
-        {
-          "name": "valueKey",
-          "type": "\"id\" | \"user_id\"",
-          "required": false,
-          "default": "\"id\""
-        },
-        {
-          "name": "placeholder",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "disabled",
-          "type": "boolean",
-          "required": false
-        },
-        {
-          "name": "exclude",
-          "type": "number[]",
-          "required": false
-        },
-        {
-          "name": "options",
-          "type": "PickedPerson[]",
-          "required": false
-        },
-        {
-          "name": "id",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "ariaLabel",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "ariaLabelledby",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "update:modelValue",
-          "payload": "[value: number | number[] | null]"
-        },
-        {
-          "name": "resolve",
-          "payload": "[people: PickedPerson[]]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "USelectMenu"
-      ],
-      "stories": [
-        {
-          "id": "Single",
-          "name": "اختيار واحد",
-          "context": "apps/web/app/components/project/ProjectCharterFields.vue:235"
-        },
-        {
-          "id": "Multiple",
-          "name": "اختيار متعدد",
-          "context": "apps/web/app/components/task/AssigneePicker.vue:58"
-        },
-        {
-          "id": "FixedOptions",
-          "name": "من قائمة ثابتة",
-          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:75"
-        }
-      ]
-    },
-    {
       "name": "SharedPropertiesPanel",
-      "file": "apps/web/app/components/shared/PropertiesPanel.vue",
+      "file": "apps/web/app/components/shared/layout/PropertiesPanel.vue",
       "story": "apps/web/stories/shared/PropertiesPanel.stories.ts",
       "title": "Shared/PropertiesPanel",
       "props": [
@@ -2472,7 +3381,7 @@
     },
     {
       "name": "SharedPropertyRow",
-      "file": "apps/web/app/components/shared/PropertyRow.vue",
+      "file": "apps/web/app/components/shared/layout/PropertyRow.vue",
       "story": "apps/web/stories/shared/PropertyRow.stories.ts",
       "title": "Shared/PropertyRow",
       "props": [
@@ -2506,41 +3415,8 @@
       ]
     },
     {
-      "name": "SharedRecordNumber",
-      "file": "apps/web/app/components/shared/RecordNumber.vue",
-      "story": "apps/web/stories/shared/RecordNumber.stories.ts",
-      "title": "Shared/RecordNumber",
-      "props": [
-        {
-          "name": "value",
-          "type": "string | number | null",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "InTableCell",
-          "name": "داخل خلية جدول",
-          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
-        },
-        {
-          "id": "InMobileCard",
-          "name": "داخل بطاقة الجوال",
-          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
-        },
-        {
-          "id": "EmptyValue",
-          "name": "بدون رقم",
-          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
-        }
-      ]
-    },
-    {
       "name": "SharedRecordPage",
-      "file": "apps/web/app/components/shared/RecordPage.vue",
+      "file": "apps/web/app/components/shared/layout/RecordPage.vue",
       "story": "apps/web/stories/shared/RecordPage.stories.ts",
       "title": "Shared/RecordPage",
       "props": [
@@ -2627,7 +3503,7 @@
     },
     {
       "name": "SharedRecordSection",
-      "file": "apps/web/app/components/shared/RecordSection.vue",
+      "file": "apps/web/app/components/shared/layout/RecordSection.vue",
       "story": "apps/web/stories/shared/RecordSection.stories.ts",
       "title": "Shared/RecordSection",
       "props": [
@@ -2662,49 +3538,8 @@
       ]
     },
     {
-      "name": "SharedRichText",
-      "file": "apps/web/app/components/shared/RichText.vue",
-      "story": "apps/web/stories/shared/RichText.stories.ts",
-      "title": "Shared/RichText",
-      "props": [
-        {
-          "name": "html",
-          "type": "string | null",
-          "required": true
-        },
-        {
-          "name": "size",
-          "type": "\"md\" | \"sm\"",
-          "required": false,
-          "default": "\"md\"",
-          "description": "`sm` for previews inside cards and lists."
-        },
-        {
-          "name": "tag",
-          "type": "\"div\" | \"span\"",
-          "required": false,
-          "default": "\"div\""
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "Document",
-          "name": "مستند",
-          "context": "apps/web/app/components/project/ProjectUpdateList.vue:64"
-        },
-        {
-          "id": "Preview",
-          "name": "معاينة داخل بطاقة",
-          "context": "apps/web/app/components/project/ProjectUpdateList.vue:64"
-        }
-      ]
-    },
-    {
       "name": "SharedRouteTabs",
-      "file": "apps/web/app/components/shared/RouteTabs.vue",
+      "file": "apps/web/app/components/shared/layout/RouteTabs.vue",
       "story": "apps/web/stories/shared/RouteTabs.stories.ts",
       "title": "Shared/RouteTabs",
       "props": [
@@ -2729,55 +3564,13 @@
         {
           "id": "Workspace",
           "name": "أقسام المشروع",
-          "context": "apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue:41"
-        }
-      ]
-    },
-    {
-      "name": "SharedRowActions",
-      "file": "apps/web/app/components/shared/RowActions.vue",
-      "story": "apps/web/stories/shared/RowActions.stories.ts",
-      "title": "Shared/RowActions",
-      "props": [
-        {
-          "name": "actions",
-          "type": "RowAction[]",
-          "required": true
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "required": true,
-          "description": "Names the record for the menu button, e.g. \"إجراءات مشروع ألفا\"."
-        },
-        {
-          "name": "disabled",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UDropdownMenu"
-      ],
-      "stories": [
-        {
-          "id": "Menu",
-          "name": "قائمة إجراءات",
-          "context": "apps/web/app/components/project/MilestoneTable.vue:183"
-        },
-        {
-          "id": "SingleAction",
-          "name": "إجراء واحد",
-          "context": "apps/web/app/components/project/MilestoneTable.vue:183"
+          "context": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue:41"
         }
       ]
     },
     {
       "name": "SharedSettingsPage",
-      "file": "apps/web/app/components/shared/SettingsPage.vue",
+      "file": "apps/web/app/components/shared/layout/SettingsPage.vue",
       "story": "apps/web/stories/shared/SettingsPage.stories.ts",
       "title": "Shared/SettingsPage",
       "props": [
@@ -2813,7 +3606,7 @@
     },
     {
       "name": "SharedStandalonePage",
-      "file": "apps/web/app/components/shared/StandalonePage.vue",
+      "file": "apps/web/app/components/shared/layout/StandalonePage.vue",
       "story": "apps/web/stories/shared/StandalonePage.stories.ts",
       "title": "Shared/StandalonePage",
       "props": [
@@ -2862,118 +3655,8 @@
       ]
     },
     {
-      "name": "SharedStatusBadge",
-      "file": "apps/web/app/components/shared/StatusBadge.vue",
-      "story": "apps/web/stories/operations/StateBadge.stories.ts",
-      "title": "Operations/StateBadge",
-      "props": [
-        {
-          "name": "tone",
-          "type": "globalThis.StatusTone",
-          "required": true
-        },
-        {
-          "name": "label",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "variant",
-          "type": "\"subtle\" | \"outline\"",
-          "required": false,
-          "default": "\"subtle\""
-        },
-        {
-          "name": "icon",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "size",
-          "type": "\"md\" | \"sm\"",
-          "required": false,
-          "default": "\"md\""
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UBadge"
-      ],
-      "stories": [
-        {
-          "id": "Pending",
-          "name": "Pending",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
-        },
-        {
-          "id": "Completed",
-          "name": "Completed",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
-        },
-        {
-          "id": "Returned",
-          "name": "Returned",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
-        },
-        {
-          "id": "Rejected",
-          "name": "Rejected",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:66"
-        }
-      ]
-    },
-    {
-      "name": "SharedTagPicker",
-      "file": "apps/web/app/components/shared/TagPicker.vue",
-      "story": "apps/web/stories/shared/TagPicker.stories.ts",
-      "title": "Shared/TagPicker",
-      "props": [
-        {
-          "name": "modelValue",
-          "type": "{ id: number; name: string; color: number; }[]",
-          "required": true
-        },
-        {
-          "name": "canCreate",
-          "type": "boolean",
-          "required": true
-        },
-        {
-          "name": "labelledby",
-          "type": "string",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "update:modelValue",
-          "payload": "[{ ids: number[]; resolved: { id: number; name: string; color: number; }[]; }]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UBadge",
-        "UButton",
-        "UIcon",
-        "USelectMenu"
-      ],
-      "stories": [
-        {
-          "id": "InProjectSettings",
-          "name": "في إعدادات المشروع",
-          "context": "apps/web/app/components/project/ProjectGeneralForm.vue:190"
-        },
-        {
-          "id": "WithoutCreate",
-          "name": "بلا صلاحية إنشاء وسم",
-          "context": "apps/web/app/components/project/ProjectGeneralForm.vue:190"
-        }
-      ]
-    },
-    {
       "name": "SharedTimelineFrame",
-      "file": "apps/web/app/components/shared/TimelineFrame.vue",
+      "file": "apps/web/app/components/shared/layout/TimelineFrame.vue",
       "story": "apps/web/stories/shared/TimelineFrame.stories.ts",
       "title": "Shared/TimelineFrame",
       "props": [
@@ -3044,85 +3727,6 @@
       ]
     },
     {
-      "name": "SharedUnsavedChanges",
-      "file": "apps/web/app/components/shared/UnsavedChanges.vue",
-      "story": "apps/web/stories/shared/UnsavedChanges.stories.ts",
-      "title": "Shared/UnsavedChanges",
-      "props": [
-        {
-          "name": "dirty",
-          "type": "boolean",
-          "required": true
-        },
-        {
-          "name": "guardRouteUpdates",
-          "type": "boolean",
-          "required": false,
-          "default": "false"
-        },
-        {
-          "name": "ignoreQueryKeys",
-          "type": "readonly string[]",
-          "required": false,
-          "default": "[]"
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UModal"
-      ],
-      "stories": [
-        {
-          "id": "GuardsLeavingDirtyForm",
-          "name": "داخل نموذج عند مغادرة الصفحة",
-          "context": "apps/web/app/pages/settings/users/new.vue:105"
-        },
-        {
-          "id": "CleanForm",
-          "name": "نموذج بلا تعديلات",
-          "context": "apps/web/app/pages/settings/users/new.vue:105"
-        }
-      ]
-    },
-    {
-      "name": "SharedViewSwitch",
-      "file": "apps/web/app/components/shared/ViewSwitch.vue",
-      "story": "apps/web/stories/shared/ViewSwitch.stories.ts",
-      "title": "Shared/ViewSwitch",
-      "props": [
-        {
-          "name": "modelValue",
-          "type": "string",
-          "required": true
-        },
-        {
-          "name": "options",
-          "type": "globalThis.ListViewOption[]",
-          "required": true
-        }
-      ],
-      "events": [
-        {
-          "name": "update:modelValue",
-          "payload": "[value: string]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UTooltip"
-      ],
-      "stories": [
-        {
-          "id": "Default",
-          "name": "جدول ولوحة",
-          "context": "apps/web/app/components/shared/ListPage.vue:59"
-        }
-      ]
-    },
-    {
       "name": "ShellAppAccountMenu",
       "file": "apps/web/app/components/shell/AppAccountMenu.vue",
       "story": "apps/web/stories/shell/AppAccountMenu.stories.ts",
@@ -3140,7 +3744,7 @@
         {
           "id": "Default",
           "name": "الحساب",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         }
       ]
     },
@@ -3160,7 +3764,7 @@
         {
           "id": "Default",
           "name": "زر المظهر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "unused"
         }
       ]
     },
@@ -3177,7 +3781,7 @@
         {
           "id": "Default",
           "name": "الشريط والقائمة السياقية",
-          "context": "apps/web/app/layouts/default.vue:46"
+          "context": "apps/web/app/layouts/default.vue:48"
         }
       ]
     },
@@ -3259,17 +3863,17 @@
         {
           "id": "Projects",
           "name": "المشاريع مع عدّاد",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:35"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:37"
         },
         {
           "id": "WithSections",
           "name": "أقسام بعناوين",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:35"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:37"
         },
         {
           "id": "Collapsed",
           "name": "مطوية",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:35"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:37"
         }
       ]
     },
@@ -3292,32 +3896,32 @@
         {
           "id": "Default",
           "name": "زر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteMain",
           "name": "لوحة الأوامر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteSearch",
           "name": "نتائج البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteError",
           "name": "تعذّر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteShortcuts",
           "name": "اختصارات لوحة المفاتيح",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         },
         {
           "id": "PaletteReadOnly",
           "name": "قارئ بلا صلاحية إنشاء",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:85"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:88"
         }
       ]
     },
@@ -3376,7 +3980,7 @@
         {
           "id": "Open",
           "name": "القائمة مفتوحة",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:67"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:70"
         }
       ]
     },
@@ -3416,12 +4020,12 @@
         {
           "id": "Default",
           "name": "المشاريع نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         },
         {
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:44"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
         }
       ]
     },
@@ -3446,12 +4050,12 @@
         {
           "id": "Trail",
           "name": "ثلاثة مستويات",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:84"
         },
         {
           "id": "Single",
           "name": "مستوى واحد",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:81"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:84"
         }
       ]
     },
@@ -3460,7 +4064,13 @@
       "file": "apps/web/app/components/shell/ShellFrame.vue",
       "story": "apps/web/stories/shell/ShellFrame.stories.ts",
       "title": "Shell/ShellFrame",
-      "props": [],
+      "props": [
+        {
+          "name": "noSidebar",
+          "type": "boolean",
+          "required": false
+        }
+      ],
       "events": [],
       "slots": [
         "header",
@@ -3472,22 +4082,22 @@
         {
           "id": "Default",
           "name": "الإطار الكامل",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         },
         {
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         },
         {
           "id": "Console",
           "name": "الكونسول",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         },
         {
           "id": "BrightTenant",
           "name": "لون مؤسسة ساطع",
-          "context": "apps/web/app/layouts/default.vue:44"
+          "context": "apps/web/app/layouts/default.vue:46"
         }
       ]
     },
@@ -3506,12 +4116,12 @@
         {
           "id": "Default",
           "name": "مهامي",
-          "context": "apps/web/app/layouts/default.vue:45"
+          "context": "apps/web/app/layouts/default.vue:47"
         },
         {
           "id": "Console",
           "name": "الكونسول",
-          "context": "apps/web/app/layouts/default.vue:45"
+          "context": "apps/web/app/layouts/default.vue:47"
         }
       ]
     },
@@ -3681,148 +4291,6 @@
           "id": "Unavailable",
           "name": "Unavailable",
           "context": "apps/web/app/pages/subscription/index.vue:54"
-        }
-      ]
-    },
-    {
-      "name": "TaskPrioritySelect",
-      "file": "apps/web/app/components/task/PrioritySelect.vue",
-      "story": "apps/web/stories/task/PrioritySelect.stories.ts",
-      "title": "Task/PrioritySelect",
-      "props": [
-        {
-          "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
-          "required": true
-        },
-        {
-          "name": "labelledby",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "variant",
-          "type": "\"outline\" | \"soft\"",
-          "required": false,
-          "default": "\"soft\""
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "USelect"
-      ],
-      "stories": [
-        {
-          "id": "InTaskRow",
-          "name": "في صف المهمة",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
-        },
-        {
-          "id": "ReadOnly",
-          "name": "بلا صلاحية تعديل",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
-        }
-      ]
-    },
-    {
-      "name": "TaskStateMenu",
-      "file": "apps/web/app/components/task/StateMenu.vue",
-      "story": "apps/web/stories/task/StateMenu.stories.ts",
-      "title": "Task/StateMenu",
-      "props": [
-        {
-          "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
-          "required": true
-        },
-        {
-          "name": "canApprove",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UDropdownMenu",
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "InTaskRow",
-          "name": "في صف المهمة",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
-        },
-        {
-          "id": "NoTransitions",
-          "name": "بلا انتقالات متاحة",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
-        },
-        {
-          "id": "TransitionForbidden",
-          "name": "انتقال مرفوض",
-          "context": "apps/web/app/components/task/TaskTable.vue:13"
-        }
-      ]
-    },
-    {
-      "name": "TaskCard",
-      "file": "apps/web/app/components/task/TaskCard.vue",
-      "story": "apps/web/stories/task/TaskCard.stories.ts",
-      "title": "Task/TaskCard",
-      "props": [
-        {
-          "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
-          "required": true
-        },
-        {
-          "name": "stages",
-          "type": "globalThis.BoardStage[]",
-          "required": true
-        },
-        {
-          "name": "currentStageId",
-          "type": "number | null",
-          "required": true
-        },
-        {
-          "name": "showProject",
-          "type": "boolean",
-          "required": false,
-          "default": "true"
-        }
-      ],
-      "events": [
-        {
-          "name": "open",
-          "payload": "[id: number]"
-        },
-        {
-          "name": "move",
-          "payload": "[stage: globalThis.BoardStage]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UAvatar",
-        "UButton",
-        "UCard",
-        "UDropdownMenu",
-        "UIcon"
-      ],
-      "stories": [
-        {
-          "id": "InBoardColumn",
-          "name": "داخل عمود اللوحة",
-          "context": "apps/web/app/components/task/TaskBoard.vue:152"
-        },
-        {
-          "id": "ProjectBoard",
-          "name": "في لوحة المشروع (بلا اسم المشروع)",
-          "context": "apps/web/app/components/task/TaskBoard.vue:152"
         }
       ]
     },
@@ -4276,77 +4744,6 @@
           "id": "Conflict",
           "name": "Conflict",
           "context": "apps/web/app/pages/vendor/plans/new.vue:25"
-        }
-      ]
-    },
-    {
-      "name": "VendorPriceBreakdown",
-      "file": "apps/web/app/components/vendor/PriceBreakdown.vue",
-      "story": "apps/web/stories/vendor/PriceBreakdown.stories.ts",
-      "title": "Vendor/PriceBreakdown",
-      "props": [
-        {
-          "name": "quote",
-          "type": "{ id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; entitlement_digest: string; requested_extra_branches: number; cadence: { unit: \"month\" | \"year\"; count: number; }; effective_date: string; policy_revision_id: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; }[]; due_now: { currency: string; exponent: number; minor: number; }; next_renewal: { currency: string; exponent: number; minor: number; }; next_renewal_at: string; expires_at: string; digest: string; } | null",
-          "required": false
-        },
-        {
-          "name": "pending",
-          "type": "boolean",
-          "required": false
-        },
-        {
-          "name": "error",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "includedExtraBranches",
-          "type": "number",
-          "required": false
-        },
-        {
-          "name": "hqIncluded",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "retry",
-          "payload": "[]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UAlert",
-        "UButton"
-      ],
-      "stories": [
-        {
-          "id": "Quoted",
-          "name": "Quoted",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Loading",
-          "name": "Loading",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Recomputing",
-          "name": "Recomputing",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Failed",
-          "name": "Failed",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Empty",
-          "name": "Empty",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
         }
       ]
     },

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
-import EmptyState from '@/components/shared/EmptyState.vue'
+import EmptyState from '@/components/shared/feedback/EmptyState.vue'
 import ChatInfoPanel from '@/components/chat/ChatInfoPanel.vue'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import MessageHistory from '@/components/chat/MessageHistory.vue'
@@ -25,6 +25,9 @@ const qc = useQueryClient()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const routeState = computed(() => parseChatListRoute(route.query))
 const { data, error } = useChatConversation(() => props.conversationId)
+const { data: conversations } = useChatConversations(() => routeState.value)
+// True once any conversation exists or a filter/search is active, so «no conversations yet» only shows for a truly empty inbox.
+const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || routeState.value.q !== '' || routeState.value.filter !== 'all')
 const denied = ref(false)
 const pendingBody = ref('')
 const replyTo = ref<ChatMessage | null>(null)
@@ -91,38 +94,42 @@ function updateRoute(next: ChatListRoute) {
 
     <template v-if="composerOpen" #header>
       <header class="nasq-chat-thread-header" data-testid="chat-thread-header">
-        <UButton v-if="!isDesktop" color="neutral" variant="ghost" square :to="{ path: '/chat', query: listQuery }" :aria-label="t('app.back')" :title="t('app.back')">
-          <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
-        </UButton>
+        <UTooltip v-if="!isDesktop" :text="t('app.back')">
+          <UButton color="neutral" variant="ghost" square :to="{ path: '/chat', query: listQuery }" :aria-label="t('app.back')">
+            <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
+          </UButton>
+        </UTooltip>
         <span class="nasq-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
         <div class="min-w-0 flex-1 text-start">
           <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.name || t('chat.title') }}</h1>
           <p class="truncate text-xs text-muted">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
         </div>
         <div class="flex shrink-0 items-center gap-1">
-          <UButton
-            type="button"
-            color="neutral"
-            variant="ghost"
-            square
-            icon="i-lucide-search"
-            :aria-pressed="showMessageSearch"
-            :aria-label="t('chat.searchMessages')"
-            :title="t('chat.searchMessages')"
-            :disabled="!hydrated"
-            @click="toggleMessageSearch"
-          />
-          <UButton
-            color="neutral"
-            :variant="infoOpen ? 'soft' : 'ghost'"
-            square
-            :to="infoOpen ? threadTo : infoTo"
-            :aria-pressed="infoOpen"
-            :aria-label="t('chat.info')"
-            :title="t('chat.info')"
-          >
-            <UIcon name="i-lucide-info" class="size-5" aria-hidden="true" />
-          </UButton>
+          <UTooltip :text="t('chat.searchMessages')">
+            <UButton
+              type="button"
+              color="neutral"
+              variant="ghost"
+              square
+              icon="i-lucide-search"
+              :aria-pressed="showMessageSearch"
+              :aria-label="t('chat.searchMessages')"
+              :disabled="!hydrated"
+              @click="toggleMessageSearch"
+            />
+          </UTooltip>
+          <UTooltip :text="t('chat.info')">
+            <UButton
+              color="neutral"
+              :variant="infoOpen ? 'soft' : 'ghost'"
+              square
+              :to="infoOpen ? threadTo : infoTo"
+              :aria-pressed="infoOpen"
+              :aria-label="t('chat.info')"
+            >
+              <UIcon name="i-lucide-info" class="size-5" aria-hidden="true" />
+            </UButton>
+          </UTooltip>
         </div>
         <UInput v-if="showMessageSearch" v-model="messageQuery" class="nasq-chat-thread-search" icon="i-lucide-search" :placeholder="t('chat.searchMessages')" :disabled="!hydrated" />
       </header>
@@ -161,9 +168,11 @@ function updateRoute(next: ChatListRoute) {
 
     <template #info="{ headingLevel }">
       <header class="flex shrink-0 items-center gap-2 border-b border-default p-3">
-        <UButton color="neutral" variant="ghost" square :to="threadTo" :aria-label="t('app.back')" :title="t('app.back')">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </UButton>
+        <UTooltip :text="t('app.back')">
+          <UButton color="neutral" variant="ghost" square :to="threadTo" :aria-label="t('app.back')">
+            <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+          </UButton>
+        </UTooltip>
         <component :is="headingLevel" class="min-w-0 flex-1 truncate text-base font-semibold text-highlighted">{{ t('chat.info') }}</component>
       </header>
       <div class="min-h-0 flex-1 overflow-y-auto p-4">
@@ -172,10 +181,22 @@ function updateRoute(next: ChatListRoute) {
     </template>
 
     <template #empty>
-      <div class="grid place-items-center">
+      <div class="grid w-full max-w-md place-items-center">
         <!-- The one page heading when no thread is open. -->
         <h1 class="sr-only">{{ t('chat.title') }}</h1>
-        <EmptyState :title="t('chat.select')" :description="t('chat.description')" />
+        <!-- The one empty state: the list beside it stays quiet when there are no conversations at all. -->
+        <EmptyState
+          class="w-full"
+          :title="hasConversations ? t('chat.select') : t('chat.empty')"
+          :description="hasConversations ? t('chat.description') : t('chat.emptyDescription')"
+        >
+          <template #icon>
+            <UIcon name="i-lucide-messages-square" class="size-8" />
+          </template>
+          <template #action>
+            <UButton :to="{ path: '/chat/new', query: listQuery }" icon="i-lucide-message-square-plus" :label="t('chat.start')" />
+          </template>
+        </EmptyState>
       </div>
     </template>
   </SharedConversationLayout>

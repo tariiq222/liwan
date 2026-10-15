@@ -2,7 +2,7 @@
 import DepartmentOrgChart from '@/components/hr/DepartmentOrgChart.vue'
 import DepartmentTable from '@/components/hr/DepartmentTable.vue'
 import DepartmentTree from '@/components/hr/DepartmentTree.vue'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteHrDepartment, useHrDepartments, type HrDepartment } from '@/composables/useHrDepartments'

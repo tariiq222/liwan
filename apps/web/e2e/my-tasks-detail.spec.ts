@@ -117,14 +117,14 @@ test('detail renders and the inline edit PATCHes exactly the changed fields once
   await page.getByRole('button', { name: 'تعديل', exact: true }).click()
   await page.getByLabel('عنوان المهمة', { exact: true }).fill('اشترِ ورقًا ملونًا')
   await page.getByRole('combobox', { name: 'الأولوية', exact: true }).click()
-  await page.getByRole('option', { name: 'عالية' }).click()
+  await page.getByRole('option', { name: 'مرتفعة' }).click()
   await page.getByRole('button', { name: 'حفظ التغييرات' }).click()
 
   await expect(page.getByRole('heading', { name: 'اشترِ ورقًا ملونًا', level: 1 })).toBeVisible()
   const patches = api.writes().filter(call => call.method === 'PATCH')
   expect(patches).toHaveLength(1)
   expect(patches[0]!.body).toEqual({ name: 'اشترِ ورقًا ملونًا', priority: 'high' })
-  await expect(page.getByTestId('my-task-priority')).toHaveText('عالية')
+  await expect(page.getByTestId('my-task-priority')).toHaveText('مرتفعة')
 })
 
 test('clearing the deadline sends null and an empty edit sends nothing', async ({ page }) => {

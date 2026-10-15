@@ -3,9 +3,9 @@ import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import { onScopeDispose } from 'vue'
 import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@/components/shared/FilterBar.vue'
-import ProjectTable from '@/components/project/ProjectTable.vue'
-import ProjectCards from '@/components/project/ProjectCards.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
+import ProjectTable from '@/components/pmo/projects/ProjectTable.vue'
+import ProjectCards from '@/components/pmo/projects/ProjectCards.vue'
 import {
   PROJECT_PAGE,
   parseProjectListRoute,
@@ -183,6 +183,13 @@ watch(() => route.query, (query) => {
   queueMicrotask(() => { applyingRoute = false })
 })
 
+// «كل المشاريع» links and older bookmarks may ask for `?view=list`: that is the table view, so settle on `table`
+// and keep every other query value.
+watch(() => route.query.view, (view) => {
+  if (view !== 'list' || (route.path.replace(/\/+$/, '') || '/') !== '/projects') return
+  void navigateTo({ path: route.path, query: { ...route.query, view: 'table' }, hash: route.hash }, { replace: true })
+}, { immediate: true })
+
 function onStatusChange(value: unknown) {
   applyPatch({ status: parseProjectListStatus(value) })
 }
@@ -252,7 +259,7 @@ async function openProject(id: number) {
     :views="views"
   >
     <template #actions>
-      <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
+      <UButton color="neutral" variant="outline" :to="{ path: '/projects/templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
     </template>
 
     <template #filters>
@@ -302,7 +309,7 @@ async function openProject(id: number) {
       <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
       <div v-else class="grid gap-3">
         <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
-          {{ t('projects.refresh.workspace.resultCount', { count: total }) }}
+          {{ t('projects.refresh.workspace.resultCount', { count: total }, total) }}
         </p>
         <SharedEmptyState v-if="showEmpty" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
         <ProjectTable v-else-if="view === 'table'" :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />

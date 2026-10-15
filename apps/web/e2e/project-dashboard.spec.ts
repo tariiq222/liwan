@@ -20,7 +20,7 @@ for (const width of [390, 768, 1440]) {
   test(`six charts and five latest projects at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 1000 })
     await login(page)
-    await page.getByTestId('module-rail').getByRole('link', { name: 'الرئيسية', exact: true }).click()
+    await page.getByTestId('module-rail').getByRole('link', { name: 'نظرة عامة', exact: true }).click()
     await expect(page).toHaveURL(/\/projects\/dashboard$/)
     await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'المشاريع', level: 2 })).toBeVisible()
     await expect(page.getByTestId('context-sidebar').locator('nav .nasq-context-link')).toHaveText(['نظرة عامة', 'كل المشاريع', 'مهامي', 'قوالب المشاريع'])

@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import { useProject } from '@/composables/useProjects'
-import ScheduleTaskForm from '@/components/project/schedule/ScheduleTaskForm.vue'
+import ScheduleTaskForm from '@/components/pmo/projects/schedule/ScheduleTaskForm.vue'
 
 const route = useRoute()
 const { t } = useI18n()

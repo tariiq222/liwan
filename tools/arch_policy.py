@@ -209,11 +209,18 @@ def pascal(name: str) -> str:
     return ''.join(part.capitalize() for part in name.split('-'))
 
 
-def component_tag(directory: str) -> re.Pattern[str]:
-    """A Nuxt tag of a component under components/<directory>/: PascalCase or kebab-case, with or without `Lazy`."""
-    return re.compile(
-        rf'<(?:Lazy)?{re.escape(pascal(directory))}[A-Z]|<(?:lazy-)?{re.escape(directory.lower())}-[a-z]',
-    )
+def kebab(prefix: str) -> str:
+    return re.sub(r'(?<!^)(?=[A-Z])', '-', prefix).lower()
+
+
+def tag_prefixes(dirs: dict) -> list[str]:
+    """PascalCase tag prefixes of an app's components: the optional `tags` list, else one per components folder."""
+    return list(dirs['tags']) if dirs.get('tags') else [pascal(d) for d in dirs['components']]
+
+
+def component_tag(prefix: str) -> re.Pattern[str]:
+    """A Nuxt tag starting with a PascalCase prefix: PascalCase or kebab-case, with or without `Lazy`."""
+    return re.compile(rf'<(?:Lazy)?{re.escape(prefix)}[A-Z]|<(?:lazy-)?{re.escape(kebab(prefix))}-[a-z]')
 
 
 # Strings are matched first so a `//` inside one (a URL) does not start a comment.
@@ -254,8 +261,9 @@ def foreign_component_uses(text: str, own_app: str, web_apps: dict, rel: str | N
         if app == own_app:
             continue
         total += sum(1 for s in specifiers if re.search(rf'(?:^|/)modules/{re.escape(app)}(?:/|$)', s))
+        for prefix in tag_prefixes(dirs):
+            total += len(component_tag(prefix).findall(code))
         for directory in dirs['components']:
-            total += len(component_tag(directory).findall(code))
             total += sum(1 for s in specifiers if re.search(rf'(?:^|/)components/{re.escape(directory)}(?:/|$)', s))
     return total
 

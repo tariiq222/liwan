@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import UserTable from '@/components/access/users/UserTable.vue'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useHrDepartments } from '@/composables/useHrDepartments'
@@ -80,7 +80,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
       <div id="filters" class="w-full min-w-0">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
-            <UInput v-model="filters.q" class="w-full" :aria-label="t('access.users.filters.search')" :placeholder="t('access.users.filters.search')" :disabled="!hydrated" @change="updateFilters" />
+            <UInput v-model="filters.q" class="w-full" :aria-label="t('access.users.filters.searchNameLogin')" :placeholder="t('access.users.filters.searchNameLogin')" :disabled="!hydrated" @change="updateFilters" />
           </template>
           <template #default>
             <SharedFilterChoice :label="t('access.users.columns.status')" :items="statusOptions" :model-value="filters.status ?? allValue" :disabled="!hydrated" @update:model-value="onStatusChange" />

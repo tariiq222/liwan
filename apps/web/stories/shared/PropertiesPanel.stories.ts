@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import PropertiesPanel from '../../app/components/shared/PropertiesPanel.vue'
-import PropertyRow from '../../app/components/shared/PropertyRow.vue'
+import PropertiesPanel from '../../app/components/shared/layout/PropertiesPanel.vue'
+import PropertyRow from '../../app/components/shared/layout/PropertyRow.vue'
 import { project } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 

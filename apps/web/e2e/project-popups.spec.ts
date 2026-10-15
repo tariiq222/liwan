@@ -207,7 +207,7 @@ for (const path of [
   '/projects/1/finance/new', '/projects/1/finance/2', '/projects/1/finance/2/edit',
   '/projects/1/updates/new', '/projects/1/schedule/tasks/101',
   '/projects/1/charter?edit=1',
-  '/project-templates/1', '/project-templates/new', '/project-templates/1/edit', '/project-templates/1/apply',
+  '/projects/templates/1', '/projects/templates/new', '/projects/templates/1/edit', '/projects/templates/1/apply',
 ]) {
   test(`direct route opens exactly one business dialog: ${path}`, async ({ page }) => {
     await page.goto(path)
@@ -355,7 +355,7 @@ test('quick task creation keeps its draft on error and returns to the same list 
   await page.goto('/projects/1?tab=tasks&q=مهمة')
   await page.getByRole('link', { name: 'مهمة جديدة', exact: true }).click()
   const dialog = page.getByRole('dialog')
-  await expect(dialog.getByTestId('task-create-optional')).not.toHaveAttribute('open', '')
+  await expect(dialog.getByTestId('task-create-optional')).toHaveAttribute('data-state', 'closed')
   await dialog.getByLabel('عنوان المهمة', { exact: true }).fill('مهمة جديدة للتجربة')
   await dialog.getByRole('button', { name: 'إنشاء', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('تعذر الحفظ التجريبي')

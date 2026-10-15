@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import ProjectWorkspaceTabs from '../../app/components/project/workspace/ProjectWorkspaceTabs.vue'
+import ProjectWorkspaceTabs from '../../app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Project/ProjectWorkspaceTabs',
   component: ProjectWorkspaceTabs,
   args: { projectId: 1, active: true },
-  parameters: storyContext('apps/web/app/pages/projects/[id].vue:99', 'شريط أقسام المشروع: خط سفلي مستقيم للقسم الحالي وزوايا غير منحنية.'),
+  parameters: storyContext('apps/web/app/pages/projects/[id].vue:95', 'شريط أقسام المشروع: خط سفلي مستقيم للقسم الحالي وزوايا غير منحنية.'),
   render: args => ({
     components: { ProjectWorkspaceTabs },
     setup: () => {

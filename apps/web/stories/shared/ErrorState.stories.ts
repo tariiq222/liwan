@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import ErrorState from '../../app/components/shared/ErrorState.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import ErrorState from '../../app/components/shared/feedback/ErrorState.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/ErrorState',
   component: ErrorState,
-  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/shared/PageState.vue:21') },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/shared/feedback/PageState.vue:21') },
   args: { error: { status: 500 }, onRetry: fn() },
   render: args => ({
     components: { ErrorState, PageContainer },

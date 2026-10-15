@@ -15,7 +15,7 @@ for (const [mode, fontSize, width] of [['light', 'small', 1440], ['dark', 'large
     const project = await created.json()
     expect((await page.request.post(`/api/v1/projects/${project.id}/register`, { data: { kind: 'issue', title: 'متابعة توريد الأجهزة', priority: 'high' } })).status()).toBe(201)
     expect((await page.request.post(`/api/v1/projects/${project.id}/stakeholders`, { data: { name: 'فريق التشغيل', organization: 'إدارة المشاريع', role: 'متابعة التنفيذ' } })).status()).toBe(201)
-    const routes = ['/projects', '/projects/dashboard', `/projects/${project.id}?tab=summary`, `/projects/${project.id}/register`, `/projects/${project.id}/stakeholders`, '/project-templates/new', `/projects/${project.id}/tasks/new`]
+    const routes = ['/projects', '/projects/dashboard', `/projects/${project.id}?tab=summary`, `/projects/${project.id}/register`, `/projects/${project.id}/stakeholders`, '/projects/templates/new', `/projects/${project.id}/tasks/new`]
     for (const [index, route] of routes.entries()) {
       await page.goto(route)
       await expect(page.locator('html')).toHaveAttribute('data-font-size', fontSize)
@@ -51,7 +51,7 @@ for (const [mode, fontSize, width] of [['light', 'small', 1440], ['dark', 'large
       await page.evaluate(async () => {
         await Promise.all(document.getAnimations().filter(animation => animation.effect?.getTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => undefined)))
       })
-      if ((route.endsWith('/tasks/new') || route.endsWith('/project-templates/new')) && width < 768) {
+      if ((route.endsWith('/tasks/new') || route.endsWith('/projects/templates/new')) && width < 768) {
         const panel = page.getByRole('dialog')
         await expect(panel).toBeVisible()
         await expect.poll(async () => (await panel.boundingBox())?.width).toBeGreaterThan(width - 1)

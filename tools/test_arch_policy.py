@@ -218,6 +218,20 @@ class TestPureRules(unittest.TestCase):
                 with self.subTest(tag=tag):
                     self.assertEqual(foreign_component_uses(tag, '', WEB_APPS), 1)
 
+    def test_declared_tag_prefixes_catch_renamed_component_folders(self):
+        # components/pmo/{projects,tasks} keep the Project*/Task* names, so the folder name is no clue.
+        apps = {
+            'pmo': {'components': ['pmo'], 'pages': ['projects'], 'tags': ['Project', 'Task']},
+            'tasks': {'components': ['personal-tasks'], 'pages': ['my-tasks'], 'tags': ['MyTasks']},
+            'hr': {'components': ['hr'], 'pages': ['hr']},
+        }
+        for tag in ('<ProjectTable />', '<LazyTaskRow />', '<project-table />', '<MyTasksList />', '<my-tasks-list />'):
+            with self.subTest(tag=tag):
+                self.assertEqual(foreign_component_uses(tag, 'hr', apps), 1)
+        self.assertEqual(foreign_component_uses('<ProjectTable /><TaskRow />', 'pmo', apps), 0)
+        self.assertEqual(foreign_component_uses('<PmoCard /><PersonalTasksList />', 'hr', apps), 0)
+        self.assertEqual(foreign_component_uses('<HrCard />', 'pmo', apps), 1)
+
     def test_html_and_own_tags_are_not_foreign(self):
         self.assertEqual(foreign_component_uses('<hr /><hr><Hrx />', '', WEB_APPS), 0)
         self.assertEqual(foreign_component_uses('<LazyChatPanel /><chat-panel />', 'chat', WEB_APPS), 0)

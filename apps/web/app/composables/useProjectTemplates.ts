@@ -95,10 +95,10 @@ export function useProjectTemplateNavigation() {
     const { returnTo: _referrer, ...rest } = route.query
     return rest
   })
-  const backTo = computed(() => ({ path: '/project-templates', query: listQuery.value }))
+  const backTo = computed(() => ({ path: '/projects/templates', query: listQuery.value }))
   // Drilling in keeps the same list state on the URL, so returning restores it.
   const templatePath = (id?: number | null, action?: 'edit' | 'apply' | 'new') => ({
-    path: action === 'new' ? '/project-templates/new' : `/project-templates/${id}${action ? `/${action}` : ''}`,
+    path: action === 'new' ? '/projects/templates/new' : `/projects/templates/${id}${action ? `/${action}` : ''}`,
     query: listQuery.value,
   })
   return { backTo, templatePath }

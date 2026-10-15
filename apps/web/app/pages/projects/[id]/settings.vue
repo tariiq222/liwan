@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
-import ProjectSettingsForm from '@/components/project/ProjectSettingsForm.vue'
+import ProjectSettingsForm from '@/components/pmo/projects/ProjectSettingsForm.vue'
 
 const route = useRoute()
 const { t } = useI18n()

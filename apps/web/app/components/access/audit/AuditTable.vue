@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { AccessAuditSummary } from '@nasq/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
+import RecordNumber from '@/components/shared/data/RecordNumber.vue'
 import { formatNasqDateTime } from '@/composables/calendarDate'
 
 // The access-log table on SharedDataTable: a row (background click, Enter, the time link) opens the event

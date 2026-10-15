@@ -29,7 +29,22 @@ const {
 } = useNotificationsPage()
 const { mutateAsync: markRead } = useMarkNotificationRead()
 const { mutateAsync: markAllRead, isPending: markingAll } = useMarkAllNotificationsRead()
-const items = computed(() => (data.value?.pages ?? []).flatMap((page) => page.items))
+const allItems = computed(() => (data.value?.pages ?? []).flatMap((page) => page.items))
+// The filter lives in the URL (?filter=unread|mentions) so refresh and back keep it.
+const route = useRoute()
+type NotificationFilter = 'all' | 'unread' | 'mentions'
+const filter = computed<NotificationFilter>(() => (route.query.filter === 'unread' || route.query.filter === 'mentions' ? route.query.filter : 'all'))
+const filters = computed(() => (['all', 'unread', 'mentions'] as const).map(id => ({
+  id,
+  label: t(`notifications.filter${id[0]!.toUpperCase()}${id.slice(1)}`),
+  to: { path: route.path, query: { ...route.query, filter: id === 'all' ? undefined : id } },
+})))
+const items = computed(() => allItems.value.filter((item) => {
+  if (filter.value === 'unread') return !item.is_read
+  if (filter.value === 'mentions') return item.kind === 'mention'
+  return true
+}))
+const emptyText = computed(() => (filter.value !== 'all' && allItems.value.length ? t('notifications.emptyFiltered') : t('notifications.empty')))
 const listEl = ref<HTMLElement | null>(null)
 useRowNavigation(listEl)
 const unreadCount = computed(() => data.value?.pages[0]?.unread_count ?? 0)
@@ -52,7 +67,7 @@ function kindLabel(item: BellNotification) {
 }
 
 function itemTitle(item: BellNotification) {
-  if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count })
+  if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count }, item.overdue_count)
   if (isMeetingNotification(item)) return item.meeting_name
   if (isKnownNotification(item)) return item.task_name
   return genericNotificationText(item).title
@@ -117,11 +132,27 @@ async function retryNextPage() {
       />
     </template>
 
+    <template #filters>
+      <nav :aria-label="t('nav.notificationsFilters')" class="flex flex-wrap items-center gap-2" data-testid="notification-filters">
+        <UButton
+          v-for="entry in filters"
+          :key="entry.id"
+          :to="entry.to"
+          replace
+          size="sm"
+          :color="filter === entry.id ? 'primary' : 'neutral'"
+          :variant="filter === entry.id ? 'subtle' : 'ghost'"
+          :aria-current="filter === entry.id ? 'page' : undefined"
+          :label="entry.label"
+        />
+      </nav>
+    </template>
+
     <SharedPageState
-      :loading="isLoading && !items.length"
-      :error="hasQueryError && !items.length ? queryError : null"
+      :loading="isLoading && !allItems.length"
+      :error="hasQueryError && !allItems.length ? queryError : null"
       :empty="!items.length"
-      :empty-text="t('notifications.empty')"
+      :empty-text="emptyText"
       @retry="retryNotifications"
     >
       <div class="rounded-lg ring ring-default bg-default overflow-hidden">
@@ -133,15 +164,16 @@ async function retryNextPage() {
               color="neutral"
               variant="ghost"
               class="grid w-full gap-1 rounded-none border-b border-default p-3 text-start transition-colors hover:bg-elevated"
-              :class="item.is_read ? 'bg-default' : 'border-s-2 border-s-brand-link bg-brand-soft'"
+              :class="item.is_read ? 'bg-default' : 'bg-primary/5'"
               :disabled="!hydrated || actionPending"
               :data-testid="`notification-${item.id}`"
               @click="openNotification(item)"
             >
-              <span class="flex items-center gap-2 text-xs font-medium" :class="item.is_read ? 'text-muted' : 'text-brand-link'">
+              <span class="flex items-center gap-2 text-xs font-medium" :class="item.is_read ? 'text-muted' : 'text-highlighted'">
                 <span>{{ kindLabel(item) }}</span>
-                <span v-if="!item.is_read" class="inline-flex items-center gap-1 font-semibold">
-                  <span class="size-1.5 shrink-0 rounded-full bg-brand-link" aria-hidden="true" />
+                <span v-if="!item.is_read" class="inline-flex items-center gap-1.5 font-semibold">
+                  <!-- Lime is a fill, never text: the dot marks unread, the word keeps it readable without colour. -->
+                  <span class="size-2 shrink-0 rounded-full bg-nasq-lime" data-testid="notification-unread-dot" aria-hidden="true" />
                   {{ t('notifications.unread') }}
                 </span>
               </span>

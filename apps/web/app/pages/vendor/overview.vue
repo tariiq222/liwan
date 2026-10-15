@@ -41,7 +41,7 @@ const { data: commercial, pending: commercialPending } = await useAsyncData('ven
             <SharedMetricTile :label="t('vendor.overviewCommercial.stalled')" :value="commercial.metrics.stalledFulfillments" icon="i-lucide-circle-alert" />
             <SharedMetricTile :label="t('vendor.overviewCommercial.setup')" :value="commercial.metrics.setupRequired" icon="i-lucide-wrench" />
           </div>
-          <p v-if="commercial.total > commercial.metrics.counted" class="mt-3 text-sm text-warning">{{ t('vendor.overviewCommercial.partial', { count: commercial.metrics.counted }) }}</p>
+          <p v-if="commercial.total > commercial.metrics.counted" class="mt-3 text-sm text-warning">{{ t('vendor.overviewCommercial.partial', { count: commercial.metrics.counted }, commercial.metrics.counted) }}</p>
         </template>
       </section>
       <nav class="mt-6 flex flex-wrap gap-3"><UButton to="/vendor/tenants">{{ t('vendor.tenants.title') }}</UButton><UButton to="/vendor/customers" color="neutral" variant="outline">{{ t('vendor.overviewCommercial.customers') }}</UButton><UButton v-if="can('vendor.billing.manage')" to="/vendor/invoices" color="neutral" variant="outline">{{ t('vendor.overviewCommercial.invoices') }}</UButton><UButton to="/vendor/catalog" color="neutral" variant="outline">{{ t('vendor.catalog.title') }}</UButton><UButton to="/vendor/operations" color="neutral" variant="outline">{{ t('vendor.operations.title') }}</UButton></nav>

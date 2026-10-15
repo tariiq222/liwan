@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
+import RecordNumber from '@/components/shared/data/RecordNumber.vue'
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { groupMeetingsByMonth, meetingTimelinePhase } from '@/utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
@@ -81,7 +81,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
       <SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" />
       <span class="ms-2 text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span>
     </template>
-    <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
+    <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</template>
     <template #actions-cell="{ row }"><UButton color="primary" variant="link" size="sm" class="p-0" :to="meetingTo(row.original, 'minutes')" :label="t('meetingTimeline.openMinutes')" />
     </template>
     <template #mobile-row="{ row }">
@@ -93,7 +93,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
             <SharedStatusBadge v-bind="meetingStateBadgeProps(row.state, t)" />
           </div>
         </div>
-        <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted"><RecordNumber :value="row.reference || row.id" /><span>{{ meetingDate(row) }}</span><span>{{ t('meetingsUi.openCount', { count: row.open_resolution_count }) }}</span></div>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted"><RecordNumber :value="row.reference || row.id" /><span>{{ meetingDate(row) }}</span><span>{{ t('meetingsUi.openCount', { count: row.open_resolution_count }, row.open_resolution_count) }}</span></div>
         <UButton color="primary" variant="link" size="sm" class="w-fit p-0" :to="meetingTo(row, 'minutes')" :label="t('meetingTimeline.openMinutes')" />
       </div>
     </template>
@@ -113,7 +113,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
           <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
             <time :datetime="meeting.start_datetime || meeting.meeting_date || undefined" dir="ltr">{{ meetingDate(meeting) }}</time>
             <span>{{ t(`meetingTimeline.phase.${phase(meeting)}`) }}</span>
-            <span>{{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }) }}</span>
+            <span>{{ t('meetingsUi.openCount', { count: meeting.open_resolution_count }, meeting.open_resolution_count) }}</span>
             <UButton color="primary" variant="link" size="xs" class="p-0" :to="meetingTo(meeting, 'minutes')" :label="t('meetingTimeline.openMinutes')" />
           </div>
         </li>

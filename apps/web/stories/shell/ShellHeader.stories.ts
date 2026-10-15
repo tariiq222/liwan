@@ -15,5 +15,5 @@ type Story = StoryObj<typeof meta>
 const at = (path: string) => async () => { await __getRouter()!.replace(path); return {} }
 const render = () => ({ components: { ShellHeader }, template: '<div class="nasq-shell" style="min-height: 64px"><ShellHeader /></div>' })
 
-export const Default: Story = { name: 'مهامي', parameters: storyContext('apps/web/app/layouts/default.vue:45'), loaders: [at('/tasks')], render }
-export const Console: Story = { name: 'الكونسول', parameters: { ...storyContext('apps/web/app/layouts/default.vue:45'), msw: { handlers: { api: vendorShellHandlers } } }, loaders: [at('/vendor/overview')], render }
+export const Default: Story = { name: 'مهامي', parameters: storyContext('apps/web/app/layouts/default.vue:47'), loaders: [at('/tasks')], render }
+export const Console: Story = { name: 'الكونسول', parameters: { ...storyContext('apps/web/app/layouts/default.vue:47'), msw: { handlers: { api: vendorShellHandlers } } }, loaders: [at('/vendor/overview')], render }

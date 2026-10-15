@@ -12,7 +12,8 @@ describe('the meetings pages stay on their templates', () => {
     ['pages/meetings/index.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-new"']],
     ['pages/meetings/series.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-series-new"']],
     ['pages/meetings/calendar.vue', ['<SharedTimelineFrame']],
-    ['pages/meetings/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel', '<SharedRecordSection']],
+    // The record's seven tabs are a custom overflow-aware strip (data-testid="meeting-tabs"), not SharedRouteTabs.
+    ['pages/meetings/[id].vue', ['<SharedRecordPage', 'data-testid="meeting-tabs"', '<SharedPropertiesPanel', '<SharedRecordSection']],
     ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel']],
     ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'nasq-print-landscape']],
   ])('%s uses its template', (file, needles) => {

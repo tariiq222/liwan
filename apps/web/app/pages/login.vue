@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { FormError } from '@nuxt/ui'
 import { postLoginPath } from '~/utils/accessPolicy'
 definePageMeta({ layout: false })
 
@@ -7,9 +8,8 @@ const { branding } = useBranding()
 const productName = computed(() => branding.value?.name ?? t('app.productName'))
 const route = useRoute()
 const { me, refresh } = useMe()
-const login = ref('')
-const password = ref('')
-const totpCode = ref('')
+const state = reactive({ login: '', password: '' })
+const totpState = reactive({ code: '' })
 const pending = ref(false)
 const errorMessage = ref<string | null>(null)
 const mfaPending = ref(false)
@@ -27,9 +27,21 @@ onBeforeMount(() => {
   }
 })
 onMounted(() => {
-  if (!login.value && prefilled.login) login.value = prefilled.login
-  if (!password.value && prefilled.password) password.value = prefilled.password
+  if (!state.login && prefilled.login) state.login = prefilled.login
+  if (!state.password && prefilled.password) state.password = prefilled.password
 })
+
+// Native browser validation is off (novalidate on both forms); these messages are Arabic/English from the
+// active locale and show under the field. The submit button stays enabled so an empty submit explains itself.
+function validate(value: Partial<typeof state>): FormError[] {
+  const errors: FormError[] = []
+  if (!value.login?.trim()) errors.push({ name: 'login', message: t('auth.usernameRequired') })
+  if (!value.password) errors.push({ name: 'password', message: t('auth.passwordRequired') })
+  return errors
+}
+function validateTotp(value: Partial<typeof totpState>): FormError[] {
+  return value.code?.trim() ? [] : [{ name: 'totp', message: t('auth.totpRequired') }]
+}
 
 // The Nitro auth endpoints answer with a machine code only (no prose), so the
 // wording is chosen here, in the active locale. Anything unmapped falls back
@@ -43,7 +55,7 @@ async function submit() {
   pending.value = true
   errorMessage.value = null
   try {
-    const res = await $fetch('/api/auth/login', { method: 'POST', body: { login: login.value, password: password.value } })
+    const res = await $fetch('/api/auth/login', { method: 'POST', body: { login: state.login, password: state.password } })
     if (res.ok === false && res.mfa === 'totp') {
       mfaPending.value = true
       return
@@ -62,7 +74,7 @@ async function submitTotp() {
   pending.value = true
   errorMessage.value = null
   try {
-    await $fetch('/api/auth/totp', { method: 'POST', body: { code: totpCode.value } })
+    await $fetch('/api/auth/totp', { method: 'POST', body: { code: totpState.code } })
     await refresh()
     await navigateTo(postLoginPath(me.value, route.query.next))
   } catch {
@@ -83,26 +95,26 @@ async function submitTotp() {
         <p class="text-sm text-muted">{{ $t('auth.signInToContinue') }}</p>
       </div>
     </template>
-    <form v-if="!mfaPending" class="grid gap-5" @submit.prevent="submit">
+    <UForm v-if="!mfaPending" novalidate :state="state" :validate="validate" class="grid gap-5" @submit="submit">
       <UFormField :label="$t('auth.username')" name="login" required>
-        <UInput id="login" v-model="login" autocomplete="username" required dir="ltr" class="w-full text-start" />
+        <UInput id="login" v-model="state.login" autocomplete="username" dir="ltr" class="w-full text-start" />
       </UFormField>
       <UFormField :label="$t('auth.password')" name="password" required>
-        <UInput id="password" v-model="password" type="password" autocomplete="current-password" required dir="ltr" class="w-full" />
+        <UInput id="password" v-model="state.password" type="password" autocomplete="current-password" dir="ltr" class="w-full" />
       </UFormField>
       <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-      <UButton type="submit" class="w-full justify-center" :disabled="pending || !hydrated" :label="$t('auth.signIn')" />
-    </form>
-    <form v-else class="grid gap-5" @submit.prevent="submitTotp">
+      <UButton type="submit" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="$t('auth.signIn')" />
+    </UForm>
+    <UForm v-else novalidate :state="totpState" :validate="validateTotp" class="grid gap-5" @submit="submitTotp">
       <UFormField :label="$t('auth.totpTitle')" name="totp" required>
         <UInput
-          id="totp-code" v-model="totpCode" inputmode="numeric" autocomplete="one-time-code"
-          required dir="ltr" class="w-full text-start"
+          id="totp-code" v-model="totpState.code" inputmode="numeric" autocomplete="one-time-code"
+          dir="ltr" class="w-full text-start"
         />
         <template #hint><span>{{ $t('auth.totpHint') }}</span></template>
       </UFormField>
       <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-      <UButton type="submit" class="w-full justify-center" :disabled="pending" :label="$t('auth.continue')" />
-    </form>
+      <UButton type="submit" class="w-full justify-center" :loading="pending" :label="$t('auth.continue')" />
+    </UForm>
   </SharedStandalonePage>
 </template>

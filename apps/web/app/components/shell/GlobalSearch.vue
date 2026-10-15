@@ -172,7 +172,7 @@ function onAfterLeave() {
       aria-keyshortcuts="Meta+K Control+K"
       color="neutral"
       variant="outline"
-      class="nasq-search-trigger"
+      class="nasq-search-trigger max-md:bg-transparent max-md:ring-0"
       data-testid="global-search-trigger"
       :disabled="!hydrated"
     >
