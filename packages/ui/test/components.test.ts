@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const FORBIDDEN_IMPORT = /from\s+['"](?:@|~)\//
+const FORBIDDEN_IMPORT = /from\s+['"](?:@@?|~~?)\//
 const FORBIDDEN = ['@nasq/contracts', 'apps/web', '$fetch(', 'useMe(', 'useApi(', '/api/']
 
 function sourceFiles(dir: string): string[] {
