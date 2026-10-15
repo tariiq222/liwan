@@ -3,7 +3,11 @@ from odoo.tools import html2plaintext
 
 from odoo.addons.nasq_api.serializers.common import iso
 
-CHARTER_KINDS = ('charter_review', 'charter_approved', 'charter_returned')
+CHARTER_REVIEW_KIND = 'charter_review'
+CHARTER_APPROVED_KIND = 'charter_approved'
+CHARTER_RETURNED_KIND = 'charter_returned'
+CHARTER_DECISION_KINDS = (CHARTER_APPROVED_KIND, CHARTER_RETURNED_KIND)
+CHARTER_KINDS = (CHARTER_REVIEW_KIND, *CHARTER_DECISION_KINDS)
 
 
 def dump_notification(notification, live_tasks=None):

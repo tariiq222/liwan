@@ -2,6 +2,12 @@
 """Bell rows for the charter approval: the sponsor is asked, the submitter is told the decision."""
 from odoo import models
 
+from odoo.addons.nasq_pmo.serializers.notification import (
+    CHARTER_APPROVED_KIND,
+    CHARTER_RETURNED_KIND,
+    CHARTER_REVIEW_KIND,
+)
+
 
 class ProjectCharterNotifications(models.Model):
     _inherit = 'project.project'
@@ -10,7 +16,7 @@ class ProjectCharterNotifications(models.Model):
         result = super()._nasq_charter_submit()
         if self.nasq_charter_state == 'submitted':
             self._nasq_deliver_charter(
-                'charter_review', 'charter_review', self.nasq_sponsor_id,
+                CHARTER_REVIEW_KIND, 'charter_review', self.nasq_sponsor_id,
                 f'{self.env.user.display_name} asked you to review the charter of {self.display_name}',
             )
         return result
@@ -19,7 +25,7 @@ class ProjectCharterNotifications(models.Model):
         submitter = self.nasq_charter_submitted_by_id
         result = super()._nasq_charter_approve()
         self._nasq_deliver_charter(
-            'charter_approved', 'charter_decision', submitter,
+            CHARTER_APPROVED_KIND, 'charter_decision', submitter,
             f'{self.env.user.display_name} approved the charter of {self.display_name}',
         )
         return result
@@ -28,7 +34,7 @@ class ProjectCharterNotifications(models.Model):
         submitter = self.nasq_charter_submitted_by_id
         result = super()._nasq_charter_return(note)
         self._nasq_deliver_charter(
-            'charter_returned', 'charter_decision', submitter,
+            CHARTER_RETURNED_KIND, 'charter_decision', submitter,
             f'{self.env.user.display_name} returned the charter of {self.display_name}: {self.nasq_charter_return_note}',
         )
         return result

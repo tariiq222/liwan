@@ -2,20 +2,20 @@
 """nasq_pmo's notification kinds in the nasq_notify registry: tasks, the overdue digest and the charter approval.
 
 Documented notification sudo: the candidate lookup below reads only the
-current partner's own inbox rows; whether the task is still readable is
-decided by an ordinary search in the caller's environment.
+current partner's own inbox rows; whether the task or project is still
+readable is decided by an ordinary search in the caller's environment.
 """
 from odoo import api, models
 
 from odoo.addons.nasq_pmo.serializers.notification import (
+    CHARTER_DECISION_KINDS,
     CHARTER_KINDS,
+    CHARTER_REVIEW_KIND,
     dump_notification,
 )
 
 TASK_KINDS = ('assignment', 'comment', 'mention', 'deadline')
 DIGEST_KIND = 'overdue_digest'
-CHARTER_REVIEW_KIND = 'charter_review'
-CHARTER_DECISION_KINDS = tuple(kind for kind in CHARTER_KINDS if kind != CHARTER_REVIEW_KIND)
 
 
 def recipient_candidate_ids(env, model, source_field):
@@ -63,15 +63,14 @@ def readable_active_task_ids(env, candidate_ids=None):
     ]).ids
 
 
-def readable_active_project_ids(env, candidate_ids=None):
+def readable_active_project_ids(env):
     """Caller-visible active current-company projects among recipient candidates.
 
     Project search is never sudo'd, so the caller's record rules decide.
     """
     if not env['nasq.access.service']._nasq_has_capability(env.user, 'pmo.projects.read') or not env['project.project'].has_access('read'):
         return []
-    if candidate_ids is None:
-        candidate_ids = recipient_candidate_ids(env, 'project.project', 'nasq_project_id')
+    candidate_ids = recipient_candidate_ids(env, 'project.project', 'nasq_project_id')
     if not candidate_ids:
         return []
     return env['project.project'].search([
@@ -90,7 +89,7 @@ def digest_live_tasks(env, row):
     return Task._nasq_live_digest_tasks(snapshot)
 
 
-class NasqPmoTaskNotificationTypes(models.AbstractModel):
+class NasqPmoNotificationTypes(models.AbstractModel):
     _inherit = 'nasq.notify.registry'
 
     @api.model
