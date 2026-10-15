@@ -8,10 +8,11 @@ const props = defineProps<{ taskId: number }>()
 
 const { t } = useI18n()
 const { mutate: postComment, isPending } = usePostComment()
-const hydrated = useHydrated()
 const toast = useToast()
 
 const body = ref('')
+
+// The compose form is `SharedCommentComposer`; this file adds the reference menu and the request.
 
 // --- references: `@` a person, `/` a task of this conversation --------------
 // The textarea stays plain text. A picked suggestion writes `@name` / `/name`
@@ -107,55 +108,53 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <form class="mt-4 grid gap-2 border-t border-default pt-3.5" @submit.prevent="submit">
-    <UFormField :label="t('tasks.activity.add')" :name="`task-comment-${props.taskId}`" :help="t('tasks.activity.referenceHint')" class="text-xs font-medium">
-      <div>
-        <UTextarea
-          :id="`task-comment-${props.taskId}`"
-          v-model="body"
-          :placeholder="t('tasks.activity.write')"
-          :disabled="!hydrated || isPending"
-          class="min-h-22 w-full resize-none"
-          aria-autocomplete="list"
-          :aria-controls="menuOpen ? listId : undefined"
-          :aria-activedescendant="menuOpen ? activeOptionId : undefined"
-          @keydown="onKeydown"
-          @input="syncTrigger"
-          @click="syncTrigger"
-          @keyup="syncTrigger"
-          @blur="trigger = null"
-        />
-        <!-- In flow, not floating: the task card clips overflow, and the composer is the last thing in it. -->
-        <div
-          v-if="menuOpen && trigger"
-          data-testid="comment-suggestions"
-          class="mt-1 overflow-hidden rounded-md bg-default ring ring-default"
-        >
-          <p class="border-b border-default px-3 py-1.5 text-xs font-medium text-muted">{{ t(trigger.kind === 'person' ? 'tasks.activity.mentionPerson' : 'tasks.activity.referenceTask') }}</p>
-          <ul v-if="suggestions.length" :id="listId" role="listbox" :aria-label="t(trigger.kind === 'person' ? 'tasks.activity.mentionPerson' : 'tasks.activity.referenceTask')" class="max-h-56 overflow-y-auto p-1">
-            <li
-              v-for="(item, index) in suggestions"
-              :id="`${listId}-${index}`"
-              :key="`${item.kind}-${item.id}`"
-              role="option"
-              :aria-selected="index === activeIndex"
-              class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-normal text-default"
-              :class="index === activeIndex ? 'bg-elevated text-highlighted' : ''"
-              @mousedown.prevent="pick(item)"
-              @mousemove="activeIndex = index"
-            >
-              <UIcon :name="item.kind === 'person' ? 'i-lucide-at-sign' : 'i-lucide-list-tree'" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />
-              <span class="min-w-0 truncate">{{ item.label }}</span>
-            </li>
-          </ul>
-          <p v-else class="px-3 py-2 text-sm font-normal text-muted">{{ t(trigger.kind === 'person' ? 'tasks.activity.noPeople' : 'tasks.activity.noThreadTasks') }}</p>
-        </div>
+  <SharedCommentComposer
+    v-model="body"
+    class="mt-4 border-t border-default pt-3.5"
+    :field-id="`task-comment-${props.taskId}`"
+    :label="t('tasks.activity.add')"
+    :help="t('tasks.activity.referenceHint')"
+    :placeholder="t('tasks.activity.write')"
+    :submit-label="t('tasks.activity.post')"
+    :pending="isPending"
+    :textarea-aria="{
+      'aria-autocomplete': 'list',
+      'aria-controls': menuOpen ? listId : undefined,
+      'aria-activedescendant': menuOpen ? activeOptionId : undefined,
+    }"
+    @submit="submit"
+    @keydown="onKeydown"
+    @input="syncTrigger"
+    @click="syncTrigger"
+    @keyup="syncTrigger"
+    @blur="trigger = null"
+  >
+    <template #below>
+      <!-- In flow, not floating: the task card clips overflow, and the composer is the last thing in it. -->
+      <div
+        v-if="menuOpen && trigger"
+        data-testid="comment-suggestions"
+        class="mt-1 overflow-hidden rounded-md bg-default ring ring-default"
+      >
+        <p class="border-b border-default px-3 py-1.5 text-xs font-medium text-muted">{{ t(trigger.kind === 'person' ? 'tasks.activity.mentionPerson' : 'tasks.activity.referenceTask') }}</p>
+        <ul v-if="suggestions.length" :id="listId" role="listbox" :aria-label="t(trigger.kind === 'person' ? 'tasks.activity.mentionPerson' : 'tasks.activity.referenceTask')" class="max-h-56 overflow-y-auto p-1">
+          <li
+            v-for="(item, index) in suggestions"
+            :id="`${listId}-${index}`"
+            :key="`${item.kind}-${item.id}`"
+            role="option"
+            :aria-selected="index === activeIndex"
+            class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-normal text-default"
+            :class="index === activeIndex ? 'bg-elevated text-highlighted' : ''"
+            @mousedown.prevent="pick(item)"
+            @mousemove="activeIndex = index"
+          >
+            <UIcon :name="item.kind === 'person' ? 'i-lucide-at-sign' : 'i-lucide-list-tree'" class="size-4 shrink-0 text-dimmed" aria-hidden="true" />
+            <span class="min-w-0 truncate">{{ item.label }}</span>
+          </li>
+        </ul>
+        <p v-else class="px-3 py-2 text-sm font-normal text-muted">{{ t(trigger.kind === 'person' ? 'tasks.activity.noPeople' : 'tasks.activity.noThreadTasks') }}</p>
       </div>
-    </UFormField>
-    <div class="flex justify-end">
-      <UButton type="submit" size="sm" :loading="isPending" :disabled="!hydrated || isPending || !body.trim()">
-        {{ t('tasks.activity.post') }}
-      </UButton>
-    </div>
-  </form>
+    </template>
+  </SharedCommentComposer>
 </template>
