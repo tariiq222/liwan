@@ -24,8 +24,7 @@
   "web_apps": {
     "pmo": {
       "components": [
-        "project",
-        "task"
+        "pmo"
       ],
       "pages": [
         "projects",
@@ -58,7 +57,7 @@
     },
     "tasks": {
       "components": [
-        "my-tasks"
+        "personal-tasks"
       ],
       "pages": [
         "my-tasks"
