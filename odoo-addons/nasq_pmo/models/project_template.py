@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
-from .project_task import TEMPLATE_APPLY_MARKER
+from .project_task import PROJECT_COPY_MARKER
 
 TEMPLATE_KEY_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_-]{0,63}$')
 MAX_TEMPLATE_ITEMS = 100
@@ -311,8 +311,8 @@ class ProjectTemplate(models.Model):
                 project_name, extra=extra, user_id=template.env.uid, date_end=end,
             )
             marker = template.env.cr.precommit.data
-            previous = marker.get(TEMPLATE_APPLY_MARKER)
-            marker[TEMPLATE_APPLY_MARKER] = (template.env.uid, template.env.company.id, project.id)
+            previous = marker.get(PROJECT_COPY_MARKER)
+            marker[PROJECT_COPY_MARKER] = (template.env.uid, template.env.company.id, project.id)
             try:
                 stages = project.type_ids.sorted(lambda stage: (stage.sequence, stage.id))
                 stage_ids = {
@@ -325,7 +325,7 @@ class ProjectTemplate(models.Model):
                     )
                 tasks = {}
                 for row in definition['tasks']:
-                    task = template.env['project.task']._nasq_create_for_template(project, {
+                    task = template.env['project.task']._nasq_create_for_copy(project, {
                         'name': row['name'],
                         'project_id': project.id,
                         'stage_id': stage_ids[row['stage_key']],
@@ -350,7 +350,7 @@ class ProjectTemplate(models.Model):
                 template.env.flush_all()
             finally:
                 if previous is None:
-                    marker.pop(TEMPLATE_APPLY_MARKER, None)
+                    marker.pop(PROJECT_COPY_MARKER, None)
                 else:
-                    marker[TEMPLATE_APPLY_MARKER] = previous
+                    marker[PROJECT_COPY_MARKER] = previous
             return result

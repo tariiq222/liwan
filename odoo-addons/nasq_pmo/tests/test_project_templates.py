@@ -9,7 +9,7 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 
 from .common import NasqPmoCase
 from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
-from odoo.addons.nasq_pmo.models.project_task import TEMPLATE_APPLY_MARKER
+from odoo.addons.nasq_pmo.models.project_task import PROJECT_COPY_MARKER
 from odoo.addons.nasq_pmo.models.project_template import validate_template_definition
 
 TEMPLATE = {
@@ -141,7 +141,7 @@ class TestProjectTemplates(TransactionCase):
             default_message_follower_ids=[(0, 0, {'partner_id': self.employee.partner_id.id})],
         )._nasq_apply('Minimal application', '2030-01-10')
         self.assertEqual(project.user_id, user)
-        self.assertNotIn(TEMPLATE_APPLY_MARKER, self.env.cr.precommit.data)
+        self.assertNotIn(PROJECT_COPY_MARKER, self.env.cr.precommit.data)
         tasks = self.env['project.task'].with_user(user).search([('project_id', '=', project.id)])
         self.assertEqual(len(tasks), 2)
         self.assertFalse(tasks.user_ids)
@@ -149,10 +149,10 @@ class TestProjectTemplates(TransactionCase):
         self.assertFalse(tasks.message_follower_ids)
         with self.assertRaises(AccessError):
             self.env['project.task'].with_user(user).with_context(**{
-                TEMPLATE_APPLY_MARKER: (user.id, self.env.company.id, project.id),
+                PROJECT_COPY_MARKER: (user.id, self.env.company.id, project.id),
             }).create({'name': 'Not from a definition', 'project_id': project.id})
         with self.assertRaises(AccessError):
-            self.env['project.task'].with_user(user)._nasq_create_for_template(
+            self.env['project.task'].with_user(user)._nasq_create_for_copy(
                 project, {'name': 'No scope', 'project_id': project.id},
             )
         with self.assertRaises(AccessError):
@@ -162,7 +162,7 @@ class TestProjectTemplates(TransactionCase):
                 {'name': 'Batch one', 'project_id': project.id},
                 {'name': 'Batch two', 'project_id': project.id},
             ])
-        self.assertNotIn(TEMPLATE_APPLY_MARKER, self.env.cr.precommit.data)
+        self.assertNotIn(PROJECT_COPY_MARKER, self.env.cr.precommit.data)
         with self.assertRaises(AccessError):
             template.with_user(self.reader)._nasq_apply('Denied', '2030-01-10')
 
@@ -181,7 +181,7 @@ class TestProjectTemplates(TransactionCase):
         self.assertEqual(len(tasks), 2)
         with self.assertRaises(AccessError):
             tasks.with_user(user).read(['name'])
-        self.assertNotIn(TEMPLATE_APPLY_MARKER, self.env.cr.precommit.data)
+        self.assertNotIn(PROJECT_COPY_MARKER, self.env.cr.precommit.data)
 
     def test_project_only_population_read_scope_is_bounded_and_cleaned(self):
         user = self._managed_user('template_scoped_only', ['pmo.projects.read', 'pmo.projects.create'])
@@ -203,7 +203,7 @@ class TestProjectTemplates(TransactionCase):
         def inspect_scope(task, start, end):
             seen.append(task.id)
             Model = task.env['project.task']
-            scope = task.env.cr.precommit.data[TEMPLATE_APPLY_MARKER]
+            scope = task.env.cr.precommit.data[PROJECT_COPY_MARKER]
             self.assertEqual(scope, (user.id, self.env.company.id, task.project_id.id))
             self.assertEqual(task.read(['name'])[0]['name'], task.name)
             self.assertEqual(set(Model.search([]).ids), set(seen))
@@ -224,10 +224,10 @@ class TestProjectTemplates(TransactionCase):
                 task.with_user(other_user).read(['name'])
             with UnitTestCase.assertRaises(self, AccessError):
                 task.with_company(foreign_company).read(['name'])
-            self.assertEqual(task.env.cr.precommit.data.get(TEMPLATE_APPLY_MARKER), scope, 'scope after negative reads')
+            self.assertEqual(task.env.cr.precommit.data.get(PROJECT_COPY_MARKER), scope, 'scope after negative reads')
             self.assertEqual(Model.env.company.id, scope[1], 'original company after negative reads')
             self.assertEqual(Model.env.uid, scope[0], 'original uid after negative reads')
-            forged = Model.with_context(**{TEMPLATE_APPLY_MARKER: (user.id, self.env.company.id, outside_project.id)})
+            forged = Model.with_context(**{PROJECT_COPY_MARKER: (user.id, self.env.company.id, outside_project.id)})
             self.assertFalse(forged.search([('id', '=', outside_task.id)]))
             with UnitTestCase.assertRaises(self, AccessError):
                 forged.browse(outside_task.id).read(['name'])
@@ -240,9 +240,9 @@ class TestProjectTemplates(TransactionCase):
         with patch.object(Task, '_nasq_set_schedule', inspect_scope):
             project = template._nasq_apply('Scoped new project', '2030-01-10')
         self.assertEqual(len(seen), 2)
-        self.assertNotIn(TEMPLATE_APPLY_MARKER, self.env.cr.precommit.data)
+        self.assertNotIn(PROJECT_COPY_MARKER, self.env.cr.precommit.data)
         Model = self.env['project.task'].with_user(user).with_context(**{
-            TEMPLATE_APPLY_MARKER: (user.id, self.env.company.id, project.id),
+            PROJECT_COPY_MARKER: (user.id, self.env.company.id, project.id),
         })
         for operation in (
             lambda: Model.search([]),
@@ -274,7 +274,7 @@ class TestProjectTemplates(TransactionCase):
         with self.assertRaises(ValidationError):
             template._nasq_apply('Result must roll back', '2030-01-10', serialize=failed_result)
         self.assertEqual(len(seen), 2)
-        self.assertNotIn(TEMPLATE_APPLY_MARKER, self.env.cr.precommit.data)
+        self.assertNotIn(PROJECT_COPY_MARKER, self.env.cr.precommit.data)
         self.assertFalse(self.env['project.task'].browse(seen).exists())
         self.assertEqual(before, {model: self.env[model].with_context(active_test=False).search_count([]) for model in models})
         with self.assertRaises(AccessError):
@@ -291,7 +291,7 @@ class TestProjectTemplates(TransactionCase):
         def fail_second(task, start, end):
             seen.append(task.id)
             if len(seen) == 2:
-                self.assertEqual(task.env.cr.precommit.data[TEMPLATE_APPLY_MARKER], (self.creator.id, self.env.company.id, task.project_id.id))
+                self.assertEqual(task.env.cr.precommit.data[PROJECT_COPY_MARKER], (self.creator.id, self.env.company.id, task.project_id.id))
                 message = 'Controlled failure after both tasks and milestone exist'
                 raise ValidationError(message)
             return original(task, start, end)
@@ -300,7 +300,7 @@ class TestProjectTemplates(TransactionCase):
             with self.assertRaises(ValidationError):
                 template._nasq_apply('Must roll back', '2030-01-10')
         self.assertEqual(len(seen), 2)
-        self.assertNotIn(TEMPLATE_APPLY_MARKER, self.env.cr.precommit.data)
+        self.assertNotIn(PROJECT_COPY_MARKER, self.env.cr.precommit.data)
         self.assertFalse(self.env['project.task'].browse(seen).exists())
         self.assertEqual(before, {model: self.env[model].with_context(active_test=False).search_count([]) for model in models})
 
@@ -519,4 +519,4 @@ class TestProjectTemplatesHttp(NasqPmoCase):
         with self.assertRaises(AccessError):
             tasks.with_user(user).read(['name'])
         self.assertFalse(service._nasq_has_capability(user, 'pmo.tasks.read'))
-        self.assertNotIn(TEMPLATE_APPLY_MARKER, self.env.cr.precommit.data)
+        self.assertNotIn(PROJECT_COPY_MARKER, self.env.cr.precommit.data)

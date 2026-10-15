@@ -16,6 +16,7 @@ from . import (
     test_project_admin_model,
     test_project_charter,
     test_project_charter_catalogs,
+    test_project_copy,
     test_project_finance,
     test_project_followers,
     test_project_governance,

@@ -1,10 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import math
+from datetime import date, datetime
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .nasq_settings import CREATORS
+from .project_task import PROJECT_COPY_MARKER
 from odoo.addons.project.models.project_project import (
     ProjectProject as StockProjectProject,
 )
@@ -48,6 +50,8 @@ PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id', 'nasq_code'}
 REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'}
 COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
 COMPLETION_BACKFILL_PARAM = 'nasq_pmo.completion_status_backfill_v1_done'
+MAX_COPY_TASKS = 500
+MAX_COPY_MILESTONES = 100
 
 
 def _not_empty(message, count):
@@ -500,6 +504,140 @@ class ProjectProject(models.Model):
             # a start date; only persist the supplied end.
             vals['date'] = date_end
         return vals
+
+    def _nasq_copy_structure(self, name, start_date, *, serialize=None):
+        """Create a new project holding this project's structure; return it.
+
+        Copies stages, milestones, active top-level tasks (stage, milestone,
+        planned dates, dependencies, tags) and the type / owning unit /
+        dependency setting. Dates move by ``start_date`` minus the source
+        start. Assignees, followers, chatter, state, governance and finance
+        are not copied. The source is read with the caller's own access.
+
+        serialize is supplied only by the private Python caller, never accepted
+        from an HTTP/RPC payload. Serializing before the population scope is
+        cleared lets a caller receive project counts without generic task
+        reads. Any failure rolls back the whole copy and clears the scope.
+        """
+        self.ensure_one()
+        # Only language/company/session context survives. Client defaults must
+        # never seed assignees, parent tasks, followers, activities or schedules.
+        source = self.with_context({
+            key: value for key, value in self.env.context.items()
+            if not key.startswith('default_')
+        }, tracking_disable=True, mail_create_nosubscribe=True)
+        env = source.env
+        source._nasq_check_visible_current()
+        if not env['nasq.access.service']._nasq_has_capability(env.user, 'pmo.tasks.read'):
+            raise AccessError(env._("You are not allowed to copy this project."))
+        if not source._nasq_can_create():
+            raise AccessError(env._("You are not allowed to create projects."))
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 255:
+            raise ValidationError(env._("name must be a non-empty string of at most 255 characters."))
+        project_name = name.strip()
+        if isinstance(start_date, str):
+            try:
+                start = date.fromisoformat(start_date)
+            except ValueError as error:
+                raise ValidationError(env._("start_date must be a valid ISO date.")) from error
+            if start.isoformat() != start_date:
+                raise ValidationError(env._("start_date must use YYYY-MM-DD."))
+        elif isinstance(start_date, date) and not isinstance(start_date, datetime):
+            start = start_date
+        else:
+            raise ValidationError(env._("start_date must be a valid ISO date."))
+
+        Task = env['project.task']
+        task_domain = [('project_id', '=', source.id), ('parent_id', '=', False), ('active', '=', True)]
+        if Task.search_count(task_domain) > MAX_COPY_TASKS:
+            raise ValidationError(env._("A project with more than %(max)s tasks cannot be copied.", max=MAX_COPY_TASKS))
+        if len(source.milestone_ids) > MAX_COPY_MILESTONES:
+            raise ValidationError(env._(
+                "A project with more than %(max)s milestones cannot be copied.", max=MAX_COPY_MILESTONES,
+            ))
+        tasks = Task.search(task_domain, order='sequence, id')
+        milestones = source.milestone_ids.sorted(lambda milestone: (milestone.deadline or date.max, milestone.id))
+        stages = source.type_ids.sorted(lambda stage: (stage.sequence, stage.id))
+
+        anchor = source.date_start
+        if not anchor:
+            candidates = [task.nasq_planned_start for task in tasks if task.nasq_planned_start]
+            candidates += [milestone.deadline for milestone in milestones if milestone.deadline]
+            anchor = min(candidates) if candidates else None
+        delta = start - anchor if anchor else None
+
+        def shifted(value):
+            if not value or delta is None:
+                return False
+            try:
+                return value + delta
+            except OverflowError as error:
+                raise ValidationError(env._("A copied date falls outside the calendar range.")) from error
+
+        end = shifted(source.date)
+        extra = {
+            'date_start': start,
+            'allow_task_dependencies': bool(source.allow_task_dependencies),
+            'nasq_type_id': source.nasq_type_id.id or False,
+            'nasq_owning_unit_id': source.nasq_owning_unit_id.id or False,
+        }
+        if end:
+            extra['date'] = end
+        if stages:
+            extra['type_ids'] = [
+                (0, 0, {'name': stage.name, 'fold': stage.fold, 'sequence': (index + 1) * 10})
+                for index, stage in enumerate(stages)
+            ]
+        with env.cr.savepoint():
+            project = env['project.project']._nasq_create_from_policy(
+                project_name, extra=extra, user_id=env.uid, date_end=end or None,
+            )
+            marker = env.cr.precommit.data
+            previous = marker.get(PROJECT_COPY_MARKER)
+            marker[PROJECT_COPY_MARKER] = (env.uid, env.company.id, project.id)
+            try:
+                new_stages = project.type_ids.sorted(lambda stage: (stage.sequence, stage.id))
+                stage_map = {stage.id: new_stages[index].id for index, stage in enumerate(stages)}
+                milestone_map = {}
+                for milestone in milestones:
+                    milestone_map[milestone.id] = project._nasq_create_milestone(
+                        milestone.name, deadline=shifted(milestone.deadline) or None,
+                    ).id
+                task_map = {}
+                for task in tasks:
+                    new_task = env['project.task']._nasq_create_for_copy(project, {
+                        'name': task.name,
+                        'description': task.description,
+                        'project_id': project.id,
+                        'stage_id': stage_map.get(task.stage_id.id, False),
+                        'milestone_id': milestone_map.get(task.milestone_id.id, False),
+                        'tag_ids': [(6, 0, task.tag_ids.ids)],
+                        'state': '01_in_progress',
+                        'user_ids': [(6, 0, [])],
+                        'parent_id': False,
+                    })
+                    if task.nasq_planned_start and task.date_deadline and delta is not None:
+                        new_task._nasq_set_schedule(
+                            shifted(task.nasq_planned_start), shifted(task.date_deadline.date()),
+                        )
+                    task_map[task.id] = new_task
+                for task in tasks:
+                    dependencies = [
+                        task_map[dependency.id].id for dependency in task.depend_on_ids
+                        if dependency.id in task_map
+                    ]
+                    if dependencies:
+                        task_map[task.id]._nasq_set_dependencies(dependencies)
+                result = serialize(project) if serialize is not None else project
+                # Settle stored computations while the narrow scope still owns
+                # population, before savepoint release flushes without it.
+                env.flush_all()
+            finally:
+                if previous is None:
+                    marker.pop(PROJECT_COPY_MARKER, None)
+                else:
+                    marker[PROJECT_COPY_MARKER] = previous
+            return result
 
     def _nasq_check_completion_policy_vals(self, vals):
         mode = vals.get('nasq_completion_approval')
