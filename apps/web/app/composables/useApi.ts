@@ -1,4 +1,5 @@
 import type { ZodType } from 'zod'
+import { saveErrorMessage } from '../utils/formFeedback'
 import { ApiErrorSchema } from '@nasq/contracts'
 
 export class ApiError extends Error {
@@ -28,10 +29,12 @@ export function useApi() {
     path: string,
     opts: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T>; signal?: AbortSignal } = {},
   ): Promise<T> {
+    const writing = !['GET', 'HEAD', 'OPTIONS'].includes((opts.method ?? 'GET').toUpperCase())
     try {
       const data = await $fetch<unknown>(path, {
         method: (opts.method ?? 'GET') as any,
         body: opts.body as any,
+        ...(writing ? { retry: 0 } : {}),
         query: opts.query,
         signal: opts.signal,
         // Never forward a cookie or private hop identity to an absolute URL,
@@ -61,7 +64,8 @@ export function useApi() {
         }
         throw new ApiError(status, code, message, field, details)
       }
-      throw new ApiError(status, 'http_error', e?.message ?? 'request failed')
+      const message = writing ? saveErrorMessage({ status, message: e?.message }, t('errors.generic'), t('errors.saveUncertain')) : e?.message ?? t('errors.generic')
+      throw new ApiError(status, 'http_error', message)
     }
   }
 

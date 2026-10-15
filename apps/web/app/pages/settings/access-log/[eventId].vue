@@ -18,7 +18,7 @@ const actionLabels: Record<AuditAction, string> = {
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!event.data.value"
     data-testid="settings-layout"
     :title="t('access.audit.detailTitle')"
     :back-to="returnTo"
@@ -36,7 +36,7 @@ const actionLabels: Record<AuditAction, string> = {
         </SharedRecordSection>
       </template>
     </SharedPageState>
-    <template v-if="event.data.value && !forbidden" #aside>
+    <template v-if="event.data.value && !forbidden" #summary>
       <SharedPropertiesPanel id="event" :title="t('access.audit.detailTitle')">
         <SharedPropertyRow :label="t('access.audit.columns.time')"><bdi dir="ltr">{{ event.data.value.occurred_at }}</bdi></SharedPropertyRow>
         <SharedPropertyRow :label="t('access.audit.columns.actor')" :value="event.data.value.actor?.name ?? t('access.audit.system')" />

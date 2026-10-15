@@ -1,24 +1,24 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import RolePermissionForm from '@/components/access/roles/RolePermissionForm.vue'
 import UserTable from '@/components/access/users/UserTable.vue'
 import { ApiError } from '@/composables/useApi'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
-import { ADMIN_PAGE_SIZE, adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { ADMIN_PAGE_SIZE, adminListQuery } from '@/composables/adminSettingsPaths'
 import { accessBadge } from '@/components/access/accessBadge'
 
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.roleId))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
-const returnTo = computed(() => {
-  return adminPathWithQuery('/settings/roles', adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
-})
-const returnQuery = computed(() => returnTo.value.includes('?') ? `?${returnTo.value.split('?')[1]}` : '')
-const editTo = computed(() => `/settings/roles/${id.value}/edit${returnQuery.value}`)
-const cloneTo = computed(() => `/settings/roles/new?clone=${id.value}${returnQuery.value ? `&${returnQuery.value.slice(1)}` : ''}`)
+const sourcePaths = useRecordListPaths(['/settings/roles'])
+const returnTo = computed(() => router.resolve(owningListBack({ ...adminListQuery(route.query, ['q', 'type', 'status', 'offset']), returnTo: route.query.returnTo ?? null }, sourcePaths.value, route.hash)).fullPath)
+const editTo = computed(() => recordChildTo(`/settings/roles/${id.value}/edit`, route.query, sourcePaths.value, route.hash))
+const cloneTo = computed(() => ({ path: '/settings/roles/new', query: { clone: String(id.value), returnTo: returnTo.value } }))
 const forbidden = computed(() => !can('access.roles.read'))
 const role = useAdminRole(computed(() => validId.value ? id.value : null), computed(() => !forbidden.value))
 const pageError = computed(() => role.error.value ?? (validId.value || forbidden.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
@@ -64,7 +64,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!role.data.value"
     data-testid="settings-layout"
     :title="roleName"
     :back-to="returnTo"
@@ -112,7 +112,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
         </SharedRecordSection>
       </template>
     </SharedPageState>
-    <template v-if="role.data.value && !forbidden" #aside>
+    <template v-if="role.data.value && !forbidden" #summary>
       <SharedPropertiesPanel :title="t('access.roles.details')">
         <SharedPropertyRow :label="t('access.roles.columns.type')" :value="typeLabel" />
         <SharedPropertyRow :label="t('access.roles.columns.status')">

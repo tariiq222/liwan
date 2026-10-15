@@ -3,13 +3,14 @@ import MyTaskForm from '@/components/personal-tasks/MyTaskForm.vue'
 import { useCreateMyTask } from '@/composables/useMyTasks'
 import { ApiError } from '@/composables/useApi'
 import { myTaskFormField } from '@/utils/myTaskPayload'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { owningListBack } from '@/utils/recordListOrigin'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const toast = useToast()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/my-tasks', ['/my-tasks']))
+const sourcePaths = useRecordListPaths(['/my-tasks'])
+const returnTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
 const { mutateAsync, isPending, error, reset } = useCreateMyTask()
 const form = ref<InstanceType<typeof MyTaskForm> | null>(null)
 
@@ -25,8 +26,7 @@ async function create(payload: Parameters<typeof mutateAsync>[0]) {
     const task = await mutateAsync(payload)
     form.value?.markSaved()
     toast.add({ title: t('myTasks.created'), color: 'success' })
-    // Hand the list's own query to the new task so its back link restores that view.
-    await router.push({ path: `/my-tasks/${task.id}`, query: router.resolve(returnTo.value).query })
+    await router.replace({ path: `/my-tasks/${task.id}`, query: { returnTo: returnTo.value } })
   } catch (e) {
     // A field error is shown under its field by the form; everything else also gets a toast.
     if (!(e instanceof ApiError && myTaskFormField(e.field))) {
@@ -40,6 +40,6 @@ async function create(payload: Parameters<typeof mutateAsync>[0]) {
 
 <template>
   <SharedCreatePanel :title="t('myTasks.form.createTitle')" :back-to="returnTo">
-    <MyTaskForm ref="form" :pending="isPending" :error="error" @submit="create" @cancel="router.push(returnTo)" />
+    <MyTaskForm ref="form" :pending="isPending" :error="error" @create="create" @cancel="router.push(returnTo)" />
   </SharedCreatePanel>
 </template>

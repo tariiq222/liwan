@@ -17,18 +17,19 @@ test.describe('Plan 6a: my task record', () => {
       await expect(page.getByTestId('my-task-state')).toBeVisible()
       await expect(page.getByTestId('my-task-comments')).toBeVisible()
       await expect(page.getByTestId('my-task-attachments')).toBeVisible()
-      await expect(page.locator('[data-slot="properties-panel"]')).toBeVisible()
+      await expect(page.locator('[data-slot="record-summary"] [data-slot="properties-panel"]')).toBeVisible()
       await expect(page.getByTestId('my-task-deadline')).toBeVisible()
     })
-    test('editing swaps the description for the form in the main column and keeps the aside', async ({ page }) => {
+    test('editing opens its own page with one heading and the shared field form', async ({ page }) => {
       await open(page, `/my-tasks/${ID}`)
-      await page.getByRole('button', { name: 'تعديل', exact: true }).click()
+      await page.getByRole('link', { name: 'تعديل', exact: true }).click()
       await expect(page.locator('[data-slot="record-main"] form').filter({ has: page.getByLabel('عنوان المهمة', { exact: true }) })).toBeVisible()
-      await expect(page.locator('[data-slot="properties-panel"]')).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'تعديل المهمة', level: 1 })).toBeVisible()
     })
     test('cancelling asks inline and never in a dialog', async ({ page }) => {
       await open(page, `/my-tasks/${ID}`)
-      await page.locator('[data-my-task-cancel]').click()
+      await page.getByRole('button', { name: 'المزيد', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'إلغاء المهمة', exact: true }).click()
       await expect(page.getByTestId('inline-confirm')).toBeVisible()
       await expect(page.getByRole('dialog')).toHaveCount(0)
       await page.getByTestId('inline-confirm-cancel').click()
@@ -36,7 +37,7 @@ test.describe('Plan 6a: my task record', () => {
     })
     test('an unknown task shows the not-found sentence', async ({ page }) => {
       await open(page, '/my-tasks/987654')
-      await expect(page.getByText('هذه المهمة غير موجودة أو لا تملك صلاحية عرضها.')).toBeVisible()
+      await expect(page.locator('[data-slot="not-found-state"]')).toBeVisible()
     })
     test('the new-task panel opens over the list', async ({ page }) => {
       await open(page, '/my-tasks/new')
@@ -46,11 +47,14 @@ test.describe('Plan 6a: my task record', () => {
   })
   test.describe('phone', () => {
     test.use({ viewport: PHONE })
-    test('the aside follows the main column and nothing overflows', async ({ page }) => {
+    test('the operational summary precedes the main column and audit information follows comments', async ({ page }) => {
       await open(page, `/my-tasks/${ID}`)
       const main = await page.locator('[data-slot="record-main"]').boundingBox()
-      const aside = await page.locator('[data-slot="record-aside"]').boundingBox()
-      expect(aside!.y).toBeGreaterThan(main!.y)
+      const summary = await page.locator('[data-slot="record-summary"]').boundingBox()
+      expect(summary!.y).toBeLessThan(main!.y)
+      const info = await page.getByRole('heading', { name: 'معلومات المهمة', exact: true }).boundingBox()
+      const comments = await page.getByTestId('my-task-comments').boundingBox()
+      expect(info!.y).toBeGreaterThan(comments!.y)
       expect(await fitsWidth(page)).toBe(true)
     })
   })

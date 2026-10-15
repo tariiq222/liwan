@@ -148,7 +148,7 @@ async function save() {
       </SharedFormSection>
       <UAlert v-if="addingAccessAdminRole" role="alert" color="warning" variant="subtle" :title="t('access.users.accessAdminWarning')" />
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey" />
-      <footer class="nasq-form-footer justify-end"><UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value || !previewReady" /></footer>
+      <SharedFormActions class="justify-end"><UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value || !previewReady" /></SharedFormActions>
     </fieldset>
   </form>
 </template>

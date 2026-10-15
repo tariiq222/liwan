@@ -98,7 +98,7 @@ describe('palette items', () => {
 const labels = { goTo: 'Go to', actions: 'Actions', shortcuts: 'Shortcuts', loading: 'Searching…', error: 'Search failed', loadMore: 'Load more' }
 const section = (patch: Partial<PaletteSearchSection> = {}): PaletteSearchSection => ({
   id: 'pmo-tasks', label: 'Tasks', icon: 'i-lucide-check-square', rows: [], waiting: false, error: false,
-  hasNext: false, fetchingNext: false, notice: null, ...patch,
+  hasNext: false, notice: null, ...patch,
 })
 const base = {
   view: 'main' as const,
@@ -132,7 +132,7 @@ describe('paletteGroups', () => {
     expect(paletteGroups({ ...base, term, search: [section({ error: true, hasNext: true })] })[1]!.items.map(row => row.action))
       .toEqual([{ kind: 'retry', section: 'pmo-tasks' }])
     expect(paletteGroups({ ...base, term, search: [section({ rows: [{ id: 1, label: 'a', to: '/tasks/1' }], hasNext: true })] })[1]!.items.at(-1))
-      .toMatchObject({ label: 'Load more', action: { kind: 'load-more', section: 'pmo-tasks' } })
+      .toMatchObject({ label: 'Load more', to: { path: '/search', query: { q: term, provider: 'pmo-tasks', returnTo: base.returnTo } } })
     expect(paletteGroups({ ...base, term, search: [section({ notice: 'Only the first 200' })] })[1]!.items)
       .toEqual([{ id: 'search:pmo-tasks:notice', label: 'Only the first 200', icon: 'i-lucide-info', disabled: true }])
   })
@@ -141,7 +141,7 @@ describe('paletteGroups', () => {
     const rows = Array.from({ length: 80 }, (_, index) => ({ id: index, label: `t${index}`, to: `/tasks/${index}` }))
     const groups = paletteGroups({ ...base, term: 't', goTo: [], actions: [], search: [section({ rows })] })
     expect(groups.map(group => group.id)).toEqual(['search-pmo-tasks'])
-    expect(groups[0]!.items).toHaveLength(PALETTE_SECTION_LIMIT)
+    expect(groups[0]!.items).toHaveLength(PALETTE_SECTION_LIMIT + 1)
   })
 
   it('the shortcuts view shows only the help', () => {

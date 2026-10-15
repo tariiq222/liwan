@@ -11,6 +11,7 @@ const props = defineProps<{
   sections: ShellContextSection[]
   showNav: boolean
   counts: Record<string, number>
+  preference?: 'auto' | 'open' | 'closed'
   expanded: boolean
   hydrated: boolean
   panel: Component | null
@@ -30,6 +31,7 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
     data-testid="context-sidebar"
     class="nasq-context-sidebar"
     :data-expanded="props.expanded"
+    :data-preference="props.preference"
     :data-panel="props.panel ? 'true' : undefined"
     :data-panel-width="props.panel ? props.panelWidth : undefined"
     :aria-label="t('nav.context')"
@@ -58,7 +60,7 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
           </div>
         </div>
 
-        <nav v-if="props.showNav" class="nasq-context-nav" :aria-label="props.title">
+        <nav v-if="props.showNav" class="nasq-context-nav" data-fresh-navigation :aria-label="props.title">
           <div v-for="section in props.sections" :key="section.id" class="nasq-context-section">
             <h3 v-if="section.titleKey" class="nasq-context-section-title">{{ t(section.titleKey) }}</h3>
             <div v-for="link in section.links" :key="link.id" class="nasq-context-row">

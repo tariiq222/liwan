@@ -35,7 +35,7 @@ const FOUNDATION_SETTINGS: readonly Destination[] = [
   ['/settings/users', 'access.users.read'], ['/settings/roles', 'access.roles.read'], ['/settings/access-log', 'access.audit.read'],
 ]
 const FOUNDATION_LAST: readonly Destination[] = [['/settings/branding', 'settings.branding.manage']]
-const FOUNDATION_RETURN_TO = ['/account', '/search', '/notifications']
+const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications']
 /** Application landings in rail order, then settings, then the landings that sort after settings, then branding. */
 function destinations(): readonly Destination[] {
   const landing = activeManifests().flatMap(manifest => manifest.landing ?? [])
@@ -48,6 +48,7 @@ function destinations(): readonly Destination[] {
   ]
 }
 export function canReach(identity: AccessIdentity, capability: string, path?: string): boolean {
+  if (capability === INTERNAL_NASQ_ACCESS && path === '/') return hasCapability(identity, capability)
   if (capability === NOTIFICATION_ACCESS) {
     return hasCapability(identity, capability) && canUse(identity, capability)
   }
@@ -61,7 +62,7 @@ export function firstAllowedPath(identity: AccessIdentity): string {
   return destinations().find(([path, capability]) => canReach(identity, capability, path))?.[0] ?? '/account'
 }
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
-  const fallback = firstAllowedPath(identity)
+  const fallback = Array.isArray(identity?.capabilities) ? '/' : firstAllowedPath(identity)
   const target = safeReturnTo(next, fallback, [...destinations().map(([path]) => path), ...FOUNDATION_RETURN_TO, ...activeManifests().flatMap(manifest => manifest.returnToPaths ?? [])])
   const pathname = new URL(target, 'http://nasq.local').pathname
   const capability = requiredCapabilityForPath(pathname)
@@ -80,6 +81,7 @@ export function isProjectSettingsPath(path: string): boolean {
 export function requiredCapabilityForPath(path: string): string | null {
   const owned = manifestForPath(path)?.routeCapabilities?.find(rule => rule.pattern.test(path))
   if (owned) return owned.capability
+  if (path === '/') return INTERNAL_NASQ_ACCESS
   if (path === '/notifications') return NOTIFICATION_ACCESS
   if (path === '/settings/users/new') return 'access.users.grant'
   if (/^\/settings\/users\/[^/]+\/access$/.test(path)) return 'access.users.assign_roles'

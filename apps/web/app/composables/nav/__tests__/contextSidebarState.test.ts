@@ -22,3 +22,22 @@ describe('context sidebar state', () => {
     expect(cookie.value).toBe('open')
   })
 })
+
+it('defaults to collapsed on tablet without persisting resize, and honors explicit choices', () => {
+  const cookie = ref<ContextSidebarCookie | null>(null)
+  const wide = ref(false)
+  const state = contextSidebarState(cookie, ref(true), wide)
+  expect(state.expanded.value).toBe(false)
+  wide.value = true
+  expect(state.expanded.value).toBe(true)
+  expect(cookie.value).toBeNull()
+  wide.value = false
+  state.toggle()
+  expect(cookie.value).toBe('open')
+  expect(state.expanded.value).toBe(true)
+  wide.value = true
+  state.toggle()
+  wide.value = false
+  expect(state.expanded.value).toBe(false)
+  expect(cookie.value).toBe('closed')
+})

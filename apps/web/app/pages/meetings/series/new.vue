@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useCreateMeetingSeries } from '@/composables/useMeetings'
 import { buildRecurrencePreview, getMeetingFormErrors, normalizeRecurrenceEnd } from '@/utils/meetingForm'
 import { toUtcDateTime } from '@/utils/meetingDateTime'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const name = ref('')
@@ -20,14 +22,8 @@ const meetingUrl = ref('')
 const attendeeIds = ref<number[]>([])
 const secretaryId = ref<number | null>(null)
 const { mutateAsync, isPending, error, reset } = useCreateMeetingSeries()
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/meetings/series', query: listQuery }
-})
+const sourcePaths = useRecordListPaths(['/meetings/series'])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const projectId = computed(() => {
   const value = Number(route.query.project_id)
   return Number.isInteger(value) && value > 0 ? value : undefined
@@ -105,7 +101,7 @@ async function save() {
   })
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(`/meetings/series/${series.id}`)
+  await navigateTo({ path: `/meetings/series/${series.id}`, query: { returnTo: router.resolve(backTo.value).fullPath } }, { replace: true })
 }
 </script>
 
@@ -170,10 +166,10 @@ async function save() {
       </SharedFormSection>
       <p class="text-sm text-muted">{{ t('meetingsUx.recurrenceScope') }}</p>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
-      <div class="nasq-form-footer justify-end">
+      <SharedFormActions class="justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || isPending || Object.keys(formErrors).length > 0" :label="t('app.create')" />
-      </div>
+      </SharedFormActions>
     </form>
   </SharedCreatePanel>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import MilestoneForm from '@/components/pmo/projects/MilestoneForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteMilestone, useMilestones } from '@/composables/useMilestones'
@@ -15,14 +16,8 @@ const { data: project, isLoading: projectLoading, error: projectError, refetch: 
 const { data: milestones, isLoading: milestonesLoading, error: milestonesError, refetch: refetchMilestones } = useMilestones(projectId)
 const milestone = computed(() => milestones.value?.find((item) => item.id === milestoneId.value))
 const notFound = computed(() => projectId.value === null || milestoneId.value === null || (projectError.value instanceof ApiError && [403, 404].includes(projectError.value.status)))
-// The owning section list is fixed by this page's own route, so the return trip
-// is literal and carries only the state that list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/projects/${projectId.value}/milestones`, query: listQuery }
-})
+const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/milestones`])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const deleteOpen = ref(false)
 const mutationError = ref<string | null>(null)
 const { mutateAsync: deleteMilestone, isPending: deleting } = useDeleteMilestone()

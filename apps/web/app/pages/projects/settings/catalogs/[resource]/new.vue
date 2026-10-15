@@ -20,7 +20,7 @@ const title = computed(() => resource.value === 'owning-units'
 
 function onSaved() {
   toast.add({ title: t('settings.projects.catalogs.created'), color: 'success', icon: 'i-lucide-circle-check' })
-  router.push(returnTo.value)
+  router.replace(returnTo.value)
 }
 </script>
 

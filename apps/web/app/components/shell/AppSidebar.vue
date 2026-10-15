@@ -14,7 +14,7 @@ const route = useRoute()
 const showContext = computed(() => !hasNoContextSidebar(route.path))
 const { me } = useMe()
 const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, projectId, project, createTo } = useShellModel()
-const { expanded, hydrated, toggle } = useContextSidebar()
+const { expanded, hydrated, toggle, preference } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const model = computed(() => sidebarModel({
   links: contextLinks.value,
@@ -52,6 +52,7 @@ watch([() => route.fullPath, () => project.data.value, () => me.value, hydrated]
     :show-nav="model.showNav"
     :counts="counts"
     :expanded="expanded"
+    :preference="preference"
     :hydrated="hydrated"
     :panel="panelView"
     :render-panel="isDesktop"

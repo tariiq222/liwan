@@ -1,18 +1,18 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { accessBadge } from '@/components/access/accessBadge'
 import type { PermissionDefinition } from '@nasq/contracts'
-import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { adminListQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const id = computed(() => Number(route.params.userId))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0)
-const returnTo = computed(() => {
-  return adminPathWithQuery('/settings/users', adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
-})
-const returnQuery = computed(() => returnTo.value.includes('?') ? `?${returnTo.value.split('?')[1]}` : '')
-const accessTo = computed(() => `/settings/users/${id.value}/access${returnQuery.value}`)
-const securityTo = computed(() => `/settings/users/${id.value}/security${returnQuery.value}`)
+const sourcePaths = useRecordListPaths(['/settings/users'])
+const returnTo = computed(() => router.resolve(owningListBack({ ...adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']), returnTo: route.query.returnTo ?? null }, sourcePaths.value, route.hash)).fullPath)
+const accessTo = computed(() => recordChildTo(`/settings/users/${id.value}/access`, route.query, sourcePaths.value, route.hash))
+const securityTo = computed(() => recordChildTo(`/settings/users/${id.value}/security`, route.query, sourcePaths.value, route.hash))
 const forbidden = computed(() => !can('access.users.read'))
 const query = useAdminUser(computed(() => validId.value ? id.value : null), computed(() => !forbidden.value))
 const pageError = computed(() => query.error.value ?? (validId.value || forbidden.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
@@ -35,7 +35,7 @@ const tabs = computed(() => {
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!query.data.value"
     data-testid="settings-layout"
     :title="query.data.value?.name ?? t('access.users.title')"
     :description="query.data.value?.login"
@@ -67,7 +67,7 @@ const tabs = computed(() => {
         </SharedRecordSection>
       </template>
     </SharedPageState>
-    <template v-if="query.data.value && !forbidden" #aside>
+    <template v-if="query.data.value && !forbidden" #summary>
       <SharedPropertiesPanel id="account" :title="t('access.users.account')">
         <SharedPropertyRow :label="t('access.users.loginName')"><bdi dir="ltr">{{ query.data.value.login }}</bdi></SharedPropertyRow>
         <SharedPropertyRow :label="t('access.users.employee')" :value="query.data.value.employee?.name ?? t('access.users.noEmployee')" />

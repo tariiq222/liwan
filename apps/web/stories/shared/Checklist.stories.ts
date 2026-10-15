@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
+import { ref } from 'vue'
 import { fn } from 'storybook/test'
 import Checklist from '../../app/components/shared/data/Checklist.vue'
 import { storyContext } from '../support/context'
@@ -14,7 +15,7 @@ const items = [
 const meta = {
   title: 'Shared/Checklist',
   component: Checklist,
-  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55', 'قائمة قصيرة لبنود مرتبطة (المهام الفرعية): كل صف يفتح صفحته، مع تبديل اختياري للإنجاز ونموذج إضافة باسم. المعالجان `add` و`toggle` يمرّرهما التطبيق، ويمكن وضع شارة حالة في الفتحة `leading`.'),
+  parameters: storyContext('apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:67', 'قائمة قصيرة لبنود مرتبطة (المهام الفرعية): كل صف يفتح صفحته، مع تبديل اختياري للإنجاز ونموذج إضافة باسم. المعالجان `add` و`toggle` يمرّرهما التطبيق، ويمكن وضع شارة حالة في الفتحة `leading`.'),
   args: {
     items,
     emptyText: 'لا مهام فرعية بعد',
@@ -38,3 +39,11 @@ export const Editable: Story = { name: 'قابلة للتعديل' }
 export const ReadOnly: Story = { name: 'للقراءة فقط', args: { canAdd: false, toggle: undefined } }
 export const Empty: Story = { name: 'بلا بنود', args: { items: [] } }
 export const WithError: Story = { name: 'خطأ من الخادم', args: { error: 'تعذر حفظ المهمة. حاول مرة أخرى.' } }
+
+export const ControlledDraft: Story = {
+  name: 'مسودة يملكها التطبيق',
+  render: args => ({
+    components: { Checklist }, setup: () => ({ args, draft: ref('عنوان غير مرسل') }),
+    template: '<div class="max-w-xl"><Checklist v-bind="args" v-model:draft="draft" /><p class="mt-3 text-sm text-muted">{{ draft }}</p></div>',
+  }),
+}

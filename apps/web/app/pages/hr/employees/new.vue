@@ -1,26 +1,23 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
+import { EMPLOYEE_LIST_PATHS } from '@/modules/hr/navigation'
 import EmployeeGeneralForm from '@/components/hr/EmployeeGeneralForm.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/hr', query: listQuery }
-})
+const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS)
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const departments = useHrDepartments()
 const employees = useHrEmployees({})
 const canManage = computed(() => can('hr.employees.manage'))
 const initialDataReady = computed(() => Boolean(departments.data.value && employees.data.value))
 const dependencyError = computed(() => departments.error.value || employees.error.value)
 function retryDependencies() { void departments.refetch(); void employees.refetch() }
-function created(employee: { id: number }) { void navigateTo(`/hr/employees/${employee.id}`) }
+function created(employee: { id: number }) { void navigateTo({ path: `/hr/employees/${employee.id}`, query: { returnTo: router.resolve(backTo.value).fullPath } }, { replace: true }) }
 </script>
 <template>
   <SharedCreatePanel :title="t('hr.employee.createTitle')" :back-to="backTo">

@@ -10,7 +10,8 @@ const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const stakeholderId = computed(() => Number(route.params.stakeholderId))
 const item = useProjectStakeholder(projectId, stakeholderId)
-const backTo = computed(() => recordParentTo(`/projects/${projectId.value}/stakeholders/${stakeholderId.value}`, route.query, [`/projects/${projectId.value}/stakeholders`], route.hash))
+const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/stakeholders`])
+const backTo = computed(() => recordParentTo(`/projects/${projectId.value}/stakeholders/${stakeholderId.value}`, route.query, sourcePaths.value, route.hash))
 const access = useProject(projectId)
 </script>
 

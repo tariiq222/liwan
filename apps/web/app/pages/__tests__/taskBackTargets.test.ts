@@ -1,10 +1,11 @@
+import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, type RouteLocationRaw, type Router } from 'vue-router'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const webRoot = resolve(import.meta.dirname, '../../../')
 const read = (rel: string) => readFileSync(resolve(webRoot, rel), 'utf8')
@@ -21,6 +22,7 @@ function loadSetupState(rel: string, router: Router, extraBindings: Record<strin
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
   }).outputText
   const bindings: Record<string, unknown> = {
+    ...recordNavigation,
     _defineComponent: Vue.defineComponent,
     defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, shallowRef: Vue.shallowRef,
@@ -31,13 +33,14 @@ function loadSetupState(rel: string, router: Router, extraBindings: Record<strin
     useAccess: () => ({ can: () => true }),
     useTaskFilters: () => Vue.ref({}),
     usePageHeader: () => undefined,
+    useToast: () => ({ add: () => undefined }),
     projectIdFromPath: (path: string) => Number(path.match(/^\/projects\/(\d+)/)?.[1] ?? 0) || null,
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
     useProject: () => ({ data: Vue.ref(undefined), error: Vue.ref(null), refetch: () => undefined }),
     ApiError: class ApiError extends Error {},
     returnToQuery: (value: string) => ({ returnTo: value }),
     safeReturnTo: (value: unknown, fallback: string) => (typeof value === 'string' ? value : fallback),
-    TaskDetailPage: {}, TaskBoard: {}, TaskArchivedList: {}, TaskTable: {}, TaskToolbar: {},
+    StakeholderForm: {}, RegisterForm: {}, TaskCreateForm: {}, TaskDetailPage: {}, TaskBoard: {}, TaskArchivedList: {}, TaskTable: {}, TaskToolbar: {},
     ...extraBindings,
   }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
@@ -67,6 +70,15 @@ async function backTargetAfter(router: Router, detailUrl: RouteLocationRaw, deta
 }
 
 describe('task detail back targets — runtime round trip', () => {
+  it('opens a newly created project task with the filtered source as its return destination', async () => {
+    const router = makeRouter()
+    await router.push('/projects/7/tasks/new?q=review&view=board')
+    const state = loadSetupState('app/pages/projects/[id]/tasks/new.vue', router)
+    ;(state.created as (id: number) => void)(55)
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/projects/7/tasks/55'))
+    expect(router.currentRoute.value.query.returnTo).toBe('/projects/7/tasks?q=review&view=board')
+  })
+
   it('returns a project task to its own list carrying q, not the project summary', async () => {
     // The parked defect: /projects/7/tasks/99?q=عقد used to fall back to
     // /projects/7?tab=tasks and drop q. The target is literal now.
@@ -120,11 +132,27 @@ describe('task detail back targets — runtime round trip', () => {
     // round trip would nest the param one level deeper.
     const router = makeRouter()
     const back = await backTargetAfter(router, '/projects/7/tasks/99?returnTo=%2Fprojects%2F7%2Fraci&q=a', 'app/pages/projects/[id]/tasks/[taskId].vue')
-    expect(back.fullPath).toBe('/projects/7/tasks?q=a')
+    expect(back.fullPath).toBe('/projects/7/raci')
     expect(back.query.returnTo).toBeUndefined()
 
     const standalone = await backTargetAfter(router, '/tasks/5?returnTo=%2Ftasks%3Fview%3Dboard&view=board', 'app/pages/tasks/[id].vue')
     expect(standalone.fullPath).toBe('/tasks?view=board')
     expect(standalone.query.returnTo).toBeUndefined()
+  })
+})
+
+
+describe('section creation outcomes', () => {
+  it.each(['stakeholders', 'register'])('opens the newly created %s record and retains its source list', async section => {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/projects/:id/:section/new', component: {} }, { path: '/projects/:id/:section/:recordId', component: {} }, { path: '/projects/:id/:section', component: {} }] })
+    const source = `/projects/7/${section}?q=review#rows`
+    await router.push(source)
+    await router.push({ path: `/projects/7/${section}/new`, query: { returnTo: source } })
+    const state = loadSetupState(`app/pages/projects/[id]/${section}/new.vue`, router)
+    ;(state.created as (item: { id: number }) => void)({ id: 55 })
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe(`/projects/7/${section}/55`))
+    expect(router.currentRoute.value.query.returnTo).toBe(source)
+    router.back()
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe(source))
   })
 })

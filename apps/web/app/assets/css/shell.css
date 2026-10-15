@@ -43,8 +43,8 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 
 /* Keep compact desktop geometry while preserving touch target sizes. */
 @media (pointer: coarse) {
-  [data-nasq-shell] :is(
-    [data-slot="button"], [data-testid="notification-bell"], [data-testid="appearance-menu"],
+  :is([data-nasq-shell], .nasq-mobile-menu, .nasq-create-panel, .nasq-search-dialog, [data-testid="unsaved-changes-dialog"]) :is(
+    button[data-slot="base"], a[data-slot="base"], [data-testid="notification-bell"], [data-testid="appearance-menu"],
     [data-slot="select-trigger"], .header-account, .nasq-search-trigger,
     .nasq-context-toggle, .nasq-context-link
   ) {
@@ -320,4 +320,33 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 @container settings (max-width: 480px) {
   .nasq-settings-content .nasq-form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Creation actions have a dedicated surface outside the body scroller. */
+.nasq-create-panel { max-width: min(640px, 100vw); }
+.nasq-create-panel-footer-surface { padding-block-end: max(16px, env(safe-area-inset-bottom)); }
+.nasq-form-footer[data-panel="true"] { width: 100%; margin: 0; padding: 0; border: 0; justify-content: space-between; }
+[data-slot="record-summary"] { container-type: inline-size; }
+@container (min-width: 640px) {
+  [data-slot="record-summary"] [data-slot="properties-panel"] dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
+}
+
+/* Match the automatic tablet width before hydration without writing a preference. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nasq-shell:has(.nasq-context-sidebar[data-preference="auto"]) { --context-sidebar-width: 48px; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .nasq-context-sidebar[data-preference="auto"] :is(.nasq-context-heading h2, .nasq-context-create-actions, .nasq-context-section-title, .nasq-context-count) { display: none; }
+  .nasq-context-sidebar[data-preference="auto"] .nasq-context-heading { padding-inline: 0; }
+  .nasq-context-sidebar[data-preference="auto"] .nasq-context-nav { padding-inline: 8px; }
+  .nasq-context-sidebar[data-preference="auto"] .nasq-context-link { justify-content: center; padding-inline: 0; }
+  .nasq-context-sidebar[data-preference="auto"] .nasq-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .nasq-context-sidebar[data-preference="auto"] .nasq-context-footer { justify-content: center; padding-inline: 0; }
+}
+
+@media (pointer: coarse) and (min-width: 768px) {
+  .nasq-context-sidebar[data-expanded="false"] .nasq-context-nav { padding-inline: 2px; }
+}
+@media (pointer: coarse) and (min-width: 768px) and (max-width: 1023px) {
+  .nasq-context-sidebar[data-preference="auto"] .nasq-context-nav { padding-inline: 2px; }
 }

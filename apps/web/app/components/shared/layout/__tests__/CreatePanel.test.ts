@@ -1,3 +1,4 @@
+import { FORM_ACTIONS_HOST } from '../../../../utils/formActions'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -74,6 +75,7 @@ function loadCreatePanel(): Component {
   const bindings: Record<string, unknown> = {
     ...Object.fromEntries(Object.entries(Vue).filter(([name]) => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)).map(([name, value]) => [`_${name}`, value])),
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, useId: Vue.useId,
+    provide: Vue.provide, useSlots: Vue.useSlots, FORM_ACTIONS_HOST,
     useI18n: () => ({ t: (key: string) => key, localeProperties: Vue.ref({ dir: 'rtl' }) }),
     usePageHeader: () => undefined,
     useRouter: () => router,
