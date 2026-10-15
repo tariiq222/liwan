@@ -27,8 +27,8 @@ function onCopied(id: number) {
 
 // The project now exists; the walker continues on its charter page at the
 // same step, so a draft saved half-way is picked up where it was left.
-function onDrafted(id: number, step: CharterWizardStep) {
-  toast.add({ title: t('projects.create.drafted'), color: 'success' })
+function onDrafted(id: number, step: CharterWizardStep, reason?: string) {
+  toast.add({ title: t('projects.create.drafted'), description: reason, color: reason ? 'warning' : 'success' })
   router.push(draftedProjectLocation(id, step, returnTo.value))
 }
 </script>

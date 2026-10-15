@@ -4,9 +4,9 @@ import math
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import ApiError
+from odoo.addons.nasq_api.serializers.common import iso
 from odoo.addons.nasq_pmo.models.project_project import (
     BUDGET_STATES,
-    CHARTER_STATES,
     DELIVERABLE_KEYS,
     OBJECTIVE_KEYS,
     PRIORITY_VALUES,
@@ -16,9 +16,9 @@ CHARTER_WRITE_FIELDS = {
     'type_id', 'owning_unit_id', 'sponsor_id', 'authority', 'rationale',
     'objectives', 'benefits', 'scope', 'exclusions', 'high_level_requirements',
     'deliverables', 'success', 'budget_state', 'amount', 'priority',
-    'assumptions', 'constraints', 'closure', 'state',
+    'assumptions', 'constraints', 'closure',
 }
-CHARTER_READONLY_FIELDS = {'code', 'type', 'owning_unit', 'sponsor', 'currency'}
+CHARTER_READONLY_FIELDS = {'code', 'type', 'owning_unit', 'sponsor', 'currency', 'state'}
 TEXT_TO_ORM = {
     'authority': 'nasq_authority',
     'rationale': 'nasq_rationale',
@@ -84,6 +84,13 @@ def dump_charter(project):
         'constraints': project.nasq_constraints or '',
         'closure': project.nasq_closure or '',
         'state': project.nasq_charter_state or 'draft',
+        'approval_required': project._nasq_charter_approval_required(),
+        'can_review': project._nasq_can_review_charter(),
+        'submitted_by': dump_user_ref(project.nasq_charter_submitted_by_id),
+        'submitted_at': iso(project.nasq_charter_submitted_at) if project.nasq_charter_submitted_at else None,
+        'approved_by': dump_user_ref(project.nasq_charter_approved_by_id),
+        'approved_at': iso(project.nasq_charter_approved_at) if project.nasq_charter_approved_at else None,
+        'return_note': project.nasq_charter_return_note or '',
     }
 
 
@@ -138,10 +145,6 @@ def parse_charter_vals(payload, project=None):
             vals['nasq_budget_state'] = value
         elif key == 'amount':
             vals['nasq_budget_amount'] = _parse_amount(value)
-        elif key == 'state':
-            if value not in CHARTER_STATES:
-                raise ApiError(422, 'invalid', "state must be 'draft' or 'final'", field='state')
-            vals['nasq_charter_state'] = value
     return _apply_budget_policy(vals, project)
 
 

@@ -2,6 +2,7 @@ import {
   BudgetStateSchema,
   PROJECT_CHARTER_STEPS,
   ProjectCharterDefaultsSchema,
+  ProjectCharterReturnSchema,
   ProjectCharterSchema,
   ProjectCharterStateSchema,
   ProjectCharterWriteSchema,
@@ -29,7 +30,14 @@ const CHARTER = {
   assumptions: 'A',
   constraints: 'C',
   closure: 'Close',
-  state: 'final',
+  state: 'approved',
+  approval_required: true,
+  can_review: false,
+  submitted_by: { id: 3, name: 'Mona' },
+  submitted_at: '2026-10-15T08:00:00Z',
+  approved_by: { id: 2, name: 'Sara' },
+  approved_at: '2026-10-15T09:00:00Z',
+  return_note: '',
 }
 
 describe('ProjectCharterSchema', () => {
@@ -56,12 +64,13 @@ describe('ProjectCharterSchema', () => {
   })
   it('carries the charter state and the type steps that drive the wizard', () => {
     expect(ProjectCharterSchema.parse({ ...CHARTER, state: 'draft' }).state).toBe('draft')
-    expect(() => ProjectCharterSchema.parse({ ...CHARTER, state: 'approved' })).toThrow()
+    expect(ProjectCharterSchema.parse({ ...CHARTER, state: 'submitted' }).state).toBe('submitted')
+    expect(() => ProjectCharterSchema.parse({ ...CHARTER, state: 'final' })).toThrow()
     expect(() => ProjectCharterSchema.parse({ ...CHARTER, type: { id: 4, name: 'تقني' } })).toThrow()
     expect(() => ProjectCharterSchema.parse({ ...CHARTER, type: { ...CHARTER.type, charter_steps: ['signatures'] } })).toThrow()
     expect(ProjectCharterSchema.parse({ ...CHARTER, type: { ...CHARTER.type, charter_steps: [] } }).type?.charter_steps).toEqual([])
     expect(PROJECT_CHARTER_STEPS).toEqual(['justification', 'scope', 'schedule', 'budget', 'risks'])
-    expect(ProjectCharterStateSchema.options).toEqual(['draft', 'final'])
+    expect(ProjectCharterStateSchema.options).toEqual(['draft', 'submitted', 'approved'])
   })
 })
 
@@ -72,8 +81,14 @@ describe('ProjectCharterWriteSchema', () => {
     expect(() => ProjectCharterWriteSchema.parse({ code: 'PRJ-000001' })).toThrow()
     expect(() => ProjectCharterWriteSchema.parse({ currency: CHARTER.currency })).toThrow()
     expect(() => ProjectCharterWriteSchema.parse({ type: CHARTER.type })).toThrow()
-    expect(ProjectCharterWriteSchema.parse({ state: 'draft' }).state).toBe('draft')
-    expect(() => ProjectCharterWriteSchema.parse({ state: 'archived' })).toThrow()
+    expect(ProjectCharterWriteSchema.safeParse({ state: 'approved' }).success).toBe(false)
+  })
+})
+
+describe('ProjectCharterReturnSchema', () => {
+  it('needs a non-blank note', () => {
+    expect(ProjectCharterReturnSchema.safeParse({ expected_updated_at: 'v2', note: ' ' }).success).toBe(false)
+    expect(ProjectCharterReturnSchema.safeParse({ expected_updated_at: 'v2', note: 'Add the budget' }).success).toBe(true)
   })
 })
 

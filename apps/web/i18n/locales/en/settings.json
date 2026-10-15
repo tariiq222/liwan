@@ -75,6 +75,10 @@
         "manager": "Require a project manager",
         "endDate": "Require an end date"
       },
+      "charterApproval": {
+        "label": "Sponsor approval of the charter",
+        "hint": "When on, the project manager sends the charter to the sponsor and it is approved only with their consent."
+      },
       "approval": {
         "label": "Default completion approval",
         "hint": "Copied onto new projects. Existing projects retain their current approval policy.",

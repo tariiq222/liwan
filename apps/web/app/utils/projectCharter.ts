@@ -1,3 +1,4 @@
+import { ApiError } from '../composables/useApi'
 import type {
   BudgetState,
   ProjectCharterState,
@@ -420,8 +421,6 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
     if (constraints) write.constraints = constraints
     const closure = compactText(draft.closure)
     if (closure) write.closure = closure
-    // The server starts every charter as a draft; only finalizing needs a value.
-    if (draft.charterState === 'final') write.state = 'final'
     return write
   }
 
@@ -443,7 +442,6 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
     assumptions: draft.assumptions,
     constraints: draft.constraints,
     closure: draft.closure,
-    state: draft.charterState,
   }
   if (draft.budgetState === 'unknown') write.amount = null
   else write.amount = amountValue ?? 0
@@ -510,4 +508,24 @@ export function charterPatchBody(
     }
   }
   return patch
+}
+
+// What a manager's save leads to: an approved charter that the server reopened
+// to a draft is not resubmitted on its own; a plain draft goes on to submit.
+export function charterAfterSave(wasApproved: boolean, savedState: ProjectCharterState): 'submit' | 'saved' | 'reopened' {
+  if (!wasApproved) return savedState === 'draft' ? 'submit' : 'saved'
+  return savedState === 'draft' ? 'reopened' : 'saved'
+}
+
+// Why the submit step failed, in words for the manager.
+export function submitFailureReason(e: unknown, t: (key: string) => string): string {
+  if (!(e instanceof ApiError)) return t('errors.generic')
+  if (e.code === 'charter_state') return t('projects.charter.lockedWhileSubmitted')
+  if (e.code === 'invalid' && e.field === 'sponsor_id') return t('projects.charter.sponsorRequired')
+  return e.message
+}
+
+// Under the approval policy a draft needs a sponsor before it can be sent.
+export function sponsorMissingForSubmit(approvalRequired: boolean, wasApproved: boolean, sponsorId: number | null | undefined): boolean {
+  return approvalRequired && !wasApproved && !sponsorId
 }

@@ -46,10 +46,20 @@ class TestSettings(NasqPmoCase):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         self.assertEqual(self.api('GET', '/api/v1/settings/projects').status_code, 200)
 
+    def test_require_charter_approval_policy(self):
+        self.authenticate('api_admin', 'api_admin_pass_123')
+        body = self.api('GET', '/api/v1/settings/projects').json()
+        self.assertIs(body['require_charter_approval'], False)
+        res = self.api('PATCH', '/api/v1/settings/projects', {'require_charter_approval': True})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertIs(res.json()['require_charter_approval'], True)
+        bad = self.api('PATCH', '/api/v1/settings/projects', {'require_charter_approval': 'yes'})
+        self.assertEqual((bad.status_code, bad.json()['field']), (422, 'require_charter_approval'))
+
     def test_get_and_patch(self):
         self.authenticate('api_admin', 'api_admin_pass_123')
         body = self.api('GET', '/api/v1/settings/projects').json()
-        self.assertGreaterEqual(set(body), {'project_creators', 'default_stages', 'require_manager_on_create', 'require_end_date_on_create', 'default_completion_approval', 'deadline_reminders_enabled', 'deadline_reminders_days_before', 'overdue_digest_enabled'})
+        self.assertGreaterEqual(set(body), {'project_creators', 'default_stages', 'require_manager_on_create', 'require_end_date_on_create', 'default_completion_approval', 'deadline_reminders_enabled', 'deadline_reminders_days_before', 'overdue_digest_enabled', 'require_charter_approval'})
         self.assertEqual(body['project_creators'], 'managers')
         self.assertEqual(len(body['default_stages']), 4)
         self.assertTrue(body['require_manager_on_create'])
@@ -115,6 +125,7 @@ class TestSettings(NasqPmoCase):
                 'deadline_reminders_enabled': True,
                 'deadline_reminders_days_before': 1,
                 'overdue_digest_enabled': True,
+                'require_charter_approval': False,
             },
         )
         self.assertEqual(self._legacy_raw(), legacy_before)

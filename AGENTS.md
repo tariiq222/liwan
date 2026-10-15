@@ -224,7 +224,7 @@ cross-addon links.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
 - `nasq_hr`, `nasq_tasks`, `nasq_operations` and their bridges have no `sudo()` path. In PMO, only the documented manager-write,
-  policy/config, display-lookup, integer-count, completion-status and notification
+  charter-approval (approval fields only, through `_nasq_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
   cron/candidate cases use `sudo()` after the caller's authorization check;
   `nasq_notify` uses it only for bell delivery and recipient-owned bell reads.
   `nasq_meetings` uses it only for its server-controlled minutes, snapshot,

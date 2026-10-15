@@ -36,7 +36,7 @@ function onCreatorsChange(v: unknown) {
   updateSettings({ project_creators: value }, { onSuccess: onSaved, onError: onApiError })
 }
 
-function onBool(field: 'require_manager_on_create' | 'require_end_date_on_create' | 'deadline_reminders_enabled' | 'overdue_digest_enabled', checked: boolean) {
+function onBool(field: 'require_manager_on_create' | 'require_end_date_on_create' | 'deadline_reminders_enabled' | 'overdue_digest_enabled' | 'require_charter_approval', checked: boolean) {
   if (checked === settings.value?.[field]) return
   updateSettings({ [field]: checked }, { onSuccess: onSaved, onError: onApiError })
 }
@@ -139,6 +139,14 @@ function onDeleteStage(id: number | string) {
             @update:model-value="onApprovalDefault"
           />
         </UFormField>
+        <USwitch
+          data-testid="settings-require-charter-approval"
+          :model-value="settings.require_charter_approval"
+          :label="t('settings.projects.charterApproval.label')"
+          :description="t('settings.projects.charterApproval.hint')"
+          :disabled="!hydrated || isPending"
+          @update:model-value="v => onBool('require_charter_approval', v)"
+        />
       </SharedFormSection>
 
       <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="nasq-settings-anchor space-y-3">
