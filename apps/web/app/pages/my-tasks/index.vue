@@ -63,13 +63,13 @@ function onVisible() { if (document.visibilityState === 'visible') refreshToday(
 const inlineError = computed(() => items.value.length > 0 && !!query.error.value)
 function retryInline() { void query.refetch() }
 
-function update(patch: Partial<MyTaskListState>) {
+function update(patch: Partial<MyTaskListState>, nextView?: string) {
   if (!isCurrentList() || disposed) return
   const next = { q: search.value.trim(), ...patch }
   const write = ++lastWrite
   lastPushed = next.q
   writesInFlight++
-  void router.replace({ query: listPatch(route.query, next), hash: router.currentRoute.value.hash })
+  void router.replace({ query: listPatch(nextView ? listViewQuery(route.query, nextView, views.value) : route.query, next), hash: router.currentRoute.value.hash })
     .then(failure => { if (failure && write === lastWrite) lastPushed = null })
     .catch(() => { if (write === lastWrite) lastPushed = null })
     .finally(() => { writesInFlight--; flushSearch() })
@@ -148,7 +148,7 @@ const cardList = ref<HTMLElement | null>(null)
 useRowNavigation(cardList)
 function setView(value: string) {
   if (value === view.value) return
-  void router.replace({ query: listPatch(listViewQuery(route.query, value, views.value), { q: search.value.trim() }), hash: route.hash })
+  update({}, value)
 }
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'name', header: t('tasks.columns.title'), meta: { class: { th: 'w-1/2 min-w-64', td: 'py-3' } } },

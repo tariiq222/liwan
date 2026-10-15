@@ -357,3 +357,16 @@ for (const width of [390, 768, 1440]) {
     }
   })
 }
+
+test('continued typing survives a view switch whose authorization is still pending', async ({ page }) => {
+  await mockList(page, fixtureList)
+  await open(page, '/my-tasks')
+  const input = page.getByLabel('ابحث في مهامي')
+  await input.fill('تر')
+  meDelay.ms = 600
+  await page.getByTestId('my-tasks-view-cards').click()
+  await input.fill('ترتيب')
+  await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 10_000 }).toBe('ترتيب')
+  await expect(input).toHaveValue('ترتيب')
+  await expect(page.getByTestId('my-tasks-view-cards')).toHaveAttribute('aria-pressed', 'true')
+})
