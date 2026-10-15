@@ -7,9 +7,10 @@
 // personal task routes are mocked per test with page.route.
 //   MOCK_PORT=4301 node apps/web/e2e/my-tasks-mock.mjs
 import http from 'node:http'
+import { createMyTasksPreview } from './my-tasks-preview-state.mjs'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { CONVERT_TARGETS, SSR_COMMENTS, SSR_TASKS } from './my-tasks-fixtures.mjs'
+import { CONVERT_TARGETS, SSR_COMMENTS, SSR_LIST, SSR_TASKS } from './my-tasks-fixtures.mjs'
 
 const port = Number(process.env.MOCK_PORT ?? 4301)
 const upstream = port + 1000
@@ -37,6 +38,14 @@ function withTasks(me) {
 // Only GETs the server issues while rendering `/my-tasks/<id>`; anything else goes upstream.
 function serverRendered(req) {
   if (req.method !== 'GET') return null
+  const url = new URL(req.url, 'http://localhost')
+  if (url.pathname === '/api/v1/my-tasks') {
+    const q = (url.searchParams.get('q') ?? '').trim().toLocaleLowerCase()
+    const rows = SSR_LIST.filter(row => (row.state !== 'open') === (url.searchParams.get('closed') === '1') && (!q || row.name.toLocaleLowerCase().includes(q)))
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const limit = Number(url.searchParams.get('limit') ?? 50)
+    return { items: rows.slice(offset, offset + limit), total: rows.length }
+  }
   if (req.url === '/api/v1/my-tasks/convert-targets') return { items: CONVERT_TARGETS, total: CONVERT_TARGETS.length }
   const match = /^\/api\/v1\/my-tasks\/(\d+)(\/comments|\/attachments)?(?:\?.*)?$/.exec(req.url ?? '')
   const task = match && SSR_TASKS[match[1]]
@@ -45,8 +54,23 @@ function serverRendered(req) {
   return match[2] ? { items: [], total: 0 } : task
 }
 
-http.createServer((req, res) => {
-  const fixture = serverRendered(req)
+const preview = process.env.MY_TASKS_STATEFUL === '1' ? createMyTasksPreview() : null
+http.createServer(async (req, res) => {
+  if (preview) {
+    const chunks = []
+    for await (const chunk of req) chunks.push(chunk)
+    let body = {}
+    try { if (chunks.length) body = JSON.parse(Buffer.concat(chunks).toString()) } catch { res.writeHead(400); res.end(); return }
+    const result = preview(req.method, req.url, body)
+    if (result) {
+      res.writeHead(result.status, { 'content-type': result.mimetype ?? 'application/json' })
+      res.end(result.bytes ?? JSON.stringify(result.body))
+      return
+    }
+    // Forward the consumed request body for login and other fixture applications.
+    req.previewBody = Buffer.concat(chunks)
+  }
+  const fixture = preview ? null : serverRendered(req)
   if (fixture) {
     res.writeHead(200, { 'content-type': 'application/json' })
     res.end(JSON.stringify(fixture))
@@ -71,5 +95,6 @@ http.createServer((req, res) => {
     })
   })
   proxied.on('error', () => { res.writeHead(502); res.end() })
-  req.pipe(proxied)
+  if (req.previewBody) proxied.end(req.previewBody)
+  else req.pipe(proxied)
 }).listen(port, '127.0.0.1', () => console.log(`my-tasks mock listening 127.0.0.1:${port} (upstream ${upstream})`))

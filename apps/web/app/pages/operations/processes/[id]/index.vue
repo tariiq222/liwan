@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { operationsStateTone } from '@/composables/operations/state'
 import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
-import { createOperationSubmitGuard, operationErrorKey, operationId, safeOperationReturnTo } from '@/composables/operations/forms'
+import { createOperationSubmitGuard, operationErrorKey, operationId } from '@/composables/operations/forms'
 const route = useRoute()
+const router = useRouter()
+const sourcePaths = useRecordListPaths(['/operations/processes', '/operations/pending', '/operations/monitoring', '/operations/processes'])
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
@@ -15,7 +18,7 @@ const pending = gate.pending
 const selected = ref<'publish' | 'archive' | null>(null)
 const selectedRevision = ref(0)
 const error = ref<unknown>(null)
-const backTo = computed(() => safeOperationReturnTo(route.query.returnTo, '/operations/processes'))
+const backTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
 const disabled = computed(() => !hydrated.value || pending.value)
 function choose(action: 'publish' | 'archive') { if (disabled.value || !process.value || !can('operations.processes.manage')) return; selected.value = action; selectedRevision.value = process.value.revision; error.value = null }
 async function confirmDecision() {
@@ -27,7 +30,7 @@ async function refresh() { if (disabled.value) return; selected.value = null; er
 </script>
 <template>
   <SharedPageContainer width="detail">
-    <SharedPageHeader :title="process?.name ?? t('operations.process')" :back-to="backTo" :back-label="t('operations.nav.processes')"><template #actions><template v-if="process && can('operations.processes.manage')"><UButton color="neutral" variant="outline" :disabled="disabled" :to="{ path: `/operations/processes/${process.id}/edit`, query: { returnTo: backTo } }" :label="t('operations.edit')" /><UButton v-if="process.state === 'draft'" :disabled="disabled" :label="t('operations.publish')" @click="choose('publish')" /><UButton v-if="process.state !== 'archived'" color="error" variant="outline" :disabled="disabled" :label="t('operations.archive')" @click="choose('archive')" /></template></template></SharedPageHeader>
+    <SharedPageHeader :title="process?.name ?? t('operations.process')" :back-to="backTo" :back-label="t('operations.nav.processes')"><template #actions><template v-if="process && can('operations.processes.manage')"><UButton color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/operations/processes/${process.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" /><UButton v-if="process.state === 'draft'" :disabled="disabled" :label="t('operations.publish')" @click="choose('publish')" /><UButton v-if="process.state !== 'archived'" color="error" variant="outline" :disabled="disabled" :label="t('operations.archive')" @click="choose('archive')" /></template></template></SharedPageHeader>
     <SharedPageState :loading="id !== null && query.isPending.value" :error="id === null ? { status: 404 } : query.error.value" @retry="hydrated && query.refetch()">
       <template v-if="process">
         <SharedStatusBadge :tone="operationsStateTone(process.state)" :label="t(`operations.states.${process.state}`)" />

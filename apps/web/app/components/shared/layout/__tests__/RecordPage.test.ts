@@ -36,6 +36,15 @@ describe('SharedRecordPage', () => {
     expect(html.indexOf('MAIN')).toBeLessThan(html.indexOf('PROPERTIES'))
   })
 
+  it('places the operational summary ahead of tabs and long content, without rendering it while loading', async () => {
+    const slots = { ...record, summary: () => h('p', 'OWNER AND DEADLINE') }
+    const html = await renderShared('RecordPage', { title: 'Alpha' }, slots, options)
+    expect(html.indexOf('OWNER AND DEADLINE')).toBeGreaterThan(-1)
+    expect(html.indexOf('OWNER AND DEADLINE')).toBeLessThan(html.indexOf('TABS'))
+    const loading = await renderShared('RecordPage', { title: 'Alpha', loading: true }, slots, options)
+    expect(loading).not.toContain('OWNER AND DEADLINE')
+  })
+
   it('gives the main column the full width when there is no aside', async () => {
     const html = await renderShared('RecordPage', { title: 'Alpha' }, { default: () => h('p', 'MAIN') }, options)
     expect(html).not.toContain('<aside')
@@ -142,4 +151,11 @@ describe('SharedRecordPage blank title and hideHeader', () => {
     expect(html).not.toContain('data-slot="page-header"')
     expect(html).toContain('MAIN')
   })
+})
+
+it('keeps a loaded record visible on refresh failure but hides it after access loss', async () => {
+  for (const status of [500, 403, 404]) {
+    const html = await renderShared('RecordPage', { title: 'Alpha', error: { status }, keepContent: true }, { default: () => h('p', 'LOADED RECORD') }, options)
+    expect(html.includes('LOADED RECORD'), String(status)).toBe(status === 500)
+  }
 })

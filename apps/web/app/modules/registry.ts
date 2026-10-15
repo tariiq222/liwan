@@ -23,6 +23,7 @@ export type FeatureKey = KnownFeatureKey | (string & {})
 /** Rail module id to its application feature, from the manifests; foundation modules carry no feature. */
 export const MODULE_FEATURES = {
   ...Object.fromEntries(appManifests.flatMap(manifest => manifest.rail.map(entry => [entry.id, manifest.feature]))),
+  home: null,
   settings: null,
   vendor: null,
   management: null,

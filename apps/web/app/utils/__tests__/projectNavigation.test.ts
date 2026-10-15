@@ -12,3 +12,10 @@ describe('project list origin', () => {
     }
   })
 })
+
+it('rejects a current-project self origin and removes it from a copied parent chain', async () => {
+  const { projectRecordBack } = await import('../projectNavigation')
+  const paths = ['/projects', '/projects/2', '/projects/2/tasks']
+  expect(projectRecordBack({ returnTo: '/projects/2' }, 2, paths)).toEqual({ path: '/projects', query: {} })
+  expect(projectRecordBack({ returnTo: '/projects/1?returnTo=%2Fprojects%2F2' }, 2, paths)).toBe('/projects/1')
+})

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectSettings } from '@nasq/contracts'
 import StageListEditor from '@/components/pmo/projects/StageListEditor.vue'
-import { ApiError } from '@/composables/useApi'
+import { saveErrorMessage } from '@/utils/formFeedback'
 import { useProjectSettings, useUpdateProjectSettings } from '@/composables/useProjectSettings'
 
 const { t } = useI18n()
@@ -10,14 +10,25 @@ const toast = useToast()
 
 const { data: settings, isLoading, error, refetch } = useProjectSettings()
 const { mutate: updateSettings, isPending } = useUpdateProjectSettings()
+const saveState = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
+const saveError = ref('')
+const pendingPatch = shallowRef<Partial<ProjectSettings> | null>(null)
+function save(patch: Partial<ProjectSettings>) {
+  if (!hydrated.value || saveState.value === 'saving') return
+  pendingPatch.value = patch
+  saveError.value = ''
+  saveState.value = 'saving'
+  updateSettings(patch, { onSuccess: onSaved, onError: onApiError })
+}
 
 function onApiError(e: unknown) {
-  toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
-  // Undo the optimistic row mutation: resync from the last-known-good cached
-  // settings rather than leaving the rejected edit displayed.
-  rows.value = withIds(settings.value?.default_stages ?? [])
+  saveState.value = 'error'
+  saveError.value = saveErrorMessage(e, t('errors.generic'), t('errors.saveUncertain'))
+  toast.add({ title: saveError.value, color: 'error' })
 }
 function onSaved() {
+  saveState.value = 'saved'
+  pendingPatch.value = null
   toast.add({ title: t('settings.projects.saved'), color: 'success' })
 }
 
@@ -33,23 +44,23 @@ const CREATOR_OPTIONS: { value: ProjectSettings['project_creators']; labelKey: s
 function onCreatorsChange(v: unknown) {
   const value = v as ProjectSettings['project_creators']
   if (!value || value === settings.value?.project_creators) return
-  updateSettings({ project_creators: value }, { onSuccess: onSaved, onError: onApiError })
+  save({ project_creators: value })
 }
 
 function onBool(field: 'require_manager_on_create' | 'require_end_date_on_create' | 'deadline_reminders_enabled' | 'overdue_digest_enabled' | 'require_charter_approval', checked: boolean) {
   if (checked === settings.value?.[field]) return
-  updateSettings({ [field]: checked }, { onSuccess: onSaved, onError: onApiError })
+  save({ [field]: checked })
 }
 
 function onApprovalDefault(v: unknown) {
   const value = v as ProjectSettings['default_completion_approval']
   if (!value || value === settings.value?.default_completion_approval) return
-  updateSettings({ default_completion_approval: value }, { onSuccess: onSaved, onError: onApiError })
+  save({ default_completion_approval: value })
 }
 
 function onDaysBefore(days: number) {
   if (!Number.isInteger(days) || days === settings.value?.deadline_reminders_days_before) return
-  updateSettings({ deadline_reminders_days_before: days }, { onSuccess: onSaved, onError: onApiError })
+  save({ deadline_reminders_days_before: days })
 }
 
 // --- default stages ------------------------------------------------------------
@@ -75,10 +86,7 @@ watch(
 
 function persist(next: StageRow[]) {
   rows.value = withIds(next)
-  updateSettings(
-    { default_stages: rows.value.map(({ name, fold }) => ({ name, fold })) },
-    { onSuccess: onSaved, onError: onApiError },
-  )
+  save({ default_stages: rows.value.map(({ name, fold }) => ({ name, fold })) })
 }
 
 // StageListEditor's ids are typed `number | string` (it also serves the real
@@ -105,6 +113,11 @@ function onDeleteStage(id: number | string) {
 
 <template>
   <div class="nasq-form nasq-project-settings-form">
+    <SharedUnsavedChanges :dirty="saveState === 'saving' || saveState === 'error'" />
+    <p v-if="saveState === 'saving' || saveState === 'saved'" role="status" data-testid="settings-save-feedback" class="text-sm text-muted">{{ t(saveState === 'saving' ? 'app.saving' : 'app.saved') }}</p>
+    <UAlert v-else-if="saveState === 'error'" role="alert" color="error" variant="subtle" :title="saveError" data-testid="settings-save-feedback">
+      <template #actions><UButton v-if="pendingPatch" type="button" color="neutral" variant="outline" :label="t('app.retry')" @click="save(pendingPatch)" /></template>
+    </UAlert>
     <SharedLoadingSkeleton v-if="isLoading" />
 
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
@@ -115,14 +128,14 @@ function onDeleteStage(id: number | string) {
           <URadioGroup
             :model-value="settings.project_creators"
             :items="CREATOR_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))"
-            :disabled="!hydrated || isPending"
+            :disabled="!hydrated || isPending || saveState === 'error'"
             @update:model-value="onCreatorsChange"
           />
         </UFormField>
         <UFormField id="project-requirements" :label="t('settings.projects.createRequirements.label')" :description="t('settings.projects.createRequirements.hint')">
           <div class="grid gap-3">
-            <USwitch :model-value="settings.require_manager_on_create" :label="t('settings.projects.createRequirements.manager')" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_manager_on_create', v)" />
-            <USwitch :model-value="settings.require_end_date_on_create" :label="t('settings.projects.createRequirements.endDate')" :disabled="!hydrated || isPending" @update:model-value="v => onBool('require_end_date_on_create', v)" />
+            <USwitch id="settings-require-manager" :model-value="settings.require_manager_on_create" :label="t('settings.projects.createRequirements.manager')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_manager_on_create', v)" />
+            <USwitch id="settings-require-end-date" :model-value="settings.require_end_date_on_create" :label="t('settings.projects.createRequirements.endDate')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_end_date_on_create', v)" />
           </div>
         </UFormField>
       </SharedFormSection>
@@ -135,25 +148,25 @@ function onDeleteStage(id: number | string) {
           <URadioGroup
             :model-value="settings.default_completion_approval"
             :items="[{ value: 'none', label: t('settings.projects.approval.none') }, { value: 'project_manager', label: t('settings.projects.approval.projectManager') }]"
-            :disabled="!hydrated || isPending"
+            :disabled="!hydrated || isPending || saveState === 'error'"
             @update:model-value="onApprovalDefault"
           />
         </UFormField>
         <USwitch
-          data-testid="settings-require-charter-approval"
+          id="settings-require-charter-approval" data-testid="settings-require-charter-approval"
           :model-value="settings.require_charter_approval"
           :label="t('settings.projects.charterApproval.label')"
           :description="t('settings.projects.charterApproval.hint')"
-          :disabled="!hydrated || isPending"
+          :disabled="!hydrated || isPending || saveState === 'error'"
           @update:model-value="v => onBool('require_charter_approval', v)"
         />
       </SharedFormSection>
 
       <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="nasq-settings-anchor space-y-3">
         <USwitch
-          :model-value="settings.deadline_reminders_enabled"
+          id="settings-deadline-reminders" :model-value="settings.deadline_reminders_enabled"
           :label="t('settings.projects.reminders.enabled')"
-          :disabled="!hydrated || isPending"
+          :disabled="!hydrated || isPending || saveState === 'error'"
           @update:model-value="v => onBool('deadline_reminders_enabled', v)"
         />
         <UFormField :label="t('settings.projects.reminders.daysBefore')">
@@ -162,15 +175,15 @@ function onDeleteStage(id: number | string) {
             :min="0"
             :max="30"
             :model-value="settings.deadline_reminders_days_before"
-            :disabled="!hydrated || isPending"
+            :disabled="!hydrated || isPending || saveState === 'error'"
             class="w-full"
             @update:model-value="onDaysBefore"
           />
         </UFormField>
         <USwitch
-          :model-value="settings.overdue_digest_enabled"
+          id="settings-overdue-digest" :model-value="settings.overdue_digest_enabled"
           :label="t('settings.projects.reminders.digest')"
-          :disabled="!hydrated || isPending"
+          :disabled="!hydrated || isPending || saveState === 'error'"
           @update:model-value="v => onBool('overdue_digest_enabled', v)"
         />
       </SharedFormSection>

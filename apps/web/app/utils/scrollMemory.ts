@@ -65,3 +65,8 @@ export async function whenScrollTopReachable(
   // Budget spent — a list that never arrives must not hold the scroll hostage.
   return scrollTopIsReachable(top, measure())
 }
+
+/** A deliberate shell entry starts a fresh visit; explicit record returns retain their offsets. */
+export function forgetScrollPosition(fullPath: string) {
+  positions.delete(fullPath)
+}

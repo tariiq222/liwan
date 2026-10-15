@@ -64,8 +64,6 @@ export interface AppSearchProvider {
   search: (api: AppSearchApi, q: string, offset: number) => Promise<AppSearchPage>
   /** Locale key of the notice shown when a page reports `truncated`. */
   truncatedKey?: string
-  /** Rendered on the dialog only (default: dialog and /search page). */
-  dialogOnly?: boolean
 }
 export interface AppBellKind {
   kind: string

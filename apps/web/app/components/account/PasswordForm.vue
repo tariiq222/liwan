@@ -93,8 +93,8 @@ onBeforeUnmount(() => {
     </UFormField>
 
     <p v-if="success" role="status" class="text-sm text-success">{{ t('account.success') }}</p>
-    <footer class="nasq-form-footer">
+    <SharedFormActions >
       <UButton type="submit" data-testid="pw-submit" color="primary" class="w-full sm:w-auto" :label="t('account.submit')" :disabled="disabled" />
-    </footer>
+    </SharedFormActions>
   </UForm>
 </template>

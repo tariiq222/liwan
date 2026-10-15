@@ -9,12 +9,11 @@ const manifest: AppManifest = {
   feature: 'pmo.enabled',
   routePrefixes: ['/projects', '/tasks'],
   rail: [
-    { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard', order: 10 },
     { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', order: 20 },
   ],
   defaultRail: 'projects',
   nav: [
-    { to: '/projects/dashboard', labelKey: 'nav.home', icon: 'i-lucide-house', shortcut: 'h', goKey: 'h', capability: 'pmo.projects.read', module: 'home' },
+    { to: '/projects/dashboard', labelKey: 'nav.projectDashboard', icon: 'i-lucide-chart-no-axes-combined', shortcut: 'z', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', shortcut: '2', goKey: 'p', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', shortcut: '1', goKey: 't', capability: 'pmo.tasks.read', module: 'projects' },
     { to: '/projects/settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', shortcut: '4', capability: 'pmo.settings.manage', module: 'projects' },

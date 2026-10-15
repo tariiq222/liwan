@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@vueuse/core'
 import { toValue, type MaybeRefOrGetter } from 'vue'
 import { useProject } from './useProjects'
 // These names have one owner each under nav/; import for internal use only,
@@ -14,12 +15,12 @@ import { isNavPathActive, type AccessIdentity } from '../utils/accessPolicy'
 
 export function useContextSidebar() {
   const cookie = useCookie<ContextSidebarCookie | null>(CONTEXT_SIDEBAR_COOKIE, {
-    default: () => 'open',
+    default: () => null,
     path: '/',
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 365,
   })
-  return contextSidebarState(cookie, useHydrated())
+  return contextSidebarState(cookie, useHydrated(), useMediaQuery('(min-width: 1024px)', { ssrWidth: 1024 }))
 }
 
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {

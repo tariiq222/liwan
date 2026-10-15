@@ -101,7 +101,8 @@ const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) 
     :back-to="archiveConfirmOpen ? undefined : backTo"
     :back-label="props.backLabel ?? t('tasks.detail.back')"
     :loading="!task && !error"
-    :error="task ? null : error"
+    :error="error"
+    :keep-content="!!task"
     @retry="refetch"
   >
     <template #back>
@@ -147,7 +148,7 @@ const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) 
         </div>
       </div>
     </template>
-    <template v-if="task" #aside>
+    <template v-if="task" #summary>
       <TaskProperties :key="task.id" :task="task" />
     </template>
   </SharedRecordPage>

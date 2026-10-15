@@ -4,7 +4,7 @@ import { storyContext } from '../support/context'
 import { operationHandlers, process } from './fixtures'
 const meta = {
   title: 'Operations/ProcessForm', component: ProcessForm,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/operations/processes/new.vue:17'), msw: { handlers: { api: operationHandlers } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/operations/processes/new.vue:19'), msw: { handlers: { api: operationHandlers } } },
   args: { backTo: '/operations/processes', save: async body => ({ ...process, ...body, state: 'draft', revision: 3, steps: body.steps.map((step, index) => ({ ...step, reviewers: process.steps[index]?.reviewers ?? [] })) }) },
 } satisfies Meta<typeof ProcessForm>
 export default meta

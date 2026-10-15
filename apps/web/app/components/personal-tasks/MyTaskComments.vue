@@ -5,7 +5,8 @@ import { COMMENT_MAX_LENGTH, commentProblem, oldestFirst } from '@/utils/myTaskD
 
 // The personal task's wiring of `SharedCommentThread` and `SharedCommentComposer`.
 // Plain text only: the body is rendered as text and sent as typed (no markup, no mentions).
-const props = defineProps<{ taskId: number; canWrite: boolean }>()
+const props = withDefaults(defineProps<{ taskId: number; canWrite: boolean; discardDraftKey?: number }>(), { discardDraftKey: 0 })
+const emit = defineEmits<{ 'draft-change': [dirty: boolean]; 'pending-change': [pending: boolean] }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -13,6 +14,9 @@ const { data, isLoading, error: loadError, refetch } = useMyTaskComments(() => p
 const { mutateAsync: post, isPending } = usePostMyTaskComment()
 
 const body = ref('')
+watch(body, value => emit('draft-change', !!value.trim()), { flush: 'sync' })
+watch(() => props.discardDraftKey, () => { body.value = '' })
+onBeforeUnmount(() => { emit('draft-change', false); emit('pending-change', false) })
 const error = ref('')
 const comments = computed(() => oldestFirst(data.value?.items ?? []).map(comment => ({
   id: comment.id,
@@ -30,6 +34,7 @@ async function submit() {
   const text = body.value.trim()
   if (inFlight || !hydrated.value || isPending.value || commentProblem(text)) return
   inFlight = true
+  emit('pending-change', true)
   error.value = ''
   try {
     await post({ id: props.taskId, body: text })
@@ -38,6 +43,7 @@ async function submit() {
     error.value = e instanceof ApiError ? e.message : t('myTasks.errors.comment')
   } finally {
     inFlight = false
+    emit('pending-change', false)
   }
 }
 </script>

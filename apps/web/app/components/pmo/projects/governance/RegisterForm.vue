@@ -203,9 +203,9 @@ async function submit() {
       </UFormField>
     </SharedFormSection>
 
-    <div class="flex flex-wrap gap-2 justify-end">
+    <SharedFormActions class="flex flex-wrap gap-2 justify-end">
       <UButton type="button" color="neutral" :disabled="!hydrated || pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ t('app.save') }}</UButton>
-    </div>
+    </SharedFormActions>
   </form>
 </template>

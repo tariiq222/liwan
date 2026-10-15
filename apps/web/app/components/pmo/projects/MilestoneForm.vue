@@ -123,9 +123,9 @@ async function submit() {
       </div>
       <p v-else class="text-sm text-muted">{{ t('projects.milestones.noDeliverables') }}</p>
     </UFormField>
-    <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+    <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
       <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="isEdit ? t('app.save') : t('app.create')" />
-    </div>
+    </SharedFormActions>
   </form>
 </template>

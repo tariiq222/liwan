@@ -75,8 +75,8 @@ const textareaId = computed(() => props.fieldId ?? `comment-${generatedId}`)
     </template>
     <p v-if="problem" role="alert" class="text-sm text-error">{{ problem }}</p>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-    <div class="flex justify-end">
+    <SharedFormActions class="flex justify-end">
       <UButton type="submit" size="sm" :loading="pending" :disabled="!hydrated || pending || !modelValue.trim() || invalid" :label="submitLabel" />
-    </div>
+    </SharedFormActions>
   </form>
 </template>

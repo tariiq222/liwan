@@ -93,6 +93,7 @@
       "createTitle": "إنشاء دور مخصص",
       "details": "بيانات الدور",
       "editTitle": "تعديل الدور",
+      "nameRequired": "أدخل الاسم بالعربية.",
       "nameArabic": "الاسم بالعربية",
       "nameEnglish": "الاسم بالإنجليزية",
       "descriptionLabel": "وصف الغرض من الدور",

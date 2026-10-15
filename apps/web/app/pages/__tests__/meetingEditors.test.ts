@@ -1,4 +1,4 @@
-import * as recordNavigation from '../../utils/recordListOrigin'
+import * as recordNavigation from './helpers/recordNavigation'
 import { meetingTabFromRoute, meetingTabQuery, isMeetingTab } from '../../utils/meetingTabs'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'

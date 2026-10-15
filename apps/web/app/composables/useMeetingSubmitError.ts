@@ -20,6 +20,7 @@ export function useMeetingSubmitError<Key extends string>(options: {
   })
   const submitError = computed(() => {
     const current = apiError.value
+    if (current?.status === 0) return current.message
     if (current?.status === 403) return t('meetingsUx.editForbidden')
     if (current?.status === 409) return t('meetingsUx.errors.conflict')
     if (current?.status === 422 && !Object.keys(fieldErrors.value).length) return current.message

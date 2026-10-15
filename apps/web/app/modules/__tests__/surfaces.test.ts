@@ -27,15 +27,15 @@ const sales: AppManifest = {
 
 describe('manifest search providers', () => {
   it('lists PMO projects then tasks today, tasks on the dialog only', () => {
-    expect(searchProviders('dialog').map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks'])
-    expect(searchProviders('page').map(p => p.id)).toEqual(['pmo-projects'])
+    expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks'])
+    expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks'])
   })
   it('adds a section for a fake application without touching foundation files', () => {
     withManifests([...activeManifests(), sales], () => {
-      expect(searchProviders('page').map(p => p.id)).toEqual(['pmo-projects', 'sales-orders'])
+      expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks', 'sales-orders'])
       expect(manifestRoutePrefixes()).toContain('/sales')
     })
-    expect(searchProviders('page').map(p => p.id)).toEqual(['pmo-projects'])
+    expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks'])
   })
   it('keeps the PMO API urls and shapes', async () => {
     const calls: Array<[string, unknown]> = []

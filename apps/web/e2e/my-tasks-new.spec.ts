@@ -82,7 +82,7 @@ test('the name field takes focus once the page is hydrated', async ({ page }) =>
 test('saving posts the exact body once and redirects to the new task', async ({ page }) => {
   const posts = await mockMyTasks(page, () => ({ status: 200, body: { ...CREATED, priority: 'high' } }))
   await page.goto('/my-tasks/new?returnTo=/my-tasks%3Ftab%3Ddone')
-  await expect(page.getByRole('heading', { name: 'مهمة جديدة', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'مهمة شخصية جديدة', level: 1 })).toBeVisible()
   await expect(page.getByTestId('my-task-form-submit')).toBeEnabled()
 
   await page.getByLabel('عنوان المهمة').fill('  كتابة التقرير ')
@@ -188,15 +188,23 @@ test('an empty name is refused before any request', async ({ page }) => {
 test('a direct link keeps the return path, survives a refresh and cancel goes back', async ({ page }) => {
   await mockMyTasks(page, () => ({ status: 200, body: CREATED }))
   await page.goto('/my-tasks/new?returnTo=/my-tasks%3Ftab%3Ddone%26q%3Dtest')
-  await expect(page.getByRole('heading', { name: 'مهمة جديدة', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'مهمة شخصية جديدة', level: 1 })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'مهمة جديدة', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'مهمة شخصية جديدة', level: 1 })).toBeVisible()
   await expect(page.getByTestId('my-task-form-submit')).toBeEnabled()
   await page.getByTestId('my-task-form-cancel').click()
   await expect(page).toHaveURL(/\/my-tasks\?tab=done&q=test$/)
 })
 
-for (const hostile of ['/projects', 'javascript:alert(1)', '//evil.example/my-tasks', 'https://evil.example/my-tasks', '/\\evil.example']) {
+test('creation returns to a known accessible source outside the owning list', async ({ page }) => {
+  await mockMyTasks(page, () => ({ status: 200, body: CREATED }))
+  await page.goto('/my-tasks/new?returnTo=%2Fprojects%3Fq%3Dsource')
+  await expect(page.getByTestId('my-task-form-submit')).toBeEnabled()
+  await page.getByTestId('my-task-form-cancel').click()
+  await expect(page).toHaveURL(/\/projects\?q=source$/)
+})
+
+for (const hostile of ['/projects/unknown', 'javascript:alert(1)', '//evil.example/my-tasks', 'https://evil.example/my-tasks', '/\\evil.example']) {
   test(`return path ${hostile} falls back to the list`, async ({ page }) => {
     await mockMyTasks(page, () => ({ status: 200, body: CREATED }))
     await page.goto(`/my-tasks/new?returnTo=${encodeURIComponent(hostile)}`)

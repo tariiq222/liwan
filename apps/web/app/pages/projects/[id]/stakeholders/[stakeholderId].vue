@@ -9,7 +9,7 @@ const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const stakeholderId = computed(() => Number(route.params.stakeholderId))
 const item = useProjectStakeholder(projectId, stakeholderId)
-const listPaths = computed(() => [`/projects/${projectId.value}/stakeholders`])
+const listPaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/stakeholders`])
 const backTo = computed(() => owningListBack(route.query, listPaths.value, route.hash))
 const editTo = computed(() => recordChildTo(`/projects/${projectId.value}/stakeholders/${stakeholderId.value}/edit`, route.query, listPaths.value, route.hash))
 const notFound = computed(() => item.error.value instanceof ApiError && [403, 404].includes(item.error.value.status))
@@ -19,7 +19,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!item.data.value"
     v-if="route.path.replace(/\/+$/, '') === detailPath"
     :title="item.data?.value?.name ?? t('projects.governance.stakeholder.title')"
     :back-to="backTo"
@@ -38,7 +38,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
         <div><dt class="text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></div>
       </dl>
     </SharedRecordSection>
-    <template v-if="item.data?.value" #aside>
+    <template v-if="item.data?.value" #summary>
       <SharedPropertiesPanel :title="t('projects.refresh.workspace.stakeholderIdentity')">
         <SharedPropertyRow :label="t('projects.governance.stakeholder.internalUser')" :value="item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser')" />
         <SharedPropertyRow :label="t('projects.governance.stakeholder.organization')" :value="item.data.value.organization" />

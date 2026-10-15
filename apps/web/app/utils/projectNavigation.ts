@@ -1,3 +1,5 @@
+import { owningListBack, recordEntryOrigin } from './recordListOrigin'
+import type { LocationQuery } from 'vue-router'
 import { safeReturnTo } from './safeReturnTo'
 
 /** Recover the list origin even after opening a nested project form. */
@@ -11,4 +13,17 @@ export function projectListReturnTo(query: Record<string, unknown>): string {
     candidate = url.searchParams.get('projectListReturnTo') ?? url.searchParams.get('returnTo')
   }
   return '/projects'
+}
+
+/** A copied project can return to its readable source project, with one normalized list behind it. */
+export function projectRecordBack(query: LocationQuery, currentId: number | null, paths: readonly string[], hash = '') {
+  const origins = paths.filter(path => path !== `/projects/${currentId}`)
+  const safe = safeReturnTo(query.returnTo, '', ['/projects'])
+  const parent = safe && new URL(safe, 'http://nasq.local').pathname
+  const match = parent && /^\/projects\/([1-9]\d*)$/.exec(parent)
+  if (match && Number(match[1]) !== currentId && origins.includes('/projects')) {
+    const origin = recordEntryOrigin(safe, parent as string, origins)
+    if (origin) return origin
+  }
+  return owningListBack(query, origins, hash)
 }

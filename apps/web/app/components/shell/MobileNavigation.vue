@@ -64,7 +64,7 @@ function onModuleActivate(item: ShellRailItem) {
       </template>
     </UButton>
     <template #body>
-      <nav :aria-label="t('nav.modules')" class="nasq-mobile-section">
+      <nav data-fresh-navigation :aria-label="t('nav.modules')" class="nasq-mobile-section">
         <UButton
           v-for="item in props.modules"
           :key="item.id"
@@ -100,7 +100,7 @@ function onModuleActivate(item: ShellRailItem) {
           @click="closeIfCurrent(link.to)"
         />
       </div>
-      <nav v-if="props.sections.length" :aria-label="props.title" class="nasq-mobile-section">
+      <nav data-fresh-navigation v-if="props.sections.length" :aria-label="props.title" class="nasq-mobile-section">
         <template v-for="section in props.sections" :key="section.id">
           <h3 v-if="section.titleKey" class="nasq-context-section-title">{{ t(section.titleKey) }}</h3>
           <UButton

@@ -33,21 +33,22 @@ function withSignal(api: AppSearchApi, signal: AbortSignal): AppSearchApi {
  * (the dialog is open); `requireTerm` keeps the dialog from fetching before the user types.
  */
 export function useAppSearch(options: {
-  surface: 'dialog' | 'page'
   term: Ref<string>
   debounced: Ref<string>
   gate: MaybeRefOrGetter<boolean>
   requireTerm: boolean
+  provider?: MaybeRefOrGetter<string | undefined>
   can: (capability: string) => boolean
   api: AppSearchApi
 }): AppSearchSection[] {
   const { term, debounced, can, api } = options
   const needle = computed(() => term.value.toLocaleLowerCase())
   // Providers are read once at setup: each owns a vue-query observer created here, so the list cannot change per call.
-  return searchProviders(options.surface).map((provider) => {
+  return searchProviders().map((provider) => {
+    const visible = computed(() => can(provider.capability) && (!toValue(options.provider) || toValue(options.provider) === provider.id))
     const query = useInfiniteQuery({
       queryKey: computed(() => provider.queryKey(provider.serverSearch ? debounced.value : '')),
-      enabled: computed(() => toValue(options.gate) && can(provider.capability) && (!options.requireTerm || !!debounced.value)),
+      enabled: computed(() => toValue(options.gate) && visible.value && (!options.requireTerm || !!debounced.value)),
       queryFn: ({ pageParam, signal }) => provider.search(withSignal(api, signal), provider.serverSearch ? debounced.value : '', pageParam),
       initialPageParam: 0,
       getNextPageParam: (last, pages) => {
@@ -74,7 +75,7 @@ export function useAppSearch(options: {
       fetchingNext: computed(() => query.isFetchingNextPage.value),
       refetch: () => query.refetch(),
       fetchNext: () => query.fetchNextPage(),
-      visible: computed(() => can(provider.capability)),
+      visible,
     }
   })
 }

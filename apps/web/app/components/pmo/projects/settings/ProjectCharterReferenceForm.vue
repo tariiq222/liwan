@@ -113,9 +113,9 @@ async function submit() {
       />
     </UFormField>
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-    <footer class="nasq-form-footer justify-end">
+    <SharedFormActions class="justify-end">
       <UButton type="button" color="neutral" variant="outline" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" />
-      <UButton type="submit" :disabled="!hydrated || pending || !name.trim()" :label="reference ? t('app.save') : t('app.create')" />
-    </footer>
+      <UButton type="submit" :disabled="!hydrated || pending" :label="reference ? t('app.saveChanges') : t('app.create')" />
+    </SharedFormActions>
   </form>
 </template>

@@ -466,7 +466,7 @@ function discardToServer() {
       <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
       <p v-if="project?.charter.approval_required && baselineApproved" class="text-sm text-muted" data-testid="charter-save-reopens-hint">{{ t('projects.charter.saveReopensHint') }}</p>
-      <div class="flex flex-wrap items-center gap-2" data-testid="charter-wizard-actions">
+      <SharedFormActions class="flex flex-wrap items-center gap-2" data-testid="charter-wizard-actions">
         <UButton type="button" color="neutral" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
         <div class="ms-auto flex flex-wrap gap-2">
           <UButton
@@ -514,7 +514,7 @@ function discardToServer() {
             :label="finalLabel"
           />
         </div>
-      </div>
+      </SharedFormActions>
     </form>
   </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import RolePermissionForm from '@/components/access/roles/RolePermissionForm.vue'
 import { useAdminPermissionCatalog, useAdminRole } from '@/composables/useAdminRoles'
-import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { recordParentTo } from '@/utils/recordListOrigin'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -10,9 +10,8 @@ const id = computed(() => Number(route.params.roleId))
 // An edit form returns to the role it edits, not past it to the list, and
 // carries the list filters through so the role's own back control still lands
 // on the list the reader came from.
-const backTo = computed(() => {
-  return adminPathWithQuery(`/settings/roles/${id.value}`, adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
-})
+const sourcePaths = useRecordListPaths(['/settings/roles'])
+const backTo = computed(() => recordParentTo(`/settings/roles/${id.value}`, route.query, sourcePaths.value, route.hash))
 const forbidden = computed(() => !can('access.roles.manage'))
 const role = useAdminRole(id, computed(() => !forbidden.value && can('access.roles.read')))
 const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))

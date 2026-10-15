@@ -29,7 +29,6 @@ export const tasksSearch: AppSearchProvider = {
   capability: 'pmo.tasks.read',
   icon: 'i-lucide-check-square',
   serverSearch: true,
-  dialogOnly: true,
   queryKey: q => ['search', 'tasks', q],
   async search(api, q, offset) {
     const page = await api('/api/v1/tasks', { query: { filter: 'mine', q, limit: TASKS_PAGE, offset }, schema: TaskListSchema })

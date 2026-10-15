@@ -48,3 +48,12 @@ export const SSR_COMMENTS = {
 }
 
 export const CONVERT_TARGETS = [{ id: 1, name: 'مشروع الأتمتة' }, { id: 2, name: 'مشروع التسويق' }]
+
+// Initial SSR list for whole-journey checks. Existing list specs override the
+// browser response with their own rows; these use the same readable records.
+export const SSR_LIST = [
+  { id: 7, name: SSR_TASKS[7].name, state: 'open', priority: 'normal', date_deadline: SSR_TASKS[7].date_deadline,
+    assignees: [ADMIN], source: 'personal', project: null, href: '/my-tasks/7' },
+  { id: 101, name: 'مهمة جارية', state: 'open', priority: 'normal', date_deadline: '2035-01-15T00:00:00Z',
+    assignees: [ADMIN], source: 'project', project: { id: 1, name: 'مشروع ألفا' }, href: '/projects/1/tasks/101' },
+]

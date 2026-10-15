@@ -1,3 +1,5 @@
+import { projectRecordBack } from '../../utils/projectNavigation'
+import * as recordNavigation from './helpers/recordNavigation'
 import * as hrNavigation from '../../utils/hrReturnTo'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -30,7 +32,9 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
   const navigate = vi.fn(async () => undefined)
   const escapeTargets: unknown[] = []
   const bindings: Record<string, unknown> = {
-    ...hrNavigation,
+    ...hrNavigation, ...recordNavigation,
+    useRecordListPaths: () => Vue.ref(['/projects', '/projects/dashboard', '/tasks', '/hr', '/settings/users', '/account', '/search', '/notifications']),
+    refDebounced: (value: unknown) => value, searchProviders: () => [], visibleCommands: () => [],
     _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch,
     onMounted: () => undefined, useEventListener: () => undefined,
@@ -38,7 +42,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useI18n: () => ({ t: (key: string) => key }),
     useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
-    safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
+    projectRecordBack, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
     provideProjectFrameHeading: () => undefined,
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
@@ -54,7 +58,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useAppSearch: () => [{
       provider: { id: 'pmo-projects', labelKey: 'nav.projects', icon: 'i-lucide-folder' },
       rows: Vue.ref([{ id: 7, label: 'Example', to: '/projects/7' }]), visible: Vue.ref(true),
-      loading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined,
+      loading: Vue.ref(false), waiting: Vue.ref(false), hasNext: Vue.ref(false), fetchingNext: Vue.ref(false), truncated: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined,
     }],
     useHrDocument: () => ({ data: Vue.ref(document), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useUpdateDocument: () => ({ mutateAsync: update, isPending: Vue.ref(false) }),
@@ -107,7 +111,7 @@ describe('reviewed page navigation and form feedback', () => {
   })
 
   it('carries the full search URL into a project result and its safe Back target', async () => {
-    const origin = '/search?q=Example&returnTo=%2Ftasks%3Fview%3Dboard#results'
+    const origin = '/search?q=Example#results'
     const page = await loadPage('search.vue', origin)
     const link = await propsFor(page, 'NuxtLink')
     const target = page.router.resolve(link!.to as RouteLocationRaw)
@@ -135,7 +139,7 @@ describe('reviewed page navigation and form feedback', () => {
     ['/projects?q=active', 'nav.projects'], ['/tasks?view=board', 'nav.tasks'],
     ['/hr?q=name', 'nav.organization'], ['/settings/users', 'nav.settings'],
     ['/account', 'nav.account'], ['/search?q=Example#results', 'app.search'],
-    ['/notifications', 'notifications.title'], ['/reports', 'nav.reports'],
+    ['/notifications', 'notifications.title'],
   ])('names the summary Back destination for %s', async (returnTo, label) => {
     const page = await loadPage('projects/[id].vue', { path: '/projects/7', query: { returnTo } })
     const back = await propsFor(page, 'UButton', props => props['data-testid'] === 'project-workspace-back')
