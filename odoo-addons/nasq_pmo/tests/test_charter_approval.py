@@ -197,6 +197,22 @@ class TestCharterApproval(NasqPmoCase):
             self._as(self.manager)._nasq_charter_submit()
         self.assertEqual(self.project.nasq_charter_state, 'draft')
 
+    def test_submit_rejects_sponsor_who_cannot_see_the_project(self):
+        self._policy(True)
+        service = self.env['nasq.access.service']
+        # The sponsor keeps pmo.projects.read in this company but loses access to it,
+        # so only the visibility check (not the capability check) can refuse them.
+        self.env.cr.execute(
+            'DELETE FROM res_company_users_rel WHERE user_id = %s AND cid = %s',
+            [self.sponsor.id, self.project.company_id.id],
+        )
+        self.env.invalidate_all()
+        self.env.registry.clear_cache()
+        self.assertTrue(service._nasq_has_capability(self.sponsor, 'pmo.projects.read', company=self.project.company_id))
+        with self.assertRaises(ValidationError):
+            self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+
     def test_cannot_unsubscribe_waiting_sponsor_on_private_project(self):
         self._policy(True)
         self.project.privacy_visibility = 'followers'
@@ -323,12 +339,20 @@ class TestCharterApprovalApi(NasqPmoCase):
 
     def test_charter_review_filter(self):
         other = self.env['project.project'].create({'name': 'Other', 'user_id': self.manager.id, 'nasq_sponsor_id': self.sponsor.id})
+        second_sponsor = new_test_user(self.env, login='api_sponsor_two', name='Huda', groups='nasq_core.group_employee')
+        foreign = self.env['project.project'].create({
+            'name': 'Foreign', 'user_id': self.manager.id, 'nasq_sponsor_id': second_sponsor.id,
+        })
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         self._post('submit', {'expected_updated_at': self._token()})
+        foreign_token = self.api('GET', f'/api/v1/projects/{foreign.id}').json()['updated_at']
+        res = self.api('POST', f'/api/v1/projects/{foreign.id}/charter/submit', {'expected_updated_at': foreign_token})
+        self.assertEqual(res.json()['charter']['state'], 'submitted', res.text)
         self.authenticate('api_sponsor', 'api_sponsor_pass_123')
         res = self.api('GET', '/api/v1/projects?charter_review=1').json()
         self.assertEqual([i['id'] for i in res['items']], [self.project.id])
         self.assertNotIn(other.id, [i['id'] for i in res['items']])
+        self.assertNotIn(foreign.id, [i['id'] for i in res['items']])
         mine = self.api('GET', '/api/v1/projects?charter_review=1&mine=1').json()
         self.assertEqual(mine['items'], [])
         bad = self.api('GET', '/api/v1/projects?charter_review=maybe')
