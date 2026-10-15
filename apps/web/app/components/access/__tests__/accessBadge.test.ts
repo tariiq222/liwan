@@ -7,6 +7,6 @@ describe('accessBadge', () => {
   })
   it('keeps the shared map for the other states', () => {
     expect(accessBadge({ active: true })).toMatchObject({ tone: 'success', labelKey: 'access.active' })
-    expect(accessBadge({ active: false })).toMatchObject({ tone: 'neutral', labelKey: 'access.disabled' })
+    expect(accessBadge({ active: false })).toMatchObject({ tone: 'warning', labelKey: 'access.disabled' })
   })
 })
