@@ -34,7 +34,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 - الزوايا: `--ui-radius: 0.285714rem`، فيكون `rounded-md` = 6px و`rounded-lg` = 8px عند جذر 14px.
 - الظلال للطبقات العائمة فقط (قوائم، popover، قوائم الاختيار، النوافذ). لا ظل في حالة السكون.
 
-التخصيص الوحيد هو جدول «وصفات الثيم المعتمدة» أدناه في `apps/web/app/app.config.ts`؛ أي إضافة تُوثَّق فيه أولًا.
+التخصيص الوحيد هو جدول «وصفات الثيم المعتمدة» أدناه في `packages/ui/app/app.config.ts`؛ أي إضافة تُوثَّق فيه أولًا.
 
 - كل مكوّن جديد جزء من ثيم نسق، ويُسجَّل في الفهرس بمساره ومسؤوليته ووصفته.
 - استخدم مكوّن Nuxt UI مباشرة إن كفى. لا تغليف لكل زر، ولا مكتبة واجهات ثانية، ولا نسخة محلية من حقل أو فلتر أو بطاقة موجودة.
@@ -103,7 +103,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 
 ### وصفات الثيم المعتمدة
 
-طبقة تحسين واحدة هادئة فوق وصفات المكتبة، كلها في `apps/web/app/app.config.ts` والتوكنات في `tokens.css` (`--ui-radius: 0.285714rem` و`--nasq-control-h` و`--nasq-row-h`). أي وصفة غير مذكورة هنا غير معتمدة؛ الاختبار `stockTheme.test.ts` يحصر مفاتيح الملف. حد ارتفاع التحكم (32px) يخص الحجم `md` فقط، أما `xs` و`sm` فيبقيان مدمجين.
+طبقة تحسين واحدة هادئة فوق وصفات المكتبة، كلها في `packages/ui/app/app.config.ts` والتوكنات في `tokens.css` (`--ui-radius: 0.285714rem` و`--nasq-control-h` و`--nasq-row-h`). أي وصفة غير مذكورة هنا غير معتمدة؛ الاختبار `stockTheme.test.ts` يحصر مفاتيح الملف. حد ارتفاع التحكم (32px) يخص الحجم `md` فقط، أما `xs` و`sm` فيبقيان مدمجين.
 
 | المكوّن | الوصفة | القصد |
 |---|---|---|
@@ -124,7 +124,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 | `USlideover` | طبقة z الخاصة باللوحات فقط | ترتيب الطبقات دون تغيير شكل |
 | `UModal` | `rounded-lg shadow-xl`، غطاء `backdrop-blur-xs`، طبقتا z | نافذة عائمة بظل، وهي الطبقة الأعلى |
 
-المصدر التنفيذي في العميل: `apps/web/app/assets/css/main.css` الذي يستورد `tokens.css` (مدخلات الثيم والكثافة) و`components.css` (قواعد الغلاف فقط) و`shell.css` (هندسة الغلاف)، و`apps/web/app/app.config.ts` (الألوان والوصفات وطبقات z)، و`apps/web/app/utils/brandTheme.ts` لاشتقاق اللون. لا وصفة مكوّن مخصصة خارج `app.config.ts`؛ الاختبار `app/assets/__tests__/stockTheme.test.ts` و`components/shared/__tests__/noCustomRecipes.test.ts` يحرسان ذلك.
+المصدر التنفيذي في العميل: `packages/ui/app/assets/css/main.css` الذي يستورد `tokens.css` (مدخلات الثيم والكثافة) و`components.css` (قواعد الغلاف فقط) و`shell.css` (هندسة الغلاف)، و`packages/ui/app/app.config.ts` (الألوان والوصفات وطبقات z)، و`apps/web/app/utils/brandTheme.ts` لاشتقاق اللون. لا وصفة مكوّن مخصصة خارج `app.config.ts`؛ الاختبار `app/assets/__tests__/stockTheme.test.ts` و`components/shared/__tests__/noCustomRecipes.test.ts` يحرسان ذلك.
 
 ## 3. الغلاف والتنقل
 
