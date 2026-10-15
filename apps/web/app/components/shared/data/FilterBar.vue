@@ -5,7 +5,7 @@
       <slot />
       <slot name="view" />
       <slot name="actions" />
-      <UButton v-if="activeCount > 0" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')"></UButton>
+      <UButton v-if="activeCount > 0" type="button" color="neutral" variant="ghost" icon="i-lucide-rotate-ccw" :label="resolvedClearLabel" :aria-label="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')"></UButton>
     </div>
     <div v-if="activeCount > 0 && $slots.active" class="flex flex-wrap items-center gap-2"><slot name="active" /></div>
   </div>
@@ -16,7 +16,7 @@
       </div>
       <UButton v-if="$slots.default" ref="trigger" type="button" color="neutral" :variant="expanded ? 'soft' : 'outline'" square icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" @click="expanded = !expanded" />
       <UBadge v-if="activeCount > 0" color="primary">{{ activeCount }}</UBadge>
-      <UButton v-if="activeCount > 0" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="resolvedClearLabel" :title="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')" />
+      <UButton v-if="activeCount > 0" type="button" color="neutral" variant="ghost" icon="i-lucide-rotate-ccw" :label="resolvedClearLabel" :aria-label="resolvedClearLabel" :title="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')" />
       <div v-if="$slots.view" data-slot="view" class="ms-auto flex flex-wrap items-center gap-2"><slot name="view" /></div>
       <div v-if="$slots.actions" data-slot="filter-actions" class="flex shrink-0 flex-wrap items-center gap-2"><slot name="actions" /></div>
     </div>

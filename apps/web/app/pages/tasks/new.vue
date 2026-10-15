@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import TaskCreateForm from '@/components/pmo/tasks/TaskCreateForm.vue'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { owningListBack } from '@/utils/recordListOrigin'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const toast = useToast()
 const hydrated = useHydrated()
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/tasks', ['/tasks', '/projects']))
+const sourcePaths = useRecordListPaths(['/tasks'])
+const returnTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
 function created(id: number) {
   toast.add({ title: t('tasks.created'), color: 'success' })
-  // Hand the list's own state to the new task as plain query, so its back link
-  // restores the view the create was started from without a returnTo chain.
-  router.push({ path: '/tasks/' + id, query: router.resolve(returnTo.value).query })
+  router.replace({ path: '/tasks/' + id, query: { returnTo: returnTo.value } })
 }
 </script>
 

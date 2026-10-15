@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { owningListBack, recordParentTo, recordSiblingTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { owningListBack, recordParentTo, recordSiblingTo } from '@/utils/recordListOrigin'
+import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import MeetingMinutesForm from '@/components/meetings/MeetingMinutesForm.vue'
@@ -10,6 +11,7 @@ import { parsePositiveId } from '@/utils/routeParams'
 import { ApiError } from '@/composables/useApi'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => parsePositiveId(route.params.id))
@@ -18,7 +20,7 @@ const query = useMeeting(id)
 const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const { mutateAsync, isPending, error, reset } = usePatchMeeting()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => id.value === null ? owningListBack(route.query, MEETING_LIST_PATHS, route.hash) : recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => id.value === null ? owningListBack(route.query, sourcePaths.value, route.hash) : recordParentTo(`/meetings/${id.value}`, route.query, sourcePaths.value, route.hash))
 const agenda = ref('')
 const minutes = ref('')
 const minutesForm = ref<MeetingMinutesFormValue>(createMeetingMinutesForm())
@@ -82,7 +84,7 @@ async function save(navigateToRecommendation = false) {
   baseline.value = snapshot()
   await nextTick()
   await navigateTo(navigateToRecommendation
-    ? recordSiblingTo(`/meetings/${id.value}/resolutions/new`, route.query, MEETING_LIST_PATHS, route.hash)
+    ? recordSiblingTo(`/meetings/${id.value}/resolutions/new`, route.query, sourcePaths.value, route.hash)
     : backTo.value)
 }
 
@@ -138,10 +140,10 @@ function createRecommendation() {
         </SharedFormSection>
         <UAlert v-if="structuredValidationErrors.length" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingMinutesForm.validation.invalid')" />
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
-        <div class="nasq-form-footer justify-end">
+        <SharedFormActions class="justify-end">
           <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!hydrated || isPending || !canSave" :label="t('app.save')" />
-        </div>
+        </SharedFormActions>
       </form>
     </SharedPageState>
   </SharedPageContainer>

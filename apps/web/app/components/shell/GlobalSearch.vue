@@ -23,7 +23,7 @@ const hydrated = useHydrated()
 const { open, view, term, close, reset } = usePalette()
 const trimmed = computed(() => term.value.trim())
 const debounced = refDebounced(trimmed, 200)
-const sections = useAppSearch({ surface: 'dialog', term: trimmed, debounced, gate: open, requireTerm: true, can, api: $api })
+const sections = useAppSearch({ term: trimmed, debounced, gate: open, requireTerm: true, can, api: $api })
 // ⌘ on Apple platforms, Ctrl elsewhere; SSR and the first client render agree on ⌘.
 const metaKey = ref('⌘')
 onMounted(() => { if (!isApplePlatform(navigator)) metaKey.value = 'Ctrl ' })
@@ -93,7 +93,6 @@ function toItem(item: PaletteItem): CommandPaletteItem {
       event.preventDefault()
       if (action.kind === 'shortcuts') view.value = 'shortcuts'
       else if (action.kind === 'retry') sectionFor(action.section)?.refetch()
-      else if (action.kind === 'load-more') sectionFor(action.section)?.fetchNext()
     },
   }
 }
@@ -135,7 +134,6 @@ const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
       waiting: section.waiting.value,
       error: !!section.error.value,
       hasNext: section.hasNext.value,
-      fetchingNext: section.fetchingNext.value,
       notice: section.truncated.value && section.provider.truncatedKey ? t(section.provider.truncatedKey) : null,
     })),
     actions: [...commandItems(visibleCommands(me.value), key => t(key), route.fullPath), shortcutsEntry],

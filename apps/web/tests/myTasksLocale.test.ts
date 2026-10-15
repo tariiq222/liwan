@@ -32,7 +32,7 @@ describe('my-tasks locale', () => {
   })
 
   it('adds nav.myTasks to common.json in both locales', () => {
-    expect((load('ar', 'common.json').nav as Record<string, string>).myTasks).toBe('مهامي الشخصية')
-    expect((load('en', 'common.json').nav as Record<string, string>).myTasks).toBe('My to-dos')
+    expect((load('ar', 'common.json').nav as Record<string, string>).myTasks).toBe('مهامي')
+    expect((load('en', 'common.json').nav as Record<string, string>).myTasks).toBe('My tasks')
   })
 })

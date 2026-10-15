@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { CHAT_PAGE_SIZE, initialsFor, nextListOffset, parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 
@@ -7,11 +8,16 @@ const toast = useToast()
 const hydrated = useHydrated()
 const route = useRoute()
 const listQuery = computed(() => serializeChatListRoute(parseChatListRoute(route.query)))
+const router = useRouter()
+const sourcePaths = useRecordListPaths(['/chat'])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const wantGroup = computed(() => route.query.kind === 'group')
 const q = ref('')
 const recipientOffset = ref(0)
 const selected = ref<{ id: number; name: string }[]>([])
 const groupName = ref('')
+const submitError = ref('')
+let submitting = false
 const { data } = useChatRecipients(q, recipientOffset)
 const { mutateAsync: create, isPending } = useCreateConversation()
 const recipients = computed(() => data.value?.items ?? [])
@@ -31,14 +37,21 @@ function toggle(person: { id: number; name: string }) {
 }
 
 async function submit() {
+  if (!hydrated.value || submitting || isPending.value) return
+  submitError.value = ''
   if (wantGroup.value && selected.value.length < 2) {
-    toast.add({ title: t('chat.needRecipient'), color: 'error' })
+    submitError.value = t('chat.needRecipient')
+    await nextTick()
+    document.getElementById('chat-recipient-search')?.focus()
     return
   }
   if (selected.value.length < 1 && !groupName.value.trim()) {
-    toast.add({ title: t('chat.needRecipient'), color: 'error' })
+    submitError.value = t('chat.needRecipient')
+    await nextTick()
+    document.getElementById('chat-recipient-search')?.focus()
     return
   }
+  submitting = true
   try {
     const conversation = await create(
       selected.value.length
@@ -50,15 +63,15 @@ async function submit() {
     )
     baseline.value = snapshot()
     await nextTick()
-    await navigateTo({ path: `/chat/${conversation.id}`, query: listQuery.value })
+    await navigateTo({ path: `/chat/${conversation.id}`, query: { ...listQuery.value, returnTo: router.resolve(backTo.value).fullPath } }, { replace: true })
   } catch (error) {
     toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
-  }
+  } finally { submitting = false }
 }
 </script>
 
 <template>
-  <SharedCreatePanel :title="t(wantGroup ? 'chat.newGroupTitle' : 'chat.newTitle')" :description="t(wantGroup ? 'chat.newGroupDescription' : 'chat.newDescription')" :back-to="{ path: '/chat', query: listQuery }">
+  <SharedCreatePanel :title="t(wantGroup ? 'chat.newGroupTitle' : 'chat.newTitle')" :description="t(wantGroup ? 'chat.newGroupDescription' : 'chat.newDescription')" :back-to="backTo">
     <form class="space-y-6" @submit.prevent="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('chat.recipients')" class="space-y-4">
@@ -90,10 +103,11 @@ async function submit() {
           <UInput id="chat-group-name" v-model="groupName" class="w-full" :placeholder="t('chat.groupNamePlaceholder')" :disabled="!hydrated" />
         </UFormField>
       </SharedFormSection>
-      <div class="flex justify-end gap-2">
-        <UButton type="button" color="neutral" variant="outline" :to="{ path: '/chat', query: listQuery }" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || isPending || (wantGroup ? selected.length < 2 : selected.length < 1 && !groupName.trim())" :label="t('chat.create')" />
-      </div>
+      <UAlert v-if="submitError" role="alert" color="error" variant="subtle" :title="submitError" />
+      <SharedFormActions class="flex justify-end gap-2">
+        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+        <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('chat.create')" />
+      </SharedFormActions>
     </form>
   </SharedCreatePanel>
 </template>

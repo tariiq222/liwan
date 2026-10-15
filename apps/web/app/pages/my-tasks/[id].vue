@@ -8,13 +8,14 @@ import ConvertToProject from '@/components/personal-tasks/ConvertToProject.vue'
 import MyTaskAttachments from '@/components/personal-tasks/MyTaskAttachments.vue'
 import MyTaskComments from '@/components/personal-tasks/MyTaskComments.vue'
 import MyTaskSubtasks from '@/components/personal-tasks/MyTaskSubtasks.vue'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { owningListBack, recordEntryOrigin } from '@/utils/recordListOrigin'
 import { changedFields, draftFromTask, type DetailDraft } from '@/utils/myTaskDetail'
 import { deadlineDay } from '@/utils/myTaskList'
 
 const STATE_TONE: Record<PersonalTask['state'], StatusTone> = { open: 'info', done: 'success', cancelled: 'neutral' }
 
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 
@@ -33,7 +34,13 @@ const converted = ref(false)
 watch(data, (value) => { if (value) lastTask.value = value }, { immediate: true })
 const task = computed(() => data.value ?? (converted.value ? lastTask.value : null))
 
-const returnTo = computed(() => safeReturnTo(route.query.returnTo, '/my-tasks', ['/my-tasks']))
+const sourcePaths = useRecordListPaths(['/my-tasks'])
+const returnTo = computed(() => {
+  const fallback = router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath
+  const parentPath = task.value?.parent ? `/my-tasks/${task.value.parent.id}` : undefined
+  if (!parentPath) return fallback
+  return recordEntryOrigin(route.query.returnTo, parentPath, sourcePaths.value) ?? fallback
+})
 const parentLink = computed(() => {
   const parent = task.value?.parent
   if (!parent) return null
@@ -152,7 +159,7 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!task"
     data-testid="my-task-detail"
     :title="title"
     :back-to="returnTo"
@@ -207,10 +214,10 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
             />
           </UFormField>
           <p v-if="formError" role="alert" class="text-sm text-error">{{ formError }}</p>
-          <div class="flex flex-wrap justify-end gap-2">
+          <SharedFormActions class="flex flex-wrap justify-end gap-2">
             <UButton type="button" color="neutral" variant="outline" :label="t('myTasks.form.cancel')" :disabled="!hydrated || saving" @click="stopEdit" />
             <UButton type="submit" :label="t('myTasks.form.save')" :loading="saving" :disabled="!hydrated || saving" />
-          </div>
+          </SharedFormActions>
         </form>
         <p v-else class="whitespace-pre-wrap break-words text-sm text-default">{{ task.description || t('myTasks.detail.noDescription') }}</p>
       </SharedRecordSection>
@@ -220,7 +227,7 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
       <MyTaskComments :task-id="task.id" :can-write="task.allowed_actions.write" />
       <ConvertToProject v-if="task.allowed_actions.convert" :task-id="task.id" @converted="converted = true" />
     </template>
-    <template v-if="task && !notFound" #aside>
+    <template v-if="task && !notFound" #summary>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('myTasks.detail.deadline')"><span data-testid="my-task-deadline">{{ deadlineText(task.date_deadline) }}</span></SharedPropertyRow>
         <SharedPropertyRow :label="t('myTasks.detail.priority')"><span data-testid="my-task-priority">{{ t(`myTasks.priority.${task.priority}`) }}</span></SharedPropertyRow>

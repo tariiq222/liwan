@@ -6,10 +6,12 @@ import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWor
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { projectRecordBack } from '@/utils/projectNavigation'
 import { formatCalendarDate } from '@/composables/calendarDate'
 
+const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const hydrated = useHydrated()
@@ -39,12 +41,12 @@ const showFrame = computed(() => !notFound.value
 // keep their own header and Escape target. Keep the same safe origins as the
 // summary's not-found route.
 const backTo = computed(() => showFrame.value && activeProjectSection(route.path) === 'summary'
-  ? safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports'])
+  ? router.resolve(projectRecordBack(route.query, projectId.value, sourcePaths.value, route.hash)).fullPath
   : undefined)
 const backLabel = computed(() => {
   const section = backTo.value?.split(/[/?#]/)[1] ?? 'projects'
   const labels: Record<string, string> = {
-    projects: 'nav.projects', tasks: 'nav.tasks', hr: 'nav.organization',
+    '': 'nav.home', 'my-tasks': 'nav.myTasks', projects: 'nav.projects', tasks: 'nav.tasks', hr: 'nav.organization',
     settings: 'nav.settings', account: 'nav.account', search: 'app.search',
     notifications: 'notifications.title', reports: 'nav.reports',
   }

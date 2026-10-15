@@ -60,6 +60,7 @@
       "account": "Account"
     },
     "depts": {
+      "nameRequired": "Enter the department name.",
       "title": "Departments",
       "new": "New department",
       "manager": "Department manager",
@@ -116,6 +117,8 @@
       "departments": "Departments"
     },
     "employee": {
+      "emailInvalid": "Enter a valid email address.",
+      "nameRequired": "Enter the employee name.",
       "editTitle": "Edit employee",
       "title": "Employee",
       "createTitle": "New employee",
@@ -155,6 +158,8 @@
       "manageAccount": "Manage account"
     },
     "docs": {
+      "noDepartments": "Create a department to add documents",
+      "noDepartmentsHint": "Documents belong to departments. Create one first, or ask an administrator to add it.",
       "title": "Documents",
       "new": "New document",
       "empty": "No documents",

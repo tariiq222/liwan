@@ -102,13 +102,13 @@ function submit() {
         :disabled="pending"
       />
     </UFormField>
-    <div class="flex flex-wrap justify-end gap-2">
+    <SharedFormActions class="flex flex-wrap justify-end gap-2">
       <UButton type="button" color="neutral" variant="outline" :disabled="pending" data-testid="my-task-form-cancel" @click="emit('cancel')">
         {{ t('myTasks.form.cancel') }}
       </UButton>
       <UButton type="submit" :loading="pending" :disabled="!hydrated || pending" data-testid="my-task-form-submit">
         {{ t('myTasks.form.submit') }}
       </UButton>
-    </div>
+    </SharedFormActions>
   </form>
 </template>

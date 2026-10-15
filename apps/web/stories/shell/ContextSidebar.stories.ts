@@ -22,11 +22,13 @@ const render = (titleKey: string) => (args: Story['args']) => ({
   template: `<div class="nasq-shell min-h-svh"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div>`,
 })
 
-export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:37'), render: render('nav.projects') }
+export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:47'), render: render('nav.projects') }
 export const WithSections: Story = {
   name: 'أقسام بعناوين',
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:37'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:47'),
   args: { createLinks: sectionedSidebar.createLinks, sections: sectionedSidebar.sections, counts: {} },
   render: render('nav.settings'),
 }
 export const Collapsed: Story = { ...Projects, name: 'مطوية', args: { expanded: false } }
+
+export const AutomaticTablet: Story = { ...Projects, name: 'طي تلقائي على التابلت', args: { preference: 'auto', expanded: false } }

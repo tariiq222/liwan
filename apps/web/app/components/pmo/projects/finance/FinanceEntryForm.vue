@@ -294,9 +294,9 @@ async function saveOnLatest() {
       </template>
     </UAlert>
 
-    <div class="flex flex-wrap gap-2 justify-end">
+    <SharedFormActions class="flex flex-wrap gap-2 justify-end">
       <UButton type="button" color="neutral" :disabled="pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :loading="pending" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</UButton>
-    </div>
+    </SharedFormActions>
   </form>
 </template>

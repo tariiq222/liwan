@@ -1,10 +1,10 @@
 {
   "tasks": {
-    "title": "My tasks",
+    "title": "Assigned project tasks",
     "description": "Track assigned tasks, status, and deadlines in one place.",
     "table": "Table",
     "board": "Board",
-    "new": "New task",
+    "new": "New project task",
     "created": "Task created",
     "loading": "Loading tasks…",
     "invalidId": "The project ID is invalid",

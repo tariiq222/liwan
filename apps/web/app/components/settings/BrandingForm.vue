@@ -138,7 +138,7 @@ onBeforeUnmount(() => update.reset())
       </div>
       <UAlert v-if="chartsNotDistinct" color="warning" :title="t('settings.branding.chartsNotDistinct')" />
       <UAlert v-if="validationError" role="alert" color="error" variant="subtle" :title="validationError" />
-      <div class="nasq-form-footer">
+      <SharedFormActions >
         <UButton type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
           {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
         </UButton>
@@ -148,7 +148,7 @@ onBeforeUnmount(() => update.reset())
         <UButton type="button" color="neutral" variant="outline" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
           {{ t('settings.branding.resetDefault') }}
         </UButton>
-      </div>
+      </SharedFormActions>
     </form>
 
     <BrandingPreview :name="previewName" :color="previewColor" :logo-url="previewLogo" />

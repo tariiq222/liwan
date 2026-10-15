@@ -123,11 +123,12 @@ function clearFilters() {
   search.value = ''
   update({ q: '', scope: 'all' })
 }
-// The list URL as it will be once the debounced search lands: personal rows carry it as their `returnTo`.
+// The list URL as it will be once the debounced search lands: every row carries it as its `returnTo`.
 const liveListPath = computed(() => router.resolve({ path: '/my-tasks', query: listPatch(route.query, { q: search.value.trim() }), hash: route.hash }).fullPath)
-const rowTo = (task: (typeof items.value)[number]) => task.source === 'project'
-  ? task.href
-  : { path: `/my-tasks/${task.id}`, query: { returnTo: liveListPath.value } }
+const rowTo = (task: (typeof items.value)[number]) => ({
+  path: task.source === 'project' ? task.href : `/my-tasks/${task.id}`,
+  query: { returnTo: liveListPath.value },
+})
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'name', header: t('tasks.columns.title') },
   { id: 'state', header: t('tasks.columns.state') },

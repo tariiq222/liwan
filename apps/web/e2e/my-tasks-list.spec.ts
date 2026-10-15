@@ -174,7 +174,7 @@ test('a project row links to its href and a personal row to its detail page', as
   await mockList(page, fixtureList)
   await open(page, '/my-tasks')
   const project = page.locator('tbody').getByRole('link', { name: 'مراجعة العقد' })
-  await expect(project).toHaveAttribute('href', '/projects/7/tasks/42')
+  await expect(project).toHaveAttribute('href', '/projects/7/tasks/42?returnTo=/my-tasks')
   await expect(rows(page).filter({ hasText: 'مشروع الأفق' })).toHaveCount(1)
   const personalLink = page.locator('tbody').getByRole('link', { name: 'ترتيب ملفات الأرشيف' })
   await expect(personalLink).toHaveAttribute('href', /^\/my-tasks\/102\?returnTo=/)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import TaskDetailPage from '@/components/pmo/tasks/TaskDetailPage.vue'
 import { projectTaskParams } from '@/composables/projectTaskParams'
 
@@ -12,14 +13,8 @@ const router = useRouter()
 const projectId = computed(() => toPositiveInt(route.params.id))
 const taskId = computed(() => toPositiveInt(route.params.taskId))
 const siblingParams = computed(() => projectTaskParams(projectId.value ?? 0, route.query))
-// The section is part of the path, so a project task returns to that project's
-// own task list with the state it was opened from still applied. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest on
-// every round trip and send that page's "back to projects" button elsewhere.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listState } = route.query
-  return { path: `/projects/${projectId.value}/tasks`, query: listState }
-})
+const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/tasks`])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 
 // A non-numeric project or task id (e.g. /projects/1/tasks/abc) has nothing to
 // render; bounce to the task list instead of leaving a broken detail page.

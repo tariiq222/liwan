@@ -1,7 +1,7 @@
 {
   "myTasks": {
     "title": "My tasks",
-    "new": "New task",
+    "new": "New personal task",
     "created": "Task created",
     "list": {
       "tabs": {
@@ -36,7 +36,7 @@
       "loadError": "Could not load more tasks. Try again."
     },
     "form": {
-      "createTitle": "New task",
+      "createTitle": "New personal task",
       "name": "Task title",
       "namePlaceholder": "What needs to get done?",
       "description": "Description",
