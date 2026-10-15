@@ -1,3 +1,4 @@
+import { ApiError } from '../composables/useApi'
 import type {
   BudgetState,
   ProjectCharterState,
@@ -507,4 +508,17 @@ export function charterPatchBody(
     }
   }
   return patch
+}
+
+// What a manager's save leads to: an approved charter that the server reopened
+// to a draft is not resubmitted on its own; a plain draft goes on to submit.
+export function charterAfterSave(wasApproved: boolean, savedState: ProjectCharterState): 'submit' | 'saved' | 'reopened' {
+  if (!wasApproved) return savedState === 'draft' ? 'submit' : 'saved'
+  return savedState === 'draft' ? 'reopened' : 'saved'
+}
+
+// Why the submit step failed, in words for the manager.
+export function submitFailureReason(e: unknown, t: (key: string) => string): string {
+  if (!(e instanceof ApiError)) return t('errors.generic')
+  return e.code === 'charter_state' ? t('projects.charter.lockedWhileSubmitted') : e.message
 }

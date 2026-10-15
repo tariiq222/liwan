@@ -630,7 +630,7 @@
         },
         {
           "name": "saved",
-          "payload": "[outcome: \"approved\" | \"saved\" | \"submitted\"]"
+          "payload": "[outcome: \"approved\" | \"saved\" | \"submitted\" | \"reopened\"]"
         },
         {
           "name": "created",
@@ -638,7 +638,7 @@
         },
         {
           "name": "drafted",
-          "payload": "[id: number, step: \"scope\" | \"basics\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\" | \"review\"]"
+          "payload": "[id: number, step: \"scope\" | \"basics\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\" | \"review\", reason?: string | undefined]"
         },
         {
           "name": "draftSaved",

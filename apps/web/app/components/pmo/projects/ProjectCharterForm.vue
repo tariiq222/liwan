@@ -6,6 +6,8 @@ import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
 import type { CharterDraft, CharterFieldError, CharterFieldKey, CharterMilestone, NativeDateSnapshot } from '@/utils/projectCharter'
 import {
   canOverwriteWithLatest,
+  charterAfterSave,
+  submitFailureReason,
   charterCreateBody,
   charterErrorsForFields,
   draftFromProject,
@@ -43,10 +45,10 @@ const emit = defineEmits<{
   created: [id: number]
   // A create-mode draft save: the project now exists, and the caller moves
   // the walker to its charter page at the same step.
-  drafted: [id: number, step: CharterWizardStep]
+  drafted: [id: number, step: CharterWizardStep, reason?: string]
   draftSaved: []
   // What the save did: kept the charter as is, approved it, or sent it to the sponsor.
-  saved: [outcome: 'saved' | 'approved' | 'submitted']
+  saved: [outcome: 'saved' | 'approved' | 'submitted' | 'reopened']
   cancel: []
   retryMilestones: []
 }>()
@@ -303,14 +305,15 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
         await transition({ id: created.id, action: 'submit', expected: created.updated_at })
       }
       catch (e) {
-        // The project exists as a draft: continue on its charter page.
-        emit('drafted', created.id, step.value)
+        // The project exists as a draft: continue on its charter page and say why it was not submitted.
+        emit('drafted', created.id, step.value, submitFailureReason(e, t))
         return
       }
       emit('created', created.id)
       return
     }
     if (!props.project || !token) return
+    const wasApproved = baselineApproved.value
     const detail = await updateProject({
       id: props.project.id,
       patch: charterPatchBody(preserved, token, originalDates.value),
@@ -322,8 +325,9 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
       emit('draftSaved')
       return
     }
-    if (baselineApproved.value || detail.charter.state !== 'draft') {
-      emit('saved', 'saved')
+    const afterSave = charterAfterSave(wasApproved, detail.charter.state)
+    if (afterSave !== 'submit') {
+      emit('saved', afterSave)
       return
     }
     try {
@@ -333,9 +337,7 @@ async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'su
     }
     catch (e) {
       // The content save already succeeded; only the submit step failed.
-      error.value = e instanceof ApiError
-        ? `${t('projects.charter.savedNotSubmitted')} ${e.code === 'charter_state' ? t('projects.charter.lockedWhileSubmitted') : e.message}`
-        : t('errors.generic')
+      error.value = `${t('projects.charter.savedNotSubmitted')} ${submitFailureReason(e, t)}`
     }
   }
   catch (e) {

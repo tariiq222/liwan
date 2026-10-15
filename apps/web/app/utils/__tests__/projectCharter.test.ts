@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ApiError } from '../../composables/useApi'
 import type { ProjectDetail } from '@nasq/contracts'
 import {
   CHARTER_FIELD_KEYS,
@@ -9,6 +10,8 @@ import {
   createdProjectLocation,
   draftFromProject,
   draftedProjectLocation,
+  charterAfterSave,
+  submitFailureReason,
   emptyCharterDraft,
   hasCharterWriteContent,
   isCharterDraftDirty,
@@ -354,5 +357,21 @@ describe('charter state on the wire', () => {
       path: '/projects/9/charter',
       query: { returnTo: '/projects?q=x', edit: '1', step: 'scope' },
     })
+  })
+})
+
+describe('charter submit decisions', () => {
+  it('never resubmits an approved charter the server reopened', () => {
+    expect(charterAfterSave(true, 'draft')).toBe('reopened')
+    expect(charterAfterSave(true, 'approved')).toBe('saved')
+    expect(charterAfterSave(false, 'draft')).toBe('submit')
+    expect(charterAfterSave(false, 'submitted')).toBe('saved')
+  })
+
+  it('explains why a submit failed', () => {
+    const t = (key: string) => key
+    expect(submitFailureReason(new ApiError(422, 'invalid', 'Sponsor needed', 'sponsor_id'), t)).toBe('Sponsor needed')
+    expect(submitFailureReason(new ApiError(409, 'charter_state', 'x'), t)).toBe('projects.charter.lockedWhileSubmitted')
+    expect(submitFailureReason(new Error('boom'), t)).toBe('errors.generic')
   })
 })
