@@ -20,7 +20,7 @@ let tls: { key: Buffer; cert: Buffer }
 let dir = ''
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'effect-test-'))
-  execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=effect-worker', '-addext', 'subjectAltName=DNS:effect-worker',
+  execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=effect-worker', '-addext', 'subjectAltName=DNS:effect-worker,IP:127.0.0.1',
     '-keyout', join(dir, 'k.pem'), '-out', join(dir, 'c.pem')], { stdio: 'ignore' })
   tls = { key: readFileSync(join(dir, 'k.pem')), cert: readFileSync(join(dir, 'c.pem')) }
   return () => rmSync(dir, { recursive: true, force: true })

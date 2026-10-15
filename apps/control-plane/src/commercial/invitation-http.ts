@@ -16,7 +16,7 @@ const INVITATION_ERRORS: Record<string, [string, number]> = {
   busy: ['in_progress', 409],
 }
 
-/** Public: POST /v1/invitations/accept {token,password}. No vendor auth. All failures are one generic 400 (no token oracle). Caller should rate-limit by IP. Returns null when route does not match. */
+/** Public: POST /v1/invitations/accept {token,password}. No vendor auth. An unknown, expired or used token is one generic 400 (no token oracle); only a valid token can reach the 409/422/503 effect outcomes. Caller should rate-limit by IP. Returns null when route does not match. */
 export async function invitationPublicHttp(pool: Pool, i: { method: string; pathname: string; raw: string; setPassword?: SetPassword }) {
   if (i.pathname !== '/v1/invitations/accept') return null
   if (i.method !== 'POST') throw new CommercialHttpError('not_found', 404)

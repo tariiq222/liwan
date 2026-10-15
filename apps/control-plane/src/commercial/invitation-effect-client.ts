@@ -18,7 +18,7 @@ export function internalEffectPasswordAdapter(cfg: { url: string; key: string; c
       let settled = false
       const done = (fn: () => void) => { if (settled) return; settled = true; clearTimeout(timer); fn() }
       const req = httpsRequest({
-        hostname: target.hostname, port: target.port || 443, path: EFFECT_PATH, method: 'POST', ca: cfg.ca, servername: 'effect-worker',
+        hostname: target.hostname, port: target.port || 443, path: EFFECT_PATH, method: 'POST', ca: cfg.ca,
         headers: { ...headers, 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) },
       }, res => {
         const chunks: Buffer[] = []
