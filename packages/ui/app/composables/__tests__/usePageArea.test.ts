@@ -13,12 +13,12 @@ async function classify(path: string, provided?: PageAreaClassifier) {
 
 describe('usePageArea', () => {
   it('classifies every path as a neutral workspace page until the app provides a classifier', async () => {
-    expect(await classify('/login')).toEqual({ plain: false, area: false, record: false })
+    expect(await classify('/login')).toEqual({ plain: false, record: false })
   })
 
   it('uses the classifier the app provides', async () => {
-    const provided: PageAreaClassifier = path => ({ plain: path === '/login', area: path.startsWith('/a'), record: path === '/a/1' })
-    expect(await classify('/login', provided)).toEqual({ plain: true, area: false, record: false })
-    expect(await classify('/a/1', provided)).toEqual({ plain: false, area: true, record: true })
+    const provided: PageAreaClassifier = path => ({ plain: path === '/login', record: path === '/a/1' })
+    expect(await classify('/login', provided)).toEqual({ plain: true, record: false })
+    expect(await classify('/a/1', provided)).toEqual({ plain: false, record: true })
   })
 })

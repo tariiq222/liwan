@@ -8,7 +8,7 @@ const options: SharedRenderOptions = {
   modules: { '../../../utils/errorState': errorState },
   globals: {
     useRoute: () => ({ path: '/projects/1', query: {} }),
-    usePageArea: () => () => ({ plain: false, area: false, record: false }),
+    usePageArea: () => () => ({ plain: false, record: false }),
     usePageHeader: () => undefined,
     useEscapeBack: () => undefined,
     useFrameOwnsHeading: () => Vue.ref(false),

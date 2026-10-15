@@ -16,7 +16,7 @@ function options(query: Record<string, string> = {}, patch: SharedRenderOptions 
     modules: { '../../../utils/listView': listView },
     globals: {
       useRoute: () => ({ path: '/tasks', query }),
-      usePageArea: () => () => ({ plain: false, area: false, record: false }),
+      usePageArea: () => () => ({ plain: false, record: false }),
       useRouter: () => ({ replace: vi.fn() }),
       usePageHeader: () => undefined,
       useEscapeBack: () => undefined,

@@ -1,10 +1,10 @@
 import { inject, provide, type InjectionKey } from 'vue'
 
-/** How the layout frames a path: `plain` keeps its own frame (no workspace spacing), `area` marks a section of the app, `record` a single record inside it. */
-export interface PageArea { plain: boolean; area: boolean; record: boolean }
+/** How the layout frames a path: `plain` keeps its own frame (no workspace spacing), `record` marks a single record inside a section. */
+export interface PageArea { plain: boolean; record: boolean }
 export type PageAreaClassifier = (path: string) => PageArea
 
-const NEUTRAL: PageArea = { plain: false, area: false, record: false }
+const NEUTRAL: PageArea = { plain: false, record: false }
 const PAGE_AREA: InjectionKey<PageAreaClassifier> = Symbol('page-area')
 
 /** Called once by the consuming app's root component; the layer knows no routes. */

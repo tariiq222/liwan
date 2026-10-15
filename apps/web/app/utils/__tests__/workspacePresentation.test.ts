@@ -17,11 +17,11 @@ describe('workspacePresentation', () => {
     }
   })
 
-  it('marks project sections and project records', () => {
-    expect(presentation.pageArea('/projects')).toEqual({ plain: false, area: true, record: false })
-    expect(presentation.pageArea('/settings/projects/catalogs')).toEqual({ plain: false, area: true, record: false })
-    expect(presentation.pageArea('/projects/7/tasks')).toEqual({ plain: false, area: true, record: true })
-    expect(presentation.pageArea('/projects/dashboard')).toEqual({ plain: false, area: true, record: false })
-    expect(presentation.pageArea('/tasks/7')).toEqual({ plain: false, area: false, record: false })
+  it('marks project records', () => {
+    expect(presentation.pageArea('/projects')).toEqual({ plain: false, record: false })
+    expect(presentation.pageArea('/settings/projects/catalogs')).toEqual({ plain: false, record: false })
+    expect(presentation.pageArea('/projects/7/tasks')).toEqual({ plain: false, record: true })
+    expect(presentation.pageArea('/projects/dashboard')).toEqual({ plain: false, record: false })
+    expect(presentation.pageArea('/tasks/7')).toEqual({ plain: false, record: false })
   })
 })

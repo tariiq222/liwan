@@ -16,7 +16,6 @@ const workspaceArea = computed(() => !pageArea.value.plain)
   <div
     data-slot="page-container"
     :data-layout-width="props.width"
-    :data-page-area="pageArea.area || undefined"
     :data-workspace-area="workspaceArea || undefined"
     :data-page-record="pageArea.record || undefined"
     :class="['nasq-page-stack', widthClass]"
