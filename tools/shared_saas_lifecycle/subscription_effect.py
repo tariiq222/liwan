@@ -207,6 +207,8 @@ try:
     if not_granted:
         result.update({'roles_not_granted': True, 'roles_not_granted_reason': not_granted})
     env.cr.commit()
+    # odoo shell never signals cache invalidation; the running workers must drop cached groups and policy.
+    env.registry.signal_changes()
 except Refusal as exc:
     result = {'error_code': str(exc)}
     env.cr.rollback()
