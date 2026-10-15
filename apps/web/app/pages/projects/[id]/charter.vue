@@ -3,6 +3,7 @@ import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones } from '@/composables/useMilestones'
 import ProjectCharterForm from '@/components/pmo/projects/ProjectCharterForm.vue'
+import CharterApprovalPanel from '@/components/pmo/projects/CharterApprovalPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,15 +53,15 @@ function onCancel() {
   <SharedStandalonePage v-if="readonly" variant="print" width="list">
     <!-- The "Project charter" sub-tab already names this page (DESIGN 4): the state and the edit action live in the essentials panel header. -->
     <SharedPageHeader class="nasq-print-hide" hide-title :title="t('projects.charter.title')" />
-    <UAlert v-if="isDraft && project" class="nasq-print-hide" data-testid="charter-draft-banner" color="warning" variant="subtle" icon="i-lucide-pencil-line" :title="t('projects.charter.draftBanner')" />
+    <CharterApprovalPanel v-if="project" :project="project" />
     <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
     <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
       <ProjectCharterForm mode="edit" :project="project" readonly :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @retry-milestones="refetchMilestones">
         <template #state>
-          <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
+          <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : charterState === 'submitted' ? 'info' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
         </template>
         <template #actions>
-          <UButton v-if="project?.can_manage" data-testid="project-charter-edit" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t(isDraft ? 'projects.charter.continueDraft' : 'app.edit') }}</UButton>
+          <UButton v-if="project?.can_manage && charterState !== 'submitted'" data-testid="project-charter-edit" :disabled="!hydrated" @click="router.push({ path: route.path, query: { ...route.query, edit: '1' } })">{{ t(isDraft ? 'projects.charter.continueDraft' : 'app.edit') }}</UButton>
         </template>
       </ProjectCharterForm>
     </SharedPageState>
@@ -68,7 +69,7 @@ function onCancel() {
   <SharedPageContainer v-else width="form">
     <SharedPageHeader :title="t('projects.clarity.editCharter')">
       <template #actions>
-        <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
+        <SharedStatusBadge v-if="charterState" data-testid="charter-state-badge" :tone="isDraft ? 'warning' : charterState === 'submitted' ? 'info' : 'success'" :label="t(`projects.charter.state.${charterState}`)" :aria-label="`${t('projects.charter.stateLabel')}: ${t(`projects.charter.state.${charterState}`)}`" />
       </template>
     </SharedPageHeader>
     <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
