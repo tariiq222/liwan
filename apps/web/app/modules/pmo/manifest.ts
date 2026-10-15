@@ -41,7 +41,7 @@ const manifest: AppManifest = {
     { pattern: /^\/projects\/new$/, capability: 'pmo.projects.create' },
   ],
   bell: {
-    capabilities: ['pmo.tasks.read'],
+    capabilities: ['pmo.tasks.read', 'pmo.projects.read'],
     kinds: [
       ...TaskNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/tasks/${row.task_id}`, title: (row: Record<string, unknown>) => String(row.task_name) })),
       ...ProjectNotificationKindSchema.options.map(kind => ({ kind, href: (row: Record<string, unknown>) => `/projects/${row.project_id}/charter`, title: (row: Record<string, unknown>) => String(row.project_name) })),

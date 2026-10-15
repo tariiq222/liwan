@@ -182,7 +182,7 @@ async function retryNextPage() {
                 </span>
               </span>
               <span v-if="itemTitle(item)" class="font-medium">{{ itemTitle(item) }}</span>
-              <span v-if="item.kind === 'comment' || item.kind === 'mention'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+              <span v-if="isUserWrittenNotificationKind(item.kind)" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
               <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
               <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
             </UButton>
