@@ -1,4 +1,4 @@
-// Relative import: this module is unit-tested directly under plain vitest.
+// Plain import by package path, no Nuxt alias: this module is unit-tested directly under plain vitest.
 import { plainShortcutBlocked, shortcutKey, type ShortcutKeyEvent } from '@nasq/ui/app/composables/shortcuts/keymap'
 
 export type SidebarShortcutEvent = ShortcutKeyEvent
