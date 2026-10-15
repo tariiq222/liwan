@@ -34,6 +34,11 @@ class TestCheckFast(unittest.TestCase):
         extra = set(names(['apps/web/app/a.vue'])) - set(names([]))
         self.assertEqual(extra, WEB_EXTRA)
 
+    def test_ui_layer_change_adds_layer_tests_and_web_checks(self):
+        self.assertEqual(extra(['packages/ui/app/a.vue']), {'ui_layer_test'} | WEB_EXTRA)
+        self.assertEqual(dict(plan(['packages/ui/app/a.vue'], 'main'))['ui_layer_test'], ['npm', '-w', 'packages/ui', 'run', 'test'])
+        self.assertNotIn('ui_layer_test', extra(['apps/web/app/a.vue']))
+
     def test_contracts_change_adds_contracts_and_web(self):
         extra = set(names(['packages/contracts/src/hr/a.ts'])) - set(names([]))
         self.assertEqual(extra, {'contracts_test'} | WEB_EXTRA)
