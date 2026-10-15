@@ -562,6 +562,10 @@ class ProjectProject(models.Model):
         anchor = source.date_start
         if not anchor:
             candidates = [task.nasq_planned_start for task in tasks if task.nasq_planned_start]
+            candidates += [
+                task.date_deadline.date() for task in tasks
+                if task.date_deadline and not task.nasq_planned_start
+            ]
             candidates += [milestone.deadline for milestone in milestones if milestone.deadline]
             anchor = min(candidates) if candidates else None
         delta = start - anchor if anchor else None
@@ -605,7 +609,7 @@ class ProjectProject(models.Model):
                     ).id
                 task_map = {}
                 for task in tasks:
-                    new_task = env['project.task']._nasq_create_for_copy(project, {
+                    values = {
                         'name': task.name,
                         'description': task.description,
                         'project_id': project.id,
@@ -615,13 +619,19 @@ class ProjectProject(models.Model):
                         'state': '01_in_progress',
                         'user_ids': [(6, 0, [])],
                         'parent_id': False,
-                    })
+                    }
+                    if task.date_deadline and not task.nasq_planned_start and delta is not None:
+                        # Deadline-only task: no schedule pair, so the deadline
+                        # is an ordinary whitelisted create field.
+                        values['date_deadline'] = shifted(task.date_deadline)
+                    new_task = env['project.task']._nasq_create_for_copy(project, values)
                     if task.nasq_planned_start and task.date_deadline and delta is not None:
                         new_task._nasq_set_schedule(
                             shifted(task.nasq_planned_start), shifted(task.date_deadline.date()),
                         )
                     task_map[task.id] = new_task
-                for task in tasks:
+                # Stock keeps links when the toggle is turned off; do not copy them.
+                for task in (tasks if source.allow_task_dependencies else tasks.browse()):
                     dependencies = [
                         task_map[dependency.id].id for dependency in task.depend_on_ids
                         if dependency.id in task_map

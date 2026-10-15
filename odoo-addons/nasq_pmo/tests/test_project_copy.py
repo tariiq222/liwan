@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError, ValidationError
@@ -172,6 +172,55 @@ class TestProjectCopy(NasqPmoCase):
         self.assertEqual(new_task.nasq_planned_start, date(2031, 1, 3))
         self.assertEqual(new_task.date_deadline.date(), date(2031, 1, 5))
         self.assertFalse(copy.date)
+
+    def test_deadline_only_task_deadline_is_shifted(self):
+        task = self.env['project.task'].create({
+            'name': 'Deadline only', 'project_id': self.source.id,
+            'date_deadline': datetime(2030, 1, 12, 9, 30),
+        })
+        copy = self._copy(name='Deadline copy')
+        new_task = self.env['project.task'].search([
+            ('project_id', '=', copy.id), ('name', '=', 'Deadline only'),
+        ])
+        self.assertFalse(new_task.nasq_planned_start)
+        self.assertEqual(new_task.date_deadline, datetime(2030, 3, 12, 9, 30))
+        task.unlink()
+
+    def test_anchor_uses_earliest_deadline_when_nothing_else_is_dated(self):
+        self.env['nasq.pmo.settings'].set_values({'require_end_date_on_create': False})
+        undated = self.env['project.project'].create({
+            'name': 'Deadline anchor', 'user_id': self.manager.id, 'company_id': self.env.company.id,
+            'privacy_visibility': 'employees',
+        })
+        Task = self.env['project.task']
+        Task.create({'name': 'Late', 'project_id': undated.id, 'date_deadline': datetime(2030, 5, 20, 8, 0)})
+        Task.create({'name': 'Early', 'project_id': undated.id, 'date_deadline': datetime(2030, 5, 10, 8, 0)})
+        copy = self._copy(source=undated, name='Deadline anchor copy', start='2031-01-01')
+        deadlines = {
+            task.name: task.date_deadline
+            for task in Task.search([('project_id', '=', copy.id)])
+        }
+        self.assertEqual(deadlines, {
+            'Early': datetime(2031, 1, 1, 8, 0), 'Late': datetime(2031, 1, 11, 8, 0),
+        })
+
+    def test_copy_succeeds_when_dependencies_were_disabled_afterwards(self):
+        project = self.env['project.project'].create({
+            'name': 'Deps off', 'user_id': self.manager.id, 'company_id': self.env.company.id,
+            'privacy_visibility': 'employees', 'allow_task_dependencies': True,
+            'date_start': date(2030, 1, 1), 'date': date(2030, 1, 31),
+        })
+        Task = self.env['project.task']
+        one = Task.create({'name': 'One', 'project_id': project.id})
+        two = Task.create({'name': 'Two', 'project_id': project.id})
+        two.with_user(self.manager)._nasq_set_dependencies([one.id])
+        project.write({'allow_task_dependencies': False})
+        self.assertEqual(two.depend_on_ids, one)
+        copy = self._copy(source=project, name='Deps off copy')
+        self.assertFalse(copy.allow_task_dependencies)
+        copied = Task.search([('project_id', '=', copy.id)])
+        self.assertEqual(len(copied), 2)
+        self.assertFalse(copied.depend_on_ids)
 
     def test_undated_source_copies_without_dates(self):
         self.env['nasq.pmo.settings'].set_values({'require_end_date_on_create': False})
