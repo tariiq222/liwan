@@ -7,6 +7,8 @@ import ts from 'typescript'
 import { computed, nextTick, ref, watch } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { createMeetingMinutesForm, validateMeetingMinutesForm } from '../../utils/meetingMinutesForm'
+import { parsePositiveId } from '../../utils/routeParams'
+import { ApiError } from '../../composables/useApi'
 
 const page = (relativePath: string) => resolve('app/pages/meetings', relativePath)
 const source = (relativePath: string) => readFileSync(page(relativePath), 'utf8')
@@ -34,9 +36,9 @@ function evaluatedDetailPage() {
   const runResolution = vi.fn(() => pendingRequest)
   const scope = {
     ...recordNavigation,
-    meetingTabFromRoute, meetingTabQuery, isMeetingTab,
-    onMounted: () => {}, onBeforeUnmount: () => {}, // DOM scrolling is covered by the browser suite.
-
+    onBeforeUnmount: () => {},
+    defineProps: () => ({ meeting: meeting.value, meetingId: 7 }),
+    defineEmits: () => vi.fn(),
     ref,
     computed,
     watch,
@@ -48,26 +50,18 @@ function evaluatedDetailPage() {
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useAccess: () => ({ can: () => true }),
-    useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
-    useMeetingEvents: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
-    useMeetingVersions: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
-    useMeetingAttachments: () => ({ data: ref({ items: [] }), isLoading: ref(false), isFetching: ref(false), error: ref(null), refetch: vi.fn() }),
     useResolutionAction: () => ({ mutateAsync: runResolution }),
-    useMeetingAction: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
-    useUploadMeetingAttachment: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
-    useDeleteMeetingAttachment: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
     useConvertResolution: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
     useProjects: () => ({ data: ref([]), isLoading: ref(false), isFetching: ref(false), error: ref(null) }),
     safeReturnTo: (_value: unknown, fallback: string) => fallback,
     returnToQuery: () => ({}),
-    formatLocalDateTime: (value: string | null) => value || '',
     filterMeetingResolutions: (items: unknown[]) => items,
     resolutionActions: () => ['start', 'complete', 'cancel', 'reopen'],
     ApiError: class ApiError extends Error {},
     navigateTo: vi.fn(),
     useToast: () => ({ add: vi.fn() }),
   }
-  const scriptSource = parse(source('[id].vue')).descriptor.scriptSetup!.content
+  const scriptSource = parse(source('../../components/meetings/MeetingResolutionsTab.vue')).descriptor.scriptSetup!.content
   const scriptFile = ts.createSourceFile('meeting-detail.ts', scriptSource, ts.ScriptTarget.Latest, true)
   const script = scriptFile.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(scriptFile)).join('\n').replaceAll('import.meta.client', 'false')
   const js = ts.transpileModule(script, {
@@ -119,6 +113,8 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
     watch,
     nextTick,
     useRoute: () => route,
+    parsePositiveId,
+    ApiError,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
@@ -144,6 +140,8 @@ function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<stri
     watch,
     nextTick,
     useRoute: () => route,
+    parsePositiveId,
+    ApiError,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
@@ -183,6 +181,8 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     watch,
     nextTick,
     useRoute: () => route,
+    parsePositiveId,
+    ApiError,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.

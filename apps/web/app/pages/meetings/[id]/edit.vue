@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { owningListBack, recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import type { MeetingPatch } from '@nasq/contracts'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload, localDateFromUtc, localTimeFromUtc } from '@/utils/meetingDateTime'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
+import { parsePositiveId } from '@/utils/routeParams'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
+import { ApiError } from '@/composables/useApi'
 
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const id = computed(() => Number(route.params.id))
+const id = computed(() => parsePositiveId(route.params.id))
 const query = useMeeting(id)
+// An id that is not a canonical positive integer has no record to load and shows the same not-found state as an unknown id.
+const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const { mutateAsync, isPending, error, reset } = usePatchMeeting()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => id.value === null ? owningListBack(route.query, MEETING_LIST_PATHS, route.hash) : recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
 const name = ref('')
 const meetingDate = ref('')
 const start = ref('')
@@ -101,7 +105,7 @@ const known = computed(() => {
 })
 
 async function save() {
-  if (!hydrated.value || isPending.value || !canEdit.value || Object.keys(formErrors.value).length) return
+  if (id.value === null || !hydrated.value || isPending.value || !canEdit.value || Object.keys(formErrors.value).length) return
   const body: MeetingPatch = {
     name: name.value.trim(),
     location: location.value,
@@ -125,7 +129,7 @@ async function save() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
+    <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.editForbidden')" />
@@ -174,7 +178,7 @@ async function save() {
       </SharedFormSection>
       <SharedFormSection :title="t('meetingsUi.agenda')">
         <ClientOnly>
-          <DescriptionEditor :model-value="agenda" :task-id="id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending || !canEdit" @draft="agenda = $event.html" />
+          <DescriptionEditor :model-value="agenda" :task-id="query.data.value.id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending || !canEdit" @draft="agenda = $event.html" />
         </ClientOnly>
       </SharedFormSection>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />

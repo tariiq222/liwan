@@ -1,20 +1,24 @@
 <script setup lang="ts">
-import { recordParentTo, recordSiblingTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { owningListBack, recordParentTo, recordSiblingTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import MeetingMinutesForm from '@/components/meetings/MeetingMinutesForm.vue'
 import { createMeetingMinutesForm, type MeetingMinutesFormValue, type MeetingMinutesSnapshotLike, validateMeetingMinutesForm } from '@/utils/meetingMinutesForm'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
+import { parsePositiveId } from '@/utils/routeParams'
+import { ApiError } from '@/composables/useApi'
 
 const route = useRoute()
 const { t } = useI18n()
 const hydrated = useHydrated()
-const id = computed(() => Number(route.params.id))
+const id = computed(() => parsePositiveId(route.params.id))
 const query = useMeeting(id)
+// An id that is not a canonical positive integer has no record to load and shows the same not-found state as an unknown id.
+const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const { mutateAsync, isPending, error, reset } = usePatchMeeting()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => id.value === null ? owningListBack(route.query, MEETING_LIST_PATHS, route.hash) : recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
 const agenda = ref('')
 const minutes = ref('')
 const minutesForm = ref<MeetingMinutesFormValue>(createMeetingMinutesForm())
@@ -60,7 +64,7 @@ const readonlyForm = computed(() => readonlySnapshot.value ? readonlySnapshot.va
 const readonlyRecommendations = computed(() => readonlySnapshot.value?.resolutions ?? query.data.value?.resolutions ?? [])
 
 async function save(navigateToRecommendation = false) {
-  if (!hydrated.value || isPending.value || !canPersist.value || (!navigateToRecommendation && !dirty.value)) return
+  if (id.value === null || !hydrated.value || isPending.value || !canPersist.value || (!navigateToRecommendation && !dirty.value)) return
   const body = {
     agenda: agenda.value,
     minutes: minutes.value,
@@ -86,7 +90,7 @@ function createRecommendation() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
+    <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
         <p class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
@@ -118,13 +122,13 @@ function createRecommendation() {
         </UFormField>
         <SharedFormSection :title="t('meetingsUi.agenda')">
           <ClientOnly>
-            <DescriptionEditor :model-value="agenda" :task-id="id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="agenda = $event.html" />
+            <DescriptionEditor :model-value="agenda" :task-id="query.data.value.id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="agenda = $event.html" />
           </ClientOnly>
         </SharedFormSection>
         <SharedFormSection :title="t('meetingsUi.minutes')">
           <UFormField name="minutes" :error="serverErrors.minutes">
             <ClientOnly>
-              <DescriptionEditor :model-value="minutes" :task-id="-id" :aria-label="t('meetingsUx.minutesLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" />
+              <DescriptionEditor :model-value="minutes" :task-id="-query.data.value.id" :aria-label="t('meetingsUx.minutesLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" />
             </ClientOnly>
           </UFormField>
         </SharedFormSection>
