@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const vendorCapabilitySchema = z.enum(['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.billing.manage'])
+export const vendorCapabilitySchema = z.enum(['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.billing.manage', 'vendor.accounts.manage'])
 export type VendorCapability = z.infer<typeof vendorCapabilitySchema>
 export const commercialModeSchema = z.enum(['saas', 'non_saas'])
 export const hostingModelSchema = z.enum(['managed', 'customer_hosted'])

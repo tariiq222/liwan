@@ -181,14 +181,15 @@ export async function resolveTargetLane(config: Config, targetId: string, commer
 
 async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: Config): Promise<{ actor: number; capabilities: VendorCapability[] }> {
   const signed = verifyServiceRequest({ method: req.method ?? '', path: req.url ?? '', body: raw, key: config.key, headers: req.headers })
-  if (!signed || signed.issuer !== config.installationId) throw new ApiError(401, 'unauthorized', 'Invalid service assertion')
+  if (!signed || typeof signed.actor !== 'number' || signed.issuer !== config.installationId) throw new ApiError(401, 'unauthorized', 'Invalid service assertion')
+  const actor = signed.actor
   return transaction(pool, async (client) => {
     await client.query('DELETE FROM service_nonces WHERE expires_at < now()')
     const nonce = await client.query('INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval \'60 seconds\') ON CONFLICT DO NOTHING RETURNING nonce', [signed.issuer, signed.nonce])
     if (!nonce.rowCount) throw new ApiError(401, 'unauthorized', 'Replayed service assertion')
-    const membership = await client.query('SELECT capabilities FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL', [signed.issuer, signed.actor])
+    const membership = await client.query('SELECT capabilities FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL', [signed.issuer, actor])
     if (!membership.rowCount) throw new ApiError(403, 'forbidden', 'Vendor membership is not active')
-    return { actor: signed.actor, capabilities: membership.rows[0].capabilities as VendorCapability[] }
+    return { actor, capabilities: membership.rows[0].capabilities as VendorCapability[] }
   })
 }
 
