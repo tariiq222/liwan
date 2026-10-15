@@ -47,7 +47,10 @@ test.describe('touch controls', () => {
     const next = page.getByRole('button', { name: 'التالي', exact: true })
     await expect(next).toBeVisible()
     const box = (await next.boundingBox())!
-    expect(box.height).toBeGreaterThanOrEqual(44)
-    expect(box.width).toBeGreaterThanOrEqual(44)
+    const minimum = await next.evaluate(element => ({ width: getComputedStyle(element).minWidth, height: getComputedStyle(element).minHeight }))
+    expect(minimum).toEqual({ width: '44px', height: '44px' })
+    // Chromium can report a CSS 44px edge as 43.999999046px; tolerate only that rounding.
+    expect(box.height + 0.001).toBeGreaterThanOrEqual(44)
+    expect(box.width + 0.001).toBeGreaterThanOrEqual(44)
   })
 })
