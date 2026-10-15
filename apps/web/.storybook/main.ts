@@ -96,11 +96,12 @@ const config: StorybookConfig = {
   stories: ['../stories/**/*.mdx', '../stories/**/*.stories.ts'],
   addons: ['@storybook/addon-docs', '@storybook/addon-a11y', 'msw-storybook-addon'],
   framework: { name: '@storybook/vue3-vite', options: {} },
-  staticDirs: ['../public', './public'],
+  staticDirs: ['../public', '../../../packages/ui/public', './public'],
   async viteFinal(viteConfig, { configType }) {
     const { mergeConfig } = await import('vite')
-    const { default: nuxtConfig } = await import('../nuxt.config.ts') as { default: { ui: object; icon?: { clientBundle?: object }; i18n: { locales: LocaleConfig[] } } }
-    const { default: appConfig } = await import('../app/app.config.ts') as { default: { ui: object } }
+    const { default: nuxtConfig } = await import('../nuxt.config.ts') as { default: { icon?: { clientBundle?: object }; i18n: { locales: LocaleConfig[] } } }
+    const { default: layerConfig } = await import('../../../packages/ui/nuxt.config.ts') as { default: { ui: object } }
+    const { default: appConfig } = await import('../../../packages/ui/app/app.config.ts') as { default: { ui: object } }
     const ui = (await import('@nuxt/ui/vite')).default
     const vue = (await import('@vitejs/plugin-vue')).default
     const { imports, components, report } = await buildNuxtImports()
@@ -131,7 +132,7 @@ const config: StorybookConfig = {
         nuxtUiComponents(),
         importMetaEnvShim(),
         ui({
-          ...nuxtConfig.ui,
+          ...layerConfig.ui,
           ui: appConfig.ui,
           // The real @nuxt/icon Nuxt module normally derives `cssSelectorPrefix`
           // ('i-', its own default) and `collections` (from installed

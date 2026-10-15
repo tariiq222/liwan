@@ -18,8 +18,10 @@ from pathlib import Path
 
 BASELINE = 'fce4561330200947e4db88b508285fecf9bb05a5'
 APP = 'apps/web/app/'
+UI = 'packages/ui/app/'
+APP_SOURCES = (APP, UI)
 PREVIEW = 'apps/web/design-preview/app/'
-SOURCE_ROOTS = (APP, PREVIEW)
+SOURCE_ROOTS = (*APP_SOURCES, PREVIEW)
 LEGACY = APP + 'components/ui/'
 CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
@@ -83,18 +85,18 @@ DEFAULT_VUE_IMPORT = re.compile(r'''^\s*import\s+(\w+)\s+from\s+(['"])([^'"]+\.v
 SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for root in STORY_ROOTS),
          LOCALES.rstrip('/'), *MANIFESTS, CATALOG)
 THEME_OWNERS = {
-    APP + 'assets/css/main.css',
-    APP + 'assets/css/tokens.css',
-    APP + 'assets/css/components.css',
-    APP + 'assets/css/shell.css',
+    UI + 'assets/css/main.css',
+    UI + 'assets/css/tokens.css',
+    UI + 'assets/css/components.css',
+    UI + 'assets/css/shell.css',
     APP + 'utils/brandTheme.ts',
-    APP + 'app.config.ts',
+    UI + 'app.config.ts',
 }
 RETIRED_CSS = {
-    APP + 'assets/css/approved-shell.css',
-    APP + 'assets/css/project-theme.css',
-    APP + 'assets/css/nuxt-theme.css',
-    APP + 'assets/css/nuxt-shell.css',
+    UI + 'assets/css/approved-shell.css',
+    UI + 'assets/css/project-theme.css',
+    UI + 'assets/css/nuxt-theme.css',
+    UI + 'assets/css/nuxt-shell.css',
 }
 # Match actual import/export statements, side-effect imports, and dynamic
 # imports. Anchoring static imports to the start of a line prevents words such
@@ -281,7 +283,7 @@ def story_errors(current: dict[str, str]) -> list[str]:
     errors = []
     covered = set()
     for path, source in sorted(current.items()):
-        if source_file(path) and path.startswith(APP):
+        if source_file(path) and path.startswith(APP_SOURCES):
             for match in IMPORTS.finditer(COMMENTS.sub('', source)):
                 target = resolve_specifier(path, match.group(2))
                 if target and target.startswith(('apps/web/stories', 'apps/web/.storybook')):
@@ -365,7 +367,7 @@ RETIRED_PATTERN_OWNERS = {APP + 'components/shared/form/RichText.vue'}
 def retired_pattern_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or '/__tests__/' in path or path in RETIRED_PATTERN_OWNERS:
+        if not path.startswith(APP_SOURCES) or '/__tests__/' in path or path in RETIRED_PATTERN_OWNERS:
             continue
         if not path.endswith(('.vue', '.ts')):
             continue
@@ -456,7 +458,7 @@ DEFINE_SHORTCUTS = re.compile(r'\bdefineShortcuts\s*\(')
 def keyboard_layer_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')) or '/__tests__/' in path:
+        if not path.startswith(APP_SOURCES) or not path.endswith(('.vue', '.ts')) or '/__tests__/' in path:
             continue
         text = COMMENTS.sub('', source)
         if path not in OVERLAY_OWNERS and COMMAND_PALETTE_TAG.search(text):
@@ -502,30 +504,30 @@ RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radiu
 
 def theme_errors(current: dict[str, str]) -> list[str]:
     errors = []
-    config = current.get(APP + 'app.config.ts', '')
-    tokens = current.get(APP + 'assets/css/tokens.css', '')
-    components = current.get(APP + 'assets/css/components.css', '')
-    shell = current.get(APP + 'assets/css/shell.css', '')
+    config = current.get(UI + 'app.config.ts', '')
+    tokens = current.get(UI + 'assets/css/tokens.css', '')
+    components = current.get(UI + 'assets/css/components.css', '')
+    shell = current.get(UI + 'assets/css/shell.css', '')
     complete = whole_tree(current)
     if complete:
         if not BRAND_COLORS.search(config):
-            errors.append(APP + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
+            errors.append(UI + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
         for key in re.findall(r'^\s{4}([a-zA-Z]+):', config, re.M):
             if key not in ALLOWED_RECIPE_KEYS:
-                errors.append(f'{APP}app.config.ts: undocumented theme recipe key {key}')
+                errors.append(f'{UI}app.config.ts: undocumented theme recipe key {key}')
     if complete:
         for token in REQUIRED_TOKENS:
             if token not in tokens:
-                errors.append(f'{APP}assets/css/tokens.css: missing theme input {token}')
+                errors.append(f'{UI}assets/css/tokens.css: missing theme input {token}')
         if not re.search(r'--ui-radius:\s*0\.285714rem', tokens):
-            errors.append(f'{APP}assets/css/tokens.css: --ui-radius is the one official radius token (4px base: md 6px, lg 8px)')
+            errors.append(f'{UI}assets/css/tokens.css: --ui-radius is the one official radius token (4px base: md 6px, lg 8px)')
     for token in RETIRED_TOKENS:
         if token in tokens:
-            errors.append(f'{APP}assets/css/tokens.css: retired token {token}')
+            errors.append(f'{UI}assets/css/tokens.css: retired token {token}')
     if re.search(r'\.nasq-ui-|\.nasq-elevation-|data-nasq-reference-detail', components):
-        errors.append(f'{APP}assets/css/components.css: component recipes belong to Nuxt UI, not this sheet')
+        errors.append(f'{UI}assets/css/components.css: component recipes belong to Nuxt UI, not this sheet')
     if 'content-shadow' in shell:
-        errors.append(f'{APP}assets/css/shell.css: retired content-shadow')
+        errors.append(f'{UI}assets/css/shell.css: retired content-shadow')
     return errors
 
 
@@ -563,15 +565,15 @@ def page_shell_errors(current: dict[str, str]) -> list[str]:
         if AD_HOC_WIDTH.search(source):
             errors.append(path + ': ad-hoc page max-width; use the SharedPageContainer width vocabulary')
     if complete:
-        shell = current.get(APP + 'assets/css/shell.css', '')
+        shell = current.get(UI + 'assets/css/shell.css', '')
         for width in PAGE_WIDTHS:
             if not width.search(shell):
-                errors.append(f'{APP}assets/css/shell.css: missing page width rule {width.pattern}')
+                errors.append(f'{UI}assets/css/shell.css: missing page width rule {width.pattern}')
     if complete:
-        status = current.get(APP + 'assets/css/components.css', '') + current.get(APP + 'assets/css/tokens.css', '')
+        status = current.get(UI + 'assets/css/components.css', '') + current.get(UI + 'assets/css/tokens.css', '')
         for token in STATUS_TOKENS:
             if token not in status:
-                errors.append(f'{APP}assets/css: missing theme-aware status token {token}')
+                errors.append(f'{UI}assets/css: missing theme-aware status token {token}')
     return errors
 
 
@@ -585,7 +587,7 @@ SECRET_IN_URL = re.compile(r'/api/v1/[^"\'`]*password=|query:\s*\{[^}]*password'
 def secret_render_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')):
+        if not path.startswith(APP_SOURCES) or not path.endswith(('.vue', '.ts')):
             continue
         text = COMMENTS.sub('', source)
         if SECRET_RENDER.search(text) or SECRET_DIFF.search(text):
@@ -711,7 +713,7 @@ def retired_artifact_errors(current: dict[str, str]) -> list[str]:
               for path in RETIRED_FILES if path in current]
     errors.extend(path + ': retired route-sheet artifact; a record is an ordinary page'
                   for path, source in sorted(current.items())
-                  if path.startswith(APP) and path.endswith(('.vue', '.ts', '.css'))
+                  if path.startswith(APP_SOURCES) and path.endswith(('.vue', '.ts', '.css'))
                   and RETIRED_ARTIFACT.search(COMMENTS.sub('', source)))
     return errors
 
@@ -727,7 +729,7 @@ LEGACY_HR_ACCESS = re.compile(r'\buse(?:Grant|Update|Revoke)HrAccess\b')
 def hr_boundary_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')):
+        if not path.startswith(APP_SOURCES) or not path.endswith(('.vue', '.ts')):
             continue
         text = COMMENTS.sub('', source)
         if LEGACY_HR_ACCESS.search(text):
@@ -839,6 +841,8 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
         # Internal schemas and server-only signing; no visual components or UI library.
         '@nasq/commercial-contracts',
+        # Nasq's own Nuxt layer that owns the @nuxt/ui theme (the same library, not a second one).
+        '@nasq/ui',
     }
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source

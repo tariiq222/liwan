@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 
 export default {
   title: 'Nuxt UI/Actions',
-  parameters: { docs: { description: { component: 'وصفات `button` و`badge` و`progress` من `apps/web/app/app.config.ts`. الرتب: أساسي واحد solid، محايد outline للإلغاء والرجوع، ghost ثالثي، error للحذف.' } } },
+  parameters: { docs: { description: { component: 'وصفات `button` و`badge` و`progress` من `packages/ui/app/app.config.ts`. الرتب: أساسي واحد solid، محايد outline للإلغاء والرجوع، ghost ثالثي، error للحذف.' } } },
 } satisfies Meta
 
 export const ButtonRanks: StoryObj = {

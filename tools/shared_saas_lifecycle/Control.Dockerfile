@@ -10,5 +10,6 @@ COPY apps/control-plane/package.json apps/control-plane/
 COPY apps/web/package.json apps/web/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/commercial-contracts/package.json packages/commercial-contracts/
+COPY packages/ui/package.json packages/ui/
 RUN npm ci --ignore-scripts
 CMD ["npm", "-w", "apps/control-plane", "run", "dev"]

@@ -2,7 +2,7 @@
 // A page outside the shell's chrome (Tasmim Plan 4). `card` centres one card on the page
 // surface (sign-in, invitations, the error page) and is the page's <main>. `print` is a
 // document that sits in the shell's <main> on screen and prints black on white without
-// the shell (assets/css/components.css, @media print); its `footer` (print and back
+// the shell (packages/ui/app/assets/css/components.css, @media print); its `footer` (print and back
 // actions) is not printed. The card's `#header` slot replaces the title heading when the page
 // needs more than a title (a logo and a sentence); the slot's owner then draws the `<h1>`.
 // `width` sets the on-screen width of a `print` page: `detail` for a document of its own,

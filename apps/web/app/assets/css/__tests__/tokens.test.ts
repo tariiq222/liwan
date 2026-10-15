@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { contrastRatio, DARK_SURFACES, LIGHT_CANVAS } from '../../../utils/nasqPalette'
 import { createBrandTheme, DEFAULT_PRIMARY } from '../../../utils/brandTheme'
 
-const sheet = (name: string) => readFileSync(resolve(import.meta.dirname, '..', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+const sheet = (name: string) => readFileSync(resolve(import.meta.dirname, '../../../../../../packages/ui/app/assets/css', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 
 /** Bodies of every innermost rule whose selector is exactly `selector`, joined. */
 function ruleBodies(css: string, selector: string): string {

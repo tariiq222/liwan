@@ -11,6 +11,7 @@ const shared = tenancyMode === 'shared'
 const odoo = process.env.NUXT_ODOO_URL ?? (shared ? 'http://guard:8080' : 'http://localhost:8069')
 
 export default defineNuxtConfig({
+  extends: ['@nasq/ui'],
   compatibilityDate: '2025-07-15',
   hooks: {
     ready(nuxt) {
@@ -22,8 +23,6 @@ export default defineNuxtConfig({
   },
   devtools: { enabled: true },
   modules: ['@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/i18n'],
-  css: ['~/assets/css/main.css'],
-  ui: { fonts: false, colorMode: false },
   icon: {
     provider: 'none',
     fallbackToApi: false,

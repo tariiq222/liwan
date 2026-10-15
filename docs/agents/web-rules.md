@@ -13,8 +13,8 @@ and contracts are in `AGENTS.md`.
   unchanged user-id people picker.
 - RTL styling uses logical Tailwind properties only (`ms-`, `me-`, `ps-`,
   `pe-`, `start-`, `end-`, `text-start`), never physical `ml-`, `pl-`, or
-  `left-` classes. Keep the shared tokens owned by `apps/web/app/assets/css/`
-  and configure Nuxt UI primitives through `apps/web/app/app.config.ts`.
+  `left-` classes. Keep the shared tokens owned by `packages/ui/app/assets/css/`
+  and configure Nuxt UI primitives through `packages/ui/app/app.config.ts`.
 - Authenticated interactive controls whose first click must not be lost during
   SSR hydration use the shared `useHydrated()` composable and stay disabled
   until hydrated. Do not replace this with per-component `mounted` flags or
