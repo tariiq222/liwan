@@ -28,7 +28,7 @@ function onDrafted(id: number, step: CharterWizardStep) {
 </script>
 
 <template>
-  <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo" width="wide">
+  <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo">
     <SharedPageState
       :loading="isLoading"
       :error="listError"

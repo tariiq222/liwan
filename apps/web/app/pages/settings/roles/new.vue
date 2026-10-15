@@ -89,7 +89,7 @@ async function submit() {
 </script>
 
 <template>
-  <SharedCreatePanel :title="t('access.roles.createTitle')" :back-to="backTo" width="wide">
+  <SharedCreatePanel :title="t('access.roles.createTitle')" :back-to="backTo">
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <UForm v-else :state="{ nameAr, nameEn, description }" class="nasq-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />

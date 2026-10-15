@@ -22,7 +22,7 @@ async function save(body: Parameters<typeof mutation.mutate>[0]) {
 </script>
 
 <template>
-  <SharedCreatePanel :title="t('projects.templates.new')" :back-to="backTo" width="wide">
+  <SharedCreatePanel :title="t('projects.templates.new')" :back-to="backTo">
     <SharedPageState :loading="permissions.isLoading.value && !permissions.data.value" :error="permissions.data.value ? null : permissions.error.value" :empty="!permissions.isLoading.value && !permissions.error.value && !permissions.data.value?.can_manage" :empty-text="t('projects.forbidden')" @retry="permissions.refetch">
       <ProjectTemplateEditor :reset-key="resetKey" :busy="mutation.isPending.value" @save="save" @cancel="router.push(backTo)" />
     </SharedPageState>

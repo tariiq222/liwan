@@ -34,7 +34,7 @@ async function save(draft: TermsDraft) {
 }
 </script>
 <template>
-  <SharedCreatePanel :title="t('vendor.customers.customizeTerms')" :back-to="detailTo" width="wide">
+  <SharedCreatePanel :title="t('vendor.customers.customizeTerms')" :back-to="detailTo">
     <SharedPageState :loading="pending" :error="error" @retry="refresh">
       <SharedForbiddenState v-if="!allowed" />
       <UAlert v-else-if="!sub" color="neutral" variant="subtle" :title="t('vendor.customers.terms.needsSubscription')" />
