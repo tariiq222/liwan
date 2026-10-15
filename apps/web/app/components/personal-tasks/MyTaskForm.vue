@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { PersonalTask } from '@nasq/contracts'
+import type { MyTaskBody, MyTaskCreate } from '@/composables/useMyTasks'
+import { changedFields } from '@/utils/myTaskDetail'
 import { ApiError } from '@/composables/useApi'
 import { isDirtySnapshot } from '@/lib/formDirty'
 import {
@@ -9,24 +12,28 @@ import {
   type MyTaskFormValues,
 } from '@/utils/myTaskPayload'
 
-// The create form of a personal task (`/my-tasks/new`). It emits the exact request body and owns
-// no request: the parent runs the mutation and passes `pending` and the failure back as `error`.
-// The detail page edits in place with its own changed-fields form.
+// One field form for personal task creation and editing. Pages own mutations and navigation;
+// the initial server value remains the draft baseline until a confirmed save.
 const props = withDefaults(defineProps<{
+  task?: PersonalTask
   pending?: boolean
   error?: Error | null
 }>(), { pending: false, error: null })
 const emit = defineEmits<{
-  submit: [payload: ReturnType<typeof buildMyTaskPayload>]
+  create: [payload: MyTaskCreate]
+  update: [payload: MyTaskBody]
   cancel: []
 }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
 
-const values = reactive<MyTaskFormValues>({
-  name: '', description: '', deadline: null, priority: 'normal', assignees: [],
-})
+const initialTask = props.task ? { ...props.task, assignees: [...props.task.assignees] } : null
+const values = reactive<MyTaskFormValues>(initialTask ? {
+  name: initialTask.name, description: initialTask.description, deadline: initialTask.date_deadline?.slice(0, 10) ?? null,
+  priority: initialTask.priority, assignees: initialTask.assignees.map(person => person.id),
+} : { name: '', description: '', deadline: null, priority: 'normal', assignees: [] })
+const knownAssignees = computed(() => initialTask?.assignees ?? [])
 const baseline = ref(JSON.stringify(values))
 const saved = ref(false)
 const dirty = computed(() => isDirtySnapshot(baseline.value, JSON.stringify(values), saved.value))
@@ -59,13 +66,24 @@ const generalError = computed(() => props.error && !serverField.value ? props.er
 function submit() {
   if (!hydrated.value || props.pending) return
   attempted.value = true
-  if (nameProblem.value) return
-  emit('submit', buildMyTaskPayload(values))
+  if (nameProblem.value) { nextTick(focusName); return }
+  if (initialTask) emit('update', changedFields(initialTask, { ...values, date_deadline: values.deadline }))
+  else emit('create', buildMyTaskPayload(values))
 }
+watch(() => props.error, async error => {
+  if (!(error instanceof ApiError)) return
+  const field = myTaskFormField(error.field)
+  if (!field) return
+  await nextTick()
+  const id = ({ name: 'my-task-name', description: 'my-task-description', date_deadline: 'my-task-deadline', priority: 'my-task-priority', assignees: 'my-task-assignees' } as Record<string, string>)[field]!
+  const element = document.getElementById(id)
+  const control = element?.matches('input,textarea,button') ? element : element?.querySelector<HTMLElement>('input,textarea,button')
+  ;(control as HTMLElement | null)?.focus()
+}, { flush: 'post' })
 </script>
 
 <template>
-  <SharedUnsavedChanges :dirty="dirty" />
+  <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
   <form novalidate class="grid gap-5" data-testid="my-task-form" @submit.prevent="submit">
     <UAlert v-if="generalError" role="alert" color="error" variant="subtle" :title="generalError" data-testid="my-task-form-error" />
     <UFormField :label="t('myTasks.form.name')" name="name" required :error="localNameError ?? serverError('name')">
@@ -97,17 +115,18 @@ function submit() {
         v-model="values.assignees"
         multiple
         value-key="user_id"
+        :known="knownAssignees"
         :placeholder="t('myTasks.form.assigneesPlaceholder')"
         :aria-label="t('myTasks.form.assignees')"
         :disabled="pending"
       />
     </UFormField>
     <SharedFormActions class="flex flex-wrap justify-end gap-2">
-      <UButton type="button" color="neutral" variant="outline" :disabled="pending" data-testid="my-task-form-cancel" @click="emit('cancel')">
+      <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || pending" data-testid="my-task-form-cancel" @click="emit('cancel')">
         {{ t('myTasks.form.cancel') }}
       </UButton>
       <UButton type="submit" :loading="pending" :disabled="!hydrated || pending" data-testid="my-task-form-submit">
-        {{ t('myTasks.form.submit') }}
+        {{ t(initialTask ? 'myTasks.form.save' : 'myTasks.form.submit') }}
       </UButton>
     </SharedFormActions>
   </form>

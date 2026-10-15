@@ -5,14 +5,18 @@ import { refDebounced } from '@vueuse/core'
 import FilterBar from '@/components/shared/data/FilterBar.vue'
 import MyTaskRow from '@/components/personal-tasks/MyTaskRow.vue'
 import { sectionTabsUi } from '@/utils/sectionTabs'
-import { useMyTaskPages } from '@/composables/useMyTaskPages'
+import type { MyTaskListPage } from '@nasq/contracts'
+import { useMyTaskList } from '@/composables/useMyTaskList'
+import { errorStateKind } from '@/utils/errorState'
+import { currentListView, listViewQuery } from '@/utils/listView'
+import { useRowNavigation } from '@/composables/useRowNavigation'
 import {
-  dedupeById,
   listPatch,
   localToday,
   MY_TASK_SCOPES,
   MY_TASK_SORTS,
   MY_TASK_TABS,
+  MY_TASK_PAGE_SIZE,
   parseListState,
   toListParams,
   type MyTaskListState,
@@ -29,11 +33,20 @@ const state = computed(() => parseListState(route.query))
 const search = ref(state.value.q)
 const debouncedSearch = refDebounced(search, 250)
 
-const query = useMyTaskPages(computed(() => toListParams(state.value)))
-const items = computed(() => dedupeById((query.data.value?.pages ?? []).flatMap(page => page.items)))
-// The last loaded page carries the freshest total. It can exceed the rows shown: the server may drop
-// rows the caller cannot read while still counting them.
-const total = computed(() => query.data.value?.pages.at(-1)?.total ?? 0)
+const query = useMyTaskList(computed(() => toListParams(state.value)))
+const lastPage = shallowRef<MyTaskListPage | null>(null)
+watch(query.data, value => { if (value) lastPage.value = value }, { immediate: true })
+const restricted = computed(() => ['forbidden', 'notFound'].includes(errorStateKind(query.error.value)))
+const displayed = computed(() => restricted.value ? null : query.data.value ?? (query.error.value ? lastPage.value : null))
+const items = computed(() => displayed.value?.items ?? [])
+const total = computed(() => displayed.value?.total ?? 0)
+const page = computed(() => Math.floor(state.value.offset / MY_TASK_PAGE_SIZE) + 1)
+const pages = computed(() => Math.ceil(total.value / MY_TASK_PAGE_SIZE))
+watch([query.data, query.isFetching], ([data, fetching]) => {
+  if (!data || fetching) return
+  const last = Math.max(0, Math.ceil(data.total / MY_TASK_PAGE_SIZE) - 1) * MY_TASK_PAGE_SIZE
+  if (state.value.offset > last) update({ offset: last })
+})
 
 // The local date is unknown on the server and can differ from the browser's: it is read after mount (so
 // hydration matches, with no overdue styling during SSR) and again when the tab becomes visible.
@@ -47,11 +60,8 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible
 function onVisible() { if (document.visibilityState === 'visible') refreshToday() }
 
 // A failed next page or background refetch must not hide the rows already loaded.
-const inlineError = computed(() => items.value.length > 0 && (query.isFetchNextPageError.value || query.isRefetchError.value))
-function retryInline() {
-  if (query.isFetchNextPageError.value) void query.fetchNextPage()
-  else void query.refetch()
-}
+const inlineError = computed(() => items.value.length > 0 && !!query.error.value)
+function retryInline() { void query.refetch() }
 
 function update(patch: Partial<MyTaskListState>) {
   if (!isCurrentList() || disposed) return
@@ -115,9 +125,9 @@ const scopeItems = computed(() => MY_TASK_SCOPES.map(value => ({ value, label: t
 const sortItems = computed(() => MY_TASK_SORTS.map(value => ({ value, label: t(`myTasks.list.sort.${value}`) })))
 
 const activeFilterCount = computed(() => Number(Boolean(state.value.q)) + Number(state.value.scope !== 'all'))
-const emptyText = computed(() => state.value.q
-  ? t('myTasks.list.empty.search')
-  : t(`myTasks.list.empty.${state.value.tab}`))
+const emptyText = computed(() => state.value.q ? t('myTasks.list.empty.search')
+  : total.value > 0 ? t('myTasks.list.empty.page')
+  : state.value.scope !== 'all' ? t('myTasks.list.empty.scope') : t(`myTasks.list.empty.${state.value.tab}`))
 
 function clearFilters() {
   search.value = ''
@@ -129,11 +139,22 @@ const rowTo = (task: (typeof items.value)[number]) => ({
   path: task.source === 'project' ? task.href : `/my-tasks/${task.id}`,
   query: { returnTo: liveListPath.value },
 })
+const views = computed(() => [
+  { value: 'table', label: t('myTasks.list.tableView'), icon: 'i-lucide-list', testId: 'my-tasks-view-table' },
+  { value: 'cards', label: t('myTasks.list.cardView'), icon: 'i-lucide-layout-grid', testId: 'my-tasks-view-cards' },
+])
+const view = computed(() => currentListView(route.query.view, views.value))
+const cardList = ref<HTMLElement | null>(null)
+useRowNavigation(cardList)
+function setView(value: string) {
+  if (value === view.value) return
+  void router.replace({ query: listPatch(listViewQuery(route.query, value, views.value), { q: search.value.trim() }), hash: route.hash })
+}
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'name', header: t('tasks.columns.title') },
-  { id: 'state', header: t('tasks.columns.state') },
-  { id: 'deadline', header: t('tasks.columns.deadline') },
-  { id: 'assignees', header: t('tasks.columns.assignees') },
+  { id: 'name', header: t('tasks.columns.title'), meta: { class: { th: 'w-1/2 min-w-64', td: 'py-3' } } },
+  { id: 'state', header: t('tasks.columns.state'), meta: { class: { th: 'w-28', td: 'py-3' } } },
+  { id: 'deadline', header: t('tasks.columns.deadline'), meta: { class: { th: 'w-44', td: 'py-3' } } },
+  { id: 'assignees', header: t('tasks.columns.assignees'), meta: { class: { th: 'w-40', td: 'py-3' } } },
 ])
 const createTo = computed(() => can('tasks.tasks.create') ? { path: '/my-tasks/new', query: { returnTo: liveListPath.value } } : undefined)
 function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { void router.push(rowTo(task)).catch(() => undefined) }
@@ -142,24 +163,29 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
 <template>
   <SharedListPage
     :title="t('myTasks.title')"
+    :description="t('myTasks.description')"
     :create-to="createTo"
     :create-label="t('myTasks.new')"
     create-test-id="my-tasks-new"
   >
     <template #filters>
       <div class="space-y-3">
-        <UTabs :model-value="state.tab" :items="tabItems" :content="false" variant="link" :ui="sectionTabsUi" :aria-label="t('myTasks.title')" data-testid="my-tasks-tabs" @update:model-value="update({ tab: $event as MyTaskListState['tab'] })" />
+        <p v-if="state.tab === 'closed'" class="text-sm text-muted">{{ t('myTasks.list.closedHint') }}</p>
         <div class="w-full min-w-0" data-testid="my-tasks-toolbar">
-          <FilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <FilterBar class="w-full" default-open :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
             <template #search>
               <UInput v-model="search" :disabled="!hydrated" :placeholder="t('myTasks.list.search')" :aria-label="t('myTasks.list.search')" icon="i-lucide-search" class="w-full" />
             </template>
-            <SharedFilterChoice :label="t('myTasks.list.scope')" :items="scopeItems" :model-value="state.scope" layout="segment" :disabled="!hydrated" @update:model-value="update({ scope: $event as MyTaskListState['scope'] })" />
-            <SharedFilterField :label="t('myTasks.list.sort.label')" for="my-tasks-sort">
+            <SharedFilterChoice class="w-full sm:w-auto" :label="t('myTasks.list.scope')" :items="scopeItems" :model-value="state.scope" layout="segment" :disabled="!hydrated" @update:model-value="update({ scope: $event as MyTaskListState['scope'] })" />
+            <SharedFilterField class="w-full sm:w-48" :label="t('myTasks.list.sort.label')" for="my-tasks-sort">
               <USelect id="my-tasks-sort" :model-value="state.sort" :items="sortItems" class="w-full" :disabled="!hydrated" @update:model-value="update({ sort: $event as MyTaskListState['sort'] })" />
             </SharedFilterField>
+            <template #view>
+              <UTabs :model-value="state.tab" :items="tabItems" :content="false" variant="link" :ui="sectionTabsUi" :aria-label="t('myTasks.title')" data-testid="my-tasks-tabs" @update:model-value="update({ tab: $event as MyTaskListState['tab'] })" />
+              <SharedViewSwitch :model-value="view" :options="views" @update:model-value="setView" />
+            </template>
             <template #actions>
-              <UBadge v-if="query.data.value" color="neutral" variant="subtle" data-testid="my-tasks-total">{{ t('myTasks.list.total', { count: total }, total) }}</UBadge>
+              <UBadge v-if="displayed" color="neutral" variant="subtle" data-testid="my-tasks-total">{{ t('myTasks.list.total', { count: total }, total) }}</UBadge>
             </template>
           </FilterBar>
         </div>
@@ -172,9 +198,10 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
       </template>
     </UAlert>
     <SharedDataTable
+      v-if="view === 'table'"
       :rows="items"
       :columns="columns"
-       :row-key="task => `${task.source}:${task.id}`"
+      :row-key="task => `${task.source}:${task.id}`"
       :row-to="rowTo"
       :loading="query.isLoading.value"
       :error="items.length ? null : query.error.value"
@@ -186,10 +213,18 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
       <template #state-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="state" /></template>
       <template #deadline-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="deadline" /></template>
       <template #assignees-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="assignees" /></template>
-      <template #mobile-row="{ row: task }"><MyTaskRow :task="task" :to="rowTo(task)" :today="today" part="card" @open="openLiveTask" /></template>
     </SharedDataTable>
-    <div v-if="query.hasNextPage.value" class="text-center">
-      <UButton color="neutral" variant="outline" type="button" :loading="query.isFetchingNextPage.value" :disabled="query.isFetchingNextPage.value || !hydrated" @click="query.fetchNextPage()">{{ t('myTasks.list.loadMore') }}</UButton>
+    <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :keep-content="items.length > 0" :empty="!items.length" :empty-text="emptyText" @retry="query.refetch()">
+      <ul ref="cardList" class="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
+        <li v-for="(task, index) in items" :key="`${task.source}:${task.id}`" data-shortcut-row :data-row-index="index" tabindex="-1" class="min-w-0 rounded-lg bg-default p-4 ring ring-default outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <MyTaskRow :task="task" :to="rowTo(task)" :today="today" part="card" @open="openLiveTask" />
+        </li>
+      </ul>
+    </SharedPageState>
+    <div v-if="!items.length && !query.isLoading.value && !query.error.value" class="flex justify-center gap-2">
+      <UButton v-if="state.q || state.scope !== 'all'" type="button" color="neutral" variant="outline" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
+      <UButton v-else-if="state.tab === 'open' && createTo" :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />
     </div>
+    <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="update({ offset: ($event - 1) * MY_TASK_PAGE_SIZE })" />
   </SharedListPage>
 </template>

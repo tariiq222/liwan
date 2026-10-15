@@ -1,35 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import {
-  dedupeById,
   deadlineDay,
   isOverdue,
   listPatch,
-  nextOffset,
   parseListState,
   toListParams,
 } from '../myTaskList'
 
 describe('my-tasks list route state', () => {
   it('defaults to the open tab, all scope and deadline sort', () => {
-    expect(parseListState({})).toEqual({ tab: 'open', scope: 'all', sort: 'deadline', q: '' })
+    expect(parseListState({})).toEqual({ tab: 'open', scope: 'all', sort: 'deadline', q: '', offset: 0 })
   })
 
   it('reads valid values and ignores anything else', () => {
-    expect(parseListState({ tab: 'done', scope: 'created', sort: 'name', q: ' x ' }))
-      .toEqual({ tab: 'done', scope: 'created', sort: 'name', q: ' x ' })
+    expect(parseListState({ tab: 'closed', scope: 'created', sort: 'name', q: ' x ', offset: 0 }))
+      .toEqual({ tab: 'closed', scope: 'created', sort: 'name', q: ' x ', offset: 0 })
     expect(parseListState({ tab: 'x', scope: ['assigned', 'created'], sort: 'zzz', q: ['a'] }))
-      .toEqual({ tab: 'open', scope: 'assigned', sort: 'deadline', q: 'a' })
+      .toEqual({ tab: 'open', scope: 'assigned', sort: 'deadline', q: 'a', offset: 0 })
   })
 
   it('maps the state to API params', () => {
-    expect(toListParams({ tab: 'done', scope: 'all', sort: 'deadline', q: ' hi ' }))
-      .toEqual({ closed: true, scope: undefined, sort: undefined, q: 'hi' })
-    expect(toListParams({ tab: 'open', scope: 'assigned', sort: 'created', q: '' }))
-      .toEqual({ closed: false, scope: 'assigned', sort: 'created', q: undefined })
+    expect(toListParams({ tab: 'closed', scope: 'all', sort: 'deadline', q: ' hi ', offset: 0 }))
+      .toEqual({ closed: true, scope: undefined, sort: undefined, q: 'hi', offset: 0 })
+    expect(toListParams({ tab: 'open', scope: 'assigned', sort: 'created', q: '', offset: 0 }))
+      .toEqual({ closed: false, scope: 'assigned', sort: 'created', q: undefined, offset: 0 })
   })
 
   it('drops default values from the URL and keeps unrelated keys', () => {
-    expect(listPatch({ keep: '1', tab: 'done', q: 'a' }, { tab: 'open', q: '' })).toEqual({ keep: '1' })
+    expect(listPatch({ keep: '1', tab: 'closed', q: 'a' }, { tab: 'open', q: '', offset: 0 })).toEqual({ keep: '1' })
     expect(listPatch({}, { scope: 'created' })).toEqual({ scope: 'created' })
     expect(listPatch({}, { scope: 'all', sort: 'deadline' })).toEqual({})
   })
@@ -51,23 +49,15 @@ describe('my-tasks deadline rendering', () => {
   })
 })
 
-describe('my-tasks paging', () => {
-  it('continues by offset + limit against the total, even after a short page', () => {
-    expect(nextOffset({ offset: 0, limit: 50, total: 120, received: 48 })).toBe(50)
-    expect(nextOffset({ offset: 50, limit: 50, total: 120, received: 50 })).toBe(100)
+describe('closed scope and URL pagination', () => {
+  it('reads a closed scope with its actual page offset', () => {
+    expect(parseListState({ tab: 'closed', offset: '50' })).toEqual({ tab: 'closed', scope: 'all', sort: 'deadline', q: '', offset: 50 })
   })
-
-  it('stops at the total or on an empty page', () => {
-    expect(nextOffset({ offset: 100, limit: 50, total: 120, received: 20 })).toBeUndefined()
-    expect(nextOffset({ offset: 50, limit: 50, total: 120, received: 0 })).toBeUndefined()
-    expect(nextOffset({ offset: 0, limit: 50, total: 50, received: 50 })).toBeUndefined()
+  it('resets only pagination when search changes and retains other URL state', () => {
+    expect(listPatch({ q: 'old', offset: '50', scope: 'created', view: 'board' }, { q: 'بحث & عربي' }))
+      .toEqual({ q: 'بحث & عربي', scope: 'created', view: 'board' })
   })
-})
-
-describe('my-tasks row de-duplication', () => {
-  it('keeps the first occurrence of an id and the order', () => {
-    const rows = [{ id: 1, n: 'a' }, { id: 2, n: 'b' }, { id: 1, n: 'c' }, { id: 3, n: 'd' }]
-    expect(dedupeById(rows)).toEqual([{ id: 1, n: 'a' }, { id: 2, n: 'b' }, { id: 3, n: 'd' }])
-    expect(dedupeById([])).toEqual([])
+  it('requests the server closed scope without client-filtering done versus cancelled', () => {
+    expect(toListParams(parseListState({ tab: 'closed', offset: '50' }))).toMatchObject({ closed: true, offset: 50 })
   })
 })

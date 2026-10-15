@@ -26,7 +26,7 @@ async function create(payload: Parameters<typeof mutateAsync>[0]) {
     const task = await mutateAsync(payload)
     form.value?.markSaved()
     toast.add({ title: t('myTasks.created'), color: 'success' })
-      await router.replace({ path: `/my-tasks/${task.id}`, query: { returnTo: returnTo.value } })
+    await router.replace({ path: `/my-tasks/${task.id}`, query: { returnTo: returnTo.value } })
   } catch (e) {
     // A field error is shown under its field by the form; everything else also gets a toast.
     if (!(e instanceof ApiError && myTaskFormField(e.field))) {
@@ -40,6 +40,6 @@ async function create(payload: Parameters<typeof mutateAsync>[0]) {
 
 <template>
   <SharedCreatePanel :title="t('myTasks.form.createTitle')" :back-to="returnTo">
-    <MyTaskForm ref="form" :pending="isPending" :error="error" @submit="create" @cancel="router.push(returnTo)" />
+    <MyTaskForm ref="form" :pending="isPending" :error="error" @create="create" @cancel="router.push(returnTo)" />
   </SharedCreatePanel>
 </template>

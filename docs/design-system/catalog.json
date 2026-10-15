@@ -1628,27 +1628,27 @@
         {
           "id": "Writable",
           "name": "قابل للتعديل",
-          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:58"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:63"
         },
         {
           "id": "ReadOnly",
           "name": "للقراءة فقط",
-          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:58"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:63"
         },
         {
           "id": "Empty",
           "name": "بلا مرفقات",
-          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:58"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:63"
         },
         {
           "id": "Loading",
           "name": "قيد التحميل",
-          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:58"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:63"
         },
         {
           "id": "WithError",
           "name": "خطأ من الرفع",
-          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:58"
+          "context": "apps/web/app/components/personal-tasks/MyTaskAttachments.vue:63"
         }
       ]
     },
@@ -1774,9 +1774,20 @@
           "name": "error",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "draft",
+          "type": "string",
+          "required": false,
+          "default": "\"\""
         }
       ],
-      "events": [],
+      "events": [
+        {
+          "name": "update:draft",
+          "payload": "[value: string]"
+        }
+      ],
       "slots": [
         "leading"
       ],
@@ -1789,22 +1800,27 @@
         {
           "id": "Editable",
           "name": "قابلة للتعديل",
-          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:67"
         },
         {
           "id": "ReadOnly",
           "name": "للقراءة فقط",
-          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:67"
         },
         {
           "id": "Empty",
           "name": "بلا بنود",
-          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:67"
         },
         {
           "id": "WithError",
           "name": "خطأ من الخادم",
-          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:55"
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:67"
+        },
+        {
+          "id": "ControlledDraft",
+          "name": "مسودة يملكها التطبيق",
+          "context": "apps/web/app/components/personal-tasks/MyTaskSubtasks.vue:67"
         }
       ]
     },
@@ -1854,17 +1870,17 @@
         {
           "id": "WithComposer",
           "name": "مع نموذج الكتابة",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:53"
         },
         {
           "id": "Empty",
           "name": "بلا تعليقات",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:53"
         },
         {
           "id": "Loading",
           "name": "قيد التحميل",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:47"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:53"
         }
       ]
     },
@@ -2954,27 +2970,27 @@
         {
           "id": "Plain",
           "name": "نص عادي",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:62"
         },
         {
           "id": "WithLabel",
           "name": "بعنوان وتلميح",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:62"
         },
         {
           "id": "Pending",
           "name": "أثناء النشر",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:62"
         },
         {
           "id": "TooLong",
           "name": "تعليق أطول من المسموح",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:62"
         },
         {
           "id": "ServerError",
           "name": "خطأ من الخادم",
-          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:56"
+          "context": "apps/web/app/components/personal-tasks/MyTaskComments.vue:62"
         }
       ]
     },
@@ -3982,8 +3998,8 @@
     {
       "name": "SharedRecordPage",
       "file": "apps/web/app/components/shared/layout/RecordPage.vue",
-      "story": "apps/web/stories/shared/RecordPage.stories.ts",
-      "title": "Shared/RecordPage",
+      "story": "apps/web/stories/my-tasks/MyTaskRecord.stories.ts",
+      "title": "MyTasks/MyTaskRecord",
       "props": [
         {
           "name": "title",
@@ -4046,34 +4062,14 @@
       ],
       "stories": [
         {
-          "id": "Default",
-          "name": "سجل مع خصائص",
-          "context": "unused"
+          "id": "Open",
+          "name": "سجل مهمة",
+          "context": "apps/web/app/pages/my-tasks/[id]/index.vue:148"
         },
         {
-          "id": "Loading",
-          "name": "تحميل",
-          "context": "unused"
-        },
-        {
-          "id": "NotFound",
-          "name": "غير موجود",
-          "context": "unused"
-        },
-        {
-          "id": "ErrorState",
-          "name": "خطأ",
-          "context": "unused"
-        },
-        {
-          "id": "WithBackSlot",
-          "name": "خانة الرجوع",
-          "context": "unused"
-        },
-        {
-          "id": "OperationalSummary",
-          "name": "ملخص تشغيلي قبل المحتوى",
-          "context": "apps/web/app/components/pmo/tasks/TaskDetailPanel.vue:99"
+          "id": "Pending",
+          "name": "أثناء التحميل",
+          "context": "apps/web/app/pages/my-tasks/[id]/index.vue:148"
         }
       ]
     },
@@ -4410,7 +4406,7 @@
         },
         {
           "name": "preference",
-          "type": "\"open\" | \"auto\" | \"closed\"",
+          "type": "\"open\" | \"closed\" | \"auto\"",
           "required": false
         },
         {
