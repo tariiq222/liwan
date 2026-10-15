@@ -181,7 +181,7 @@ def case_e14(run_id: str) -> None:
     ev = run_dir(run_id)
     try:
         j = json.loads((ev / 'E04.journey.json').read_text())['checkpoints']
-        host = next(c for c in j if c.get('company') == 'alef')['host']
+        host = next(c for c in j if c.get('company') == 'alef' and c.get('host'))['host']
     except Exception as e:  # noqa: BLE001
         write_case(run_id, 'E14', 'BLOCKED', f'journey evidence (E04) missing: {e}')
         return
