@@ -10,7 +10,6 @@ LEGACY_KEYS = frozenset({
     'nav.projects',
     'nav.allProjects',
     'nav.myProjects',
-    'nav.projectTemplates',
     'nav.projectTasks',
     'nav.tasks',
     'projects.title',
@@ -31,7 +30,7 @@ LEGACY_KEYS = frozenset({
 # The owning addon of each terminology key; the hook of an addon returns exactly its set.
 OWNED_KEYS = {
     'nasq_pmo': frozenset({
-        'nav.projects', 'nav.allProjects', 'nav.myProjects', 'nav.projectTemplates',
+        'nav.projects', 'nav.allProjects', 'nav.myProjects',
         'nav.projectTasks', 'nav.tasks', 'projects.title', 'tasks.title',
     }),
     'nasq_meetings': frozenset({'nav.meetings', 'nav.meetingCalendar', 'nav.meetingSeries'}),
@@ -103,7 +102,7 @@ class TestTerminologyKeys(TransactionCase):
         keys = self.env['nasq.entitlement.service']._nasq_terminology_keys()
         # A future application may add keys; none of the legacy ones may disappear.
         self.assertLessEqual(LEGACY_KEYS, keys)
-        self.assertEqual(len(LEGACY_KEYS), 20)
+        self.assertEqual(len(LEGACY_KEYS), 19)
 
     def test_unknown_key_still_rejected_422(self):
         service = self.env['nasq.entitlement.service']

@@ -2,7 +2,7 @@
 {
     'name': 'nasq PMO',
     'summary': 'nasq platform: the project pillar — /api/v1 tasks, timeline, projects (status, stages)',
-    'version': '19.0.1.4.0',
+    'version': '19.0.1.5.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -31,8 +31,6 @@
         'security/ir.model.access.csv',
         'security/ir.model.access-governance.csv',
         'security/project_governance_rules.xml',
-        'security/ir.model.access-templates.csv',
-        'security/project_template_rules.xml',
         'security/nasq_pmo_rules.xml',
         'security/project_charter_rules.xml',
         'data/nasq_pmo_data.xml',
