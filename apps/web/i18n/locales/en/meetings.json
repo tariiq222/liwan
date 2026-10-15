@@ -44,6 +44,7 @@
     "openTask": "Open task",
     "notify": {
       "meeting_invite": "Meeting invitation",
+      "meeting_series_invite": "Meeting series invitation",
       "meeting_resolution": "Recommendation assigned to you",
       "meeting_converted": "Converted to a task",
       "meeting_changed": "Meeting time or place changed",

@@ -65,7 +65,7 @@ def dump_snapshot_payload(meeting, snapshot):
         return None
     links = _links(meeting)
     snapshot_rows, resolutions = _visible_snapshot_rows(meeting, snapshot)
-    readable = links._nasq_readable_links(meeting, resolutions)
+    readable = links._nasq_readable_links(resolutions)
     result = {
         'captured_at': snapshot.get('captured_at'),
         'name': snapshot.get('name', ''),
@@ -192,24 +192,29 @@ def _meeting_order_key(meeting):
     return day, start, meeting.id
 
 
-def _projected_resolution_counts(meeting, resolutions=None):
-    resolutions = resolutions if resolutions is not None else meeting.resolution_ids
-    readable = _links(meeting)._nasq_readable_links(meeting, resolutions)
-    now = fields.Date.context_today(meeting)
-    open_count = overdue_count = 0
+def projected_resolution_counts(meetings):
+    """``{meeting_id: (open, overdue)}`` of ``meetings``: one recommendation read and one links lookup for the whole set."""
+    resolutions = meetings.resolution_ids
+    readable = _links(meetings)._nasq_readable_links(resolutions)
+    today = fields.Date.context_today(meetings)
+    counts = {meeting.id: [0, 0] for meeting in meetings}
     for resolution in resolutions:
         link = readable.get(resolution.id)
         state = link['state'] if link else resolution.state
         if state in ('done', 'cancelled'):
             continue
-        open_count += 1
-        if resolution.deadline and resolution.deadline < now:
-            overdue_count += 1
-    return open_count, overdue_count
+        entry = counts[resolution.meeting_id.id]
+        entry[0] += 1
+        if resolution.deadline and resolution.deadline < today:
+            entry[1] += 1
+    return {meeting_id: tuple(entry) for meeting_id, entry in counts.items()}
 
 
-def dump_meeting(meeting, *, detail=False):
+def dump_meeting(meeting, *, detail=False, counts=None):
+    """``counts`` is ``projected_resolution_counts`` of a set that contains ``meeting``, when the caller dumps a list."""
     links = _links(meeting)
+    if counts is None:
+        counts = projected_resolution_counts(meeting)
     payload = {
         'id': meeting.id,
         'name': meeting.name,
@@ -219,13 +224,14 @@ def dump_meeting(meeting, *, detail=False):
         'end_datetime': iso(meeting.end_datetime),
         'state': meeting.state,
         'organizer': dump_person(meeting.organizer_id),
-        'open_resolution_count': _projected_resolution_counts(meeting)[0],
+        'open_resolution_count': counts[meeting.id][0],
         'series_id': meeting.series_id.id or None,
         'project_id': links._nasq_project_id(meeting),
     }
     if detail:
-        readable = links._nasq_readable_links(meeting, meeting.resolution_ids)
+        readable = links._nasq_readable_links(meeting.resolution_ids)
         payload.update({
+            'write_date': iso(meeting.write_date),
             'agenda': meeting.agenda or '',
             'minutes': meeting.minutes or '',
             'location': meeting.location or '',
@@ -249,6 +255,12 @@ def dump_meeting(meeting, *, detail=False):
     return payload
 
 
+def dump_meetings(meetings):
+    """List rows of ``meetings`` with the recommendation counts computed once for the set."""
+    counts = projected_resolution_counts(meetings)
+    return [dump_meeting(meeting, counts=counts) for meeting in meetings]
+
+
 def dump_previous_resolutions(meeting):
     if not meeting.series_id:
         return []
@@ -259,7 +271,7 @@ def dump_previous_resolutions(meeting):
     others = meeting.env['cyan.meeting.minute'].search([
         ('series_id', '=', meeting.series_id.id), ('id', '!=', meeting.id),
     ]).filtered(lambda item: _meeting_order_key(item) < current_key)
-    readable = _links(meeting)._nasq_readable_links(meeting, others.mapped('resolution_ids'))
+    readable = _links(meeting)._nasq_readable_links(others.mapped('resolution_ids'))
     for other in others.sorted(key=_meeting_order_key):
         for resolution in other.resolution_ids:
             row = dump_resolution(resolution, readable.get(resolution.id))
@@ -269,8 +281,11 @@ def dump_previous_resolutions(meeting):
     return rows
 
 
-def dump_series(series, *, detail=False):
+def dump_series(series, *, detail=False, counts=None):
+    """``counts`` is ``projected_resolution_counts`` of a set that contains every occurrence, when the caller dumps a list."""
     meetings = series.meeting_ids
+    if counts is None:
+        counts = projected_resolution_counts(meetings)
     payload = {
         'id': series.id,
         'name': series.name,
@@ -279,8 +294,8 @@ def dump_series(series, *, detail=False):
         'until_count': series.until_count or None,
         'organizer': dump_person(series.organizer_id),
         'project': _links(series)._nasq_project_ref(series),
-        'open_resolution_count': sum(_projected_resolution_counts(meeting)[0] for meeting in meetings),
-        'overdue_resolution_count': sum(_projected_resolution_counts(meeting)[1] for meeting in meetings),
+        'open_resolution_count': sum(counts[meeting.id][0] for meeting in meetings),
+        'overdue_resolution_count': sum(counts[meeting.id][1] for meeting in meetings),
     }
     if detail:
         payload.update({
@@ -288,7 +303,7 @@ def dump_series(series, *, detail=False):
             'meeting_url': series.meeting_url or '',
             'secretary': dump_person(series.secretary_id),
             'attendees': [dump_person(user) for user in series.attendee_ids],
-            'meetings': [dump_meeting(meeting) for meeting in meetings.sorted(key=_meeting_order_key)],
+            'meetings': [dump_meeting(meeting, counts=counts) for meeting in meetings.sorted(key=_meeting_order_key)],
             'can_edit': bool(series._nasq_is_editor()),
         })
     return payload
