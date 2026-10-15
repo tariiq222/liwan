@@ -42,9 +42,10 @@ test('the manager moves to planning once the charter is approved, then steps bac
   await expect(page.getByTestId('project-phase-initiating')).toHaveAttribute('data-state', 'current')
 })
 
-test('a read-only project shows the checks without move actions', async ({ page }) => {
+test('a read-only project without gate checks shows its phase but no gate card', async ({ page }) => {
   await open(page, '/projects/3')
-  await expect(page.getByTestId('project-phase-gate')).toBeVisible()
+  await expect(page.getByTestId('project-phase-planning')).toHaveAttribute('data-state', 'current')
+  await expect(page.getByTestId('project-phase-gate')).toHaveCount(0)
   await expect(page.getByTestId('project-phase-move')).toHaveCount(0)
   await expect(page.getByTestId('project-phase-back')).toHaveCount(0)
 })
