@@ -5,7 +5,7 @@ import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
 import { inviteAccount, issueReset } from '../enrollment.js'
 import { open } from '../crypto.js'
-import { resolveSession } from '../sessions.js'
+import { createSession, resolveSession } from '../sessions.js'
 import { totpAt, totpStep } from '../totp.js'
 import type { WebAuthnLib } from '../webauthn.js'
 
@@ -99,6 +99,8 @@ else describe('admin auth routes', () => {
 
   it('enrolls through the routes: invitation, passkey, totp, complete', async () => {
     expect(codes).toHaveLength(10)
+    const reg = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='auth.passkey_registered'")
+    expect(reg.rows).toEqual([{ actor: `account:${accountId}`, subject: `account:${accountId}`, reason: 'enroll' }])
     expect(session).toMatch(SESSION)
     const row = await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
     expect(row.rows[0].status).toBe('active')
@@ -143,6 +145,8 @@ else describe('admin auth routes', () => {
     expect([locked.status, locked.body]).toEqual([429, { code: 'rate_limited' }])
     const events = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='auth.locked'")
     expect(events.rows).toEqual([{ actor: 'anonymous', subject: 'account:owner@nasq.sa', reason: 'lockout' }])
+    const failed = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='auth.failed'")
+    expect(failed.rows).toEqual(Array(5).fill({ actor: 'anonymous', subject: 'account:owner@nasq.sa', reason: 'fallback' }))
   })
   it('scopes the client address from the signed forwarding header only when well formed', async () => {
     await fallback({ password: 'wrong wrong wrong' }, { 'x-nasq-client-ip': '203.0.113.9' })
@@ -173,6 +177,9 @@ else describe('admin auth routes', () => {
     const bad = await post('/v1/admin/auth/passkey/verify', { challenge_id: second.body.challenge_id, response: { id: passkey, bad: true } })
     expect([bad.status, bad.body]).toEqual([401, { code: 'auth_failed' }])
     expect((await attempts()).some((r) => String(r.scope).startsWith('ip:'))).toBe(true)
+    const failed = await pool.query("SELECT subject, reason FROM audit_events WHERE action='auth.failed' AND reason='passkey/verify'")
+    expect(failed.rows.length).toBeGreaterThanOrEqual(2)
+    expect(failed.rows.every((r) => String(r.subject).startsWith('ip:'))).toBe(true)
   })
   it('steps up a signed-in session with a passkey assertion', async () => {
     const signedIn = await fallback()
@@ -185,6 +192,20 @@ else describe('admin auth routes', () => {
     expect(verify.status).toBe(204)
     expect(verify.text).toBe('')
     expect((await resolve(s)).stepUpFresh).toBe(true)
+  })
+  it('refuses a step-up challenge of another account', async () => {
+    const b = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('b@nasq.sa','B','active') RETURNING id")).rows[0].id)
+    await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES('cred-b',$1,'\\x01')", [b])
+    const bSession = await transaction(pool, (c) => createSession(c, b, new Date(), false))
+    const foreign = await post('/v1/admin/auth/step-up/options', {}, signed(bSession.session))
+    expect(foreign.status).toBe(200)
+    const a = (await fallback()).body.session
+    for (const id of ['cred-b', passkey]) {
+      const res = await post('/v1/admin/auth/step-up/verify', { challenge_id: foreign.body.challenge_id, response: { id } }, signed(a))
+      expect([res.status, res.body]).toEqual([401, { code: 'auth_failed' }])
+      if (id === 'cred-b') { const again = await post('/v1/admin/auth/step-up/options', {}, signed(bSession.session)); foreign.body.challenge_id = again.body.challenge_id }
+    }
+    expect((await resolve(a)).stepUpFresh).toBe(false)
   })
   it('logs out and revokes the session', async () => {
     const out = await post('/v1/admin/auth/logout', {}, signed(session))
@@ -222,6 +243,9 @@ else describe('admin auth routes', () => {
     expect(done.complete.status).toBe(200)
     const passkeys = await pool.query('SELECT credential_id FROM vendor_passkeys WHERE account_id=$1', [accountId])
     expect(passkeys.rows.map((r) => r.credential_id)).toEqual([done.id])
+    const started = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='account.reset_started'")
+    expect(started.rows).toEqual([{ actor: `account:${accountId}`, subject: `account:${accountId}`, reason: 'reset' }])
+    expect((await pool.query("SELECT reason FROM audit_events WHERE action='auth.passkey_registered' ORDER BY created_at DESC LIMIT 1")).rows[0].reason).toBe('reset')
     await expect(resolve(session)).rejects.toMatchObject({ code: 'auth_failed' })
     expect((await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])).rows[0].status).toBe('active')
     expect((await pool.query('SELECT count(*)::int AS n FROM vendor_accounts')).rows[0].n).toBe(1)

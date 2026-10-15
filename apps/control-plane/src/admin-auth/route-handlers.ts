@@ -15,9 +15,9 @@ export type AuthContext = { pool: Pool; config: Config; admin: AdminConfig; lib:
 type Result = { status: number; data?: unknown }
 // A failure that counts against the given attempt scopes; the dispatcher records it after the handler's transaction rolled back.
 export class CountedFailure extends AdminAuthError {
-  constructor(public scopes: string[]) { super(401, 'auth_failed') }
+  constructor(public scopes: string[], public reason: string) { super(401, 'auth_failed') }
 }
-const counted = (scopes: string[]): AdminAuthError => new CountedFailure(scopes)
+const counted = (scopes: string[], reason: string): AdminAuthError => new CountedFailure(scopes, reason)
 
 const authFailed = () => new AdminAuthError(401, 'auth_failed')
 const sessionBody = (s: { session: string; expiresAt: Date; idleExpiresAt: Date }) => ({ session: s.session, expires_at: s.expiresAt.toISOString(), idle_expires_at: s.idleExpiresAt.toISOString() })
@@ -33,13 +33,13 @@ function sessionHeader(ctx: AuthContext): string {
   return value
 }
 
-async function passwordLogin(ctx: AuthContext, client: PoolClient, emailRaw: string, passwordText: string): Promise<{ id: number; scopes: string[] }> {
+async function passwordLogin(ctx: AuthContext, client: PoolClient, emailRaw: string, passwordText: string, route: string): Promise<{ id: number; scopes: string[] }> {
   const email = normalizeEmail(emailRaw)
   const scopes = [`account:${email}`, `ip:${ctx.ip}`]
   await checkAllowed(client, scopes, ctx.now)
   const row = (await client.query("SELECT id, password_hash FROM vendor_accounts WHERE email=$1 AND status='active'", [email])).rows[0]
   const ok = await verifyPassword(row?.password_hash ?? await dummy(), passwordText)
-  if (!row || !row.password_hash || !ok) throw counted(scopes)
+  if (!row || !row.password_hash || !ok) throw counted(scopes, route)
   return { id: Number(row.id), scopes }
 }
 
@@ -70,8 +70,10 @@ export const handlers = {
       if (inv.purpose === 'reset') {
         for (const table of ['vendor_passkeys', 'vendor_totp', 'vendor_recovery_codes']) await c.query(`DELETE FROM ${table} WHERE account_id=$1`, [inv.accountId])
         await c.query('UPDATE vendor_sessions SET revoked_at=$2 WHERE account_id=$1 AND revoked_at IS NULL', [inv.accountId, ctx.now])
+        await audit(c, `account:${inv.accountId}`, 'account.reset_started', `account:${inv.accountId}`, 'reset')
       }
       await finishRegistration(c, ctx.lib, ctx.admin, inv.accountId, consumed, body.response, body.label, ctx.now)
+      await audit(c, `account:${inv.accountId}`, 'auth.passkey_registered', `account:${inv.accountId}`, inv.purpose)
       return { status: 204 }
     })
   },
@@ -106,25 +108,25 @@ export const handlers = {
         return { status: 200, data: sessionBody(session) }
       })
     } catch (error) {
-      throw error instanceof AdminAuthError && error.code === 'auth_failed' ? counted(scopes) : error
+      throw error instanceof AdminAuthError && error.code === 'auth_failed' ? counted(scopes, 'passkey/verify') : error
     }
   },
   async fallback(ctx: AuthContext, body: { email: string; password: string; totp_code: string }): Promise<Result> {
     return tx(ctx, async (c) => {
-      const { id, scopes } = await passwordLogin(ctx, c, body.email, body.password)
+      const { id, scopes } = await passwordLogin(ctx, c, body.email, body.password, 'fallback')
       // Row lock: two concurrent uses of one code cannot both pass the last_step check.
       const totp = (await c.query('SELECT secret_box, last_step FROM vendor_totp WHERE account_id=$1 FOR UPDATE', [id])).rows[0]
       const step = totp ? checkTotp(open(ctx.admin.secretKey, totp.secret_box), body.totp_code, ctx.now.getTime(), Number(totp.last_step)) : null
-      if (step === null) throw counted(scopes)
+      if (step === null) throw counted(scopes, 'fallback')
       await c.query('UPDATE vendor_totp SET last_step=$2 WHERE account_id=$1', [id, step])
       return finishSignIn(ctx, c, id, scopes, 'fallback')
     })
   },
   async recovery(ctx: AuthContext, body: { email: string; password: string; recovery_code: string }): Promise<Result> {
     return tx(ctx, async (c) => {
-      const { id, scopes } = await passwordLogin(ctx, c, body.email, body.password)
+      const { id, scopes } = await passwordLogin(ctx, c, body.email, body.password, 'recovery')
       const used = await c.query('UPDATE vendor_recovery_codes SET used_at=$3 WHERE account_id=$1 AND code_hash=$2 AND used_at IS NULL RETURNING 1', [id, hashToken(body.recovery_code.trim().toLowerCase()), ctx.now])
-      if (!used.rowCount) throw counted(scopes)
+      if (!used.rowCount) throw counted(scopes, 'recovery')
       return finishSignIn(ctx, c, id, scopes, 'recovery')
     })
   },

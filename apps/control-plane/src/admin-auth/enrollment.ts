@@ -16,7 +16,7 @@ export async function inviteAccount(client: PoolClient, issuer: string, actor: {
   const accountId = Number(inserted.rows[0].id)
   await setRoles(client, issuer, 'operator', accountId, input.roles, input.reason)
   const token = newToken(); const expiresAt = new Date(now.getTime() + DAY)
-  await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at) VALUES($1,$2,'enroll',$3,$4)", [hashToken(token), accountId, actorName(actor), expiresAt])
+  await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at,created_at) VALUES($1,$2,'enroll',$3,$4,$5)", [hashToken(token), accountId, actorName(actor), expiresAt, now])
   await audit(client, actorName(actor), 'account.invited', `account:${accountId}`, input.reason)
   return { token, expiresAt }
 }
@@ -26,7 +26,7 @@ export async function issueReset(client: PoolClient, actor: { id: number } | 'op
   if (!account.rowCount) throw new AdminAuthError(422, 'invalid')
   await client.query('UPDATE vendor_invitations SET consumed_at=$2 WHERE account_id=$1 AND consumed_at IS NULL', [accountId, now])
   const token = newToken(); const expiresAt = new Date(now.getTime() + DAY)
-  await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at) VALUES($1,$2,'reset',$3,$4)", [hashToken(token), accountId, actorName(actor), expiresAt])
+  await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at,created_at) VALUES($1,$2,'reset',$3,$4,$5)", [hashToken(token), accountId, actorName(actor), expiresAt, now])
   await audit(client, actorName(actor), 'account.reset_issued', `account:${accountId}`, reason)
   return { token, expiresAt }
 }

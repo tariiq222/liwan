@@ -20,6 +20,7 @@ const fail = (): never => { throw new AdminAuthError(401, 'auth_failed') }
 
 async function saveChallenge(client: PoolClient, kind: 'register' | 'login' | 'step_up', accountId: number | null, challenge: string, now: Date) {
   const id = randomUUID()
+  await client.query('DELETE FROM vendor_auth_challenges WHERE expires_at < $1', [now])
   await client.query('INSERT INTO vendor_auth_challenges(id,account_id,kind,challenge,expires_at) VALUES($1,$2,$3,$4,$5)', [id, accountId, kind, challenge, new Date(now.getTime() + CHALLENGE_MS)])
   return id
 }
