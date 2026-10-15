@@ -29,6 +29,10 @@
       "pages": [
         "projects",
         "tasks"
+      ],
+      "tags": [
+        "Project",
+        "Task"
       ]
     },
     "meetings": {
@@ -61,6 +65,9 @@
       ],
       "pages": [
         "my-tasks"
+      ],
+      "tags": [
+        "MyTasks"
       ]
     },
     "operations": {
