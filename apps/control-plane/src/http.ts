@@ -19,6 +19,7 @@ import { AdminAuthError } from './admin-auth/accounts.js'
 import { resolveSession } from './admin-auth/sessions.js'
 import { STEP_UP_CAPABILITIES } from './admin-auth/roles.js'
 import { adminAuthHttp } from './admin-auth/routes.js'
+import { accountsHttp } from './admin-auth/accounts-http.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -368,6 +369,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       const eventResponse=await paymentEventsHttp(pool,{method,pathname,raw,headers:req.headers},paymentRuntime)
       if(eventResponse)return respond(res,eventResponse.status,eventResponse.data)
       const auth = await authorize(pool, req, raw, config)
+      const accountsResponse = await accountsHttp(pool, { method, pathname, raw, issuer: config.installationId, auth, requireCapability, fail: (status, code) => new ApiError(status, code, code) })
+      if (accountsResponse) {
+        if (accountsResponse.data !== undefined) return respond(res, accountsResponse.status, accountsResponse.data)
+        res.writeHead(accountsResponse.status, { 'cache-control': 'no-store' })
+        return res.end()
+      }
       const packageResponse = await packageHttp(pool,{method,pathname,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,repositoryRoot:config.repositoryRoot})
       if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
       const commercialInput={method,pathname,search:url.search,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh}

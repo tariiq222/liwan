@@ -34,10 +34,17 @@ export async function syncMembership(client: PoolClient, issuer: string, account
   await client.query(`INSERT INTO vendor_memberships(issuer,actor_uid,capabilities,revoked_at) VALUES($1,$2,$3,${active ? 'NULL' : 'now()'})
     ON CONFLICT(issuer,actor_uid) DO UPDATE SET capabilities=EXCLUDED.capabilities, revoked_at=EXCLUDED.revoked_at`, [issuer, accountId, capabilitiesFor(roles)])
 }
+// A non-operator actor must still be an active owner when the mutation runs (the owner set is locked).
+export function requireActingOwner(actor: { id: number } | 'operator', owners: number[]): void {
+  if (actor !== 'operator' && !owners.includes(Number(actor.id))) throw new AdminAuthError(403, 'forbidden')
+}
 export async function setRoles(client: PoolClient, issuer: string, actor: { id: number } | 'operator', accountId: number, roles: VendorRole[], reason: string): Promise<void> {
   const why = requireReason(reason)
   if (!roles.length || roles.some((r) => !VENDOR_ROLES.includes(r)) || new Set(roles).size !== roles.length) throw new AdminAuthError(422, 'invalid')
   const owners = await lockOwners(client)
+  requireActingOwner(actor, owners)
+  const target = await client.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
+  if (!target.rowCount || target.rows[0].status === 'disabled') throw new AdminAuthError(422, 'invalid')
   if (owners.includes(Number(accountId)) && !roles.includes('owner') && owners.length <= 1) throw new AdminAuthError(409, 'last_owner')
   if (actor !== 'operator' && Number(actor.id) === Number(accountId) && owners.filter((id) => id !== Number(accountId)).length === 0) throw new AdminAuthError(409, 'last_owner')
   await client.query('DELETE FROM vendor_account_roles WHERE account_id=$1', [accountId])
@@ -48,6 +55,9 @@ export async function setRoles(client: PoolClient, issuer: string, actor: { id: 
 export async function disableAccount(client: PoolClient, issuer: string, actor: { id: number } | 'operator', accountId: number, reason: string): Promise<void> {
   const why = requireReason(reason)
   const owners = await lockOwners(client)
+  requireActingOwner(actor, owners)
+  const target = await client.query('SELECT 1 FROM vendor_accounts WHERE id=$1', [accountId])
+  if (!target.rowCount) throw new AdminAuthError(422, 'invalid')
   if (owners.includes(Number(accountId)) && owners.length <= 1) throw new AdminAuthError(409, 'last_owner')
   const updated = await client.query("UPDATE vendor_accounts SET status='disabled', disabled_at=now() WHERE id=$1 AND status<>'disabled' RETURNING id", [accountId])
   if (!updated.rowCount) throw new AdminAuthError(422, 'invalid')

@@ -14,7 +14,7 @@ export async function inviteAccount(client: PoolClient, issuer: string, actor: {
   const inserted = await client.query('INSERT INTO vendor_accounts(email,display_name) VALUES($1,$2) ON CONFLICT (email) DO NOTHING RETURNING id', [email, name])
   if (!inserted.rowCount) throw new AdminAuthError(409, 'conflict')
   const accountId = Number(inserted.rows[0].id)
-  await setRoles(client, issuer, 'operator', accountId, input.roles, input.reason)
+  await setRoles(client, issuer, actor, accountId, input.roles, input.reason)
   const token = newToken(); const expiresAt = new Date(now.getTime() + DAY)
   await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at,created_at) VALUES($1,$2,'enroll',$3,$4,$5)", [hashToken(token), accountId, actorName(actor), expiresAt, now])
   await audit(client, actorName(actor), 'account.invited', `account:${accountId}`, input.reason)
