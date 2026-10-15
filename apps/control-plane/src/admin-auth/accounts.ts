@@ -52,6 +52,7 @@ export async function disableAccount(client: PoolClient, issuer: string, actor: 
   const updated = await client.query("UPDATE vendor_accounts SET status='disabled', disabled_at=now() WHERE id=$1 AND status<>'disabled' RETURNING id", [accountId])
   if (!updated.rowCount) throw new AdminAuthError(422, 'invalid')
   await client.query('UPDATE vendor_sessions SET revoked_at=now() WHERE account_id=$1 AND revoked_at IS NULL', [accountId])
+  await client.query('UPDATE vendor_invitations SET consumed_at=now() WHERE account_id=$1 AND consumed_at IS NULL', [accountId])
   await syncMembership(client, issuer, accountId)
   await audit(client, actorName(actor), 'account.disabled', `account:${accountId}`, why)
 }

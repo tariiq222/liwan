@@ -24,7 +24,7 @@ export async function inviteAccount(client: PoolClient, issuer: string, actor: {
 export async function issueReset(client: PoolClient, actor: { id: number } | 'operator', accountId: number, reason: string, now: Date) {
   const account = await client.query("SELECT id FROM vendor_accounts WHERE id=$1 AND status<>'disabled' FOR UPDATE", [accountId])
   if (!account.rowCount) throw new AdminAuthError(422, 'invalid')
-  await client.query('UPDATE vendor_invitations SET consumed_at=now() WHERE account_id=$1 AND consumed_at IS NULL', [accountId])
+  await client.query('UPDATE vendor_invitations SET consumed_at=$2 WHERE account_id=$1 AND consumed_at IS NULL', [accountId, now])
   const token = newToken(); const expiresAt = new Date(now.getTime() + DAY)
   await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at) VALUES($1,$2,'reset',$3,$4)", [hashToken(token), accountId, actorName(actor), expiresAt])
   await audit(client, actorName(actor), 'account.reset_issued', `account:${accountId}`, reason)
@@ -32,9 +32,9 @@ export async function issueReset(client: PoolClient, actor: { id: number } | 'op
 }
 
 export async function openInvitation(client: PoolClient, token: string, now: Date) {
-  const row = await client.query('SELECT i.account_id, i.purpose, i.expires_at, i.consumed_at, a.email FROM vendor_invitations i JOIN vendor_accounts a ON a.id=i.account_id WHERE i.token_hash=$1 FOR UPDATE OF i', [hashToken(String(token ?? ''))])
+  const row = await client.query('SELECT i.account_id, i.purpose, i.expires_at, i.consumed_at, a.email, a.status FROM vendor_invitations i JOIN vendor_accounts a ON a.id=i.account_id WHERE i.token_hash=$1 FOR UPDATE OF i', [hashToken(String(token ?? ''))])
   const inv = row.rows[0]
-  if (!inv || inv.consumed_at || new Date(inv.expires_at) <= now) throw new AdminAuthError(401, 'auth_failed')
+  if (!inv || inv.consumed_at || inv.status === 'disabled' || new Date(inv.expires_at) <= now) throw new AdminAuthError(401, 'auth_failed')
   return { accountId: Number(inv.account_id), purpose: inv.purpose as 'enroll' | 'reset', email: inv.email as string }
 }
 
@@ -43,7 +43,8 @@ export async function completeEnrollment(client: PoolClient, issuer: string, tok
   if (!input.passkeyRegistered || !passwordAcceptable(input.password)) throw new AdminAuthError(422, 'invalid')
   const step = checkTotp(open(secretKey, input.totpSecretBox), String(input.totpCode ?? ''), now.getTime(), 0)
   if (step === null) throw new AdminAuthError(422, 'invalid')
-  await client.query("UPDATE vendor_accounts SET status='active', password_hash=$2 WHERE id=$1", [inv.accountId, await hashPassword(input.password)])
+  const activated = await client.query("UPDATE vendor_accounts SET status='active', password_hash=$2 WHERE id=$1 AND status IN ('enrolling','active') RETURNING id", [inv.accountId, await hashPassword(input.password)])
+  if (!activated.rowCount) throw new AdminAuthError(401, 'auth_failed')
   await client.query('INSERT INTO vendor_totp(account_id,secret_box,last_step,confirmed_at) VALUES($1,$2,$3,$4) ON CONFLICT (account_id) DO UPDATE SET secret_box=EXCLUDED.secret_box,last_step=EXCLUDED.last_step,confirmed_at=EXCLUDED.confirmed_at', [inv.accountId, input.totpSecretBox, step, now])
   await client.query('DELETE FROM vendor_recovery_codes WHERE account_id=$1', [inv.accountId])
   const recoveryCodes = newRecoveryCodes()
