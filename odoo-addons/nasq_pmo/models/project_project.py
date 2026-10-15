@@ -1079,6 +1079,10 @@ class ProjectProject(models.Model):
                 raise ValidationError(self.env._("Choose a sponsor who can open projects before submitting the charter."))
             if self.privacy_visibility == 'followers' and sponsor not in self._nasq_followers():
                 self._nasq_add_follower(sponsor)
+            try:
+                self.with_user(sponsor).with_company(self.company_id)._nasq_check_visible_current()
+            except AccessError as error:
+                raise ValidationError(self.env._("Choose a sponsor who can open projects before submitting the charter.")) from error
             vals['nasq_charter_state'] = 'submitted'
         self._nasq_write_charter_approval(vals)
         return self
@@ -1174,6 +1178,11 @@ class ProjectProject(models.Model):
 
     def _nasq_remove_follower(self, user):
         self._nasq_check_manage()
+        if (
+            self.nasq_charter_state == 'submitted' and self.privacy_visibility == 'followers'
+            and user == self.nasq_sponsor_id
+        ):
+            raise NasqCharterState(self.env._("The sponsor is reviewing the charter; withdraw it before removing the sponsor."))
         # sudo(): same rationale as _nasq_add_follower above.
         self.sudo().message_unsubscribe(partner_ids=[user.partner_id.id])
         return self._nasq_followers()

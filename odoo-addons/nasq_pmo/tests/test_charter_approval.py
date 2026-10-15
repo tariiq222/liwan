@@ -183,6 +183,31 @@ class TestCharterApproval(NasqPmoCase):
         self.assertEqual(copy.nasq_charter_state, 'draft')
         self.assertFalse(copy.nasq_charter_approved_by_id)
 
+    def test_submit_rejects_sponsor_outside_the_company(self):
+        self._policy(True)
+        other = self.env['res.company'].create({'name': 'Elsewhere'})
+        stranger = new_test_user(
+            self.env, login='api_stranger', name='Stranger', groups='nasq_core.group_employee',
+            company_id=other.id, company_ids=[(6, 0, [other.id])],
+        )
+        # Writes refuse such a sponsor; this simulates a sponsor who left the company later.
+        self.env.cr.execute('UPDATE project_project SET nasq_sponsor_id = %s WHERE id = %s', [stranger.id, self.project.id])
+        self.project.invalidate_recordset()
+        with self.assertRaises(ValidationError):
+            self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+
+    def test_cannot_unsubscribe_waiting_sponsor_on_private_project(self):
+        self._policy(True)
+        self.project.privacy_visibility = 'followers'
+        self._as(self.manager)._nasq_charter_submit()
+        with self.assertRaises(NasqCharterState):
+            self._as(self.manager)._nasq_remove_follower(self.sponsor)
+        self.assertIn(self.sponsor, self.project._nasq_followers())
+        self._as(self.manager)._nasq_charter_withdraw()
+        self._as(self.manager)._nasq_remove_follower(self.sponsor)
+        self.assertNotIn(self.sponsor, self.project._nasq_followers())
+
 
 @tagged('post_install', '-at_install', 'nasq')
 class TestCharterApprovalApi(NasqPmoCase):
@@ -295,3 +320,31 @@ class TestCharterApprovalApi(NasqPmoCase):
         self.assertEqual(self._post('submit', {}).status_code, 422)
         self.assertEqual(self._post('submit', {'expected_updated_at': token, 'x': 1}).status_code, 422)
         self.assertEqual(self.api('POST', '/api/v1/projects/999999/charter/submit', {'expected_updated_at': 'v1'}).status_code, 404)
+
+    def test_charter_review_filter(self):
+        other = self.env['project.project'].create({'name': 'Other', 'user_id': self.manager.id, 'nasq_sponsor_id': self.sponsor.id})
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self._post('submit', {'expected_updated_at': self._token()})
+        self.authenticate('api_sponsor', 'api_sponsor_pass_123')
+        res = self.api('GET', '/api/v1/projects?charter_review=1').json()
+        self.assertEqual([i['id'] for i in res['items']], [self.project.id])
+        self.assertNotIn(other.id, [i['id'] for i in res['items']])
+        mine = self.api('GET', '/api/v1/projects?charter_review=1&mine=1').json()
+        self.assertEqual(mine['items'], [])
+        bad = self.api('GET', '/api/v1/projects?charter_review=maybe')
+        self.assertEqual((bad.status_code, bad.json()['field']), (422, 'charter_review'))
+
+    def test_non_manager_cannot_submit_or_withdraw(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self._post('submit', {'expected_updated_at': self._token()})
+        self.authenticate('api_sponsor', 'api_sponsor_pass_123')
+        token = self._token()
+        self.assertEqual(self._post('withdraw', {'expected_updated_at': token}).status_code, 403)
+        self.assertEqual(self._post('submit', {'expected_updated_at': token}).status_code, 403)
+
+    def test_remove_sponsor_follower_while_submitted_is_409(self):
+        self.project.privacy_visibility = 'followers'
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self._post('submit', {'expected_updated_at': self._token()})
+        res = self.api('DELETE', f'/api/v1/projects/{self.project.id}/followers/{self.sponsor.id}')
+        self.assertEqual((res.status_code, res.json()['code']), (409, 'charter_state'))
