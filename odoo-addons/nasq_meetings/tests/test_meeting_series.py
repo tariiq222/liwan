@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessError, ValidationError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .common import NasqMeetingsCase
 
@@ -408,3 +408,62 @@ class TestMeetingSeries(NasqMeetingsCase):
             ('nasq_meeting_id', '=', meeting.id), ('nasq_notification_kind', '=', 'meeting_cancelled'),
         ])
         self.assertEqual(len(messages), 4)
+
+    def test_http_series_creation_validates_url_and_people(self):
+        self._grant_meeting_create()
+        other = self.env['res.company'].create({'name': 'Series outsider Co'})
+        outsider = new_test_user(
+            self.env, login='series_outsider', name='Omar', groups='nasq_core.group_employee',
+            company_id=other.id, company_ids=[other.id],
+        )
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for field, body in [
+            ('meeting_url', {'name': 'Bad url', 'meeting_url': 'javascript:alert(1)'}),
+            ('secretary_id', {'name': 'Bad secretary', 'secretary_id': outsider.id}),
+            ('attendee_ids', {'name': 'Bad attendees', 'attendee_ids': [self.manager.id, outsider.id]}),
+        ]:
+            response = self.api('POST', '/api/v1/meeting-series', body)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertEqual(response.json()['field'], field)
+        self.assertEqual(self.env['nasq.meeting.series'].search_count([('name', 'ilike', 'Bad ')]), 0)
+        created = self.api('POST', '/api/v1/meeting-series', {
+            'name': 'Valid series', 'meeting_url': 'https://meet.example.com/x', 'attendee_ids': [self.manager.id],
+        })
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()['meeting_url'], 'https://meet.example.com/x')
+
+    def test_occurrence_days_follow_the_organizer_timezone(self):
+        self.employee.tz = 'Asia/Riyadh'
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Early weekly', 'recurrence': 'weekly', 'until_count': 3, 'organizer_id': self.employee.id,
+        })
+        # 01:00 on Tuesday 2026-09-08 in Riyadh (UTC+3) is 22:00 UTC on Monday 2026-09-07.
+        meetings = series.action_generate_occurrences(datetime(2026, 9, 7, 22, 0), datetime(2026, 9, 7, 23, 0))
+        self.assertEqual(
+            [(m.meeting_date.isoformat(), m.start_datetime) for m in meetings.sorted('start_datetime')],
+            [
+                ('2026-09-08', datetime(2026, 9, 7, 22, 0)),
+                ('2026-09-15', datetime(2026, 9, 14, 22, 0)),
+                ('2026-09-22', datetime(2026, 9, 21, 22, 0)),
+            ],
+        )
+        self.assertEqual(meetings[0].calendar_event_id.recurrence_id.event_tz, 'Asia/Riyadh')
+        self.assertTrue(meetings[0].calendar_event_id.recurrence_id.tue)
+        on_demand = self.env['nasq.meeting.series'].create({
+            'name': 'Early on demand', 'recurrence': 'none', 'organizer_id': self.employee.id,
+        })
+        added = on_demand.action_add_occurrence(datetime(2026, 10, 7, 22, 0), datetime(2026, 10, 7, 23, 0))
+        self.assertEqual(added.meeting_date.isoformat(), '2026-10-08')
+
+    def test_monthly_series_on_the_31st_keeps_the_local_month_day(self):
+        self.employee.tz = 'Asia/Riyadh'
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'Month end', 'recurrence': 'monthly', 'until_count': 3, 'organizer_id': self.employee.id,
+        })
+        # 01:00 on 2026-01-31 in Riyadh is 22:00 UTC on 2026-01-30.
+        meetings = series.action_generate_occurrences(datetime(2026, 1, 30, 22, 0), datetime(2026, 1, 30, 23, 0))
+        self.assertEqual(
+            [m.meeting_date.isoformat() for m in meetings.sorted('start_datetime')],
+            ['2026-01-31', '2026-03-31', '2026-05-31'],
+        )
+        self.assertEqual(meetings[0].calendar_event_id.recurrence_id.day, 31)

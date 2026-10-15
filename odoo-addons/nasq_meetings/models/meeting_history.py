@@ -3,11 +3,14 @@ from contextvars import ContextVar
 from datetime import date, datetime
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
-from odoo.tools import format_datetime
+from odoo.exceptions import AccessError, UserError
+from odoo.tools import format_datetime, html2plaintext
 
 from odoo.addons.nasq_api.serializers.common import iso
-from odoo.addons.nasq_meetings.serializers.meeting import dump_minutes_form
+from odoo.addons.nasq_meetings.serializers.meeting import (
+    dump_minutes_form,
+    dump_snapshot_payload,
+)
 
 _SNAPSHOT_WRITE = ContextVar('nasq_meeting_snapshot_write', default=False)
 _SNAPSHOT_FIELDS = frozenset({'minutes_snapshot', 'minutes_snapshot_data', 'minutes_snapshot_at'})
@@ -53,7 +56,6 @@ class NasqMeetingHistory(models.Model):
     @api.depends('state', 'minutes_snapshot_data', 'minutes_snapshot_at')
     @api.depends_context('uid', 'company')
     def _compute_minutes_snapshot(self):
-        links = self.env['nasq.meeting.links']
         for meeting in self:
             meeting.check_access('read')
             data = (
@@ -61,50 +63,22 @@ class NasqMeetingHistory(models.Model):
                 if self.env.user.has_group('base.group_system')
                 else meeting.sudo().minutes_snapshot_data
             )
-            if meeting.state != 'done' or not isinstance(data, dict):
-                meeting.minutes_snapshot = False
-                continue
+            meeting.minutes_snapshot = (
+                dump_snapshot_payload(meeting, data) if meeting.state == 'done' else None
+            ) or False
 
-            rows = data.get('resolutions', [])
-            resolution_ids = [
-                row.get('id') for row in rows
-                if isinstance(row, dict) and row.get('id')
-            ]
-            readable = {}
-            if resolution_ids:
-                resolutions = self.env['cyan.meeting.resolution'].browse(resolution_ids).exists()
-                readable = links._nasq_readable_links(meeting, resolutions)
-
-            projected = {
-                key: data.get(key)
-                for key in (
-                    'captured_at', 'name', 'meeting_date', 'start_datetime',
-                    'end_datetime', 'location', 'organizer', 'secretary',
-                    'attendees', 'agenda', 'minutes',
-                )
-            }
-            projected['minutes_form'] = dump_minutes_form(meeting, data.get('minutes_form'))
-            projected['resolutions'] = []
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                safe_row = {
-                    key: row.get(key)
-                    for key in (
-                        'id', 'name', 'deadline', 'priority', 'responsible',
-                        'result', 'meeting_name', 'execution_period',
-                    )
-                }
-                safe_row['project'] = links._nasq_project_ref_by_id(meeting, row.get('project_id'))
-                provenance = row.get('task_provenance') or {}
-                link = readable.get(row.get('id'))
-                same_task = link and link['task_id'] == provenance.get('task_id')
-                safe_row['state'] = (
-                    row.get('projected_state', row.get('state', 'open'))
-                    if same_task else row.get('state', 'open')
-                )
-                projected['resolutions'].append(safe_row)
-            meeting.minutes_snapshot = projected
+    def _nasq_completion_gap(self):
+        """``(field, message)`` of what a meeting still lacks before it can be completed, else None."""
+        self.ensure_one()
+        if not self.start_datetime or not self.end_datetime:
+            return 'start_datetime', self.env._("Set the meeting start and end before completing it.")
+        form = self.minutes_form
+        has_form = isinstance(form, dict) and (
+            any((form.get(key) or '').strip() for key in ('opening', 'closing')) or bool(form.get('topics'))
+        )
+        if not html2plaintext(self.minutes or '').strip() and not has_form:
+            return 'minutes', self.env._("Write the minutes or fill in the minutes form before completing the meeting.")
+        return None
 
     @api.model
     def default_get(self, fields_list):
@@ -156,6 +130,9 @@ class NasqMeetingHistory(models.Model):
                 # applies M2M/O2M commands against the existing record graph.
                 super().write(pending)
                 self.invalidate_recordset()
+            gap = None if self.env.su else self._nasq_completion_gap()
+            if gap:
+                raise UserError(gap[1])
             snapshot = self._nasq_build_minutes_snapshot(captured_at)
             marker = _SNAPSHOT_WRITE.set(True)
             try:

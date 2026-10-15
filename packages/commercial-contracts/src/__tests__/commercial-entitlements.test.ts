@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { catalogApplicationsFromSolution, catalogDigest } from '../commercial/catalog.js'
 import { CommercialError, compileEntitlements } from '../commercial/entitlements.js'
+import { admitsRequiredAdmin, customerTermsRevisionSchema, planCreateSchema, planRevisionSchema } from '../commercial/schemas.js'
 import type { BundleRevision, CatalogRelease, PlanRevision } from '../commercial/types.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -26,9 +27,9 @@ describe('commercial catalog and entitlement compiler', () => {
   })
   it('installs the whole release, keeps 0/null, and overrides only explicit limits', () => {
     const input = fixture()
-    const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': 0 } } })
+    const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': 1 } } })
     expect(result.modules).toEqual(['nasq_api', 'nasq_chat', 'nasq_core', 'nasq_hr', 'nasq_meetings', 'nasq_platform', 'nasq_pmo'])
-    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 0 })
+    expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 1 })
     expect(result.compiler_version).toBe('commercial-compiler/2')
     expect(input.plan.platform_limits['users.limit']).toBe(20)
   })
@@ -110,18 +111,44 @@ describe('commercial catalog and entitlement compiler', () => {
     input.plan.platform_limits = { 'users.limit': null, 'storage.limit_mb': null }
     expect(compileEntitlements(input).features['users.limit']).toBeNull()
   })
+  it('refuses a users.limit that cannot admit the required customer administrator', () => {
+    const input = fixture()
+    input.plan.platform_limits = { 'users.limit': 0, 'storage.limit_mb': null }
+    expect(() => compileEntitlements(input)).toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'platform_limits' }))
+    const terms = (limit: number | null) => ({ id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': limit } })
+    expect(() => compileEntitlements({ ...fixture(), terms: terms(0) })).toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'limits' }))
+    expect(compileEntitlements({ ...fixture(), terms: terms(1) }).features['users.limit']).toBe(1)
+    expect(compileEntitlements({ ...fixture(), terms: terms(null) }).features['users.limit']).toBeNull()
+  })
+  it('shares one users.limit floor across plan and terms inputs', () => {
+    expect([null, 1, 25].map(admitsRequiredAdmin)).toEqual([true, true, true])
+    expect([0, -1, 1.5, undefined, '1'].map(admitsRequiredAdmin)).toEqual([false, false, false, false, false])
+    const { plan } = fixture()
+    const { id: _i, plan_id: _p, version: _v, edit_revision: _e, status: _s, available: _a, ...fields } = plan
+    const planInput = (limit: number | null) => ({ ...fields, platform_limits: { 'users.limit': limit, 'storage.limit_mb': null } })
+    expect(planCreateSchema.safeParse(planInput(1)).success).toBe(true)
+    expect(planCreateSchema.safeParse(planInput(null)).success).toBe(true)
+    const refused = planCreateSchema.safeParse(planInput(0))
+    expect(refused.success).toBe(false)
+    expect(refused.error?.issues[0]?.path).toEqual(['platform_limits', 'users.limit'])
+    const terms = (limit: number | null) => ({ id: id(9), customer_id: 'cust', reason: 'Special terms', limits: { 'users.limit': limit } })
+    expect(customerTermsRevisionSchema.safeParse(terms(1)).success).toBe(true)
+    expect(customerTermsRevisionSchema.safeParse(terms(0)).success).toBe(false)
+    expect(customerTermsRevisionSchema.safeParse({ ...terms(1), limits: { 'storage.limit_mb': 0 } }).success).toBe(true)
+    expect(planRevisionSchema.safeParse({ ...plan, platform_limits: { 'users.limit': 0, 'storage.limit_mb': null } }).success).toBe(false)
+  })
   it('opens a non-selectable boolean of a core or included application', () => {
     const input = fixture()
     const core = input.release.applications.find(a => !a.selectable)!
     core.features.push({ ...core.features[0]!, key: 'core.always', kind: 'boolean', selectable: false, ceiling: undefined })
     expect(compileEntitlements(input).features['core.always']).toBe(true)
   })
-  it('compiles the real v3 catalog into exactly the eight policy keys', () => {
+  it('compiles the real v3 catalog into exactly the nine policy keys', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
     const input = fixture()
     input.release.applications = catalogApplicationsFromSolution(v3, 'v3')
     input.plan.platform_limits = { 'users.limit': 20, 'storage.limit_mb': null }
-    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 20 })
+    expect(compileEntitlements(input).features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'tasks.enabled': false, 'users.limit': 20 })
   })
   it('names an application unknown to the platform from its catalog tier', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))

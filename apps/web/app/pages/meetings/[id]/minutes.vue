@@ -12,7 +12,7 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
-const { mutateAsync, isPending, error } = usePatchMeeting()
+const { mutateAsync, isPending, error, reset } = usePatchMeeting()
 // Child pages always return to their current record; only normalized list context follows.
 const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
 const agenda = ref('')
@@ -41,6 +41,15 @@ watch(query.data, seedMeeting, { immediate: true })
 useSsrQuerySeed(query, seedMeeting)
 
 const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
+const { fieldErrors: serverErrors, submitError } = useMeetingSubmitError({
+  error,
+  reset,
+  edits: snapshot,
+  fields: {
+    minutes_form: 'minutesForm',
+    minutes: 'minutes',
+  },
+})
 const canEdit = computed(() => query.data.value?.can_edit === true)
 const lifecycleLocked = computed(() => query.data.value?.state === 'done' || query.data.value?.state === 'cancelled')
 const structuredValidationErrors = computed(() => validateMeetingMinutesForm(minutesForm.value, query.data.value?.resolutions ?? []))
@@ -96,28 +105,31 @@ function createRecommendation() {
           :legacy-recommendations="readonlyRecommendations"
           :title="t('meetingMinutesForm.documentTitle')"
         />
-        <MeetingMinutesForm
-          v-else-if="!lifecycleLocked && canEdit"
-          v-model="minutesForm"
-          :meeting="query.data.value"
-          :recommendations="query.data.value.resolutions"
-          :legacy-agenda="agenda"
-          :readonly="lifecycleLocked || !canEdit"
-          :pending="isPending"
-          @save-and-create-resolution="createRecommendation"
-        />
+        <UFormField v-else-if="!lifecycleLocked && canEdit" name="minutesForm" :error="serverErrors.minutesForm">
+          <MeetingMinutesForm
+            v-model="minutesForm"
+            :meeting="query.data.value"
+            :recommendations="query.data.value.resolutions"
+            :legacy-agenda="agenda"
+            :readonly="lifecycleLocked || !canEdit"
+            :pending="isPending"
+            @save-and-create-resolution="createRecommendation"
+          />
+        </UFormField>
         <SharedFormSection :title="t('meetingsUi.agenda')">
           <ClientOnly>
             <DescriptionEditor :model-value="agenda" :task-id="id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="agenda = $event.html" />
           </ClientOnly>
         </SharedFormSection>
         <SharedFormSection :title="t('meetingsUi.minutes')">
-          <ClientOnly>
-            <DescriptionEditor :model-value="minutes" :task-id="-id" :aria-label="t('meetingsUx.minutesLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" />
-          </ClientOnly>
+          <UFormField name="minutes" :error="serverErrors.minutes">
+            <ClientOnly>
+              <DescriptionEditor :model-value="minutes" :task-id="-id" :aria-label="t('meetingsUx.minutesLabel')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" />
+            </ClientOnly>
+          </UFormField>
         </SharedFormSection>
         <UAlert v-if="structuredValidationErrors.length" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingMinutesForm.validation.invalid')" />
-        <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
+        <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
         <div class="nasq-form-footer justify-end">
           <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!hydrated || isPending || !canSave" :label="t('app.save')" />
