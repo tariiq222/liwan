@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from unittest.mock import patch
+
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
@@ -135,3 +137,32 @@ class TestProjectPhase(NasqPmoCase):
             res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {key: 'executing'})
             self.assertEqual((res.status_code, res.json()['code']), (422, 'unknown_field'))
         self.assertEqual(self.project.nasq_phase, 'initiating')
+
+    def test_gate_checks_extend_through_super(self):
+        project_class = type(self.env['project.project'])
+        extra = {'key': 'budget_baselined', 'ok': False}
+
+        def extended(record, target):
+            checks = super(project_class, record)._nasq_gate_checks(target)
+            return [*checks, extra] if target == 'planning' else checks
+
+        self._approve_charter()
+        with patch.object(project_class, '_nasq_gate_checks', extended):
+            self.assertEqual(self._as_manager()._nasq_phase_state()['next_checks'], [{'key': 'charter_approved', 'ok': True}, extra])
+            self.authenticate('api_mgr', 'api_mgr_pass_123')
+            res = self._move('planning')
+            self.assertEqual((res.status_code, res.json()['code']), (409, 'phase_gate'))
+            self.assertEqual(res.json()['details'], {'checks': [{'key': 'charter_approved', 'ok': True}, extra]})
+        self.assertEqual(self.project.nasq_phase, 'initiating')
+
+    def test_route_missing_or_foreign_project(self):
+        other_company = self.env['res.company'].create({'name': 'Phase other company'})
+        foreign = self.env['project.project'].create({'name': 'Foreign phase project', 'company_id': other_company.id})
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        body = {'phase': 'planning', 'expected_updated_at': 'v0'}
+        missing = self.api('POST', '/api/v1/projects/999999/phase', body)
+        self.assertEqual((missing.status_code, missing.json()['code']), (404, 'not_found'))
+        # Like the other project routes, another company's project is refused, not reported missing.
+        hidden = self.api('POST', f'/api/v1/projects/{foreign.id}/phase', body)
+        self.assertEqual((hidden.status_code, hidden.json()['code']), (403, 'forbidden'))
+        self.assertEqual(foreign.nasq_phase, 'initiating')

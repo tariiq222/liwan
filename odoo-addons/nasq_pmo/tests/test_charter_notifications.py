@@ -133,6 +133,15 @@ class TestCharterNotifications(NasqPmoCase):
         self.project.active = False
         self.assertEqual(self._bell(self.manager, MANAGER_PASSWORD), [])
 
+    def test_decision_row_still_serializes_after_charter_reopens(self):
+        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.sponsor)._nasq_charter_approve()
+        self.project.with_user(self.manager).write({'name': 'Renamed after approval'})
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+        items = self._bell(self.manager, MANAGER_PASSWORD)
+        self.assertEqual([(item['kind'], item['project_id'], item['project_name']) for item in items],
+                         [('charter_approved', self.project.id, 'Renamed after approval')])
+
     def test_bell_without_project_read_is_empty_not_forbidden(self):
         reader = new_test_user(
             self.env, login='api_no_pmo', password='api_no_pmo_pass_123', name='Nour',
