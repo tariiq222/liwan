@@ -26,7 +26,9 @@ and contracts are in `AGENTS.md`.
   (`tools/ui_policy.py`) before a second page uses it. No local copy of a
   component that has a story.
 - Component folders: `components/pmo/projects` and `components/pmo/tasks` (PMO),
-  `components/personal-tasks`, and `components/shared/{layout,data,form,feedback}`.
+  `components/personal-tasks`. Presentational building blocks live in the `packages/ui`
+  layer (`app/components/shared/{layout,data,form,feedback}` and `shell`); `apps/web`
+  keeps only `components/shared/{data,form,commerce}` pieces that need app data.
   `nuxt.config.ts` registers them with an explicit `prefix`, so their names stay
   `Project*`, `Task*`, `MyTasks*` and `Shared*`; a new prefixed folder is added there
   and to `COMPONENT_PREFIXES` in `tools/ui_policy.py`.
