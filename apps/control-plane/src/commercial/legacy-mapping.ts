@@ -18,15 +18,15 @@ export function uuidv5(name: string, namespace = LEGACY_NAMESPACE): string {
 const sha = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest('hex')
 const ACTOR: CommercialActor = { issuer: 'legacy-migration', actorUid: 1 }
 
-export type MigrationCounts = { saas_package: number; saas_catalog_only: number; non_saas: number; package_published: number; package_skipped: number; errors: number }
+export type MigrationCounts = { saas_package: number; saas_catalog_only: number; saas_commercial: number; non_saas: number; package_published: number; package_skipped: number; errors: number }
 export type RowError = { source_kind: string; source_id: string; code: string }
-export type MigrationReport = { mode: 'dry_run' | 'run'; run_id: string; source_digest: string; counts: MigrationCounts; errors: RowError[]; created: Record<string, number> }
+export type MigrationReport = { mode: 'dry_run' | 'run'; run_id: string; source_digest: string; counts: MigrationCounts; errors: RowError[]; created: Record<string, number>; skipped_commercial: string[] }
 export type MigrateOptions = { mode: 'dry_run' | 'run'; afterRow?: (rowsProcessed: number) => void | Promise<void> }
 
 type Row = Record<string, any>
 type Item =
   | { kind: 'package_revision'; row: Row; digest: string }
-  | { kind: 'tenant'; row: Row; digest: string }
+  | { kind: 'tenant'; row: Row; digest: string; commercialCustomerId?: string }
 
 const PKG_COLS = 'id,package_id,version,name,description,status,available,catalog_version,catalog_tier,source_sha256,limits,modules,features,content_digest'
 const TENANT_COLS = 'id,name,commercial_mode,hosting_model,catalog_version,catalog_tier,package_revision_id,desired_policy,observed_policy,policy_revision'
@@ -34,10 +34,33 @@ const TENANT_COLS = 'id,name,commercial_mode,hosting_model,catalog_version,catal
 async function loadInventory(q: Pool | PoolClient): Promise<Item[]> {
   const pk = await q.query(`SELECT ${PKG_COLS} FROM package_revisions ORDER BY id`)
   const tn = await q.query(`SELECT ${TENANT_COLS} FROM tenants ORDER BY id`)
+  const owners = await commercialOwnership(q)
   return [
     ...pk.rows.map(row => ({ kind: 'package_revision' as const, row, digest: sha(row) })),
-    ...tn.rows.map(row => ({ kind: 'tenant' as const, row, digest: sha(row) })),
+    ...tn.rows.map(row => {
+      const commercialCustomerId = row.commercial_mode === 'saas' ? owners.get(row.id)?.owner : undefined
+      return { kind: 'tenant' as const, row, digest: sha(row), ...(commercialCustomerId ? { commercialCustomerId } : {}) }
+    }),
   ]
+}
+
+type Ownership = { owner?: string; conflict?: true }
+/** Tenants the commercial journey already owns, so they are not legacy: a customer other than the
+ * legacy one enrolled the tenant (the enrollment request id is the tenant id) or holds a subscription
+ * on it. A customer merely bound by tenant_id is not proof; it stays a customer_conflict. A tenant with
+ * both the legacy customer and a commercial one is an ownership_conflict. */
+async function commercialOwnership(q: Pool | PoolClient, tenantId?: string): Promise<Map<string, Ownership>> {
+  const r = await q.query(`SELECT t.id AS tenant_id, c.id AS customer_id,
+      (c.enrollment_request_id=t.id OR EXISTS(SELECT 1 FROM subscriptions s WHERE s.customer_id=c.id AND s.tenant_id=t.id)) AS commercial
+    FROM tenants t JOIN customers c ON c.tenant_id=t.id OR c.enrollment_request_id=t.id
+    WHERE ($1::uuid IS NULL OR t.id=$1::uuid) ORDER BY t.id, c.id`, [tenantId ?? null])
+  const legacy = new Set<string>(), owners = new Map<string, Ownership>()
+  for (const row of r.rows) {
+    if (row.customer_id === uuidv5(`customer:${row.tenant_id}`)) legacy.add(row.tenant_id)
+    else if (row.commercial && !owners.has(row.tenant_id)) owners.set(row.tenant_id, { owner: row.customer_id })
+  }
+  for (const id of legacy) if (owners.has(id)) owners.set(id, { conflict: true })
+  return owners
 }
 export const inventoryDigest = (items: Item[]) => sha(items.map(i => [i.kind, i.row.id, i.digest]))
 
@@ -52,10 +75,11 @@ export async function tenantRowSnapshot(q: Pool | PoolClient): Promise<string[]>
 }
 
 export function classify(items: Item[]): MigrationCounts {
-  const c: MigrationCounts = { saas_package: 0, saas_catalog_only: 0, non_saas: 0, package_published: 0, package_skipped: 0, errors: 0 }
+  const c: MigrationCounts = { saas_package: 0, saas_catalog_only: 0, saas_commercial: 0, non_saas: 0, package_published: 0, package_skipped: 0, errors: 0 }
   for (const i of items) {
     if (i.kind === 'package_revision') i.row.status === 'published' ? c.package_published++ : c.package_skipped++
     else if (i.row.commercial_mode !== 'saas') c.non_saas++
+    else if (i.commercialCustomerId) c.saas_commercial++
     else i.row.package_revision_id ? c.saas_package++ : c.saas_catalog_only++
   }
   return c
@@ -97,9 +121,14 @@ async function migratePackage(pool: Pool, c: PoolClient, item: Item, dry: boolea
   await recordMapping(c, 'package_revision', p.id, 'bundle_revision', bundleRevisionId, legacy, item.digest, created)
 }
 
-async function migrateTenant(c: PoolClient, item: Item, created: Record<string, number>) {
+async function migrateTenant(c: PoolClient, item: Item, created: Record<string, number>): Promise<'migrated' | 'skipped_commercial'> {
   const t = item.row
-  if (t.commercial_mode !== 'saas') { await recordMapping(c, 'tenant', t.id, 'excluded_non_saas', null, { commercial_mode: t.commercial_mode, hosting_model: t.hosting_model }, item.digest, created); return }
+  if (t.commercial_mode !== 'saas') { await recordMapping(c, 'tenant', t.id, 'excluded_non_saas', null, { commercial_mode: t.commercial_mode, hosting_model: t.hosting_model }, item.digest, created); return 'migrated' }
+  // A commercially provisioned tenant already has its own customer: skip it and write nothing. Decided
+  // inside the row transaction, so an ownership that appeared after the inventory is honoured too.
+  const ownership = (await commercialOwnership(c, t.id)).get(t.id)
+  if (ownership?.conflict) throw new Error('ownership_conflict')
+  if (ownership?.owner) return 'skipped_commercial'
   const customerId = uuidv5(`customer:${t.id}`), subscriptionId = uuidv5(`subscription:${t.id}`)
   const legacySource = { catalog_version: t.catalog_version, catalog_tier: t.catalog_tier, package_revision_id: t.package_revision_id, policy_revision: t.policy_revision, observed_policy_digest: sha(t.observed_policy ?? null) }
   const cu = await c.query('INSERT INTO customers(id,name,tenant_id,commercial_setup_required) VALUES($1,$2,$3,true) ON CONFLICT DO NOTHING RETURNING 1', [customerId, t.name, t.id])
@@ -109,6 +138,7 @@ async function migrateTenant(c: PoolClient, item: Item, created: Record<string, 
   if (sb.rowCount) created.subscriptions = (created.subscriptions ?? 0) + 1
   else if (!(await c.query('SELECT 1 FROM subscriptions WHERE id=$1 AND customer_id=$2', [subscriptionId, customerId])).rowCount) throw new Error('subscription_conflict')
   await recordMapping(c, 'tenant', t.id, 'customer', customerId, legacySource, item.digest, created)
+  return 'migrated'
 }
 
 export async function migrateLegacyToSaas(pool: Pool, opts: MigrateOptions): Promise<MigrationReport> {
@@ -117,6 +147,7 @@ export async function migrateLegacyToSaas(pool: Pool, opts: MigrateOptions): Pro
   const counts = classify(items)
   const errors: RowError[] = []
   const created: Record<string, number> = {}
+  const skipped_commercial: string[] = []
   const run_id = randomUUID(), source_digest = inventoryDigest(items)
   const started = new Date()
   const client = await pool.connect()
@@ -127,11 +158,26 @@ export async function migrateLegacyToSaas(pool: Pool, opts: MigrateOptions): Pro
     for (const item of items) {
       try {
         await client.query(dry ? 'SAVEPOINT row' : 'BEGIN')
+        let outcome: 'migrated' | 'skipped_commercial' = 'migrated'
         if (item.kind === 'package_revision') await migratePackage(pool, client, item, dry, created)
-        else await migrateTenant(client, item, created)
+        else outcome = await migrateTenant(client, item, created)
         await client.query(dry ? 'RELEASE SAVEPOINT row' : 'COMMIT')
+        if (item.kind === 'tenant' && item.row.commercial_mode === 'saas') {
+          if (outcome === 'skipped_commercial') skipped_commercial.push(item.row.id)
+          // The row decision wins over the inventory classification when ownership changed in between.
+          const moved = Number(outcome === 'skipped_commercial') - Number(Boolean(item.commercialCustomerId))
+          counts.saas_commercial += moved
+          if (item.row.package_revision_id) counts.saas_package -= moved
+          else counts.saas_catalog_only -= moved
+        }
       } catch (e) {
         await client.query(dry ? 'ROLLBACK TO SAVEPOINT row' : 'ROLLBACK')
+        // A failed row is not commercial: return it to its legacy category, where its error belongs.
+        if (item.kind === 'tenant' && item.commercialCustomerId) {
+          counts.saas_commercial--
+          if (item.row.package_revision_id) counts.saas_package++
+          else counts.saas_catalog_only++
+        }
         errors.push({ source_kind: item.kind, source_id: item.row.id, code: e instanceof Error ? e.message.slice(0, 80) : 'error' })
       }
       n++
@@ -144,5 +190,5 @@ export async function migrateLegacyToSaas(pool: Pool, opts: MigrateOptions): Pro
     if (dry) await client.query('ROLLBACK').catch(() => {})
     throw e
   } finally { client.release() }
-  return { mode: opts.mode, run_id, source_digest, counts, errors, created }
+  return { mode: opts.mode, run_id, source_digest, counts, errors, created, skipped_commercial }
 }

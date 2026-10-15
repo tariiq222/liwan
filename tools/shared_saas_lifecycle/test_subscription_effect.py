@@ -319,6 +319,12 @@ class ReconfigureTests(Base):
         # An older job without a login passes None; Odoo grants nothing and logs it.
         self.assertIn('"admin_login": null', se.build_apply_script(make_request()))
 
+    def test_apply_script_signals_cache_invalidation_after_its_commit(self):
+        script = se.build_apply_script(make_request())
+        # odoo shell does not signal; running workers would keep stale groups and policy caches.
+        self.assertLess(script.index('env.cr.commit()'), script.index('env.registry.signal_changes()'))
+        self.assertEqual(script.count('env.registry.signal_changes()'), 1)
+
     def test_script_reports_a_due_grant_that_found_no_admin(self):
         script = se.build_apply_script(make_request())
         self.assertIn("'roles_not_granted': True", script)

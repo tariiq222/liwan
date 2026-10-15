@@ -132,9 +132,11 @@ class AdminPasswordEffectTest(unittest.TestCase):
                     def search(self, _domain, limit): return self
                     def __len__(self): return 1
                     def __getattr__(self, key): return getattr(profile, key)
+                events = []
                 class Env:
                     uid, su = 1, True
-                    cr = SimpleNamespace(dbname=DATABASE, commit=lambda: None, rollback=lambda: None)
+                    cr = SimpleNamespace(dbname=DATABASE, commit=lambda: events.append('commit'), rollback=lambda: events.append('rollback'))
+                    registry = SimpleNamespace(signal_changes=lambda: events.append('signal'))
                     def ref(self, _xmlid, **_kwargs): return None if case == 'missing' else admin
                     def __getitem__(self, model):
                         return ProfileModel() if model == 'nasq.tenant.profile' else SimpleNamespace(_nasq_assert_operator=lambda: True)
@@ -151,7 +153,10 @@ class AdminPasswordEffectTest(unittest.TestCase):
                     with self.assertRaisesRegex(EffectError, '^' + code + '$'):
                         effect.parse_output(captured.getvalue(), LOGIN)
                     self.assertIsNone(admin.written)
+                    self.assertNotIn('signal', events)
                 else:
+                    # Other Odoo workers drop the cached session tokens only after the commit is signalled.
+                    self.assertEqual(events, ['commit', 'signal'])
                     self.assertEqual(effect.parse_output(captured.getvalue(), LOGIN)['user_id'], 2)
                     self.assertEqual(set(admin.written), {'password'})
                     self.assertTrue(admin.written['password'] == payload['password'])
