@@ -192,6 +192,7 @@ class UiPolicyTest(unittest.TestCase):
     def test_retired_css_owner_and_import_are_rejected(self):
         self.assertTrue(self.errors({LEGACY_CSS: '<style>.legacy { color: var(--foreground); }</style>'}))
         self.assertTrue(self.errors({MAIN_CSS: '@import "./approved-shell.css";'}))
+        self.assertTrue(self.errors({APP + "assets/css/approved-shell.css": "/* retired */"}))
 
     def test_current_theme_owners_can_define_theme_values(self):
         for path, source in (

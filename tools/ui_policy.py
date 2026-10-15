@@ -93,10 +93,9 @@ THEME_OWNERS = {
     UI + 'app.config.ts',
 }
 RETIRED_CSS = {
-    UI + 'assets/css/approved-shell.css',
-    UI + 'assets/css/project-theme.css',
-    UI + 'assets/css/nuxt-theme.css',
-    UI + 'assets/css/nuxt-shell.css',
+    root + 'assets/css/' + name
+    for root in APP_SOURCES
+    for name in ('approved-shell.css', 'project-theme.css', 'nuxt-theme.css', 'nuxt-shell.css')
 }
 # Match actual import/export statements, side-effect imports, and dynamic
 # imports. Anchoring static imports to the start of a line prevents words such
