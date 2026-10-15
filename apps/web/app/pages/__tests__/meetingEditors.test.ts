@@ -104,7 +104,7 @@ function deferredMutation(result: unknown = {}, shouldReject = false) {
 
 function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed', canEdit = true, canManage = false): Record<string, any> {
   const route = { params: { id: '7' }, query: { returnTo: '/meetings?q=review' }, fullPath: '/meetings/7/minutes?returnTo=%2Fmeetings%3Fq%3Dreview' }
-  const meeting = ref({ id: 7, name: 'Operations review', state, can_edit: canEdit, can_manage: canManage, agenda: '<p>Agenda</p>', minutes: '<p>Minutes</p>' })
+  const meeting = ref({ id: 7, name: 'Operations review', state, can_edit: canEdit, can_manage: canManage, agenda: '<p>Agenda</p>', minutes: '<p>Minutes</p>', write_date: '2026-09-07T10:00:00Z' })
   const navigateTo = vi.fn(async () => {})
   const scope = {
     ...recordNavigation,
@@ -171,6 +171,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     secretary: null,
     organizer: null,
     series_id: null,
+    write_date: '2026-09-07T10:00:00Z',
   })
   const mutateAsync = vi.fn(async () => ({}))
   const navigateTo = vi.fn(async () => {})
@@ -200,7 +201,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     navigateTo,
   }
   const pageState = editorScript('[id]/edit.vue', scope, '{ save, name, meetingDate, start, end, canEdit }')
-  return { ...pageState, mutateAsync, navigateTo }
+  return { ...pageState, meeting, mutateAsync, navigateTo }
 }
 
 describe('meeting editor routes and guards', () => {
@@ -244,7 +245,7 @@ describe('meeting editor routes and guards', () => {
     await nextTick()
     editor.release()
     await save
-    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), scope: 'this' } })
+    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), write_date: '2026-09-07T10:00:00Z', scope: 'this' } })
     // The route carries ?returnTo=/meetings?q=review. The minutes editor
     // belongs to one meeting, so that is where saving lands, and the referrer
     // is dropped instead of being copied onto the destination.
@@ -275,6 +276,7 @@ describe('meeting editor routes and guards', () => {
         agenda: '<p>Updated agenda</p>',
         minutes: '<p>Updated minutes</p>',
         minutes_form: editor.minutesForm.value,
+        write_date: '2026-09-07T10:00:00Z',
         scope: 'this',
       },
     })
@@ -304,6 +306,26 @@ describe('meeting editor routes and guards', () => {
     await save
     await second
     expect(editor.navigateTo).toHaveBeenCalledWith({ path: '/meetings/series/12', query: {} })
+  })
+
+  it('sends the revision the form opened on, even after a background refetch', async () => {
+    const editor = evaluatedGeneralEditPage()
+    editor.meeting.value = { ...editor.meeting.value, write_date: '2026-09-07T11:00:00Z' }
+    editor.name.value = 'Renamed after refetch'
+    await editor.save()
+    expect(editor.mutateAsync.mock.calls[0][0].body.write_date).toBe('2026-09-07T10:00:00Z')
+  })
+
+  it('sends the revision the minutes editor opened on, even after a background refetch', async () => {
+    const mutation = deferredMutation({})
+    const editor = evaluatedMinutesPage(mutation)
+    editor.meeting.value = { ...editor.meeting.value, write_date: '2026-09-07T11:00:00Z' }
+    editor.minutes.value = '<p>Concurrent minutes</p>'
+    const save = editor.save()
+    await nextTick()
+    editor.release()
+    await save
+    expect(editor.mutateAsync.mock.calls[0][0].body.write_date).toBe('2026-09-07T10:00:00Z')
   })
 
   it('does not rewrite an untouched near-midnight schedule during an unrelated edit', async () => {

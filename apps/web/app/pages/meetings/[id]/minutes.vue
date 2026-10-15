@@ -25,6 +25,8 @@ const minutesForm = ref<MeetingMinutesFormValue>(createMeetingMinutesForm())
 const hasStructuredForm = ref(false)
 const loaded = ref(false)
 const baseline = ref('')
+// The server revision the editor opened on; a background refetch must not replace it, or a concurrent save would go unnoticed.
+const openedWriteDate = ref<string | null>(null)
 
 function snapshot() {
   return JSON.stringify([agenda.value, minutes.value, minutesForm.value])
@@ -39,6 +41,7 @@ function seedMeeting(meeting: typeof query.data.value) {
   hasStructuredForm.value = Boolean(source.minutes_form)
   minutesForm.value = createMeetingMinutesForm(source.minutes_form)
   baseline.value = snapshot()
+  openedWriteDate.value = meeting.write_date
   loaded.value = true
 }
 watch(query.data, seedMeeting, { immediate: true })
@@ -69,6 +72,7 @@ async function save(navigateToRecommendation = false) {
     agenda: agenda.value,
     minutes: minutes.value,
     minutes_form: minutesForm.value,
+    write_date: openedWriteDate.value ?? undefined,
     scope: 'this' as const,
   } as Parameters<typeof mutateAsync>[0]['body']
   await mutateAsync({

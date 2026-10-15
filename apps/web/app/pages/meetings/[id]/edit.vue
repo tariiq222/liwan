@@ -35,6 +35,8 @@ const secretaryId = ref<number | null>(null)
 const scope = ref<'this' | 'this_and_following'>('this')
 const loaded = ref(false)
 const baseline = ref('')
+// The server revision the form opened on; a background refetch must not replace it, or a concurrent save would go unnoticed.
+const openedWriteDate = ref<string | null>(null)
 const initialSchedule = ref('')
 function snapshot() {
   return JSON.stringify([name.value, meetingDate.value, start.value, end.value, endDate.value, location.value,
@@ -58,6 +60,7 @@ function seedMeeting(meeting: typeof query.data.value) {
   secretaryId.value = meeting.secretary?.id ?? null
   baseline.value = snapshot()
   initialSchedule.value = scheduleSnapshot()
+  openedWriteDate.value = meeting.write_date
   loaded.value = true
 }
 watch(query.data, seedMeeting, { immediate: true })
@@ -113,6 +116,7 @@ async function save() {
     agenda: agenda.value,
     attendee_ids: attendeeIds.value,
     secretary_id: secretaryId.value,
+    write_date: openedWriteDate.value ?? undefined,
     scope: query.data.value?.series_id ? scope.value : undefined,
   }
   if (scheduleDirty.value) Object.assign(body, buildMeetingSchedulePayload({ date: scheduleDate.value, start: startTime.value, end: endTime.value, endDate: scheduleEndDate.value, mode: 'patch' }))

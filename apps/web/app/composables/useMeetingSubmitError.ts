@@ -3,7 +3,7 @@ import { ApiError } from './useApi'
 // Maps a failed meeting mutation to what the form shows: a 422 naming a server
 // field renders next to that field (`fields` translates server names to form
 // keys), any other 422 shows the server message, 403 shows the edit-forbidden
-// notice and everything else keeps the generic save message. Editing the form
+// notice, 409 asks the user to reload the meeting someone else changed, and everything else keeps the generic save message. Editing the form
 // again resets the mutation, which clears the error.
 export function useMeetingSubmitError<Key extends string>(options: {
   error: Ref<Error | null>
@@ -21,6 +21,7 @@ export function useMeetingSubmitError<Key extends string>(options: {
   const submitError = computed(() => {
     const current = apiError.value
     if (current?.status === 403) return t('meetingsUx.editForbidden')
+    if (current?.status === 409) return t('meetingsUx.errors.conflict')
     if (current?.status === 422 && !Object.keys(fieldErrors.value).length) return current.message
     return t('meetingsUx.errors.save')
   })

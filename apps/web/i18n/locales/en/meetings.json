@@ -120,6 +120,7 @@
     "previewItem": "{index}. {start} to {end}",
     "recurrenceScope": "Recurrence applies to the schedule fields only: title, date, time, location and meeting link. Agenda, minutes, attendees and completed or cancelled meetings are excluded.",
     "errors": {
+      "conflict": "Someone else changed this meeting after you opened it. Reload the page, review the changes, then save again.",
       "required": "This field is required.",
       "invalid": "Enter a valid value.",
       "before_start": "End time must be after the start time.",
