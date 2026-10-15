@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ar, en } from '@nuxt/ui/locale'
 import { htmlAttrsFor } from '@/utils/appearance'
-import { isPlainRoute } from '@/utils/workspacePresentation'
+import { pageArea } from '@/utils/workspacePresentation'
 
-// The layer frames every route with the workspace theme except the ones the app names plain.
-providePlainRoute(isPlainRoute)
+// The layer frames pages by the classification the app gives each path (plain, project area, record).
+providePageArea(pageArea)
 const { locale } = useI18n()
 const { mode, fontSize, syncFromUser } = useAppearance()
 const { me } = useMe()

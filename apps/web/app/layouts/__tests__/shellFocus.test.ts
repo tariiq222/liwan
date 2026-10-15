@@ -27,7 +27,7 @@ function loadLayout(route: { path: string }) {
     useRoute: () => route,
     useI18n: () => ({ localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHead: () => undefined,
-    isPlainRoute: () => false,
+    pageArea: () => ({ plain: false, area: false, record: false }),
     hasNoContextSidebar: () => false,
     requestAnimationFrame: () => 1, cancelAnimationFrame: () => undefined,
     setTimeout: () => 1, clearTimeout: () => undefined,

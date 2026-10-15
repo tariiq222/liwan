@@ -49,7 +49,7 @@ function loadShared(name: string): Component {
         // PageContainer derives its band from the prop; the route-shaped flags
         // are presentation hooks, not part of the width vocabulary.
         widthClass: `nasq-page-width-${props.width}`,
-        projectArea: false, workspaceArea: false, projectRecord: false,
+        pageArea: { plain: false, area: false, record: false }, workspaceArea: false,
       }
     },
     render,

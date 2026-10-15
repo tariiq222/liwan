@@ -45,7 +45,7 @@ for (const width of [1440, 1024]) {
       // The workspace frame (title row + tabs) sits in its own container above the section.
       const frame = page.getByTestId('project-workspace-frame')
       await expect(frame).toHaveAttribute('data-layout-width', 'list')
-      const container = page.locator('[data-slot="page-container"][data-project-record="true"]').filter({ has: page.locator('[data-slot="page-header"]') }).first()
+      const container = page.locator('[data-slot="page-container"][data-page-record="true"]').filter({ has: page.locator('[data-slot="page-header"]') }).first()
       await expect(container).toHaveAttribute('data-layout-width', 'list')
       const heading = container.locator('[data-slot="page-header"]')
       await expect(heading).toBeVisible()

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { isPlainRoute } from '@/utils/workspacePresentation'
+import { pageArea } from '@/utils/workspacePresentation'
 import { hasNoContextSidebar } from '@/components/shell/noContextRoutes'
 const route = useRoute()
-const workspaceTheme = computed(() => !isPlainRoute(route.path))
+const workspaceTheme = computed(() => !pageArea(route.path).plain)
 const noSidebar = computed(() => hasNoContextSidebar(route.path))
 // The deleted route sheet restored focus when it closed; an ordinary page has
 // no such moment, so a keyboard or screen-reader user pressing Escape on a

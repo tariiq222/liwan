@@ -6,7 +6,7 @@ import type { AppCommand, AppSearchRow } from '../../modules/types'
 import { CHORD_START_KEY } from '@nasq/ui/app/composables/shortcuts/keymap'
 import type { NavItem } from './shellModules'
 
-export interface ShortcutHelpEntry { id: string; labelKey: string; kbds: readonly string[] }
+interface ShortcutHelpEntry { id: string; labelKey: string; kbds: readonly string[] }
 /** The fixed rows of the `?` help view in reading order; a `G` row per visible go key follows (paletteModel.helpItems). */
 export const SHORTCUT_HELP: readonly ShortcutHelpEntry[] = [
   { id: 'palette', labelKey: 'shortcuts.palette', kbds: ['meta', 'K'] },

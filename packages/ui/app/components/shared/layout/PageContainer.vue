@@ -7,19 +7,18 @@ const props = withDefaults(defineProps<{
 
 const widthClass = computed(() => `nasq-page-width-${props.width}`)
 const route = useRoute()
-const isPlainRoute = usePlainRoute()
-const workspaceArea = computed(() => !isPlainRoute(route.path))
-const projectRecord = computed(() => /^\/projects\/\d+(\/|$)/.test(route.path))
-const projectArea = computed(() => /^\/projects(\/|$)/.test(route.path) || /^\/settings\/projects(\/|$)/.test(route.path))
+const classify = usePageArea()
+const pageArea = computed(() => classify(route.path))
+const workspaceArea = computed(() => !pageArea.value.plain)
 </script>
 
 <template>
   <div
     data-slot="page-container"
     :data-layout-width="props.width"
-    :data-project-area="projectArea || undefined"
+    :data-page-area="pageArea.area || undefined"
     :data-workspace-area="workspaceArea || undefined"
-    :data-project-record="projectRecord || undefined"
+    :data-page-record="pageArea.record || undefined"
     :class="['nasq-page-stack', widthClass]"
   >
     <slot />
