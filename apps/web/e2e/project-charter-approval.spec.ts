@@ -13,9 +13,14 @@ test.beforeEach(async ({ page }) => {
   expect(reset.status()).toBe(200)
 })
 
+// The reset also turns the approval policy off, so later specs see the default mock.
+test.afterEach(async ({ page }) => {
+  await page.request.post('/api/v1/__mock/reset-charters')
+})
+
 async function chooseOption(page: Page, fieldTestId: string, current: string, option: string) {
   await page.getByTestId(fieldTestId).getByRole('button', { name: current }).click()
-  await page.locator('[data-slot="popover-content"]:visible').last().getByRole('option', { name: option, exact: true }).click()
+  await page.getByRole('option', { name: option, exact: true }).click()
 }
 
 test('the sponsor lists the charters waiting for them on the dashboard', async ({ page }) => {
@@ -66,8 +71,18 @@ test('finishing the wizard sends the charter to the sponsor when approval is req
     await expect(page.getByRole('dialog')).toBeVisible()
     const name = `E2E approval ${Date.now()}`
     await page.getByTestId('project-create-name').fill(name)
-    await chooseOption(page, 'charter-field-sponsor', 'غير محدد', 'نورة الحربي')
-    while (await page.getByTestId('charter-step-next').isVisible()) await page.getByTestId('charter-step-next').click()
+    // A sponsor other than the signed-in user, so finishing submits instead of self-approving.
+    const me = await (await page.request.get('/api/v1/me')).json()
+    const people = await (await page.request.get('/api/v1/people')).json() as { id: number; name: string }[]
+    const sponsor = people.find(person => person.id !== me.id)
+    expect(sponsor).toBeTruthy()
+    await chooseOption(page, 'charter-field-sponsor', 'غير محدد', sponsor!.name)
+    // Without a classification the wizard walks every step: basics + 5 middle steps, then review.
+    for (const step of ['justification', 'scope', 'schedule', 'budget', 'risks']) {
+      await page.getByTestId('charter-step-next').click()
+      await expect(page).toHaveURL(new RegExp(`step=${step}`))
+    }
+    await page.getByTestId('charter-step-next').click()
     await expect(page.getByTestId('charter-review-step')).toBeVisible()
     await page.getByTestId('project-create-submit').click()
     await expect(page.getByRole('heading', { name })).toBeVisible()

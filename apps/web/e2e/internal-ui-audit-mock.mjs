@@ -426,6 +426,7 @@ async function handle(req, res) {
   if (method === 'POST' && path === '/api/v1/__mock/reset-charters') {
     seedReviewCharters()
     COPIES.length = 0
+    SETTINGS.require_charter_approval = false
     return json(res, 200, { ok: true })
   }
   if (method === 'PATCH' && path === '/api/v1/settings/projects') {
