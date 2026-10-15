@@ -243,7 +243,7 @@ describe('SharedPageHeader wires the one Escape implementation', () => {
       useI18n: () => ({ t: (key: string) => key }),
       usePageHeader: () => undefined,
       useEscapeBack: (backTo: () => unknown, enabled?: () => boolean) => { calls.push({ backTo, enabled }) },
-      useProjectFrameHeading: () => Vue.ref(false),
+      useFrameOwnsHeading: () => Vue.ref(false),
     }
     const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
     component.setup!(props, { expose: () => {}, attrs: {}, slots: {}, emit: () => {} })

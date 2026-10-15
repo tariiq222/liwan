@@ -10,7 +10,7 @@ function options(frameOwnsHeading = false): SharedRenderOptions {
     globals: {
       usePageHeader: registerTitle,
       useEscapeBack: escapeTarget,
-      useProjectFrameHeading: () => Vue.ref(frameOwnsHeading),
+      useFrameOwnsHeading: () => Vue.ref(frameOwnsHeading),
     },
   }
 }

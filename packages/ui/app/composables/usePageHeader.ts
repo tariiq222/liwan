@@ -46,22 +46,22 @@ export function usePageHeader(
   })
 }
 
-const PROJECT_FRAME_HEADING = Symbol('nasq-project-frame-heading') as InjectionKey<Readonly<Ref<boolean>>>
-const NO_PROJECT_FRAME = readonly(ref(false))
+const FRAME_OWNS_HEADING = Symbol('nasq-frame-owns-heading') as InjectionKey<Readonly<Ref<boolean>>>
+const NO_FRAME_HEADING = readonly(ref(false))
 
 /**
- * The project workspace frame renders the project name as the page's `<h1>`.
+ * A page frame (for example the project workspace) can render the record name as the page's `<h1>`.
  * A page header nested inside it would be a second `<h1>` on the same page, so
  * the frame publishes whether its heading is actually on screen — it is absent
- * while the project is still loading, and on a record whose project failed to
+ * while its record is still loading, and on a record that failed to
  * load — and SharedPageHeader demotes itself to `<h2>` only for as long as it is.
  */
-export function provideProjectFrameHeading(shown: Readonly<Ref<boolean>>) {
-  provide(PROJECT_FRAME_HEADING, shown)
+export function provideFrameOwnsHeading(shown: Readonly<Ref<boolean>>) {
+  provide(FRAME_OWNS_HEADING, shown)
 }
 
-export function useProjectFrameHeading(): Readonly<Ref<boolean>> {
-  return inject(PROJECT_FRAME_HEADING, NO_PROJECT_FRAME)
+export function useFrameOwnsHeading(): Readonly<Ref<boolean>> {
+  return inject(FRAME_OWNS_HEADING, NO_FRAME_HEADING)
 }
 
 /** The title the current route's page header registered, for the shell breadcrumb; null until one registers. */

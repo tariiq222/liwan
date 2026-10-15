@@ -15,11 +15,11 @@ usePageHeader(() => props.title, () => props.description)
 // leaves for that same target. useEscapeBack is inert without a target, so the
 // keyboard route out and the visible one cannot drift apart. The old
 // suppression list existed only to stop the header repeating shell context the
-// breadcrumb already showed; the breadcrumb is gone and the project frame owns
+// breadcrumb already showed; the breadcrumb is gone and the page frame owns
 // the project name, so there is nothing left to suppress.
 useEscapeBack(() => props.backTo)
 // Inside the project workspace the frame is already the page's <h1>.
-const frameOwnsHeading = useProjectFrameHeading()
+const frameOwnsHeading = useFrameOwnsHeading()
 </script>
 
 <template>

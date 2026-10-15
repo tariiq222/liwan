@@ -11,7 +11,7 @@ const options: SharedRenderOptions = {
     usePageArea: () => () => ({ plain: false, area: false, record: false }),
     usePageHeader: () => undefined,
     useEscapeBack: () => undefined,
-    useProjectFrameHeading: () => Vue.ref(false),
+    useFrameOwnsHeading: () => Vue.ref(false),
   },
 }
 // SSR marks slot and fragment boundaries with comments; the assertions read the markup without them.

@@ -20,7 +20,7 @@ function options(query: Record<string, string> = {}, patch: SharedRenderOptions 
       useRouter: () => ({ replace: vi.fn() }),
       usePageHeader: () => undefined,
       useEscapeBack: () => undefined,
-      useProjectFrameHeading: () => Vue.ref(false),
+      useFrameOwnsHeading: () => Vue.ref(false),
     },
     stubs: { UTooltip: TooltipStub },
     ...patch,

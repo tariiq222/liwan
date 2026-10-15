@@ -57,7 +57,7 @@ function loadPageHeader() {
     _createCommentVNode: createCommentVNode,
     _createElementVNode: createElementVNode,
   }
-  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useProjectFrameHeading']
+  const names = [...Object.keys(runtimeBindings), 'computed', 'usePageHeader', 'useEscapeBack', 'useFrameOwnsHeading']
   const values = [
     ...Object.values(runtimeBindings), computed,
     () => undefined,

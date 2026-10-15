@@ -39,7 +39,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
     safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
-    provideProjectFrameHeading: () => undefined,
+    provideFrameOwnsHeading: () => undefined,
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
     useProject: () => ({ data: Vue.ref({ active: true, name: 'Example project', can_manage: true, status: 'active' }), error: Vue.ref(null) }),

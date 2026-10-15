@@ -58,7 +58,7 @@ useEscapeBack(backTo)
 // under the main one on every governance page, records included. An archived
 // project has no governance tab, so it gets no sub-strip either.
 const showGovernanceTabs = computed(() => Boolean(project.value?.active) && activeGovernanceSection(route.path) !== null)
-provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.value)))
+provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)))
 </script>
 
 <template>
