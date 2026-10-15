@@ -1759,6 +1759,7 @@
                   "kind": {
                     "enum": [
                       "meeting_invite",
+                      "meeting_series_invite",
                       "meeting_resolution",
                       "meeting_converted",
                       "meeting_changed",
@@ -7039,6 +7040,9 @@
               "cancelled"
             ],
             "type": "string"
+          },
+          "write_date": {
+            "type": "string"
           }
         },
         "required": [
@@ -7053,6 +7057,7 @@
           "open_resolution_count",
           "series_id",
           "project_id",
+          "write_date",
           "agenda",
           "minutes",
           "location",
@@ -7930,6 +7935,7 @@
           "kind": {
             "enum": [
               "meeting_invite",
+              "meeting_series_invite",
               "meeting_resolution",
               "meeting_converted",
               "meeting_changed",
@@ -8113,15 +8119,25 @@
             ]
           },
           "series_id": {
-            "maximum": 9007199254740991,
-            "minimum": -9007199254740991,
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "start_datetime": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "write_date": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -11064,6 +11080,7 @@
           "charter_approved",
           "charter_returned",
           "meeting_invite",
+          "meeting_series_invite",
           "meeting_resolution",
           "meeting_converted",
           "meeting_changed",
@@ -11361,6 +11378,7 @@
                         "kind": {
                           "enum": [
                             "meeting_invite",
+                            "meeting_series_invite",
                             "meeting_resolution",
                             "meeting_converted",
                             "meeting_changed",
@@ -11750,6 +11768,7 @@
               "kind": {
                 "enum": [
                   "meeting_invite",
+                  "meeting_series_invite",
                   "meeting_resolution",
                   "meeting_converted",
                   "meeting_changed",

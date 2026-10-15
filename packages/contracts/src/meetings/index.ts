@@ -94,6 +94,7 @@ export const MeetingMinutesSnapshotSchema = z.object({
 }).strip()
 
 export const MeetingDetailSchema = MeetingListItemSchema.extend({
+  write_date: z.string(),
   agenda: z.string(),
   minutes: z.string(),
   location: z.string(),
@@ -131,9 +132,11 @@ export const MeetingPatchSchema = MeetingCreateSchema.partial().extend({
   start_datetime: z.string().nullable().optional(),
   end_datetime: z.string().nullable().optional(),
   secretary_id: z.number().int().nullable().optional(),
+  series_id: z.number().int().nullable().optional(),
   project_id: z.number().int().nullable().optional(),
   minutes_form: MeetingMinutesFormSchema.optional(),
   scope: z.enum(['this', 'this_and_following']).optional(),
+  write_date: z.string().optional(),
 }).strict()
 
 export const MeetingResolutionCreateSchema = z.object({

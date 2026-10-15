@@ -13,7 +13,11 @@ from odoo.addons.nasq_api.controllers.common import (
     parse_positive_int,
     requires_feature,
 )
-from odoo.addons.nasq_meetings.serializers.meeting import dump_meeting, dump_series
+from odoo.addons.nasq_meetings.serializers.meeting import (
+    dump_meeting,
+    dump_series,
+    projected_resolution_counts,
+)
 
 MAX_SERIES = 200
 RECURRENCE = {'none', 'weekly', 'biweekly', 'monthly'}
@@ -61,8 +65,9 @@ class MeetingSeriesController(http.Controller):
             )
         Series = request.env['nasq.meeting.series']
         records = Series.search(domain, order='name, id', limit=limit, offset=offset)
+        counts = projected_resolution_counts(records.meeting_ids)
         return {
-            'items': [dump_series(series) for series in records],
+            'items': [dump_series(series, counts=counts) for series in records],
             'total': Series.search_count(domain),
         }
 
