@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
-import EmptyState from '@/components/shared/EmptyState.vue'
+import EmptyState from '@/components/shared/feedback/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
 import { formatTime } from '@/utils/formatDate'
 import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'

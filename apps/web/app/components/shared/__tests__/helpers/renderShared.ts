@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { compileScript, parse } from '@vue/compiler-sfc'
@@ -7,6 +7,14 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 
 const sharedRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+/** The shared component groups (components/shared/<group>/<name>.vue). */
+const SHARED_GROUPS = ['layout', 'data', 'form', 'feedback']
+
+/** Path of apps/web/app/components/shared/<group>/<name>.vue; `name` may also be a path relative to components/shared. */
+export function sharedFile(name: string): string {
+  const grouped = SHARED_GROUPS.map(group => resolve(sharedRoot, group, `${name}.vue`)).find(existsSync)
+  return grouped ?? resolve(sharedRoot, `${name}.vue`)
+}
 
 export interface SharedRenderOptions {
   hydrated?: boolean
@@ -57,9 +65,9 @@ export const DEFAULT_STUBS: Record<string, Vue.Component> = {
   NuxtLink: passthrough('a'),
 }
 
-/** Compiles apps/web/app/components/shared/<name>.vue with Nuxt's auto-imports stubbed, as the sibling tests do. */
+/** Compiles apps/web/app/components/shared/<group>/<name>.vue with Nuxt's auto-imports stubbed, as the sibling tests do. */
 export function loadShared(name: string, options: SharedRenderOptions = {}): Vue.Component {
-  const filename = resolve(sharedRoot, `${name}.vue`)
+  const filename = sharedFile(name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const compiled = compileScript(descriptor, { id: `shared-${name}`, inlineTemplate: true }).content
   const code = ts.transpileModule(compiled, {
@@ -69,7 +77,7 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
   const require = (specifier: string): unknown => {
     if (specifier === 'vue') return Vue
     if (options.modules && specifier in options.modules) return options.modules[specifier]
-    const sibling = specifier.match(/^(?:\.\/|@\/components\/shared\/)([\w.]+)\.vue$/)
+    const sibling = specifier.match(/^(?:\.\/|\.\.\/\w+\/|@\/components\/shared\/(?:\w+\/)?)([\w.]+)\.vue$/)
     if (sibling) return { __esModule: true, default: loadShared(sibling[1]!, options) }
     throw new Error(`${name}.vue imports ${specifier}; pass it in options.modules`)
   }

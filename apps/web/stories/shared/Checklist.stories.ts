@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import Checklist from '../../app/components/shared/Checklist.vue'
+import Checklist from '../../app/components/shared/data/Checklist.vue'
 import { storyContext } from '../support/context'
 
 const item = (id: number, name: string, extra = {}) => ({ id, name, to: `/my-tasks/${id}`, toggleLabel: 'إنجاز', toggleIcon: 'i-lucide-check', ...extra })

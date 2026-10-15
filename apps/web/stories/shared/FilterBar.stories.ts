@@ -3,8 +3,8 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
 import { ProjectStatusSchema } from '@nasq/contracts'
-import FilterBar from '../../app/components/shared/FilterBar.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import FilterBar from '../../app/components/shared/data/FilterBar.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

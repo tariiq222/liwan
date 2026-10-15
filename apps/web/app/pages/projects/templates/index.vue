@@ -2,8 +2,8 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@/components/shared/FilterBar.vue'
-import type { RowAction } from '@/components/shared/RowActions.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
+import type { RowAction } from '@/components/shared/data/RowActions.vue'
 import { useProjectTemplateList } from '@/composables/useProjectTemplates'
 
 const route = useRoute()

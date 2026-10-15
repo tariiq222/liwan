@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BrandWordmark from '@/components/shared/BrandWordmark.vue'
+import BrandWordmark from '@/components/shared/layout/BrandWordmark.vue'
 import type { ShellRailItem } from '@/composables/nav/sidebarModel'
 
 // The module rail (spec §3, §5): always Nasq midnight, 64px, icon over a small

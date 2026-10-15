@@ -1,6 +1,6 @@
 import { defineComponent, h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { renderShared } from './helpers/renderShared'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 // A button stand-in that keeps each click handler, keyed by testid, aria-label or label,
 // so an emit can be fired without a DOM.

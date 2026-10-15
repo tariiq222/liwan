@@ -35,6 +35,10 @@ COMPONENT_PREFIXES = {
     'pmo/projects/': 'Project',
     'pmo/tasks/': 'Task',
     'personal-tasks/': 'MyTasks',
+    'shared/layout/': 'Shared',
+    'shared/data/': 'Shared',
+    'shared/form/': 'Shared',
+    'shared/feedback/': 'Shared',
 }
 PAGES = APP + 'pages/'
 LAYOUTS = APP + 'layouts/'
@@ -44,34 +48,34 @@ LOCALES = 'apps/web/i18n/locales/'
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
     'operations/ProcessForm.vue',
-    'shared/PageHeader.vue', 'shared/PageState.vue', 'shared/PageContainer.vue', 'shared/UnsavedChanges.vue',
-    'shared/LoadingSkeleton.vue', 'shared/ErrorState.vue', 'shared/ForbiddenState.vue', 'shared/NotFoundState.vue',
-    'shared/RecordPage.vue', 'shared/PropertiesPanel.vue', 'shared/PropertyRow.vue', 'shared/RecordSection.vue',
-    'shared/StatusBadge.vue',
-    'shared/CreatePanel.vue',
-    'shared/StandalonePage.vue',
-    'shared/DataTable.vue',
-    'shared/ListPage.vue', 'shared/ViewSwitch.vue',
-    'shared/BrandWordmark.vue',
-    'shared/FormSection.vue', 'shared/RecordNumber.vue', 'shared/SettingsPage.vue', 'shared/EmptyState.vue', 'shared/RouteTabs.vue',
-    'shared/FilterBar.vue', 'shared/DateField.vue', 'shared/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
-    'meetings/MeetingPeopleFields.vue', 'shared/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
-    'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/TagPicker.vue',
+    'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
+    'shared/feedback/LoadingSkeleton.vue', 'shared/feedback/ErrorState.vue', 'shared/feedback/ForbiddenState.vue', 'shared/feedback/NotFoundState.vue',
+    'shared/layout/RecordPage.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',
+    'shared/data/StatusBadge.vue',
+    'shared/layout/CreatePanel.vue',
+    'shared/layout/StandalonePage.vue',
+    'shared/data/DataTable.vue',
+    'shared/layout/ListPage.vue', 'shared/data/ViewSwitch.vue',
+    'shared/layout/BrandWordmark.vue',
+    'shared/layout/FormSection.vue', 'shared/data/RecordNumber.vue', 'shared/layout/SettingsPage.vue', 'shared/feedback/EmptyState.vue', 'shared/layout/RouteTabs.vue',
+    'shared/data/FilterBar.vue', 'shared/form/DateField.vue', 'shared/form/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
+    'meetings/MeetingPeopleFields.vue', 'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
+    'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
     'pmo/projects/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'shell/ShellFrame.vue', 'shell/ModuleRail.vue', 'shell/AppSidebar.vue', 'shell/ContextSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppearanceMenu.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
-    'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/DashboardChart.client.vue', 'charts/ChartContainer.vue',
+    'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
     'pmo/projects/workspace/ProjectWorkspaceTabs.vue', 'pmo/projects/governance/RaciMatrix.vue',
-    'shared/RichText.vue', 'shared/Pagination.vue', 'shared/MetricTile.vue', 'shared/InlineConfirm.vue',
-    'shared/RowActions.vue', 'shared/PersonPicker.vue', 'shared/FilterChip.vue', 'shared/FilterChoice.vue',
-    'shared/FilterField.vue', 'pmo/projects/ProjectCharterForm.vue',
-    'shared/AttachmentList.vue', 'shared/CommentComposer.vue', 'shared/CommentThread.vue', 'shared/Checklist.vue',
+    'shared/form/RichText.vue', 'shared/data/Pagination.vue', 'shared/data/MetricTile.vue', 'shared/form/InlineConfirm.vue',
+    'shared/data/RowActions.vue', 'shared/form/PersonPicker.vue', 'shared/data/FilterChip.vue', 'shared/data/FilterChoice.vue',
+    'shared/data/FilterField.vue', 'pmo/projects/ProjectCharterForm.vue',
+    'shared/data/AttachmentList.vue', 'shared/form/CommentComposer.vue', 'shared/data/CommentThread.vue', 'shared/data/Checklist.vue',
     'shared/commerce/PriceBreakdown.vue', 'vendor/EntitlementSummary.vue', 'vendor/PriceListEditor.vue',
     'vendor/CapacityLimitsEditor.vue', 'vendor/BundleForm.vue', 'vendor/PlanForm.vue', 'vendor/LifecyclePanel.vue',
     'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
     'subscription/BranchSummary.vue',
     'vendor/SubscriptionSummary.vue', 'vendor/CustomerTermsForm.vue', 'vendor/UsageMeters.vue',
-    'shared/ChartPanel.vue', 'shared/DashboardPage.vue',
-    'shared/TimelineFrame.vue', 'shared/ConversationLayout.vue',
-    'shared/InvoiceLines.vue',
+    'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
+    'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
+    'shared/data/InvoiceLines.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
@@ -256,7 +260,7 @@ def findings(path: str, source: str, names: set[str], allowed: set[str], has_ui:
         # the same identifiers under components/ui/chart.
         if normalized_name in names and not (
             normalized_name in CHART_IDENTIFIERS
-            and (chart_adapter or path == APP + 'components/shared/DashboardChart.client.vue')
+            and (chart_adapter or path == APP + 'components/shared/data/DashboardChart.client.vue')
         ):
             result['legacy component: ' + normalized_name] += 1
         if re.match(r'^(?:Lazy)?U[A-Z]|^(?:lazy-)?u-', name) and not has_ui:
@@ -355,7 +359,7 @@ RETIRED_PATTERNS = (
     (re.compile(r'(?<![\w-])nasq-(?:input|toolbar|panel)(?![\w-])'),
      'retired pre-unification class; use the Nuxt UI primitive'),
 )
-RETIRED_PATTERN_OWNERS = {APP + 'components/shared/RichText.vue'}
+RETIRED_PATTERN_OWNERS = {APP + 'components/shared/form/RichText.vue'}
 
 
 def retired_pattern_errors(current: dict[str, str]) -> list[str]:
@@ -753,22 +757,22 @@ def toolbar_errors(current: dict[str, str]) -> list[str]:
 # Tasmim Plan 4 (spec §6): one StatusBadge driven by application tone maps, FilterCard
 # folded into FilterBar, and every contract template and state kept in Storybook.
 # Every *Badge.vue is rejected except the shared one; list a legitimate one here with a reason.
-STATUS_BADGE_OWNER = COMPONENTS + 'shared/StatusBadge.vue'
+STATUS_BADGE_OWNER = COMPONENTS + 'shared/data/StatusBadge.vue'
 BADGE_FILE = re.compile(r'Badge\.vue$')
 BADGE_ALLOWED = frozenset((STATUS_BADGE_OWNER,))
 FILTER_CARD_FILE = COMPONENTS + 'shared/FilterCard.vue'
 FILTER_CARD_TAG = re.compile(r'<(?:Lazy)?(?:Shared)?FilterCard\b|<(?:lazy-)?(?:shared-)?filter-card\b')
 CONTRACT_TEMPLATES: tuple[str, ...] = tuple(COMPONENTS + 'shared/' + name + '.vue' for name in (
-    'LoadingSkeleton', 'ErrorState', 'ForbiddenState', 'NotFoundState', 'EmptyState', 'PageState',
-    'StatusBadge', 'FilterBar', 'InvoiceLines', 'RouteTabs', 'SettingsPage',
-    'DataTable', 'ViewSwitch', 'ListPage', 'RecordPage', 'PropertiesPanel', 'PropertyRow', 'RecordSection',
-    'CreatePanel', 'FormSection', 'UnsavedChanges',
-    'DashboardPage', 'ChartPanel', 'TimelineFrame', 'ConversationLayout', 'StandalonePage',
+    'feedback/LoadingSkeleton', 'feedback/ErrorState', 'feedback/ForbiddenState', 'feedback/NotFoundState', 'feedback/EmptyState', 'feedback/PageState',
+    'data/StatusBadge', 'data/FilterBar', 'data/InvoiceLines', 'layout/RouteTabs', 'layout/SettingsPage',
+    'data/DataTable', 'data/ViewSwitch', 'layout/ListPage', 'layout/RecordPage', 'layout/PropertiesPanel', 'layout/PropertyRow', 'layout/RecordSection',
+    'layout/CreatePanel', 'layout/FormSection', 'form/UnsavedChanges',
+    'layout/DashboardPage', 'data/ChartPanel', 'layout/TimelineFrame', 'layout/ConversationLayout', 'layout/StandalonePage',
 ))
 
 
 def template_errors(current: dict[str, str]) -> list[str]:
-    errors = [path + ': one StatusBadge (shared/StatusBadge.vue) with an application tone map; no per-app badge'
+    errors = [path + ': one StatusBadge (shared/data/StatusBadge.vue) with an application tone map; no per-app badge'
               for path in sorted(current)
               if path.startswith(COMPONENTS) and BADGE_FILE.search(path) and path not in BADGE_ALLOWED]
     if FILTER_CARD_FILE in current:

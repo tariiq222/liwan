@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import * as errorState from '../../../utils/errorState'
-import { renderShared } from './helpers/renderShared'
+import * as errorState from '../../../../utils/errorState'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 const modules = { '@/utils/errorState': errorState }
 

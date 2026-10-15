@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import LoadingSkeleton from './LoadingSkeleton.vue'
+import LoadingSkeleton from '../feedback/LoadingSkeleton.vue'
 import PageContainer from './PageContainer.vue'
 import PageHeader from './PageHeader.vue'
-import PageState from './PageState.vue'
+import PageState from '../feedback/PageState.vue'
 
 /*
  * The record template (Tasmim spec §6, template 2): header with back link and actions, optional

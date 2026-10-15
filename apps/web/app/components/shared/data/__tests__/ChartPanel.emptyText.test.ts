@@ -1,6 +1,6 @@
 import { h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from './helpers/renderShared'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 const chart = () => h('svg', { 'data-chart': '' })
 

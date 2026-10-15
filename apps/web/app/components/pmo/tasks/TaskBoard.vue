@@ -10,7 +10,7 @@ import { useTasks, useTransitionTask, useUpdateTask } from '@/composables/useTas
 import { badgeLabel } from '@/utils/statusBadge'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
-import EmptyState from '@/components/shared/EmptyState.vue'
+import EmptyState from '@/components/shared/feedback/EmptyState.vue'
 
 function isBoardCapped(loadedCount: number, cap: number, hasNextPage: boolean): boolean {
   return loadedCount > cap || (loadedCount >= cap && hasNextPage)

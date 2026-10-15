@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { h } from 'vue'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { renderFilter } from './helpers/filterComponents'
+import { renderFilter } from '../../__tests__/helpers/filterComponents'
 
 const field = () => h('input', { value: 'Project A' })
 

@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { useRowNavigation } from '@/composables/useRowNavigation'
 import { clickedRowIndex, dataRowKey, markTableRows, rowSelectionState, selectedFromRowSelection } from '@/utils/dataTable'
-import PageState from './PageState.vue'
+import PageState from '../feedback/PageState.vue'
 import Pagination from './Pagination.vue'
 
 /*

@@ -1,9 +1,9 @@
 import * as Vue from 'vue'
 import { h, type VNode } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import * as dataTable from '../../../utils/dataTable'
-import * as errorState from '../../../utils/errorState'
-import { renderShared, type SharedRenderOptions } from './helpers/renderShared'
+import * as dataTable from '../../../../utils/dataTable'
+import * as errorState from '../../../../utils/errorState'
+import { renderShared, type SharedRenderOptions } from '../../__tests__/helpers/renderShared'
 
 interface Row { id: number; name: string; manager: string }
 interface Column { id?: string; accessorKey?: string; header?: string }

@@ -1,9 +1,9 @@
 import * as Vue from 'vue'
 import { h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import * as errorState from '../../../utils/errorState'
-import * as workspacePresentation from '../../../utils/workspacePresentation'
-import { renderShared, type SharedRenderOptions } from './helpers/renderShared'
+import * as errorState from '../../../../utils/errorState'
+import * as workspacePresentation from '../../../../utils/workspacePresentation'
+import { renderShared, type SharedRenderOptions } from '../../__tests__/helpers/renderShared'
 
 const options: SharedRenderOptions = {
   modules: { '@/utils/errorState': errorState, '@/utils/workspacePresentation': workspacePresentation },

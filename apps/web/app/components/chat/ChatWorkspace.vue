@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
-import EmptyState from '@/components/shared/EmptyState.vue'
+import EmptyState from '@/components/shared/feedback/EmptyState.vue'
 import ChatInfoPanel from '@/components/chat/ChatInfoPanel.vue'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import MessageHistory from '@/components/chat/MessageHistory.vue'

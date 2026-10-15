@@ -1,6 +1,6 @@
 import { defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from './helpers/renderShared'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 // The page frame components are auto-imported in the app; here they are plain elements
 // so the test reads only what DashboardPage itself renders.

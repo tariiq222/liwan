@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { RowAction } from '@/components/shared/RowActions.vue'
+import type { RowAction } from '@/components/shared/data/RowActions.vue'
 import type { Task } from '@nasq/contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { ApiError } from '@/composables/useApi'
 import { useArchivedTasks, useRestoreTask } from '@/composables/useArchivedTasks'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 
 const route = useRoute()
 const router = useRouter()

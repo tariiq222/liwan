@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DateField from '../../app/components/shared/DateField.vue'
-import FilterBar from '../../app/components/shared/FilterBar.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import DateField from '../../app/components/shared/form/DateField.vue'
+import FilterBar from '../../app/components/shared/data/FilterBar.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

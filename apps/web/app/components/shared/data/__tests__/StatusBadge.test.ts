@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import * as statusTone from '../../../utils/statusTone'
-import { renderShared } from './helpers/renderShared'
+import * as statusTone from '../../../../utils/statusTone'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 const render = (props: Record<string, unknown>) => renderShared('StatusBadge', props, {}, { modules: { '@/utils/statusTone': statusTone } })
 

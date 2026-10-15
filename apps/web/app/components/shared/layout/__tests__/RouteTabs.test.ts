@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import * as sectionTabs from '../../../utils/sectionTabs'
-import { renderShared } from './helpers/renderShared'
+import * as sectionTabs from '../../../../utils/sectionTabs'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 const items = [
   { key: 'project-tab-overview', label: 'Overview', to: '/projects/1', active: false, icon: 'i-lucide-house' },

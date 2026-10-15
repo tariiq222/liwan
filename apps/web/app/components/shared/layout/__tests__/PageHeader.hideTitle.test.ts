@@ -1,7 +1,7 @@
 import * as Vue from 'vue'
 import { h } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { renderShared, type SharedRenderOptions } from './helpers/renderShared'
+import { renderShared, type SharedRenderOptions } from '../../__tests__/helpers/renderShared'
 
 const registerTitle = vi.fn()
 const escapeTarget = vi.fn()

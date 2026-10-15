@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import RichText from '../../app/components/shared/RichText.vue'
+import RichText from '../../app/components/shared/form/RichText.vue'
 import { storyContext } from '../support/context'
 
 const sample = '<h2>اعتماد نطاق المرحلة الأولى</h2><p>اكتملت مراجعة النطاق مع <a href="https://example.test">فريق العمل</a>، وتقرر:</p><ul><li>تحديد موعد اعتماد الخطة.</li><li>تجميد المتطلبات الجديدة حتى نهاية الشهر.</li></ul><blockquote>ملاحظة: يلزم توقيع الراعي.</blockquote><script>alert(1)</script>'

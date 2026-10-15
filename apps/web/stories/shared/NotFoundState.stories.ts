@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import NotFoundState from '../../app/components/shared/NotFoundState.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import NotFoundState from '../../app/components/shared/feedback/NotFoundState.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/NotFoundState',
   component: NotFoundState,
-  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/shared/PageState.vue:20') },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/shared/feedback/PageState.vue:20') },
 } satisfies Meta<typeof NotFoundState>
 export default meta
 type Story = StoryObj<typeof meta>

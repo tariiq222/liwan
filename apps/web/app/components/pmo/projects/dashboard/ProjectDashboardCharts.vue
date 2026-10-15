@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProjectReportRow } from '@nasq/contracts'
-import DashboardChart from '@/components/shared/DashboardChart.client.vue'
+import DashboardChart from '@/components/shared/data/DashboardChart.client.vue'
 import DashboardChartPanel from './DashboardChartPanel.vue'
 import {
   projectDashboardCurrencies,

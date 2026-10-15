@@ -11,7 +11,7 @@ import { validateTaskDates } from '@/utils/projectDateBounds'
 import AssigneePicker from './AssigneePicker.vue'
 import MilestoneSelect from './MilestoneSelect.vue'
 import PrioritySelect from './PrioritySelect.vue'
-import TagPicker from '@/components/shared/TagPicker.vue'
+import TagPicker from '@/components/shared/form/TagPicker.vue'
 const props = defineProps<{ task: TaskDetail }>()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()

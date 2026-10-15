@@ -1,7 +1,7 @@
 import { h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import * as errorState from '../../../utils/errorState'
-import { renderShared } from './helpers/renderShared'
+import * as errorState from '../../../../utils/errorState'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 const render = (props: Record<string, unknown>) =>
   renderShared('PageState', props, { default: () => h('p', 'CONTENT') }, { modules: { '@/utils/errorState': errorState } })

@@ -1,6 +1,6 @@
 import { defineComponent, h, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from './helpers/renderShared'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 const stubs = {
   SharedPageContainer: defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) { return () => h('div', attrs, slots.default?.()) } }),

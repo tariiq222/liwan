@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { currentListView, listViewQuery, type ListViewOption } from '@/utils/listView'
 import PageContainer from './PageContainer.vue'
 import PageHeader from './PageHeader.vue'
-import ViewSwitch from './ViewSwitch.vue'
+import ViewSwitch from '../data/ViewSwitch.vue'
 
 /*
  * The list template (Tasmim spec §6, template 1): heading, the page's own create button, filters,

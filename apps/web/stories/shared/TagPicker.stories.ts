@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
-import TagPicker from '../../app/components/shared/TagPicker.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import TagPicker from '../../app/components/shared/form/TagPicker.vue'
 import { tags } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 

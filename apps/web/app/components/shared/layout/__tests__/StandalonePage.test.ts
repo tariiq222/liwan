@@ -1,6 +1,6 @@
 import { h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from './helpers/renderShared'
+import { renderShared } from '../../__tests__/helpers/renderShared'
 
 const body = { default: () => h('form', { 'data-body': '' }), footer: () => h('button', 'Print') }
 

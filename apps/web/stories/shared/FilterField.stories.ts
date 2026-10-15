@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import DateField from '../../app/components/shared/DateField.vue'
-import FilterField from '../../app/components/shared/FilterField.vue'
+import DateField from '../../app/components/shared/form/DateField.vue'
+import FilterField from '../../app/components/shared/data/FilterField.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

@@ -1,6 +1,4 @@
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { compileTemplate, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
@@ -8,8 +6,7 @@ import * as Vue from 'vue'
 import { createSSRApp, defineComponent, h, type Component, type RenderFunction, type VNode } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { renderFilter } from './helpers/filterComponents'
-
-const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../')
+import { sharedFile } from './helpers/renderShared'
 
 const NuxtLinkStub = defineComponent({
   props: { to: { type: [String, Object], default: '#' } },
@@ -19,7 +16,7 @@ const NuxtLinkStub = defineComponent({
 })
 
 function loadShared(name: string): Component {
-  const filename = resolve(webRoot, `app/components/shared/${name}.vue`)
+  const filename = sharedFile(name)
   const source = readFileSync(filename, 'utf8')
   const parsed = parse(source, { filename })
   if (parsed.errors.length) throw parsed.errors[0]

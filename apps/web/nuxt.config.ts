@@ -38,12 +38,17 @@ export default defineNuxtConfig({
   },
   // Discover runtime components; specialist chart adapters also use explicit imports.
   // Application folders keep their historical auto-import names through `prefix`
-  // (components/pmo/projects/ProjectTable.vue stays ProjectTable). Specific folders
+  // (components/pmo/projects/ProjectTable.vue stays ProjectTable); the shared groups
+  // drop their group folder (components/shared/data/DataTable.vue is SharedDataTable). Specific folders
   // come first: a file belongs to the first entry whose path contains it.
   components: [
     { path: '~/components/pmo/projects', prefix: 'Project', ignore: ['**/__tests__/**'] },
     { path: '~/components/pmo/tasks', prefix: 'Task', ignore: ['**/__tests__/**'] },
     { path: '~/components/personal-tasks', prefix: 'MyTasks', ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/layout', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/data', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/form', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
+    { path: '~/components/shared/feedback', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
     { path: '~/components', ignore: ['**/__tests__/**'] },
   ],
   app: {

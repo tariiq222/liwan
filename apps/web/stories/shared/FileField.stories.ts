@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import FileField from '../../app/components/shared/FileField.vue'
+import FileField from '../../app/components/shared/form/FileField.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   CHARTER_CATALOG_PAGE_SIZE,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
+import RecordNumber from '@/components/shared/data/RecordNumber.vue'
 import { STATUS_COLOR } from '@/utils/statusTone'
 import { RACI_ROLE_TONE } from './state'
 

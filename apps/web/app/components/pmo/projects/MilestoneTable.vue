@@ -6,7 +6,7 @@ import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@/utils/safeReturnTo'
-import type { RowAction } from '@/components/shared/RowActions.vue'
+import type { RowAction } from '@/components/shared/data/RowActions.vue'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
