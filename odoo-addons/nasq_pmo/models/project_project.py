@@ -25,7 +25,8 @@ OBJECTIVE_KEYS = ('goal', 'metric', 'target')
 DELIVERABLE_KEYS = ('name', 'description', 'acceptance')
 BUDGET_STATES = ('unknown', 'estimate')
 PRIORITY_VALUES = ('low', 'normal', 'high', 'critical')
-CHARTER_STATES = ('draft', 'final')
+CHARTER_STATES = ('draft', 'submitted', 'approved')
+CHARTER_RETURN_NOTE_MAX = 2000
 CHARTER_TEXT_FIELDS = (
     'nasq_authority', 'nasq_rationale', 'nasq_benefits', 'nasq_scope',
     'nasq_exclusions', 'nasq_high_level_requirements', 'nasq_success',
@@ -34,10 +35,26 @@ CHARTER_TEXT_FIELDS = (
 CHARTER_JSON_FIELDS = ('nasq_objectives', 'nasq_deliverables')
 CHARTER_MANAGER_FIELDS = {
     'nasq_type_id', 'nasq_owning_unit_id', 'nasq_sponsor_id',
-    'nasq_budget_state', 'nasq_budget_amount', 'nasq_priority', 'nasq_charter_state',
+    'nasq_budget_state', 'nasq_budget_amount', 'nasq_priority',
     *CHARTER_TEXT_FIELDS, *CHARTER_JSON_FIELDS,
 }
 PROTECTED_FIELDS = {'nasq_code', 'nasq_revision'}
+# Written only by the charter transitions (_nasq_charter_*), never by PATCH.
+CHARTER_APPROVAL_FIELDS = {
+    'nasq_charter_state', 'nasq_charter_submitted_by_id', 'nasq_charter_submitted_at',
+    'nasq_charter_approved_by_id', 'nasq_charter_approved_at', 'nasq_charter_return_note',
+}
+# Content a submitted charter locks and an approved one reopens on change.
+# The sponsor is content too: it cannot change while the charter waits (the manager
+# withdraws first), so a manager cannot swap in themself to self-approve.
+CHARTER_CONTENT_FIELDS = CHARTER_MANAGER_FIELDS | {
+    'name', 'description', 'user_id', 'date_start', 'date',
+}
+CHARTER_RESET_VALS = {
+    'nasq_charter_state': 'draft',
+    'nasq_charter_submitted_by_id': False, 'nasq_charter_submitted_at': False,
+    'nasq_charter_approved_by_id': False, 'nasq_charter_approved_at': False,
+}
 # Fields a nasq manager (group or per-project assigned user) may write via
 # _nasq_write_as_manager/_nasq_write_sudo. Anything else must go through a
 # dedicated, explicitly-reviewed path instead of this generic sudo'd write.
@@ -47,7 +64,7 @@ MANAGER_WRITABLE = {
     'nasq_completion_approval', 'nasq_completion_approver_id',
 } | CHARTER_MANAGER_FIELDS
 PROJECT_CREATE_FIELDS = MANAGER_WRITABLE | {'company_id', 'nasq_code'}
-REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'}
+REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'} | CHARTER_APPROVAL_FIELDS
 COMPLETION_APPROVAL_VALUES = ('none', 'project_manager', 'specific_user')
 COMPLETION_BACKFILL_PARAM = 'nasq_pmo.completion_status_backfill_v1_done'
 MAX_COPY_TASKS = 500
@@ -62,6 +79,10 @@ def _not_empty(message, count):
 
 class NasqStaleWrite(Exception):
     """Write token no longer matches the locked row."""
+
+
+class NasqCharterState(UserError):
+    """The charter is not in a state that allows this action or edit."""
 
 
 def _validate_charter_rows(rows, keys, label):
@@ -136,13 +157,19 @@ class ProjectProject(models.Model):
     nasq_assumptions = fields.Text(default='')
     nasq_constraints = fields.Text(default='')
     nasq_closure = fields.Text(default='')
-    # A charter starts as a draft the wizard can save at any step; the final
-    # step marks it final. Existing projects load as drafts until finalized.
+    # draft → submitted (waiting for the sponsor) → approved. Only the
+    # _nasq_charter_* transitions write these; see CHARTER_APPROVAL_FIELDS.
     nasq_charter_state = fields.Selection(
-        [('draft', 'Draft'), ('final', 'Final')],
+        [('draft', 'Draft'), ('submitted', 'Submitted'), ('approved', 'Approved')],
         default='draft',
         required=True,
+        copy=False,
     )
+    nasq_charter_submitted_by_id = fields.Many2one('res.users', ondelete='set null', copy=False)
+    nasq_charter_submitted_at = fields.Datetime(copy=False)
+    nasq_charter_approved_by_id = fields.Many2one('res.users', ondelete='set null', copy=False)
+    nasq_charter_approved_at = fields.Datetime(copy=False)
+    nasq_charter_return_note = fields.Text(default='', copy=False)
 
     _nasq_code_uniq = models.Constraint(
         'UNIQUE(nasq_code)',
@@ -353,6 +380,7 @@ class ProjectProject(models.Model):
         if policy_changed:
             self._nasq_check_completion_policy_vals(vals)
         self._nasq_prepare_charter_vals(vals, records=self)
+        reopen = self._nasq_charter_guard(vals)
         if restored:
             inactive = self.filtered(lambda project: not project.active)
             if inactive:
@@ -374,6 +402,14 @@ class ProjectProject(models.Model):
             )
             if stale:
                 stale._nasq_invalidate_completion_requests()
+        for project in reopen:
+            project._nasq_write_charter_approval(dict(CHARTER_RESET_VALS))
+        if vals.get('privacy_visibility') == 'followers':
+            # A waiting sponsor must keep read access when the project turns private.
+            for project in self.filtered(lambda p: p.nasq_charter_state == 'submitted'):
+                sponsor = project.nasq_sponsor_id
+                if sponsor and project._nasq_can_manage() and sponsor not in project._nasq_followers():
+                    project._nasq_add_follower(sponsor)
         return result
 
     def unlink(self):
@@ -418,7 +454,7 @@ class ProjectProject(models.Model):
             )
         )
 
-    def _nasq_write_sudo(self, vals):
+    def _nasq_write_sudo(self, vals, allowed=MANAGER_WRITABLE):
         """Write project fields in sudo, whitelisted, with NO manage-rule check.
 
         This is the *do* step only: it trusts the caller already proved the
@@ -433,7 +469,7 @@ class ProjectProject(models.Model):
         Third documented sudo() in nasq_pmo (settings, policy create, this).
         """
         self.ensure_one()
-        bad = set(vals) - MANAGER_WRITABLE
+        bad = set(vals) - allowed
         if bad:
             msg = f"cannot write non-whitelisted project fields: {sorted(bad)}"
             raise ValueError(msg)
@@ -450,6 +486,16 @@ class ProjectProject(models.Model):
         """
         self._nasq_check_manage()
         return self._nasq_write_sudo(vals)
+
+    def _nasq_write_charter_approval(self, vals):
+        """The *do* step of a charter transition: approval fields only.
+
+        Documented PMO elevated case (charter approval): the sponsor is not a
+        project manager and Odoo's ACL lets only the manager group write
+        project.project. Every caller ran its own check first (manager for
+        submit/withdraw, sponsor for approve/return).
+        """
+        return self._nasq_write_sudo(vals, allowed=CHARTER_APPROVAL_FIELDS)
 
     # --- create --------------------------------------------------------------
     def _nasq_create_from_policy(self, name, extra=None, user_id=None, date_end=None):
@@ -706,7 +752,7 @@ class ProjectProject(models.Model):
         self.ensure_one()
         return 'v%s' % (self.nasq_revision or 0)
 
-    def _nasq_lock_for_write(self, expected):
+    def _nasq_lock_for_write(self, expected, *, require_manage=True):
         self.ensure_one()
         self.env.cr.execute(
             '''
@@ -722,7 +768,8 @@ class ProjectProject(models.Model):
             raise AccessError(self.env._("Project is outside the current company."))
         self.invalidate_recordset()
         self._nasq_check_visible_current()
-        self._nasq_check_manage()
+        if require_manage:
+            self._nasq_check_manage()
         current = 'v%s' % (row[0] or 0)
         if expected != current:
             raise NasqStaleWrite(self.env._("This project was changed by someone else."))
@@ -965,6 +1012,109 @@ class ProjectProject(models.Model):
             'description': description or False,
         })
 
+    # --- charter approval ----------------------------------------------------
+    def _nasq_charter_differs(self, vals, names):
+        self.ensure_one()
+        for name in names:
+            field = self._fields[name]
+            new = field.convert_to_record(field.convert_to_cache(vals[name], self), self)
+            current = self[name]
+            if field.relational:
+                changed = new != current
+            else:
+                # NULL columns read False while forms send '': both are blank.
+                changed = (new or False) != (current or False)
+            if changed:
+                return True
+        return False
+
+    def _nasq_charter_guard(self, vals):
+        """Lock submitted charters; return approved ones a change must reopen."""
+        names = set(vals) & CHARTER_CONTENT_FIELDS
+        if not names:
+            return self.browse()
+        changed = self.filtered(lambda project: project._nasq_charter_differs(vals, names))
+        if any(project.nasq_charter_state == 'submitted' for project in changed):
+            raise NasqCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
+        if not self.env['nasq.pmo.settings'].get()['require_charter_approval']:
+            return self.browse()
+        return changed.filtered(lambda project: project.nasq_charter_state == 'approved')
+
+    def _nasq_charter_approval_required(self):
+        return self.env['nasq.pmo.settings'].get()['require_charter_approval']
+
+    def _nasq_can_review_charter(self):
+        self.ensure_one()
+        return self.nasq_charter_state == 'submitted' and self.nasq_sponsor_id == self.env.user
+
+    def _nasq_check_charter_reviewer(self):
+        self._nasq_check_visible_current()
+        if self.nasq_sponsor_id != self.env.user:
+            raise AccessError(self.env._("Only the project sponsor can review the charter."))
+
+    def _nasq_check_charter_state(self, state):
+        if self.nasq_charter_state != state:
+            raise NasqCharterState(self.env._("The charter is not in the expected state."))
+
+    def _nasq_charter_submit(self):
+        self.ensure_one()
+        self._nasq_check_manage()
+        self._nasq_check_charter_state('draft')
+        user, now = self.env.user, fields.Datetime.now()
+        vals = {
+            'nasq_charter_submitted_by_id': user.id,
+            'nasq_charter_submitted_at': now,
+            'nasq_charter_return_note': '',
+        }
+        sponsor = self.nasq_sponsor_id
+        if not self._nasq_charter_approval_required() or sponsor == user:
+            vals.update({
+                'nasq_charter_state': 'approved',
+                'nasq_charter_approved_by_id': user.id,
+                'nasq_charter_approved_at': now,
+            })
+        else:
+            service = self.env['nasq.access.service']
+            if not sponsor or not sponsor.active or not service._nasq_has_capability(sponsor, 'pmo.projects.read'):
+                raise ValidationError(self.env._("Choose a sponsor who can open projects before submitting the charter."))
+            if self.privacy_visibility == 'followers' and sponsor not in self._nasq_followers():
+                self._nasq_add_follower(sponsor)
+            try:
+                self.with_user(sponsor).with_company(self.company_id)._nasq_check_visible_current()
+            except AccessError as error:
+                raise ValidationError(self.env._("Choose a sponsor who can open projects before submitting the charter.")) from error
+            vals['nasq_charter_state'] = 'submitted'
+        self._nasq_write_charter_approval(vals)
+        return self
+
+    def _nasq_charter_approve(self):
+        self.ensure_one()
+        self._nasq_check_charter_reviewer()
+        self._nasq_check_charter_state('submitted')
+        self._nasq_write_charter_approval({
+            'nasq_charter_state': 'approved',
+            'nasq_charter_approved_by_id': self.env.uid,
+            'nasq_charter_approved_at': fields.Datetime.now(),
+        })
+        return self
+
+    def _nasq_charter_return(self, note):
+        self.ensure_one()
+        self._nasq_check_charter_reviewer()
+        self._nasq_check_charter_state('submitted')
+        note = (note or '').strip() if isinstance(note, str) else ''
+        if not note or len(note) > CHARTER_RETURN_NOTE_MAX:
+            raise ValidationError(self.env._("A return note of 1 to 2000 characters is required."))
+        self._nasq_write_charter_approval({**CHARTER_RESET_VALS, 'nasq_charter_return_note': note})
+        return self
+
+    def _nasq_charter_withdraw(self):
+        self.ensure_one()
+        self._nasq_check_manage()
+        self._nasq_check_charter_state('submitted')
+        self._nasq_write_charter_approval(dict(CHARTER_RESET_VALS))
+        return self
+
     # --- stages --------------------------------------------------------------
     def _nasq_stage_task_count(self, stage):
         # sudo(): only an integer count is returned (never task records), so this
@@ -1028,6 +1178,11 @@ class ProjectProject(models.Model):
 
     def _nasq_remove_follower(self, user):
         self._nasq_check_manage()
+        if (
+            self.nasq_charter_state == 'submitted' and self.privacy_visibility == 'followers'
+            and user == self.nasq_sponsor_id
+        ):
+            raise NasqCharterState(self.env._("The sponsor is reviewing the charter; withdraw it before removing the sponsor."))
         # sudo(): same rationale as _nasq_add_follower above.
         self.sudo().message_unsubscribe(partner_ids=[user.partner_id.id])
         return self._nasq_followers()

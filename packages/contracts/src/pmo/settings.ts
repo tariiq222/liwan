@@ -16,6 +16,7 @@ export const ProjectSettingsSchema = z.object({
   deadline_reminders_enabled: z.boolean(),
   deadline_reminders_days_before: z.number().int().min(0).max(30),
   overdue_digest_enabled: z.boolean(),
+  require_charter_approval: z.boolean(),
 }).strict()
 
 export const ProjectSettingsPatchSchema = ProjectSettingsSchema.partial().strict()
