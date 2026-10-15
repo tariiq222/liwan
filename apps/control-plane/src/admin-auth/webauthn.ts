@@ -8,7 +8,7 @@
 // - verifyAuthenticationResponse({ response, expectedChallenge, expectedOrigin, expectedRPID, requireUserVerification?,
 //   credential: { id, publicKey, counter, transports? } }) -> { verified, authenticationInfo: { newCounter, ... } }
 import { randomUUID } from 'node:crypto'
-import type { PoolClient } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import * as simple from '@simplewebauthn/server'
 import type { AdminConfig } from '../config.js'
 import { AdminAuthError } from './accounts.js'
@@ -24,9 +24,14 @@ async function saveChallenge(client: PoolClient, kind: 'register' | 'login' | 's
   return id
 }
 
-async function takeChallenge(client: PoolClient, id: string, kind: string, now: Date) {
-  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) fail()
-  const row = await client.query('DELETE FROM vendor_auth_challenges WHERE id=$1 AND kind=$2 RETURNING account_id, challenge, expires_at', [id, kind])
+export type ConsumedChallenge = { accountId: number | null; challenge: string }
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+// Runs on the pool (autocommit) so the challenge is burned even when the caller's transaction later rolls back.
+export async function consumeChallenge(pool: Pool, challengeId: string, kind: 'register' | 'login' | 'step_up', now: Date): Promise<ConsumedChallenge> {
+  if (typeof challengeId !== 'string' || !UUID.test(challengeId)) fail()
+  await pool.query('DELETE FROM vendor_auth_challenges WHERE expires_at < $1', [now])
+  const row = await pool.query('DELETE FROM vendor_auth_challenges WHERE id=$1 AND kind=$2 RETURNING account_id, challenge, expires_at', [challengeId, kind])
   const c = row.rows[0]
   if (!c || new Date(c.expires_at) <= now) fail()
   return { accountId: c.account_id === null ? null : Number(c.account_id), challenge: c.challenge as string }
@@ -43,8 +48,8 @@ export async function registrationOptions(client: PoolClient, lib: WebAuthnLib, 
   return { challengeId: await saveChallenge(client, 'register', account.id, options.challenge, now), options }
 }
 
-export async function finishRegistration(client: PoolClient, lib: WebAuthnLib, admin: AdminConfig, accountId: number, challengeId: string, response: unknown, label: string, now: Date) {
-  const c = await takeChallenge(client, challengeId, 'register', now)
+export async function finishRegistration(client: PoolClient, lib: WebAuthnLib, admin: AdminConfig, accountId: number, consumed: ConsumedChallenge, response: unknown, label: string, now: Date) {
+  const c = consumed
   if (c.accountId !== accountId) fail()
   let result: Awaited<ReturnType<WebAuthnLib['verifyRegistrationResponse']>> | undefined
   try {
@@ -52,10 +57,11 @@ export async function finishRegistration(client: PoolClient, lib: WebAuthnLib, a
   } catch { fail() }
   if (!result?.verified) return fail()
   const cred = result.registrationInfo.credential
-  await client.query(
-    'INSERT INTO vendor_passkeys(credential_id,account_id,public_key,counter,transports,label,created_at) VALUES($1,$2,$3,$4,$5,$6,$7)',
+  const ins = await client.query(
+    'INSERT INTO vendor_passkeys(credential_id,account_id,public_key,counter,transports,label,created_at) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (credential_id) DO NOTHING',
     [cred.id, accountId, Buffer.from(cred.publicKey), cred.counter, cred.transports ?? [], String(label ?? '').slice(0, 60), now],
   )
+  if (ins.rowCount === 0) fail()
 }
 
 export async function authenticationOptions(client: PoolClient, lib: WebAuthnLib, admin: AdminConfig, kind: 'login' | 'step_up', accountId: number | null, now: Date) {
@@ -66,8 +72,8 @@ export async function authenticationOptions(client: PoolClient, lib: WebAuthnLib
   return { challengeId: await saveChallenge(client, kind, kind === 'step_up' ? accountId : null, options.challenge, now), options }
 }
 
-export async function finishAuthentication(client: PoolClient, lib: WebAuthnLib, admin: AdminConfig, kind: 'login' | 'step_up', challengeId: string, response: unknown, now: Date) {
-  const c = await takeChallenge(client, challengeId, kind, now)
+export async function finishAuthentication(client: PoolClient, lib: WebAuthnLib, admin: AdminConfig, kind: 'login' | 'step_up', consumed: ConsumedChallenge, response: unknown, now: Date) {
+  const c = consumed
   const id = (response as { id?: unknown })?.id
   if (typeof id !== 'string' || id.length > 1024) fail()
   const row = await client.query(
