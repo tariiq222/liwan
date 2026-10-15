@@ -11,7 +11,7 @@ ROOTS = ('apps/web/app', 'apps/web/public', 'apps/web/nuxt.config.ts', 'apps/web
 SUFFIXES = ('.vue', '.ts', '.js', '.mjs', '.css', '.scss', '.html')
 URL_RE = re.compile(r'(?:https?:)?//([a-z0-9.-]+\.[a-z]{2,})', re.IGNORECASE)
 # Existing fixture, local-base, and documentation references are intentional.
-# debt: apps/web/app/utils/sanitize.ts
+# debt: packages/ui/app/utils/sanitize.ts
 # debt: apps/web/app/components/charts/utils.ts
 ALLOWED_HOSTS = frozenset({
     'custom.example',

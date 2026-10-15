@@ -97,7 +97,7 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_retired_pattern_lookalikes_and_owners_pass(self):
         self.assertEqual(self.errors({PAGE: '<template><p class="max-w-prose text-muted size-4.5 text-xs" /><!-- v-html="x" --></template>'}), [])
-        rich_text = APP + "components/shared/form/RichText.vue"
+        rich_text = UI + "components/shared/form/RichText.vue"
         self.assertNotIn(
             rich_text + ': raw v-html; render stored HTML with SharedRichText (+1)',
             self.errors({rich_text: '<template><div v-html="rendered" /></template>', CATALOG: '`' + rich_text + '`'}),
@@ -302,7 +302,7 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_story_importing_component_outside_components_fails(self):
         errors = story_errors(self.story_snapshot(**{STORY: self.story(target="../../app/pages/example.vue")}))
-        self.assertIn(STORY + ": stories import components only from apps/web/app/components", errors)
+        self.assertIn(STORY + ": stories import components only from apps/web/app/components or packages/ui/app/components", errors)
 
     def test_app_importing_story_fails(self):
         errors = story_errors(self.story_snapshot(**{PAGE: "<script setup>\nimport x from '../../stories/support/context'\n</script>"}))
@@ -578,6 +578,14 @@ class StaticGateTest(unittest.TestCase):
         owner = self.COMPONENTS + "shared/form/RichText.vue"
         self.assertEqual(policy.STYLE_OWNERS, frozenset())
         self.assertTrue(policy.scoped_style_errors({owner: "<style scoped>.a{}</style>"}))
+        self.assertTrue(policy.scoped_style_errors({policy.UI_COMPONENTS + "shared/form/RichText.vue": "<style scoped>.a{}</style>"}))
+
+    def test_layer_components_are_scanned_by_the_app_wide_rules(self):
+        layer = policy.UI_COMPONENTS + "shared/data/X.vue"
+        self.assertTrue(policy.button_rank_errors({layer: '<UButton color="secondary">Go</UButton>'}))
+        self.assertTrue(policy.recipe_errors({layer: "<template><div class=\"nasq-ui-card\" /></template>"}))
+        self.assertTrue(policy.template_errors({policy.UI_COMPONENTS + "shared/data/OtherBadge.vue": "<template />"}))
+        self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@nasq/ui/app/utils/sectionTabs"), UI + "utils/sectionTabs")
 
     def test_filled_secondary_button_is_reported_and_quiet_variants_are_not(self):
         self.assertTrue(policy.button_rank_errors({
@@ -664,7 +672,8 @@ class StaticGateTest(unittest.TestCase):
         }), [])
 
     def test_filter_card_file_and_tag_are_reported(self):
-        self.assertTrue(policy.template_errors({policy.FILTER_CARD_FILE: "<template><div /></template>"}))
+        for file in policy.FILTER_CARD_FILES:
+            self.assertTrue(policy.template_errors({file: "<template><div /></template>"}), file)
         for markup in ("<FilterCard />", "<SharedFilterCard :active-count='1' />", "<shared-filter-card />",
                        "<LazySharedFilterCard />"):
             self.assertTrue(policy.template_errors({self.PAGES + "x.vue": f"<template>{markup}</template>"}), markup)
