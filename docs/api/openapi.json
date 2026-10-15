@@ -1713,6 +1713,51 @@
                   },
                   "kind": {
                     "enum": [
+                      "charter_review",
+                      "charter_approved",
+                      "charter_returned"
+                    ],
+                    "type": "string"
+                  },
+                  "project_id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "project_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "project_id",
+                  "project_name",
+                  "body",
+                  "created_at",
+                  "is_read"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "created_at": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "is_read": {
+                    "type": "boolean"
+                  },
+                  "kind": {
+                    "enum": [
                       "meeting_invite",
                       "meeting_resolution",
                       "meeting_converted",
@@ -11015,6 +11060,9 @@
           "mention",
           "deadline",
           "overdue_digest",
+          "charter_review",
+          "charter_approved",
+          "charter_returned",
           "meeting_invite",
           "meeting_resolution",
           "meeting_converted",
@@ -11242,6 +11290,51 @@
                         "digest_id",
                         "overdue_count",
                         "local_date",
+                        "body",
+                        "created_at",
+                        "is_read"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "body": {
+                          "type": "string"
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "is_read": {
+                          "type": "boolean"
+                        },
+                        "kind": {
+                          "enum": [
+                            "charter_review",
+                            "charter_approved",
+                            "charter_returned"
+                          ],
+                          "type": "string"
+                        },
+                        "project_id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "project_name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "kind",
+                        "project_id",
+                        "project_name",
                         "body",
                         "created_at",
                         "is_read"
@@ -11586,6 +11679,51 @@
               "digest_id",
               "overdue_count",
               "local_date",
+              "body",
+              "created_at",
+              "is_read"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "is_read": {
+                "type": "boolean"
+              },
+              "kind": {
+                "enum": [
+                  "charter_review",
+                  "charter_approved",
+                  "charter_returned"
+                ],
+                "type": "string"
+              },
+              "project_id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "project_name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "project_id",
+              "project_name",
               "body",
               "created_at",
               "is_read"
@@ -13237,6 +13375,52 @@
         },
         "required": [
           "currency"
+        ],
+        "type": "object"
+      },
+      "ProjectCharterNotificationSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "charter_review",
+              "charter_approved",
+              "charter_returned"
+            ],
+            "type": "string"
+          },
+          "project_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "project_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "project_id",
+          "project_name",
+          "body",
+          "created_at",
+          "is_read"
         ],
         "type": "object"
       },
@@ -16185,6 +16369,15 @@
           "can_list_archived"
         ],
         "type": "object"
+      },
+      "ProjectNotificationKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "charter_review",
+          "charter_approved",
+          "charter_returned"
+        ],
+        "type": "string"
       },
       "ProjectObjectiveSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

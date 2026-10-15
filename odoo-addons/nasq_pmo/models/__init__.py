@@ -12,6 +12,7 @@ from . import (
     project_governance,
     project_milestone,
     project_project,
+    project_project_notifications,
     project_task,
     res_company,
     task_attachments,
