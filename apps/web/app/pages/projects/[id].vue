@@ -7,11 +7,13 @@ import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
 import { safeReturnTo } from '@/utils/safeReturnTo'
+import { formatCalendarDate } from '@/composables/calendarDate'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const hydrated = useHydrated()
+const formatDate = (value: string) => formatCalendarDate(value, locale.value) || value
 const projectId = computed(() => projectIdFromPath(route.path))
 const { data: projectData, isLoading, error } = useProject(projectId)
 // Queries may finish after server rendering but before payload dehydration.
@@ -61,41 +63,60 @@ provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.val
 
 <template>
   <div class="flex flex-col gap-6">
-    <SharedPageContainer v-if="showFrame" width="list" class="nasq-print-hide" data-testid="project-workspace-frame">
-      <div class="flex flex-col gap-4">
-        <!-- Record header: back + title + status + actions on one line, in the same slot on every tab. -->
-        <div class="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-2" data-testid="project-workspace-identity">
-          <UButton v-if="backTo" :to="backTo" :aria-label="backLabel" color="neutral" variant="outline" size="sm" class="shrink-0 focus-visible:ring-2 focus-visible:ring-primary" data-testid="project-workspace-back">
-            <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" /><span class="hidden sm:inline">{{ backLabel }}</span>
-          </UButton>
-          <div v-if="project" class="min-w-0 flex-1">
-            <h1 class="truncate text-xl font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
-            <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-              <SharedStatusBadge v-bind="projectBadge(project.status)" data-testid="project-status" />
-              <span v-if="project.manager" class="inline-flex items-center gap-1.5">
-                <UIcon name="i-lucide-user-round" class="size-4" aria-hidden="true" />
-                <span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager.name }}
-              </span>
-            </p>
+    <!-- Layer 1: a full-bleed white band (project identity, meta line and the main tabs on its bottom edge). -->
+    <div v-if="showFrame" class="nasq-page-band nasq-print-hide border-b border-default bg-default" data-testid="project-workspace-frame">
+      <SharedPageContainer width="list">
+        <div class="flex flex-col gap-3">
+          <!-- Record header: back + title + status + actions on one line, in the same slot on every tab. -->
+          <div class="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-2" data-testid="project-workspace-identity">
+            <UButton v-if="backTo" :to="backTo" :aria-label="backLabel" color="neutral" variant="outline" size="sm" class="shrink-0 focus-visible:ring-2 focus-visible:ring-primary" data-testid="project-workspace-back">
+              <UIcon name="i-lucide-arrow-right" aria-hidden="true" class="size-4.5 ltr:rotate-180" /><span class="hidden sm:inline">{{ backLabel }}</span>
+            </UButton>
+            <div v-if="project" class="min-w-0 flex-1">
+              <h1 class="truncate text-xl font-semibold text-highlighted" data-testid="project-workspace-name">{{ project.name }}</h1>
+              <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted" data-testid="project-workspace-meta">
+                <SharedStatusBadge v-bind="projectBadge(project.status)" data-testid="project-status" />
+                <span v-if="project.manager" class="inline-flex items-center gap-1.5">
+                  <UIcon name="i-lucide-user-round" class="size-4" aria-hidden="true" />
+                  <span class="sr-only">{{ t('projects.columns.manager') }}: </span>{{ project.manager.name }}
+                </span>
+                <span v-if="project.date_start || project.date_end" class="inline-flex items-center gap-1.5" data-testid="project-workspace-dates">
+                  <UIcon name="i-lucide-calendar-range" class="size-4" aria-hidden="true" />
+                  <span class="sr-only">{{ t('projects.charter.fields.date_start') }}: </span>
+                  <span v-if="project.date_start">{{ formatDate(project.date_start) }}</span>
+                  <template v-if="project.date_start && project.date_end"><UIcon name="i-lucide-arrow-left" class="size-3.5 ltr:rotate-180" aria-hidden="true" /><span class="sr-only">{{ t('projects.charter.fields.date_end') }}: </span></template>
+                  <span v-if="project.date_end">{{ formatDate(project.date_end) }}</span>
+                </span>
+                <span class="inline-flex items-center gap-1.5 tabular-nums" data-testid="project-workspace-progress">
+                  <UIcon name="i-lucide-gauge" class="size-4" aria-hidden="true" />
+                  <span class="sr-only">{{ t('projects.columns.progress') }}: </span>{{ project.progress }}%
+                </span>
+              </p>
+            </div>
+            <USkeleton v-else-if="isLoading || !hydrated" class="h-9 w-1/3" />
+            <div v-if="project?.can_manage" class="ms-auto flex shrink-0 items-center gap-2">
+              <UTooltip :text="t('nav.projectSettings')">
+                <UButton
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-settings"
+                  :aria-label="t('nav.projectSettings')"
+                  data-testid="project-workspace-settings"
+                  :to="settingsTo"
+                  :aria-current="isProjectSettings ? 'page' : undefined"
+                />
+              </UTooltip>
+            </div>
           </div>
-          <USkeleton v-else-if="isLoading || !hydrated" class="h-9 w-1/3" />
-          <div v-if="project?.can_manage" class="ms-auto flex shrink-0 items-center gap-2">
-            <UButton
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-settings"
-              :label="t('nav.projectSettings')"
-              data-testid="project-workspace-settings"
-              :to="settingsTo"
-              :aria-current="isProjectSettings ? 'page' : undefined"
-            />
-          </div>
+          <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
+          <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
+          <USkeleton v-else-if="isLoading || !hydrated" class="mb-3 h-8 w-2/3" />
         </div>
-        <!-- Tabs follow the hydrated project like the title row, so a first click is a client-side navigation. -->
-        <ProjectWorkspaceTabs v-if="project" :project-id="projectId!" :active="project.active" />
-        <ProjectWorkspaceTabs v-if="showGovernanceTabs" level="governance" :project-id="projectId!" class="-mt-4" />
-        <USkeleton v-else-if="isLoading || !hydrated" class="h-8 w-2/3" />
-      </div>
+      </SharedPageContainer>
+    </div>
+    <!-- Governance sub-sections: a second underline strip, same look as the main tabs, on the canvas just under the band. -->
+    <SharedPageContainer v-if="showFrame && showGovernanceTabs" width="list" class="nasq-print-hide -my-2">
+      <ProjectWorkspaceTabs level="governance" :project-id="projectId!" />
     </SharedPageContainer>
     <NuxtPage />
   </div>

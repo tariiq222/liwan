@@ -25,7 +25,7 @@ export function projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail,
   if (!section) return undefined
   const projectId = Number(section[1]); const rest = section[2]
   if (rest === 'milestones') return [milestone]
-  if (rest === 'updates') return [{ id: 1, name: 'اعتماد نطاق المرحلة الأولى', status: 'on_track', description_html: '<p>اكتملت مراجعة النطاق وتم تحديد موعد اعتماد الخطة.</p>', date: '2026-09-08', author: user }, { id: 2, name: 'بدء المشروع', status: 'on_track', description_html: '<p>عُقد اجتماع البداية مع فريق العمل.</p>', date: '2026-09-01', author: user }]
+  if (rest === 'updates') return [{ id: 1, name: 'اعتماد نطاق المرحلة الأولى', status: 'on_track', description_html: '<p>اكتملت مراجعة النطاق وتم تحديد موعد اعتماد الخطة. راجع الفريق المخرجات المطلوبة لكل مرحلة، وثبّت قائمة أصحاب المصلحة، واتفق مع الراعي على معايير القبول. بقيت ملاحظتان على الجدول الزمني تُغلقان قبل اجتماع الاعتماد، ويُرفع بعدها الميثاق المعدّل للتوقيع النهائي من الإدارة.</p><p>خطوات الأسبوع القادم: مراجعة الميزانية التفصيلية مع الإدارة المالية، وتوزيع المهام على فرق التنفيذ، وتجهيز خطة التواصل مع أصحاب المصلحة.</p><p>المخاطر الحالية: تأخر توفير بيئة الاختبار، وتعارض موعد الاعتماد مع إجازة أحد الأعضاء الرئيسيين.</p>', date: '2026-09-08', author: user }, { id: 2, name: 'بدء المشروع', status: 'on_track', description_html: '<p>عُقد اجتماع البداية مع فريق العمل.</p>', date: '2026-09-01', author: user }]
   if (rest === 'stakeholders') return page([stakeholder], { can_manage: true })
   if (rest === 'stakeholders/1') return stakeholder
   if (rest === 'register') return page([risk], { can_manage: true })
