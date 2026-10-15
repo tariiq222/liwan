@@ -11,4 +11,9 @@ export default defineNuxtConfig({
     path: join(here, `app/components/shared/${group}`), prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'],
   })),
   ui: { fonts: false, colorMode: false },
+  // Only the layer's own messages: @nuxtjs/i18n merges these files into the app's locales
+  // (names, direction and the default locale belong to the app).
+  i18n: {
+    locales: ['ar', 'en'].map(code => ({ code, files: [`${code}/ui.json`] })),
+  },
 })

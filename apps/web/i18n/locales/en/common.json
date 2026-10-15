@@ -1,31 +1,13 @@
 {
   "app": {
-    "pagination": "Pagination",
-    "pageOf": "Page {page} of {pages}",
-    "notAvailable": "—",
     "selectPerson": "Select a person",
     "actions": "Actions",
     "edit": "Edit",
     "productName": "Nasq",
     "search": "Search",
-    "cancel": "Cancel",
     "save": "Save",
-    "create": "Create",
-    "noResults": "No results.",
     "loadMore": "Load more",
-    "loading": "Loading",
-    "back": "Back",
-    "close": "Close",
-    "retry": "Try again",
-    "unsavedChangesTitle": "Unsaved changes",
-    "unsavedChanges": "If you leave now, your changes will not be saved.",
-    "stay": "Stay on this page",
-    "discardAndLeave": "Leave without saving",
-    "recordNumber": "No.",
-    "selectDate": "Choose date",
-    "clearDate": "Clear date",
-    "chooseFile": "Choose file",
-    "noFileChosen": "No file chosen"
+    "recordNumber": "No."
   },
   "nav": {
     "today": "Today",
@@ -123,10 +105,6 @@
     "goHome": "Back to home",
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
-    "generic": "An unexpected error occurred",
-    "forbidden": "You do not have permission to view this page.",
-    "notFound": "This record is unavailable or no longer exists.",
-    "conflict": "The data changed since you opened this page. Reload it and try again.",
     "packageQuota": {
       "users": "You have reached the user limit for your plan.",
       "projects": "You have reached the project limit for your plan.",
@@ -179,39 +157,12 @@
     "escape": "Back or close",
     "help": "Show shortcuts"
   },
-  "filterCard": {
-    "title": "Search and filters",
-    "clear": "Clear filters",
-    "remove": "Remove filter"
-  },
-  "brand": {
-    "name": "Nasq"
-  },
   "states": {
-    "view": "View",
-    "forbiddenHint": "Ask your system administrator for access if you need this page.",
-    "notFoundHint": "The record may have been deleted, or its link changed.",
-    "metrics": "Key figures",
-    "chartEmpty": "There is not enough data to draw this chart.",
-    "noValue": "No value",
-    "untitled": "Untitled",
-    "properties": "Properties",
-    "previous": "Previous",
-    "next": "Next",
-    "today": "Today",
-    "period": "Move between periods",
-    "scale": "Scale",
-    "details": "Details",
     "invoice": {
       "description": "Description",
       "amount": "Amount",
       "lines": "Invoice lines",
       "totals": "Totals"
-    },
-    "selectAll": "Select all rows",
-    "selectRow": "Select row",
-    "selectedCount": "Selected: {count}",
-    "clearSelection": "Clear selection",
-    "bulkActions": "Actions on selected rows"
+    }
   }
 }
