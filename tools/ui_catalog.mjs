@@ -50,7 +50,8 @@ function readStory(file) {
   }
 }
 
-const optional = type => type.replace(/ \| undefined$/, '')
+// Imported type aliases print through the global scope (`globalThis.ShellRailItem`); the alias name is the documented type.
+const optional = type => type.replace(/ \| undefined$/, '').replaceAll('globalThis.', '')
 // Bundled library types print as minified names (`it | et`); the declared text is clearer.
 const declared = (source, prop, type) => /(^|[ |])[a-z]{1,2}($|[ |])/.test(type)
   ? source.match(new RegExp(`^\\s*${prop}\\??:\\s*([^\\n,]+)`, 'm'))?.[1].trim() ?? type
@@ -85,7 +86,7 @@ function build() {
         ...(prop.default === undefined ? {} : { default: prop.default }),
         ...(prop.description ? { description: prop.description } : {}),
       })),
-      events: meta.events.map(event => ({ name: event.name, payload: event.type })),
+      events: meta.events.map(event => ({ name: event.name, payload: event.type.replaceAll('globalThis.', '') })),
       slots: meta.slots.map(slot => slot.name),
       nuxtUi: [...new Set([...template.matchAll(/<(U[A-Z]\w*)/g)].map(match => match[1]))].sort(),
       stories: story?.stories ?? [],

@@ -72,7 +72,7 @@
       "props": [
         {
           "name": "known",
-          "type": "globalThis.MeetingPerson[]",
+          "type": "MeetingPerson[]",
           "required": false
         },
         {
@@ -439,7 +439,7 @@
         },
         {
           "name": "chart",
-          "type": "globalThis.DashboardChart",
+          "type": "DashboardChart",
           "required": true
         },
         {
@@ -619,7 +619,7 @@
         },
         {
           "name": "milestones",
-          "type": "readonly globalThis.CharterMilestone[]",
+          "type": "readonly CharterMilestone[]",
           "required": false
         },
         {
@@ -911,7 +911,7 @@
         },
         {
           "name": "stages",
-          "type": "globalThis.BoardStage[]",
+          "type": "BoardStage[]",
           "required": false,
           "default": "[]"
         },
@@ -941,7 +941,7 @@
         },
         {
           "name": "move",
-          "payload": "[stage: globalThis.BoardStage]"
+          "payload": "[stage: BoardStage]"
         }
       ],
       "slots": [],
@@ -1286,7 +1286,7 @@
       "props": [
         {
           "name": "chart",
-          "type": "globalThis.DashboardChart",
+          "type": "DashboardChart",
           "required": true
         },
         {
@@ -1326,7 +1326,7 @@
       "props": [
         {
           "name": "lines",
-          "type": "globalThis.InvoiceLineView[]",
+          "type": "InvoiceLineView[]",
           "required": true
         },
         {
@@ -1805,7 +1805,7 @@
         },
         {
           "name": "panel",
-          "type": "globalThis.Component | null",
+          "type": "Component | null",
           "required": true
         },
         {
@@ -1910,7 +1910,7 @@
       "props": [
         {
           "name": "modules",
-          "type": "globalThis.ShellRailItem[]",
+          "type": "ShellRailItem[]",
           "required": true
         },
         {
@@ -2233,7 +2233,7 @@
       "events": [
         {
           "name": "save",
-          "payload": "[draft: globalThis.BundleDraft, release: { id: string; version: string; source_digest: string; artifact_digest: string; applications: { id: string; name_ar: string; name_en: string; modules: string[]; requires_apps: string[]; conflicts_with_apps: string[]; selectable: boolean; features: { key: string; kind: \"boolean\" | \"limit\"; selectable: boolean; requires: string[]; enforcement_refs: string[]; ceiling?: number | undefined; }[]; }[]; base_modules?: string[] | undefined; } | undefined]"
+          "payload": "[draft: BundleDraft, release: { id: string; version: string; source_digest: string; artifact_digest: string; applications: { id: string; name_ar: string; name_en: string; modules: string[]; requires_apps: string[]; conflicts_with_apps: string[]; selectable: boolean; features: { key: string; kind: \"boolean\" | \"limit\"; selectable: boolean; requires: string[]; enforcement_refs: string[]; ceiling?: number | undefined; }[]; }[]; base_modules?: string[] | undefined; } | undefined]"
         },
         {
           "name": "cancel",
@@ -2282,7 +2282,7 @@
       "props": [
         {
           "name": "modelValue",
-          "type": "Record<string, globalThis.LimitDraft>",
+          "type": "Record<string, LimitDraft>",
           "required": true
         },
         {
@@ -2327,7 +2327,7 @@
       "events": [
         {
           "name": "update:modelValue",
-          "payload": "[Record<string, globalThis.LimitDraft>]"
+          "payload": "[Record<string, LimitDraft>]"
         }
       ],
       "slots": [],
@@ -2399,7 +2399,7 @@
       "events": [
         {
           "name": "save",
-          "payload": "[draft: globalThis.TermsDraft]"
+          "payload": "[draft: TermsDraft]"
         },
         {
           "name": "cancel",
@@ -2407,7 +2407,7 @@
         },
         {
           "name": "preview",
-          "payload": "[draft: globalThis.TermsDraft]"
+          "payload": "[draft: TermsDraft]"
         }
       ],
       "slots": [],
@@ -2495,7 +2495,7 @@
       "props": [
         {
           "name": "kind",
-          "type": "globalThis.CommercialKind",
+          "type": "CommercialKind",
           "required": true
         },
         {
@@ -2507,7 +2507,7 @@
       "events": [
         {
           "name": "done",
-          "payload": "[action: globalThis.LifecycleAction, result: { bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | null]"
+          "payload": "[action: LifecycleAction, result: { bundle_id: string; description: string; catalog_release_id: string; selections: { app_id: string; feature_keys: string[]; }[]; domain_limits: Record<string, number | null>; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | { plan_id: string; term_months: number; platform_limits: Record<string, number | null>; included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_extra_branches: number; extra_branch_prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; extra_branches_limit: number | null; policy_revision_id: string; currency: string; trial_days: number; grace_days: number; auto_suspend: boolean; auto_renew_allowed: boolean; id: string; version: number; edit_revision: number; name: string; status: \"draft\" | \"published\" | \"validated\"; available: boolean; audience: { kind: \"public\"; } | { kind: \"customer\"; customer_id: string; }; prices: { cadence: { unit: \"month\" | \"year\"; count: number; }; amount: { currency: string; exponent: number; minor: number; }; }[]; content_digest: string; validated_digest: string | null; customer_count: number; created_at: string; published_at: string | null; issues: { code: string; field?: string | undefined; }[]; } | null]"
         },
         {
           "name": "reload",
@@ -2602,7 +2602,7 @@
       "events": [
         {
           "name": "save",
-          "payload": "[draft: globalThis.PlanDraft]"
+          "payload": "[draft: PlanDraft]"
         },
         {
           "name": "cancel",
@@ -2645,7 +2645,7 @@
       "props": [
         {
           "name": "modelValue",
-          "type": "globalThis.PriceDraft[]",
+          "type": "PriceDraft[]",
           "required": true
         },
         {
@@ -2679,7 +2679,7 @@
       "events": [
         {
           "name": "update:modelValue",
-          "payload": "[globalThis.PriceDraft[]]"
+          "payload": "[PriceDraft[]]"
         }
       ],
       "slots": [],
@@ -3385,7 +3385,7 @@
       "props": [
         {
           "name": "tone",
-          "type": "globalThis.StatusTone",
+          "type": "StatusTone",
           "required": true
         },
         {
@@ -3452,7 +3452,7 @@
         },
         {
           "name": "options",
-          "type": "globalThis.ListViewOption[]",
+          "type": "ListViewOption[]",
           "required": true
         }
       ],
@@ -4293,7 +4293,7 @@
         },
         {
           "name": "views",
-          "type": "globalThis.ListViewOption[]",
+          "type": "ListViewOption[]",
           "required": false
         },
         {
@@ -4844,12 +4844,12 @@
       "props": [
         {
           "name": "modules",
-          "type": "globalThis.ShellRailItem[]",
+          "type": "ShellRailItem[]",
           "required": true
         },
         {
           "name": "utility",
-          "type": "globalThis.ShellRailItem[]",
+          "type": "ShellRailItem[]",
           "required": true
         },
         {
