@@ -116,8 +116,8 @@ another application) needs the owner's approval, recorded by the owner as an
 
 - `main` is the only long-lived branch and is always releasable. Task branches are
   `codex/<area>-<slug>`; throwaway experiments are `spike/<slug>` and are never merged.
-  `<area>` is one of `core platform api pmo hr chat meetings web cp deploy tools docs ci`; the
-  application areas (`pmo hr chat meetings`) are derived from the rank-4 addons in `tools/arch_layers.json`,
+  `<area>` is one of `core platform api pmo meetings hr chat tasks operations web cp deploy tools docs ci`; the
+  application areas (`pmo meetings hr chat tasks operations`) are derived from the rank-4 addons in `tools/arch_layers.json`,
   so a new application's id becomes a valid area when it is registered there.
 - Commit subjects are `type(scope): imperative subject`, at most 72 characters, with `type` in
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
@@ -181,7 +181,7 @@ cross-addon links.
   bearer token.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
-- `nasq_hr` has no `sudo()` path. In PMO, only the documented manager-write,
+- `nasq_hr`, `nasq_tasks`, `nasq_operations` and their bridges have no `sudo()` path. In PMO, only the documented manager-write,
   policy/config, display-lookup, integer-count, completion-status and notification
   cron/candidate cases use `sudo()` after the caller's authorization check;
   `nasq_notify` uses it only for bell delivery and recipient-owned bell reads.
@@ -226,7 +226,8 @@ files.
 ## Authorization model
 
 
-Authorization uses the 31 capabilities in `nasq.access.service`, built-in and
+Authorization uses the capability catalog composed by `nasq.access.service` (the nine
+`nasq_core` system capabilities plus each application's own), built-in and
 custom roles, and company-scoped assignments. `system_admin` manages access
 and settings without implicitly granting HR/PMO write access. Project ownership
 contributes contextual PMO capabilities. Legacy groups are migration/ORM support,

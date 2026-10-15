@@ -67,7 +67,16 @@ limits describe implementation stages, not permanent product exclusions.
   and `nasq_pmo` both are. It lets PMO create and read personal tasks, holds every write of a
   personal task (also through PMO's own routes) to the personal fields, adds the project rows of
   the list, and owns the convert route (`/api/v1/my-tasks/<id>/convert`, `convert-targets`).
-- `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, and `src/tasks` hold the Zod wire
+- `odoo-addons/base_tier_validation` (shared service, rank 3) is the vendored OCA tier-validation
+  engine (AGPL-3) used by `nasq_operations`.
+- `odoo-addons/nasq_operations` (application, rank 4) owns versioned process definitions and
+  permission-checked approval requests, `/api/v1/operations`, and the five `operations.*`
+  capabilities and their groups.
+- `odoo-addons/nasq_operations_pmo` (bridge, rank 5, `auto_install`) is installed whenever
+  `nasq_operations` and `nasq_pmo` both are. It executes task completion through the original
+  designated-reviewer policy.
+- `packages/contracts/src/common`, `src/access`, `src/pmo`, `src/hr`, `src/meetings`, `src/chat`,
+  `src/tasks` and `src/operations` hold the Zod wire
   contracts; each namespace has a barrel re-exported from `src/index.ts`.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
