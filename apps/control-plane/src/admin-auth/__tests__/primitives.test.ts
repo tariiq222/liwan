@@ -17,6 +17,17 @@ describe('tokens and boxes', () => {
     expect(() => open(key, box)).toThrow()
     expect(() => open(Buffer.alloc(32, 8), seal(key, Buffer.from('x')))).toThrow()
   })
+  it('refuses truncated, tag-flipped and iv-flipped boxes', () => {
+    const key = Buffer.alloc(32, 7)
+    const box = seal(key, Buffer.from('secret'))
+    expect(() => open(key, box.subarray(0, 27))).toThrow('too short')
+    expect(() => open(key, Buffer.alloc(0))).toThrow()
+    for (const index of [0, 12, 27]) {
+      const flipped = Buffer.from(box); flipped[index] ^= 1
+      expect(() => open(key, flipped)).toThrow()
+    }
+    expect(open(key, box).toString()).toBe('secret')
+  })
   it('makes ten distinct recovery codes', () => {
     const codes = newRecoveryCodes()
     expect(codes).toHaveLength(10); expect(new Set(codes).size).toBe(10)
