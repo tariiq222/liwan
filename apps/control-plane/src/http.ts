@@ -15,6 +15,8 @@ import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
 import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
 import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
+import { adminAuthHttp } from './admin-auth/routes.js'
+import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { resolveCatalogSource } from './shared/catalog-source.js'
@@ -293,7 +295,7 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
   })
 }
 
-export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }) {
+export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
   const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.NASQ_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
   try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
@@ -343,6 +345,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         } finally { invitationsInFlight-- }
       }
       const raw = await bodyBytes(req)
+      const adminResponse = await adminAuthHttp(pool, config, { webauthn: deps?.webauthn ?? defaultWebAuthn }, { method, pathname, path, raw, headers: req.headers, remoteAddress: req.socket.remoteAddress })
+      if (adminResponse) {
+        if (adminResponse.data !== undefined) return respond(res, adminResponse.status, adminResponse.data)
+        res.writeHead(adminResponse.status, { 'cache-control': 'no-store' })
+        return res.end()
+      }
       const customerResponse=await customerHttp(pool,config,{method,path,raw,headers:req.headers},paymentRuntime)
       if(customerResponse)return respond(res,customerResponse.status,customerResponse.data)
       const eventResponse=await paymentEventsHttp(pool,{method,pathname,raw,headers:req.headers},paymentRuntime)
