@@ -5,7 +5,6 @@ import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit } from './accounts.js'
-import { recordFailure } from './attempts.js'
 import { CountedFailure, handlers, type AuthContext } from './route-handlers.js'
 import type { WebAuthnLib } from './webauthn.js'
 
@@ -53,13 +52,10 @@ function failure(error: unknown): { status: number; data: { code: string } } {
   return { status: 401, data: { code: 'auth_failed' } }
 }
 
-// Failures are counted in their own committed transaction: the handler's transaction has already rolled back.
-async function countFailure(pool: Pool, scopes: string[], reason: string, now: Date): Promise<void> {
+// The attempt was already reserved before verification; the failure is audited in its own committed transaction (the handler's has rolled back).
+async function auditFailure(pool: Pool, scopes: string[], reason: string, now: Date): Promise<void> {
   await transaction(pool, async (client) => {
-    await recordFailure(client, scopes, now)
     await audit(client, 'anonymous', 'auth.failed', scopes[0], reason)
-    const locked = await client.query('SELECT scope FROM vendor_auth_attempts WHERE scope = ANY($1) AND locked_until > $2', [scopes, now])
-    for (const row of locked.rows) await audit(client, 'anonymous', 'auth.locked', row.scope as string, 'lockout')
   })
 }
 
@@ -88,7 +84,7 @@ export async function adminAuthHttp(pool: Pool, config: Config, deps: { webauthn
       return await route.handler(ctx, parsed.data as never)
     } catch (error) {
       if (error instanceof CountedFailure) {
-        try { await countFailure(pool, error.scopes, error.reason, now) } catch (countError) { failure(countError) }
+        try { await auditFailure(pool, error.scopes, error.reason, now) } catch (countError) { failure(countError) }
       }
       throw error
     }

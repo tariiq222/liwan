@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import type { AdminConfig, Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit, normalizeEmail } from './accounts.js'
-import { checkAllowed, recordSuccess } from './attempts.js'
+import { recordSuccess, reserveAttempt } from './attempts.js'
 import { hashToken, open, seal } from './crypto.js'
 import { completeEnrollment, openInvitation } from './enrollment.js'
 import { hashPassword, verifyPassword } from './passwords.js'
@@ -33,10 +33,8 @@ function sessionHeader(ctx: AuthContext): string {
   return value
 }
 
-async function passwordLogin(ctx: AuthContext, client: PoolClient, emailRaw: string, passwordText: string, route: string): Promise<{ id: number; scopes: string[] }> {
+async function passwordLogin(ctx: AuthContext, client: PoolClient, scopes: string[], emailRaw: string, passwordText: string, route: string): Promise<{ id: number; scopes: string[] }> {
   const email = normalizeEmail(emailRaw)
-  const scopes = [`account:${email}`, `ip:${ctx.ip}`]
-  await checkAllowed(client, scopes, ctx.now)
   const row = (await client.query("SELECT id, password_hash FROM vendor_accounts WHERE email=$1 AND status='active'", [email])).rows[0]
   const ok = await verifyPassword(row?.password_hash ?? await dummy(), passwordText)
   if (!row || !row.password_hash || !ok) throw counted(scopes, route)
@@ -98,12 +96,13 @@ export const handlers = {
   },
   async passkeyVerify(ctx: AuthContext, body: { challenge_id: string; response: unknown }): Promise<Result> {
     const scopes = [`ip:${ctx.ip}`]
-    await tx(ctx, (c) => checkAllowed(c, scopes, ctx.now))
+    await reserveAttempt(ctx.pool, scopes, ctx.now)
     try {
       const consumed = await consumeChallenge(ctx.pool, body.challenge_id, 'login', ctx.now)
       return await tx(ctx, async (c) => {
         const { accountId } = await finishAuthentication(c, ctx.lib, ctx.admin, 'login', consumed, body.response, ctx.now)
         const session = await createSession(c, accountId, ctx.now, true)
+        await recordSuccess(c, scopes)
         await audit(c, `account:${accountId}`, 'auth.signed_in', `account:${accountId}`, 'passkey')
         return { status: 200, data: sessionBody(session) }
       })
@@ -112,8 +111,10 @@ export const handlers = {
     }
   },
   async fallback(ctx: AuthContext, body: { email: string; password: string; totp_code: string }): Promise<Result> {
+    const scopes = [`account:${normalizeEmail(body.email)}`, `ip:${ctx.ip}`]
+    await reserveAttempt(ctx.pool, scopes, ctx.now)
     return tx(ctx, async (c) => {
-      const { id, scopes } = await passwordLogin(ctx, c, body.email, body.password, 'fallback')
+      const { id } = await passwordLogin(ctx, c, scopes, body.email, body.password, 'fallback')
       // Row lock: two concurrent uses of one code cannot both pass the last_step check.
       const totp = (await c.query('SELECT secret_box, last_step FROM vendor_totp WHERE account_id=$1 FOR UPDATE', [id])).rows[0]
       const step = totp ? checkTotp(open(ctx.admin.secretKey, totp.secret_box), body.totp_code, ctx.now.getTime(), Number(totp.last_step)) : null
@@ -123,8 +124,10 @@ export const handlers = {
     })
   },
   async recovery(ctx: AuthContext, body: { email: string; password: string; recovery_code: string }): Promise<Result> {
+    const scopes = [`account:${normalizeEmail(body.email)}`, `ip:${ctx.ip}`]
+    await reserveAttempt(ctx.pool, scopes, ctx.now)
     return tx(ctx, async (c) => {
-      const { id, scopes } = await passwordLogin(ctx, c, body.email, body.password, 'recovery')
+      const { id } = await passwordLogin(ctx, c, scopes, body.email, body.password, 'recovery')
       const used = await c.query('UPDATE vendor_recovery_codes SET used_at=$3 WHERE account_id=$1 AND code_hash=$2 AND used_at IS NULL RETURNING 1', [id, hashToken(body.recovery_code.trim().toLowerCase()), ctx.now])
       if (!used.rowCount) throw counted(scopes, 'recovery')
       return finishSignIn(ctx, c, id, scopes, 'recovery')
@@ -140,16 +143,27 @@ export const handlers = {
   },
   async stepUpVerify(ctx: AuthContext, body: { challenge_id: string; response: unknown }): Promise<Result> {
     const value = sessionHeader(ctx)
-    const consumed = await consumeChallenge(ctx.pool, body.challenge_id, 'step_up', ctx.now)
-    return tx(ctx, async (c) => {
-      const session = await resolveSession(c, value, ctx.now)
-      if (consumed.accountId !== session.accountId) throw authFailed()
-      const { accountId } = await finishAuthentication(c, ctx.lib, ctx.admin, 'step_up', consumed, body.response, ctx.now)
-      if (accountId !== session.accountId) throw authFailed()
-      await markStepUp(c, session.tokenHash, ctx.now)
-      await audit(c, `account:${accountId}`, 'auth.step_up', `account:${accountId}`, 'passkey')
-      return { status: 204 }
-    })
+    try {
+      const consumed = await consumeChallenge(ctx.pool, body.challenge_id, 'step_up', ctx.now)
+      return await tx(ctx, async (c) => {
+        const session = await resolveSession(c, value, ctx.now)
+        if (consumed.accountId !== session.accountId) throw authFailed()
+        const { accountId } = await finishAuthentication(c, ctx.lib, ctx.admin, 'step_up', consumed, body.response, ctx.now)
+        if (accountId !== session.accountId) throw authFailed()
+        await markStepUp(c, session.tokenHash, ctx.now)
+        await audit(c, `account:${accountId}`, 'auth.step_up', `account:${accountId}`, 'passkey')
+        return { status: 204 }
+      })
+    } catch (error) {
+      if (error instanceof AdminAuthError && error.code === 'auth_failed') {
+        // The handler's transaction rolled back: audit in its own committed one, only for a live session.
+        await tx(ctx, async (c) => {
+          const session = await resolveSession(c, value, ctx.now).catch(() => null)
+          if (session) await audit(c, 'anonymous', 'auth.failed', `account:${session.accountId}`, 'step-up')
+        }).catch(() => undefined)
+      }
+      throw error
+    }
   },
   async logout(ctx: AuthContext): Promise<Result> {
     const value = sessionHeader(ctx)

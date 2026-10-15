@@ -181,6 +181,34 @@ else describe('admin auth routes', () => {
     expect(failed.rows.length).toBeGreaterThanOrEqual(2)
     expect(failed.rows.every((r) => String(r.subject).startsWith('ip:'))).toBe(true)
   })
+  it('lets at most five of twenty parallel wrong sign-ins reach verification, then locks the correct one out', async () => {
+    const wrong = () => post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: 'wrong wrong wrong', totp_code: '000000' })
+    const results = await Promise.all(Array.from({ length: 20 }, wrong))
+    const statuses = results.map((r) => r.status)
+    expect(statuses.filter((x) => x === 401).length).toBeLessThanOrEqual(5)
+    expect(statuses.filter((x) => x === 429).length).toBeGreaterThanOrEqual(15)
+    expect(statuses.every((x) => x === 401 || x === 429)).toBe(true)
+    const failed = await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='auth.failed'")
+    expect(failed.rows[0].n).toBeLessThanOrEqual(5)
+    expect(failed.rows[0].n).toBe(statuses.filter((x) => x === 401).length)
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='auth.locked'")).rows[0].n).toBe(1)
+    const locked = await fallback()
+    expect([locked.status, locked.body]).toEqual([429, { code: 'rate_limited' }])
+  })
+  it('audits a failed step-up verification against the session account', async () => {
+    const s = (await fallback()).body.session
+    const options = await post('/v1/admin/auth/step-up/options', {}, signed(s))
+    const verify = await post('/v1/admin/auth/step-up/verify', { challenge_id: options.body.challenge_id, response: { id: passkey, bad: true } }, signed(s))
+    expect([verify.status, verify.body]).toEqual([401, { code: 'auth_failed' }])
+    const failed = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='auth.failed'")
+    expect(failed.rows).toEqual([{ actor: 'anonymous', subject: `account:${accountId}`, reason: 'step-up' }])
+    expect((await resolve(s)).stepUpFresh).toBe(false)
+  })
+  it('revokes the active sessions of the account when a reset is issued', async () => {
+    await resolve(session)
+    await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'lost device', new Date()))
+    await expect(resolve(session)).rejects.toMatchObject({ code: 'auth_failed' })
+  })
   it('steps up a signed-in session with a passkey assertion', async () => {
     const signedIn = await fallback()
     const s = signedIn.body.session
