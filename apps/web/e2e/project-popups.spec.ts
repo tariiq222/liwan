@@ -355,7 +355,7 @@ test('quick task creation keeps its draft on error and returns to the same list 
   await page.goto('/projects/1?tab=tasks&q=مهمة')
   await page.getByRole('link', { name: 'مهمة جديدة', exact: true }).click()
   const dialog = page.getByRole('dialog')
-  await expect(dialog.getByTestId('task-create-optional')).not.toHaveAttribute('open', '')
+  await expect(dialog.getByTestId('task-create-optional')).toHaveAttribute('data-state', 'closed')
   await dialog.getByLabel('عنوان المهمة', { exact: true }).fill('مهمة جديدة للتجربة')
   await dialog.getByRole('button', { name: 'إنشاء', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('تعذر الحفظ التجريبي')
