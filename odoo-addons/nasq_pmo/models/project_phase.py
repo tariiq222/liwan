@@ -50,7 +50,6 @@ class ProjectPhase(models.Model):
             'next': following,
             'previous': previous,
             'next_checks': self._nasq_gate_checks(following) if following else [],
-            'can_move': self._nasq_can_manage(),
         }
 
     def _nasq_move_phase(self, target):

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PROJECT_PHASES, ProjectPhaseMoveSchema, ProjectPhaseStateSchema } from '../project'
 
-const state = { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [{ key: 'charter_approved', ok: true }], can_move: true }
+const state = { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [{ key: 'charter_approved', ok: true }] }
 
 describe('project phase contract', () => {
   it('lists the lifecycle in order', () => {

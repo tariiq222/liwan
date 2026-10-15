@@ -142,7 +142,7 @@ function projectDetail(p) {
     completion_approver: null,
     updated_at: stateOf(p).updated_at,
     charter: stateOf(p).charter,
-    phase_state: { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [], can_move: p.can_manage },
+    phase_state: { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [] },
   }
 }
 
