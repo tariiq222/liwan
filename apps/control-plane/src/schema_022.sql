@@ -68,3 +68,6 @@ CREATE TABLE vendor_auth_attempts (
   locked_until timestamptz,
   PRIMARY KEY (scope)
 );
+
+-- Legacy memberships were keyed by Odoo uid; only vendor accounts may hold active memberships now.
+UPDATE vendor_memberships SET revoked_at = now() WHERE revoked_at IS NULL;
