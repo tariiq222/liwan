@@ -5,7 +5,7 @@ import { TaskSchema } from './task'
 export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline'])
 export const NotificationKindSchema = z.enum([
   'assignment', 'comment', 'mention', 'deadline', 'overdue_digest',
-  'meeting_invite', 'meeting_resolution', 'meeting_converted',
+  'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted',
   'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
 ])
 
@@ -41,7 +41,7 @@ export const DeadlineNotificationSchema = z.object({
 export const MeetingNotificationSchema = z.object({
   id: z.number().int().positive(),
   kind: z.enum([
-    'meeting_invite', 'meeting_resolution', 'meeting_converted',
+    'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted',
     'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
   ]),
   meeting_id: z.number().int().positive(),

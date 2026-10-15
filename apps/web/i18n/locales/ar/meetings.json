@@ -103,6 +103,7 @@
     },
     "notify": {
       "meeting_invite": "دعوة لاجتماع",
+      "meeting_series_invite": "دعوة لسلسلة اجتماعات",
       "meeting_resolution": "توصية باسمك",
       "meeting_converted": "حُوّلت لمهمة",
       "meeting_changed": "تغيّر موعد أو مكان الاجتماع",

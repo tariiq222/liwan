@@ -4,7 +4,7 @@ from odoo.tests import new_test_user, tagged
 from .common import NasqMeetingsCase
 
 MEETING_KINDS = [
-    'meeting_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
+    'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted', 'meeting_changed',
     'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
 ]
 

@@ -1,11 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
 from .common import NasqMeetingsCase
+from odoo.addons.nasq_meetings.serializers.meeting import dump_meetings, dump_series
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -467,3 +468,116 @@ class TestMeetingSeries(NasqMeetingsCase):
             ['2026-01-31', '2026-03-31', '2026-05-31'],
         )
         self.assertEqual(meetings[0].calendar_event_id.recurrence_id.day, 31)
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestMeetingSeriesBatches(NasqMeetingsCase):
+    """Series generation notifies once, cron skips cancelled meetings, list serializers stay bounded."""
+
+    def setUp(self):
+        super().setUp()
+        self.employee.group_ids |= self.env.ref('nasq_meetings.group_cap_meetings_read') | self.env.ref('nasq_meetings.group_cap_meetings_create')
+        self.manager.group_ids |= self.env.ref('nasq_meetings.group_cap_meetings_read') | self.env.ref('nasq_meetings.group_cap_meetings_manage')
+
+    def _messages(self, kind, meetings):
+        return self.env['mail.message'].sudo().search([
+            ('nasq_meeting_id', 'in', meetings.ids), ('nasq_notification_kind', '=', kind),
+        ])
+
+    def test_generated_series_sends_one_series_invite_per_participant(self):
+        other = new_test_user(self.env, login='series_invite_nora', name='Nora', groups='nasq_core.group_employee')
+        series = self.env['nasq.meeting.series'].create({
+            'name': 'لجنة أسبوعية', 'recurrence': 'weekly', 'until_count': 4, 'organizer_id': self.employee.id,
+            'secretary_id': self.manager.id, 'attendee_ids': [(6, 0, other.ids)],
+        })
+        participants = self.employee.partner_id | self.manager.partner_id | other.partner_id
+        meetings = series.action_generate_occurrences(datetime(2026, 9, 8, 9, 0), datetime(2026, 9, 8, 10, 0))
+        self.assertEqual(len(meetings), 4)
+        self.assertFalse(self._messages('meeting_invite', meetings))
+        invites = self._messages('meeting_series_invite', meetings)
+        self.assertEqual(len(invites), 3)
+        self.assertEqual(set(invites.mapped('nasq_meeting_id')), {meetings.sorted('start_datetime')[0].id})
+        self.assertEqual(set(invites.notification_ids.mapped('res_partner_id')), set(participants))
+        self.assertTrue(all('لجنة أسبوعية' in body for body in invites.mapped('body')))
+        # An occurrence added later to the series still invites its participants itself.
+        later = series.action_add_occurrence(datetime(2026, 10, 6, 9, 0), datetime(2026, 10, 6, 10, 0), 'Extra')
+        self.assertEqual(len(self._messages('meeting_invite', later)), 3)
+
+    def test_overdue_reminders_skip_cancelled_meetings(self):
+        live, cancelled = self.env['cyan.meeting.minute'].create([{
+            'name': name, 'state': 'draft', 'organizer_id': self.employee.id, 'meeting_date': '2026-09-01',
+            'attendee_ids': [(6, 0, self.manager.ids)],
+        } for name in ('Live overdue', 'Cancelled overdue')])
+        for meeting in (live, cancelled):
+            self.env['cyan.meeting.resolution'].create({
+                'meeting_id': meeting.id, 'name': 'Late item', 'responsible_id': self.manager.id,
+                'deadline': '2020-01-01',
+            })
+        cancelled.action_cancel()
+        self.env['cyan.meeting.minute']._nasq_run_meeting_reminders()
+        self.assertEqual(len(self._messages('meeting_resolution_overdue', live)), 1)
+        self.assertFalse(self._messages('meeting_resolution_overdue', cancelled))
+
+    def _occurrences(self, series, count):
+        Meeting = self.env['cyan.meeting.minute']
+        meetings = Meeting.create([{
+            'name': f'{series.name} {index}', 'state': 'draft', 'organizer_id': self.employee.id,
+            'series_id': series.id, 'meeting_date': date(2026, 9, 1) + timedelta(days=index),
+            'attendee_ids': [(6, 0, self.manager.ids)],
+        } for index in range(count)])
+        self.env['cyan.meeting.resolution'].create([{
+            'meeting_id': meeting.id, 'name': f'Item {meeting.id}', 'responsible_id': self.manager.id,
+            'deadline': '2020-01-01' if index % 2 else '2030-01-01',
+        } for index, meeting in enumerate(meetings)])
+        return meetings
+
+    def _query_count(self, callback):
+        self.env.flush_all()
+        before = self.env.cr.sql_log_count
+        callback()
+        self.env.flush_all()
+        return self.env.cr.sql_log_count - before
+
+    def test_list_serializers_issue_a_bounded_number_of_queries(self):
+        small = self.env['nasq.meeting.series'].create({'name': 'Small', 'recurrence': 'none', 'organizer_id': self.employee.id})
+        large = self.env['nasq.meeting.series'].create({'name': 'Large', 'recurrence': 'none', 'organizer_id': self.employee.id})
+        self._occurrences(small, 3)
+        self._occurrences(large, 35)
+        Meeting = self.env['cyan.meeting.minute'].with_user(self.employee)
+        Series = self.env['nasq.meeting.series'].with_user(self.employee)
+
+        def list_rows(series):
+            def run():
+                records = Meeting.search([('series_id', '=', series.id)], order='meeting_date desc, id desc')
+                rows = dump_meetings(records)
+                self.assertEqual(len(rows), len(records))
+                self.assertEqual({row['open_resolution_count'] for row in rows}, {1})
+            return run
+
+        def series_detail(series):
+            def run():
+                payload = dump_series(Series.browse(series.id), detail=True)
+                self.assertEqual(payload['open_resolution_count'], len(payload['meetings']))
+                self.assertEqual(payload['overdue_resolution_count'], len(payload['meetings']) // 2)
+            return run
+
+        for build in (list_rows, series_detail):
+            build(small)()  # warm the per-request caches (groups, capabilities, field metadata)
+            self.assertEqual(self._query_count(build(large)), self._query_count(build(small)), build.__name__)
+            self.assertLess(self._query_count(build(large)), 30, build.__name__)
+
+    def test_series_resolutions_filter_order_and_paginate_in_the_orm(self):
+        series = self.env['nasq.meeting.series'].create({'name': 'Paged', 'recurrence': 'none', 'organizer_id': self.employee.id})
+        meetings = self._occurrences(series, 5)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        url = f'/api/v1/meeting-series/{series.id}/resolutions'
+        first = self.api('GET', f'{url}?limit=2').json()
+        second = self.api('GET', f'{url}?limit=2&offset=2').json()
+        self.assertEqual((first['total'], second['total']), (5, 5))
+        latest_first = [meeting.id for meeting in meetings.sorted(key=lambda m: (m.meeting_date, m.id), reverse=True)]
+        self.assertEqual([row['meeting_id'] for row in first['items'] + second['items']], latest_first[:4])
+        by_meeting = self.api('GET', f'{url}?q={meetings[2].name.replace(" ", "%20")}').json()
+        self.assertEqual([row['meeting_id'] for row in by_meeting['items']], [meetings[2].id])
+        overdue = self.api('GET', f'{url}?state=overdue&limit=1').json()
+        self.assertEqual((overdue['total'], len(overdue['items'])), (2, 1))
+        self.assertEqual(self.api('GET', f'{url}?state=bogus').status_code, 422)
