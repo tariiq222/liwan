@@ -77,6 +77,9 @@ try:
     result = {'login': admin.login, 'user_id': admin.id,
               'changed_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}
     env.cr.commit()
+    # odoo shell never signals cache invalidation: without this, the running Odoo workers keep the
+    # session token cached from the old password and every session opened before stays valid.
+    env.registry.signal_changes()
 except Refusal as exc:
     env.cr.rollback()
     result = {'error_code': str(exc)}
