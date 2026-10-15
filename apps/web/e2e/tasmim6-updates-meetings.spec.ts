@@ -13,7 +13,9 @@ test.describe('Plan 6a: updates and meetings', () => {
       const create = page.getByTestId('project-updates-create')
       await expect(create).toHaveAttribute('data-shortcut-create', '')
       await expect(create).toContainText('تحديث جديد')
-      await page.getByRole('button', { name: 'عرض المزيد' }).first().click()
+      // Only a clamped description offers the toggle: the long first update has it, the short second one does not.
+      await expect(page.getByRole('button', { name: 'عرض المزيد' })).toHaveCount(1)
+      await page.getByRole('button', { name: 'عرض المزيد' }).click()
       await expect(page.getByRole('button', { name: 'عرض أقل' }).first()).toHaveAttribute('aria-expanded', 'true')
     })
     test('C opens the new-update panel over the feed', async ({ page }) => {

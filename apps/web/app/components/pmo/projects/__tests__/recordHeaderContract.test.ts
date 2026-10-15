@@ -14,7 +14,8 @@ describe('project record header and list contracts', () => {
     expect(row).toContain('data-testid="project-workspace-name"')
     expect(row).toContain('data-testid="project-status"')
     expect(row).toMatch(/data-testid="project-workspace-settings"/)
-    expect(row).toContain(":label=\"t('nav.projectSettings')\"")
+    expect(row).toContain(":aria-label=\"t('nav.projectSettings')\"")
+    expect(row).not.toContain(":label=\"t('nav.projectSettings')\"")
     // The old layout put the back control in its own row above the title.
     expect(frame).not.toContain('<div v-if="backTo" class="flex items-center gap-2 text-sm">')
   })

@@ -254,8 +254,10 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 
 /* Workspace. */
 .nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--nasq-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
-.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--nasq-canvas); padding: 20px 24px 48px; }
-.nasq-shell:has(.nasq-context-sidebar[data-panel="true"]) .nasq-shell-main { padding: 0; overflow: hidden; }
+.nasq-shell-main { --nasq-pad-x: 24px; --nasq-pad-top: 20px; min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--nasq-canvas); padding: var(--nasq-pad-top) var(--nasq-pad-x) 48px; }
+/* A full-bleed white band at the top of a page (the project frame): cancels the main padding and re-applies it inside, so content stays aligned with the page below. */
+.nasq-page-band { margin: calc(-1 * var(--nasq-pad-top)) calc(-1 * var(--nasq-pad-x)) 0; padding: 16px var(--nasq-pad-x) 0; }
+.nasq-shell:has(.nasq-context-sidebar[data-panel="true"]) .nasq-shell-main { --nasq-pad-x: 0px; --nasq-pad-top: 0px; padding: 0; overflow: hidden; }
 .nasq-page-content-motion { animation: nasq-page-content-enter 150ms ease both; }
 @keyframes nasq-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 [data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
@@ -282,7 +284,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .nasq-shell-header .nasq-search-trigger { width: 44px; padding: 0; justify-content: center; }
   .nasq-shell-header :is(.nasq-search-trigger, .nasq-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"], [data-testid="appearance-menu"]) { min-height: 44px; min-width: 44px; }
   .nasq-shell-workspace { margin-inline-start: 0; }
-  .nasq-shell-main { padding: 16px 12px max(16px, env(safe-area-inset-bottom)); }
+  .nasq-shell-main { --nasq-pad-x: 12px; --nasq-pad-top: 16px; padding: var(--nasq-pad-top) var(--nasq-pad-x) max(16px, env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
