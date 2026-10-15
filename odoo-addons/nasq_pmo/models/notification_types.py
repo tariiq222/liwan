@@ -112,11 +112,13 @@ class NasqPmoTaskNotificationTypes(models.AbstractModel):
     def _nasq_notify_visible_domain(self):
         project_ids = readable_active_project_ids(self.env)
         # The review row only lives while that project's charter still waits for its sponsor.
+        # Without readable projects there is nothing to search, and a caller without
+        # pmo.projects.read must not reach the guarded project search at all.
         review_ids = self.env['project.project'].search([
             ('id', 'in', project_ids),
             ('nasq_charter_state', '=', 'submitted'),
             ('nasq_sponsor_id', '=', self.env.user.id),
-        ]).ids
+        ]).ids if project_ids else []
         return [
             *super()._nasq_notify_visible_domain(),
             [

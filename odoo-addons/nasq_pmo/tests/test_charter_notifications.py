@@ -132,3 +132,17 @@ class TestCharterNotifications(NasqPmoCase):
         self.assertEqual(len(self._bell(self.manager, MANAGER_PASSWORD)), 1)
         self.project.active = False
         self.assertEqual(self._bell(self.manager, MANAGER_PASSWORD), [])
+
+    def test_bell_without_project_read_is_empty_not_forbidden(self):
+        reader = new_test_user(
+            self.env, login='api_no_pmo', password='api_no_pmo_pass_123', name='Nour',
+            groups='nasq_core.group_employee',
+        )
+        # An explicit role without PMO permissions replaces the built-in employee grants.
+        role = self.env['nasq.access.role'].create({'name_ar': 'بلا مشاريع', 'company_id': self.env.company.id})
+        self.env['nasq.access.assignment'].create({'user_id': reader.id, 'role_id': role.id, 'company_id': self.env.company.id})
+        self.assertFalse(self.env['nasq.access.service']._nasq_has_capability(reader, 'pmo.projects.read'))
+        self.authenticate('api_no_pmo', 'api_no_pmo_pass_123')
+        response = self.api('GET', '/api/v1/notifications')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), {'items': [], 'total': 0, 'unread_count': 0})
