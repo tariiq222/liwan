@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { canonicalJson } from './calendar.js'
+import { admitsRequiredAdmin, USERS_LIMIT_KEY } from './schemas.js'
 import { CommercialError } from './types.js'
 import type { BundleRevision, CapacityMap, CatalogApplication, CatalogRelease, CustomerTermsRevision, EntitlementSnapshot, PlanRevision } from './types.js'
 
@@ -83,6 +84,8 @@ export function compileEntitlements(input: {
     if (!platformKeys.has(k) && !domainKeys.has(k)) throw new CommercialError('limit_not_supported', 'limits')
     features[k] = v
   }
+  if (Object.hasOwn(features, USERS_LIMIT_KEY) && !admitsRequiredAdmin(features[USERS_LIMIT_KEY]))
+    throw new CommercialError('users_limit_admin_required', Object.hasOwn(terms?.limits ?? {}, USERS_LIMIT_KEY) ? 'limits' : 'platform_limits')
   const branches = terms?.extra_branches_limit !== undefined ? terms.extra_branches_limit : plan.extra_branches_limit
   features['branches.extra_limit'] = branches
 

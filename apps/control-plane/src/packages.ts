@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
-import { CatalogInvalidError, packageLimitsSchema, packageRevisionSchema, type PackageRevision } from '@nasq/commercial-contracts'
+import { admitsRequiredAdmin, CatalogInvalidError, packageLimitsSchema, packageRevisionSchema, type PackageRevision } from '@nasq/commercial-contracts'
 import { sharedPolicySchema, packageAuthoritySchema, type SharedJob } from '@nasq/commercial-contracts/shared'
 import { transaction } from './db.js'
 import { resolveCatalogSource, KNOWN_SOURCES, SOLUTIONS_DIR } from './shared/catalog-source.js'
@@ -15,8 +15,7 @@ export class PackageError extends Error {
 export type PackageSourceOptions = { repositoryRoot: string }
 /** Quotas count the retained active base.user_admin, not additional users. */
 export function assertPackageProvisionable(policy: { features: Record<string,boolean|number|null> }) {
-  const limit=policy.features['users.limit']
-  if(limit!==null && (typeof limit!=='number'||limit<1))throw new PackageError('package_admin_required',422,'limits.users.limit','A package must allow at least one user for its required administrator')
+  if(!admitsRequiredAdmin(policy.features['users.limit']))throw new PackageError('package_admin_required',422,'limits.users.limit','A package must allow at least one user for its required administrator')
   // The source installs binary bootstrap attachments (including company logo).
   // A positive value is necessary, not proof it fits every source/runtime.
   const storage=policy.features['storage.limit_mb']

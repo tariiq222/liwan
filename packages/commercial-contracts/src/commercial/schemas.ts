@@ -14,6 +14,14 @@ export const moneySchema = z.strictObject({
 })
 export const cadenceSchema = z.strictObject({ unit: z.enum(['month', 'year']), count: z.number().int().min(1).max(12) })
 export const capacityMapSchema = z.record(z.string().regex(dotted), z.number().int().min(0).max(MAX).nullable())
+/** The first customer administrator always counts against users.limit, so a sellable limit must admit
+ * them: a positive integer, or null for unlimited. One rule for packages, plans, terms and the compiler. */
+export const USERS_LIMIT_KEY = 'users.limit'
+export const admitsRequiredAdmin = (value: unknown) => value === null || (Number.isInteger(value) && (value as number) >= 1)
+/** Plan platform limits and customer terms limits, stored and input alike; schema_023 holds the same rule in the database. */
+export const sellableLimitsSchema = capacityMapSchema.refine(m => !Object.hasOwn(m, USERS_LIMIT_KEY) || admitsRequiredAdmin(m[USERS_LIMIT_KEY]), {
+  message: 'users.limit must allow the required customer administrator', path: [USERS_LIMIT_KEY],
+})
 export const lifecycleSchema = z.enum(['draft', 'validated', 'published'])
 export const audienceSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('public') }),
@@ -49,7 +57,7 @@ export const bundleRevisionSchema = z.strictObject({
 })
 export const planRevisionSchema = z.strictObject({
   ...revisionBase, plan_id: z.string(), term_months: z.number().int().positive().max(120),
-  platform_limits: capacityMapSchema, included_bundle_revision_ids: z.array(revisionIdSchema),
+  platform_limits: sellableLimitsSchema, included_bundle_revision_ids: z.array(revisionIdSchema),
   optional_bundle_revision_ids: z.array(revisionIdSchema), included_extra_branches: z.number().int().min(0).max(MAX),
   extra_branch_prices: z.array(priceSchema), extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
   policy_revision_id: revisionIdSchema, currency: z.string().regex(/^[A-Z]{3}$/),
@@ -60,7 +68,7 @@ export const customerTermsRevisionSchema = z.strictObject({
   id: revisionIdSchema, customer_id: z.string(), reason,
   base_price: priceSchema.optional(), bundle_prices: z.record(revisionIdSchema, priceSchema).optional(),
   included_extra_branches: z.number().int().min(0).max(MAX).optional(), extra_branch_price: priceSchema.optional(),
-  extra_branches_limit: z.number().int().min(0).max(MAX).nullable().optional(), limits: capacityMapSchema.optional(),
+  extra_branches_limit: z.number().int().min(0).max(MAX).nullable().optional(), limits: sellableLimitsSchema.optional(),
   term_months: z.number().int().positive().max(120).optional(), cadence: cadenceSchema.optional(),
 })
 export const entitlementSnapshotSchema = z.strictObject({
@@ -99,7 +107,7 @@ export const bundleCreateSchema = z.strictObject({ ...bundleFields, reason: reas
 export const bundleEditSchema = z.strictObject({ ...bundleFields, edit_revision: z.number().int().positive().max(MAX), reason })
 const planFields = {
   name: z.string().trim().min(1).max(200), audience: audienceSchema, term_months: z.number().int().positive().max(120),
-  currency: z.string().regex(/^[A-Z]{3}$/), prices: z.array(priceSchema), platform_limits: capacityMapSchema,
+  currency: z.string().regex(/^[A-Z]{3}$/), prices: z.array(priceSchema), platform_limits: sellableLimitsSchema,
   included_bundle_revision_ids: z.array(revisionIdSchema), optional_bundle_revision_ids: z.array(revisionIdSchema),
   included_extra_branches: z.number().int().min(0).max(MAX), extra_branch_prices: z.array(priceSchema),
   extra_branches_limit: z.number().int().min(0).max(MAX).nullable(), policy_revision_id: revisionIdSchema,

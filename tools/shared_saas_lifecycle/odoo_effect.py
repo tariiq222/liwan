@@ -215,6 +215,11 @@ class Runner:
             raise EffectError('foreign_project')
         if self.request['job']['operation'] != 'provision':
             return
+        # The first customer administrator counts against users.limit (the control
+        # plane's admitsRequiredAdmin rule): refuse before any reservation or install.
+        limit = self.request['job']['policy']['features'].get('users.limit')
+        if limit is not None and (type(limit) is not int or limit < 1):
+            raise EffectError('users_limit_admin_required')
         # Policy composition is checked against the shipped catalog bytes, in
         # addition to the signed immutable catalog selected by the server.
         try:
