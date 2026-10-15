@@ -11,7 +11,7 @@ describe('the personal task record is a record page', () => {
     for (const gone of ['<SharedPageHeader', 'const panel =', ':class="panel"']) expect(page).not.toContain(gone)
   })
   it.each(['MyTaskSubtasks', 'MyTaskComments', 'MyTaskAttachments', 'ConvertToProject'])('%s is a record section', (name) => {
-    const source = read(`components/my-tasks/${name}.vue`)
+    const source = read(`components/personal-tasks/${name}.vue`)
     expect(source).toContain('<SharedRecordSection')
     expect(source).not.toMatch(/<h2 class="text-lg font-semibold/)
   })

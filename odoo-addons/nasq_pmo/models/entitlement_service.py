@@ -26,7 +26,6 @@ class NasqPmoEntitlementService(models.AbstractModel):
             'nav.projects',
             'nav.allProjects',
             'nav.myProjects',
-            'nav.projectTemplates',
             'nav.projectTasks',
             'nav.tasks',
             'projects.title',

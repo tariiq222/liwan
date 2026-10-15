@@ -5,7 +5,7 @@ import { ApiError } from '@/composables/useApi'
 import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
-import { accessStateBadge } from '@/utils/accessStateBadge'
+import { accessBadge } from '@/components/access/accessBadge'
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -106,7 +106,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
             @retry="assignedUsers.refetch"
           />
           <template v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length">
-            <p class="text-sm text-muted">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }) }}</p>
+            <p class="text-sm text-muted">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }, assignedUsers.data.value.total) }}</p>
             <UButton color="primary" variant="link" class="p-0" :to="{ path: '/settings/users', query: { role_id: id } }" :label="t('access.roles.viewAllAssignedUsers')" />
           </template>
         </SharedRecordSection>
@@ -116,7 +116,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
       <SharedPropertiesPanel :title="t('access.roles.details')">
         <SharedPropertyRow :label="t('access.roles.columns.type')" :value="typeLabel" />
         <SharedPropertyRow :label="t('access.roles.columns.status')">
-          <SharedStatusBadge :tone="accessStateBadge({ active: role.data.value.active, protected: role.data.value.protected }).tone" :label="t(accessStateBadge({ active: role.data.value.active, protected: role.data.value.protected }).labelKey)" />
+          <SharedStatusBadge :tone="accessBadge({ active: role.data.value.active, protected: role.data.value.protected }).tone" :label="t(accessBadge({ active: role.data.value.active, protected: role.data.value.protected }).labelKey)" :icon="accessBadge({ active: role.data.value.active, protected: role.data.value.protected }).icon" />
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('access.roles.columns.users')" :value="role.data.value.user_count" />
         <SharedPropertyRow :label="t('access.roles.columns.description')" :value="role.data.value.description" />

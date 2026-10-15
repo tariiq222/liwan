@@ -79,27 +79,24 @@ function hslToHex(h: number, s: number, l: number): string {
   return toHex([(r! + m) * 255, (g! + m) * 255, (b! + m) * 255])
 }
 
-function rotateHue(hex: string, degrees: number): string {
-  const { h, s, l } = hexToHsl(hex)
-  return hslToHex((h + degrees + 360) % 360, s, l)
-}
+// Charts (DESIGN.md §2): a fixed categorical palette that does not follow the tenant colour. Series 1 is the
+// tenant primary (readable on the chart surface); series 2-6 are teal, amber, violet, rose and sky. Light mode
+// uses the 600 step where the 500 step falls under 3:1 on a white card (amber, sky); dark mode uses the 400 step.
+// A tenant primary that lands on one of these hues takes a spare instead, so two series never share a hue.
+export const CATEGORICAL_CHART_COLORS = {
+  light: ['#0d9488', '#d97706', '#8b5cf6', '#f43f5e', '#0284c7'],
+  dark: ['#2dd4bf', '#fbbf24', '#a78bfa', '#fb7185', '#38bdf8'],
+} as const satisfies Record<AppearanceMode, readonly string[]>
+const SPARE_CHART_COLORS = {
+  light: ['#ea580c', '#c026d3'],
+  dark: ['#fb923c', '#e879f9'],
+} as const satisfies Record<AppearanceMode, readonly string[]>
 
-// Chart tones stay one family with the brand hue, but spread across
-// neighbouring hues and lightness so categories read apart at a glance.
-const CHART_HUES = [16, 0, -24, 36, -48, 62] as const
-const CHART_TONES: Array<{ target: '#ffffff' | '#000000', amount: number }> = [
-  { target: '#ffffff', amount: 0.5 },
-  { target: '#ffffff', amount: 0 },
-  { target: '#000000', amount: 0.22 },
-  { target: '#ffffff', amount: 0.26 },
-  { target: '#000000', amount: 0.38 },
-  { target: '#ffffff', amount: 0.38 },
-]
-const INTERACTION = {
-  regular: { hover: 0.18, active: 0.32 },
-  nearBlack: { hover: 0.24, active: 0.42 },
-  nearWhite: { hover: 0.16, active: 0.3 },
-} as const
+/** Status series for charts (status mix, health, overdue): the same fixed colours as the status badges, never the tenant primary. */
+export const STATUS_CHART_COLORS = {
+  light: { success: '#16a34a', info: '#1d4ed8', warning: '#d97706', error: '#dc2626', neutral: '#64748b' },
+  dark: { success: '#4ade80', info: '#60a5fa', warning: '#fbbf24', error: '#f87171', neutral: '#94a3b8' },
+} as const satisfies Record<AppearanceMode, Record<'success' | 'info' | 'warning' | 'error' | 'neutral', string>>
 
 function visualDistance(first: string, second: string): number {
   const firstChannels = channels(first)
@@ -107,45 +104,16 @@ function visualDistance(first: string, second: string): number {
   return Math.sqrt(firstChannels.reduce((acc, value, index) => acc + (value - secondChannels[index]!) ** 2, 0))
 }
 
-function uniqueCharts(colors: string[], mode: AppearanceMode): string[] {
-  const next = [...colors]
-  const target = mode === 'dark' ? '#ffffff' : '#000000'
-  for (let index = 0; index < next.length; index += 1) {
-    let step = 0
-    while (
-      next.slice(0, index).some((existing) => visualDistance(existing, next[index]!) < 13)
-      && step < 12
-    ) {
-      step += 1
-      // Move toward the contrast-safe endpoint for the active appearance.
-      // Every input has already passed through chartBase, so this preserves
-      // the 3:1 chart-surface contrast while separating near-identical tones.
-      next[index] = mix(next[index]!, target, 0.1 * step)
-    }
-  }
-  return next
+function chartSeries(first: string, mode: AppearanceMode): string[] {
+  const spares: string[] = [...SPARE_CHART_COLORS[mode]]
+  return [first, ...CATEGORICAL_CHART_COLORS[mode].map(color => (visualDistance(first, color) < 40 ? spares.shift() ?? color : color))]
 }
 
-function chartFamilyFromPrimary(hex: string, mode: AppearanceMode): string[] {
-  const base = chartBase(hex, mode)
-  const { s } = hexToHsl(base)
-  if (s < 0.12) {
-    // Near-neutral brands have weak hue. Start at the minimum-contrast
-    // boundary and walk evenly toward the safe endpoint so black and white
-    // brands still produce six distinct tones in every appearance.
-    const boundary = chartBase(mode === 'dark' ? '#000000' : '#ffffff', mode)
-    const endpoint = mode === 'dark' ? '#ffffff' : '#000000'
-    return uniqueCharts(
-      Array.from({ length: 6 }, (_, index) => mix(boundary, endpoint, index / 5)),
-      mode,
-    )
-  }
-  return uniqueCharts(CHART_TONES.map((tone, index) => {
-    if (index === 1) return base
-    const rotated = rotateHue(base, CHART_HUES[index]!)
-    return tone.amount === 0 ? rotated : mix(rotated, tone.target, tone.amount)
-  }).map(color => chartBase(color, mode)), mode)
-}
+const INTERACTION = {
+  regular: { hover: 0.18, active: 0.32 },
+  nearBlack: { hover: 0.24, active: 0.42 },
+  nearWhite: { hover: 0.16, active: 0.3 },
+} as const
 
 function interaction(hex: string) {
   const foreground = foregroundFor(hex)
@@ -184,14 +152,29 @@ export function darkSolid(input: string): string {
   return '#ffffff'
 }
 
+// The dark-mode link/fill tone: keeps the brand hue (a deep brand colour becomes a light tint of itself,
+// not the grey that mixing toward white gives) at the first lightness that reads 4.5:1 on every dark surface.
+export function darkLink(input: string): string {
+  const hex = normalizeHex(input)
+  const surfaces = MODE_SURFACES.dark
+  const { h, s, l } = hexToHsl(hex)
+  const saturation = s < 0.12 ? s : Math.max(s, 0.5)
+  for (let step = Math.round(l * 100); step <= 100; step += 1) {
+    const candidate = hslToHex(h, saturation, step / 100)
+    if (surfaces.every(surface => contrastRatio(candidate, surface) >= 4.5)) return candidate
+  }
+  return contrastTone(hex, 4.5, 'dark')
+}
+
 export function createBrandTheme(input: string, mode: AppearanceMode = 'light'): Record<string, string> {
   const primary = interaction(normalizeHex(input))
-  const fill = interaction(chartBase(primary.hex, mode))
+  const link = mode === 'dark' ? darkLink(primary.hex) : contrastTone(primary.hex, 4.5, mode)
+  const fill = interaction(mode === 'dark' ? link : chartBase(primary.hex, mode))
   const surface = mode === 'dark' ? DARK_SURFACES.bg : '#ffffff'
   const soft = mix(fill.hex, surface, 0.82)
-  const link = contrastTone(primary.hex, 4.5, mode)
-  const ring = contrastTone(primary.hex, 3, mode)
-  const charts = chartFamilyFromPrimary(primary.hex, mode)
+  const ring = mode === 'dark' ? link : contrastTone(primary.hex, 3, mode)
+  const charts = chartSeries(fill.hex, mode)
+  const status = STATUS_CHART_COLORS[mode]
   // Read only by the dark solid button recipe (app.config.ts); light keeps the stock button.
   const solid = interaction(mode === 'dark' ? darkSolid(primary.hex) : link)
 
@@ -222,6 +205,11 @@ export function createBrandTheme(input: string, mode: AppearanceMode = 'light'):
     '--chart-4': charts[3]!,
     '--chart-5': charts[4]!,
     '--chart-6': charts[5]!,
+    '--chart-status-success': status.success,
+    '--chart-status-info': status.info,
+    '--chart-status-warning': status.warning,
+    '--chart-status-error': status.error,
+    '--chart-status-neutral': status.neutral,
     '--sidebar-primary': primary.hex,
     '--sidebar-primary-foreground': primary.foreground,
     '--sidebar-ring': ring,

@@ -61,7 +61,7 @@ const stubModal = defineComponent({
 })
 
 function loadUnsavedChanges(): Component {
-  const file = resolve(webRoot, 'app/components/shared/UnsavedChanges.vue')
+  const file = resolve(webRoot, 'app/components/shared/form/UnsavedChanges.vue')
   const descriptor = parse(readFileSync(file, 'utf8'), { filename: file }).descriptor
   const compiled = compileScript(descriptor, { id: 'escape-back-unsaved', inlineTemplate: true }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
@@ -222,7 +222,7 @@ describe('Escape handling on the server', () => {
 
 describe('SharedPageHeader wires the one Escape implementation', () => {
   function headerState(path: string, props: Record<string, unknown>) {
-    const file = resolve(webRoot, 'app/components/shared/PageHeader.vue')
+    const file = resolve(webRoot, 'app/components/shared/layout/PageHeader.vue')
     const descriptor = parse(readFileSync(file, 'utf8'), { filename: file }).descriptor
     const compiled = compileScript(descriptor, { id: 'page-header-escape', inlineTemplate: false }).content
       .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')

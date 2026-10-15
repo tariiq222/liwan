@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import date
+
 from odoo import fields
 from odoo.http import request
 
@@ -164,3 +166,25 @@ def parse_project_create(payload):
     if settings['require_end_date_on_create'] and not vals.get('date'):
         raise ApiError(422, 'invalid', "end date is required to create a project", field='date_end')
     return name.strip(), vals
+
+
+def parse_project_copy(payload):
+    if not isinstance(payload, dict):
+        raise ApiError(422, 'invalid', "body must be an object")
+    unknown = set(payload) - {'name', 'start_date'}
+    if unknown:
+        field = sorted(unknown)[0]
+        raise ApiError(422, 'unknown_field', f"field {field!r} is not writable", field=field)
+    name = payload.get('name')
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 255:
+        raise ApiError(422, 'invalid', "name must be a non-empty string of at most 255 characters", field='name')
+    start_date = payload.get('start_date')
+    if not isinstance(start_date, str):
+        raise ApiError(422, 'invalid', "start_date must be a YYYY-MM-DD date", field='start_date')
+    try:
+        parsed = date.fromisoformat(start_date)
+    except ValueError as error:
+        raise ApiError(422, 'invalid', "start_date must be a YYYY-MM-DD date", field='start_date') from error
+    if parsed.isoformat() != start_date:
+        raise ApiError(422, 'invalid', "start_date must be a YYYY-MM-DD date", field='start_date')
+    return name.strip(), parsed

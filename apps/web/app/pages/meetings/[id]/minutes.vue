@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { recordParentTo, recordSiblingTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
-import DescriptionEditor from '@/components/shared/DescriptionEditor.vue'
+import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import MeetingMinutesForm from '@/components/meetings/MeetingMinutesForm.vue'
 import { createMeetingMinutesForm, type MeetingMinutesFormValue, type MeetingMinutesSnapshotLike, validateMeetingMinutesForm } from '@/utils/meetingMinutesForm'

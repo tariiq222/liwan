@@ -62,7 +62,7 @@ const known = computed(() => {
 const termination = computed(() => {
   const series = query.data.value
   if (!series) return '—'
-  if (series.until_count) return t('meetingsUx.terminationCount', { count: series.until_count })
+  if (series.until_count) return t('meetingsUx.terminationCount', { count: series.until_count }, series.until_count)
   if (series.until_date) return formatCalendarDate(series.until_date, locale.value)
   return t('meetingsUx.terminationOpen')
 })

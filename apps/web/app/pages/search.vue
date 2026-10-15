@@ -16,6 +16,10 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, firstAllowedPat
 const available = computed(() => useNav(me.value))
 const nav = computed(() => available.value.filter(item => t(item.labelKey).toLocaleLowerCase().includes(query.value.toLocaleLowerCase())))
 const sections = useAppSearch({ surface: 'page', term: query, debounced: query, gate: true, requireTerm: false, can, api: $api })
+// The page list is a shortcut, not the point of the page: five rows until the user asks for the rest.
+const NAV_LIMIT = 5
+const showAllNav = ref(false)
+const visibleNav = computed(() => (showAllNav.value ? nav.value : nav.value.slice(0, NAV_LIMIT)))
 const noResults = computed(() => !nav.value.length && sections.every(section => !section.rows.value.length && !section.loading.value && !section.error.value))
 watch(query, value => { void router.replace({ path: '/search', query: { ...route.query, q: value || undefined } }) })
 watch(() => route.query.q, value => { query.value = typeof value === 'string' ? value : '' })
@@ -37,14 +41,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 <template>
   <SharedRecordPage data-testid="search-page" :title="t('app.search')" :back-to="backTo">
     <UInput id="navigation-search" data-shortcut-search v-model="query" class="w-full" size="lg" icon="i-lucide-search" :placeholder="t('nav.typeToNavigate')" autofocus :aria-label="t('nav.typeToNavigate')" />
-    <SharedRecordSection v-if="nav.length" :title="t('nav.goTo')">
-      <div class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
-        <template v-for="item in nav" :key="item.to">
-          <a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" class="ms-auto">{{ item.shortcut }}</UKbd></a>
-          <NuxtLink v-else :to="item.to" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" class="ms-auto">{{ item.shortcut }}</UKbd></NuxtLink>
-        </template>
-      </div>
-    </SharedRecordSection>
+    <!-- Results first: what the user searched for, then the shortcut list of pages. -->
     <template v-for="section in sections" :key="section.provider.id">
       <div v-if="section.visible.value && (section.loading.value || section.error.value)"><SharedPageState :loading="section.loading.value" :error="section.error.value" @retry="section.refetch()" /></div>
       <SharedRecordSection v-if="section.visible.value && section.rows.value.length" :title="t(section.provider.labelKey)">
@@ -53,6 +50,26 @@ useEventListener('keydown', (event: KeyboardEvent) => {
         </div>
       </SharedRecordSection>
     </template>
+    <SharedRecordSection v-if="nav.length" :title="t('nav.goTo')">
+      <div class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+        <template v-for="item in visibleNav" :key="item.to">
+          <a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></a>
+          <NuxtLink v-else :to="item.to" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></NuxtLink>
+        </template>
+      </div>
+      <UButton
+        v-if="nav.length > NAV_LIMIT"
+        type="button"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        class="justify-self-start"
+        data-testid="search-nav-toggle"
+        :aria-expanded="showAllNav"
+        :label="showAllNav ? t('nav.goToShowLess') : t('nav.goToShowAll', { count: nav.length })"
+        @click="showAllNav = !showAllNav"
+      />
+    </SharedRecordSection>
     <SharedEmptyState v-if="noResults" :title="t('app.noResults')" />
   </SharedRecordPage>
 </template>

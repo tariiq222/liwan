@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ProjectMenu from '../../app/components/project/ProjectMenu.vue'
+import ProjectMenu from '../../app/components/pmo/projects/ProjectMenu.vue'
 import { archivedProject, project } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -7,7 +7,7 @@ const meta = {
   title: 'Project/ProjectMenu',
   component: ProjectMenu,
   args: { project, hideSettings: true },
-  parameters: storyContext('apps/web/app/components/project/ProjectCardBody.vue:48', 'تذييل بطاقة المشروع. الأرشفة تعرض تأكيدًا ثم خطأ 422 لأن Storybook لا يحاكي تفاصيل المشروع الكاملة.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCardBody.vue:48', 'تذييل بطاقة المشروع. الأرشفة تعرض تأكيدًا ثم خطأ 422 لأن Storybook لا يحاكي تفاصيل المشروع الكاملة.'),
   render: args => ({
     components: { ProjectMenu },
     setup: () => ({ args }),

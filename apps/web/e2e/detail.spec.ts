@@ -25,8 +25,7 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await page.goto(`/tasks/${id}`)
   const detail = page.getByTestId('task-detail-page')
   await expect(detail).toBeVisible()
-  await detail.getByTestId('task-title-edit').click()
-  const titleInput = detail.getByRole('textbox', { name: 'عنوان المهمة' })
+  const titleInput = detail.getByTestId('task-title-input')
   await expect(titleInput).toHaveValue(name)
   await expect(page).toHaveURL(new RegExp(`/tasks/${id}$`))
 
@@ -38,7 +37,7 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   expect((await titleSaved).status()).toBe(200)
   await page.reload()
   await expect(page.locator('h1')).toHaveText(newName)
-  await expect(detail.getByTestId('task-title-edit')).toBeEnabled()
+  await expect(detail.getByTestId('task-title-input')).toBeEnabled()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/tasks$/)
   await page.getByPlaceholder('بحث في العناوين…').fill(newName)
@@ -128,7 +127,7 @@ test('task detail page: open, edit fields, nested layers, prev/next, return', as
   await expect.poll(() => new URL(page.url()).pathname).toBe(`/tasks/${idA}`)
 
   // 9. close and preserve the list filter
-  await expect(detail.getByTestId('task-title-edit')).toBeEnabled()
+  await expect(detail.getByTestId('task-title-input')).toBeEnabled()
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole('table')).toBeVisible()

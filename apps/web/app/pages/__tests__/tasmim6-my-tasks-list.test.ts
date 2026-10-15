@@ -11,7 +11,7 @@ describe('my tasks stays on the list template', () => {
     for (const gone of ['<SharedPageHeader', '<UCard', '<ul class="divide-y']) expect(page).not.toContain(gone)
   })
   it('the row component renders the five parts', () => {
-    const row = read('components/my-tasks/MyTaskRow.vue')
+    const row = read('components/personal-tasks/MyTaskRow.vue')
     for (const part of ["'name'", "'state'", "'deadline'", "'assignees'", "'card'"]) expect(row).toContain(part)
     expect(row).not.toContain('<li')
   })

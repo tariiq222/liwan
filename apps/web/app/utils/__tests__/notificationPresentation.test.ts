@@ -20,7 +20,7 @@ describe('notification presentation', () => {
   it('formats the instant in the requested locale and user timezone', () => {
     expect(formatNotificationTimestamp('2026-09-07T21:28:05Z', 'en-US', 'Asia/Riyadh')).toEqual({
       datetime: '2026-09-07T21:28:05.000Z',
-      label: 'Sep 8, 2026, 12:28 AM',
+      label: '\u206608/09/2026 00:28\u2069',
     })
   })
 

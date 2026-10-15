@@ -22,7 +22,7 @@
         "done": "No completed tasks yet.",
         "search": "No tasks match your search."
       },
-      "total": "{count} tasks",
+      "total": "{count} task | {count} tasks",
       "scope": "Show",
       "sort": {
         "label": "Sort by",
@@ -109,7 +109,7 @@
       "upload": "Add an attachment",
       "delete": "Delete attachment",
       "deleteConfirm": "Delete this attachment permanently?",
-      "count": "{count} attachments",
+      "count": "{count} attachment | {count} attachments",
       "help": "Allowed types: PDF, PNG, JPEG, text, DOCX and XLSX, up to 10 MiB.",
       "confirm": "Yes, delete the attachment",
       "keep": "Keep the attachment",

@@ -17,7 +17,6 @@ describe('pmo manifest next to the tasks application', () => {
     ['/tasks', 'pmo.tasks.read'],
     ['/tasks/4', 'pmo.tasks.read'],
     ['/tasks/new', 'pmo.tasks.create'],
-    ['/archived-tasks', 'pmo.tasks.read'],
   ])('still requires the PMO capability for %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
   })

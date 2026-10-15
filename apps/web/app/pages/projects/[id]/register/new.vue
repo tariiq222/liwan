@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import RegisterForm from '@/components/project/governance/RegisterForm.vue'
+import RegisterForm from '@/components/pmo/projects/governance/RegisterForm.vue'
 import { useProject } from '@/composables/useProjects'
 
 const route = useRoute()

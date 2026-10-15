@@ -10,6 +10,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mswLoader } from 'msw-storybook-addon/csf3'
 import messages, { locales } from 'virtual:nasq-i18n'
+import { pluralRules } from '../i18n/pluralRules'
 import { apiHandlers } from '../stories/handlers/api'
 import nuxtUiComponents from 'virtual:nasq-nuxt-ui-components'
 import { useAppearance } from '../app/composables/useAppearance'
@@ -26,7 +27,7 @@ initLucideIcons()
 
 // virtual:nasq-i18n's messages are generated per app locale from JSON files,
 // so vue-i18n's exact `{ ar, en }` message-map type cannot be declared statically.
-const i18n = createI18n({ legacy: false, locale: 'ar', fallbackLocale: 'ar', messages: messages as any })
+const i18n = createI18n({ legacy: false, locale: 'ar', fallbackLocale: 'ar', pluralRules, messages: messages as any })
 // @nuxtjs/i18n adds `localeProperties` (the active locale's config, incl. `dir`) to the composer;
 // plain vue-i18n lacks it, so components such as SharedCreatePanel threw reading `.value`.
 Object.assign(i18n.global, {

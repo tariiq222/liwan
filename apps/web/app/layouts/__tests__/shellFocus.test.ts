@@ -28,6 +28,7 @@ function loadLayout(route: { path: string }) {
     useI18n: () => ({ localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHead: () => undefined,
     isWorkspaceThemeRoute: () => true,
+    hasNoContextSidebar: () => false,
     requestAnimationFrame: () => 1, cancelAnimationFrame: () => undefined,
     setTimeout: () => 1, clearTimeout: () => undefined,
   }

@@ -24,12 +24,13 @@ test.describe('Plan 6a: the task record', () => {
       await tabs.getByRole('tab', { name: 'المهام الفرعية', exact: true }).click()
       await expect(page.getByTestId('task-properties')).toBeVisible()
     })
-    test('the title edits in place: Escape cancels and the heading returns', async ({ page }) => {
+    test('the title edits in the properties panel: Escape reverts the draft', async ({ page }) => {
       await open(page, '/tasks/101')
-      await page.getByTestId('task-title-edit').click()
-      await expect(page.getByTestId('task-title-input')).toBeFocused()
-      await page.keyboard.press('Escape')
-      await expect(page.getByTestId('task-title-input')).toHaveCount(0)
+      const input = page.getByTestId('task-title-input')
+      const original = await input.inputValue()
+      await input.fill(`${original} draft`)
+      await input.press('Escape')
+      await expect(input).toHaveValue(original)
       await expect(page).toHaveURL(/\/tasks\/101/)
     })
     test('archive asks inline and never in a dialog', async ({ page }) => {

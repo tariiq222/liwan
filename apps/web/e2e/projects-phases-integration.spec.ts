@@ -8,26 +8,19 @@ async function body(response: APIResponse, status = 200) {
   return response.json()
 }
 
-test('template schedule, governance, finance and report remain consistent in one project', async ({ page }) => {
+test('schedule, governance, finance and report remain consistent in one project', async ({ page }) => {
   await body(await page.request.post('/api/auth/login', { data: { login: 'phase2_manager', password: 'phase2_test_only_2026' } }))
   const name = `Combined phases ${Date.now()}`
-  const template = await body(await page.request.post('/api/v1/project-templates', { data: {
-    name, definition: {
-      stages: [{ key: 'work', name: 'التنفيذ', fold: false }], milestones: [],
-      tasks: [
-        { key: 'first', name: 'التحضير', stage_key: 'work', start_offset: 0, duration_days: 1, milestone_key: null, dependency_keys: [] },
-        { key: 'second', name: 'التسليم', stage_key: 'work', start_offset: 1, duration_days: 2, milestone_key: null, dependency_keys: ['first'] },
-      ],
-    },
-  } }), 201)
-  const project = await body(await page.request.post(`/api/v1/project-templates/${template.id}/apply`, { data: { name, start_date: '2030-05-01' } }), 201)
+  const project = await body(await page.request.post('/api/v1/projects', { data: { name, date_end: '2035-12-31' } }), 201)
+  await body(await page.request.post('/api/v1/tasks', { data: { name: 'التحضير', project_id: project.id, planned_start: '2030-05-01', date_deadline: '2030-05-01T00:00:00Z' } }), 201)
+  await body(await page.request.post('/api/v1/tasks', { data: { name: 'التسليم', project_id: project.id, planned_start: '2030-05-02', date_deadline: '2030-05-03T00:00:00Z' } }), 201)
   const path = `/api/v1/projects/${project.id}`
   const schedule = await body(await page.request.get(`${path}/schedule`))
   expect(schedule.tasks).toHaveLength(2)
   const first = schedule.tasks.find((task: { name: string }) => task.name === 'التحضير')
   const second = schedule.tasks.find((task: { name: string }) => task.name === 'التسليم')
   expect(first).toMatchObject({ start: '2030-05-01', end: '2030-05-01' })
-  expect(second).toMatchObject({ dependency_ids: [first.id], end: '2030-05-03' })
+  expect(second).toMatchObject({ start: '2030-05-02', end: '2030-05-03' })
   const stakeholder = await body(await page.request.post(`${path}/stakeholders`, { data: { name: 'مالك المشروع' } }), 201)
   await body(await page.request.post(`${path}/raci`, { data: { task_id: first.id, stakeholder_id: stakeholder.id, role: 'A' } }), 201)
   const risk = await body(await page.request.post(`${path}/register`, { data: { title: 'تأخر التوريد', kind: 'risk', task_id: second.id, probability: 3, impact: 4 } }), 201)

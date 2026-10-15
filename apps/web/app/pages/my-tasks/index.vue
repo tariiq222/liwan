@@ -2,8 +2,8 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@/components/shared/FilterBar.vue'
-import MyTaskRow from '@/components/my-tasks/MyTaskRow.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
+import MyTaskRow from '@/components/personal-tasks/MyTaskRow.vue'
 import { sectionTabsUi } from '@/utils/sectionTabs'
 import { useMyTaskPages } from '@/composables/useMyTaskPages'
 import {
@@ -158,7 +158,7 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
               <USelect id="my-tasks-sort" :model-value="state.sort" :items="sortItems" class="w-full" :disabled="!hydrated" @update:model-value="update({ sort: $event as MyTaskListState['sort'] })" />
             </SharedFilterField>
             <template #actions>
-              <UBadge v-if="query.data.value" color="neutral" variant="subtle" data-testid="my-tasks-total">{{ t('myTasks.list.total', { count: total }) }}</UBadge>
+              <UBadge v-if="query.data.value" color="neutral" variant="subtle" data-testid="my-tasks-total">{{ t('myTasks.list.total', { count: total }, total) }}</UBadge>
             </template>
           </FilterBar>
         </div>

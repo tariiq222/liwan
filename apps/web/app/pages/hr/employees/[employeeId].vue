@@ -36,11 +36,15 @@ async function toggleArchive() {
       <div class="flex flex-wrap items-center gap-2">
         <UButton v-if="can('hr.employees.manage')" color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="recordChildTo(`/hr/employees/${id}/edit`, route.query, EMPLOYEE_LIST_PATHS, route.hash)" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
         <UButton v-if="query.data.value.user_id && can('access.users.read')" color="neutral" variant="outline" :disabled="!hydrated" :to="`/settings/users/${query.data.value.user_id}`" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
-        <UButton v-if="can('hr.employees.archive')" color="error" variant="outline" :disabled="!hydrated || archivePending" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" @click="confirmArchive = !confirmArchive" />
+        <div v-if="can('hr.employees.archive')" class="ms-1 border-s border-default ps-3">
+        <UButton color="neutral" variant="ghost" :icon="query.data.value.active ? 'i-lucide-archive' : 'i-lucide-archive-restore'" :disabled="!hydrated || archivePending" :aria-expanded="confirmArchive" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" data-testid="hr-employee-archive" @click="confirmArchive = !confirmArchive" />
+        </div>
       </div>
     </template>
     <SharedInlineConfirm
       v-if="query.data.value && confirmArchive"
+      :color="query.data.value.active ? 'error' : 'primary'"
+      :description="query.data.value.name"
       :title="t('hr.employee.archiveConfirm')"
       :confirm-label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')"
       :pending="archivePending"

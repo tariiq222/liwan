@@ -1,14 +1,13 @@
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+import { sharedFile } from './renderShared'
+
 export function loadFilterComponent(name: string, hydrated = true): Vue.Component {
-  const filename = resolve(root, `${name}.vue`)
+  const filename = sharedFile(name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const compiled = compileScript(descriptor, { id: name, inlineTemplate: true }).content
   const code = ts.transpileModule(compiled, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText

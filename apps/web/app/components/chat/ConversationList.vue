@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
+import EmptyState from '@/components/shared/feedback/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
+import { formatTime } from '@/utils/formatDate'
 import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
 const props = defineProps<{
@@ -13,8 +16,12 @@ const hydrated = useHydrated()
 const { data, isLoading, isError, refetch, error } = useChatConversations(() => props.routeState)
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
+const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
+const noConversations = computed(() => hydrated.value && !isLoading.value && !isError.value && !items.value.length && !props.routeState.q && props.routeState.filter === 'all')
+const showStartEmpty = computed(() => noConversations.value && !isDesktop.value)
+const quietEmpty = computed(() => noConversations.value && isDesktop.value)
 const q = ref(props.routeState.q)
-const timeFmt = computed(() => new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit', calendar: 'gregory' }))
+const timeFmt = { format: (value: Date) => formatTime(value) }
 const listQuery = computed(() => serializeChatListRoute(props.routeState))
 const filters: ChatFilter[] = ['all', 'unread', 'groups', 'channels', 'starred']
 watch(() => props.routeState.q, value => { q.value = value })
@@ -61,22 +68,24 @@ function conversationTo(id: number) {
         />
       </form>
       <div class="flex shrink-0 items-center gap-1">
-        <UButton
-          color="neutral" variant="ghost" square
-          :to="{ path: '/chat/new', query: listQuery }"
-          :aria-label="t('chat.new')"
-          :title="t('chat.new')"
-        >
-          <UIcon name="i-lucide-message-square-plus" class="size-5" aria-hidden="true" />
-        </UButton>
-        <UButton
-          color="neutral" variant="ghost" square
-          :to="{ path: '/chat/new', query: { ...listQuery, kind: 'group' } }"
-          :aria-label="t('chat.newGroup')"
-          :title="t('chat.newGroup')"
-        >
-          <UIcon name="i-lucide-users-round" class="size-5" aria-hidden="true" />
-        </UButton>
+        <UTooltip :text="t('chat.new')">
+          <UButton
+            color="neutral" variant="ghost" square
+            :to="{ path: '/chat/new', query: listQuery }"
+            :aria-label="t('chat.new')"
+          >
+            <UIcon name="i-lucide-message-square-plus" class="size-5" aria-hidden="true" />
+          </UButton>
+        </UTooltip>
+        <UTooltip :text="t('chat.newGroup')">
+          <UButton
+            color="neutral" variant="ghost" square
+            :to="{ path: '/chat/new', query: { ...listQuery, kind: 'group' } }"
+            :aria-label="t('chat.newGroup')"
+          >
+            <UIcon name="i-lucide-users-round" class="size-5" aria-hidden="true" />
+          </UButton>
+        </UTooltip>
       </div>
     </header>
     <div class="nasq-chat-list-filters" role="toolbar" :aria-label="t('chat.filters')">
@@ -94,11 +103,19 @@ function conversationTo(id: number) {
         :label="filterLabel(filter)"
       />
     </div>
+    <!-- With no conversations at all, the thread column carries the single empty state (with its start action); below 768px the list is the only column, so it carries it. -->
+    <EmptyState v-if="showStartEmpty" class="m-4" :title="t('chat.empty')" :description="t('chat.emptyDescription')">
+      <template #action>
+        <UButton :to="{ path: '/chat/new', query: listQuery }" icon="i-lucide-message-square-plus" :label="t('chat.start')" />
+      </template>
+    </EmptyState>
+    <div v-else-if="quietEmpty" class="flex-1" />
     <SharedPageState
+      v-else
       :loading="isLoading || !hydrated"
       :error="isError ? error : undefined"
       :empty="!items.length"
-      :empty-text="props.routeState.q || props.routeState.filter !== 'all' ? t('chat.emptyFiltered') : t('chat.empty')"
+      :empty-text="t('chat.emptyFiltered')"
       @retry="refetch()"
     >
       <ul class="min-h-0 flex-1 overflow-y-auto">
@@ -113,7 +130,7 @@ function conversationTo(id: number) {
               <span class="nasq-chat-avatar">{{ initialsFor(item.name) }}</span>
               <span
                 v-if="item.type === 'direct' && item.im_status"
-                class="absolute end-0 bottom-0 size-3 rounded-full border-2 border-(--ui-bg)"
+                class="absolute end-0 bottom-0 z-10 size-3 rounded-full border-2 border-(--ui-bg)"
                 :class="item.im_status === 'online' ? 'nasq-status-dot-success' : 'bg-(--ui-text-dimmed)'"
                 :title="item.im_status === 'online' ? t('chat.online') : t('chat.offline')"
               />

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import TimelineFrame from '../../app/components/shared/TimelineFrame.vue'
+import TimelineFrame from '../../app/components/shared/layout/TimelineFrame.vue'
 import { storyContext } from '../support/context'
 
 // A fixed "today" keeps the range label, and so the screenshots, stable.

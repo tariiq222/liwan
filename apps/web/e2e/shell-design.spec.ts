@@ -120,19 +120,19 @@ test('module context follows direct routes and refresh', async ({ page, baseURL 
 
   await page.goto('/projects')
   const context = page.getByTestId('context-sidebar')
-  await expect(context.getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toBeVisible()
   await page.reload()
-  await expect(context.getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toBeVisible()
 
   // My tasks belongs to the projects module and keeps the same sidebar.
   await page.goto('/tasks')
-  await expect(context.getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toBeVisible()
   await expect(page.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'page')
   await page.reload()
   await expect(context.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'page')
 
   await page.goto('/meetings')
-  await expect(context.getByRole('link', { name: /قوالب/ })).toHaveCount(0)
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toHaveCount(0)
   await expect(context.getByTestId('context-link-meetings')).toHaveAttribute('aria-current', 'page')
   await page.reload()
   await expect(context).toBeVisible()
@@ -157,7 +157,7 @@ test('mobile navigation replaces desktop columns and retains module and context 
   await menuToggle.click()
   const menu = page.locator('#mobile-navigation')
   await expect(menu).toBeVisible()
-  for (const name of ['الرئيسية', 'المشاريع', 'الاجتماعات', 'المحادثات', 'المؤسسة', 'الإعدادات']) {
+  for (const name of ['نظرة عامة', 'المشاريع', 'الاجتماعات', 'المحادثات', 'المؤسسة', 'الإعدادات']) {
     await expect(menu.getByRole('link', { name, exact: true })).toBeVisible()
   }
   await expect(menu.getByTestId('mobile-context-link-tasks')).toBeVisible()

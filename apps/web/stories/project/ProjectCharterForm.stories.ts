@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import ProjectCharterForm from '../../app/components/project/ProjectCharterForm.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import ProjectCharterForm from '../../app/components/pmo/projects/ProjectCharterForm.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { projectCreateDefaults } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -11,7 +11,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Project/ProjectCharterForm',
   component: ProjectCharterForm,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62') },
   args: { mode: 'create', createDefaults: projectCreateDefaults, defaultManagerName: 'Admin', disabled: false },
   render: args => ({
     components: { FormSection, PageContainer, ProjectCharterForm },
@@ -24,10 +24,10 @@ type Story = StoryObj<typeof meta>
 
 export const CreateWizard: Story = {
   name: 'إنشاء مشروع على خطوات',
-  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54', 'اختر التصنيف في الخطوة الأولى لتتغيّر الخطوات التالية. «حفظ كمسودة» متاح في كل خطوة.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62', 'اختر التصنيف في الخطوة الأولى لتتغيّر الخطوات التالية. «حفظ كمسودة» متاح في كل خطوة.'),
 }
 export const WaitingForDefaults: Story = {
   name: 'قبل تحميل متطلبات الإنشاء',
   args: { createDefaults: undefined, disabled: true },
-  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:54', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
 }

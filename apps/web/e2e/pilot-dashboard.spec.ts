@@ -32,7 +32,7 @@ test.describe('Plan 5 pilot: the project dashboard', () => {
       await open(page)
       await expect(page.getByTestId('project-dashboard-page')).toBeVisible()
       await expect(page.locator('[data-template="dashboard-page"]')).toHaveCount(1)
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('لوحة المشاريع')
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('نظرة عامة')
       await expect(page.locator('[data-template="dashboard-filters"]')).toBeVisible()
       await expect(page.getByTestId('project-dashboard-status-filter')).toBeAttached()
       await expect(page.locator('[data-template="dashboard-metrics"] [data-testid="metric-tile"]')).toHaveCount(4)

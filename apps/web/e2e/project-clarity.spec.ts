@@ -80,21 +80,6 @@ test('stage rename is discoverable by keyboard and Escape preserves the name', a
   await expect(page.getByTestId('project-autosave-status')).toContainText('تُحفظ التغييرات تلقائيًا')
 })
 
-test('template predecessors use labeled checkboxes without modifier keys', async ({ page }) => {
-  await page.goto('/project-templates/new')
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'قالب مشروع جديد' })).toBeVisible()
-  await page.getByRole('button', { name: 'إضافة مهمة', exact: true }).click()
-  await page.locator('[name="task-name-0"]').fill('المهمة الأولى')
-  await page.getByRole('button', { name: 'إضافة مهمة', exact: true }).click()
-  const predecessor = page.getByRole('checkbox', { name: 'المهمة الأولى', exact: true })
-  await predecessor.focus()
-  await page.keyboard.press('Space')
-  await expect(predecessor).toBeChecked()
-  await expect(page.locator('select[multiple]')).toHaveCount(0)
-  await expect(page.getByRole('textbox', { name: 'اسم المهمة', exact: true })).toHaveCount(2)
-})
-
 test('filtered empty state and network failure provide recovery', async ({ page }) => {
   await page.goto('/projects/1/register')
   await expect(page.getByRole('textbox', { name: 'بحث عن خطر أو مشكلة' })).toBeVisible()
@@ -121,7 +106,6 @@ for (const path of [
   '/projects/1/finance', '/projects/1/finance/new', '/projects/1/finance/1', '/projects/1/finance/1/edit',
   '/projects/1/updates', '/projects/1/updates/new', '/projects/settings',
   '/projects/settings/catalogs/types', '/projects/settings/catalogs/types/new', '/projects/settings/catalogs/types/1/edit',
-  '/project-templates', '/project-templates/new', '/project-templates/1', '/project-templates/1/edit',
 ]) {
   test(`project page inventory ${path}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 900 })

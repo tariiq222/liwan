@@ -40,12 +40,19 @@
   --brand-link: #13234a;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
+  /* Charts: series 1 follows the tenant primary (brandTheme.ts); 2-6 are the fixed categorical palette. */
   --chart-1: #13234a;
-  --chart-2: #3a5191;
-  --chart-3: #6b7fb8;
-  --chart-4: #9ab0d8;
-  --chart-5: #5b6b8c;
-  --chart-6: #8b97b1;
+  --chart-2: #0d9488;
+  --chart-3: #d97706;
+  --chart-4: #8b5cf6;
+  --chart-5: #f43f5e;
+  --chart-6: #0284c7;
+  /* Status series for charts: the same fixed colours as the status badges. */
+  --chart-status-success: #16a34a;
+  --chart-status-info: #1d4ed8;
+  --chart-status-warning: #d97706;
+  --chart-status-error: #dc2626;
+  --chart-status-neutral: #64748b;
   /* Nasq identity and density. 2.285714rem = 32px and 2.571429rem = 36px at the 14px root. */
   --nasq-midnight: #13234a;
   --nasq-lime: #c8f031;
@@ -56,7 +63,9 @@
   --nasq-rail: #13234a;
   --nasq-rail-deep: #0d1a38;
   --rail-hover: #1f3160;
-  --shell-background: var(--ui-bg);
+  /* Page canvas: a slate tint behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
+  --nasq-canvas: #f6f7fb;
+  --shell-background: var(--nasq-canvas);
   --shell-foreground: var(--ui-text);
   --context-surface: var(--ui-bg);
   /* Aliases used by the shell stylesheet and older components; every one
@@ -136,9 +145,27 @@
   --ui-text-muted: #94a3b8;
   --ui-text-toned: #cbd5e1;
   --ui-text-dimmed: #94a3b8;
-  --nasq-rail: #0d1a38;
-  --nasq-rail-deep: #081129;
-  --rail-hover: #1a2a52;
+  --nasq-canvas: #070d1c;
+  /* The rail is a clearly lighter midnight than the page canvas and carries an edge line (shell.css). */
+  --nasq-rail: #172b5c;
+  --nasq-rail-deep: #112247;
+  --rail-hover: #223a72;
+  --nasq-rail-edge: rgb(255 255 255 / 14%);
+  /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (brandTheme.ts darkLink; the runtime overwrites these). */
+  --brand-link: #8da6e2;
+  --ring: #8da6e2;
+  --sidebar-ring: #8da6e2;
+  --chart-1: #8da6e2;
+  --chart-2: #2dd4bf;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #fb7185;
+  --chart-6: #38bdf8;
+  --chart-status-success: #4ade80;
+  --chart-status-info: #60a5fa;
+  --chart-status-warning: #fbbf24;
+  --chart-status-error: #f87171;
+  --chart-status-neutral: #94a3b8;
   /* Default-midnight dark solid primary; brandTheme.ts overwrites it from the company colour. */
   --primary-solid: #3c66cd;
   --primary-solid-foreground: #ffffff;
@@ -169,6 +196,7 @@
   --color-nasq-lime: var(--nasq-lime);
   --color-nasq-lime-foreground: var(--nasq-lime-foreground);
   --color-nasq-rail: var(--nasq-rail);
+  --color-nasq-canvas: var(--nasq-canvas);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-hover-foreground: var(--primary-hover-foreground);

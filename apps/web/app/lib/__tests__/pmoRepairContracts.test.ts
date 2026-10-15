@@ -126,9 +126,9 @@ describe('PMO repair form contracts', () => {
   })
 
   it.each([
-    ['TaskCreateForm', 'apps/web/app/components/task/TaskCreateForm.vue', { projectId: 7 }, 'name'],
-    ['MilestoneForm', 'apps/web/app/components/project/MilestoneForm.vue', { projectId: 7 }, 'name'],
-    ['ProjectUpdateForm', 'apps/web/app/components/project/ProjectUpdateForm.vue', { projectId: 7 }, 'title'],
+    ['TaskCreateForm', 'apps/web/app/components/pmo/tasks/TaskCreateForm.vue', { projectId: 7 }, 'name'],
+    ['MilestoneForm', 'apps/web/app/components/pmo/projects/MilestoneForm.vue', { projectId: 7 }, 'name'],
+    ['ProjectUpdateForm', 'apps/web/app/components/pmo/projects/ProjectUpdateForm.vue', { projectId: 7 }, 'title'],
   ])('%s hands its own draft state to the departure guard', async (_name, path, props, field) => {
     const { state } = loadSetup(path, props)
     const clean = await renderedGuardDirty(path, state)
@@ -160,7 +160,7 @@ describe('PMO repair form contracts', () => {
         pending.value = false
       }
     })
-    const { state, events } = loadSetup('apps/web/app/components/task/TaskCreateForm.vue', { projectId: 7 }, {
+    const { state, events } = loadSetup('apps/web/app/components/pmo/tasks/TaskCreateForm.vue', { projectId: 7 }, {
       useProjects: () => ({ data: ref([{ id: 7, name: 'Portal' }]) }),
       useCreateTask: () => ({ mutateAsync, isPending: pending }),
     })
@@ -196,7 +196,7 @@ describe('PMO repair form contracts', () => {
         pending.value = false
       }
     })
-    const { state, events } = loadSetup('apps/web/app/components/project/MilestoneForm.vue', { projectId: 7, projectStart: '2030-01-01', projectEnd: '2030-12-31' }, {
+    const { state, events } = loadSetup('apps/web/app/components/pmo/projects/MilestoneForm.vue', { projectId: 7, projectStart: '2030-01-01', projectEnd: '2030-12-31' }, {
       useCreateMilestone: () => ({ mutateAsync, isPending: pending }),
       useUpdateMilestone: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
     })
@@ -234,7 +234,7 @@ describe('PMO repair form contracts', () => {
         pending.value = false
       }
     })
-    const { state, events } = loadSetup('apps/web/app/components/project/ProjectUpdateForm.vue', { projectId: 7 }, {
+    const { state, events } = loadSetup('apps/web/app/components/pmo/projects/ProjectUpdateForm.vue', { projectId: 7 }, {
       useCreateProjectUpdate: () => ({ mutateAsync, isPending: pending }),
     })
     const autosave = vi.fn()
@@ -264,7 +264,7 @@ describe('PMO repair form contracts', () => {
       { id: 1, name: 'Empty', fold: false, task_count: 0 },
       { id: 2, name: 'In use', fold: false, task_count: 3 },
     ]
-    const { state, events } = loadSetup('apps/web/app/components/project/StageListEditor.vue', { stages, busy: false })
+    const { state, events } = loadSetup('apps/web/app/components/pmo/projects/StageListEditor.vue', { stages, busy: false })
 
     state.requestDelete(1)
     expect(state.pendingDeleteId.value).toBe(1)

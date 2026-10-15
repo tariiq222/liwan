@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import RouteTabs from '../../app/components/shared/RouteTabs.vue'
+import RouteTabs from '../../app/components/shared/layout/RouteTabs.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/RouteTabs',
   component: RouteTabs,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/project/workspace/ProjectWorkspaceTabs.vue:41') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue:41') },
   args: {
     ariaLabel: 'أقسام المشروع',
     items: [

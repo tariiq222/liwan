@@ -179,7 +179,7 @@ test('mobile menu exposes visible module names and navigates successfully', asyn
   await expect(menu).toBeVisible()
   // The personal-work module and the PMO context both expose this label.
   // Exercise the context destination this migration case has always checked.
-  await expect(menu.locator('a[href="/my-tasks"]')).toHaveAccessibleName('مهامي')
+  await expect(menu.locator('a[href="/my-tasks"]')).toHaveAccessibleName('مهامي الشخصية')
   const link = menu.getByTestId('mobile-context-link-tasks')
   await expect(link).toHaveAccessibleName('مهامي')
   await expect(link).toHaveAttribute('href', '/tasks')

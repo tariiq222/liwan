@@ -115,7 +115,7 @@ describe('HR producer to consumer return chain', () => {
     const formProps = (await prop(create, 'DocumentCreateForm'))
     const form = await load('components/hr/DocumentCreateForm.vue', create.router.currentRoute.value.fullPath, { departmentId: 4, backTo: formProps['back-to'] })
     expect((await prop(form, 'UButton', p => p.label === 'app.cancel')).to).toEqual(create.state.backTo.value)
-    const panel = await load('components/shared/CreatePanel.vue', create.router.currentRoute.value.fullPath, { title: 'New', backTo: (await prop(create, 'SharedCreatePanel'))['back-to'] })
+    const panel = await load('components/shared/layout/CreatePanel.vue', create.router.currentRoute.value.fullPath, { title: 'New', backTo: (await prop(create, 'SharedCreatePanel'))['back-to'] })
     await panel.state.onOpenUpdate(false)
     expect(panel.router.currentRoute.value.fullPath).toBe(producer.router.currentRoute.value.fullPath)
     form.state.name.value = 'Created'

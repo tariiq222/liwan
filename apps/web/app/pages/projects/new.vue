@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ProjectCreateForm from '@/components/project/ProjectCreateForm.vue'
+import ProjectCreateForm from '@/components/pmo/projects/ProjectCreateForm.vue'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { useProjectList } from '@/composables/useProjects'
 import { createdProjectLocation, draftedProjectLocation } from '@/utils/projectCharter'
@@ -19,6 +19,12 @@ function onCreated(id: number) {
   router.push(createdProjectLocation(id, returnTo.value))
 }
 
+// A copy already carries its stages, milestones and tasks, so it opens on its summary.
+function onCopied(id: number) {
+  toast.add({ title: t('projects.created'), color: 'success' })
+  router.push({ path: `/projects/${id}`, query: { returnTo: returnTo.value } })
+}
+
 // The project now exists; the walker continues on its charter page at the
 // same step, so a draft saved half-way is picked up where it was left.
 function onDrafted(id: number, step: CharterWizardStep) {
@@ -28,14 +34,14 @@ function onDrafted(id: number, step: CharterWizardStep) {
 </script>
 
 <template>
-  <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo" width="wide">
+  <SharedCreatePanel :title="t('projects.new')" :back-to="returnTo">
     <SharedPageState
       :loading="isLoading"
       :error="listError"
       :empty="!isLoading && !listError && !canCreate"
       :empty-text="t('projects.createForbidden')"
     >
-      <ProjectCreateForm @created="onCreated" @drafted="onDrafted" @cancel="router.push(returnTo)" />
+      <ProjectCreateForm @created="onCreated" @copied="onCopied" @drafted="onDrafted" @cancel="router.push(returnTo)" />
     </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('app.loading') }}</p>
   </SharedCreatePanel>

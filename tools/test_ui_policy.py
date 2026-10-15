@@ -96,7 +96,7 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_retired_pattern_lookalikes_and_owners_pass(self):
         self.assertEqual(self.errors({PAGE: '<template><p class="max-w-prose text-muted size-4.5 text-xs" /><!-- v-html="x" --></template>'}), [])
-        rich_text = APP + "components/shared/RichText.vue"
+        rich_text = APP + "components/shared/form/RichText.vue"
         self.assertNotIn(
             rich_text + ': raw v-html; render stored HTML with SharedRichText (+1)',
             self.errors({rich_text: '<template><div v-html="rendered" /></template>', CATALOG: '`' + rich_text + '`'}),
@@ -220,15 +220,15 @@ class UiPolicyTest(unittest.TestCase):
     def test_migrated_chart_import_is_allowed_but_stale_runtime_import_fails(self):
         catalog = '\n'.join((
             f'| `{MIGRATED_CHART}` | Chart adapter |',
-            f'| `{APP}components/shared/DashboardChart.client.vue` | Dashboard chart owner |',
+            f'| `{APP}components/shared/data/DashboardChart.client.vue` | Dashboard chart owner |',
         ))
         self.assertEqual(self.errors({
             MIGRATED_CHART: '<template><div /></template>',
-            APP + 'components/shared/DashboardChart.client.vue': '<script setup>import { ChartContainer, ChartLegendContent, ChartTooltipContent } from "@/components/charts"</script><template><ChartContainer><ChartLegendContent /><ChartTooltipContent /></ChartContainer></template>',
+            APP + 'components/shared/data/DashboardChart.client.vue': '<script setup>import { ChartContainer, ChartLegendContent, ChartTooltipContent } from "@/components/charts"</script><template><ChartContainer><ChartLegendContent /><ChartTooltipContent /></ChartContainer></template>',
             CATALOG: catalog,
         }), [])
         self.assertTrue(self.errors({
-            APP + 'components/shared/DashboardChart.client.vue': 'import { ChartContainer } from "@/components/ui/chart"',
+            APP + 'components/shared/data/DashboardChart.client.vue': 'import { ChartContainer } from "@/components/ui/chart"',
         }))
 
     def test_dependency_version_changes_need_review(self):
@@ -439,6 +439,14 @@ class StaticGateTest(unittest.TestCase):
         self.assertEqual(len(collision), 1)
         self.assertIn("task-card", collision[0])
 
+    def test_prefixed_component_folders_use_their_nuxt_names(self):
+        # nuxt.config.ts registers pmo/tasks with prefix Task: pmo/tasks/Card.vue is TaskCard.
+        collision = policy.auto_import_errors({
+            self.COMPONENTS + "pmo/tasks/Card.vue": "", self.COMPONENTS + "task/card.ts": ""})
+        self.assertEqual(len(collision), 1)
+        self.assertIn("task-card", collision[0])
+        self.assertIn("TaskCard", policy.component_names(self.COMPONENTS + "pmo/tasks/Card.vue"))
+
     # --- business overlays -----------------------------------------------------
 
     def test_overlay_tag_and_native_popup_are_reported(self):
@@ -565,7 +573,7 @@ class StaticGateTest(unittest.TestCase):
 
     def test_component_styles_have_no_remaining_private_owner(self):
         self.assertTrue(policy.scoped_style_errors({self.COMPONENTS + "task/New.vue": "<style scoped>.a{}</style>"}))
-        owner = self.COMPONENTS + "shared/RichText.vue"
+        owner = self.COMPONENTS + "shared/form/RichText.vue"
         self.assertEqual(policy.STYLE_OWNERS, frozenset())
         self.assertTrue(policy.scoped_style_errors({owner: "<style scoped>.a{}</style>"}))
 

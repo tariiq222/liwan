@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DashboardChart from '../../app/components/shared/DashboardChart.client.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import DashboardChart from '../../app/components/shared/data/DashboardChart.client.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import type { DashboardChart as DashboardChartModel } from '../../app/utils/projectChartData'
 import { dashboardCharts } from '../fixtures/projectReports'
 import { storyContext } from '../support/context'
@@ -20,7 +20,7 @@ type Story = StoryObj<typeof meta>
 
 export const FinanceComparison: Story = {
   name: 'المخطط مقابل الفعلي',
-  parameters: storyContext('apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue:123', 'بطاقة المالية عريضة داخل شبكة لوحة المشاريع؛ الاستخدام الآخر داخل `DashboardChartPanel` له قصصه.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:124', 'بطاقة المالية عريضة داخل شبكة لوحة المشاريع؛ الاستخدام الآخر داخل `DashboardChartPanel` له قصصه.'),
   render: () => ({
     components: { DashboardChart, PageContainer },
     setup() {

@@ -32,7 +32,7 @@
     "noTargets": "No records are available for this procedure.",
     "stages": "Approval stages",
     "stageNumber": "Stage {number}",
-    "stageCount": "{count} stages",
+    "stageCount": "{count} stage | {count} stages",
     "stageName": "Stage name",
     "reviewers": "Reviewers",
     "addStage": "Add stage",

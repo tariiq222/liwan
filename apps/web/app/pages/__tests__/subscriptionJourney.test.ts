@@ -45,7 +45,7 @@ describe('permission gating', () => {
   })
   it('uses shared structure: page state, create panel, unsaved changes, reused vendor components', () => {
     expect(page('index.vue')).toContain('SharedPageState'); expect(page('branches/new.vue')).toContain('SharedCreatePanel')
-    expect(page('change.vue')).toContain('SharedUnsavedChanges'); expect(page('change.vue')).toContain('VendorPriceBreakdown')
+    expect(page('change.vue')).toContain('SharedUnsavedChanges'); expect(page('change.vue')).toContain('SharedCommercePriceBreakdown')
   })
   it('status page never creates orders or payments on load', () => {
     const s = page('status.vue')

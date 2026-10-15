@@ -3,14 +3,14 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
 import { ProjectStatusSchema } from '@nasq/contracts'
-import FilterBar from '../../app/components/shared/FilterBar.vue'
-import PageContainer from '../../app/components/shared/PageContainer.vue'
+import FilterBar from '../../app/components/shared/data/FilterBar.vue'
+import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/FilterBar',
   component: FilterBar,
-  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/projects/index.vue:260') },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/projects/index.vue:263') },
   args: { activeCount: 0, disabled: false, defaultOpen: false, onClear: fn() },
   render: args => ({
     components: { FilterBar, PageContainer },

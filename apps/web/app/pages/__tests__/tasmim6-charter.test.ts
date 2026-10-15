@@ -12,7 +12,7 @@ describe('the project file prints through the print template', () => {
     for (const gone of ['<style', 'project-charter-print-scope', 'visibility: hidden']) expect(page).not.toContain(gone)
   })
   it('the display uses record sections and keeps its ids', () => {
-    const display = read('components/project/ProjectCharterDisplay.vue')
+    const display = read('components/pmo/projects/ProjectCharterDisplay.vue')
     expect(display).not.toContain('<UCard')
     for (const id of ['project-charter-essentials', 'project-charter-purpose', 'project-charter-objectives', 'project-charter-scope', 'charter-milestone-outputs', 'project-charter-budget']) expect(display).toContain(`id="${id}"`)
   })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
-import ProjectUpdateList from '@/components/project/ProjectUpdateList.vue'
+import ProjectUpdateList from '@/components/pmo/projects/ProjectUpdateList.vue'
 import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()

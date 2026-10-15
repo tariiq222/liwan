@@ -3,7 +3,7 @@ import { formatNasqDateTime } from '@/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { operationStatusBadge } from '@/utils/commercialBadges'
 import type { OperationFeed } from '@nasq/commercial-contracts'
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { request } = useVendorApi()
 const tenantId = computed({ get: () => typeof route.query.tenant_id === 'string' ? route.query.tenant_id : '', set: value => router.replace({ query: { ...route.query, tenant_id: value || undefined } }) })
@@ -33,7 +33,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <template #filters><FilterBar :active-count="tenantId ? 1 : 0" @clear="tenantId = ''">
       <template #search><UInput v-model="tenantId" :aria-label="t('vendor.operations.tenantFilter')" :placeholder="t('vendor.operations.tenantFilter')" /></template>
     </FilterBar></template>
-<p v-if="data" class="text-sm text-muted" data-testid="operations-result-count">{{ t('vendor.pagination.total', { count: data.total }) }}</p>
+<p v-if="data" class="text-sm text-muted" data-testid="operations-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 
 <SharedDataTable  :rows="items" :columns="columns" row-key="id" :row-to="operationTo" :loading="pending" :error="error" :empty-text="t('vendor.operations.empty')" :caption="t('vendor.operations.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => router.replace({ query: { ...route.query, page: value } })">
   <template #type-cell="{ row: { original: op } }"><NuxtLink :to="operationTo(op)" data-testid="operation-row" class="font-medium hover:underline">{{ t(`vendor.operations.types.${op.type}`,op.type) }}</NuxtLink></template>

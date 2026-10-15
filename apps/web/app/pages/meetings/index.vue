@@ -3,8 +3,8 @@ import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@/components/shared/FilterBar.vue'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
+import RecordNumber from '@/components/shared/data/RecordNumber.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
 import { usePeople } from '@/composables/usePeople'
@@ -414,7 +414,7 @@ function setPage(next: number) {
       <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
       <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" data-testid="meeting-row-state" />
       </template>
-      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }) }}</template>
+      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</template>
       <template #mobile-row="{ row }">
         <NuxtLink :to="meetingTo(row)" @click.capture="openRecord($event, row)" class="grid min-w-0 gap-2 focus-visible:outline-none">
           <div class="flex min-w-0 items-start justify-between gap-2">

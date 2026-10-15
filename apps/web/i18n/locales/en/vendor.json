@@ -31,7 +31,7 @@
       }
     },
     "pagination": {
-      "total": "{count} records"
+      "total": "{count} record | {count} records"
     },
     "status": {
       "registered": "Registered",
@@ -315,7 +315,7 @@
       "details": "Package details",
       "edit": "Edit package",
       "version": "Version {count}",
-      "customers": "{count} customers on this version",
+      "customers": "{count} customer on this version | {count} customers on this version",
       "noSources": "No published software version is available. Ask the platform operator to provide a trusted published source before creating a package.",
       "publishedEdit": "Published content is preserved. Return to the package and choose Edit package to create a new draft version.",
       "editReviewHint": "Saving changes returns this version to draft and cancels its previous review.",
@@ -405,7 +405,7 @@
       "details": "Plan details",
       "edit": "Edit plan draft",
       "summary": "Plan summary",
-      "termMonths": "{count}-month term",
+      "termMonths": "{count}-month term | {count}-month term",
       "bundlesCount": "{included} included · {optional} optional bundles"
     },
     "pricing": {
@@ -444,7 +444,7 @@
       "saveDraft": "Save draft",
       "edit": "Edit",
       "notDraft": "Only drafts can be edited. Create a new version to change it.",
-      "customers": "{count} customers",
+      "customers": "{count} customer | {count} customers",
       "version": "Version {count}",
       "history": "Versions of this record",
       "technical": "Technical details",
@@ -494,7 +494,9 @@
         "extraBranches": "Extra branches",
         "extraInvalid": "Enter a whole number of branches.",
         "hq": "Headquarters",
-        "branches": "{free} free · {paid} paid branches",
+        "branchesFree": "{count} free branch | {count} free branches",
+        "branchesPaid": "{count} paid branch | {count} paid branches",
+        "branches": "{free} · {paid}",
         "dueNow": "Due now",
         "nextRenewal": "Next renewal",
         "vatNote": "Prices exclude tax; 15% VAT is added (Asia/Riyadh).",
@@ -903,7 +905,7 @@
       "renewals": "Renewals in 30 days",
       "stalled": "Stalled fulfillments",
       "setup": "Customers needing setup",
-      "partial": "Counts only the first {count} customers.",
+      "partial": "Counts only the first {count} customer. | Counts only the first {count} customers.",
       "unavailable": "Commercial metrics are not available yet.",
       "customers": "Commercial customers",
       "invoices": "Invoices"

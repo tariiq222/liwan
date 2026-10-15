@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { OperationAction } from '@nasq/contracts'
+import { formatDateTime } from '@/utils/formatDate'
 import { operationsStateTone } from '@/composables/operations/state'
 import { useOperationRequest, useOperationRequestMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationId, safeOperationReturnTo } from '@/composables/operations/forms'
@@ -52,7 +53,7 @@ async function removeAttachment() {
   await gate.run(async () => { try { await mutation.mutateAsync({ action: 'removeAttachment', id: record.value!.id, attachmentId }); removal.value = null; error.value = null } catch (e) { error.value = e } })
 }
 async function refresh() { if (disabled.value) return; cancel(); error.value = null; await query.refetch() }
-function date(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? value : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(parsed) }
+function date(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? value : formatDateTime(parsed) }
 const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn', 'executed', 'execution_failed']
 </script>
 <template>

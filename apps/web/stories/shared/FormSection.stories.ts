@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import SettingsPage from '../../app/components/shared/SettingsPage.vue'
-import FormSection from '../../app/components/shared/FormSection.vue'
+import SettingsPage from '../../app/components/shared/layout/SettingsPage.vue'
+import FormSection from '../../app/components/shared/layout/FormSection.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -24,7 +24,7 @@ export const InForm: Story = {
 
 export const Panel: Story = {
   name: 'لوحة إعدادات',
-  parameters: storyContext('apps/web/app/components/project/ProjectCreateForm.vue:37', 'لوحة `panel` داخل `div.nasq-settings-cards` من صفحات الإعدادات؛ محتوى المثال توضيحي.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:52', 'لوحة `panel` داخل `div.nasq-settings-cards` من صفحات الإعدادات؛ محتوى المثال توضيحي.'),
   render: () => ({
     components: { SettingsPage, FormSection },
     setup: () => ({ t: useI18n().t, modes: ['light', 'dark'] }),

@@ -12,13 +12,13 @@ describe('milestones stay on their templates', () => {
     expect(page).not.toContain('<USkeleton')
   })
   it('the table renders through SharedDataTable with a phone row and no card of its own', () => {
-    const table = read('components/project/MilestoneTable.vue')
+    const table = read('components/pmo/projects/MilestoneTable.vue')
     expect(table).toContain('<SharedDataTable')
     expect(table).toContain('#mobile-row')
     for (const gone of ['<UCard', '<USkeleton', '<UBadge', 'divide-y']) expect(table).not.toContain(gone)
   })
   it('the delete confirmation follows the live list', () => {
-    expect(read('components/project/MilestoneTable.vue')).toContain('items.value.find(m => m.id === deleteId.value)')
+    expect(read('components/pmo/projects/MilestoneTable.vue')).toContain('items.value.find(m => m.id === deleteId.value)')
   })
   it('the edit page has no hand-built card', () => {
     const edit = read('pages/projects/[id]/milestones/[milestoneId]/edit.vue')

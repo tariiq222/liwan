@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import FilterBar from '@/components/shared/FilterBar.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { ApiError } from '@/composables/useApi'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
-import type { RowAction } from '@/components/shared/RowActions.vue'
+import RecordNumber from '@/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -31,15 +31,6 @@ const entries = (projectId) => [
   { id: 53, project_id: projectId, kind: 'expense', title: 'تجهيز بيئة العمل', amount: 400, expense_date: '2026-09-01', reference: 'E-001', notes: '', budget_entry_id: 51, updated_at: 'v1' },
   { id: 54, project_id: projectId, kind: 'expense', title: 'رخص البرمجيات', amount: 300, expense_date: '2026-09-10', reference: 'E-002', notes: '', budget_entry_id: null, updated_at: 'v1' },
 ]
-const template = (id, name) => ({
-  id, name, description: `مراحل ومهام ${name}.`, can_manage: true, can_apply: true,
-  definition: {
-    stages: [{ key: 'planning', name: 'التخطيط', fold: false }, { key: 'done', name: 'مكتمل', fold: true }],
-    milestones: [{ key: 'approval', name: 'اعتماد الخطة', offset_days: 14 }],
-    tasks: [{ key: 'requirements', name: 'توثيق المتطلبات', stage_key: 'planning', start_offset: 0, duration_days: 7, milestone_key: 'approval', dependency_keys: [] }],
-  },
-})
-const templates = [template(1, 'إطلاق خدمة'), template(2, 'تنفيذ مبادرة'), template(3, 'مراجعة سنوية')]
 const catalog = (names) => names.map((name, index) => ({ id: index + 1, name, sequence: index + 1, active: index < 2 }))
 
 function slice(items, url, extra = {}) {
@@ -54,9 +45,6 @@ function search(items, url, key) {
 
 export function pmoPreviewData(path, url, { TASKS, CURRENCY }) {
   if (path === '/api/v1/tasks/archived') return { items: TASKS.slice(0, 3), total: 3 }
-  if (path === '/api/v1/project-templates') return slice(search(templates, url, 'name'), url, { can_manage: true, can_apply: true })
-  const t = path.match(/^\/api\/v1\/project-templates\/(\d+)$/)
-  if (t) return templates.find(item => item.id === Number(t[1]))
   const c = path.match(/^\/api\/v1\/project-charter\/catalogs\/(types|owning-units)$/)
   if (c) {
     const all = catalog(c[1] === 'types' ? ['داخلي', 'خارجي', 'تجريبي'] : ['مكتب المشاريع', 'مكتب التحول', 'مكتب قديم'])

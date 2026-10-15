@@ -24,13 +24,15 @@
   "web_apps": {
     "pmo": {
       "components": [
-        "project",
-        "task"
+        "pmo"
       ],
       "pages": [
         "projects",
-        "tasks",
-        "project-templates"
+        "tasks"
+      ],
+      "tags": [
+        "Project",
+        "Task"
       ]
     },
     "meetings": {
@@ -59,10 +61,13 @@
     },
     "tasks": {
       "components": [
-        "my-tasks"
+        "personal-tasks"
       ],
       "pages": [
         "my-tasks"
+      ],
+      "tags": [
+        "MyTasks"
       ]
     },
     "operations": {
@@ -86,6 +91,7 @@
       "apps/web/app/pages/invite/",
       "apps/web/app/components/vendor/",
       "apps/web/app/components/subscription/",
+      "apps/web/app/components/shared/commerce/",
       "apps/web/server/"
     ]
   }

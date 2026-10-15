@@ -53,7 +53,7 @@ async function place() {
         <UFormField v-if="isInitial" :label="t('vendor.customers.change.cadence')" required><USelect v-model="cadence" :items="cadenceItems" class="w-full" :disabled="!hydrated || quoting || busy || !selectedPlan" @update:model-value="quote = null" /></UFormField>
         <UFormField :label="t('vendor.customers.change.extraBranches')"><UInput v-model="extra" dir="ltr" inputmode="numeric" class="w-full sm:w-48" :disabled="!hydrated || quoting || busy" @update:model-value="quote = null" /></UFormField>
         <div><UButton color="neutral" variant="outline" :loading="quoting" :disabled="!hydrated || quoting || busy || !planId || (isInitial && !selectedCadence)" @click="recompute">{{ t('vendor.customers.change.quote') }}</UButton></div>
-        <VendorPriceBreakdown :quote="quote" :pending="quoting" :error="failure" @retry="recompute" />
+        <SharedCommercePriceBreakdown :quote="quote" :pending="quoting" :error="failure" @retry="recompute" />
         <div class="flex justify-end"><UButton type="submit" :loading="busy" :disabled="!hydrated || busy || quoting || !quote">{{ t('vendor.customers.change.place') }}</UButton></div>
       </form>
     </SharedPageState>

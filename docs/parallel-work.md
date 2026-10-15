@@ -26,7 +26,7 @@ own institution identity. PMO collaboration preserves record and company guards.
 | Tests | shared fixture, `nasq_api`, `nasq_notify` and `nasq_directory` tests | `nasq_pmo/tests/**`, `nasq_meetings/tests/**`, `nasq_meetings_pmo/tests/**` | `nasq_hr/tests/**` |
 | Contracts | `packages/contracts/src/common/**` | `packages/contracts/src/pmo/**` | `packages/contracts/src/hr/**` |
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
-| Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and components | `/hr`, HR composables/components |
+| Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and `components/pmo/**` | `/hr`, HR composables/components |
 
 `nasq_directory` owns `/api/v1/people` (the user-id picker; its `id` is a
 `res.users` id) and its feature keys are registered by the applications that

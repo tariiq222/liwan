@@ -3,6 +3,8 @@
   "title": "Chat",
   "description": "Private conversations with people in this organization.",
   "new": "New conversation",
+  "start": "Start a conversation",
+  "emptyDescription": "Start a chat with a colleague or create a group and it will appear here.",
   "newGroup": "New group",
   "newTitle": "New conversation",
   "newGroupTitle": "New group",

@@ -24,7 +24,7 @@ describe('task timeline value formatting', () => {
   it('treats a cleared date represented as false as unset when setting a date', () => {
     const message = formatTimelineChange({ field: 'date_deadline', label: 'الموعد', old: false, new: '2030-09-01' }, 'en-US', t)
     expect(message).toContain('Set Deadline')
-    expect(message).toContain('Sep')
+    expect(message).toContain('01/09/2030')
     expect(message).not.toContain('false')
   })
 

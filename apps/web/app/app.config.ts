@@ -17,19 +17,22 @@ export default defineAppConfig({
     selectMenu: { slots: { base: 'rounded-md bg-default', content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--nasq-control-h)' } } } },
 
     // Surfaces: hairline ring, no resting shadow, compact padding.
-    card: { slots: { root: 'rounded-lg ring ring-default shadow-none', header: 'px-4 py-3 sm:px-4', body: 'p-3 sm:p-4', footer: 'px-4 py-3 sm:px-4' } },
+    card: { slots: { root: 'rounded-lg bg-default ring ring-default shadow-none', header: 'px-4 py-3 sm:px-4', body: 'p-3 sm:p-4', footer: 'px-4 py-3 sm:px-4' } },
     table: {
       slots: {
-        th: 'h-(--nasq-row-h) px-3 py-0 text-xs font-medium text-muted',
+        th: 'h-(--nasq-row-h) bg-elevated/60 px-3 py-0 text-xs font-medium text-muted',
         td: 'h-(--nasq-row-h) px-3 py-0 text-sm',
         tr: 'transition-colors hover:bg-elevated/50 data-[selected=true]:bg-primary/5',
       },
     },
 
+    // Status badges are subtle (soft fill) by default; outline is for buttons. The smallest badge text is 12px (xs/sm).
     // Light mode: the 500 step on its 10% tint fails 4.5:1 (success 2.0, warning 1.8, error 3.3), so subtle/soft
     // text uses the 800 step; dark mode keeps the stock 400 step. primary/neutral are brand/slate and already pass.
-    badge: { slots: { base: 'rounded-md' }, compoundVariants: [{ color: 'secondary', variant: 'soft', class: 'text-secondary-800 dark:text-secondary' }, { color: 'success', variant: 'soft', class: 'text-success-800 dark:text-success' }, { color: 'info', variant: 'soft', class: 'text-info-800 dark:text-info' }, { color: 'warning', variant: 'soft', class: 'text-warning-800 dark:text-warning' }, { color: 'error', variant: 'soft', class: 'text-error-800 dark:text-error' }, { color: 'secondary', variant: 'subtle', class: 'text-secondary-800 dark:text-secondary' }, { color: 'success', variant: 'subtle', class: 'text-success-800 dark:text-success' }, { color: 'info', variant: 'subtle', class: 'text-info-800 dark:text-info' }, { color: 'warning', variant: 'subtle', class: 'text-warning-800 dark:text-warning' }, { color: 'error', variant: 'subtle', class: 'text-error-800 dark:text-error' }] },
-    progress: { slots: { base: 'rounded-full', indicator: 'rounded-full' } },
+    // Solid badges: white on error-500 is 3.8:1, so solid fills use the 600/700 step with white (warning: dark text on 500).
+    badge: { slots: { base: 'rounded-md' }, variants: { size: { xs: { base: 'text-xs/4 px-1.5 py-0.5 rounded-md' }, sm: { base: 'text-xs/4 px-1.5 py-0.5 rounded-md' } } }, defaultVariants: { variant: 'subtle' }, compoundVariants: [{ color: 'secondary', variant: 'soft', class: 'text-secondary-800 dark:text-secondary' }, { color: 'success', variant: 'soft', class: 'text-success-800 dark:text-success' }, { color: 'info', variant: 'soft', class: 'text-info-800 dark:text-info' }, { color: 'warning', variant: 'soft', class: 'text-warning-800 dark:text-warning' }, { color: 'error', variant: 'soft', class: 'text-error-800 dark:text-error' }, { color: 'secondary', variant: 'subtle', class: 'text-secondary-800 dark:text-secondary' }, { color: 'success', variant: 'subtle', class: 'text-success-800 dark:text-success' }, { color: 'info', variant: 'subtle', class: 'text-info-800 dark:text-info' }, { color: 'warning', variant: 'subtle', class: 'text-warning-800 dark:text-warning' }, { color: 'error', variant: 'subtle', class: 'text-error-800 dark:text-error' }, { color: 'secondary', variant: 'solid', class: 'bg-secondary-600 text-white dark:bg-secondary dark:text-inverted' }, { color: 'success', variant: 'solid', class: 'bg-success-700 text-white dark:bg-success dark:text-inverted' }, { color: 'info', variant: 'solid', class: 'bg-info-600 text-white dark:bg-info dark:text-inverted' }, { color: 'warning', variant: 'solid', class: 'bg-warning-500 text-slate-900 dark:bg-warning dark:text-inverted' }, { color: 'error', variant: 'solid', class: 'bg-error-600 text-white dark:bg-error dark:text-inverted' }] },
+    // The brand fills the bar in both modes (--ui-primary is the readable brand tone); a finished bar turns lime.
+    progress: { slots: { base: 'rounded-full', indicator: 'rounded-full data-[state=complete]:bg-nasq-lime' } },
     avatar: { slots: { root: 'ring-2 ring-bg' } },
     tabs: { slots: { list: 'rounded-md', indicator: 'rounded-sm', trigger: 'rounded-sm' } },
 

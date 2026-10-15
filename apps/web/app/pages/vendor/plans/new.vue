@@ -20,7 +20,7 @@ async function save(draft: PlanDraft) {
 }
 </script>
 <template>
-  <SharedCreatePanel :title="t('vendor.plans.create')" :back-to="backTo" width="wide">
+  <SharedCreatePanel :title="t('vendor.plans.create')" :back-to="backTo">
     <SharedPageState :loading="pending" :error="error" :empty="!pending && !error && !allowed" :empty-text="t('vendor.pricing.errors.pricingRequired')" @retry="refresh">
       <VendorPlanForm v-if="data && allowed" :bundles="data.bundles" :policy="data.policy" :busy="busy" :error="saveError" :reset-key="resetKey" @save="save" @cancel="navigateTo(backTo)" />
     </SharedPageState>

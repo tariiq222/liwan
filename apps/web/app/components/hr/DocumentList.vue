@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import FilterBar from '@/components/shared/FilterBar.vue'
-import RecordNumber from '@/components/shared/RecordNumber.vue'
+import FilterBar from '@/components/shared/data/FilterBar.vue'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import type { HrDocument } from '@/composables/useHrDocuments'
 import { useHrDocuments } from '@/composables/useHrDocuments'
@@ -34,7 +33,6 @@ function formatDocumentDate(value: string) {
 }
 
 const columns = computed<TableColumn<HrDocument>[]>(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
   { accessorKey: 'name', header: t('hr.docs.columns.name') },
   { accessorKey: 'write_date', header: t('hr.docs.columns.updated') },
 ])
@@ -96,12 +94,10 @@ function rowTo(document: HrDocument) { return detailsTo(document) }
       @update:page="setPage"
       @retry="query.refetch"
     >
-      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-      <template #name-cell="{ row }"><NuxtLink :to="detailsTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
+      <template #name-cell="{ row }"><NuxtLink :to="detailsTo(row.original)" class="rounded font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
       <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>
       <template #mobile-row="{ row }">
-        <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
-        <NuxtLink :to="detailsTo(row)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
+        <NuxtLink :to="detailsTo(row)" class="rounded font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
         <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(row.write_date) }}</p>
       </template>
     </SharedDataTable>

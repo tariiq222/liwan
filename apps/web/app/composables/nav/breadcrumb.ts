@@ -5,6 +5,7 @@ import { isNavPathActive } from '../../utils/accessPolicy'
 
 export interface ShellCrumb { label: string; to?: string }
 
+const normalize = (path: string) => path.replace(/\/+$/, '') || '/'
 const target = (to: unknown): string => (typeof to === 'string' ? to : (to as { path?: string } | null)?.path ?? '')
 
 /**
@@ -20,6 +21,8 @@ export function shellBreadcrumb(input: { path: string; pageTitle?: string | null
     if (last && (last.label === crumb.label || (crumb.to && last.to === crumb.to))) return
     crumbs.push(crumb)
   }
+  // True when the path is exactly the active section's own page: its heading is that section's label.
+  let sectionIsPage = false
   const module = activeShellModule(input.path)
   const definition = module ? shellModuleList().find(item => item.id === module) : undefined
   if (definition) push({ label: input.t(definition.labelKey), to: input.rail.find(item => item.id === definition.id)?.to })
@@ -28,10 +31,25 @@ export function shellBreadcrumb(input: { path: string; pageTitle?: string | null
     const section = moduleContextLinks(contextModule, input.path)
       .filter(link => !link.pinned && isNavPathActive(input.path, target(link.to)))
       .sort((a, b) => target(b.to).length - target(a.to).length)[0]
-    if (section) push({ label: input.t(section.labelKey), to: target(section.to) || undefined })
+    if (section) {
+      const before = crumbs.length
+      push({ label: input.t(section.labelKey), to: target(section.to) || undefined })
+      sectionIsPage = crumbs.length > before && normalize(target(section.to)) === normalize(input.path)
+    }
   }
   const title = input.pageTitle?.trim()
-  if (title) push({ label: title })
+  // The page registers its heading after the server rendered this header, so the title is unknown on
+  // the first paint. A section's own page always carries that section's name as its heading: drop the
+  // repeating crumb now instead of only after hydration.
+  if (!title && sectionIsPage) return crumbs.slice(0, -1)
+  // The page heading already names the current page. On a list page the last crumb is that same
+  // label, so it is dropped and the trail ends at its parent (which keeps its link); a record page
+  // keeps its title as the last crumb. A page with no parent shows no trail.
+  if (title) {
+    if (crumbs.at(-1)?.label === title) return crumbs.slice(0, -1)
+    if (!crumbs.length) return []
+    crumbs.push({ label: title })
+  }
   if (crumbs.length) crumbs[crumbs.length - 1] = { label: crumbs.at(-1)!.label }
   return crumbs
 }

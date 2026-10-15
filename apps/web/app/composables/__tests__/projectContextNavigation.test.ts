@@ -9,13 +9,10 @@ describe('project list context selection', () => {
     expect(isContextPathActive('/projects/42', '/projects')).toBe(true)
     expect(isContextPathActive('/projects/42/stakeholders/3/edit', '/projects')).toBe(true)
     expect(isContextPathActive('/projects/42', '/projects/dashboard')).toBe(false)
-    expect(isContextPathActive('/project-templates/3', '/project-templates')).toBe(true)
-    expect(isContextPathActive('/project-templates', '/projects')).toBe(false)
   })
   it('keeps my tasks active for task records and the archive', () => {
     expect(isContextPathActive('/tasks/new', '/tasks')).toBe(true)
     expect(isContextPathActive('/tasks/7', '/tasks')).toBe(true)
-    expect(isContextPathActive('/archived-tasks', '/tasks')).toBe(true)
     expect(isContextPathActive('/projects/1', '/tasks')).toBe(false)
   })
   it('does not mark a module list active on its create form or on the dashboard', () => {
