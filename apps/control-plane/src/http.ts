@@ -8,7 +8,7 @@ import { CommercialHttpError } from './commercial/lifecycle.js'
 import { invitationPublicHttp, invitationVendorHttp } from './commercial/invitation-http.js'
 import { odooSetPassword } from './commercial/invitation-odoo.js'
 import type { SetPassword } from './commercial/invitations.js'
-import { createOdooAdapter } from './shared/odoo-adapter.js'
+import { internalEffectPasswordAdapter } from './commercial/invitation-effect-client.js'
 import { allOperationCounts, allOperations, sharedOperationDetail } from './operation-feed.js'
 import {approveOdooRestore,odooJobProgress} from './shared/odoo-backup.js'
 import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
@@ -54,6 +54,14 @@ function operationSource(url: URL, allowed: string[]): string {
   if (values.length > 1 || (values.length === 1 && !allowed.includes(values[0]))) throw new ApiError(422, 'invalid', 'Invalid operation source', 'source')
   return values[0] ?? 'legacy'
 }
+
+const INVITATION_MESSAGES = {
+  invalid_invitation: 'Invitation could not be accepted',
+  password_rejected: 'Password was rejected',
+  account_unavailable: 'Account is unavailable',
+  in_progress: 'Another request is in progress',
+  unavailable: 'Invitation acceptance is unavailable',
+} as const
 
 function respond(res: ServerResponse, status: number, data: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' })
@@ -287,11 +295,11 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }) {
   const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.NASQ_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
   try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
-  const invitationController = new AbortController()
-  let setPassword: SetPassword | undefined
-  try {
-    if (process.env.NASQ_TENANCY_MODE === 'shared') setPassword = odooSetPassword(createOdooAdapter(pool, config, invitationController.signal))
-  } catch { /* Fail invitation acceptance closed when the shared Odoo runtime is unavailable. */ }
+  // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
+  const effect = config.internalEffect
+  const setPassword: SetPassword | undefined = process.env.NASQ_TENANCY_MODE === 'shared' && effect?.url && effect.ca
+    ? odooSetPassword(internalEffectPasswordAdapter({ url: effect.url, key: effect.key, ca: effect.ca })) : undefined
+  let invitationsInFlight = 0
   const invitationAttempts = new Map<string, { count: number; expiresAt: number }>()
   let invitationCleanupAt = 0
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
@@ -320,14 +328,18 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           invitationAttempts.set(ip, attempt)
         }
         if (++attempt.count > 10) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
+        if (invitationsInFlight >= 4) return respond(res, 503, { code: 'unavailable', message: INVITATION_MESSAGES.unavailable })
+        invitationsInFlight++
         try {
           const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req), setPassword })
           return respond(res, response!.status, response!.data)
         } catch (error) {
-          const status = error instanceof CommercialHttpError ? error.status : error instanceof ApiError ? 400 : 503
-          const code = status === 503 ? 'unavailable' : 'invalid_invitation'
-          return respond(res, status, { code, message: status === 503 ? 'Invitation acceptance is unavailable' : 'Invitation could not be accepted' })
-        }
+          // Fixed table only: never error text, which could carry request material.
+          const known = error instanceof CommercialHttpError && error.code in INVITATION_MESSAGES
+          const status = known ? (error as CommercialHttpError).status : error instanceof ApiError ? 400 : 503
+          const code = known ? (error as CommercialHttpError).code as keyof typeof INVITATION_MESSAGES : status === 400 ? 'invalid_invitation' : 'unavailable'
+          return respond(res, status, { code, message: INVITATION_MESSAGES[code] })
+        } finally { invitationsInFlight-- }
       }
       const raw = await bodyBytes(req)
       const customerResponse=await customerHttp(pool,config,{method,path,raw,headers:req.headers},paymentRuntime)
@@ -555,6 +567,5 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
     }
   }
   const server = config.tls ? createHttpsServer(config.tls, handler) : createServer(handler)
-  server.once('close', () => invitationController.abort())
   return server
 }

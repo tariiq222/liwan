@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { odooSetPassword } from '../commercial/invitation-odoo.js'
 import { InvitationError } from '../commercial/invitations.js'
 
-const input = () => ({ tenant_id: 'tenant-id', admin_login: 'admin@example.test', password: randomBytes(24).toString('base64url') })
+const input = () => ({ tenant_id: 'tenant-id', admin_login: 'admin@example.test', password: randomBytes(24).toString('base64url'), token: randomBytes(32).toString('base64url') })
 
 describe('Odoo invitation password setter', () => {
   it('forwards accepted identity and password without returning credentials', async () => {
@@ -13,9 +13,9 @@ describe('Odoo invitation password setter', () => {
     expect(setAdminPassword.mock.calls.length).toBe(1)
     // Boolean checks keep test failure diagnostics secret-free.
     const actual = (setAdminPassword.mock.calls as unknown[][])[0][0] as typeof value
-    expect(actual.tenant_id === value.tenant_id && actual.admin_login === value.admin_login && actual.password === value.password).toBe(true)
+    expect(actual.tenant_id === value.tenant_id && actual.admin_login === value.admin_login && actual.password === value.password && actual.token === value.token).toBe(true)
   })
-  it.each(['user_missing', 'user_inactive', 'password_policy', 'database_invalid', 'script_failed'])('maps %s into a safe InvitationError', async code => {
+  it.each(['user_missing', 'user_inactive', 'password_policy', 'database_invalid', 'script_failed', 'busy', 'unavailable'])('maps %s into a safe InvitationError', async code => {
     const setAdminPassword = async () => { throw Error(code) }
     const err = await odooSetPassword({ setAdminPassword })(input()).catch(e => e)
     expect(err).toBeInstanceOf(InvitationError)

@@ -75,6 +75,66 @@ d('admin invitations', () => {
       .catch((e) => e)
     expect(r.status).toBe(400); expect(r.code).toBe('invalid_invitation')
   })
+  const accept = (token: string, setter?: (x: any) => Promise<void>) =>
+    invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token, password: PW }), issuer: 'i', actor: 1, capabilities: [], setPassword: setter }).catch((e) => e)
+  it.each([
+    ['password_policy', 422, 'password_rejected'],
+    ['user_missing', 409, 'account_unavailable'],
+    ['user_inactive', 409, 'account_unavailable'],
+    ['database_invalid', 409, 'account_unavailable'],
+    ['busy', 409, 'in_progress'],
+    ['script_failed', 503, 'unavailable'],
+    ['unavailable', 503, 'unavailable'],
+    ['something_unexpected', 503, 'unavailable'],
+  ])('maps setter failure %s to %i %s and keeps the invitation usable', async (failure, status, code) => {
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    const r = await accept(token, async () => { throw new InvitationError(failure) })
+    expect(r.status).toBe(status); expect(r.code).toBe(code)
+    expect(JSON.stringify(r).includes(PW)).toBe(false)
+    expect((await accept(token, setPassword)).status).toBe(200)
+    expect(set).toHaveLength(1)
+  })
+  it('passes the invitation token to the setter', async () => {
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    let seen: any
+    await accept(token, async (x) => { seen = x })
+    expect(seen.token === token && seen.password === PW && seen.admin_login === 'admin@x.test' && seen.tenant_id === tenant).toBe(true)
+  })
+  it('answers 400 for an invalid token even when the setter would report password_policy', async () => {
+    let called = false
+    const r = await accept('z'.repeat(43), async () => { called = true; throw new InvitationError('password_policy') })
+    expect(r.status).toBe(400); expect(r.code).toBe('invalid_invitation'); expect(called).toBe(false)
+  })
+  it('answers 503 when the channel is not configured and keeps the invitation usable', async () => {
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    const r = await accept(token)
+    expect(r.status).toBe(503); expect(r.code).toBe('unavailable')
+    expect((await accept(token, setPassword)).status).toBe(200)
+  })
+  it('rejects an over-length password with 422 and an over-length token with 400 before consuming the token', async () => {
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    let called = false
+    const watch = async (x: any) => { called = true; await setPassword(x) }
+    const longPassword = await invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token, password: 'p'.repeat(257) }), issuer: 'i', actor: 1, capabilities: [], setPassword: watch }).catch((e) => e)
+    expect(longPassword.status).toBe(422); expect(longPassword.code).toBe('password_rejected')
+    const longToken = await accept(token + 'x'.repeat(200), watch)
+    expect(longToken.status).toBe(400); expect(longToken.code).toBe('invalid_invitation')
+    expect(called).toBe(false)
+    expect((await pool.query('SELECT consumed_at FROM admin_invitations')).rows[0].consumed_at).toBeNull()
+    expect((await accept(token, setPassword)).status).toBe(200)
+  })
+  it('answers 409 in_progress to a concurrent accept of the same token while the first setter runs', async () => {
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    let release!: () => void, entered!: () => void
+    const inside = new Promise<void>(r => { entered = r })
+    const first = accept(token, () => new Promise<void>(r => { entered(); release = r }))
+    await inside
+    const second = await accept(token, setPassword)
+    expect(second.status).toBe(409); expect(second.code).toBe('in_progress')
+    release()
+    expect((await first).status).toBe(200)
+    expect(set).toHaveLength(0)
+  }, 20000)
   const port = process.env.NASQ_MAILPIT_SMTP_PORT, api = process.env.NASQ_MAILPIT_API_PORT
   ;(port && api ? it : it.skip)('Mailpit integration', async () => {
     await issue()
