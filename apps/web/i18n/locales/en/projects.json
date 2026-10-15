@@ -661,6 +661,7 @@
       }
     },
     "dashboard": {
+      "pendingCharters": "Charters waiting for your approval",
       "title": "Overview",
       "description": "A live summary of project status, tasks, and budgets for the current filters.",
       "summaryTitle": "Project summary",

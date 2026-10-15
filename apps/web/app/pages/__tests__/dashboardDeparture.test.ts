@@ -29,7 +29,7 @@ async function mountDashboard(auth: (to: RouteLocationNormalized) => unknown | P
     useNuxtApp: () => ({ hook: hooks.hook.bind(hooks) }),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true),
     useProjectDashboardAnalytics: () => ({ data: Vue.ref({ projects: [], recent_projects: [] }), isLoading: Vue.ref(false), error: Vue.ref(null) }),
-    FilterBar: {}, ProjectDashboardCharts: {}, ProjectDashboardMetrics: {}, ProjectDashboardRecentProjects: {},
+    FilterBar: {}, ProjectDashboardCharts: {}, ProjectDashboardMetrics: {}, ProjectDashboardRecentProjects: {}, PendingCharterReviews: {},
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const page = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
