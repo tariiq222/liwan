@@ -434,6 +434,7 @@
       "weekLabel": "Week {n}",
       "month": "Month",
       "monthLabel": "Month {n}",
+      "columnSpanGrouped": "{span} — columns grouped",
       "columnSpan": {
         "week": {
           "one": "Each column = 1 week",

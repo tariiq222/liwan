@@ -434,6 +434,7 @@
       "weekLabel": "الأسبوع {n}",
       "month": "شهري",
       "monthLabel": "الشهر {n}",
+      "columnSpanGrouped": "{span} — الأعمدة مجمّعة",
       "columnSpan": {
         "week": {
           "one": "كل عمود = أسبوع",
