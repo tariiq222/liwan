@@ -15913,6 +15913,95 @@
           "name": {
             "type": "string"
           },
+          "phase": {
+            "enum": [
+              "initiating",
+              "planning",
+              "executing",
+              "closing",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "phase_state": {
+            "additionalProperties": false,
+            "properties": {
+              "can_move": {
+                "type": "boolean"
+              },
+              "current": {
+                "enum": [
+                  "initiating",
+                  "planning",
+                  "executing",
+                  "closing",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              "next": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "initiating",
+                      "planning",
+                      "executing",
+                      "closing",
+                      "closed"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "next_checks": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "ok"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "previous": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "initiating",
+                      "planning",
+                      "executing",
+                      "closing",
+                      "closed"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "current",
+              "next",
+              "previous",
+              "next_checks",
+              "can_move"
+            ],
+            "type": "object"
+          },
           "privacy_visibility": {
             "enum": [
               "employees",
@@ -16029,6 +16118,7 @@
           "date_end",
           "allowed_actions",
           "charter_state",
+          "phase",
           "stages",
           "description_html",
           "privacy_visibility",
@@ -16040,7 +16130,8 @@
           "completion_approval",
           "completion_approver",
           "updated_at",
-          "charter"
+          "charter",
+          "phase_state"
         ],
         "type": "object"
       },
@@ -16128,6 +16219,16 @@
                 "name": {
                   "type": "string"
                 },
+                "phase": {
+                  "enum": [
+                    "initiating",
+                    "planning",
+                    "executing",
+                    "closing",
+                    "closed"
+                  ],
+                  "type": "string"
+                },
                 "progress": {
                   "maximum": 100,
                   "minimum": 0,
@@ -16166,7 +16267,8 @@
                 "active",
                 "can_manage",
                 "allowed_actions",
-                "charter_state"
+                "charter_state",
+                "phase"
               ],
               "type": "object"
             },
@@ -16432,6 +16534,139 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "ProjectPhaseGateCheckSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "ok"
+        ],
+        "type": "object"
+      },
+      "ProjectPhaseMoveSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "expected_updated_at": {
+            "pattern": "^v\\d+$",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "initiating",
+              "planning",
+              "executing",
+              "closing",
+              "closed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "phase",
+          "expected_updated_at"
+        ],
+        "type": "object"
+      },
+      "ProjectPhaseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "initiating",
+          "planning",
+          "executing",
+          "closing",
+          "closed"
+        ],
+        "type": "string"
+      },
+      "ProjectPhaseStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "can_move": {
+            "type": "boolean"
+          },
+          "current": {
+            "enum": [
+              "initiating",
+              "planning",
+              "executing",
+              "closing",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "enum": [
+                  "initiating",
+                  "planning",
+                  "executing",
+                  "closing",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_checks": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "ok": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "key",
+                "ok"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "enum": [
+                  "initiating",
+                  "planning",
+                  "executing",
+                  "closing",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "current",
+          "next",
+          "previous",
+          "next_checks",
+          "can_move"
+        ],
         "type": "object"
       },
       "ProjectPrioritySchema": {
@@ -17898,6 +18133,16 @@
           "name": {
             "type": "string"
           },
+          "phase": {
+            "enum": [
+              "initiating",
+              "planning",
+              "executing",
+              "closing",
+              "closed"
+            ],
+            "type": "string"
+          },
           "progress": {
             "maximum": 100,
             "minimum": 0,
@@ -17936,7 +18181,8 @@
           "active",
           "can_manage",
           "allowed_actions",
-          "charter_state"
+          "charter_state",
+          "phase"
         ],
         "type": "object"
       },
@@ -28710,6 +28956,59 @@
           ],
           "feature_operation": "write",
           "handler": "patch_milestone",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/phase": {
+      "post": {
+        "operationId": "nasq_pmo.ProjectPhaseController.move_phase.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "move_phase",
+        "tags": [
+          "nasq_pmo"
+        ],
+        "x-nasq": {
+          "addon": "nasq_pmo",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "pmo",
+          "controller": "ProjectPhaseController",
+          "feature_keys": [
+            "pmo.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "move_phase",
           "readonly": false,
           "route_type": "json2"
         }

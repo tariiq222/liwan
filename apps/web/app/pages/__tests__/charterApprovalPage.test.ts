@@ -30,7 +30,7 @@ function project(charter: Partial<ProjectDetail['charter']> = {}): ProjectDetail
   return {
     id: 3, name: 'Portal', status: null, progress: 0, task_count: 0, closed_task_count: 0,
     active: true, can_manage: true, allowed_actions: ['read', 'write', 'archive'], stages: [],
-    charter_state: charter.state ?? 'draft', description_html: '', manager: null, privacy_visibility: 'employees',
+    charter_state: charter.state ?? 'draft', phase: 'initiating', phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [], can_move: true }, description_html: '', manager: null, privacy_visibility: 'employees',
     date_start: '2030-01-01', date_end: null, tags: [], followers_count: 0, milestone_count: 0,
     allow_task_dependencies: false, completion_approval: 'none', completion_approver: null,
     updated_at: 'v4', charter: { ...EMPTY_CHARTER, ...charter },

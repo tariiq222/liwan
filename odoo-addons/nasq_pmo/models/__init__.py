@@ -11,6 +11,7 @@ from . import (
     project_finance,
     project_governance,
     project_milestone,
+    project_phase,
     project_project,
     project_task,
     res_company,

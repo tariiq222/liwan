@@ -124,7 +124,7 @@ function seedReviewCharters() {
 seedReviewCharters()
 const allProjects = () => [...PROJECTS, ...COPIES, ...REVIEW_PROJECTS]
 const stateOf = p => CHARTER_STATE.get(p.id) ?? { charter: CHARTER, updated_at: 'v1' }
-const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state })
+const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state, phase: 'planning' })
 
 function projectDetail(p) {
   return {
@@ -142,6 +142,7 @@ function projectDetail(p) {
     completion_approver: null,
     updated_at: stateOf(p).updated_at,
     charter: stateOf(p).charter,
+    phase_state: { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [], can_move: p.can_manage },
   }
 }
 

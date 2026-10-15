@@ -14,6 +14,18 @@ export const ProjectStageSchema = z.object({
   id: z.number().int().positive(), name: z.string(), sequence: z.number().int(), fold: z.boolean(), task_count: z.number().int(),
 }).strict()
 
+export const ProjectPhaseSchema = z.enum(['initiating', 'planning', 'executing', 'closing', 'closed'])
+export const PROJECT_PHASES = ProjectPhaseSchema.options
+export const ProjectPhaseGateCheckSchema = z.object({ key: z.string(), ok: z.boolean() }).strict()
+export const ProjectPhaseStateSchema = z.object({
+  current: ProjectPhaseSchema, next: ProjectPhaseSchema.nullable(), previous: ProjectPhaseSchema.nullable(),
+  next_checks: z.array(ProjectPhaseGateCheckSchema), can_move: z.boolean(),
+}).strict()
+// Body of POST /api/v1/projects/{id}/phase.
+export const ProjectPhaseMoveSchema = z.object({
+  phase: ProjectPhaseSchema, expected_updated_at: z.string().regex(/^v\d+$/),
+}).strict()
+
 export const ProjectSchema = z.object({
   id: z.number().int().positive(), name: z.string(), status: ProjectStatusSchema.nullable(),
   progress: z.number().int().min(0).max(100), task_count: z.number().int(), closed_task_count: z.number().int(),
@@ -21,6 +33,7 @@ export const ProjectSchema = z.object({
   manager: UserRefSchema.nullable().optional(), date_end: z.string().nullable().optional(),
   allowed_actions: z.array(z.enum(['read', 'write', 'archive'])).optional().default([]),
   charter_state: ProjectCharterStateSchema,
+  phase: ProjectPhaseSchema,
 }).strict()
 
 export const ProjectCompletionApprovalSchema = z.enum(['none', 'project_manager', 'specific_user'])
@@ -34,6 +47,7 @@ export const ProjectDetailSchema = ProjectSchema.extend({
   completion_approver: UserRefSchema.nullable(),
   updated_at: z.string().regex(/^v\d+$/),
   charter: ProjectCharterSchema,
+  phase_state: ProjectPhaseStateSchema,
 }).strict()
 
 export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), total: z.number().int().nonnegative(), can_create: z.boolean(), can_list_archived: z.boolean() }).strict()
@@ -87,6 +101,10 @@ export const StagePatchSchema = z.object({ name: z.string().min(1).optional(), f
 export const StageOrderBodySchema = z.object({ ids: z.array(z.number().int().positive()) }).strict()
 
 export type ProjectCompletionApproval = z.infer<typeof ProjectCompletionApprovalSchema>
+export type ProjectPhase = z.infer<typeof ProjectPhaseSchema>
+export type ProjectPhaseGateCheck = z.infer<typeof ProjectPhaseGateCheckSchema>
+export type ProjectPhaseState = z.infer<typeof ProjectPhaseStateSchema>
+export type ProjectPhaseMove = z.infer<typeof ProjectPhaseMoveSchema>
 export type ProjectStatus = z.infer<typeof ProjectStatusSchema>
 export type Visibility = z.infer<typeof VisibilitySchema>
 export type UserRef = z.infer<typeof UserRefSchema>

@@ -55,6 +55,7 @@ def dump_project(project):
         'closed_task_count': project.closed_task_count,
         'active': project.active,
         'charter_state': project.nasq_charter_state or 'draft',
+        'phase': project.nasq_phase,
         'can_manage': can_manage,
         'allowed_actions': ['read', *(['write', 'archive'] if can_manage else [])],
     }
@@ -75,6 +76,7 @@ def dump_project_detail(project):
         'completion_approver': _user_ref(project.nasq_completion_approver_id),
         'updated_at': project._nasq_updated_at(),
         'charter': dump_charter(project),
+        'phase_state': project._nasq_phase_state(),
     })
     return data
 

@@ -21,6 +21,7 @@ from . import (
     test_project_finance,
     test_project_followers,
     test_project_governance,
+    test_project_phase,
     test_project_quota,
     test_project_reports,
     test_project_schedule,

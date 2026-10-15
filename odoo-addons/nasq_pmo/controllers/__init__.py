@@ -8,6 +8,7 @@ from . import (
     project_finance,
     project_followers,
     project_governance,
+    project_phase,
     project_reports,
     project_schedule,
     project_stages,
