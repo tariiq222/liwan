@@ -34,7 +34,6 @@ test.describe('Plan 5 pilot: the projects list', () => {
       await expect(create).toHaveAttribute('data-shortcut-create', '')
       await expect(page.getByTestId('projects-toolbar')).toBeVisible()
       await expect(page.getByTestId('projects-result-count')).toContainText('3')
-      await expect(page.getByTestId('project-templates-link')).toBeVisible()
       await expect(page.getByTestId('projects-view-table')).toHaveAttribute('aria-pressed', 'true')
       await expect(page.getByTestId('project-row').first()).toHaveAttribute('href', /\/projects\/\d+\?.*returnTo=/)
       await expect(rows(page).first().getByTestId('project-progress')).toBeVisible()

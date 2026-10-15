@@ -93,18 +93,6 @@ describe('access policy navigation', () => {
     expect(postLoginPath({ capabilities: [] }, '/chat')).toBe('/chat')
     expect(isNavPathActive('/chat/42/info', '/chat')).toBe(true)
   })
-  it('gates template editing and retains accessible template deep links after login', () => {
-    expect(requiredCapabilityForPath('/projects/templates')).toBe('pmo.projects.read')
-    expect(requiredCapabilityForPath('/projects/templates/7')).toBe('pmo.projects.read')
-    expect(requiredCapabilityForPath('/projects/templates/7/use')).toBe('pmo.projects.read')
-    expect(requiredCapabilityForPath('/projects/templates/new')).toBe('pmo.settings.manage')
-    expect(requiredCapabilityForPath('/projects/templates/7/edit')).toBe('pmo.settings.manage')
-    const reader = { capabilities: ['pmo.projects.read'] }
-    expect(postLoginPath(reader, '/projects/templates/7?returnTo=%2Fprojects')).toBe('/projects/templates/7?returnTo=%2Fprojects')
-    expect(postLoginPath(reader, '/projects/templates/7/edit')).toBe('/projects/dashboard')
-    expect(postLoginPath({ capabilities: [] }, '/projects/templates')).toBe('/account')
-  })
-
   it("reaches a newer application's capability through its own feature, without navigation", () => {
     const unregistered = (readable: string[], writable: string[]) => ({
       capabilities: ['zz_unregistered.orders.read', 'zz_unregistered.orders.write'],

@@ -23,7 +23,7 @@ for (const width of [390, 768, 1440]) {
     await page.getByTestId('module-rail').getByRole('link', { name: 'نظرة عامة', exact: true }).click()
     await expect(page).toHaveURL(/\/projects\/dashboard$/)
     await expect(page.getByTestId('context-sidebar').getByRole('heading', { name: 'المشاريع', level: 2 })).toBeVisible()
-    await expect(page.getByTestId('context-sidebar').locator('nav .nasq-context-link')).toHaveText(['نظرة عامة', 'كل المشاريع', 'مهامي', 'قوالب المشاريع'])
+    await expect(page.getByTestId('context-sidebar').locator('nav .nasq-context-link')).toHaveText(['نظرة عامة', 'كل المشاريع', 'مهامي'])
     await expect(page.getByTestId('context-link-new-project')).toBeVisible()
     await expect(page.getByTestId('context-link-project-dashboard')).toHaveAttribute('aria-current', 'page')
     await charts(page)

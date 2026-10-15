@@ -658,12 +658,12 @@
         {
           "id": "CreateWizard",
           "name": "إنشاء مشروع على خطوات",
-          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62"
         },
         {
           "id": "WaitingForDefaults",
           "name": "قبل تحميل متطلبات الإنشاء",
-          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:64"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62"
         }
       ]
     },
@@ -1560,22 +1560,22 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:267"
+          "context": "apps/web/app/pages/projects/index.vue:263"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:267"
+          "context": "apps/web/app/pages/projects/index.vue:263"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:267"
+          "context": "apps/web/app/pages/projects/index.vue:263"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:267"
+          "context": "apps/web/app/pages/projects/index.vue:263"
         }
       ]
     },
@@ -1853,17 +1853,17 @@
         {
           "id": "UnderTable",
           "name": "تحت جدول",
-          "context": "apps/web/app/pages/projects/index.vue:317"
+          "context": "apps/web/app/pages/projects/index.vue:313"
         },
         {
           "id": "MiddlePage",
           "name": "صفحة وسطى",
-          "context": "apps/web/app/pages/projects/index.vue:317"
+          "context": "apps/web/app/pages/projects/index.vue:313"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:317"
+          "context": "apps/web/app/pages/projects/index.vue:313"
         }
       ]
     },
@@ -3161,7 +3161,7 @@
         {
           "id": "Panel",
           "name": "لوحة إعدادات",
-          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:46"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:52"
         }
       ]
     },

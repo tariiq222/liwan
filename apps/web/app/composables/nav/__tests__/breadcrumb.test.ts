@@ -12,8 +12,6 @@ describe('shell breadcrumb', () => {
     ['/projects/5', 'الملخص', [{ label: 'nav.projects', to: '/projects' }, { label: 'الملخص' }]],
     ['/settings/roles', null, [{ label: 'nav.settings', to: '/settings/users' }]],
     ['/meetings/calendar', null, [{ label: 'nav.meetings', to: '/meetings' }]],
-    ['/projects/templates', null, [{ label: 'nav.projects', to: '/projects' }]],
-    ['/projects/templates/3', null, [{ label: 'nav.projects', to: '/projects' }, { label: 'nav.projectTemplates' }]],
     ['/vendor/overview', null, [{ label: 'nav.management' }]],
     ['/notifications', 'الإشعارات', []],
     ['/tasks', 'nav.tasks', [{ label: 'nav.projects', to: '/projects' }]],

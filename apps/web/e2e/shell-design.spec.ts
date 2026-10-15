@@ -120,19 +120,19 @@ test('module context follows direct routes and refresh', async ({ page, baseURL 
 
   await page.goto('/projects')
   const context = page.getByTestId('context-sidebar')
-  await expect(context.getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toBeVisible()
   await page.reload()
-  await expect(context.getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toBeVisible()
 
   // My tasks belongs to the projects module and keeps the same sidebar.
   await page.goto('/tasks')
-  await expect(context.getByRole('link', { name: /قوالب/ })).toBeVisible()
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toBeVisible()
   await expect(page.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'page')
   await page.reload()
   await expect(context.getByTestId('context-link-tasks')).toHaveAttribute('aria-current', 'page')
 
   await page.goto('/meetings')
-  await expect(context.getByRole('link', { name: /قوالب/ })).toHaveCount(0)
+  await expect(context.getByRole('link', { name: 'كل المشاريع', exact: true })).toHaveCount(0)
   await expect(context.getByTestId('context-link-meetings')).toHaveAttribute('aria-current', 'page')
   await page.reload()
   await expect(context).toBeVisible()

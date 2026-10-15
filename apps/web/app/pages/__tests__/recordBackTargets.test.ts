@@ -23,19 +23,6 @@ const emptyQuery = () => ({
   isFetchNextPageError: Vue.ref(false), isError: Vue.ref(false), items: Vue.ref([]),
 })
 
-// The template pages get their target from a composable rather than inline, so
-// the real composable source is evaluated too — stubbing it would test the stub.
-function loadTemplateNavigation(router: Router) {
-  const source = readFileSync(resolve(webRoot, 'app/composables/useProjectTemplates.ts'), 'utf8')
-  const start = source.indexOf('export function useProjectTemplateNavigation()')
-  const end = source.indexOf('\n}', start) + 2
-  const js = ts.transpileModule(source.slice(start, end).replace('export function', 'return function'), {
-    compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
-  }).outputText
-  const factory = new Function('computed', 'useRoute', js)(Vue.computed, () => router.currentRoute.value)
-  return factory()
-}
-
 // Each page is evaluated as its real <script setup> against a real vue-router,
 // so the back target is proven by resolving it, not read off the source.
 function loadSetupState(rel: string, router: Router) {
@@ -70,8 +57,6 @@ function loadSetupState(rel: string, router: Router) {
     ApiError: class ApiError extends Error { status = 0 },
     // Real helpers, not stubs: these decide the ids the target is built from.
     parsePositiveId, parseFinanceKind, adminListQuery, adminPathWithQuery,
-    useProjectTemplateNavigation: () => loadTemplateNavigation(router),
-    useProjectTemplateList: () => ({ ...emptyQuery(), data: Vue.ref({ items: [], total: 0, can_manage: true, can_apply: true }) }),
     financeWriteAllowed: () => true,
     shouldKeepFinanceFormMounted: () => false,
     governanceFilters, governanceMatrixFilters,
@@ -117,7 +102,6 @@ function makeRouter() {
       { path: '/hr/departments/:departmentId/documents/:documentId/edit', component: { template: '<div/>' } },
       { path: '/hr/departments/:departmentId/edit', component: { template: '<div/>' } },
       { path: '/settings/roles/:roleId/edit', component: { template: '<div/>' } },
-      { path: '/projects/templates/:id/edit', component: { template: '<div/>' } },
       { path: '/projects/:id/register/new', component: { template: '<div/>' } },
       { path: '/projects/:id/register/:registerId', component: { template: '<div/>' } },
       { path: '/projects/:id/register/:registerId/edit', component: { template: '<div/>' } },
@@ -161,7 +145,6 @@ const EDITS: [string, string, string][] = [
   [withState('/hr/departments/4/edit'), 'app/pages/hr/departments/[departmentId]/edit.vue', '/hr/departments/4'],
   [withState('/hr/departments/4/documents/9/edit'), 'app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue', '/hr/departments/4/documents/9'],
   [withState('/settings/roles/6/edit'), 'app/pages/settings/roles/[roleId]/edit.vue', '/settings/roles/6'],
-  [withState('/projects/templates/4/edit'), 'app/pages/projects/templates/[id]/edit.vue', '/projects/templates/4'],
   [withState('/projects/7/register/3/edit'), 'app/pages/projects/[id]/register/[registerId]/edit.vue', '/projects/7/register/3'],
   [withState('/projects/7/finance/5/edit'), 'app/pages/projects/[id]/finance/[entryId]/edit.vue', '/projects/7/finance/5'],
 ]
@@ -202,58 +185,6 @@ describe('an edit form returns to the record it edits, not past it to the list',
 describe('a record returns to the list it belongs to', () => {
   expectTarget('record', RECORDS)
 
-})
-
-// Exercise the catalog's actual link builder: nesting the list URL in returnTo
-// loses its filters when the record/form strips that unrelated referrer.
-describe('template catalog navigation preserves direct list state', () => {
-  for (const creating of [false, true]) {
-    it(`catalog -> ${creating ? 'new -> ' : ''}record -> catalog keeps q and offset`, async () => {
-      const router = makeRouter()
-      await router.push(`${withState('/projects/templates')}&offset=50`)
-      await router.isReady()
-      const scope = Vue.effectScope()
-      try {
-        const catalog = scope.run(() => loadSetupState('app/pages/projects/templates/index.vue', router))!
-        const detailPath = (id?: number): RouteLocationRaw => id ? (catalog.itemTo as (item: { id: number }) => RouteLocationRaw)({ id }) : Vue.unref(catalog.createTo as Vue.Ref<RouteLocationRaw>)
-        await router.push(detailPath(creating ? undefined : 7))
-        expect(router.currentRoute.value.path).toBe(creating ? '/projects/templates/new' : '/projects/templates/7')
-        expect(router.currentRoute.value.query).toEqual({ q: 'عقد', offset: '50' })
-
-        if (creating) {
-          const form = scope.run(() => loadSetupState('app/pages/projects/templates/new.vue', router))!
-          const cancel = router.resolve(Vue.unref(form.backTo as Vue.Ref<RouteLocationRaw>))
-          expect(cancel.path).toBe('/projects/templates')
-          expect(cancel.query).toEqual({ q: 'عقد', offset: '50' })
-          const templatePath = form.templatePath as (id: number) => RouteLocationRaw
-          await router.push(templatePath(7))
-          expect(router.currentRoute.value.path).toBe('/projects/templates/7')
-          expect(router.currentRoute.value.query).toEqual({ q: 'عقد', offset: '50' })
-        }
-
-        const record = scope.run(() => loadSetupState('app/pages/projects/templates/[id].vue', router))!
-        await router.push(Vue.unref(record.backTo as Vue.Ref<RouteLocationRaw>))
-        expect(router.currentRoute.value.path).toBe('/projects/templates')
-        expect(router.currentRoute.value.query).toEqual({ q: 'عقد', offset: '50' })
-      } finally {
-        scope.stop()
-      }
-    })
-  }
-})
-
-describe('template catalog recovery from an empty offset page', () => {
-  it('keeps the current page in the page count so Previous stays reachable', async () => {
-    const router = makeRouter()
-    await router.push('/projects/templates?offset=50')
-    await router.isReady()
-    const scope = Vue.effectScope()
-    try {
-      const catalog = scope.run(() => loadSetupState('app/pages/projects/templates/index.vue', router))!
-      expect(Vue.unref(catalog.pageNumber as Vue.Ref<number>)).toBe(2)
-      expect(Vue.unref(catalog.pages as Vue.Ref<number>)).toBe(2)
-    } finally { scope.stop() }
-  })
 })
 
 // Finance creation kind is a form value; it must not replace the originating ledger filter.

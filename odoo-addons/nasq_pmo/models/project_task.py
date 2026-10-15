@@ -13,7 +13,7 @@ DONE_STATE = '1_done'
 # Task fields whose change can complete or reopen the project status.
 COMPLETION_STATUS_FIELDS = {'state', 'active', 'project_id'}
 TASK_CREATE_MARKER = 'nasq_pmo.task_create_depth'
-TEMPLATE_APPLY_MARKER = 'nasq_pmo.template_apply_scope'
+PROJECT_COPY_MARKER = 'nasq_pmo.project_copy_scope'
 ACCESS_USER_CREATE_MARKER = 'nasq_core.access_user_create_depth'
 DEPENDENCY_WRITE_MARKER = 'nasq_pmo.dependency_write_depth'
 SCHEDULE_WRITE_MARKER = 'nasq_pmo.schedule_write_depth'
@@ -97,7 +97,7 @@ class ProjectTask(models.Model):
 
         None here, so PMO keeps requiring the capability. A bridge (nasq_tasks_pmo)
         answers a domain that matches personal (project-less) tasks only, after its own
-        capability check. Like the template boundary, it narrows every search, fetch and
+        capability check. Like the copy boundary, it narrows every search, fetch and
         access check; stock ACLs and record rules still run on top.
         """
         return
@@ -114,13 +114,13 @@ class ProjectTask(models.Model):
         return False
 
     @api.model
-    def _nasq_template_population_domain(self):
+    def _nasq_copy_population_domain(self):
         """Return only the fresh project's boundary, never a capability grant.
 
-        Only checked template application mints this cursor-local scope. No
+        Only a checked project copy mints this cursor-local scope. No
         client context flag is consulted; another uid/company cannot reuse it.
         """
-        scope = self.env.cr.precommit.data.get(TEMPLATE_APPLY_MARKER)
+        scope = self.env.cr.precommit.data.get(PROJECT_COPY_MARKER)
         if not scope or scope[:2] != (self.env.uid, self.env.company.id):
             return None
         project = self.env['project.project'].browse(scope[2]).exists()
@@ -142,7 +142,7 @@ class ProjectTask(models.Model):
         ):
             service = self.env['nasq.access.service']
             if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
-                boundary = self._nasq_template_population_domain()
+                boundary = self._nasq_copy_population_domain()
                 if boundary is None:
                     boundary = self._nasq_personal_read_domain()
                 if boundary is None:
@@ -168,8 +168,8 @@ class ProjectTask(models.Model):
             service = self.env['nasq.access.service']
             if not service._nasq_has_capability(self.env.user, 'pmo.tasks.read'):
                 try:
-                    boundary = self._nasq_template_population_domain()
-                    scope = 'template'
+                    boundary = self._nasq_copy_population_domain()
+                    scope = 'copy'
                     if boundary is None:
                         boundary = self._nasq_personal_read_domain()
                         scope = 'personal'
@@ -177,7 +177,7 @@ class ProjectTask(models.Model):
                         return self, lambda: AccessError('forbidden')
                     if self:
                         # The inherited search enforces both stock rules and
-                        # the template scope without reading unverified fields.
+                        # the copy scope without reading unverified fields.
                         # Return the denied subset so mixed recordsets retain
                         # only genuinely readable tasks in _filtered_access.
                         query = super()._search(
@@ -187,9 +187,9 @@ class ProjectTask(models.Model):
                         if forbidden:
                             return forbidden, lambda: AccessError(
                                 self.env._(
-                                    "Only tasks in the new template project may be read during application.",
+                                    "Only tasks in the new project may be read during a project copy.",
                                 )
-                                if scope == 'template' else 'forbidden',
+                                if scope == 'copy' else 'forbidden',
                             )
                 except AccessError as error:
                     # Scope validation and stock search may raise; this hook
@@ -362,7 +362,7 @@ class ProjectTask(models.Model):
     def _nasq_set_schedule(self, start, end):
         """Set the date-only schedule pair after its dedicated manager check.
 
-        This is intentionally separate from generic task writes. Template and
+        This is intentionally separate from generic task writes. Project copy and
         schedule callers use this checked mutation path, while direct ORM/RPC
         writes cannot manufacture the internal marker used below.
         """
@@ -579,24 +579,24 @@ class ProjectTask(models.Model):
             raise AccessError(self.env._("This task requires completion approval."))
 
     @api.model
-    def _nasq_create_for_template(self, project, values):
-        """Create one definition task under the server-owned fresh-project scope.
+    def _nasq_create_for_copy(self, project, values):
+        """Create one copied task under the server-owned fresh-project scope.
 
         This private helper never elevates ORM ACLs and cannot grant the scope.
-        The template application owns its lifetime and removes it in finally.
+        The project copy owns its lifetime and removes it in finally.
         """
         project.ensure_one()
         scope = (self.env.uid, self.env.company.id, project.id)
-        if self.env.cr.precommit.data.get(TEMPLATE_APPLY_MARKER) != scope:
-            raise AccessError(self.env._("Template application scope is required."))
+        if self.env.cr.precommit.data.get(PROJECT_COPY_MARKER) != scope:
+            raise AccessError(self.env._("Project copy scope is required."))
         project._nasq_check_visible_current()
         if project.user_id != self.env.user or not project._nasq_can_create():
-            raise AccessError(self.env._("You are not allowed to apply this project template."))
+            raise AccessError(self.env._("You are not allowed to copy this project."))
         if values.get('project_id') != project.id:
-            raise AccessError(self.env._("Template task must belong to the new project."))
+            raise AccessError(self.env._("Copied task must belong to the new project."))
         task = self.create(values)
         # Stock project.task explicitly subscribes its creator even with mail
-        # tracking disabled. Definitions must create no followers. Removing
+        # tracking disabled. Copied tasks must create no followers. Removing
         # the caller's own automatic subscription uses ordinary mail ACLs.
         task.message_unsubscribe(partner_ids=[self.env.user.partner_id.id])
         return task
@@ -630,11 +630,11 @@ class ProjectTask(models.Model):
                 project._nasq_check_visible_current()
                 if parent and parent.project_id != project:
                     raise AccessError(self.env._("Parent task must belong to the same project."))
-                # Minted only inside checked application of a freshly created
-                # template project; never trust an RPC/context flag. All other
+                # Minted only inside a checked copy into a freshly created
+                # project; never trust an RPC/context flag. All other
                 # field, visibility, approval and stock ORM checks still run.
                 scope = (self.env.uid, self.env.company.id, project.id)
-                if self.env.cr.precommit.data.get(TEMPLATE_APPLY_MARKER) != scope:
+                if self.env.cr.precommit.data.get(PROJECT_COPY_MARKER) != scope:
                     service._nasq_require_capability('pmo.tasks.create', record=project)
                 if vals.get('state') in MANAGER_STATES:
                     service._nasq_require_capability('pmo.tasks.approve', record=project)

@@ -13,7 +13,6 @@ from . import (
     project_milestone,
     project_project,
     project_task,
-    project_template,
     res_company,
     task_attachments,
     task_notifications,
