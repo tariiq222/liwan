@@ -126,6 +126,8 @@ def prepare() -> None:
         'PAYMENT_RETURN_ORIGINS': 'https://vendor.' + SUFFIX,
         'CUSTOMER_COMMERCIAL_ISSUER': 'customer-commercial-' + secrets.token_hex(4),
         'CUSTOMER_COMMERCIAL_SERVICE_KEY': secrets.token_hex(32),
+        # Refund review and dunning run on the billing tick; E11 waits for it within a minute.
+        'NASQ_COMMERCIAL_BILLING_INTERVAL_SEC': '15',
     }
     values.update(network_subnets(project))
     write_private(directory / 'compose.env', '\n'.join(f"{key}='{value}'" for key, value in values.items()) + '\n')
