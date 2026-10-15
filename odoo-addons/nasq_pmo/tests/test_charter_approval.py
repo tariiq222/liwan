@@ -139,10 +139,30 @@ class TestCharterApproval(NasqPmoCase):
         self._policy(True)
         self._as(self.manager)._nasq_charter_submit()
         other = new_test_user(self.env, login='api_sponsor2', name='Huda', groups='nasq_core.group_employee')
-        # Changing the sponsor is not charter content locked by submission.
+        with self.assertRaises(NasqCharterState):
+            self._as(self.manager)._nasq_write_as_manager({'nasq_sponsor_id': other.id})
+        self._as(self.manager)._nasq_charter_withdraw()
         self._as(self.manager)._nasq_write_as_manager({'nasq_sponsor_id': other.id})
+        self._as(self.manager)._nasq_charter_submit()
         self.assertFalse(self._as(self.sponsor)._nasq_can_review_charter())
         self._as(other)._nasq_charter_approve()
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+
+    def test_sponsor_change_reopens_approved_charter(self):
+        self._policy(True)
+        self.project.nasq_sponsor_id = self.manager
+        self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self._as(self.manager)._nasq_write_as_manager({'nasq_sponsor_id': self.sponsor.id})
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+
+    def test_private_switch_while_submitted_subscribes_sponsor(self):
+        self._policy(True)
+        self._as(self.manager)._nasq_charter_submit()
+        self.assertNotIn(self.sponsor, self.project._nasq_followers())
+        self._as(self.manager)._nasq_write_as_manager({'privacy_visibility': 'followers'})
+        self.assertIn(self.sponsor, self.project._nasq_followers())
+        self._as(self.sponsor)._nasq_charter_approve()
         self.assertEqual(self.project.nasq_charter_state, 'approved')
 
     def test_submitted_survives_policy_off(self):
@@ -226,6 +246,46 @@ class TestCharterApprovalApi(NasqPmoCase):
         self.authenticate('api_sponsor', 'api_sponsor_pass_123')
         res = self._post('approve', {'expected_updated_at': submitted['updated_at']})
         self.assertEqual((res.status_code, res.json()['code']), (409, 'stale_write'))
+
+    def test_manager_cannot_self_swap_sponsor_while_submitted(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        submitted = self._post('submit', {'expected_updated_at': self._token()}).json()
+        res = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {
+            'expected_updated_at': submitted['updated_at'], 'charter': {'sponsor_id': self.manager.id},
+        })
+        self.assertEqual((res.status_code, res.json()['code']), (409, 'charter_state'))
+
+    def test_unchanged_wizard_save_keeps_state_with_blank_fields(self):
+        self.env.cr.execute('UPDATE project_project SET description = NULL WHERE id = %s', [self.project.id])
+        self.project.invalidate_recordset()
+        self.assertFalse(self.project.description)
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        project = self.project
+        charter = {
+            'sponsor_id': self.sponsor.id, 'authority': '', 'rationale': '', 'objectives': [],
+            'benefits': '', 'scope': '', 'exclusions': '', 'high_level_requirements': '',
+            'deliverables': [], 'success': '', 'budget_state': 'unknown', 'amount': None,
+            'priority': None, 'assumptions': '', 'constraints': '', 'closure': '',
+        }
+
+        def wizard_body(token):
+            return {
+                'expected_updated_at': token, 'name': project.name, 'description': '',
+                'user_id': self.manager.id, 'date_start': None, 'date': None, 'charter': dict(charter),
+            }
+
+        path = f'/api/v1/projects/{project.id}'
+        submitted = self._post('submit', {'expected_updated_at': self._token()}).json()
+        res = self.api('PATCH', path, wizard_body(submitted['updated_at']))
+        self.assertEqual((res.status_code, res.json()['charter']['state']), (200, 'submitted'), res.text)
+        project.with_user(self.manager)._nasq_charter_withdraw()
+        project.nasq_sponsor_id = self.manager
+        project.with_user(self.manager)._nasq_charter_submit()
+        self.assertEqual(project.nasq_charter_state, 'approved')
+        body = wizard_body(self._token())
+        body['charter']['sponsor_id'] = self.manager.id
+        res = self.api('PATCH', path, body)
+        self.assertEqual((res.status_code, res.json()['charter']['state']), (200, 'approved'), res.text)
 
     def test_errors(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

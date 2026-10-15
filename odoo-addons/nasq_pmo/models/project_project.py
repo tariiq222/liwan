@@ -45,8 +45,9 @@ CHARTER_APPROVAL_FIELDS = {
     'nasq_charter_approved_by_id', 'nasq_charter_approved_at', 'nasq_charter_return_note',
 }
 # Content a submitted charter locks and an approved one reopens on change.
-# The sponsor itself is excluded: replacing an unavailable sponsor must stay possible.
-CHARTER_CONTENT_FIELDS = (CHARTER_MANAGER_FIELDS - {'nasq_sponsor_id'}) | {
+# The sponsor is content too: it cannot change while the charter waits (the manager
+# withdraws first), so a manager cannot swap in themself to self-approve.
+CHARTER_CONTENT_FIELDS = CHARTER_MANAGER_FIELDS | {
     'name', 'description', 'user_id', 'date_start', 'date',
 }
 CHARTER_RESET_VALS = {
@@ -403,6 +404,12 @@ class ProjectProject(models.Model):
                 stale._nasq_invalidate_completion_requests()
         for project in reopen:
             project._nasq_write_charter_approval(dict(CHARTER_RESET_VALS))
+        if vals.get('privacy_visibility') == 'followers':
+            # A waiting sponsor must keep read access when the project turns private.
+            for project in self.filtered(lambda p: p.nasq_charter_state == 'submitted'):
+                sponsor = project.nasq_sponsor_id
+                if sponsor and project._nasq_can_manage() and sponsor not in project._nasq_followers():
+                    project._nasq_add_follower(sponsor)
         return result
 
     def unlink(self):
@@ -1011,7 +1018,13 @@ class ProjectProject(models.Model):
         for name in names:
             field = self._fields[name]
             new = field.convert_to_record(field.convert_to_cache(vals[name], self), self)
-            if new != self[name]:
+            current = self[name]
+            if field.relational:
+                changed = new != current
+            else:
+                # NULL columns read False while forms send '': both are blank.
+                changed = (new or False) != (current or False)
+            if changed:
                 return True
         return False
 
