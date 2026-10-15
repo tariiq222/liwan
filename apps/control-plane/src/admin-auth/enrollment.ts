@@ -25,6 +25,7 @@ export async function issueReset(client: PoolClient, actor: { id: number } | 'op
   const account = await client.query("SELECT id FROM vendor_accounts WHERE id=$1 AND status<>'disabled' FOR UPDATE", [accountId])
   if (!account.rowCount) throw new AdminAuthError(422, 'invalid')
   await client.query('UPDATE vendor_invitations SET consumed_at=$2 WHERE account_id=$1 AND consumed_at IS NULL', [accountId, now])
+  await client.query('UPDATE vendor_sessions SET revoked_at=$2 WHERE account_id=$1 AND revoked_at IS NULL', [accountId, now])
   const token = newToken(); const expiresAt = new Date(now.getTime() + DAY)
   await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at,created_at) VALUES($1,$2,'reset',$3,$4,$5)", [hashToken(token), accountId, actorName(actor), expiresAt, now])
   await audit(client, actorName(actor), 'account.reset_issued', `account:${accountId}`, reason)
