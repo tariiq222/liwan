@@ -25,6 +25,11 @@ and contracts are in `AGENTS.md`.
   shared component ships with its story and is listed in `STORYBOOK_COMPONENTS`
   (`tools/ui_policy.py`) before a second page uses it. No local copy of a
   component that has a story.
+- Component folders: `components/pmo/projects` and `components/pmo/tasks` (PMO),
+  `components/personal-tasks`, and `components/shared/{layout,data,form,feedback}`.
+  `nuxt.config.ts` registers them with an explicit `prefix`, so their names stay
+  `Project*`, `Task*`, `MyTasks*` and `Shared*`; a new prefixed folder is added there
+  and to `COMPONENT_PREFIXES` in `tools/ui_policy.py`.
 - Nuxt UI components are the customer control surface. Preserve their RTL
   semantics, keyboard behavior and public props/slots; shared composite
   components are documented in `docs/design-system/components.md`.
