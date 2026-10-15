@@ -803,6 +803,103 @@
       ]
     },
     {
+      "name": "AttachmentList",
+      "file": "apps/web/app/components/shared/AttachmentList.vue",
+      "story": "apps/web/stories/shared/AttachmentList.stories.ts",
+      "title": "Shared/AttachmentList",
+      "props": [
+        {
+          "name": "attachments",
+          "type": "SharedAttachment[]",
+          "required": true
+        },
+        {
+          "name": "labels",
+          "type": "SharedAttachmentLabels",
+          "required": true
+        },
+        {
+          "name": "uploadFile",
+          "type": "(file: File) => Promise<void>",
+          "required": true
+        },
+        {
+          "name": "deleteFile",
+          "type": "(id: number) => Promise<void>",
+          "required": true
+        },
+        {
+          "name": "accept",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "canWrite",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "loadError",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "uploadId",
+          "type": "string",
+          "required": false,
+          "default": "\"attachment-upload\""
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Writable",
+          "name": "قابل للتعديل",
+          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "للقراءة فقط",
+          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا مرفقات",
+          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "Loading",
+          "name": "قيد التحميل",
+          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+        },
+        {
+          "id": "WithError",
+          "name": "خطأ من الرفع",
+          "context": "apps/web/app/components/my-tasks/MyTaskAttachments.vue:7"
+        }
+      ]
+    },
+    {
       "name": "SharedBrandWordmark",
       "file": "apps/web/app/components/shared/BrandWordmark.vue",
       "story": "apps/web/stories/shared/BrandWordmark.stories.ts",
@@ -905,6 +1002,286 @@
           "id": "EmptyWithText",
           "name": "لا بيانات بنص خاص بالمخطط",
           "context": "unused"
+        }
+      ]
+    },
+    {
+      "name": "Checklist",
+      "file": "apps/web/app/components/shared/Checklist.vue",
+      "story": "apps/web/stories/shared/Checklist.stories.ts",
+      "title": "Shared/Checklist",
+      "props": [
+        {
+          "name": "items",
+          "type": "SharedChecklistItem[]",
+          "required": true
+        },
+        {
+          "name": "emptyText",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "addPlaceholder",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "addLabel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "add",
+          "type": "(name: string) => Promise<boolean | void>",
+          "required": true
+        },
+        {
+          "name": "toggle",
+          "type": "((item: SharedChecklistItem) => Promise<void>)",
+          "required": false
+        },
+        {
+          "name": "canAdd",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "doneLabel",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "leading"
+      ],
+      "nuxtUi": [
+        "UBadge",
+        "UButton",
+        "UInput"
+      ],
+      "stories": [
+        {
+          "id": "Editable",
+          "name": "قابلة للتعديل",
+          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+        },
+        {
+          "id": "ReadOnly",
+          "name": "للقراءة فقط",
+          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا بنود",
+          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+        },
+        {
+          "id": "WithError",
+          "name": "خطأ من الخادم",
+          "context": "apps/web/app/components/my-tasks/MyTaskSubtasks.vue:55"
+        }
+      ]
+    },
+    {
+      "name": "CommentComposer",
+      "file": "apps/web/app/components/shared/CommentComposer.vue",
+      "story": "apps/web/stories/shared/CommentComposer.stories.ts",
+      "title": "Shared/CommentComposer",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "submitLabel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "help",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "fieldId",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
+          "name": "problem",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "maxLength",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "textareaAria",
+          "type": "Record<string, string | undefined>",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "submit",
+          "payload": "[]"
+        },
+        {
+          "name": "input",
+          "payload": "[event: Event]"
+        },
+        {
+          "name": "update:modelValue",
+          "payload": "[value: string]"
+        },
+        {
+          "name": "keydown",
+          "payload": "[event: KeyboardEvent]"
+        },
+        {
+          "name": "click",
+          "payload": "[event: Event]"
+        },
+        {
+          "name": "keyup",
+          "payload": "[event: Event]"
+        },
+        {
+          "name": "blur",
+          "payload": "[]"
+        }
+      ],
+      "slots": [
+        "below"
+      ],
+      "nuxtUi": [
+        "UButton",
+        "UFormField",
+        "UTextarea"
+      ],
+      "stories": [
+        {
+          "id": "Plain",
+          "name": "نص عادي",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "WithLabel",
+          "name": "بعنوان وتلميح",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "Pending",
+          "name": "أثناء النشر",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "TooLong",
+          "name": "تعليق أطول من المسموح",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+        },
+        {
+          "id": "ServerError",
+          "name": "خطأ من الخادم",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:56"
+        }
+      ]
+    },
+    {
+      "name": "CommentThread",
+      "file": "apps/web/app/components/shared/CommentThread.vue",
+      "story": "apps/web/stories/shared/CommentThread.stories.ts",
+      "title": "Shared/CommentThread",
+      "props": [
+        {
+          "name": "comments",
+          "type": "SharedComment[]",
+          "required": true
+        },
+        {
+          "name": "emptyText",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "unknownAuthor",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [
+        "composer"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "WithComposer",
+          "name": "مع نموذج الكتابة",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:47"
+        },
+        {
+          "id": "Empty",
+          "name": "بلا تعليقات",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:47"
+        },
+        {
+          "id": "Loading",
+          "name": "قيد التحميل",
+          "context": "apps/web/app/components/my-tasks/MyTaskComments.vue:47"
         }
       ]
     },
