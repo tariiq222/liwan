@@ -95,7 +95,7 @@ suite('commercial B1 atomic orders', () => {
     await expect(acceptQuote(pool, accept(paidQuote), vendor)).rejects.toMatchObject({code:'subscription_change_pending'})
     // Controlled observed receipt boundary; this test runs no physical Odoo adapter.
     await pool.query('INSERT INTO fulfillment_effects(id,order_id,operation_id) VALUES($1,$2,$3)', [randomUUID(), first.order.id, randomUUID()])
-    const receipt = { order_id:first.order.id, tenant_id:tenant, target_revision_id:first.order.target_revision_id, observed_entitlement_digest:firstQuote.entitlement_digest, observed_at:new Date().toISOString(), branch_bindings:[] }
+    const receipt = { order_id:first.order.id, tenant_id:tenant, target_revision_id:first.order.target_revision_id, observed_entitlement_digest:firstQuote.entitlement_digest, observed_at:new Date().toISOString(), branch_bindings:[], root_company_id:1 }
     expect(await applyReceipt(pool, { order_id:first.order.id, receipt })).toEqual({ applied:true, replay:false })
     expect(await applyReceipt(pool, { order_id:first.order.id, receipt })).toEqual({ applied:true, replay:true })
     expect(await getSubscription(pool, id)).toMatchObject({ applied:{id:first.order.target_revision_id}, target:null, pending_order:null })
