@@ -402,6 +402,10 @@
       "saveDraft": "Save as draft",
       "draftSaved": "Charter saved as a draft",
       "finalize": "Finalize charter",
+      "submitForApproval": "Submit for approval",
+      "submitted": "Charter submitted for approval",
+      "savedNotSubmitted": "Your changes were saved but the charter was not submitted.",
+      "lockedWhileSubmitted": "The charter is waiting for approval. Withdraw the request first to edit it.",
       "finalized": "Charter finalized",
       "continueDraft": "Continue draft",
       "state": {

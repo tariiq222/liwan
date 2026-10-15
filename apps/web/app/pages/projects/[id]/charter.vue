@@ -29,9 +29,10 @@ function leaveEdit() {
   if (projectId.value) void router.push({ path: `/projects/${projectId.value}/charter`, query: { ...route.query, edit: undefined, step: undefined } })
 }
 
-function onSaved(finalized: boolean) {
+function onSaved(outcome: 'saved' | 'approved' | 'submitted') {
+  const titles = { saved: 'projects.charter.saved', approved: 'projects.charter.finalized', submitted: 'projects.charter.submitted' }
   toast.add({
-    title: t(finalized ? 'projects.charter.finalized' : 'projects.charter.saved'),
+    title: t(titles[outcome]),
     color: 'success',
     icon: 'i-lucide-circle-check',
   })

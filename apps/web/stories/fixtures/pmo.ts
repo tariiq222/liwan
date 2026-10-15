@@ -45,6 +45,7 @@ export function taskDetail(overrides: Record<string, unknown> = {}) {
 export const project = ProjectSchema.parse({
   id: 1, name: 'مشروع ألفا', status: 'on_track', progress: 50, task_count: 24, closed_task_count: 12,
   active: true, can_manage: true, manager: { id: 2, name: 'Admin' }, date_end: '2026-12-31', allowed_actions: ['read', 'write', 'archive'],
+  charter_state: 'draft',
 })
 
 export const projectDetail = ProjectDetailSchema.parse({

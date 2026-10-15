@@ -67,7 +67,7 @@ function loadForm() {
 
 const project: ProjectDetail = {
   id: 4, name: 'Portal', status: null, progress: 0, task_count: 0, closed_task_count: 0,
-  active: true, can_manage: true, allowed_actions: ['read', 'write'], stages: [],
+  active: true, can_manage: true, allowed_actions: ['read', 'write'], stages: [], charter_state: 'draft',
   description_html: '', manager: { id: 2, name: 'Mona' }, privacy_visibility: 'employees',
   date_start: null, date_end: '2031-06-30', tags: [], followers_count: 0, milestone_count: 0,
   allow_task_dependencies: false, completion_approval: 'none', completion_approver: null,

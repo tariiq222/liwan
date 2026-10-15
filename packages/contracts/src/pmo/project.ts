@@ -20,7 +20,7 @@ export const ProjectSchema = z.object({
   active: z.boolean(), can_manage: z.boolean(),
   manager: UserRefSchema.nullable().optional(), date_end: z.string().nullable().optional(),
   allowed_actions: z.array(z.enum(['read', 'write', 'archive'])).optional().default([]),
-  charter_state: ProjectCharterStateSchema.optional(),
+  charter_state: ProjectCharterStateSchema,
 }).strict()
 
 export const ProjectCompletionApprovalSchema = z.enum(['none', 'project_manager', 'specific_user'])

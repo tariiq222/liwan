@@ -43,6 +43,7 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
     active: true,
     can_manage: true,
     allowed_actions: ['read', 'write', 'archive'],
+    charter_state: 'draft',
     stages: [],
     description_html: '<p>desc</p>',
     manager: { id: 2, name: 'Sara' },
@@ -310,6 +311,14 @@ describe('charter document helpers', () => {
 })
 
 describe('charter state on the wire', () => {
+  it('never writes the charter state', () => {
+    const draft = emptyCharterDraft()
+    draft.name = 'P'
+    draft.charterState = 'approved'
+    expect(charterCreateBody(draft)).not.toHaveProperty('state')
+    expect(charterPatchBody(draft, 'v3', { dateStart: null, dateEnd: null }).charter).not.toHaveProperty('state')
+  })
+
   it('never sends the state; the server owns it', () => {
     const draft = emptyCharterDraft()
     draft.name = 'Portal'

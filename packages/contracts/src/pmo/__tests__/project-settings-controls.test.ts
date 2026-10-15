@@ -69,7 +69,7 @@ describe('project settings controls contracts', () => {
 
   it('requires completion fields on project and task detail', () => {
     const project = {
-      id: 4, name: 'Project', status: null, progress: 0, task_count: 0, closed_task_count: 0,
+      id: 4, name: 'Project', status: null, progress: 0, task_count: 0, closed_task_count: 0, charter_state: 'draft',
       active: true, can_manage: true, stages: [], description_html: '', manager: null,
       privacy_visibility: 'employees', date_start: null, date_end: null, tags: [], followers_count: 0,
       milestone_count: 0, updated_at: 'v1', charter: EMPTY_CHARTER,

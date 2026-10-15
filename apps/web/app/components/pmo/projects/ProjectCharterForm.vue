@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectCreateDefaults, ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
-import { isStaleProjectWrite, useCreateProject, useProject, useUpdateProject } from '@/composables/useProjects'
+import { isStaleProjectWrite, useCharterTransition, useCreateProject, useProject, useUpdateProject } from '@/composables/useProjects'
 import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
 import type { CharterDraft, CharterFieldError, CharterFieldKey, CharterMilestone, NativeDateSnapshot } from '@/utils/projectCharter'
 import {
@@ -45,8 +45,8 @@ const emit = defineEmits<{
   // the walker to its charter page at the same step.
   drafted: [id: number, step: CharterWizardStep]
   draftSaved: []
-  // `finalized` is true when this save moved a draft charter to final.
-  saved: [finalized: boolean]
+  // What the save did: kept the charter as is, approved it, or sent it to the sponsor.
+  saved: [outcome: 'saved' | 'approved' | 'submitted']
   cancel: []
   retryMilestones: []
 }>()
@@ -56,6 +56,8 @@ const router = useRouter()
 const hydrated = useHydrated()
 const { mutateAsync: createProject, isPending: creating } = useCreateProject()
 const { mutateAsync: updateProject, isPending: updating } = useUpdateProject()
+const { mutateAsync: transition, isPending: transitioning } = useCharterTransition()
+const { me } = useMe()
 const { data: defaults } = useCharterDefaults(computed(() => props.mode === 'create'))
 const projectId = computed(() => props.project?.id ?? null)
 const projectQuery = useProject(projectId)
@@ -134,18 +136,21 @@ function onStepperSelect(value: string | number | undefined) {
 }
 
 // --- state -----------------------------------------------------------------
-const pending = computed(() => !!props.disabled || creating.value || updating.value || projectQuery.isFetching.value)
+const pending = computed(() => !!props.disabled || creating.value || updating.value || transitioning.value || projectQuery.isFetching.value)
 const readonly = computed(() => !!props.readonly)
 const canSubmit = computed(() => hydrated.value && !pending.value && !props.readonly && !!draft.value.name.trim())
 const canOverwrite = computed(() => canOverwriteWithLatest(writeToken.value, serverVersion.value))
 const dirty = computed(() => !submitted.value && isCharterDraftDirty(draft.value, baseline.value))
 const persistedDraft = computed(() => props.project ? draftFromProject(props.project) : draft.value)
-// A final charter stays final on save; a draft offers "save as draft" until
-// the review step finalizes it.
-const baselineFinal = computed(() => props.mode === 'edit' && baseline.value.charterState === 'approved')
+// An approved charter stays approved on save; a draft offers "save as draft"
+// until the review step finalizes it or sends it to the sponsor.
+const baselineApproved = computed(() => props.mode === 'edit' && baseline.value.charterState === 'approved')
+// When approval is required and the manager is not the sponsor, finishing sends the charter for approval.
+const submitsForApproval = computed(() => !!props.project?.charter.approval_required && draft.value.sponsorId !== me.value?.id)
 const finalLabel = computed(() => {
   if (props.mode === 'create') return t('projects.create.createFinal')
-  return baselineFinal.value ? t('app.save') : t('projects.charter.finalize')
+  if (baselineApproved.value) return t('app.save')
+  return t(submitsForApproval.value ? 'projects.charter.submitForApproval' : 'projects.charter.finalize')
 })
 
 watch(
@@ -275,24 +280,37 @@ async function saveDraft() {
 }
 
 async function finalize() {
-  await submit(writeToken.value, 'approved')
+  await submit(writeToken.value, 'submit')
 }
 
-async function submit(token = writeToken.value, state: 'draft' | 'approved' = 'approved') {
+// What the manager asked for on the last save, replayed by "overwrite on latest".
+const lastIntent = ref<'draft' | 'submit'>('submit')
+
+async function submit(token = writeToken.value, intent: 'draft' | 'submit' = 'submit') {
   error.value = null
   if (!applyValidation()) return
   const preserved = draft.value
-  preserved.charterState = state
+  lastIntent.value = intent
   try {
     if (props.mode === 'create') {
       const created = await createProject(charterCreateBody(preserved, { includeNullManager: true }))
       submitted.value = true
-      if (state === 'draft') emit('drafted', created.id, step.value)
-      else emit('created', created.id)
+      if (intent === 'draft') {
+        emit('drafted', created.id, step.value)
+        return
+      }
+      try {
+        await transition({ id: created.id, action: 'submit', expected: created.updated_at })
+      }
+      catch (e) {
+        // The project exists as a draft: continue on its charter page.
+        emit('drafted', created.id, step.value)
+        return
+      }
+      emit('created', created.id)
       return
     }
     if (!props.project || !token) return
-    const finalized = state === 'approved' && baseline.value.charterState !== 'approved'
     const detail = await updateProject({
       id: props.project.id,
       patch: charterPatchBody(preserved, token, originalDates.value),
@@ -300,8 +318,25 @@ async function submit(token = writeToken.value, state: 'draft' | 'approved' = 'a
     applyLoadedProject(detail)
     stale.value = false
     confirmDiscard.value = false
-    if (state === 'draft') emit('draftSaved')
-    else emit('saved', finalized)
+    if (intent === 'draft') {
+      emit('draftSaved')
+      return
+    }
+    if (baselineApproved.value || detail.charter.state !== 'draft') {
+      emit('saved', 'saved')
+      return
+    }
+    try {
+      const result = await transition({ id: detail.id, action: 'submit', expected: detail.updated_at })
+      applyLoadedProject(result)
+      emit('saved', result.charter.state === 'submitted' ? 'submitted' : 'approved')
+    }
+    catch (e) {
+      // The content save already succeeded; only the submit step failed.
+      error.value = e instanceof ApiError
+        ? `${t('projects.charter.savedNotSubmitted')} ${e.code === 'charter_state' ? t('projects.charter.lockedWhileSubmitted') : e.message}`
+        : t('errors.generic')
+    }
   }
   catch (e) {
     draft.value = preserved
@@ -313,7 +348,9 @@ async function submit(token = writeToken.value, state: 'draft' | 'approved' = 'a
     }
     error.value = e instanceof ApiError && e.code === 'create_forbidden'
       ? t('projects.createForbidden')
-      : e instanceof ApiError ? e.message : t('errors.generic')
+      : e instanceof ApiError && e.code === 'charter_state'
+        ? t('projects.charter.lockedWhileSubmitted')
+        : e instanceof ApiError ? e.message : t('errors.generic')
   }
 }
 
@@ -324,7 +361,7 @@ async function loadServerVersion() {
 
 async function overwriteOnLatest() {
   if (!canOverwrite.value || !serverVersion.value) return
-  await submit(serverVersion.value.updated_at, draft.value.charterState === 'draft' ? 'draft' : 'approved')
+  await submit(serverVersion.value.updated_at, lastIntent.value)
 }
 
 function requestDiscard() {
@@ -434,7 +471,7 @@ function discardToServer() {
             @click="previous"
           />
           <UButton
-            v-if="!baselineFinal"
+            v-if="!baselineApproved"
             type="button"
             color="neutral"
             variant="outline"
