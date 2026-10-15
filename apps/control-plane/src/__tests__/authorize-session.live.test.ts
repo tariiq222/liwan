@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { signServiceRequest } from '@nasq/commercial-contracts/server'
 import { migrate } from '../db.js'
 import { createApp } from '../http.js'
+import { client as commercialClient, money, monthly, setup } from './commercial-helpers.js'
 import { TEST_KEY as key, vendorSession } from './helpers/vendor-session.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
@@ -65,6 +66,43 @@ else describe('session authorization', () => {
     const plan = `/v1/commercial/plans/${randomUUID()}/publish`
     const p = await call('POST', plan, s.headers('POST', plan, '{}'), {})
     expect(p.status).toBe(403); expect(p.body.code).toBe('step_up_required')
+  })
+
+  async function expectStepUp(s: Awaited<ReturnType<typeof vendorSession>>, method: string, path: string, body: unknown) {
+    const raw = JSON.stringify(body)
+    const r = await call(method, path, s.headers(method, path, raw), body)
+    expect(r.status).toBe(403); expect(r.body.code).toBe('step_up_required')
+  }
+
+  it('requires step-up for customer terms, registry publication and catalog releases', async () => {
+    const s = await vendorSession(pool, issuer, ['vendor.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.tenants.manage', 'vendor.catalog.manage'], { stepUp: false })
+    await expectStepUp(s, 'POST', '/v1/commercial/customer-terms', {})
+    await expectStepUp(s, 'POST', '/v1/registry/mutations', {})
+    await expectStepUp(s, 'POST', '/v1/registry/recover', {})
+    await expectStepUp(s, 'POST', '/v1/commercial/catalog/releases', {})
+  })
+
+  it('requires step-up to change bundle prices but not to rename', async () => {
+    const { version } = await setup(pool)
+    const api = commercialClient(pool)
+    const reason = 'Test bundle prices'
+    const release = (await api('POST', '/catalog/releases', { catalog_version: version, reason })).body
+    const app = release.applications.find((a: any) => a.selectable && a.features.some((f: any) => f.selectable))
+    const body = (over: object = {}) => ({ name: `Bundle ${randomUUID()}`, description: 'd', audience: { kind: 'public' }, catalog_release_id: release.id,
+      selections: [{ app_id: app.id, feature_keys: [app.features.find((f: any) => f.selectable).key] }], domain_limits: {}, prices: [{ cadence: monthly, amount: money(0) }], ...over })
+    const created = await api('POST', '/bundles', body())
+    expect(created.status).toBe(201)
+    const s = await vendorSession(pool, issuer, ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'], { stepUp: false })
+    const path = `/v1/commercial/bundles/${created.body.id}`
+    await expectStepUp(s, 'PATCH', path, { ...body({ prices: [{ cadence: monthly, amount: money(500) }] }), edit_revision: 1, reason })
+    const rename = { ...body({ name: 'Renamed only', prices: created.body.prices }), edit_revision: 1, reason }
+    const r = await call('PATCH', path, s.headers('PATCH', path, JSON.stringify(rename)), rename)
+    expect(r.status).toBe(200)
+  })
+
+  it('lets a billing reader without fresh step-up list invoices', async () => {
+    const s = await vendorSession(pool, issuer, ['vendor.billing.manage'], { stepUp: false })
+    expect((await call('GET', '/v1/commercial/invoices', s.headers('GET', '/v1/commercial/invoices'))).status).toBe(200)
   })
 
   it('applies a role revocation on the next request', async () => {

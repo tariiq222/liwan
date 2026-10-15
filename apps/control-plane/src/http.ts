@@ -15,6 +15,7 @@ import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
 import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
 import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
+import { AdminAuthError } from './admin-auth/accounts.js'
 import { resolveSession } from './admin-auth/sessions.js'
 import { STEP_UP_CAPABILITIES } from './admin-auth/roles.js'
 import { adminAuthHttp } from './admin-auth/routes.js'
@@ -192,7 +193,7 @@ async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: 
     const nonce = await client.query('INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval \'60 seconds\') ON CONFLICT DO NOTHING RETURNING nonce', [signed.issuer, signed.nonce])
     if (!nonce.rowCount) throw new ApiError(401, 'unauthorized', 'Replayed service assertion')
     let session
-    try { session = await resolveSession(client, req.headers['x-nasq-session'], new Date()) } catch { throw new ApiError(401, 'unauthorized', 'Session is not valid') }
+    try { session = await resolveSession(client, req.headers['x-nasq-session'], new Date()) } catch (error) { if (error instanceof AdminAuthError) throw new ApiError(401, 'unauthorized', 'Session is not valid'); throw error }
     if (session.accountId !== actor) throw new ApiError(401, 'unauthorized', 'Session is not valid')
     const membership = await client.query('SELECT capabilities FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL', [signed.issuer, actor])
     if (!membership.rowCount) throw new ApiError(403, 'forbidden', 'Vendor membership is not active')
@@ -415,6 +416,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       if (method === 'POST' && ['/v1/registry/mutations', '/v1/registry/recover'].includes(pathname)) {
         requireCapability(auth, 'vendor.tenants.manage')
+        requireStepUp(auth)
         if (!config.tenantRegistryPath) throw new ApiError(503, 'registry_unavailable', 'Registry publication is not configured')
         const actor = { issuer: config.installationId, actorUid: auth.actor }
         const result = pathname === '/v1/registry/mutations'

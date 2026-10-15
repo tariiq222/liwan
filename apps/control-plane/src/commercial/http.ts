@@ -30,6 +30,11 @@ export function need(input: CommercialInput, ...caps: VendorCapability[]) {
   if (input.method !== 'GET' && !input.stepUpFresh && caps.some((c) => STEP_UP_CAPABILITIES.includes(c))) throw new CommercialHttpError('step_up_required', 403)
 }
 
+/** Explicit step-up for actions whose capability is not itself a step-up capability (catalog publication). */
+export function needStepUp(input: CommercialInput) {
+  if (input.method !== 'GET' && !input.stepUpFresh) throw new CommercialHttpError('step_up_required', 403)
+}
+
 /** Returns null only when this route is outside /v1/commercial. */
 export async function commercialHttp(pool: Pool, input: CommercialInput) {
   if (!input.pathname.startsWith('/v1/commercial/') && input.pathname !== '/v1/commercial') return null
@@ -42,6 +47,7 @@ export async function commercialHttp(pool: Pool, input: CommercialInput) {
     if (m === 'GET') { need(input, 'vendor.read'); return { status: 200, data: await listReleases(pool) } }
     if (m === 'POST') {
       need(input, 'vendor.catalog.manage')
+      needStepUp(input)
       const body = parseBody(input.raw, catalogReleaseCreateSchema)
       const r = await createRelease(pool, actor, body)
       return { status: r.created ? 201 : 200, data: r.release }
@@ -73,7 +79,7 @@ export async function commercialHttp(pool: Pool, input: CommercialInput) {
         need(input, 'vendor.catalog.manage')
         // Edit may change prices; the store enforces pricing for that case.
         if (['publish', 'withdraw', 'restore'].includes(act)) need(input, 'vendor.pricing.manage')
-        const data = await mutateBundle(pool, actor, id, act, parseBody(input.raw, z.unknown()), { pricingGranted: input.capabilities.includes('vendor.pricing.manage') })
+        const data = await mutateBundle(pool, actor, id, act, parseBody(input.raw, z.unknown()), { pricingGranted: input.capabilities.includes('vendor.pricing.manage'), pricingStepUp: input.stepUpFresh === true })
         return { status: act === 'revisions' ? 201 : 200, data }
       }
     }

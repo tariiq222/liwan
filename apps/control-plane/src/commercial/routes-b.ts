@@ -62,7 +62,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(subscription[2]==='usage')return {status:200,data:await getUsage(pool,{tenant_id:view.tenant_id!,limits:Object.fromEntries(Object.entries(view.applied?.entitlement.features??{}).filter(([,v])=>v===null||typeof v==='number')) as Record<string,number|null>})}
     return {status:200,data:view}
   }
-  if(m==='POST'&&path==='/customer-terms')return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}
+  if(m==='POST'&&path==='/customer-terms'){need(input,'vendor.pricing.manage','vendor.subscriptions.manage');return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}}
   if(m==='POST'&&path==='/customer-quotes'){
     need(input,'vendor.subscriptions.manage')
     const body=parseBody(input.raw,quoteRequestSchema.extend({customer_id:z.uuid(),terms:customerTermsRevisionSchema.omit({id:true,customer_id:true,reason:true}).optional()}));const {customer_id,terms,...request}=body
