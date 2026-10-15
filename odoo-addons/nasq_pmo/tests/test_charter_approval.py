@@ -1,0 +1,237 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo.exceptions import AccessError, ValidationError
+from odoo.tests import new_test_user, tagged
+
+from .common import NasqPmoCase
+from odoo.addons.nasq_pmo.models.project_project import NasqCharterState
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestCharterApproval(NasqPmoCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.sponsor = new_test_user(
+            cls.env, login='api_sponsor', password='api_sponsor_pass_123', name='Sara',
+            groups='nasq_core.group_employee',
+        )
+        cls.project.write({'user_id': cls.manager.id, 'nasq_sponsor_id': cls.sponsor.id})
+
+    def _policy(self, required):
+        key = f'nasq_pmo.require_charter_approval.{self.env.company.id}'
+        self.env['ir.config_parameter'].sudo().set_param(key, 'true' if required else 'false')
+
+    def _as(self, user):
+        return self.project.with_user(user)
+
+    def test_submit_without_policy_approves_directly(self):
+        self._policy(False)
+        self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self.assertEqual(self.project.nasq_charter_approved_by_id, self.manager)
+
+    def test_submit_with_policy_waits_for_sponsor(self):
+        self._policy(True)
+        self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_state, 'submitted')
+        self.assertEqual(self.project.nasq_charter_submitted_by_id, self.manager)
+        self.assertTrue(self._as(self.sponsor)._nasq_can_review_charter())
+        self.assertFalse(self._as(self.manager)._nasq_can_review_charter())
+        with self.assertRaises(AccessError):
+            self._as(self.manager)._nasq_charter_approve()
+        self._as(self.sponsor)._nasq_charter_approve()
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self.assertEqual(self.project.nasq_charter_approved_by_id, self.sponsor)
+
+    def test_manager_who_is_sponsor_approves_directly(self):
+        self._policy(True)
+        self.project.nasq_sponsor_id = self.manager
+        self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+
+    def test_submit_requires_sponsor_under_policy(self):
+        self._policy(True)
+        self.project.nasq_sponsor_id = False
+        with self.assertRaises(ValidationError):
+            self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+
+    def test_submit_requires_readable_sponsor(self):
+        self._policy(True)
+        outsider = new_test_user(self.env, login='api_portal_like', name='No PMO', groups='base.group_user')
+        self.project.nasq_sponsor_id = outsider
+        with self.assertRaises(ValidationError):
+            self._as(self.manager)._nasq_charter_submit()
+
+    def test_submit_subscribes_sponsor_on_private_project(self):
+        self._policy(True)
+        self.project.privacy_visibility = 'followers'
+        self._as(self.manager)._nasq_charter_submit()
+        self.assertIn(self.sponsor, self.project._nasq_followers())
+
+    def test_return_needs_note_and_goes_back_to_draft(self):
+        self._policy(True)
+        self._as(self.manager)._nasq_charter_submit()
+        with self.assertRaises(ValidationError):
+            self._as(self.sponsor)._nasq_charter_return('   ')
+        self._as(self.sponsor)._nasq_charter_return('Scope is unclear')
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+        self.assertEqual(self.project.nasq_charter_return_note, 'Scope is unclear')
+        self._as(self.manager)._nasq_charter_submit()
+        self.assertEqual(self.project.nasq_charter_return_note, '')
+
+    def test_withdraw_by_manager_only(self):
+        self._policy(True)
+        self._as(self.manager)._nasq_charter_submit()
+        with self.assertRaises(AccessError):
+            self._as(self.sponsor)._nasq_charter_withdraw()
+        self._as(self.manager)._nasq_charter_withdraw()
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+        self.assertFalse(self.project.nasq_charter_submitted_by_id)
+
+    def test_wrong_state_transitions_raise(self):
+        self._policy(True)
+        with self.assertRaises(NasqCharterState):
+            self._as(self.sponsor)._nasq_charter_approve()
+        with self.assertRaises(NasqCharterState):
+            self._as(self.manager)._nasq_charter_withdraw()
+        self._policy(False)
+        self._as(self.manager)._nasq_charter_submit()
+        with self.assertRaises(NasqCharterState):
+            self._as(self.manager)._nasq_charter_submit()
+
+    def test_submitted_charter_is_locked(self):
+        self._policy(True)
+        self._as(self.manager)._nasq_charter_submit()
+        with self.assertRaises(NasqCharterState):
+            self._as(self.manager)._nasq_write_as_manager({'nasq_scope': 'Changed'})
+        # Non-charter fields stay editable while waiting.
+        self._as(self.manager)._nasq_write_as_manager({'tag_ids': [(6, 0, [])]})
+
+    def test_change_reopens_approved_charter_under_policy(self):
+        self._policy(True)
+        self.project.nasq_sponsor_id = self.manager
+        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._nasq_write_as_manager({'nasq_scope': 'Bigger scope'})
+        self.assertEqual(self.project.nasq_charter_state, 'draft')
+        self.assertFalse(self.project.nasq_charter_approved_by_id)
+
+    def test_change_keeps_approval_without_policy(self):
+        self._policy(False)
+        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._nasq_write_as_manager({'nasq_scope': 'Bigger scope'})
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+
+    def test_unchanged_save_keeps_approval(self):
+        self._policy(True)
+        self.project.write({'nasq_sponsor_id': self.manager.id, 'nasq_scope': 'Same', 'nasq_objectives': [{'goal': 'G', 'metric': '', 'target': ''}]})
+        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._nasq_write_as_manager({
+            'nasq_scope': 'Same',
+            'nasq_objectives': [{'goal': 'G', 'metric': '', 'target': ''}],
+            'nasq_sponsor_id': self.manager.id,
+            'name': self.project.name,
+        })
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+
+    def test_new_sponsor_reviews_after_change(self):
+        self._policy(True)
+        self._as(self.manager)._nasq_charter_submit()
+        other = new_test_user(self.env, login='api_sponsor2', name='Huda', groups='nasq_core.group_employee')
+        # Changing the sponsor is not charter content locked by submission.
+        self._as(self.manager)._nasq_write_as_manager({'nasq_sponsor_id': other.id})
+        self.assertFalse(self._as(self.sponsor)._nasq_can_review_charter())
+        self._as(other)._nasq_charter_approve()
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+
+    def test_submitted_survives_policy_off(self):
+        self._policy(True)
+        self._as(self.manager)._nasq_charter_submit()
+        self._policy(False)
+        self._as(self.sponsor)._nasq_charter_approve()
+        self.assertEqual(self.project.nasq_charter_state, 'approved')
+
+    def test_state_is_not_manager_writable(self):
+        with self.assertRaises(AccessError):
+            self.project.with_user(self.manager).write({'nasq_charter_state': 'approved'})
+
+    def test_copy_starts_as_draft(self):
+        self._policy(False)
+        self._as(self.manager)._nasq_charter_submit()
+        copy = self.project.copy()
+        self.assertEqual(copy.nasq_charter_state, 'draft')
+        self.assertFalse(copy.nasq_charter_approved_by_id)
+
+
+@tagged('post_install', '-at_install', 'nasq')
+class TestCharterApprovalApi(NasqPmoCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.sponsor = new_test_user(
+            cls.env, login='api_sponsor', password='api_sponsor_pass_123', name='Sara',
+            groups='nasq_core.group_employee',
+        )
+        cls.project.write({'user_id': cls.manager.id, 'nasq_sponsor_id': cls.sponsor.id})
+        key = f'nasq_pmo.require_charter_approval.{cls.env.company.id}'
+        cls.env['ir.config_parameter'].sudo().set_param(key, 'true')
+
+    def _post(self, action, body):
+        return self.api('POST', f'/api/v1/projects/{self.project.id}/charter/{action}', body)
+
+    def _token(self):
+        return self.api('GET', f'/api/v1/projects/{self.project.id}').json()['updated_at']
+
+    def test_full_flow_over_http(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        res = self._post('submit', {'expected_updated_at': self._token()})
+        self.assertEqual(res.status_code, 200, res.text)
+        charter = res.json()['charter']
+        self.assertEqual((charter['state'], charter['approval_required'], charter['can_review']), ('submitted', True, False))
+        self.assertEqual(charter['submitted_by']['id'], self.manager.id)
+        locked = self.api('PATCH', f'/api/v1/projects/{self.project.id}', {
+            'expected_updated_at': res.json()['updated_at'], 'charter': {'scope': 'x'},
+        })
+        self.assertEqual((locked.status_code, locked.json()['code']), (409, 'charter_state'))
+
+        self.authenticate('api_sponsor', 'api_sponsor_pass_123')
+        waiting = self.api('GET', '/api/v1/projects?charter_review=1').json()
+        self.assertEqual([item['id'] for item in waiting['items']], [self.project.id])
+        self.assertEqual(waiting['items'][0]['charter_state'], 'submitted')
+        detail = self.api('GET', f'/api/v1/projects/{self.project.id}').json()
+        self.assertTrue(detail['charter']['can_review'])
+        res = self._post('approve', {'expected_updated_at': detail['updated_at']})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json()['charter']['state'], 'approved')
+        self.assertEqual(res.json()['charter']['approved_by']['id'], self.sponsor.id)
+        self.assertTrue(res.json()['charter']['approved_at'])
+
+    def test_return_requires_note(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        self._post('submit', {'expected_updated_at': self._token()})
+        self.authenticate('api_sponsor', 'api_sponsor_pass_123')
+        token = self._token()
+        missing = self._post('return', {'expected_updated_at': token})
+        self.assertEqual((missing.status_code, missing.json()['field']), (422, 'note'))
+        res = self._post('return', {'expected_updated_at': token, 'note': 'Add the budget'})
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual((res.json()['charter']['state'], res.json()['charter']['return_note']), ('draft', 'Add the budget'))
+
+    def test_approve_with_stale_token(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        submitted = self._post('submit', {'expected_updated_at': self._token()}).json()
+        self.project.with_user(self.manager)._nasq_write_as_manager({'tag_ids': [(6, 0, [])]})
+        self.authenticate('api_sponsor', 'api_sponsor_pass_123')
+        res = self._post('approve', {'expected_updated_at': submitted['updated_at']})
+        self.assertEqual((res.status_code, res.json()['code']), (409, 'stale_write'))
+
+    def test_errors(self):
+        self.authenticate('api_mgr', 'api_mgr_pass_123')
+        token = self._token()
+        self.assertEqual(self._post('approve', {'expected_updated_at': token}).status_code, 403)
+        self.assertEqual(self._post('withdraw', {'expected_updated_at': token}).json()['code'], 'charter_state')
+        self.assertEqual(self._post('submit', {}).status_code, 422)
+        self.assertEqual(self._post('submit', {'expected_updated_at': token, 'x': 1}).status_code, 422)
+        self.assertEqual(self.api('POST', '/api/v1/projects/999999/charter/submit', {'expected_updated_at': 'v1'}).status_code, 404)

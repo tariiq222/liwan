@@ -51,11 +51,13 @@ const BRANDING = {
 }
 
 const CHARTER = {
-  code: 'P-1', state: 'final', type: { id: 1, name: 'داخلي', charter_steps: [] }, owning_unit: { id: 1, name: 'مكتب المشاريع' },
+  code: 'P-1', state: 'approved', type: { id: 1, name: 'داخلي', charter_steps: [] }, owning_unit: { id: 1, name: 'مكتب المشاريع' },
   sponsor: { id: 2, name: 'Admin' }, authority: '', rationale: '', objectives: [], benefits: '',
   scope: '', exclusions: '', high_level_requirements: '', deliverables: [], success: '',
   budget_state: 'unknown', amount: null, currency: null, priority: 'normal',
   assumptions: '', constraints: '', closure: '',
+  approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
+  approved_by: null, approved_at: null, return_note: '',
 }
 
 // Per-user appearance (PATCH /api/v1/me/appearance); /me carries it once saved.

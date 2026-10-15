@@ -420,8 +420,6 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
     if (constraints) write.constraints = constraints
     const closure = compactText(draft.closure)
     if (closure) write.closure = closure
-    // The server starts every charter as a draft; only finalizing needs a value.
-    if (draft.charterState === 'final') write.state = 'final'
     return write
   }
 
@@ -443,7 +441,6 @@ export function charterWriteFromDraft(draft: CharterDraft, mode: 'create' | 'pat
     assumptions: draft.assumptions,
     constraints: draft.constraints,
     closure: draft.closure,
-    state: draft.charterState,
   }
   if (draft.budgetState === 'unknown') write.amount = null
   else write.amount = amountValue ?? 0

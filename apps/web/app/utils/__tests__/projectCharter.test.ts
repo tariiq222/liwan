@@ -28,6 +28,8 @@ const EMPTY_CHARTER = {
   deliverables: [], success: '', budget_state: 'unknown' as const, amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
+    approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
+    approved_by: null, approved_at: null, return_note: '',
 }
 
 function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
@@ -308,34 +310,31 @@ describe('charter document helpers', () => {
 })
 
 describe('charter state on the wire', () => {
-  it('sends state only when a create finalizes, and always on a patch', () => {
+  it('never sends the state; the server owns it', () => {
     const draft = emptyCharterDraft()
     draft.name = 'Portal'
     expect(charterCreateBody(draft)).not.toHaveProperty('charter')
-    draft.charterState = 'final'
-    expect(charterCreateBody(draft).charter).toEqual({ state: 'final' })
-    draft.charterState = 'draft'
-    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter?.state).toBe('draft')
-    draft.charterState = 'final'
-    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter?.state).toBe('final')
+    draft.charterState = 'approved'
+    expect(charterCreateBody(draft)).not.toHaveProperty('charter')
+    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter).not.toHaveProperty('state')
   })
 
   it('loads the charter state and the type steps from the project detail', () => {
     const loaded = draftFromProject(project({
       charter: {
         ...EMPTY_CHARTER,
-        state: 'final',
+        state: 'approved',
         type: { id: 4, name: 'تقني', charter_steps: ['justification', 'scope'] },
       },
     }))
-    expect(loaded.charterState).toBe('final')
+    expect(loaded.charterState).toBe('approved')
     expect(loaded.typeSteps).toEqual(['justification', 'scope'])
     expect(draftFromProject(project()).typeSteps).toBeNull()
   })
 
   it('does not count a state change as an unsaved edit', () => {
     const base = emptyCharterDraft()
-    const changed = { ...emptyCharterDraft(), charterState: 'final' as const }
+    const changed = { ...emptyCharterDraft(), charterState: 'approved' as const }
     expect(isCharterDraftDirty(changed, base)).toBe(false)
   })
 

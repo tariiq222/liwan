@@ -22,7 +22,7 @@ export const CatalogRefSchema = z.object({
 // these it includes.
 export const ProjectCharterStepSchema = z.enum(['justification', 'scope', 'schedule', 'budget', 'risks'])
 export const PROJECT_CHARTER_STEPS = ProjectCharterStepSchema.options
-export const ProjectCharterStateSchema = z.enum(['draft', 'final'])
+export const ProjectCharterStateSchema = z.enum(['draft', 'submitted', 'approved'])
 export const PROJECT_CHARTER_STATES = ProjectCharterStateSchema.options
 
 export const ProjectTypeRefSchema = CatalogRefSchema.extend({
@@ -66,6 +66,13 @@ export const ProjectCharterSchema = z.object({
   constraints: z.string(),
   closure: z.string(),
   state: ProjectCharterStateSchema,
+  approval_required: z.boolean(),
+  can_review: z.boolean(),
+  submitted_by: CharterUserRefSchema.nullable(),
+  submitted_at: z.string().nullable(),
+  approved_by: CharterUserRefSchema.nullable(),
+  approved_at: z.string().nullable(),
+  return_note: z.string(),
 }).strict()
 
 export const ProjectCharterWriteSchema = z.object({
@@ -87,8 +94,14 @@ export const ProjectCharterWriteSchema = z.object({
   assumptions: z.string().optional(),
   constraints: z.string().optional(),
   closure: z.string().optional(),
-  state: ProjectCharterStateSchema.optional(),
 }).strict()
+
+export const CHARTER_RETURN_NOTE_MAX = 2000
+export const ProjectCharterTransitionSchema = z.object({ expected_updated_at: z.string() }).strict()
+export const ProjectCharterReturnSchema = ProjectCharterTransitionSchema.extend({
+  note: z.string().trim().min(1).max(CHARTER_RETURN_NOTE_MAX),
+}).strict()
+export type ProjectCharterAction = 'submit' | 'approve' | 'return' | 'withdraw'
 
 export const ProjectCharterDefaultsSchema = z.object({
   currency: CurrencyRefSchema.nullable(),

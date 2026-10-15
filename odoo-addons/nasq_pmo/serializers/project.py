@@ -36,6 +36,12 @@ def dump_stage(project, stage):
             'task_count': project._nasq_stage_task_count(stage)}
 
 
+def parse_write_token(value):
+    if not isinstance(value, str) or not value.startswith('v') or not value[1:].isdigit():
+        raise ApiError(422, 'invalid', "expected_updated_at is not a valid write token", field='expected_updated_at')
+    return value
+
+
 def dump_project(project):
     can_manage = project._nasq_can_manage()
     return {
@@ -48,6 +54,7 @@ def dump_project(project):
         'task_count': project.task_count,
         'closed_task_count': project.closed_task_count,
         'active': project.active,
+        'charter_state': project.nasq_charter_state or 'draft',
         'can_manage': can_manage,
         'allowed_actions': ['read', *(['write', 'archive'] if can_manage else [])],
     }

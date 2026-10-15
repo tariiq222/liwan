@@ -78,6 +78,8 @@ const project: ProjectDetail = {
     high_level_requirements: '', deliverables: [], success: '', budget_state: 'unknown',
     amount: null, currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
     priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
+    approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
+    approved_by: null, approved_at: null, return_note: '',
   },
 }
 

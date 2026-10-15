@@ -4,7 +4,7 @@ from odoo.tests import tagged
 from .common import NasqPmoCase
 from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions', 'manager', 'date_end'}
+PROJECT_KEYS = {'id', 'name', 'status', 'progress', 'task_count', 'closed_task_count', 'active', 'can_manage', 'allowed_actions', 'manager', 'date_end', 'charter_state'}
 DETAIL_KEYS = PROJECT_KEYS | {
     'stages', 'description_html', 'privacy_visibility', 'date_start', 'tags',
     'followers_count', 'milestone_count', 'allow_task_dependencies',

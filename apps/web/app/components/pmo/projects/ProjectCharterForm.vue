@@ -142,7 +142,7 @@ const dirty = computed(() => !submitted.value && isCharterDraftDirty(draft.value
 const persistedDraft = computed(() => props.project ? draftFromProject(props.project) : draft.value)
 // A final charter stays final on save; a draft offers "save as draft" until
 // the review step finalizes it.
-const baselineFinal = computed(() => props.mode === 'edit' && baseline.value.charterState === 'final')
+const baselineFinal = computed(() => props.mode === 'edit' && baseline.value.charterState === 'approved')
 const finalLabel = computed(() => {
   if (props.mode === 'create') return t('projects.create.createFinal')
   return baselineFinal.value ? t('app.save') : t('projects.charter.finalize')
@@ -275,10 +275,10 @@ async function saveDraft() {
 }
 
 async function finalize() {
-  await submit(writeToken.value, 'final')
+  await submit(writeToken.value, 'approved')
 }
 
-async function submit(token = writeToken.value, state: 'draft' | 'final' = 'final') {
+async function submit(token = writeToken.value, state: 'draft' | 'approved' = 'approved') {
   error.value = null
   if (!applyValidation()) return
   const preserved = draft.value
@@ -292,7 +292,7 @@ async function submit(token = writeToken.value, state: 'draft' | 'final' = 'fina
       return
     }
     if (!props.project || !token) return
-    const finalized = state === 'final' && baseline.value.charterState !== 'final'
+    const finalized = state === 'approved' && baseline.value.charterState !== 'approved'
     const detail = await updateProject({
       id: props.project.id,
       patch: charterPatchBody(preserved, token, originalDates.value),
@@ -324,7 +324,7 @@ async function loadServerVersion() {
 
 async function overwriteOnLatest() {
   if (!canOverwrite.value || !serverVersion.value) return
-  await submit(serverVersion.value.updated_at, draft.value.charterState)
+  await submit(serverVersion.value.updated_at, draft.value.charterState === 'draft' ? 'draft' : 'approved')
 }
 
 function requestDiscard() {

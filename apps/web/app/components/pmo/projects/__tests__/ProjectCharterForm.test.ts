@@ -18,6 +18,8 @@ const EMPTY_CHARTER = {
   deliverables: [], success: '', budget_state: 'unknown' as const, amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
+    approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
+    approved_by: null, approved_at: null, return_note: '',
 }
 
 function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
