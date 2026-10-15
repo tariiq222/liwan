@@ -7,7 +7,7 @@ const isProjectSettings = (path: string) => path === '/projects/settings' || pat
 const manifest: AppManifest = {
   id: 'pmo',
   feature: 'pmo.enabled',
-  routePrefixes: ['/projects', '/tasks', '/project-templates', '/reports', '/archived-tasks'],
+  routePrefixes: ['/projects', '/tasks', '/reports', '/archived-tasks'],
   rail: [
     { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard', order: 10 },
     { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', order: 20 },
@@ -17,7 +17,6 @@ const manifest: AppManifest = {
     { to: '/projects/dashboard', labelKey: 'nav.home', icon: 'i-lucide-house', shortcut: 'h', goKey: 'h', capability: 'pmo.projects.read', module: 'home' },
     { to: '/projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', shortcut: '2', goKey: 'p', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', shortcut: '1', goKey: 't', capability: 'pmo.tasks.read', module: 'projects' },
-    { to: '/project-templates', labelKey: 'nav.projectTemplates', icon: 'i-lucide-layout-template', shortcut: 't', capability: 'pmo.projects.read', module: 'projects' },
     { to: '/projects/settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', shortcut: '4', capability: 'pmo.settings.manage', module: 'projects' },
   ],
   // Shown for `home` and `projects`, including inside a project (2026-09-11). Project settings close
@@ -27,20 +26,17 @@ const manifest: AppManifest = {
     { id: 'project-dashboard', labelKey: 'nav.projectDashboard', icon: 'i-lucide-chart-no-axes-combined', to: '/projects/dashboard', capability: 'pmo.projects.read' },
     { id: 'projects', labelKey: 'nav.allProjects', icon: 'i-lucide-folder-kanban', to: '/projects', capability: 'pmo.projects.read' },
     { id: 'tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', to: '/tasks', capability: 'pmo.tasks.read' },
-    { id: 'project-templates', labelKey: 'nav.projectTemplates', icon: 'i-lucide-layout-template', to: '/project-templates', capability: 'pmo.projects.read' },
     { id: 'project-settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', to: '/projects/settings', capability: 'pmo.settings.manage' },
   ],
   landing: [
     { path: '/projects/dashboard', capability: 'pmo.projects.read' },
     { path: '/tasks', capability: 'pmo.tasks.read' },
     { path: '/projects', capability: 'pmo.projects.read' },
-    { path: '/project-templates', capability: 'pmo.projects.read' },
     { path: '/reports', capability: 'pmo.projects.read' },
     { path: '/projects/settings', capability: 'pmo.settings.manage', late: true },
   ],
   routeCapabilities: [
     { pattern: /^\/projects\/settings(?:\/|$)/, capability: 'pmo.settings.manage' },
-    { pattern: /^\/project-templates\/(new|[^/]+\/edit)$/, capability: 'pmo.settings.manage' },
     { pattern: /^\/archived-tasks$/, capability: 'pmo.tasks.read' },
     { pattern: /^\/tasks\/new$/, capability: 'pmo.tasks.create' },
     { pattern: /^\/projects\/[^/]+\/tasks\/new$/, capability: 'pmo.tasks.create' },

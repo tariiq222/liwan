@@ -84,6 +84,8 @@ const PROJECTS = [
   },
 ]
 
+const COPIES = []
+
 function projectDetail(p) {
   return {
     ...p,
@@ -322,9 +324,22 @@ async function handle(req, res) {
   }
   const project = match(path, '/api/v1/projects/:id')
   if (method === 'GET' && project) {
-    const p = PROJECTS.find(item => String(item.id) === project.id)
+    const p = [...PROJECTS, ...COPIES].find(item => String(item.id) === project.id)
     if (!p) return fail(res, 404, 'not_found', 'project not found')
     return json(res, 200, projectDetail(p))
+  }
+  const copy = match(path, '/api/v1/projects/:id/copy')
+  if (method === 'POST' && copy) {
+    const source = PROJECTS.find(item => String(item.id) === copy.id)
+    if (!source) return fail(res, 404, 'not_found', 'project not found')
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(String(body.start_date))) return fail(res, 422, 'invalid', 'name and start_date are required')
+    // Copies live outside PROJECTS so list-based specs keep their three rows; only direct links reach them.
+    const created = { ...source, id: 900 + COPIES.length, name, status: null, progress: 0, closed_task_count: 0, active: true }
+    COPIES.push(created)
+    return json(res, 201, { ...projectDetail(created), date_start: body.start_date })
   }
   if (method === 'GET' && match(path, '/api/v1/projects/:id/followers')) return json(res, 200, [{ id: 2, name: 'Admin' }])
   if (method === 'GET' && match(path, '/api/v1/projects/:id/milestones')) return json(res, 200, [])

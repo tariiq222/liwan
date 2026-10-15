@@ -251,10 +251,6 @@ async function openProject(id: number) {
     create-test-id="project-new"
     :views="views"
   >
-    <template #actions>
-      <UButton color="neutral" variant="outline" :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }" data-testid="project-templates-link" :label="t('projects.planningLinks.templates')" />
-    </template>
-
     <template #filters>
       <div class="w-full min-w-0" data-testid="projects-toolbar">
         <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">

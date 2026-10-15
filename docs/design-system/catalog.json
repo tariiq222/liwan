@@ -658,12 +658,12 @@
         {
           "id": "CreateWizard",
           "name": "إنشاء مشروع على خطوات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:54"
+          "context": "apps/web/app/components/project/ProjectCreateForm.vue:53"
         },
         {
           "id": "WaitingForDefaults",
           "name": "قبل تحميل متطلبات الإنشاء",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:54"
+          "context": "apps/web/app/components/project/ProjectCreateForm.vue:53"
         }
       ]
     },
@@ -1560,22 +1560,22 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:256"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:256"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:256"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:260"
+          "context": "apps/web/app/pages/projects/index.vue:256"
         }
       ]
     },
@@ -1781,7 +1781,7 @@
         {
           "id": "Panel",
           "name": "لوحة إعدادات",
-          "context": "apps/web/app/components/project/ProjectCreateForm.vue:37"
+          "context": "apps/web/app/components/project/ProjectCreateForm.vue:43"
         }
       ]
     },
@@ -2335,17 +2335,17 @@
         {
           "id": "UnderTable",
           "name": "تحت جدول",
-          "context": "apps/web/app/pages/projects/index.vue:310"
+          "context": "apps/web/app/pages/projects/index.vue:306"
         },
         {
           "id": "MiddlePage",
           "name": "صفحة وسطى",
-          "context": "apps/web/app/pages/projects/index.vue:310"
+          "context": "apps/web/app/pages/projects/index.vue:306"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:310"
+          "context": "apps/web/app/pages/projects/index.vue:306"
         }
       ]
     },

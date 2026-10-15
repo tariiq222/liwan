@@ -12,7 +12,6 @@ export * from './tag'
 export * from './attachment'
 export * from './notification'
 export * from './schedule'
-export * from './project-template'
 export * from './governance'
 
 export * from './project-finance'

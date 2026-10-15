@@ -5,7 +5,6 @@ import { renderToString } from '@vue/server-renderer'
 import * as Vue from 'vue'
 import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
-import { ProjectTemplateApplySchema } from '@nasq/contracts'
 import { isDirtySnapshot } from '../../../lib/formDirty'
 import { validateMilestoneDates, validateTaskDates } from '../../../utils/projectDateBounds'
 import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy } from '../../../utils/taskCreatePolicy'
@@ -18,7 +17,6 @@ const forms = [
   { file: 'components/project/governance/RegisterForm.vue', field: 'title', label: 'projects.governance.register.itemTitle' },
 ]
 const taskFile = 'components/task/TaskCreateForm.vue'
-const applyFile = 'pages/project-templates/[id]/apply.vue'
 async function load(file: string, locale = 'ar', props: Record<string, unknown> = {}) {
   const appRoot = resolve(import.meta.dirname, '../../..')
   const filename = resolve(appRoot, file)
@@ -31,7 +29,6 @@ async function load(file: string, locale = 'ar', props: Record<string, unknown> 
   const mutate = vi.fn(async (_body: any) => ({ id: 9 }))
   const update = vi.fn(async (_body: any) => ({ id: 9 }))
   const pending = Vue.ref(false), hydrated = Vue.ref(true), mutationError = Vue.ref<unknown>(null)
-  const template = Vue.ref({ id: 2, name: 'Template', can_apply: true })
   const projectList = Vue.ref([{ id: 7, name: 'Project' }])
   const projectData = Vue.ref({ id: 7, date_start: '2030-01-01', date_end: '2030-12-31', can_manage: true })
   const milestoneData = Vue.ref<any[]>([])
@@ -49,9 +46,7 @@ async function load(file: string, locale = 'ar', props: Record<string, unknown> 
     useCreateProjectRegister: () => mutation, useUpdateProjectRegister: () => ({ ...mutation, mutateAsync: update }),
     usePeople: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useTasks: () => ({ data: Vue.ref({ pages: [] }), isLoading: Vue.ref(false), error: Vue.ref(null), hasNextPage: Vue.ref(false) }),
-    useApplyProjectTemplate: () => mutation, useProjectTemplate: () => ({ data: template, isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
-    useProjectTemplateNavigation: () => ({ backTo: Vue.ref('/project-templates'), templatePath: (id: number) => `/project-templates/${id}` }),
-    useSsrQuerySeed: () => {}, ProjectTemplateApplySchema, isDirtySnapshot, validateMilestoneDates, buildMilestonePatch, validateTaskDates, buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy,
+    useSsrQuerySeed: () => {}, isDirtySnapshot, validateMilestoneDates, buildMilestonePatch, validateTaskDates, buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy,
     ApiError: class extends Error {}, DescriptionEditor: {},
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -69,7 +64,7 @@ async function load(file: string, locale = 'ar', props: Record<string, unknown> 
     const html = await renderToString(app)
     return { nodes, html }
   }
-  return { state, mutate, update, emit, pending, hydrated, mutationError, template, push, projectList, projectData, milestoneData, projectLoading, rendered, t, stop: () => scope.stop() }
+  return { state, mutate, update, emit, pending, hydrated, mutationError, push, projectList, projectData, milestoneData, projectLoading, rendered, t, stop: () => scope.stop() }
 }
 async function fieldError(view: Awaited<ReturnType<typeof load>>, label: string) { return (await view.rendered()).nodes.find(node => node.name === 'UFormField' && node.props.label === view.t(label))?.props.error }
 async function submitButton(view: Awaited<ReturnType<typeof load>>) { return (await view.rendered()).nodes.find(node => node.name === 'UButton' && node.props.type === 'submit')!.props }
@@ -184,36 +179,6 @@ describe('required PMO form feedback', () => {
     view.state.plannedStart.value = '2029-01-01'; view.state.dateDeadline.value = '2030-03-01'
     await view.state.submit(); expect(view.mutate).not.toHaveBeenCalled()
     expect(view.state.errorField.value).toBe('planned_start')
-    view.stop()
-  })
-  it.each(['ar','en'])('template apply uses schema field errors with native validation disabled (%s)', async locale => {
-    const view = await load(applyFile, locale)
-    expect((await view.rendered()).html).toMatch(/<form[^>]*novalidate/)
-    view.state.name.value = '  '
-    await view.state.apply()
-    expect(view.mutate).not.toHaveBeenCalled()
-    const nameLabel = 'projects.templates.fields.projectName', dateLabel = 'projects.templates.fields.startDate'
-    expect(await fieldError(view, nameLabel)).toBeTruthy(); expect(await fieldError(view, dateLabel)).toBeTruthy()
-    if (locale === 'ar') expect(await fieldError(view, nameLabel)).toMatch(/[\u0600-\u06ff]/)
-    view.state.name.value = 'x'.repeat(256)
-    expect(await fieldError(view, nameLabel)).toBeTruthy()
-    await view.state.apply(); expect(view.mutate).not.toHaveBeenCalled()
-    view.state.name.value = '  New project  '; view.state.startDate.value = '2030-02-31'
-    expect(await fieldError(view, nameLabel)).toBeUndefined(); expect(await fieldError(view, dateLabel)).toBeTruthy()
-    await view.state.apply(); expect(view.mutate).not.toHaveBeenCalled()
-    view.state.startDate.value = '2030-02-01'
-    expect(await fieldError(view, dateLabel)).toBeUndefined()
-    view.template.value.can_apply = false
-    await view.state.apply(); expect(view.mutate).not.toHaveBeenCalled()
-    view.template.value.can_apply = true
-    view.mutate.mockRejectedValueOnce(new Error('offline'))
-    await view.state.apply()
-    expect(view.state.dirty.value).toBe(true); expect(view.push).not.toHaveBeenCalled()
-    view.mutationError.value = new Error('offline')
-    expect((await view.rendered()).nodes.some(node => node.name === 'UAlert')).toBe(true)
-    await view.state.apply()
-    expect(view.mutate).toHaveBeenCalledWith({ id: 2, body: { name: 'New project', start_date: '2030-02-01' } })
-    expect(view.push).toHaveBeenCalledWith('/projects/9'); expect(view.state.dirty.value).toBe(false)
     view.stop()
   })
 })

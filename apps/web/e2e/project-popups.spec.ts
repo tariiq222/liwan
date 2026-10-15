@@ -135,7 +135,6 @@ test('desktop project workspace has one identity and one toolbar after a direct 
   await breadcrumb.getByRole('link', { name: 'المشاريع', exact: true }).click()
   await expect(page).toHaveURL(/\/projects\?mine=1&q=alpha/)
   await expect(page.getByTestId('context-link-project-system-settings')).toHaveCount(0)
-  await expect(page.getByTestId('context-link-project-templates')).toHaveText('قوالب المشاريع')
   await expect(page.getByTestId('context-sidebar')).toBeVisible()
 })
 
@@ -152,7 +151,7 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   for (const id of ['subtab-tasks', 'subtab-milestones', 'workspace-settings']) {
     await expect(page.getByTestId(`project-${id}`)).toBeVisible()
   }
-  for (const id of ['new-project', 'project-dashboard', 'projects', 'tasks', 'project-templates']) {
+  for (const id of ['new-project', 'project-dashboard', 'projects', 'tasks']) {
     await expect(page.getByTestId(`context-link-${id}`)).toBeVisible()
   }
   for (const id of ['my-projects', 'project-system-settings', 'current-project-settings', 'summary', 'stakeholders']) {
@@ -207,7 +206,6 @@ for (const path of [
   '/projects/1/finance/new', '/projects/1/finance/2', '/projects/1/finance/2/edit',
   '/projects/1/updates/new', '/projects/1/schedule/tasks/101',
   '/projects/1/charter?edit=1',
-  '/project-templates/1', '/project-templates/new', '/project-templates/1/edit', '/project-templates/1/apply',
 ]) {
   test(`direct route opens exactly one business dialog: ${path}`, async ({ page }) => {
     await page.goto(path)

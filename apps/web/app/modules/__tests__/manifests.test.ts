@@ -39,7 +39,7 @@ describe('app manifests', () => {
 
   it.each([
     ['/projects', 'pmo.enabled'], ['/projects/5/tasks/new', 'pmo.enabled'], ['/tasks/4', 'pmo.enabled'],
-    ['/project-templates', 'pmo.enabled'], ['/reports', 'pmo.enabled'], ['/archived-tasks', 'pmo.enabled'],
+    ['/reports', 'pmo.enabled'], ['/archived-tasks', 'pmo.enabled'],
     ['/meetings/series', 'meetings.enabled'], ['/hr/employees/3', 'hr.enabled'], ['/chat/3', 'chat.enabled'],
     ['/settings/users', null], ['/notifications', null], ['/account', null], ['/chatx', null], ['/zzz', null],
   ])('maps %s to its feature', (path, feature) => {
@@ -49,8 +49,7 @@ describe('app manifests', () => {
   it.each([
     ['/chat', 'nasq.internal'], ['/chat/new', 'nasq.internal'],
     ['/projects/settings', 'pmo.settings.manage'], ['/projects/settings/x', 'pmo.settings.manage'],
-    ['/project-templates/new', 'pmo.settings.manage'], ['/project-templates/3/edit', 'pmo.settings.manage'],
-    ['/project-templates/3', 'pmo.projects.read'], ['/archived-tasks', 'pmo.tasks.read'],
+    ['/archived-tasks', 'pmo.tasks.read'],
     ['/tasks/new', 'pmo.tasks.create'], ['/projects/5/tasks/new', 'pmo.tasks.create'], ['/projects/new', 'pmo.projects.create'],
     ['/projects/dashboard', 'pmo.projects.read'], ['/tasks/4', 'pmo.tasks.read'],
     ['/meetings/new', 'meetings.create'], ['/meetings/series/new', 'meetings.create'],

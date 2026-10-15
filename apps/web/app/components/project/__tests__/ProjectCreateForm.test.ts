@@ -49,6 +49,13 @@ const CharterFormStub = defineComponent({
   },
 })
 
+const CopyFormStub = defineComponent({
+  props: { sourceId: { type: Number, required: true } },
+  setup(props) {
+    return () => h('div', { 'data-testid': 'project-copy-form', 'data-source-id': String(props.sourceId) })
+  },
+})
+
 function loadForm(setup: () => Record<string, unknown>) {
   const parsed = parse(source, { filename })
   if (!parsed.descriptor.template) throw new Error('no template')
@@ -69,6 +76,8 @@ async function renderForm(setup: () => Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(loadForm(setup)) })
   app.component('UButton', Passthrough)
   app.component('ProjectCharterForm', CharterFormStub)
+  app.component('ProjectCopyForm', CopyFormStub)
+  app.component('SharedFormSection', Passthrough)
   app.component('NuxtLink', NuxtLinkStub)
   return renderToString(app)
 }
@@ -86,6 +95,7 @@ describe('ProjectCreateForm production template', () => {
     const html = await renderForm(() => ({
       t,
       route: { fullPath: '/projects/new' },
+      copyFrom: null,
       returnToQuery: () => ({}),
       defaultsLoading: true,
       defaults: undefined,
@@ -106,6 +116,7 @@ describe('ProjectCreateForm production template', () => {
     const html = await renderForm(() => ({
       t,
       route: { fullPath: '/projects/new' },
+      copyFrom: null,
       returnToQuery: () => ({}),
       defaultsLoading: false,
       defaults: undefined,
@@ -128,6 +139,7 @@ describe('ProjectCreateForm production template', () => {
     const html = await renderForm(() => ({
       t,
       route: { fullPath: '/projects/new' },
+      copyFrom: null,
       returnToQuery: () => ({}),
       defaultsLoading: false,
       defaults: DEFAULTS,
@@ -145,11 +157,11 @@ describe('ProjectCreateForm production template', () => {
     expect(html).toContain('data-testid="project-create-end-date" aria-required="true"')
   })
 
-  it('offers the existing project-template flow beside the short create form', async () => {
+  it('has no template entry point', async () => {
     const html = await renderForm(() => ({
       t,
       route: { fullPath: '/projects/new' },
-      returnToQuery: () => ({}),
+      copyFrom: null,
       defaultsLoading: false,
       defaults: DEFAULTS,
       forbidden: false,
@@ -160,7 +172,32 @@ describe('ProjectCreateForm production template', () => {
       retryDefaults: () => {},
       emit: () => {},
     }))
-    expect(html).toContain('href="/project-templates"')
-    expect(html).toContain('projects.create.fromTemplate')
+    expect(html).not.toMatch(/template/i)
+    expect(html).not.toContain('data-testid="project-copy-form"')
+  })
+
+  it('shows the copy form instead of the charter form when copyFrom is a valid id', async () => {
+    const html = await renderForm(() => ({
+      t,
+      route: { fullPath: '/projects/new?copyFrom=12' },
+      copyFrom: 12,
+      defaultsLoading: false,
+      defaults: DEFAULTS,
+      forbidden: false,
+      defaultsFailed: false,
+      defaultsFetching: false,
+      hydrated: true,
+      defaultManagerName: 'Mona',
+      retryDefaults: () => {},
+      emit: () => {},
+    }))
+    expect(html).toContain('data-testid="project-copy-form"')
+    expect(html).toContain('data-source-id="12"')
+    expect(html).toContain('projects.copy.title')
+    expect(html).not.toContain('data-testid="project-create-form"')
+  })
+
+  it('reads copyFrom from the route query, ignoring malformed ids', () => {
+    expect(source).toContain('parsePositiveId(route.query.copyFrom)')
   })
 })

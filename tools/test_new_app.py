@@ -217,7 +217,7 @@ class TestNewApp(unittest.TestCase):
         ids = (
             'Zzprobe', 'a', '1zzprobe', 'zzprobe-x', 'x' * 22, 'a_', '_a', 'a__b', 'zz probe',
             'hr', 'pmo', 'chat', 'meetings', 'core', 'web', 'tools', 'notify', 'api',
-            'reports', 'index', 'search', 'account', 'archived_tasks', 'project_templates', 'access', 'common',
+            'reports', 'index', 'search', 'account', 'archived_tasks', 'access', 'common',
             'nasq_zzprobe', 'customer', 'customer_zzprobe', 'customerzzprobe',
         )
         for app in ids:

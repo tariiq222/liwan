@@ -24,17 +24,6 @@ test.describe('Plan 7: PMO direct SSR hydration', () => {
     await expect(page.getByRole('columnheader', { name: 'الإجراءات', exact: true }).locator('span.sr-only')).toHaveText('الإجراءات')
   })
 
-  test('the template list hydrates without mismatches and keeps its availability controls', async ({ page }) => {
-    const messages = hydrationMessages(page)
-    await open(page, '/project-templates')
-    await expect(rows(page)).toHaveCount(3)
-    await expect(rows(page).first().getByRole('link', { name: 'إطلاق خدمة' })).toBeVisible()
-    await expect(rows(page).first()).toContainText('متاح للاستخدام')
-    await expect(page.locator('[data-shortcut-create]')).toContainText('قالب جديد')
-    expect(messages).toEqual([])
-    await expect(page.getByRole('columnheader', { name: 'متاح للاستخدام', exact: true }).locator('span.sr-only')).toHaveText('متاح للاستخدام')
-  })
-
   test('the finance record hydrates without warnings and its amount section labels its visible heading', async ({ page }) => {
     const messages = hydrationMessages(page)
     await open(page, '/projects/2/finance/53')
