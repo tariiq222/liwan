@@ -25,7 +25,7 @@
 ## Review Focus
 
 1. **Legacy projects** load as `initiating` (column default); a project whose charter is already approved can move to planning at once — Task A1 `test_existing_project_starts_initiating`.
-2. **Charter reopened after the project moved on** (policy reopen while in planning/executing): the phase stays, but the gate card shows the charter check as unmet for information; moving forward again is blocked only for the gate being entered — Task A1 `test_reopened_charter_does_not_move_phase_back`.
+2. **Charter reopened after the project moved on:** the phase stays; the charter page shows the reopened state — Task A1 `test_reopened_charter_does_not_move_phase_back`.
 3. **Two managers race a phase move** → second gets 409 `stale_write` — Task A1 `test_phase_move_with_stale_token`.
 4. **Charter withdrawn/decided**: the sponsor's "review" bell row disappears from the bell (no stale "please approve") — Task B1 `test_review_bell_hidden_after_decision`.
 5. **Sponsor without project read access** never sees a bell row for that project — Task B1 `test_bell_respects_project_visibility`.
@@ -50,7 +50,7 @@
 - `project._nasq_gate_checks(target: str) -> list[dict]` — each `{'key': str, 'ok': bool}`; base: `planning → [{'key': 'charter_approved', 'ok': state == 'approved'}]`, every other target `[]`. Later phases extend it with `super()`.
 - `project._nasq_move_phase(target: str) -> self` — manager only; `target` must be the next or the previous phase; forward requires every check ok; backward always allowed.
 - `POST /api/v1/projects/{id}/phase` body `{phase, expected_updated_at}` → `ProjectDetail`; errors 409 `phase_gate` (body adds `checks`), 409 `phase_step`, 409 `stale_write`, 422 invalid field `phase`, 403.
-- Detail JSON `phase`: `{ current, next, previous, next_checks: [{key, ok}], can_move }` (`next`/`previous` null at the ends; `next_checks` for `next`; `can_move` = caller can manage). List items add `phase: <current>`.
+- Detail JSON `phase`: `{ current, next, previous, next_checks: [{key, ok}] }` (`next`/`previous` null at the ends; `next_checks` for `next`). List items add `phase: <current>`.
 - zod: `ProjectPhaseSchema = z.enum([...PHASES])`, `ProjectPhaseGateCheckSchema`, `ProjectPhaseStateSchema`; `ProjectSchema.phase` (string enum) and `ProjectDetailSchema.phase` (object) — use distinct names if the detail extends the list schema (e.g. list `phase`, detail `phase_state`); pick one and keep serializer and zod identical.
 
 - [ ] **Step 1: failing tests** — `tests/test_project_phase.py` (model + HTTP), covering: default `initiating`; forward to planning blocked with `charter_approved` unmet (409 `phase_gate` with `checks`); allowed after charter approved (use the phase-1 transitions with the policy off); skipping a phase → 409 `phase_step`; backward one step allowed; employee (non-manager) → 403; stale token → 409; `closed` has no `next`; Review Focus 1–3 tests by name; PATCH `/projects/{id}` with `nasq_phase`/`phase` is rejected (not writable).
@@ -133,7 +133,7 @@ class ProjectPhase(models.Model):
 **Interfaces — Consumes:** Task A1 HTTP + zod. **Produces:** `useMoveProjectPhase()` mutation `({ id, phase, expected }) => ProjectDetail`.
 
 - [ ] Stepper: five steps, current highlighted, done steps checked, RTL order right-to-left, compact on phone (current label only + "n/5"). Display only.
-- [ ] Gate card (summary page): title `projects.phase.gateTitle` («الانتقال إلى مرحلة {phase}»); lists `next_checks` with ✓/✗ and a fix link per key (`charter_approved` → `/projects/{id}/charter`, label «اعتماد الميثاق»); primary button `projects.phase.moveTo` enabled only when all checks ok and `can_move`; secondary «رجوع إلى {previous}» with inline confirm (`SharedInlineConfirm`); hidden actions for non-managers; `closed` shows «المشروع مغلق».
+- [ ] Gate card (summary page): title `projects.phase.gateTitle` («الانتقال إلى مرحلة {phase}»); lists `next_checks` with ✓/✗ and a fix link per key (`charter_approved` → `/projects/{id}/charter`, label «اعتماد الميثاق»); primary button `projects.phase.moveTo` enabled only when all checks ok and `can_manage`; secondary «رجوع إلى {previous}» with inline confirm (`SharedInlineConfirm`); hidden actions for non-managers; `closed` shows «المشروع مغلق».
 - [ ] Errors: 409 `phase_gate` → refetch and show the unmet checks; `stale_write` → toast `projects.phase.stale` + refetch; others → mapped `t()` keys, never raw server text.
 - [ ] Arabic labels: initiating «البدء», planning «التخطيط», executing «التنفيذ», closing «الإغلاق», closed «مغلق».
 - [ ] Tests: unit for the derivation helpers (step states, button enabled rule) and SSR render of both components; e2e: move a mock project from البدء to التخطيط after its charter is approved, and see the blocked state with the fix link when not.

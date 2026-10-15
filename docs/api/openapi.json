@@ -15926,9 +15926,6 @@
           "phase_state": {
             "additionalProperties": false,
             "properties": {
-              "can_move": {
-                "type": "boolean"
-              },
               "current": {
                 "enum": [
                   "initiating",
@@ -15997,8 +15994,7 @@
               "current",
               "next",
               "previous",
-              "next_checks",
-              "can_move"
+              "next_checks"
             ],
             "type": "object"
           },
@@ -16593,9 +16589,6 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "can_move": {
-            "type": "boolean"
-          },
           "current": {
             "enum": [
               "initiating",
@@ -16664,8 +16657,7 @@
           "current",
           "next",
           "previous",
-          "next_checks",
-          "can_move"
+          "next_checks"
         ],
         "type": "object"
       },

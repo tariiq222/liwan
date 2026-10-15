@@ -19,7 +19,7 @@ export const PROJECT_PHASES = ProjectPhaseSchema.options
 export const ProjectPhaseGateCheckSchema = z.object({ key: z.string(), ok: z.boolean() }).strict()
 export const ProjectPhaseStateSchema = z.object({
   current: ProjectPhaseSchema, next: ProjectPhaseSchema.nullable(), previous: ProjectPhaseSchema.nullable(),
-  next_checks: z.array(ProjectPhaseGateCheckSchema), can_move: z.boolean(),
+  next_checks: z.array(ProjectPhaseGateCheckSchema),
 }).strict()
 // Body of POST /api/v1/projects/{id}/phase.
 export const ProjectPhaseMoveSchema = z.object({

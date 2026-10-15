@@ -5,7 +5,7 @@ from odoo.tests import tagged
 from .common import NasqPmoCase
 from odoo.addons.nasq_pmo.models.project_phase import NasqPhaseGate, NasqPhaseStep
 
-PHASE_KEYS = {'current', 'next', 'previous', 'next_checks', 'can_move'}
+PHASE_KEYS = {'current', 'next', 'previous', 'next_checks'}
 
 
 @tagged('post_install', '-at_install', 'nasq')
@@ -67,9 +67,6 @@ class TestProjectPhase(NasqPmoCase):
         self.project.with_user(self.manager).write({'name': 'Renamed after approval'})
         self.assertEqual(self.project.nasq_charter_state, 'draft')
         self.assertEqual(self.project.nasq_phase, 'planning')
-        phase = self.project.with_user(self.manager)._nasq_phase_state()
-        self.assertEqual(phase['current'], 'planning')
-        self.assertEqual(phase['next_checks'], [])
         self.assertEqual(self.project._nasq_gate_checks('planning'), [{'key': 'charter_approved', 'ok': False}])
 
     def test_non_manager_cannot_move(self):
@@ -82,7 +79,6 @@ class TestProjectPhase(NasqPmoCase):
         self.assertEqual(set(first), PHASE_KEYS)
         self.assertEqual((first['previous'], first['next']), (None, 'planning'))
         self.assertEqual(first['next_checks'], [{'key': 'charter_approved', 'ok': False}])
-        self.assertTrue(first['can_move'])
         self.project.nasq_phase = 'closed'
         last = self._as_manager()._nasq_phase_state()
         self.assertEqual((last['previous'], last['next'], last['next_checks']), ('closing', None, []))
