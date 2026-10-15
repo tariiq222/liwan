@@ -103,6 +103,10 @@ export default defineNuxtConfig({
   // shared mode they are removed entirely and the edge sends every Odoo path to the guard
   // (deploy/shared/Caddyfile). Dedicated keeps every rule unchanged.
   routeRules: {
+    // Retired customer URLs keep working: permanent redirects that carry the query string along.
+    '/project-templates/**': { redirect: { to: '/projects/templates/**', statusCode: 301 } },
+    '/archived-tasks': { redirect: { to: '/tasks?scope=archived', statusCode: 301 } },
+    '/reports': { redirect: { to: '/projects/dashboard', statusCode: 301 } },
     // Keep future security/cache rules outside this proxy-only spread.
     ...(shared ? {} : {
     // Odoo's public login bootstrap also loads translations outside /web/.

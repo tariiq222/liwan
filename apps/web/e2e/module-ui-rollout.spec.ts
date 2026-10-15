@@ -26,7 +26,7 @@ test('direct sheet loads its real background and restores it after closing', asy
   expect(hydrationErrors).toEqual([])
 })
 
-const roots = ['/tasks', '/archived-tasks', '/meetings', '/meetings/calendar', '/meetings/series', '/hr', '/hr/departments', '/hr/documents', '/settings/users', '/settings/roles', '/settings/access-log', '/settings/branding', '/account', '/notifications', '/search']
+const roots = ['/tasks', '/tasks?scope=archived', '/meetings', '/meetings/calendar', '/meetings/series', '/hr', '/hr/departments', '/hr/documents', '/settings/users', '/settings/roles', '/settings/access-log', '/settings/branding', '/account', '/notifications', '/search']
 for (const width of [1440, 1024, 390]) {
   test('section anatomy at ' + width, async ({page}, info) => {
     test.setTimeout(120_000)

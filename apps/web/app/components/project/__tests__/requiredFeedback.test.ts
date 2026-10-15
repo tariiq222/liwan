@@ -18,7 +18,7 @@ const forms = [
   { file: 'components/project/governance/RegisterForm.vue', field: 'title', label: 'projects.governance.register.itemTitle' },
 ]
 const taskFile = 'components/task/TaskCreateForm.vue'
-const applyFile = 'pages/project-templates/[id]/apply.vue'
+const applyFile = 'pages/projects/templates/[id]/apply.vue'
 async function load(file: string, locale = 'ar', props: Record<string, unknown> = {}) {
   const appRoot = resolve(import.meta.dirname, '../../..')
   const filename = resolve(appRoot, file)
@@ -50,7 +50,7 @@ async function load(file: string, locale = 'ar', props: Record<string, unknown> 
     usePeople: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useTasks: () => ({ data: Vue.ref({ pages: [] }), isLoading: Vue.ref(false), error: Vue.ref(null), hasNextPage: Vue.ref(false) }),
     useApplyProjectTemplate: () => mutation, useProjectTemplate: () => ({ data: template, isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
-    useProjectTemplateNavigation: () => ({ backTo: Vue.ref('/project-templates'), templatePath: (id: number) => `/project-templates/${id}` }),
+    useProjectTemplateNavigation: () => ({ backTo: Vue.ref('/projects/templates'), templatePath: (id: number) => `/projects/templates/${id}` }),
     useSsrQuerySeed: () => {}, ProjectTemplateApplySchema, isDirtySnapshot, validateMilestoneDates, buildMilestonePatch, validateTaskDates, buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy,
     ApiError: class extends Error {}, DescriptionEditor: {},
   }

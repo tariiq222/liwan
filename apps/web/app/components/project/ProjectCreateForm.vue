@@ -46,7 +46,7 @@ async function retryDefaults() {
   <SharedFormSection :title="t('projects.charter.title')" :description="defaultsHint">
     <div class="grid gap-4">
       <NuxtLink
-        :to="{ path: '/project-templates', query: returnToQuery(route.fullPath) }"
+        :to="{ path: '/projects/templates', query: returnToQuery(route.fullPath) }"
         data-testid="project-create-from-template"
         class="inline-flex w-fit items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-medium text-primary hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-primary"
       >

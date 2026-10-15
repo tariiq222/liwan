@@ -23,7 +23,7 @@ let lastPushed: string | null = null
 let writesInFlight = 0
 let lastWrite = 0
 let disposed = false
-function isCurrentList() { return (router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/project-templates' }
+function isCurrentList() { return (router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/projects/templates' }
 const stopNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => { pendingNavigation = to })
 function settleNavigation(to: RouteLocationNormalized) {
   if (to !== pendingNavigation) return
@@ -70,8 +70,8 @@ function clearFilters() {
 }
 // The list URL as it will be once the debounced search lands: every row link carries it.
 const liveQuery = computed(() => ({ ...(search.value.trim() ? { q: search.value.trim() } : {}), ...(offset.value ? { offset: String(offset.value) } : {}) }))
-const itemTo = (item: { id: number }) => ({ path: `/project-templates/${item.id}`, query: liveQuery.value })
-const createTo = computed(() => canManage.value ? { path: '/project-templates/new', query: liveQuery.value } : undefined)
+const itemTo = (item: { id: number }) => ({ path: `/projects/templates/${item.id}`, query: liveQuery.value })
+const createTo = computed(() => canManage.value ? { path: '/projects/templates/new', query: liveQuery.value } : undefined)
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'number', header: t('app.recordNumber') },
   { id: 'name', header: t('projects.templates.fields.name') },
@@ -83,8 +83,8 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 // One quiet "View" action on its own; apply and edit join it in the shared "more" menu.
 function rowActions(item: (typeof items.value)[number]): RowAction[] {
   const actions: RowAction[] = [{ label: t('projects.menu.open'), icon: 'i-lucide-eye', to: itemTo(item) }]
-  if (item.can_apply && canApply.value) actions.push({ label: t('projects.templates.actions.apply'), icon: 'i-lucide-play', to: { path: `/project-templates/${item.id}/apply`, query: liveQuery.value } })
-  if (canManage.value) actions.push({ label: t('projects.templates.actions.edit'), icon: 'i-lucide-pencil', to: { path: `/project-templates/${item.id}/edit`, query: liveQuery.value } })
+  if (item.can_apply && canApply.value) actions.push({ label: t('projects.templates.actions.apply'), icon: 'i-lucide-play', to: { path: `/projects/templates/${item.id}/apply`, query: liveQuery.value } })
+  if (canManage.value) actions.push({ label: t('projects.templates.actions.edit'), icon: 'i-lucide-pencil', to: { path: `/projects/templates/${item.id}/edit`, query: liveQuery.value } })
   return actions
 }
 const PAGE = pageSize

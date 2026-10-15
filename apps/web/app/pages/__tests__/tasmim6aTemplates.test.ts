@@ -16,15 +16,15 @@ describe('every 6a page is on its template', () => {
     ['pages/projects/[id]/charter.vue', ['<SharedStandalonePage', 'variant="print"']],
     ['pages/projects/[id]/settings.vue', ['<SharedSettingsPage']],
     ['pages/projects/settings/catalogs/[resource]/index.vue', ['<SharedSettingsPage', '<SharedDataTable']],
-    ['pages/project-templates/index.vue', ['<SharedListPage', '<SharedDataTable']],
-    ['pages/project-templates/[id].vue', ['<SharedRecordPage']],
+    ['pages/projects/templates/index.vue', ['<SharedListPage', '<SharedDataTable']],
+    ['pages/projects/templates/[id].vue', ['<SharedRecordPage']],
     ['pages/projects/[id]/finance/[entryId].vue', ['<SharedRecordPage']],
     ['pages/projects/[id]/register/[registerId].vue', ['<SharedRecordPage']],
     ['pages/projects/[id]/stakeholders/[stakeholderId].vue', ['<SharedRecordPage']],
     ['components/task/TaskDetailPanel.vue', ['<SharedRecordPage', '<TaskProperties']],
     ['pages/my-tasks/[id].vue', ['<SharedRecordPage']],
     ['pages/my-tasks/index.vue', ['<SharedListPage', '<SharedDataTable']],
-    ['pages/archived-tasks.vue', ['<SharedListPage', '<SharedDataTable']],
+    ['components/task/TaskArchivedList.vue', ['<SharedListPage', '<SharedDataTable']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)

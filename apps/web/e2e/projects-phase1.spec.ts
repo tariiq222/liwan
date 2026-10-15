@@ -76,7 +76,7 @@ test('template application creates independent scheduled tasks through the inter
   await page.locator('[name="template-search"]').fill(template.name)
   await page.getByRole('link', { name: new RegExp(template.name) }).click()
   await page.getByRole('button', { name: 'استخدام القالب', exact: true }).click()
-  await expect(page).toHaveURL(url => url.pathname === `/project-templates/${template.id}/apply`)
+  await expect(page).toHaveURL(url => url.pathname === `/projects/templates/${template.id}/apply`)
   const appliedName = `مشروع من قالب ${Date.now()}`
   await page.getByLabel('اسم المشروع الجديد').fill(appliedName)
   // The shared date field is a calendar control. Fix only the browser date
@@ -103,7 +103,7 @@ test('template application creates independent scheduled tasks through the inter
   await page.locator('#task-filter-project').click()
   await expect(page.getByRole('option', { name: appliedName, exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
-  await page.goto(`/project-templates/${template.id}/edit`)
+  await page.goto(`/projects/templates/${template.id}/edit`)
   await expect(page.getByRole('heading', { name: 'تعديل قالب المشروع' })).toBeVisible()
   await expect(page.locator('[name="task-name-1"]')).toHaveValue('التنفيذ')
   await page.screenshot({ path: test.info().outputPath('template-editor-ar.png'), fullPage: true })
@@ -182,7 +182,7 @@ test('schedule keeps drafts after errors, guards navigation and clears dates exp
 
 test('template editor saves a real draft, blocks pending edits and preserves catalog navigation', async ({ page }) => {
   const name = `قالب عبر النموذج ${Date.now()}`
-  await page.goto(`/project-templates/new?q=${encodeURIComponent(name)}`)
+  await page.goto(`/projects/templates/new?q=${encodeURIComponent(name)}`)
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'قالب مشروع جديد' })).toBeVisible()
   await page.locator('[name="template-name"]').fill(name)
@@ -208,7 +208,7 @@ test('template editor saves a real draft, blocks pending edits and preserves cat
   await expect(page.locator('[name="task-stage-1"]')).toBeDisabled()
   await expect(page.getByRole('button', { name: 'إضافة مهمة', exact: true })).toBeDisabled()
   release()
-  await expect(page).toHaveURL(url => /^\/project-templates\/\d+$/.test(url.pathname))
+  await expect(page).toHaveURL(url => /^\/projects\/templates\/\d+$/.test(url.pathname))
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
   const templateId = Number(new URL(page.url()).pathname.split('/').at(-1))
   await page.getByRole('button', { name: 'تعديل', exact: true }).click()
@@ -223,17 +223,17 @@ test('template editor saves a real draft, blocks pending edits and preserves cat
   const tasks = page.locator('form fieldset > [data-slot="root"]').filter({ has: page.getByRole('heading', { name: 'المهام', exact: true }) })
   await tasks.getByRole('button', { name: 'إزالة', exact: true }).first().click()
   await page.getByRole('button', { name: 'حفظ', exact: true }).click()
-  await expect(page).toHaveURL(url => url.pathname === `/project-templates/${templateId}`)
+  await expect(page).toHaveURL(url => url.pathname === `/projects/templates/${templateId}`)
   const saved = await json(await page.request.get(`/api/v1/project-templates/${templateId}`))
   expect(saved.definition.milestones).toHaveLength(0)
   expect(saved.definition.tasks).toHaveLength(1)
   expect(saved.definition.tasks[0]).toMatchObject({ dependency_keys: [], milestone_key: null })
   await page.getByRole('button', { name: 'استخدام القالب', exact: true }).click()
   await page.getByRole('button', { name: 'إلغاء', exact: true }).click()
-  await expect(page).toHaveURL(url => url.pathname === `/project-templates/${templateId}`)
+  await expect(page).toHaveURL(url => url.pathname === `/projects/templates/${templateId}`)
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
   await page.getByRole('main').getByRole('link', { name: 'رجوع', exact: true }).click()
-  await expect(page).toHaveURL(url => url.pathname === '/project-templates' && url.searchParams.get('q') === name)
+  await expect(page).toHaveURL(url => url.pathname === '/projects/templates' && url.searchParams.get('q') === name)
   await expect(page.locator('[name="template-search"]')).toHaveValue(name)
   await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
   await page.getByRole('link', { name: new RegExp(name) }).click()
@@ -243,7 +243,7 @@ test('template editor saves a real draft, blocks pending edits and preserves cat
   await expect(page.getByRole('button', { name: 'تأكيد الحذف', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'حذف', exact: true }).click()
   await page.getByRole('button', { name: 'تأكيد الحذف', exact: true }).click()
-  await expect(page).toHaveURL(url => url.pathname === '/project-templates' && url.searchParams.get('q') === name)
+  await expect(page).toHaveURL(url => url.pathname === '/projects/templates' && url.searchParams.get('q') === name)
   await expect(page.getByRole('link', { name: new RegExp(name) })).toHaveCount(0)
 })
 
@@ -254,7 +254,7 @@ test('template catalog exposes records after the first fifty and retains its pag
   for (let i = 0; i < 51; i++) {
     await json(await page.request.post('/api/v1/project-templates', { data: { name: `${prefix} ${String(i).padStart(2, '0')}`, definition } }), 201)
   }
-  await page.goto(`/project-templates?q=${encodeURIComponent(prefix)}`)
+  await page.goto(`/projects/templates?q=${encodeURIComponent(prefix)}`)
   const nav = page.getByRole('navigation', { name: 'صفحات القوالب' })
   await expect(nav).toContainText('51')
   await nav.getByRole('button', { name: 'التالي', exact: true }).click()
@@ -264,7 +264,7 @@ test('template catalog exposes records after the first fifty and retains its pag
   await item.click()
   await page.reload()
   await page.locator('a[href*="offset=50"]').click()
-  await expect(page).toHaveURL(url => url.pathname === '/project-templates' && url.searchParams.get('offset') === '50' && url.searchParams.get('q') === prefix)
+  await expect(page).toHaveURL(url => url.pathname === '/projects/templates' && url.searchParams.get('offset') === '50' && url.searchParams.get('q') === prefix)
   await expect(item).toHaveCount(1)
 })
 

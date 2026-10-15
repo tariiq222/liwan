@@ -81,7 +81,7 @@ test('stage rename is discoverable by keyboard and Escape preserves the name', a
 })
 
 test('template predecessors use labeled checkboxes without modifier keys', async ({ page }) => {
-  await page.goto('/project-templates/new')
+  await page.goto('/projects/templates/new')
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'قالب مشروع جديد' })).toBeVisible()
   await page.getByRole('button', { name: 'إضافة مهمة', exact: true }).click()
@@ -121,7 +121,7 @@ for (const path of [
   '/projects/1/finance', '/projects/1/finance/new', '/projects/1/finance/1', '/projects/1/finance/1/edit',
   '/projects/1/updates', '/projects/1/updates/new', '/projects/settings',
   '/projects/settings/catalogs/types', '/projects/settings/catalogs/types/new', '/projects/settings/catalogs/types/1/edit',
-  '/project-templates', '/project-templates/new', '/project-templates/1', '/project-templates/1/edit',
+  '/projects/templates', '/projects/templates/new', '/projects/templates/1', '/projects/templates/1/edit',
 ]) {
   test(`project page inventory ${path}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 900 })

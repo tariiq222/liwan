@@ -207,7 +207,7 @@ for (const path of [
   '/projects/1/finance/new', '/projects/1/finance/2', '/projects/1/finance/2/edit',
   '/projects/1/updates/new', '/projects/1/schedule/tasks/101',
   '/projects/1/charter?edit=1',
-  '/project-templates/1', '/project-templates/new', '/project-templates/1/edit', '/project-templates/1/apply',
+  '/projects/templates/1', '/projects/templates/new', '/projects/templates/1/edit', '/projects/templates/1/apply',
 ]) {
   test(`direct route opens exactly one business dialog: ${path}`, async ({ page }) => {
     await page.goto(path)

@@ -160,7 +160,7 @@ describe('ProjectCreateForm production template', () => {
       retryDefaults: () => {},
       emit: () => {},
     }))
-    expect(html).toContain('href="/project-templates"')
+    expect(html).toContain('href="/projects/templates"')
     expect(html).toContain('projects.create.fromTemplate')
   })
 })

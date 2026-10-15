@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TaskArchivedList from '@/components/task/TaskArchivedList.vue'
 import TaskBoard from '@/components/task/TaskBoard.vue'
 import TaskTable from '@/components/task/TaskTable.vue'
 import TaskToolbar from '@/components/task/TaskToolbar.vue'
@@ -14,6 +15,8 @@ const { can } = useAccess()
 const hydrated = useHydrated()
 
 const isBoard = computed(() => route.query.view === 'board')
+// Archived tasks are a scope of this list (`?scope=archived`), not a page of their own.
+const isArchived = computed(() => route.query.scope === 'archived')
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
 const isBaseRoute = computed(() => normalizedPath.value === '/tasks')
 const isCreateRoute = computed(() => normalizedPath.value === '/tasks/new')
@@ -49,8 +52,9 @@ function openCreate() {
 </script>
 
 <template>
+  <TaskArchivedList v-if="showList && isArchived" />
   <SharedListPage
-    v-if="showList"
+    v-else-if="showList"
     :title="t('tasks.title')"
     :description="t('tasks.description')"
     :create-to="createTo"
@@ -58,7 +62,7 @@ function openCreate() {
     :views="views"
   >
     <template #actions>
-      <UButton color="neutral" variant="outline" :to="{ path: '/archived-tasks', query: returnToQuery(route.fullPath) }">
+      <UButton color="neutral" variant="outline" :to="{ path: '/tasks', query: { ...returnToQuery(route.fullPath), scope: 'archived' } }" data-testid="tasks-archived-link">
         {{ t('taskLifecycle.archivedTasks') }}
       </UButton>
     </template>

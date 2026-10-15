@@ -26,7 +26,7 @@ test.describe('Plan 7: PMO direct SSR hydration', () => {
 
   test('the template list hydrates without mismatches and keeps its availability controls', async ({ page }) => {
     const messages = hydrationMessages(page)
-    await open(page, '/project-templates')
+    await open(page, '/projects/templates')
     await expect(rows(page)).toHaveCount(3)
     await expect(rows(page).first().getByRole('link', { name: 'إطلاق خدمة' })).toBeVisible()
     await expect(rows(page).first()).toContainText('متاح للاستخدام')
