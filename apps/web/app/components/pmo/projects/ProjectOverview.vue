@@ -63,13 +63,13 @@ function dateLabel(value: string | null) {
 
     <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
 
-    <SharedRecordSection data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
+    <SharedRecordSection panel data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
       <template #actions>
         <NuxtLink :to="`/projects/${project.id}/updates`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
           {{ t('projects.refresh.workspace.viewAllUpdates') }}
         </NuxtLink>
       </template>
-      <div class="rounded-lg bg-default p-4 ring ring-default">
+      <div>
         <SharedLoadingSkeleton v-if="updates.isLoading.value" :count="1" />
         <SharedPageState v-else-if="updates.error.value" :error="updates.error.value" @retry="updates.refetch()" />
         <div v-else-if="latestUpdate" class="grid min-w-0 gap-2">

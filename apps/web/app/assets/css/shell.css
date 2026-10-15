@@ -257,6 +257,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-shell-main { --nasq-pad-x: 24px; --nasq-pad-top: 20px; min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--nasq-canvas); padding: var(--nasq-pad-top) var(--nasq-pad-x) 48px; }
 /* A full-bleed white band at the top of a page (the project frame): cancels the main padding and re-applies it inside, so content stays aligned with the page below. */
 .nasq-page-band { margin: calc(-1 * var(--nasq-pad-top)) calc(-1 * var(--nasq-pad-x)) 0; padding: 16px var(--nasq-pad-x) 0; }
+/* Under a page band the detail and form widths start at the band's inline edge instead of centring, so records line up with the frame. */
+:is(.nasq-page-band ~ *, .nasq-page-band ~ * *):is(.nasq-page-width-detail, .nasq-page-width-form) { margin-inline: 0; }
 .nasq-shell:has(.nasq-context-sidebar[data-panel="true"]) .nasq-shell-main { --nasq-pad-x: 0px; --nasq-pad-top: 0px; padding: 0; overflow: hidden; }
 .nasq-page-content-motion { animation: nasq-page-content-enter 150ms ease both; }
 @keyframes nasq-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }

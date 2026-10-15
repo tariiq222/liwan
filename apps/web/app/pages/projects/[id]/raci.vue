@@ -81,15 +81,6 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       </FilterBar>
     </template>
 
-    <SharedRecordSection :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
-      <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-        <div><dt class="font-semibold">R — {{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
-        <div><dt class="font-semibold">A — {{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
-        <div><dt class="font-semibold">C — {{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
-        <div><dt class="font-semibold">I — {{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
-      </dl>
-    </SharedRecordSection>
-
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <!-- role="group" keeps the confirmation addressable by its question while the matrix stays locked. -->
     <SharedInlineConfirm
@@ -133,5 +124,25 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       <div role="group" :aria-label="t('projects.governance.raci.task')"><SharedPagination :page="taskPageNumber" :pages="taskPages" :disabled="loading || pending" @update:page="taskPage = $event - 1" /></div>
       <div role="group" :aria-label="t('projects.governance.raci.stakeholder')"><SharedPagination :page="stakeholderPageNumber" :pages="stakeholderPages" :disabled="loading || pending" @update:page="stakeholderPage = $event - 1" /></div>
     </div>
+    <SharedRecordSection panel :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
+      <dl class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">R</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">A</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">C</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">I</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
+        </div>
+      </dl>
+    </SharedRecordSection>
   </SharedListPage>
 </template>
