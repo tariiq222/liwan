@@ -3,6 +3,8 @@ from odoo.tools import html2plaintext
 
 from odoo.addons.nasq_api.serializers.common import iso
 
+CHARTER_KINDS = ('charter_review', 'charter_approved', 'charter_returned')
+
 
 def dump_notification(notification, live_tasks=None):
     message = notification.mail_message_id
@@ -20,6 +22,17 @@ def dump_notification(notification, live_tasks=None):
             'overdue_count': count,
             'local_date': local_date.isoformat() if local_date else None,
             'body': f'{count} overdue tasks',
+            'created_at': iso(message.date),
+            'is_read': bool(notification.is_read),
+        }
+    if message.nasq_notification_kind in CHARTER_KINDS:
+        project = message.nasq_project_id
+        return {
+            'id': notification.id,
+            'kind': message.nasq_notification_kind,
+            'project_id': project.id,
+            'project_name': project.display_name,
+            'body': html2plaintext(message.body or '', include_references=False).strip(),
             'created_at': iso(message.date),
             'is_read': bool(notification.is_read),
         }

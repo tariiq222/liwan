@@ -35,7 +35,7 @@ class TestTaskNotifications(NasqPmoCase):
         registry = self.env['nasq.notify.registry']
         types = registry._nasq_notification_type_map()
         pmo = [kind for kind, item in types.items() if item['owner'] == 'nasq_pmo']
-        self.assertEqual(pmo, ['assignment', 'comment', 'mention', 'deadline', 'overdue_digest'])
+        self.assertEqual(pmo, ['assignment', 'comment', 'mention', 'deadline', 'overdue_digest', 'charter_review', 'charter_approved', 'charter_returned'])
         self.assertEqual({types[kind]['feature_key'] for kind in pmo}, {'pmo.enabled'})
         self.assertEqual({types[kind]['model'] for kind in pmo[:4]}, {'project.task'})
         self.assertEqual(types['overdue_digest']['model'], 'res.company')

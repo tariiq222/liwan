@@ -7,7 +7,7 @@ import {
   type Notification,
 } from '@nasq/contracts'
 // Relative, not '@/': the component unit tests import this file without the Nuxt alias.
-import { isKnownNotificationKind, isMeetingNotificationKind } from '../utils/notificationPresentation'
+import { isKnownNotificationKind, isMeetingNotificationKind, isProjectNotificationKind } from '../utils/notificationPresentation'
 
 export const notificationKeys = {
   all: ['notifications'] as const,
@@ -98,6 +98,10 @@ export function isDigestNotification(item: BellNotification): item is Extract<No
 
 export function isMeetingNotification(item: BellNotification): item is Extract<Notification, { meeting_id: number }> {
   return isMeetingNotificationKind(item.kind)
+}
+
+export function isProjectNotification(item: BellNotification): item is Extract<Notification, { project_id: number }> {
+  return isProjectNotificationKind(item.kind)
 }
 
 export type { BellNotification, Notification }

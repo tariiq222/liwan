@@ -4,6 +4,7 @@ from . import (
     test_access_capabilities,
     test_bus,
     test_charter_approval,
+    test_charter_notifications,
     test_completion_approval,
     test_deadline_digest,
     test_feature_enforcement,
