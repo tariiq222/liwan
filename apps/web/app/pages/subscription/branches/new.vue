@@ -44,7 +44,7 @@ definePageMeta({ middleware: 'customer-commercial' })
         </div>
         <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" @click="names.push('')">{{ t('subscription.branches.addName') }}</UButton>
         <UAlert v-if="failure" color="error" variant="subtle" :title="t('subscription.change.failed')" />
-        <VendorPriceBreakdown :quote="quote" :pending="busy" />
+        <SharedCommercePriceBreakdown :quote="quote" :pending="busy" />
         <div class="flex gap-2">
           <UButton type="submit" :disabled="!hydrated || busy || !clean.length" :loading="busy && !quote">{{ t('subscription.branches.review') }}</UButton>
           <UButton v-if="quote" type="button" :disabled="busy" :loading="busy" @click="accept">{{ t('subscription.branches.accept') }}</UButton>

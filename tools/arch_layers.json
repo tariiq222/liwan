@@ -86,6 +86,7 @@
       "apps/web/app/pages/invite/",
       "apps/web/app/components/vendor/",
       "apps/web/app/components/subscription/",
+      "apps/web/app/components/shared/commerce/",
       "apps/web/server/"
     ]
   }

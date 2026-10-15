@@ -18,7 +18,7 @@ describe('vendor commercial customers and invoices pages', () => {
   })
   it('terms is a route-backed create panel that previews before vs after and requires a reason', () => {
     const p = page('customers/[id]/terms/new.vue')
-    expect(p).toContain('SharedCreatePanel'); expect(p).toContain('customerQuote'); expect(p).toContain('terms.before'); expect(p).toContain('terms.after'); expect(p).toContain('VendorPriceBreakdown')
+    expect(p).toContain('SharedCreatePanel'); expect(p).toContain('customerQuote'); expect(p).toContain('terms.before'); expect(p).toContain('terms.after'); expect(p).toContain('SharedCommercePriceBreakdown')
     expect(read('app/components/vendor/CustomerTermsForm.vue')).toMatch(/reasonRequired/); expect(read('app/components/vendor/CustomerTermsForm.vue')).toContain('SharedUnsavedChanges'); expect(read('app/components/vendor/CustomerTermsForm.vue')).toContain('terms.isolation')
   })
   it('change subscription quotes then orders with an idempotency key from server ids only', () => {

@@ -43,8 +43,8 @@ async function save(draft: TermsDraft) {
         <UAlert v-if="saved" color="success" variant="subtle" icon="i-lucide-check" :title="t('vendor.customers.terms.saved')" :description="t('vendor.customers.terms.savedHint')" data-testid="terms-saved" />
         <UAlert v-if="previewError" color="error" variant="subtle" :title="previewError" />
         <div v-if="before || after" class="grid gap-4 lg:grid-cols-2" data-testid="terms-impact">
-          <section><h3 class="mb-2 font-semibold">{{ t('vendor.customers.terms.before') }}</h3><VendorPriceBreakdown :quote="before" :pending="previewing" /></section>
-          <section><h3 class="mb-2 font-semibold">{{ t('vendor.customers.terms.after') }}</h3><VendorPriceBreakdown :quote="after" :pending="previewing" /></section>
+          <section><h3 class="mb-2 font-semibold">{{ t('vendor.customers.terms.before') }}</h3><SharedCommercePriceBreakdown :quote="before" :pending="previewing" /></section>
+          <section><h3 class="mb-2 font-semibold">{{ t('vendor.customers.terms.after') }}</h3><SharedCommercePriceBreakdown :quote="after" :pending="previewing" /></section>
         </div>
       </div>
     </SharedPageState>
