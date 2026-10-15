@@ -10,7 +10,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/FilterBar',
   component: FilterBar,
-  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/projects/index.vue:267') },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/projects/index.vue:263') },
   args: { activeCount: 0, disabled: false, defaultOpen: false, onClear: fn() },
   render: args => ({
     components: { FilterBar, PageContainer },

@@ -9,8 +9,6 @@ describe('project list context selection', () => {
     expect(isContextPathActive('/projects/42', '/projects')).toBe(true)
     expect(isContextPathActive('/projects/42/stakeholders/3/edit', '/projects')).toBe(true)
     expect(isContextPathActive('/projects/42', '/projects/dashboard')).toBe(false)
-    expect(isContextPathActive('/projects/templates/3', '/projects/templates')).toBe(true)
-    expect(isContextPathActive('/projects/templates', '/projects')).toBe(false)
   })
   it('keeps my tasks active for task records and the archive', () => {
     expect(isContextPathActive('/tasks/new', '/tasks')).toBe(true)

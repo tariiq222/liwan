@@ -27,6 +27,14 @@ const CONFIG_KEYS: readonly string[] = [
   'CONTROL_TLS_KEY',
   'CONTROL_TLS_CERT',
   'NASQ_CLI_PYTHON',
+  'CUSTOMER_COMMERCIAL_SERVICE_KEY',
+  'INTERNAL_EFFECT_KEY',
+  'INTERNAL_EFFECT_URL',
+  'INTERNAL_EFFECT_CA',
+  'INTERNAL_EFFECT_HOST',
+  'INTERNAL_EFFECT_PORT',
+  'INTERNAL_EFFECT_TLS_KEY',
+  'INTERNAL_EFFECT_TLS_CERT',
 ]
 
 const REQUIRED_KEYS: readonly string[] = [
@@ -332,5 +340,36 @@ describe('environment ownership', () => {
     const config = getConfig()
     expect(config.host).toBe('127.0.0.1')
     expect(config.tls).toBeUndefined()
+  })
+})
+
+describe('INTERNAL_EFFECT_KEY', () => {
+  it('leaves the channel off when unset', () => {
+    applyEnv()
+    expect(getConfig().internalEffect).toBeUndefined()
+  })
+  it('rejects a key shorter than 32 bytes', () => {
+    applyEnv({ INTERNAL_EFFECT_KEY: 'e'.repeat(31) })
+    expect(() => getConfig()).toThrowError('INTERNAL_EFFECT_KEY must be distinct and contain at least 32 bytes')
+  })
+  it('rejects a key equal to CONTROL_SERVICE_KEY', () => {
+    applyEnv({ INTERNAL_EFFECT_KEY: BASE_ENV.CONTROL_SERVICE_KEY })
+    expect(() => getConfig()).toThrowError('INTERNAL_EFFECT_KEY must be distinct')
+  })
+  it('rejects a key equal to CUSTOMER_COMMERCIAL_SERVICE_KEY', () => {
+    applyEnv({ CUSTOMER_COMMERCIAL_SERVICE_KEY: 'c'.repeat(32), INTERNAL_EFFECT_KEY: 'c'.repeat(32) })
+    expect(() => getConfig()).toThrowError('INTERNAL_EFFECT_KEY must be distinct')
+  })
+  it('accepts a distinct key', () => {
+    applyEnv({ INTERNAL_EFFECT_KEY: 'e'.repeat(32) })
+    expect(getConfig().internalEffect).toEqual({ key: 'e'.repeat(32) })
+  })
+  it('requires https and an absolute CA for the caller side', () => {
+    applyEnv({ INTERNAL_EFFECT_KEY: 'e'.repeat(32), INTERNAL_EFFECT_URL: 'http://effect-worker:4188', INTERNAL_EFFECT_CA: '/x/ca.pem' })
+    expect(() => getConfig()).toThrowError('INTERNAL_EFFECT_URL must be https')
+  })
+  it('requires TLS material for the executor side', () => {
+    applyEnv({ INTERNAL_EFFECT_KEY: 'e'.repeat(32), INTERNAL_EFFECT_HOST: '0.0.0.0' })
+    expect(() => getConfig()).toThrowError('HTTPS is required for INTERNAL_EFFECT_HOST')
   })
 })

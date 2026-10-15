@@ -24,7 +24,7 @@ test('real login form rejects invalid credentials then loads a real capability i
     expect(me.company.id).toBe(fixture.company);
     expect(me.capabilities).toContain('hr.employees.manage');
 });
-for (const path of ['/projects', '/projects/dashboard', '/tasks', '/projects/templates', '/hr', '/hr/departments', '/hr/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/projects/settings', '/settings/users', '/settings/roles', '/settings/branding', '/operations']) {
+for (const path of ['/projects', '/projects/dashboard', '/tasks', '/hr', '/hr/departments', '/hr/documents', '/meetings', '/meetings/series', '/meetings/calendar', '/chat', '/account', '/projects/settings', '/settings/users', '/settings/roles', '/settings/branding', '/operations']) {
     test(`real backend renders ${path} without server failures`, async ({ page }) => {
         await login(page);
         const failures: string[] = [];
@@ -69,31 +69,22 @@ test('finance budget create, record edit and list return use real stored values'
     await page.reload();
     await expect(page.locator('main')).toContainText('1500.00');
 });
-test('project template create applies through Odoo and its tasks render on direct refresh', async ({ page }) => {
+test('project copy duplicates the structure through Odoo and its tasks render on direct refresh', async ({ page }) => {
     await login(page);
-    await open(page, '/projects/templates/new');
-    const dialog = page.getByRole('dialog');
-    const name = `قالب حقيقي ${Date.now()}`;
-    await dialog.locator('[name=template-name]').fill(name);
-    await dialog.locator('#stage-name-0').fill('التنفيذ');
-    const taskName = `مهمة القالب ${Date.now()}`;
-    await dialog.getByRole('button', { name: 'إضافة مهمة', exact: true }).click();
-    await dialog.locator('#task-name-0').fill(taskName);
-    const created = page.waitForResponse(r => new URL(r.url()).pathname === '/api/v1/project-templates' && r.request().method() === 'POST');
-    await dialog.getByRole('button', { name: 'حفظ', exact: true }).click();
-    const template = await body(await created, 201);
-    await expect(page).toHaveURL(new RegExp(`/projects/templates/${template.id}`));
-    await page.reload();
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
-    const applied = await body(await page.request.post(`/api/v1/project-templates/${template.id}/apply`, { data: { name: `مشروع ${name}`, start_date: '2030-05-01' } }), 201);
-    const tasks = await body(await page.request.get(`/api/v1/tasks?project_id=${applied.id}`));
+    const source = await body(await page.request.post('/api/v1/projects', { data: { name: `مصدر النسخ ${Date.now()}`, date_end: '2035-12-31' } }), 201);
+    const taskName = `مهمة النسخ ${Date.now()}`;
+    await body(await page.request.post('/api/v1/tasks', { data: { name: taskName, project_id: source.id } }), 201);
+    const name = `نسخة ${source.name}`;
+    const copy = await body(await page.request.post(`/api/v1/projects/${source.id}/copy`, { data: { name, start_date: '2030-05-01' } }), 201);
+    expect(copy.id).not.toBe(source.id);
+    const tasks = await body(await page.request.get(`/api/v1/tasks?project_id=${copy.id}`));
     expect(tasks.items).toHaveLength(1);
     expect(tasks.items[0].name).toBe(taskName);
-    await open(page, `/projects/${applied.id}/tasks?view=board`);
+    await open(page, `/projects/${copy.id}/tasks?view=board`);
     await expect(page.locator('main')).toContainText(taskName);
-    await expect(page.getByTestId('project-workspace-name')).toContainText(`مشروع ${name}`);
+    await expect(page.getByTestId('project-workspace-name')).toContainText(name);
     await page.reload();
-    await expect(page.getByTestId('project-workspace-name')).toContainText(`مشروع ${name}`);
+    await expect(page.getByTestId('project-workspace-name')).toContainText(name);
     await expect(page.locator('main')).toContainText(taskName);
 });
 test('real record permissions reject HR writes for the employee while read UI remains usable', async ({ page }) => {

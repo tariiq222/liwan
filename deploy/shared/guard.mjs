@@ -4,6 +4,8 @@ import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.t
 import { resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
 
 const forbidden = /^(x-odoo-|x-openerp-|x-nasq-|forwarded$|x-forwarded-)/i
+// The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
+const browserHeaders = new Set(['x-nasq-csrf'])
 const selectors = /^(db|database|session_id|sid)$/i
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() / 1000)) {
@@ -30,7 +32,7 @@ export function requestPlan(req, registry, token, codec) {
   const internal = equal(req.headers['x-nasq-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !(internal && ['x-nasq-proxy-token', 'x-nasq-tenant-revision'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-nasq-proxy-token', 'x-nasq-tenant-revision'].includes(name))) throw Error('forbidden_header')
   }
   if (internal && req.headers['x-nasq-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
@@ -63,7 +65,7 @@ export function requestPlan(req, registry, token, codec) {
   const odoo = favicon || avatar || logo || url.pathname.startsWith('/api/v1/') || url.pathname.startsWith('/web/content/') || url.pathname === '/websocket' || (internal && ['/web/session/authenticate', '/web/session/destroy'].includes(url.pathname))
   if (!odoo && /^(\/web(?:\/|$)|\/odoo|\/jsonrpc|\/xmlrpc|\/json\/|\/report|\/bus|\/mail|\/discuss|\/website|\/base_setup)/.test(url.pathname)) throw Error('forbidden_route')
   const headers = { ...req.headers }
-  for (const key of Object.keys(headers)) if (forbidden.test(key)) delete headers[key]
+  for (const key of Object.keys(headers)) if (forbidden.test(key) && (odoo || !browserHeaders.has(key))) delete headers[key]
   delete headers.authorization
   const cookies = (headers.cookie ?? '').split(';').map(v => v.trim()).filter(Boolean)
   const sessions = cookies.filter(v => v.startsWith('session_id='))

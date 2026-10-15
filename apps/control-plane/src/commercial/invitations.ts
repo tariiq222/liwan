@@ -6,11 +6,14 @@ import { isLocalCapture, type MailAdapter } from './mail-adapter.js'
 
 export const INVITATION_KIND = 'invitation.send'
 export const MIN_PASSWORD_LENGTH = 12
+/** Same maxima as the internal effect protocol, enforced before the token is consumed. */
+export const MAX_PASSWORD_LENGTH = 256
+export const MAX_TOKEN_LENGTH = 200
 
 /** Sets the tenant admin's own Odoo password. TODO: no Odoo "set admin password to a caller-supplied value"
  *  effect exists yet (odoo_effect.py only provisions a generated credential). Until implemented the default
  *  adapter refuses, so acceptance never fakes success. */
-export type SetPassword = (input: { tenant_id: string; admin_login: string; password: string }) => Promise<void>
+export type SetPassword = (input: { tenant_id: string; admin_login: string; password: string; token: string }) => Promise<void>
 export const unimplementedSetPassword: SetPassword = async () => { throw new InvitationError('password_setter_unavailable') }
 
 export class InvitationError extends Error { constructor(public code: string) { super(code) } }
@@ -70,17 +73,24 @@ export async function sendInvitationOutbox(pool: Pool, o: { mail: MailAdapter; o
 }
 
 export async function acceptInvitation(pool: Pool, a: { token: string; password: string; setPassword?: SetPassword }) {
-  if (typeof a.token !== 'string' || a.token.length < 20 || typeof a.password !== 'string' || a.password.length < MIN_PASSWORD_LENGTH) throw new InvitationError('invalid')
+  if (typeof a.token !== 'string' || a.token.length < 20 || typeof a.password !== 'string' || a.password.length < MIN_PASSWORD_LENGTH || a.token.length > MAX_TOKEN_LENGTH) throw new InvitationError('invalid')
+  if (a.password.length > MAX_PASSWORD_LENGTH) throw new InvitationError('password_policy')
   const c = await pool.connect()
   try {
     await c.query('BEGIN')
+    // A concurrent accept of the same token holds the row while its setter runs; do not queue behind it indefinitely.
+    await c.query("SET LOCAL lock_timeout = '5s'")
     const r = await c.query(
       `UPDATE admin_invitations SET consumed_at=now() WHERE token_hash=$1 AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at > now()
        RETURNING tenant_id, admin_login, customer_id`, [hashToken(a.token)])
     if (!r.rows[0]) { await c.query('ROLLBACK'); throw new InvitationError('invalid') }
     // Failure here rolls back the consume, so the invitation stays usable; the password is never stored.
-    await (a.setPassword ?? unimplementedSetPassword)({ tenant_id: r.rows[0].tenant_id, admin_login: r.rows[0].admin_login, password: a.password })
+    await (a.setPassword ?? unimplementedSetPassword)({ tenant_id: r.rows[0].tenant_id, admin_login: r.rows[0].admin_login, password: a.password, token: a.token })
     await c.query('COMMIT')
     return { tenant_id: r.rows[0].tenant_id as string, admin_login: r.rows[0].admin_login as string }
-  } catch (e) { await c.query('ROLLBACK').catch(() => {}); throw e } finally { c.release() }
+  } catch (e) {
+    await c.query('ROLLBACK').catch(() => {})
+    if ((e as { code?: string }).code === '55P03') throw new InvitationError('busy')
+    throw e
+  } finally { c.release() }
 }

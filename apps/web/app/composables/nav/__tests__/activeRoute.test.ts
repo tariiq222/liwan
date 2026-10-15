@@ -58,7 +58,6 @@ describe('shell route classification', () => {
     expect(activeShellModule('/projects/12/tasks/44')).toBe('projects')
     expect(activeShellModule('/tasks')).toBe('projects')
     expect(activeShellModule('/tasks/44')).toBe('projects')
-    expect(activeShellModule('/projects/templates/3/edit')).toBe('projects')
     expect(activeShellModule('/projects/dashboard')).toBe('home')
     expect(activeShellModule('/projects')).toBe('projects')
     expect(activeShellModule('/projects/new')).toBe('projects')

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ProjectCharterSchema, ProjectCharterWriteSchema } from './project-charter'
+import { CalendarDateSchema } from './schedule'
 import { TagSchema } from './task'
 
 export const ProjectRefSchema = z.object({ id: z.number().int(), name: z.string() }).strict()
@@ -35,6 +36,11 @@ export const ProjectDetailSchema = ProjectSchema.extend({
 }).strict()
 
 export const ProjectListSchema = z.object({ items: z.array(ProjectSchema), total: z.number().int().nonnegative(), can_create: z.boolean(), can_list_archived: z.boolean() }).strict()
+// Body of POST /api/v1/projects/{id}/copy: the copy's name and the day its dates are shifted to.
+export const ProjectCopyInputSchema = z.object({
+  name: z.string().trim().min(1).max(255),
+  start_date: CalendarDateSchema,
+}).strict()
 export const ProjectCreateSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
@@ -89,3 +95,4 @@ export type ProjectDetail = z.infer<typeof ProjectDetailSchema>
 export type ProjectList = z.infer<typeof ProjectListSchema>
 export type ProjectPatch = z.infer<typeof ProjectPatchSchema>
 export type ProjectCreate = z.infer<typeof ProjectCreateSchema>
+export type ProjectCopyInput = z.infer<typeof ProjectCopyInputSchema>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // Page navigation for every paged list. Hidden when everything fits on one page.
+// The page buttons wrap on narrow screens: in Arabic at 390px one row is wider than the content.
 const props = defineProps<{
   page: number
   pages: number
@@ -19,6 +20,7 @@ const hydrated = useHydrated()
       :items-per-page="1"
       :sibling-count="1"
       show-edges
+      :ui="{ root: 'min-w-0 max-w-full', list: 'flex-wrap' }"
       color="neutral"
       variant="ghost"
       active-color="primary"

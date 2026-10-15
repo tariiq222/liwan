@@ -11,7 +11,6 @@ import * as myTaskList from '../../utils/myTaskList'
 
 const cases = [
   { file: 'my-tasks/index.vue', base: '/my-tasks' },
-  { file: 'projects/templates/index.vue', base: '/projects/templates' },
 ]
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 afterEach(() => vi.unstubAllGlobals())
@@ -27,7 +26,6 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
     onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, onScopeDispose: Vue.onScopeDispose, useRoute, useRouter, refDebounced,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }), useNuxtApp: () => nuxt,
     useMyTaskPages: () => ({ data: Vue.ref({ pages: [{ items: [], total: 0 }] }), isFetchNextPageError: Vue.ref(false), isRefetchError: Vue.ref(false) }),
-    useProjectTemplateList: () => ({ data: Vue.ref({ items: [], total: 0, can_manage: true, can_apply: true }) }),
     FilterBar: {}, MyTaskRow: {}, sectionTabsUi: {},
   }
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -298,8 +296,7 @@ describe.each(cases)('$base pending list writes', testCase => {
       await expect.poll(() => view.router.currentRoute.value.query.q).toBe('review')
       expect(view.router.currentRoute.value.hash).toBe('#ledger')
       expect(view.router.currentRoute.value.query.context).toBe('keep')
-      if (testCase.base === '/projects/templates') expect(view.router.currentRoute.value.query.offset).toBeUndefined()
-      else expect(view.state.rowTo({ source: 'personal', id: 51 }).query.returnTo).toContain('#ledger')
+      expect(view.state.rowTo({ source: 'personal', id: 51 }).query.returnTo).toContain('#ledger')
     } finally { view.app.unmount() }
   })
 })

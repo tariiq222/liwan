@@ -59,6 +59,15 @@ Environment:
   `NASQ_GUARD_ODOO_URL`, `NASQ_GUARD_WEB_URL`, `NASQ_GUARD_WS_URL`
 - Nuxt: `NUXT_ODOO_URL=http://guard:8080`, public WS URL empty (same-origin).
   Remove Odoo routeRules and dev WS bypass in shared only. Do not expose keyring to Nuxt.
+- control-api + control-worker (invitation acceptance): control-api has no Docker access; it hands
+  the new admin password to control-worker over an internal HTTPS channel, in memory only.
+  Both: `INTERNAL_EFFECT_KEY`, random >=32-byte secret distinct from `CONTROL_SERVICE_KEY` and the
+  customer commercial key (unset = channel off, every acceptance returns 503).
+  control-api: `INTERNAL_EFFECT_URL` (https) and `INTERNAL_EFFECT_CA` (absolute path).
+  control-worker: `INTERNAL_EFFECT_HOST`, `INTERNAL_EFFECT_PORT` (default 4188),
+  `INTERNAL_EFFECT_TLS_KEY`, `INTERNAL_EFFECT_TLS_CERT` (absolute paths); the certificate SAN must
+  match the URL host. Put the channel on an internal-only network that only these two join.
+  Reference wiring: `tools/shared_saas_lifecycle/compose.yml`.
 
 ## Health and startup packaging (t8)
 

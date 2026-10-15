@@ -10,7 +10,6 @@ from . import (
     project_reports,
     project_schedule,
     project_stages,
-    project_templates,
     project_updates,
     projects,
     settings,

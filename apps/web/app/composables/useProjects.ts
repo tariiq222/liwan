@@ -1,7 +1,7 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
-import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
@@ -180,6 +180,20 @@ export function useCreateProject() {
   const { $api } = useApi()
   return useMutation({
     mutationFn: (body: ProjectCreate) => $api('/api/v1/projects', { method: 'POST', body, schema: ProjectDetailSchema }),
+    onSuccess: (detail) => {
+      qc.setQueryData(projectKeys.detail(detail.id), detail)
+      invalidateProjectCaches(qc)
+    },
+  })
+}
+
+// Copies the structure of project `id` into a new project; the server answers 201 with the new project.
+export function useCopyProject() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: ProjectCopyInput }) =>
+      $api(`/api/v1/projects/${id}/copy`, { method: 'POST', body, schema: ProjectDetailSchema }),
     onSuccess: (detail) => {
       qc.setQueryData(projectKeys.detail(detail.id), detail)
       invalidateProjectCaches(qc)

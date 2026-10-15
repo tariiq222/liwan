@@ -16,6 +16,7 @@ import { requireOnboardingAuthority } from './onboarding.js'
 import { requireJobAuthority } from './job-store.js'
 import { publishRegistryMutation, recoverRegistry } from './registry-store.js'
 import { lstat } from 'node:fs/promises'
+import { createAdminPasswordRunner } from './admin-password-runner.js'
 import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
 
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
@@ -34,6 +35,7 @@ export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid',
 export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):SharedFencedAdapter & Required<import('../commercial/invitation-odoo.js').OdooPasswordAdapter> {
   if(!config.sharedRuntimeConfigPath || !config.tenantRegistryPath)throw Error('shared_adapter_unavailable')
   const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
+  const adminPasswordRunner=createAdminPasswordRunner(pool,config,runtime)
   const execute=async(job:SharedJob,action:'observe'|'apply',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>})=>{
     const packageAuthority=job.operation==='provision'?await resolvePackageJobAuthority(pool,job):undefined
     const authority=job.operation==='provision'?null:await resolveOdooBackupAuthority(pool,runtime,job,{starting:action==='apply'})
@@ -176,52 +178,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
       await input.assertOwned()
       if(input.job.operation==='backup')await recordOdooBackup(pool,runtime,input.job,input)
     },
-    async setAdminPassword(input){
-      // Accepted invitation identity is still checked against the provisioned
-      // onboarding and active route; never resolve a caller-supplied database.
-      const rows=await pool.query(`SELECT b.database_name,b.host FROM shared_registry_bindings b
-        JOIN shared_onboardings o ON o.control_tenant_id=b.control_tenant_id AND o.database_name=b.database_name AND o.host=b.host
-        JOIN tenants t ON t.id=b.control_tenant_id
-        WHERE b.control_tenant_id=$1 AND b.enabled=true AND o.stage='active' AND o.admin_login=$2
-          AND t.commercial_mode='saas' AND t.status='active'`,[input.tenant_id,input.admin_login])
-      if(rows.rowCount!==1)throw Error('user_missing')
-      if(signal.aborted)throw Error('script_failed')
-      return new Promise<unknown>((resolve,reject)=>{
-        const child=spawn(config.python,['-B','-m','tools.shared_saas_lifecycle.admin_password_effect'],
-          {cwd:config.repositoryRoot,stdio:['pipe','pipe','ignore'],env:{...process.env,PYTHONUNBUFFERED:'1'}})
-        const allowed=new Set(['user_missing','user_inactive','password_policy','database_invalid','script_failed'])
-        let buffer='',bytes=0,errorCode:string|undefined
-        const fail=(code='script_failed')=>{errorCode??=code;child.kill('SIGTERM')}
-        const abort=()=>fail()
-        signal.addEventListener('abort',abort,{once:true})
-        const timer=setTimeout(()=>fail(),200000)
-        child.on('error',()=>fail());child.stdin.on('error',()=>fail())
-        child.stdout.on('data',chunk=>{
-          bytes+=Buffer.byteLength(chunk)
-          if(bytes>65536){buffer='';fail();return}
-          if(!errorCode)buffer+=String(chunk)
-        })
-        child.on('close',code=>{
-          clearTimeout(timer);signal.removeEventListener('abort',abort)
-          try{
-            if(errorCode)throw Error(errorCode)
-            const message=JSON.parse(buffer)
-            buffer=''
-            if(message && Object.keys(message).length===1 && typeof message.error_code==='string')
-              throw Error(allowed.has(message.error_code)?message.error_code:'script_failed')
-            if(code!==0 || !message || Object.keys(message).length!==1 || !Object.hasOwn(message,'result'))throw Error('script_failed')
-            resolve(message.result)
-          }catch(e){
-            buffer=''
-            reject(Error(e instanceof Error && allowed.has(e.message)?e.message:'script_failed'))
-          }
-        })
-        // Neither spawn argv/environment nor logs contain the caller password.
-        child.stdin.end(JSON.stringify({action:'set_admin_password',tenant:{database:rows.rows[0].database_name,host:rows.rows[0].host},
-          login:input.admin_login,password:input.password,config:runtime})+'\n')
-        if(signal.aborted)fail()
-      })
-    },
+    async setAdminPassword(input){return adminPasswordRunner(input,signal)},
   }
 }
 

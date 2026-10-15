@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
 from odoo.addons.nasq_api.controllers.common import (
@@ -15,6 +15,7 @@ from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES, NasqStale
 from odoo.addons.nasq_pmo.serializers.project import (
     dump_project,
     dump_project_detail,
+    parse_project_copy,
     parse_project_create,
     parse_project_vals,
 )
@@ -109,6 +110,22 @@ class ProjectController(http.Controller):
         except UserError as e:
             raise ApiError(422, 'invalid', str(e)) from e
         return request.make_json_response(dump_project_detail(project), status=201)
+
+    @http.route('/api/v1/projects/<int:project_id>/copy', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('pmo.enabled', operation='write')
+    def copy_project(self, project_id, **payload):
+        source = get_record('project.project', project_id)
+        name, start_date = parse_project_copy(payload)
+        try:
+            result = source._nasq_copy_structure(name, start_date, serialize=dump_project_detail)
+        except NasqAccessRule:
+            raise
+        except AccessError as error:
+            raise ApiError(403, 'forbidden', str(error)) from error
+        except (ValidationError, UserError) as error:
+            raise ApiError(422, 'invalid', str(error)) from error
+        return request.make_json_response(result, status=201)
 
     @http.route('/api/v1/projects/<int:project_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

@@ -2,22 +2,33 @@ import { z } from 'zod'
 import type { Pool } from 'pg'
 import { CommercialHttpError } from './lifecycle.js'
 import { parseBody, need, type CommercialInput } from './http.js'
-import { acceptInvitation, issueInvitation, InvitationError, MIN_PASSWORD_LENGTH, type SetPassword } from './invitations.js'
+import { acceptInvitation, issueInvitation, InvitationError, MIN_PASSWORD_LENGTH, MAX_TOKEN_LENGTH, type SetPassword } from './invitations.js'
 
 const DEFAULT_TTL = 72 * 3600
 
-/** Public: POST /v1/invitations/accept {token,password}. No vendor auth. All failures are one generic 400 (no token oracle). Caller should rate-limit by IP. Returns null when route does not match. */
+/** Setter/acceptance failure -> [public code, HTTP status]. Anything not listed is a generic 503. */
+const INVITATION_ERRORS: Record<string, [string, number]> = {
+  invalid: ['invalid_invitation', 400],
+  password_policy: ['password_rejected', 422],
+  user_missing: ['account_unavailable', 409],
+  user_inactive: ['account_unavailable', 409],
+  database_invalid: ['account_unavailable', 409],
+  busy: ['in_progress', 409],
+}
+
+/** Public: POST /v1/invitations/accept {token,password}. No vendor auth. An unknown, expired or used token is one generic 400 (no token oracle); only a valid token can reach the 409/422/503 effect outcomes. Caller should rate-limit by IP. Returns null when route does not match. */
 export async function invitationPublicHttp(pool: Pool, i: { method: string; pathname: string; raw: string; setPassword?: SetPassword }) {
   if (i.pathname !== '/v1/invitations/accept') return null
   if (i.method !== 'POST') throw new CommercialHttpError('not_found', 404)
   let body: { token: string; password: string }
-  try { body = parseBody(i.raw, z.strictObject({ token: z.string().min(20).max(200), password: z.string().min(MIN_PASSWORD_LENGTH).max(256) })) }
+  try { body = parseBody(i.raw, z.strictObject({ token: z.string().min(20).max(MAX_TOKEN_LENGTH), password: z.string().min(MIN_PASSWORD_LENGTH) })) }
   catch { throw new CommercialHttpError('invalid_invitation', 400) }
   try { await acceptInvitation(pool, { ...body, setPassword: i.setPassword }) }
   catch (e) {
-    if (e instanceof InvitationError && e.code === 'password_setter_unavailable') throw new CommercialHttpError('unavailable', 503)
-    if (e instanceof InvitationError) throw new CommercialHttpError('invalid_invitation', 400)
-    throw e
+    if (!(e instanceof InvitationError)) throw e
+    const mapped = INVITATION_ERRORS[e.code]
+    if (mapped) throw new CommercialHttpError(mapped[0], mapped[1])
+    throw new CommercialHttpError('unavailable', 503)
   }
   return { status: 200, data: { ok: true } }
 }

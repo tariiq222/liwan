@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   ProjectScheduleSchema, FinanceEntryListSchema, MilestoneSchema, ProjectCharterReferenceListSchema, ProjectRaciListSchema,
-  ProjectRegisterListSchema, ProjectStakeholderListSchema, ProjectTemplateListSchema, TaskListSchema,
+  ProjectRegisterListSchema, ProjectStakeholderListSchema, TaskListSchema,
 } from '@nasq/contracts'
 // the preview module is plain ESM shared with the mock server, so its inferred types are cast loose below
 import { pmoPreviewData } from '../../../e2e/pmo-ui-preview-data.mjs'
@@ -32,7 +32,6 @@ describe('the PMO preview fixtures parse with the wire contracts', () => {
     ['/api/v1/projects/3/raci', ProjectRaciListSchema, 3],
     ['/api/v1/projects/3/finance', FinanceEntryListSchema, 4],
     ['/api/v1/project-charter/catalogs/owning-units?active=all', ProjectCharterReferenceListSchema, 3],
-    ['/api/v1/project-templates', ProjectTemplateListSchema, 3],
     ['/api/v1/tasks/archived', TaskListSchema, 3],
     ['/api/v1/project-charter/catalogs/types?active=all', ProjectCharterReferenceListSchema, 3],
   ] as const)('%s', (path, schema, count) => {

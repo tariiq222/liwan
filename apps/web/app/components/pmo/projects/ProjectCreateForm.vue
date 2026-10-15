@@ -2,13 +2,16 @@
 import { ApiError } from '@/composables/useApi'
 import { useProjectCreateDefaults } from '@/composables/useProjectSettings'
 import ProjectCharterForm from '@/components/pmo/projects/ProjectCharterForm.vue'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import ProjectCopyForm from '@/components/pmo/projects/ProjectCopyForm.vue'
+import { parsePositiveId } from '@/utils/routeParams'
 import type { CharterWizardStep } from '@/utils/charterSteps'
 
-const emit = defineEmits<{ created: [id: number]; drafted: [id: number, step: CharterWizardStep]; cancel: [] }>()
+const emit = defineEmits<{ created: [id: number]; copied: [id: number]; drafted: [id: number, step: CharterWizardStep]; cancel: [] }>()
 const { t } = useI18n()
 const route = useRoute()
 const hydrated = useHydrated()
+// A valid `?copyFrom=<id>` turns the panel into "copy this project"; anything else is the normal create form.
+const copyFrom = computed(() => parsePositiveId(route.query.copyFrom))
 const { me } = useMe()
 const {
   data: defaults,
@@ -43,16 +46,11 @@ async function retryDefaults() {
 </script>
 
 <template>
-  <SharedFormSection :title="t('projects.charter.title')" :description="defaultsHint">
+  <SharedFormSection v-if="copyFrom" :title="t('projects.copy.title')" :description="t('projects.copy.description')">
+    <ProjectCopyForm :source-id="copyFrom" @created="emit('copied', $event)" @cancel="emit('cancel')" />
+  </SharedFormSection>
+  <SharedFormSection v-else :title="t('projects.charter.title')" :description="defaultsHint">
     <div class="grid gap-4">
-      <NuxtLink
-        :to="{ path: '/projects/templates', query: returnToQuery(route.fullPath) }"
-        data-testid="project-create-from-template"
-        class="inline-flex w-fit items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1.5 text-sm font-medium text-primary hover:bg-primary/15 focus-visible:outline-2 focus-visible:outline-primary"
-      >
-        <UIcon name="i-lucide-layout-template" class="size-4" aria-hidden="true" />
-        {{ t('projects.create.fromTemplate') }}
-      </NuxtLink>
       <p v-if="defaultsLoading && !defaults" data-testid="project-create-loading" class="text-sm text-muted">{{ t('projects.create.loading') }}</p>
       <div v-else-if="forbidden && !defaults" role="alert" class="grid gap-2" data-testid="project-create-forbidden">
         <p class="text-sm text-error">{{ t('projects.createForbidden') }}</p>

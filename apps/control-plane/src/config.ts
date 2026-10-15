@@ -5,6 +5,8 @@ export type Config = {
   customerCommercialIssuer?: string
   customerCommercialServiceKey?: string
   sharedRuntimeConfigPath?: string
+  /** Authenticated internal channel between control-api (caller) and control-worker (executor) for the admin password effect. */
+  internalEffect?: { key: string; url?: string; ca?: Buffer; host?: string; port?: number; tls?: { key: Buffer; cert: Buffer } }
   installationId: string
   key: string
   inventoryPath: string
@@ -25,6 +27,7 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const customerCommercialServiceKey = process.env.CUSTOMER_COMMERCIAL_SERVICE_KEY
   if (customerCommercialServiceKey && (Buffer.byteLength(customerCommercialServiceKey) < 32 || customerCommercialServiceKey === key)) throw new Error('CUSTOMER_COMMERCIAL_SERVICE_KEY must be distinct and contain at least 32 bytes')
   if (customerCommercialIssuer && customerCommercialIssuer === installationId) throw new Error('CUSTOMER_COMMERCIAL_ISSUER must be distinct from vendor issuer')
+  const internalEffect = internalEffectConfig(key, customerCommercialServiceKey)
   const inventoryPath = required('NASQ_CLI_INVENTORY')
   const managedInventoryPath = process.env.NASQ_MANAGED_INVENTORY
   const sharedRuntimeConfigPath = process.env.NASQ_SHARED_RUNTIME_CONFIG
@@ -38,6 +41,34 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
   if ((host !== '127.0.0.1' && host !== '::1' && host !== 'localhost') && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
-  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.NASQ_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
+  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.NASQ_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
+}
+
+/** The key makes the channel exist; it must be its own secret so a leaked vendor or customer key cannot call it.
+ * Caller side needs URL+CA, executor side needs HOST+TLS key+cert; TLS is never optional. Unset key = channel off. */
+function internalEffectConfig(controlKey: string, customerKey: string | undefined): Config['internalEffect'] {
+  const key = process.env.INTERNAL_EFFECT_KEY
+  if (!key) return undefined
+  if (Buffer.byteLength(key) < 32 || key === controlKey || key === customerKey) throw new Error('INTERNAL_EFFECT_KEY must be distinct and contain at least 32 bytes')
+  const url = process.env.INTERNAL_EFFECT_URL
+  const caPath = process.env.INTERNAL_EFFECT_CA
+  const host = process.env.INTERNAL_EFFECT_HOST
+  const tlsKey = process.env.INTERNAL_EFFECT_TLS_KEY
+  const tlsCert = process.env.INTERNAL_EFFECT_TLS_CERT
+  const result: NonNullable<Config['internalEffect']> = { key }
+  if (url || caPath) {
+    if (!url || !caPath || !isAbsolute(caPath) || new URL(url).protocol !== 'https:') throw new Error('INTERNAL_EFFECT_URL must be https and requires an absolute INTERNAL_EFFECT_CA')
+    result.url = url
+    result.ca = readFileSync(caPath)
+  }
+  if (host) {
+    const port = Number(process.env.INTERNAL_EFFECT_PORT ?? '4188')
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('invalid INTERNAL_EFFECT_PORT')
+    if (!tlsKey || !tlsCert || !isAbsolute(tlsKey) || !isAbsolute(tlsCert)) throw new Error('HTTPS is required for INTERNAL_EFFECT_HOST')
+    result.host = host
+    result.port = port
+    result.tls = { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) }
+  }
+  return result
 }

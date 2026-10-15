@@ -38,7 +38,7 @@ def make_request(**over):
 
 
 def observation(**over):
-    value = {'database': DB, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
+    value = {'database': DB, 'root_company_id': 1, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
              'commercial_applied_at': None, 'features': {'users.limit': 3},
              'modules': ['nasq_api', 'nasq_core', 'nasq_platform'], 'branches': [],
              'usage': {'users.limit': 1, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'branches.extra_limit': 0},
@@ -140,6 +140,7 @@ class ReconfigureTests(Base):
         self.assertEqual(receipt['branch_bindings'], [{'branch_id': B1, 'odoo_company_id': 7}])
         self.assertEqual(receipt['order_id'], 'order-1')
         self.assertEqual(receipt['target_revision_id'], TARGET)
+        self.assertEqual(receipt['root_company_id'], 1)
 
     def test_idempotent_when_already_applied(self):
         request = make_request()
@@ -396,6 +397,23 @@ class ObserveTests(Base):
             del bad['limit_gates'][missing]
             with self.assertRaises(EffectError, msg=missing):
                 self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+
+    def test_observation_must_carry_the_root_company(self):
+        missing = observation()
+        del missing['root_company_id']
+        for bad in (missing, observation(root_company_id=None), observation(root_company_id=False),
+                    observation(root_company_id=0), observation(root_company_id='1'),
+                    observation(root_company_id=True)):
+            with self.assertRaises(EffectError):
+                self.effect(FakeRunner(bad)).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+
+    def test_observe_script_reads_the_root_company(self):
+        self.assertIn("'root_company_id': root.id", se.build_observe_script(DB))
+
+    def test_verified_rerun_receipt_carries_the_root_company(self):
+        request = make_request()
+        receipt = self.effect(FakeRunner(applied_state(request, root_company_id=3))).reconfigure(request)
+        self.assertEqual(receipt['root_company_id'], 3)
 
 
 class SigtermTests(unittest.TestCase):

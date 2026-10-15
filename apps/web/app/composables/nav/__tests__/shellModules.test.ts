@@ -15,13 +15,13 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/projects/templates', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
+    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     // Account and appearance live in the header, so an employee has no settings module.
     expect(nav.filter(item => item.group === 'settings')).toEqual([])
     expect(visibleShellModules(employee).map(module => module.id)).not.toContain('settings')
-    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/projects/templates'])
+    expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks'])
     expect(nav.map(item => item.to)).not.toContain('/projects/settings')
     expect(nav.find(item => item.to === '/projects/dashboard')?.module).toBe('home')
     expect(nav.find(item => item.to === '/projects')?.module).toBe('projects')
@@ -147,13 +147,13 @@ describe('projects dashboard navigation', () => {
     expect(modules.map(item => item.id as string)).not.toContain('reports')
     expect(activeShellModule('/projects/dashboard')).toBe('home')
   })
-  it('orders creation, overview, all projects, my tasks and templates with real capability gates', () => {
+  it('orders creation, overview, all projects, and my tasks with real capability gates', () => {
     const creator = { capabilities: ['pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read'] }
-    expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['new-project', 'project-dashboard', 'projects', 'tasks', 'project-templates'])
+    expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['new-project', 'project-dashboard', 'projects', 'tasks'])
     expect(contextLinksForModule('home', creator)).toEqual(contextLinksForModule('projects', creator))
-    expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'tasks', 'project-templates'])
-    expect(contextLinksForModule('projects', { capabilities: ['pmo.projects.read'] }).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'project-templates'])
-    expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['nav.projectDashboard', 'nav.allProjects', 'nav.tasks', 'nav.projectTemplates'])
+    expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'tasks'])
+    expect(contextLinksForModule('projects', { capabilities: ['pmo.projects.read'] }).map(link => link.id)).toEqual(['project-dashboard', 'projects'])
+    expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['nav.projectDashboard', 'nav.allProjects', 'nav.tasks'])
     expect(contextLinksForModule('projects', full).some(link => ['my-projects', 'archived-tasks', 'project-system-settings', 'summary', 'current-project-settings'].includes(link.id))).toBe(false)
     expect(contextLinksForModule('projects', undefined)).toEqual([])
   })
@@ -163,7 +163,6 @@ describe('projects dashboard navigation', () => {
     expect(hidePinnedNewProject('/projects/40')).toBe(true)
     expect(hidePinnedNewProject('/projects/40/tasks/701')).toBe(true)
     expect(hidePinnedNewProject('/projects/dashboard')).toBe(false)
-    expect(hidePinnedNewProject('/projects/templates')).toBe(false)
     // hidePinnedNewProject shares normalizedPath with the route helpers, so a
     // trailing slash or a query string must not reopen the pinned action.
     expect(hidePinnedNewProject('/projects/')).toBe(true)

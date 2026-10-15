@@ -4,13 +4,10 @@ export function projectsPreviewData(path, url, { PROJECTS, TASKS, projectDetail,
   const milestone = { id: 1, name: 'اعتماد الخطة', deadline: '2026-10-01', is_reached: false, reached_date: null, task_count: 2, done_task_count: 1 }
   const stakeholder = { id: 1, name: 'فريق التشغيل', user: null, organization: 'إدارة الخدمات', role: 'مالك الخدمة', contact: 'operations@example.test', notes: 'المراجعة الأسبوعية لمخرجات المشروع.' }
   const risk = { id: 1, kind: 'risk', title: 'تأخر اعتماد المتطلبات', description: 'قد تتأخر مراجعة المتطلبات عن الموعد المحدد.', priority: 'high', status: 'open', owner: user, due_date: '2026-10-01', response: 'تحديد اجتماع مراجعة مبكر مع الأطراف المعنية.', task: { id: 101, name: TASKS[0].name }, probability: 3, impact: 4, score: 12 }
-  const template = { id: 1, name: 'إطلاق خدمة', description: 'مراحل ومهام تأسيس خدمة جديدة.', can_manage: true, can_apply: true, definition: { stages: [{ key: 'planning', name: 'التخطيط', fold: false }, { key: 'done', name: 'مكتمل', fold: true }], milestones: [{ key: 'approval', name: 'اعتماد الخطة', offset_days: 14 }], tasks: [{ key: 'requirements', name: 'توثيق المتطلبات', stage_key: 'planning', start_offset: 0, duration_days: 7, milestone_key: 'approval', dependency_keys: [] }] } }
   const entries = [{ id: 1, project_id: 1, kind: 'budget', title: 'ميزانية التنفيذ', amount: 1000, expense_date: null, reference: 'B-001', notes: 'ميزانية المرحلة الأولى', budget_entry_id: null, updated_at: 'v1' }, { id: 2, project_id: 1, kind: 'expense', title: 'تكلفة تجهيز الخدمة', amount: 300, expense_date: '2026-09-01', reference: 'E-001', notes: 'المصروف المرتبط بتجهيز بيئة العمل', budget_entry_id: 1, updated_at: 'v1' }]
   const page = (items, extra = {}) => ({ items: items.slice(Number(url.searchParams.get('offset') || 0), Number(url.searchParams.get('offset') || 0) + Number(url.searchParams.get('limit') || 50)), total: items.length, ...extra })
   if (path === '/api/v1/people') return [user]
   if (path === '/api/v1/currencies' || path === '/api/v1/project-charter/currencies') return [CURRENCY]
-  if (path === '/api/v1/project-templates') return page([template], { can_manage: true, can_apply: true })
-  if (path === '/api/v1/project-templates/1') return template
   if (/^\/api\/v1\/project-charter\/catalogs\/(types|owning-units)\/1$/.test(path)) return { id: 1, name: path.includes('types') ? 'داخلي' : 'مكتب المشاريع', sequence: 1, active: true }
   if (path === '/api/v1/reports/projects/analytics') {
     const rows = PROJECTS.map(reportRow)

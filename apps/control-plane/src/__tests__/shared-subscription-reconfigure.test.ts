@@ -68,6 +68,22 @@ describe.skipIf(!scratchUrl)('subscription reconfigure integration-fake', () => 
     expect((await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1',[s.order])).rows[0].fulfillment_state).toBe('needs_intervention')
     expect((await pool.query('SELECT applied_revision_id FROM subscriptions WHERE id=$1',[s.subscription])).rows[0].applied_revision_id).toBe(s.previous)
   })
+  it('first activation binds the HQ branch to the observed root company', async () => {
+    const s=await seedOrder(pool); await processFulfillmentOutbox(pool,{limit:100})
+    await pool.query('UPDATE subscriptions SET applied_revision_id=NULL,revision=revision+1 WHERE id=$1',[s.subscription])
+    await applyReceipt(pool,{order_id:s.order,receipt:{...s.receipt,root_company_id:5}})
+    expect((await pool.query("SELECT odoo_company_id FROM commercial_branches WHERE subscription_id=$1 AND kind='hq'",[s.subscription])).rows).toEqual([{odoo_company_id:5}])
+    expect((await pool.query('SELECT odoo_company_id FROM commercial_branches WHERE id=$1',[s.branch])).rows[0].odoo_company_id).toBe(2)
+  })
+  it('first activation without the root company is quarantined and creates no HQ branch', async () => {
+    for (const root_company_id of [undefined, 0, 1.5]) {
+      const s=await seedOrder(pool); await processFulfillmentOutbox(pool,{limit:100})
+      await pool.query('UPDATE subscriptions SET applied_revision_id=NULL,revision=revision+1 WHERE id=$1',[s.subscription])
+      await expect(applyReceipt(pool,{order_id:s.order,receipt:{...s.receipt,root_company_id}})).rejects.toThrow('observed_mismatch')
+      expect((await pool.query('SELECT fulfillment_state FROM orders WHERE id=$1',[s.order])).rows[0].fulfillment_state).toBe('needs_intervention')
+      expect((await pool.query("SELECT count(*)::int AS n FROM commercial_branches WHERE subscription_id=$1 AND kind='hq'",[s.subscription])).rows[0].n).toBe(0)
+    }
+  })
   it('new tenant stays pending with tenant_required', async () => {
     const s=await seedOrder(pool,true); await processFulfillmentOutbox(pool,{limit:100})
     const row=(await pool.query('SELECT status,payload FROM commercial_outbox WHERE aggregate_id=$1',[s.order])).rows[0]

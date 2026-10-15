@@ -42,11 +42,4 @@ describe('project record header and list contracts', () => {
     expect(read('components/pmo/projects/ProjectCardBody.vue')).toContain(':to="toFor(project)"')
     expect(read('components/pmo/projects/ProjectTable.vue')).toContain(':to="toFor(row.original)"')
   })
-
-  it('labels every template column and leads with the number', () => {
-    const page = read('pages/projects/templates/index.vue')
-    expect(page.indexOf("id: 'number'")).toBeLessThan(page.indexOf("id: 'name'"))
-    expect(page).not.toContain("class: 'sr-only'")
-    expect(page).toContain("id: 'actions'")
-  })
 })

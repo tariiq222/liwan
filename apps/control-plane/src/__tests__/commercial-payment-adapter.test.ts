@@ -130,6 +130,12 @@ describe('paymentAdapterFromEnv', () => {
     expect(() => paymentAdapterFromEnv({ NASQ_PAYMENT_PROVIDER: 'simulator', NODE_ENV: 'production' })).toThrow(/provider_forbidden/)
     expect(() => new SimulatorAdapter({ env: {}, live: true })).toThrow(/provider_forbidden/)
   })
+  it('simulator references stay unique across instances (process restarts)', async () => {
+    const first = await new SimulatorAdapter({ env: {} }).createAttempt(attempt)
+    const second = await new SimulatorAdapter({ env: {} }).createAttempt(attempt)
+    expect(first.provider_ref).toMatch(/^sim_inv_[0-9a-f]{8}_1$/)
+    expect(second.provider_ref).not.toBe(first.provider_ref)
+  })
 })
 
 describe('SimulatorAdapter scenarios', () => {

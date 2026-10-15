@@ -58,9 +58,6 @@ suite('commercial B1 atomic orders', () => {
     const firstQuote = await createQuoteForCustomer(pool, { customer_id:id, request:request() })
     const input = accept(firstQuote), first = await acceptQuote(pool, input, vendor)
     const adapter = new SimulatorAdapter()
-    // The simulator numbers references per instance; advance past retained SQL fixtures.
-    const used = Number((await pool.query("SELECT COALESCE(max(substring(provider_ref FROM '^sim_inv_([0-9]+)$')::int),0) AS n FROM payment_attempts WHERE provider='simulator'")).rows[0].n)
-    for (let i=0;i<used;i++) await adapter.createAttempt({attempt_id:randomUUID(),order_id:randomUUID(),amount:money(1),description:'Reference reservation',success_url:'https://nasq.test',back_url:'https://nasq.test',callback_url:'https://nasq.test',expires_at:new Date().toISOString()})
     const attempt = await createPaymentAttempt(pool, { order_id:first.order.id, customer_id:id, adapter, allowedOrigin:'https://nasq.test', return_path:'/subscription' })
     if (initialPayment === 'failed') {
       adapter.settle(attempt.provider_ref, 'failed')
@@ -95,7 +92,7 @@ suite('commercial B1 atomic orders', () => {
     await expect(acceptQuote(pool, accept(paidQuote), vendor)).rejects.toMatchObject({code:'subscription_change_pending'})
     // Controlled observed receipt boundary; this test runs no physical Odoo adapter.
     await pool.query('INSERT INTO fulfillment_effects(id,order_id,operation_id) VALUES($1,$2,$3)', [randomUUID(), first.order.id, randomUUID()])
-    const receipt = { order_id:first.order.id, tenant_id:tenant, target_revision_id:first.order.target_revision_id, observed_entitlement_digest:firstQuote.entitlement_digest, observed_at:new Date().toISOString(), branch_bindings:[] }
+    const receipt = { order_id:first.order.id, tenant_id:tenant, target_revision_id:first.order.target_revision_id, observed_entitlement_digest:firstQuote.entitlement_digest, observed_at:new Date().toISOString(), branch_bindings:[], root_company_id:1 }
     expect(await applyReceipt(pool, { order_id:first.order.id, receipt })).toEqual({ applied:true, replay:false })
     expect(await applyReceipt(pool, { order_id:first.order.id, receipt })).toEqual({ applied:true, replay:true })
     expect(await getSubscription(pool, id)).toMatchObject({ applied:{id:first.order.target_revision_id}, target:null, pending_order:null })

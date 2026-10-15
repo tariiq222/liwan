@@ -5,7 +5,7 @@ export interface OdooPasswordAdapter {
   setAdminPassword?: (input: Parameters<SetPassword>[0]) => Promise<unknown>
 }
 
-const codes = new Set(['user_missing', 'user_inactive', 'password_policy', 'database_invalid', 'script_failed'])
+const codes = new Set(['user_missing', 'user_inactive', 'password_policy', 'database_invalid', 'script_failed', 'busy', 'unavailable'])
 
 /** Bridge an accepted invitation to the provisioned tenant admin; never expose
  * arbitrary runtime exception text (which could include passwords or tokens). */
