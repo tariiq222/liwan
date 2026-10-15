@@ -1,7 +1,7 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
-import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@nasq/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
@@ -278,5 +278,22 @@ export function useSetProjectStatus() {
       qc.setQueryData(projectKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: projectKeys.list })
     },
+  })
+}
+
+// Non-optimistic like the charter transitions: a gate can refuse, so the cache
+// takes whatever the server returns.
+export function useMoveProjectPhase() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, phase, expected }: { id: number; phase: ProjectPhase; expected: string }) =>
+      $api(`/api/v1/projects/${id}/phase`, { method: 'POST', body: { phase, expected_updated_at: expected }, schema: ProjectDetailSchema }),
+    onSuccess: (detail: ProjectDetail, { id }) => {
+      qc.setQueryData(projectKeys.detail(id), detail)
+      invalidateProjectCaches(qc)
+    },
+    // A refused gate or a stale token both mean the cached checks and write token are out of date.
+    onError: (_error, { id }) => qc.invalidateQueries({ queryKey: projectKeys.detail(id) }),
   })
 }

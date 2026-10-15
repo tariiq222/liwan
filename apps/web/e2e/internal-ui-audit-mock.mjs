@@ -124,7 +124,20 @@ function seedReviewCharters() {
 seedReviewCharters()
 const allProjects = () => [...PROJECTS, ...COPIES, ...REVIEW_PROJECTS]
 const stateOf = p => CHARTER_STATE.get(p.id) ?? { charter: CHARTER, updated_at: 'v1' }
-const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state, phase: 'planning' })
+// Lifecycle phases (project id -> phase). The seeded workspace projects are already planning; review and
+// created projects start at initiating like the server column default. The reset restores them.
+const PHASES = ['initiating', 'planning', 'executing', 'closing', 'closed']
+const PHASE_OF = new Map()
+const phaseOf = p => PHASE_OF.get(p.id) ?? (PROJECTS.includes(p) ? 'planning' : 'initiating')
+const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state, phase: phaseOf(p) })
+
+// Mirrors Project._nasq_phase_state: only the gate into planning has a check today.
+function phaseState(p) {
+  const index = PHASES.indexOf(phaseOf(p))
+  const next = PHASES[index + 1] ?? null
+  const nextChecks = next === 'planning' ? [{ key: 'charter_approved', ok: stateOf(p).charter.state === 'approved' }] : []
+  return { current: PHASES[index], next, previous: PHASES[index - 1] ?? null, next_checks: nextChecks }
+}
 
 function projectDetail(p) {
   return {
@@ -142,7 +155,7 @@ function projectDetail(p) {
     completion_approver: null,
     updated_at: stateOf(p).updated_at,
     charter: stateOf(p).charter,
-    phase_state: { current: 'planning', next: 'executing', previous: 'initiating', next_checks: [] },
+    phase_state: phaseState(p),
   }
 }
 
@@ -424,8 +437,30 @@ async function handle(req, res) {
     CHARTER_STATE.set(p.id, { charter, updated_at: `v${Number(entry.updated_at.slice(1)) + 1}` })
     return json(res, 200, projectDetail(p))
   }
+  // Phase moves mirror the server: manager only, matching write token, one step at a time, forward needs every check.
+  const phaseMove = match(path, '/api/v1/projects/:id/phase')
+  if (method === 'POST' && phaseMove) {
+    const p = allProjects().find(item => String(item.id) === phaseMove.id)
+    if (!p) return fail(res, 404, 'not_found', 'project not found')
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    if (!PHASES.includes(body.phase)) return json(res, 422, { code: 'invalid', message: 'unknown phase', field: 'phase' })
+    if (!/^v\d+$/.test(body.expected_updated_at ?? '')) return json(res, 422, { code: 'invalid', message: 'expected_updated_at is required', field: 'expected_updated_at' })
+    const entry = stateOf(p)
+    if (body.expected_updated_at !== entry.updated_at) return fail(res, 409, 'stale_write', 'the project changed since it was loaded')
+    if (!p.can_manage) return fail(res, 403, 'forbidden', 'not allowed')
+    const state = phaseState(p)
+    if (body.phase !== state.next && body.phase !== state.previous) return fail(res, 409, 'phase_step', 'a project moves one phase at a time')
+    if (body.phase === state.next && !state.next_checks.every(check => check.ok)) {
+      return json(res, 409, { code: 'phase_gate', message: 'the gate has unmet checks', details: { checks: state.next_checks } })
+    }
+    PHASE_OF.set(p.id, body.phase)
+    CHARTER_STATE.set(p.id, { charter: entry.charter, updated_at: `v${Number(entry.updated_at.slice(1)) + 1}` })
+    return json(res, 200, projectDetail(p))
+  }
   if (method === 'POST' && path === '/api/v1/__mock/reset-charters') {
     seedReviewCharters()
+    PHASE_OF.clear()
     COPIES.length = 0
     SETTINGS.require_charter_approval = false
     return json(res, 200, { ok: true })
