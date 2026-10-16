@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { cadenceLabel, formatMoney, quoteLinesByTiming } from '../commercial'
+import { cadenceLabel, formatCommercialMoney, quoteLinesByTiming } from '../commercial'
 
 const t = (key: string, p?: Record<string, unknown>) => `${key}${p ? JSON.stringify(p) : ''}`
 
-describe('formatMoney', () => {
+describe('formatCommercialMoney', () => {
   it('formats minor units in the locale with the money exponent', () => {
-    expect(formatMoney({ currency: 'SAR', exponent: 2, minor: 150000 }, 'en')).toContain('1,500.00')
-    expect(formatMoney({ currency: 'SAR', exponent: 2, minor: 150000 })).toContain('1,500.00')
+    expect(formatCommercialMoney({ currency: 'SAR', exponent: 2, minor: 150000 }, 'en')).toContain('1,500.00')
+    expect(formatCommercialMoney({ currency: 'SAR', exponent: 2, minor: 150000 })).toContain('1,500.00')
   })
 })
 
