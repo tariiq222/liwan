@@ -42,48 +42,69 @@ module list and the base `odoo-addons` tree form its name, so it is rebuilt when
 changes) and only ever creates, clones or drops `webvue_scratch_*` databases. Stale
 `webvue_scratch_tpl_*` templates are small and can be dropped by hand.
 
-## Running a CI step locally
+## Local main merge gate
 
-`woodpecker-cli exec` (Homebrew `woodpecker-cli`) runs `.woodpecker.yml` steps on the local
-backend with no server. Verified for the `static` step (197.6 s, passed):
+After the owner authorizes integration and the candidate diff has been reviewed, use:
 
 ```sh
-# 1. a throwaway clone, because the step runs `npm ci` and writes into its workspace
-git clone --local --no-hardlinks /Users/tariq/code/webvue /tmp/webvue-ci && cd /tmp/webvue-ci
-# 2. a pipeline file holding only the wanted step (exec cannot select one)
-#    copy `when:` plus the `static` block of .woodpecker.yml into /tmp/static-only.yaml
-woodpecker-cli exec --local --repo-path /tmp/webvue-ci --backend-engine local \
-  --commit-branch main /tmp/static-only.yaml
+npm run merge:main -- codex/<area>-<slug>
 ```
 
-Other steps need extra local services (PostgreSQL role `webvue_test`, the Odoo checkout, a Docker
-daemon for `image`) and were not run this way. This mirrors CI for a branch before merge; the
-local policy runs in AGENTS.md stay the binding gate.
+The source branch must be committed and its checked-out worktree clean. The canonical
+`main` checkout must have no tracked edits or unfinished Git operations. Untracked main
+files are preserved; a collision with incoming files (including ignored files and symlink
+parents) stops the gate. The command fetches `origin/main` when origin is configured and
+refuses a main that is behind or diverged.
+
+The gate records exact main/source commits, creates an isolated detached worktree and an
+actual no-ff merge commit, and checks that commit. All twelve CI stages must complete.
+Only after success and fresh branch/cleanliness checks does it fast-forward main to the
+same existing tested merge commit. This is an explicit local entrypoint for the integration
+rules in [`agents/integration-rules.md`](agents/integration-rules.md); code review and the
+owner's merge authorization remain required.
+
+Reports and candidate worktrees stay in the ignored `.superpowers/merge-main/<run>/`
+directory: `merge.json`, `checks/report.json`, `checks/pipeline.log` and `checks/runner.log`.
+Failures, conflicts and interruptions before promotion leave main unchanged and preserve the
+candidate for diagnosis. If interruption occurs during promotion, inspect `actual_main` in
+`merge.json`; the gate records the resulting ref and never resets another writer's work. Cleanup needs
+separate authorization. No push occurs. The lock serializes calls to this command; direct
+Git commands can bypass it, so other main writers must coordinate integrations. This is
+not server-enforced branch protection.
 
 ## CI pipeline notes
 
-CI is Woodpecker (`.woodpecker.yml`, with the image gate in
-`deploy/woodpecker/image.yml`); GitHub
-Actions is not used. The main pipeline has twelve steps—`static`, `ai-service`,
-`control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`,
-`e2e-mock`, and `rtl-stories`—and each is
-runnable locally with the same command block in that file (`vendor-admin` type-checks, tests and builds `apps/vendor-admin`): static checks, the
-control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
-commands, the backup and restore drill, and the mock Playwright run. `odoo` installs the whole release;
-`odoo-tasks-standalone` (`-i webvue_tasks` only, then asserts `webvue_pmo` and `webvue_tasks_pmo` are not installed)
-and `odoo-tasks-bridge` (`-i webvue_tasks,webvue_pmo,webvue_tasks_pmo`, then asserts the bridge is installed) prove
-the tasks application's non-release configurations with hard-coded module lists, their own scratch databases
-and HTTP ports 8193/8194. The
-control-plane live suites run serially by design: its `test` script sets
-`--no-file-parallelism --hookTimeout=60000` because they share one scratch
-control database and TRUNCATE the same tables. `ai-service` installs `apps/ai-service` into a venv, lints it with ruff and runs its pytest
-suite against a throwaway Postgres database (`webvue_ai_ci_<pipeline number>`, created and dropped in the step
-like the control-plane suites); locally the scripted-model suite runs without a database and the Postgres
-tests run only when `AI_TEST_DATABASE_URL` is set. The `image` step
-needs a Docker daemon on the agent; `deploy/woodpecker/image.yml` is the separate opt-in pipeline for
-agents whose engine can start a privileged dind service. The
-migration policy is [`docs/migrations.md`](migrations.md), and the pinned
-Odoo source commit is [`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT).
+`.woodpecker.yml` is the single source of twelve local check stages: `static`, `ai-service`,
+`control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`,
+`upgrade`, `restore-drill`, `image`, `e2e-mock` and `rtl-stories`. Woodpecker CLI executes
+them locally without a CI server, inbound webhook, Cloudflare tunnel or GitHub Actions.
+For a diagnostic run in a disposable clean checkout, use the same runner directly:
+
+```sh
+npm run check:local -- --base <main-sha> --commit <candidate-sha> --report-dir <absolute-new-directory>
+```
+
+The runner requires the local Woodpecker CLI, Node matching `.nvmrc`, Python and the
+pinned Odoo checkout with its Python environment, PostgreSQL client tools, Docker with Compose and
+the pipeline's linters. Docker must already be running; the runner does not start or
+reconfigure it. Dependency installation and image building need network access when
+caches are absent. A missing tool, service failure, failed stage or missing completion
+receipt fails the run. No paid model calls are required.
+
+The runner provides dedicated disposable PostgreSQL and unique run resources rather
+than changing development roles or testing against `odoo19`. Dependencies and generated
+Nuxt output belong to the candidate. The full Odoo stage covers release modules; the
+standalone tasks and tasks/PMO bridge stages cover independent installations. The
+control-plane PostgreSQL suites run serially because they share their isolated scratch
+databases. `vendor-admin` has its own prepare, types, tests and build checks. The image
+stage builds and checks the deployment image; mock browser tests and RTL stories cover
+their listed flows, not every possible real integration.
+
+The upgrade stage reports an explicit absence of a compatible release baseline when
+none exists. That outcome is not evidence of an upgrade having been exercised. Migration
+rules are in [`migrations.md`](migrations.md), and the pinned Odoo source commit is
+[`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT). The separate
+`deploy/woodpecker/image.yml` remains an opt-in pipeline for privileged dind agents.
 
 ## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
 
