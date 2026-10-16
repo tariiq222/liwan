@@ -91,6 +91,8 @@ export const adminAuthBodies = {
   recovery: strict({ email: adminAuthFields.email, password: adminAuthFields.password, recovery_code: z.string().length(14) }),
   'step-up/options': strict({}),
   'step-up/verify': strict({ challenge_id: adminAuthFields.challengeId, response: adminAuthFields.response }),
+  'dev-login': strict({}),
+  'dev-step-up': strict({}),
   logout: strict({}),
 } as const
 
@@ -104,5 +106,6 @@ export const adminAuthResults = {
   'passkey/verify': adminSessionResultSchema,
   fallback: adminSessionResultSchema,
   recovery: adminSessionResultSchema,
+  'dev-login': adminSessionResultSchema,
   'step-up/options': adminChallengeResultSchema,
 } as const

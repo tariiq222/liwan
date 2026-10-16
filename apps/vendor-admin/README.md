@@ -38,6 +38,7 @@ service key and forwards each call to the control plane (`apps/control-plane`) a
 | `NUXT_INSTALLATION_ID` | `installationId` | Equals the control plane `CONTROL_INSTALLATION_ID`. |
 | `NUXT_ADMIN_ORIGIN` | `adminOrigin` | Public origin of this app, for example `https://admin.example.com`; decides the cookie flavour. |
 | `NUXT_TRUST_PROXY` | `trustProxy` | `true` when a trusted reverse proxy sets `X-Forwarded-For`. |
+| `NUXT_PUBLIC_DEV_LOGIN` | `public.devLogin` | Local development only (the one public setting): `true` turns on the developer sign-in (see "Developer sign-in (local only)"). Never set it in production. |
 
 The control plane additionally needs `ADMIN_SECRET_KEY`, `ADMIN_RP_ID` and `ADMIN_ORIGIN` (see
 `deploy/control-plane/env.example`); `ADMIN_ORIGIN` must equal `NUXT_ADMIN_ORIGIN`. `deploy/vendor-admin/env.example` is
@@ -68,6 +69,22 @@ npm -w apps/vendor-admin run dev -- --port 3100
 Start the control plane with `ADMIN_RP_ID=localhost` and `ADMIN_ORIGIN=http://localhost:3100`, create the first owner with
 `npm -w apps/control-plane run admin -- bootstrap-owner ...`, and open the printed `.../enroll#...` link. See
 `docs/operations/saas-commercial-runbook.md`, section 3.
+
+### Developer sign-in (local only)
+
+The login page and the step-up panel can offer one-click buttons ("دخول التطوير" and "تأكيد التطوير") that skip the passkey
+and authenticator. They exist only on a developer machine and are refused everywhere else:
+
+- Control plane: set `ADMIN_DEV_LOGIN_EMAIL=<email>` (with `ADMIN_ORIGIN=http://localhost:3100`, a loopback `CONTROL_HOST` and
+  `NODE_ENV` not `production`). The control plane **fails to start** if any of these does not hold. Then create the account once:
+  `npm -w apps/control-plane run admin -- dev-owner <email> "<display name>"` (idempotent; the account is an active owner with
+  no password, passkey or authenticator, and the command refuses an email other than `ADMIN_DEV_LOGIN_EMAIL`).
+- This app: set `NUXT_PUBLIC_DEV_LOGIN=true` next to `NUXT_ADMIN_ORIGIN=http://localhost:3100`, build it (`npm -w apps/vendor-admin run build`)
+  and bind it to loopback: `HOST=127.0.0.1 PORT=3100 node .output/server/index.mjs`. The BFF routes `/api/auth/dev-login` and
+  `/api/auth/dev-step-up` answer 404 unless the origin is a loopback `http:` origin **and** the socket peer is loopback (`127.0.0.1`,
+  `::1`; `X-Forwarded-For` is never read), so a forged `Origin` from the network opens nothing. They do not read `NODE_ENV`, because
+  the BFF works only from the production build, which always runs with `NODE_ENV=production`; the control plane gate above is the binding one.
+- Both calls are audited with the reason `dev-login`, and `dev-step-up` only works for the `ADMIN_DEV_LOGIN_EMAIL` account.
 
 Checks: `npm -w apps/vendor-admin run lint`, `npm -w apps/vendor-admin run test`, `npm -w apps/vendor-admin run build`.
 Production image: `docker build -f apps/vendor-admin/Dockerfile -t nasq-vendor-admin .` (port 3100).

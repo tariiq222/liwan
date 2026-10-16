@@ -48,7 +48,7 @@ export default defineNuxtConfig({
     detectBrowserLanguage: false,
   },
   // Private BFF settings (NUXT_CONTROL_URL, NUXT_SERVICE_KEY, NUXT_INSTALLATION_ID,
-  // NUXT_ADMIN_ORIGIN, NUXT_TRUST_PROXY). Nothing here is public. With an https adminOrigin
+  // NUXT_ADMIN_ORIGIN, NUXT_TRUST_PROXY). Only `public.devLogin` (NUXT_PUBLIC_DEV_LOGIN, local development only) is public. With an https adminOrigin
   // trustProxy must be true (the BFF answers 503 otherwise); port 3100 is then internal-only,
   // reachable from the edge alone, because x-forwarded-for is trusted.
   runtimeConfig: {
@@ -57,6 +57,8 @@ export default defineNuxtConfig({
     installationId: '',
     adminOrigin: '',
     trustProxy: false,
+    // Local development only: shows the "دخول التطوير" buttons and, with a loopback http adminOrigin and a loopback caller, opens the BFF dev routes.
+    public: { devLogin: false },
   },
   routeRules: {
     '/**': {

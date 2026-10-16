@@ -11,7 +11,7 @@ import { CountedFailure, handlers, type AuthContext } from './route-handlers.js'
 import type { WebAuthnLib } from './webauthn.js'
 
 const body = adminAuthBodies
-const ROUTES: Record<string, { schema: z.ZodType; handler: (ctx: AuthContext, body: never) => Promise<{ status: number; data?: unknown }> }> = {
+const ROUTES: Record<string, { schema: z.ZodType; handler: (ctx: AuthContext, body: never) => Promise<{ status: number; data?: unknown }>; devOnly?: true }> = {
   '/v1/admin/auth/invitation': { schema: body.invitation, handler: handlers.invitation },
   '/v1/admin/auth/enroll/passkey/options': { schema: body['enroll/passkey/options'], handler: handlers.enrollPasskeyOptions },
   '/v1/admin/auth/enroll/passkey/verify': { schema: body['enroll/passkey/verify'], handler: handlers.enrollPasskeyVerify },
@@ -23,6 +23,8 @@ const ROUTES: Record<string, { schema: z.ZodType; handler: (ctx: AuthContext, bo
   '/v1/admin/auth/recovery': { schema: body.recovery, handler: handlers.recovery },
   '/v1/admin/auth/step-up/options': { schema: body['step-up/options'], handler: handlers.stepUpOptions },
   '/v1/admin/auth/step-up/verify': { schema: body['step-up/verify'], handler: handlers.stepUpVerify },
+  '/v1/admin/auth/dev-login': { schema: body['dev-login'], handler: handlers.devLogin, devOnly: true },
+  '/v1/admin/auth/dev-step-up': { schema: body['dev-step-up'], handler: handlers.devStepUp, devOnly: true },
   '/v1/admin/auth/logout': { schema: body.logout, handler: handlers.logout },
 }
 
@@ -72,7 +74,8 @@ export async function adminAuthHttp(pool: Pool, config: Config, deps: { webauthn
       if (!nonce.rowCount) throw new AdminAuthError(401, 'auth_failed')
     })
     const route = ROUTES[req.pathname]
-    if (!route) return { status: 404, data: errorBody('not_found') }
+    // The developer routes do not exist unless ADMIN_DEV_LOGIN_EMAIL is configured.
+    if (!route || (route.devOnly && !admin.devLoginEmail)) return { status: 404, data: errorBody('not_found') }
     let json: unknown
     try { json = JSON.parse(Buffer.from(req.raw).toString('utf8')) } catch { throw new AdminAuthError(422, 'invalid') }
     const parsed = route.schema.safeParse(json)

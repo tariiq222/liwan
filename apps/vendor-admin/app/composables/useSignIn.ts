@@ -14,6 +14,8 @@ export interface SignInDeps {
   go: (path: string) => unknown
   /** The untrusted `next` query value. */
   next: () => unknown
+  /** Local development only: the one-click sign-in is offered. */
+  devLogin: boolean
 }
 
 export function createSignIn(deps: SignInDeps) {
@@ -48,6 +50,8 @@ export function createSignIn(deps: SignInDeps) {
     await deps.post('/api/auth/passkey-verify', { challenge_id: challenge.challenge_id, response })
   })
 
+  const signInWithDev = () => attempt(() => deps.post('/api/auth/dev-login', {}))
+
   const signInWithPassword = () => attempt(() => {
     const email = form.email.trim()
     return mode.value === 'recovery'
@@ -60,7 +64,7 @@ export function createSignIn(deps: SignInDeps) {
     errorKey.value = null
   }
 
-  return { mode, pending, errorKey, form, signInWithPasskey, signInWithPassword, setMode }
+  return { mode, pending, errorKey, form, devEnabled: deps.devLogin, signInWithPasskey, signInWithPassword, signInWithDev, setMode }
 }
 
 export function useSignIn() {
@@ -72,5 +76,6 @@ export function useSignIn() {
     refresh,
     go: path => navigateTo(path),
     next: () => route.query.next,
+    devLogin: useRuntimeConfig().public.devLogin === true,
   })
 }

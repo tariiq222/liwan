@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
+import { normalizeEmail } from './admin-auth/accounts.js'
 
-export type AdminConfig = { secretKey: Buffer; rpId: string; origin: string; rpName: 'Nasq' }
+export type AdminConfig = { secretKey: Buffer; rpId: string; origin: string; rpName: 'Nasq'; /** Development only: the one account the dev sign-in routes may open. */ devLoginEmail?: string }
 
 export type Config = {
   admin?: AdminConfig
@@ -44,7 +45,7 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('invalid CONTROL_PORT')
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
-  if ((host !== '127.0.0.1' && host !== '::1' && host !== 'localhost') && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
+  if (!isLoopbackHost(host) && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
   return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.NASQ_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
 }
@@ -61,7 +62,21 @@ export function adminConfig(env: Record<string, string | undefined>): AdminConfi
   try { origin = new URL(env.ADMIN_ORIGIN ?? '') } catch { throw new Error('ADMIN_ORIGIN is required') }
   const loopback = rpId === 'localhost' && origin.hostname === 'localhost'
   if (origin.hostname !== rpId || (origin.protocol !== 'https:' && !(loopback && origin.protocol === 'http:')) || origin.pathname !== '/' || origin.search) throw new Error('ADMIN_ORIGIN must be the https origin of ADMIN_RP_ID')
-  return { secretKey: Buffer.from(secret), rpId, origin: origin.origin, rpName: 'Nasq' }
+  const devLoginEmail = devLoginEmailConfig(env, origin)
+  return { secretKey: Buffer.from(secret), rpId, origin: origin.origin, rpName: 'Nasq', ...(devLoginEmail ? { devLoginEmail } : {}) }
+}
+
+/** A host name or address of this machine (a bracketed IPv6 literal from a URL is accepted). */
+export const isLoopbackHost = (host: string): boolean => ['127.0.0.1', '::1', 'localhost'].includes(host.replace(/^\[(.*)\]$/, '$1'))
+
+/** The developer sign-in skips every credential, so it exists only for a loopback http origin on a loopback bind outside production. */
+function devLoginEmailConfig(env: Record<string, string | undefined>, origin: URL): string | undefined {
+  if (!env.ADMIN_DEV_LOGIN_EMAIL) return undefined
+  // adminConfig lets an http origin through only for localhost, so the protocol alone makes it loopback.
+  if (origin.protocol !== 'http:') throw new Error('ADMIN_DEV_LOGIN_EMAIL requires an http loopback ADMIN_ORIGIN')
+  if (!isLoopbackHost(env.CONTROL_HOST ?? '127.0.0.1')) throw new Error('ADMIN_DEV_LOGIN_EMAIL requires a loopback CONTROL_HOST')
+  if (env.NODE_ENV === 'production') throw new Error('ADMIN_DEV_LOGIN_EMAIL is not allowed when NODE_ENV is production')
+  try { return normalizeEmail(env.ADMIN_DEV_LOGIN_EMAIL) } catch { throw new Error('ADMIN_DEV_LOGIN_EMAIL must be an email address') }
 }
 
 /** The key makes the channel exist; it must be its own secret so a leaked vendor or customer key cannot call it.
