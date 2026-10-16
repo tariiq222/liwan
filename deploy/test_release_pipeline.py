@@ -9,6 +9,7 @@ class ReleasePipelineTests(unittest.TestCase):
         script = commands('static')
         release = "python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'"
         self.assertIn(release, script)
+        self.assertIn('PYTHONPATH=deploy python3 -B -m unittest deploy/test_*.py', script)
         self.assertLess(script.index('npm ci --ignore-scripts'), script.index(release))
         self.assertNotIn("discover -s deploy -p 'test_*.py'", script)
 

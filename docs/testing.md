@@ -256,7 +256,7 @@ Local evidence only; it does not establish deployment readiness.
 The existing twelve-stage pipeline remains unchanged in scope. The static stage
 runs canonical release unit discovery after dependency installation (the real H3
 handler probes load jiti), and shared/dedicated guard regressions. Root deployment
-tests run separately to avoid importing the same package as `releases.*` instead
+tests run separately with `PYTHONPATH=deploy` for their existing top-level helper imports, to avoid importing the same package as `releases.*` instead
 of `deploy.releases.*`. No default unit test may connect to PostgreSQL or start
 Docker/Odoo. Focused checks from the selected worktree:
 
