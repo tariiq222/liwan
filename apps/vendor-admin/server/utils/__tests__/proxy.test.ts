@@ -71,9 +71,9 @@ describe('vendor API proxy', () => {
     expect(result.headers.get('set-cookie')).toMatch(/nasq_admin=;/)
   })
 
-  it('rejects a body over 1 MB with 413', async () => {
+  it('rejects a body over 64 KiB with 413', async () => {
     const calls = stubUpstream(() => json(200))
-    const rawBody = JSON.stringify({ pad: 'x'.repeat(1024 * 1024) })
+    const rawBody = JSON.stringify({ pad: 'x'.repeat(64 * 1024) })
     expect(await post('/commercial/plans', { rawBody })).toMatchObject({ status: 413, body: { code: 'payload_too_large' } })
     expect(calls).toHaveLength(0)
   })

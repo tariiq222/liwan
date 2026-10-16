@@ -1,7 +1,8 @@
 import { getHeader, type H3Event } from 'h3'
 import { BffError, bffFail } from './errors'
 
-export const MAX_BODY_BYTES = 1024 * 1024
+// Same cap as the control plane (apps/control-plane/src/http.ts) and the edge (deploy/vendor-admin/Caddyfile.snippet).
+export const MAX_BODY_BYTES = 64 * 1024
 const CLOSE_GRACE_MS = 200
 
 /** Where a body that is not a JSON object is rejected: the proxy keeps its historic 400, auth routes answer 422. */
@@ -35,7 +36,7 @@ function readCapped(event: H3Event): Promise<string> {
   })
 }
 
-/** The raw JSON text (at most 1 MB) and its parsed object; anything else is rejected. */
+/** The raw JSON text (at most 64 KiB) and its parsed object; anything else is rejected. */
 export async function readJsonObject(event: H3Event, invalid: InvalidBody): Promise<{ raw: string; json: Record<string, unknown> }> {
   if (Number(getHeader(event, 'content-length') ?? 0) > MAX_BODY_BYTES) bffFail(413, 'payload_too_large')
   const raw = await readCapped(event)
