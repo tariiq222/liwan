@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hashToken, newRecoveryCodes, newToken, open, seal } from '../crypto.js'
+import { hashToken, newRecoveryCodes, newToken, open, seal, totpBoxAad } from '../crypto.js'
 import { checkTotp, totpAt, totpStep } from '../totp.js'
 import { hashPassword, passwordAcceptable, verifyPassword } from '../passwords.js'
 
@@ -11,22 +11,29 @@ describe('tokens and boxes', () => {
   })
   it('seals and refuses tampering', () => {
     const key = Buffer.alloc(32, 7)
-    const box = seal(key, Buffer.from('secret'))
-    expect(open(key, box).toString()).toBe('secret')
+    const box = seal(key, Buffer.from('secret'), totpBoxAad(1))
+    expect(open(key, box, totpBoxAad(1)).toString()).toBe('secret')
     box[box.length - 1] ^= 1
-    expect(() => open(key, box)).toThrow()
-    expect(() => open(Buffer.alloc(32, 8), seal(key, Buffer.from('x')))).toThrow()
+    expect(() => open(key, box, totpBoxAad(1))).toThrow()
+    expect(() => open(Buffer.alloc(32, 8), seal(key, Buffer.from('x'), totpBoxAad(1)), totpBoxAad(1))).toThrow()
+  })
+  it('binds a box to its account: replay across accounts fails', () => {
+    const key = Buffer.alloc(32, 7)
+    const box = seal(key, Buffer.from('secret'), totpBoxAad(1))
+    expect(() => open(key, box, totpBoxAad(2))).toThrow()
+    expect(() => open(key, box, Buffer.from('totp|account:1 '))).toThrow()
+    expect(totpBoxAad(7).toString()).toBe('totp|account:7')
   })
   it('refuses truncated, tag-flipped and iv-flipped boxes', () => {
     const key = Buffer.alloc(32, 7)
-    const box = seal(key, Buffer.from('secret'))
-    expect(() => open(key, box.subarray(0, 27))).toThrow('too short')
-    expect(() => open(key, Buffer.alloc(0))).toThrow()
+    const box = seal(key, Buffer.from('secret'), totpBoxAad(1))
+    expect(() => open(key, box.subarray(0, 27), totpBoxAad(1))).toThrow('too short')
+    expect(() => open(key, Buffer.alloc(0), totpBoxAad(1))).toThrow()
     for (const index of [0, 12, 27]) {
       const flipped = Buffer.from(box); flipped[index] ^= 1
-      expect(() => open(key, flipped)).toThrow()
+      expect(() => open(key, flipped, totpBoxAad(1))).toThrow()
     }
-    expect(open(key, box).toString()).toBe('secret')
+    expect(open(key, box, totpBoxAad(1)).toString()).toBe('secret')
   })
   it('makes ten distinct recovery codes', () => {
     const codes = newRecoveryCodes()

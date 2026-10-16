@@ -116,11 +116,18 @@ else describe('account management routes', () => {
     expect((await post(`/v1/admin/accounts/${first.accountId}/roles`, { roles: ['support'], reason: 'takeover' }, second)).status).toBe(403)
     expect((await post(`/v1/admin/accounts/${first.accountId}/reset`, { reason: 'takeover' }, second)).status).toBe(403)
   })
-  it('answers 422 invalid for an unknown account and bad bodies', async () => {
+  it('answers 404 not_found for an unknown account and 422 invalid for a disabled one or a bad body', async () => {
     const owner = await ownerSession({ stepUp: true })
-    expect((await post('/v1/admin/accounts/999999/roles', { roles: ['support'], reason: 'nobody' }, owner)).body).toMatchObject({ code: 'invalid' })
-    expect((await post('/v1/admin/accounts/999999/disable', { reason: 'nobody' }, owner)).status).toBe(422)
-    expect((await post('/v1/admin/accounts/999999/reset', { reason: 'nobody' }, owner)).status).toBe(422)
+    for (const action of ['roles', 'disable', 'reset']) {
+      const body = action === 'roles' ? { roles: ['support'], reason: 'nobody' } : { reason: 'nobody' }
+      const r = await post(`/v1/admin/accounts/999999/${action}`, body, owner)
+      expect(r.status).toBe(404); expect(r.body).toMatchObject({ code: 'not_found' })
+    }
+    const gone = await vendorSession(pool, issuer, ['support'])
+    expect((await post(`/v1/admin/accounts/${gone.accountId}/disable`, { reason: 'left' }, owner)).status).toBe(204)
+    expect((await post(`/v1/admin/accounts/${gone.accountId}/disable`, { reason: 'again' }, owner)).status).toBe(422)
+    expect((await post(`/v1/admin/accounts/${gone.accountId}/roles`, { roles: ['finance'], reason: 'nobody' }, owner)).body).toMatchObject({ code: 'invalid' })
+    expect((await post(`/v1/admin/accounts/${gone.accountId}/reset`, { reason: 'nobody' }, owner)).status).toBe(422)
     expect((await post('/v1/admin/accounts', { ...invite, extra: 1 }, owner)).status).toBe(422)
     expect((await post('/v1/admin/accounts', { ...invite, roles: ['god'] }, owner)).status).toBe(422)
     expect((await post('/v1/admin/accounts', { ...invite, reason: 'no' }, owner)).status).toBe(422)

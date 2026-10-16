@@ -3,7 +3,7 @@ import type { PoolClient } from 'pg'
 import { VENDOR_ROLES, type VendorRole } from './roles.js'
 
 export class AdminAuthError extends Error {
-  constructor(public status: 401 | 403 | 409 | 422 | 429, public code: 'auth_failed' | 'forbidden' | 'conflict' | 'invalid' | 'rate_limited' | 'last_owner' | 'step_up_required', message: string = code) { super(message) }
+  constructor(public status: 401 | 403 | 404 | 409 | 422 | 429, public code: 'auth_failed' | 'forbidden' | 'not_found' | 'conflict' | 'invalid' | 'rate_limited' | 'last_owner' | 'step_up_required', message: string = code) { super(message) }
 }
 export function normalizeEmail(raw: string): string {
   const email = String(raw ?? '').trim().toLowerCase()
@@ -35,10 +35,10 @@ export async function setRoles(client: PoolClient, actor: { id: number } | 'oper
   if (!roles.length || roles.some((r) => !VENDOR_ROLES.includes(r)) || new Set(roles).size !== roles.length) throw new AdminAuthError(422, 'invalid')
   const owners = await lockOwners(client)
   requireActingOwner(actor, owners)
-  const target = await client.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
-  if (!target.rowCount || target.rows[0].status === 'disabled') throw new AdminAuthError(422, 'invalid')
+  const target = await client.query('SELECT status FROM vendor_accounts WHERE id=$1 FOR UPDATE', [accountId])
+  if (!target.rowCount) throw new AdminAuthError(404, 'not_found')
+  if (target.rows[0].status === 'disabled') throw new AdminAuthError(422, 'invalid')
   if (owners.includes(Number(accountId)) && !roles.includes('owner') && owners.length <= 1) throw new AdminAuthError(409, 'last_owner')
-  if (actor !== 'operator' && !roles.includes('owner') && Number(actor.id) === Number(accountId) && owners.filter((id) => id !== Number(accountId)).length === 0) throw new AdminAuthError(409, 'last_owner')
   await client.query('DELETE FROM vendor_account_roles WHERE account_id=$1', [accountId])
   for (const role of roles) await client.query('INSERT INTO vendor_account_roles(account_id,role) VALUES($1,$2)', [accountId, role])
   await audit(client, actorName(actor), 'account.roles_set', `account:${accountId}`, `${why} [${roles.join(',')}]`)
@@ -47,8 +47,8 @@ export async function disableAccount(client: PoolClient, actor: { id: number } |
   const why = requireReason(reason)
   const owners = await lockOwners(client)
   requireActingOwner(actor, owners)
-  const target = await client.query('SELECT 1 FROM vendor_accounts WHERE id=$1', [accountId])
-  if (!target.rowCount) throw new AdminAuthError(422, 'invalid')
+  const target = await client.query('SELECT 1 FROM vendor_accounts WHERE id=$1 FOR UPDATE', [accountId])
+  if (!target.rowCount) throw new AdminAuthError(404, 'not_found')
   if (owners.includes(Number(accountId)) && owners.length <= 1) throw new AdminAuthError(409, 'last_owner')
   const updated = await client.query("UPDATE vendor_accounts SET status='disabled', disabled_at=now() WHERE id=$1 AND status<>'disabled' RETURNING id", [accountId])
   if (!updated.rowCount) throw new AdminAuthError(422, 'invalid')

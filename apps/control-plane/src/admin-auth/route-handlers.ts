@@ -4,7 +4,7 @@ import type { AdminConfig, Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit, normalizeEmail } from './accounts.js'
 import { recordSuccess, reserveAttempt } from './attempts.js'
-import { hashToken, open, seal } from './crypto.js'
+import { hashToken, open, seal, totpBoxAad } from './crypto.js'
 import { completeEnrollment, openInvitation } from './enrollment.js'
 import { hashPassword, verifyPassword } from './passwords.js'
 import { createSession, markStepUp, resolveSession, revokeSession } from './sessions.js'
@@ -65,11 +65,6 @@ export const handlers = {
     const consumed = await consumeChallenge(ctx.pool, body.challenge_id, 'register', ctx.now)
     return tx(ctx, async (c) => {
       const inv = await openInvitation(c, body.token, ctx.now)
-      if (inv.purpose === 'reset') {
-        for (const table of ['vendor_passkeys', 'vendor_totp', 'vendor_recovery_codes']) await c.query(`DELETE FROM ${table} WHERE account_id=$1`, [inv.accountId])
-        await c.query('UPDATE vendor_sessions SET revoked_at=$2 WHERE account_id=$1 AND revoked_at IS NULL', [inv.accountId, ctx.now])
-        await audit(c, `account:${inv.accountId}`, 'account.reset_started', `account:${inv.accountId}`, 'reset')
-      }
       await finishRegistration(c, ctx.lib, ctx.admin, inv.accountId, consumed, body.response, body.label, ctx.now)
       await audit(c, `account:${inv.accountId}`, 'auth.passkey_registered', `account:${inv.accountId}`, inv.purpose)
       return { status: 204 }
@@ -78,7 +73,7 @@ export const handlers = {
   async enrollTotp(ctx: AuthContext, body: { token: string }): Promise<Result> {
     const inv = await tx(ctx, (c) => openInvitation(c, body.token, ctx.now))
     const secret = newTotpSecret()
-    return { status: 200, data: { totp_uri: totpUri(secret, inv.email), totp_box: seal(ctx.admin.secretKey, secret).toString('base64') } }
+    return { status: 200, data: { totp_uri: totpUri(secret, inv.email), totp_box: seal(ctx.admin.secretKey, secret, totpBoxAad(inv.accountId)).toString('base64') } }
   },
   async enrollComplete(ctx: AuthContext, body: { token: string; password: string; totp_code: string; totp_box: string }): Promise<Result> {
     return tx(ctx, async (c) => {
@@ -117,7 +112,7 @@ export const handlers = {
       const { id } = await passwordLogin(ctx, c, scopes, body.email, body.password, 'fallback')
       // Row lock: two concurrent uses of one code cannot both pass the last_step check.
       const totp = (await c.query('SELECT secret_box, last_step FROM vendor_totp WHERE account_id=$1 FOR UPDATE', [id])).rows[0]
-      const step = totp ? checkTotp(open(ctx.admin.secretKey, totp.secret_box), body.totp_code, ctx.now.getTime(), Number(totp.last_step)) : null
+      const step = totp ? checkTotp(open(ctx.admin.secretKey, totp.secret_box, totpBoxAad(id)), body.totp_code, ctx.now.getTime(), Number(totp.last_step)) : null
       if (step === null) throw counted(scopes, 'fallback')
       await c.query('UPDATE vendor_totp SET last_step=$2 WHERE account_id=$1', [id, step])
       return finishSignIn(ctx, c, id, scopes, 'fallback')
