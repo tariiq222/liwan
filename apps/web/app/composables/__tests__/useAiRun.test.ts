@@ -19,6 +19,12 @@ describe('applyEvent', () => {
     items = applyEvent(items, { event: 'answer', data: { text: 'عندك مهمة', records: [{ type: 'task', id: 5, label: 'تقرير' }] } })
     expect(items.at(-1)).toEqual({ kind: 'assistant', text: 'عندك مهمة', records: [{ type: 'task', id: 5, label: 'تقرير' }], streaming: false })
   })
+  it('closes the streaming text when a tool request follows it', () => {
+    let items = start()
+    items = applyEvent(items, { event: 'token', data: { text: 'سأفحص' } })
+    items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'أ', summary_en: 'r' } })
+    expect(items[1]).toMatchObject({ kind: 'assistant', text: 'سأفحص', streaming: false })
+  })
   it('records read tools as traces and write/draft requests as pending cards', () => {
     let items = start()
     items = applyEvent(items, { event: 'tool_request', data: { call_id: 'c_1', tool: 'pmo.list_my_tasks', kind: 'read', input: {}, summary_ar: 'سأقرأ مهامك', summary_en: 'read' } })

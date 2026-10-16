@@ -50,6 +50,8 @@ export function applyEvent(items: AiThreadItem[], event: LocalEvent): AiThreadIt
       return next
     }
     case 'tool_request': {
+      // Text streamed before a tool call is final: close it so it does not stay "thinking".
+      if (last?.kind === 'assistant' && last.streaming) next[next.length - 1] = { ...last, streaming: false }
       const base = { callId: event.data.call_id, summaryAr: event.data.summary_ar, summaryEn: event.data.summary_en }
       if (event.data.kind === 'read') next.push({ kind: 'tool', ...base, state: 'running' })
       else if (event.data.kind === 'draft') next.push({ kind: 'draft', ...base, tool: event.data.tool, payload: event.data.input, state: 'pending' })
