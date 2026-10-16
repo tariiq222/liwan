@@ -1,18 +1,20 @@
 import { expect, type Page } from '@playwright/test'
 
+import { resetMock } from './support'
+import { ADMIN_PASSWORD, DEV_PORT, OWNER_EMAIL, PROD_PORT, SUPPORT_EMAIL, TOTP_CODE } from './mock-settings.mjs'
+
 // Shared helpers for the vendor console specs. The session comes from the BFF's password + TOTP
 // sign-in against the mock control service; the data comes from commercial-mock-routes.mjs.
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'owner@nasq.test'
-export const RESTRICTED_EMAIL = process.env.E2E_RESTRICTED_EMAIL ?? 'support@nasq.test'
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'correct-horse-battery'
-const ADMIN_TOTP = process.env.E2E_ADMIN_TOTP ?? '123456'
-const BASE_ORIGIN = new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3133').origin
+export const RESTRICTED_EMAIL = SUPPORT_EMAIL
+const BASE_ORIGIN = `http://localhost:${process.env.E2E_TARGET === 'dev' ? DEV_PORT : PROD_PORT}`
 
 type NuxtAppHandle = { $router: { push: (to: string) => Promise<unknown> }, $i18n: { setLocale: (locale: string) => Promise<void> } }
 
-export async function login(page: Page, email = ADMIN_EMAIL) {
+/** Signs in through the BFF on a freshly reset mock (an earlier spec may have left it locked or unavailable). */
+export async function login(page: Page, email = OWNER_EMAIL) {
+  await resetMock()
   const response = await page.request.post('/api/auth/fallback', {
-    data: { email, password: ADMIN_PASSWORD, totp_code: ADMIN_TOTP },
+    data: { email, password: ADMIN_PASSWORD, totp_code: TOTP_CODE },
     headers: { origin: BASE_ORIGIN },
   })
   expect(response.status()).toBe(200)

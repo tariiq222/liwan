@@ -51,7 +51,7 @@ export async function completeEnrollment(page: Page, label = 'Work laptop'): Pro
 export async function leaveRecoveryCodes(page: Page) {
   await page.getByLabel('حفظت الرموز في مكان آمن').check()
   await page.getByRole('button', { name: 'متابعة إلى لوحة الإدارة' }).click()
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/overview$/)
 }
 
 export const signOutRequest = (page: Page) =>

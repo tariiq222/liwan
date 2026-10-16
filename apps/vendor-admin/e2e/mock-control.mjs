@@ -3,6 +3,8 @@
 //    /v1/admin/auth/*, numeric actor for the rest, a nonce is accepted once), like the real service;
 //  - WebAuthn is NOT verified cryptographically: any assertion or attestation naming a registered
 //    credential id is accepted. Real verification is covered by the control plane's own tests;
+//  - everything else under /v1 (catalog, tenants, commercial, ...) is the read-only fixture stub of
+//    commercial-mock-routes.mjs, with /v1/context narrowed to the signed-in account's roles;
 //  - TOTP accepts the fixed code in mock-settings.mjs;
 //  - the account routes follow apps/control-plane/src/admin-auth/accounts-http.ts (reason 3-1000, active owner
 //    only, last_owner and conflict answers, step-up on every mutation) over an in-memory account list.
@@ -10,7 +12,8 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 import { createJiti } from 'jiti'
-import { ADMIN_PASSWORD, INSTALLATION_ID, MOCK_PORT, OWNER_EMAIL, SERVICE_KEY, TOTP_CODE } from './mock-settings.mjs'
+import { handleCommercial } from './commercial-mock-routes.mjs'
+import { ADMIN_PASSWORD, INSTALLATION_ID, MOCK_PORT, OWNER_EMAIL, SERVICE_KEY, SUPPORT_EMAIL, TOTP_CODE } from './mock-settings.mjs'
 
 const { verifyServiceRequest } = await createJiti(import.meta.url).import('@nasq/commercial-contracts/server')
 
@@ -19,6 +22,16 @@ const FAILURES_BEFORE_LOCK = 5
 const b64url = size => randomBytes(size).toString('base64url')
 const ROLES = ['owner', 'customer_success', 'finance', 'product', 'operations', 'support']
 const STEP_UP_WINDOW = 5 * 60e3
+// Mirrors ROLE_CAPABILITIES of apps/control-plane/src/admin-auth/roles.ts.
+const ROLE_CAPABILITIES = {
+  owner: ['vendor.read', 'vendor.audit.read', 'vendor.tenants.manage', 'vendor.subscriptions.manage', 'vendor.catalog.manage', 'vendor.pricing.manage', 'vendor.billing.manage', 'vendor.operations.run', 'vendor.accounts.manage'],
+  customer_success: ['vendor.read', 'vendor.tenants.manage', 'vendor.subscriptions.manage'],
+  finance: ['vendor.read', 'vendor.billing.manage'],
+  product: ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'],
+  operations: ['vendor.read', 'vendor.operations.run'],
+  support: ['vendor.read', 'vendor.audit.read'],
+}
+const capabilitiesOf = roles => [...new Set(roles.flatMap(role => ROLE_CAPABILITIES[role] ?? []))].sort()
 const json = (res, status, body) => {
   res.writeHead(status, { 'content-type': 'application/json' })
   res.end(status === 204 ? undefined : JSON.stringify(body ?? {}))
@@ -28,7 +41,9 @@ export function createMockControl() {
   let accounts, invitations, sessions, challenges, nonces, failures, config, stats
 
   function reset() {
-    accounts = new Map([[1, { id: 1, email: OWNER_EMAIL, display_name: 'Owner', roles: ['owner'], password: ADMIN_PASSWORD, passkeys: new Set(), recovery: new Set(['abcd-efgh-jkmn']), active: true, disabled: false }]])
+    accounts = new Map([[1, { id: 1, email: OWNER_EMAIL, display_name: 'Owner', roles: ['owner'], password: ADMIN_PASSWORD, passkeys: new Set(), recovery: new Set(['abcd-efgh-jkmn']), active: true, disabled: false }],
+      [2, { id: 2, email: SUPPORT_EMAIL, display_name: 'Support', roles: ['support'], password: ADMIN_PASSWORD, passkeys: new Set(), recovery: new Set(), active: true, disabled: false }],
+    ])
     invitations = new Map()
     sessions = new Map()
     challenges = new Map()
@@ -39,7 +54,7 @@ export function createMockControl() {
   }
   reset()
 
-  const profile = account => ({ id: account.id, email: account.email, display_name: account.display_name, roles: account.roles, capabilities: ['vendor.read', 'vendor.accounts.manage', 'vendor.audit.read'] })
+  const profile = account => ({ id: account.id, email: account.email, display_name: account.display_name, roles: account.roles, capabilities: capabilitiesOf(account.roles) })
   const accountByEmail = email => [...accounts.values()].find(a => a.email === String(email).trim().toLowerCase())
 
   function startSession(account, steppedUp) {
@@ -286,6 +301,11 @@ export function createMockControl() {
       return actor ? accountActions[action[2]](accounts.get(Number(action[1])), actor, body, res) : undefined
     }
     const handler = isAuth ? authRoutes[url.pathname] : apiRoutes[route]
+    if (!handler && !isAuth) {
+      const account = accounts.get(sessionOf(req)?.accountId)
+      if (!account) return json(res, 401, { code: 'unauthorized' })
+      return void handleCommercial(req, res, url, { capabilities: capabilitiesOf(account.roles) })
+    }
     if (!handler) return json(res, 404, { code: 'not_found' })
     return handler({ req, body, ip: String(req.headers['x-nasq-client-ip'] ?? 'unknown') }, res)
   }

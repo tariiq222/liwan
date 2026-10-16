@@ -7,3 +7,4 @@ export const DEV_PORT = Number(process.env.E2E_DEV_PORT ?? 3110)
 export const ADMIN_PASSWORD = 'correct horse battery'
 export const TOTP_CODE = '123456'
 export const OWNER_EMAIL = 'owner@example.test'
+export const SUPPORT_EMAIL = 'support@example.test'

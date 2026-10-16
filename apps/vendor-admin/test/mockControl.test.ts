@@ -67,13 +67,13 @@ describe('mock account routes', () => {
 
   it('lists the accounts, invites with a token and refuses a duplicate email', async () => {
     const session = await ownerSession()
-    expect((await signed('/v1/admin/accounts', 'GET', undefined, session)).body).toMatchObject({ total: 1, items: [{ email: OWNER_EMAIL, status: 'active', roles: ['owner'] }] })
+    expect((await signed('/v1/admin/accounts', 'GET', undefined, session)).body).toMatchObject({ total: 2, items: [{ email: OWNER_EMAIL, status: 'active', roles: ['owner'] }, { roles: ['support'] }] })
     const created = await signed('/v1/admin/accounts', 'POST', invite, session)
     expect(created.status).toBe(201)
-    expect(created.body).toMatchObject({ id: 2, invitation_token: expect.any(String) })
+    expect(created.body).toMatchObject({ id: 3, invitation_token: expect.any(String) })
     expect((await signed('/v1/admin/accounts', 'POST', invite, session)).body).toEqual({ code: 'conflict' })
     expect((await signed('/v1/admin/accounts', 'POST', { ...invite, email: 'other@example.test', reason: 'ab' }, session)).body).toEqual({ code: 'invalid' })
-    expect((await signed('/v1/admin/accounts', 'GET', undefined, session)).body).toMatchObject({ total: 2, items: [{}, { status: 'enrolling' }] })
+    expect((await signed('/v1/admin/accounts', 'GET', undefined, session)).body).toMatchObject({ total: 3, items: [{}, {}, { status: 'enrolling' }] })
   })
 
   it('refuses to remove or disable the last active owner', async () => {
