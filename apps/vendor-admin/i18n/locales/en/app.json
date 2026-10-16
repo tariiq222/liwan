@@ -7,6 +7,41 @@
       "home": "Back to home",
       "forbidden": "You do not have access to this page",
       "unavailable": "The service is unavailable right now. Try again shortly"
+    },
+    "nav": {
+      "overview": "Overview",
+      "customers": "Clients",
+      "tenants": "Tenants",
+      "operations": "Ops",
+      "plans": "Plans",
+      "bundles": "Bundles",
+      "catalog": "Legacy packages",
+      "invoices": "Invoices",
+      "audit": "Audit",
+      "team": "Team"
+    },
+    "shell": {
+      "header": "Console header",
+      "consoleBadge": "Nasq console",
+      "navigation": "Navigation",
+      "openMenu": "Open menu",
+      "breadcrumb": "Page path",
+      "account": "Account",
+      "signOut": "Sign out",
+      "language": "Language",
+      "appearance": "Appearance",
+      "light": "Light",
+      "dark": "Dark",
+      "roles": {
+        "owner": "Platform owner",
+        "customer_success": "Customer success",
+        "finance": "Finance",
+        "product": "Product",
+        "operations": "Technical operations",
+        "support": "Support"
+      },
+      "signOutFailed": "Could not sign out. Try again.",
+      "content": "Content"
     }
   }
 }

@@ -72,4 +72,13 @@ describe('useAdminSession', () => {
     expect(session.me.value).toBeNull()
     expect(navigateTo).toHaveBeenCalledWith('/login')
   })
+
+  it('keeps the profile and stays on the page when the logout fails', async () => {
+    fetcher.mockResolvedValueOnce(profile).mockRejectedValueOnce(failure(503))
+    const session = useAdminSession()
+    await session.ready
+    await expect(session.signOut()).rejects.toMatchObject({ statusCode: 503 })
+    expect(session.me.value).toEqual(profile)
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
 })

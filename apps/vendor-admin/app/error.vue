@@ -6,6 +6,7 @@ import { htmlAttrsFor } from '@/utils/htmlAttrs'
 // Nuxt renders this file for unknown routes and uncaught errors, in the product's language and direction.
 const props = defineProps<{ error: NuxtError }>()
 const { t, locale, localeProperties } = useI18n()
+useAppearanceHtmlClass()
 const MESSAGES: Record<number, string> = {
   403: 'app.error.forbidden',
   404: 'app.error.notFound',
