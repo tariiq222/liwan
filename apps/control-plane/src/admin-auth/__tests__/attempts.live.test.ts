@@ -35,6 +35,21 @@ else describe('attempts', () => {
     await expect(reserveAttempt(pool, ['ip:3.3.3.3'], t0)).rejects.toMatchObject({ code: 'rate_limited' })
   })
 
+  it('does not count against the account when the ip scope is already locked', async () => {
+    for (let i = 0; i < 20; i++) await reserveAttempt(pool, ['ip:9.9.9.9'], t0)
+    await expect(reserveAttempt(pool, ['ip:9.9.9.9'], t0)).rejects.toMatchObject({ code: 'rate_limited' })
+    for (let i = 0; i < 10; i++) await expect(reserveAttempt(pool, ['account:victim@nasq.sa', 'ip:9.9.9.9'], t0)).rejects.toMatchObject({ code: 'rate_limited' })
+    expect((await pool.query("SELECT 1 FROM vendor_auth_attempts WHERE scope='account:victim@nasq.sa'")).rowCount).toBe(0)
+    // The victim can still sign in from another address.
+    await reserveAttempt(pool, ['account:victim@nasq.sa', 'ip:8.8.8.8'], t0)
+  })
+
+  it('stops at the request that locks the ip without touching the account', async () => {
+    for (let i = 0; i < 20; i++) await reserveAttempt(pool, ['ip:7.7.7.7'], t0)
+    await expect(reserveAttempt(pool, ['account:other@nasq.sa', 'ip:7.7.7.7'], t0)).rejects.toMatchObject({ code: 'rate_limited' })
+    expect((await pool.query("SELECT 1 FROM vendor_auth_attempts WHERE scope='account:other@nasq.sa'")).rowCount).toBe(0)
+  })
+
   it('refunds: success deletes the account row and gives back one ip reservation', async () => {
     for (let i = 0; i < 4; i++) await reserveAttempt(pool, ['account:b@nasq.sa', 'ip:2.2.2.2'], t0)
     await transaction(pool, (c) => recordSuccess(c, ['account:b@nasq.sa', 'ip:2.2.2.2']))
