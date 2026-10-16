@@ -36,6 +36,18 @@ def dump_stage(project, stage):
             'task_count': project._nasq_stage_task_count(stage)}
 
 
+def dump_project_task_summary(project):
+    # Project readers need not be task readers (for example a charter sponsor).
+    # Counts describe caller-visible tasks; do not query a denied task model.
+    if not project.env['project.task'].has_access('read'):
+        return {'progress': 0, 'task_count': 0, 'closed_task_count': 0}
+    return {
+        'progress': round(project.task_completion_percentage * 100),
+        'task_count': project.task_count,
+        'closed_task_count': project.closed_task_count,
+    }
+
+
 def parse_write_token(value):
     if not isinstance(value, str) or not value.startswith('v') or not value[1:].isdigit():
         raise ApiError(422, 'invalid', "expected_updated_at is not a valid write token", field='expected_updated_at')
@@ -50,11 +62,10 @@ def dump_project(project):
         'manager': _user_ref(project.user_id),
         'date_end': fields.Date.to_string(project.date) if project.date else None,
         'status': STATUS_TO_API.get(project.last_update_status),
-        'progress': round(project.task_completion_percentage * 100),
-        'task_count': project.task_count,
-        'closed_task_count': project.closed_task_count,
+        **dump_project_task_summary(project),
         'active': project.active,
         'charter_state': project.nasq_charter_state or 'draft',
+        'phase': project.nasq_phase,
         'can_manage': can_manage,
         'allowed_actions': ['read', *(['write', 'archive'] if can_manage else [])],
     }
@@ -75,6 +86,7 @@ def dump_project_detail(project):
         'completion_approver': _user_ref(project.nasq_completion_approver_id),
         'updated_at': project._nasq_updated_at(),
         'charter': dump_charter(project),
+        'phase_state': project._nasq_phase_state(),
     })
     return data
 

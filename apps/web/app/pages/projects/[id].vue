@@ -2,6 +2,7 @@
 import type { ProjectStatus } from '@nasq/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
+import ProjectPhaseStepper from '@/components/pmo/projects/ProjectPhaseStepper.vue'
 import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
@@ -95,6 +96,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
                   <span class="sr-only">{{ t('projects.columns.progress') }}: </span>{{ project.progress }}%
                 </span>
               </p>
+              <ProjectPhaseStepper class="mt-2" :current="project.phase_state.current" />
             </div>
             <USkeleton v-else-if="isLoading || !hydrated" class="h-9 w-1/3" />
             <div v-if="project?.can_manage" class="ms-auto flex shrink-0 items-center gap-2">

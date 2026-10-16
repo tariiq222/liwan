@@ -6,6 +6,10 @@ describe('access policy navigation', () => {
     expect(hasCapability({ role: 'admin' }, 'access.users.read')).toBe(false)
     expect(hasCapability(null, 'hr.employees.read')).toBe(false)
   })
+  it('opens the bell for a project reader without tasks.read (charter rows are delivered on projects.read)', () => {
+    expect(hasCapability({ capabilities: ['pmo.projects.read'] }, 'nasq.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'nasq.notifications')).toBe(false)
+  })
   it('checks the named capability without elevating other domains', () => {
     const hr = { capabilities: ['hr.employees.read', 'hr.employees.manage'] }
     expect(hasCapability(hr, 'hr.employees.manage')).toBe(true)

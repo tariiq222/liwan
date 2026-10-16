@@ -18,6 +18,9 @@
       "comment": "New comment on a task",
       "mention": "You were mentioned in a comment",
       "deadline": "A task deadline is near",
+      "charter_review": "Charter awaiting your approval",
+      "charter_approved": "Charter approved",
+      "charter_returned": "Charter returned for changes",
       "other": "Notification"
     },
     "openTask": "Open task",

@@ -99,7 +99,7 @@ const EMPTY_CHARTER = {
   approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
   approved_by: null, approved_at: null, return_note: '',
 }
-const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false, charter_state: 'draft' }
+const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false, charter_state: 'draft', phase: 'initiating' }
 
 describe('ProjectSchema', () => {
   it('carries existing manager and end date in list rows without exposing other user fields', () => {
@@ -127,7 +127,7 @@ describe('ProjectDetailSchema', () => {
       description_html: '', manager: null, privacy_visibility: 'employees',
       date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
       completion_approval: 'none', completion_approver: null,
-      updated_at: 'v1', charter: EMPTY_CHARTER,
+      updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
     })
     expect(parsed.stages[0]!.fold).toBe(true)
   })
@@ -137,7 +137,7 @@ describe('ProjectDetailSchema', () => {
       stages: [{ id: 1, name: 'A', sequence: 10, fold: true, task_count: 0 }],
       description_html: '', manager: null, privacy_visibility: 'employees',
       date_start: null, date_end: null, tags: [], followers_count: 0, milestone_count: 0,
-      updated_at: 'v1', charter: EMPTY_CHARTER,
+      updated_at: 'v1', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
     }
     expect(() => ProjectDetailSchema.parse(base)).toThrow()
     expect(() => ProjectDetailSchema.parse({ ...base, completion_approval: 'none' })).toThrow()
@@ -158,7 +158,7 @@ describe('TaskPatchSchema stage_id', () => {
 })
 
 const STAGE = { id: 1, name: 'A', sequence: 10, fold: false, task_count: 2 }
-const PROJECT = { id: 3, name: 'P', status: null, progress: 0, task_count: 0, closed_task_count: 0, active: true, can_manage: true, charter_state: 'draft' }
+const PROJECT = { id: 3, name: 'P', status: null, progress: 0, task_count: 0, closed_task_count: 0, active: true, can_manage: true, charter_state: 'draft', phase: 'initiating' }
 
 describe('ProjectListSchema', () => {
   it('is an object with items, can_create and can_list_archived, not the phase-2 bare array', () => {
@@ -178,7 +178,7 @@ describe('ProjectDetailSchema (3a)', () => {
       ...PROJECT, stages: [STAGE], description_html: '', manager: { id: 2, name: 'M' }, privacy_visibility: 'followers',
       date_start: '2030-01-01', date_end: null, tags: [], followers_count: 1, milestone_count: 0,
       completion_approval: 'none', completion_approver: null,
-      updated_at: 'v2', charter: EMPTY_CHARTER,
+      updated_at: 'v2', charter: EMPTY_CHARTER, phase_state: { current: 'initiating', next: 'planning', previous: null, next_checks: [] },
     })
     expect(d.stages[0]!.task_count).toBe(2)
   })

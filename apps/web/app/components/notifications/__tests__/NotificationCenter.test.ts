@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { NotificationListSchema, NotificationSchema, type BellNotification } from '@nasq/contracts'
-import { isDigestNotification, isKnownNotification, isMeetingNotification } from '../../../composables/useNotifications'
+import { isDigestNotification, isKnownNotification, isMeetingNotification, isProjectNotification } from '../../../composables/useNotifications'
 
 // Mirrors notificationHref() in NotificationCenter.vue.
 function href(item: BellNotification) {
   if (isDigestNotification(item)) return `/notification-digests/${item.digest_id}`
   if (isMeetingNotification(item)) return `/meetings/${item.meeting_id}`
+  if (isProjectNotification(item)) return `/projects/${item.project_id}/charter`
   if (isKnownNotification(item)) return `/tasks/${item.task_id}`
   return null
 }
@@ -18,6 +19,14 @@ describe('NotificationCenter digest routing', () => {
     })
     expect(href(meeting)).toBe('/meetings/7')
     expect('task_id' in meeting).toBe(false)
+  })
+  it('routes charter notifications to the project charter', () => {
+    const charter = NotificationSchema.parse({
+      id: 92, kind: 'charter_review', project_id: 12, project_name: 'Alpha', body: '',
+      created_at: '2026-09-07T12:00:00Z', is_read: false,
+    })
+    expect(href(charter)).toBe('/projects/12/charter')
+    expect('task_id' in charter).toBe(false)
   })
   it('keeps ordinary task notifications on the task route in ar and en fixtures', () => {
     const comment = NotificationSchema.parse({

@@ -260,6 +260,35 @@
       "showLess": "عرض أقل",
       "titleRequired": "أدخل عنوان التحديث."
     },
+    "phase": {
+      "title": "مرحلة المشروع",
+      "position": "{current} من {total}",
+      "steps": {
+        "initiating": "البدء",
+        "planning": "التخطيط",
+        "executing": "التنفيذ",
+        "closing": "الإغلاق",
+        "closed": "مغلق"
+      },
+      "gateTitle": "الانتقال إلى مرحلة {phase}",
+      "checks": {
+        "charter_approved": "اعتماد الميثاق",
+        "unknown": "شرط غير معروف"
+      },
+      "met": "تحقق",
+      "unmet": "لم يتحقق",
+      "fix": "استكمال",
+      "moveTo": "الانتقال إلى {phase}",
+      "backTo": "رجوع إلى {phase}",
+      "backConfirm": "الرجوع إلى مرحلة {phase}؟",
+      "closedNotice": "المشروع مغلق",
+      "stale": "تغيّر المشروع أثناء الانتقال. راجع النسخة الحالية ثم أعد المحاولة.",
+      "errors": {
+        "gate": "لم تكتمل شروط الانتقال بعد.",
+        "step": "ينتقل المشروع مرحلة واحدة في كل مرة.",
+        "forbidden": "لا تملك صلاحية تغيير مرحلة المشروع."
+      }
+    },
     "charter": {
       "title": "ملف المشروع",
       "pageDescription": "المرجع الأساسي للهدف والنطاق والمخرجات.",

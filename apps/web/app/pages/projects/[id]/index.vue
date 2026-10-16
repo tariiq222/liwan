@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { projectRecordBack } from '@/utils/projectNavigation'
+import ProjectPhaseGate from '@/components/pmo/projects/ProjectPhaseGate.vue'
 import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
@@ -47,7 +48,9 @@ const copyTo = computed(() => ({
     <template v-if="canCopy" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>
-    <ProjectOverview v-if="project" :project="project" />
-
+    <div v-if="project" class="flex flex-col gap-6">
+      <ProjectPhaseGate :project="project" />
+      <ProjectOverview :project="project" />
+    </div>
   </SharedRecordPage>
 </template>
