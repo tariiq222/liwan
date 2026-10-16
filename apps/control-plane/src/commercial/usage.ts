@@ -68,27 +68,32 @@ const LEGACY_COUNTERS: Record<string, { key: string; unit: UsageMetric['unit']; 
   [BRANCH_LIMIT]: { key: 'extra_branches', unit: 'extra_branches', scale: 1 },
 }
 
-export async function getUsage(pool: Pool, input: { tenant_id: string; limits: Record<string, number | null>; now?: Date }): Promise<UsageSnapshot> {
-  const now = input.now ?? new Date()
-  const r = await pool.query('SELECT observed_at, metrics, freshness FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC, id DESC LIMIT 1', [input.tenant_id])
-  const row = r.rows[0]
-  const pr = await pool.query("SELECT r.snapshot->>'policy_revision_id' AS policy_revision_id FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.tenant_id=$1 LIMIT 1", [input.tenant_id])
-  const policy = pr.rows[0]?.policy_revision_id ?? '00000000-0000-4000-8000-000000000000'
-  const observed = row ? (row.observed_at as Date) : null
+export interface SnapshotRow { observed_at: Date, metrics: Record<string, number | null>, freshness: string }
+
+/** The usage of one tenant against `limits`, from its latest stored snapshot (`undefined` when it has none). */
+export function usageOf(row: SnapshotRow | undefined, limits: Record<string, number | null>, now: Date): Pick<UsageSnapshot, 'observed_at' | 'freshness' | 'metrics'> {
+  const observed = row ? row.observed_at : null
   const stored: Record<string, number | null> = row?.metrics ?? {}
-  const keys = Object.keys(input.limits)
   const freshness = !row || row.freshness === 'unavailable' ? 'unavailable'
     : row.freshness === 'stale' || now.getTime() - observed!.getTime() > FRESH_MS ? 'stale' : 'fresh'
-  const metrics: UsageMetric[] = keys.map(key => {
+  const metrics: UsageMetric[] = Object.keys(limits).map(key => {
     const legacy = LEGACY_COUNTERS[key]
     const counter = !(key in stored) && legacy && legacy.key in stored ? legacy : { key, unit: UNITS[key] ?? 'count', scale: 1 }
     const v = freshness === 'unavailable' ? null : stored[counter.key]
     const used = typeof v === 'number' ? v : null
-    const raw = input.limits[key]
+    const raw = limits[key]
     const limit = raw === null || raw === undefined ? null : raw * counter.scale
     return { key, used, limit, unit: counter.unit, reason: used === null ? 'not_collected' : null }
   })
-  return { tenant_id: input.tenant_id, observed_at: observed ? observed.toISOString() : null, policy_revision_id: policy, freshness, metrics }
+  return { observed_at: observed ? observed.toISOString() : null, freshness, metrics }
+}
+
+export async function getUsage(pool: Pool, input: { tenant_id: string; limits: Record<string, number | null>; now?: Date }): Promise<UsageSnapshot> {
+  const now = input.now ?? new Date()
+  const r = await pool.query('SELECT observed_at, metrics, freshness FROM usage_snapshots WHERE tenant_id=$1 ORDER BY observed_at DESC, id DESC LIMIT 1', [input.tenant_id])
+  const pr = await pool.query("SELECT r.snapshot->>'policy_revision_id' AS policy_revision_id FROM subscriptions s JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.tenant_id=$1 LIMIT 1", [input.tenant_id])
+  const policy = pr.rows[0]?.policy_revision_id ?? '00000000-0000-4000-8000-000000000000'
+  return { tenant_id: input.tenant_id, policy_revision_id: policy, ...usageOf(r.rows[0], input.limits, now) }
 }
 
 export async function recordUsage(pool: Pool, input: { tenant_id: string; observed_at: Date; metrics: Record<string, number | null>; limit_gates?: Record<string, string[]>; source: string }): Promise<void> {

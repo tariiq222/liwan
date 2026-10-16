@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { deltaOf, deltaTone, figureNumber, formatFigure, periodFromQuery, presetRange, toCsv } from '../vendorAnalytics'
+import { deltaOf, deltaTone, figureNumber, formatFigure, periodFromQuery, presetRange, riyadhToday, toCsv } from '../vendorAnalytics'
+
+describe('riyadhToday', () => {
+  it('reads the calendar day in Asia/Riyadh, not UTC', () => {
+    expect(riyadhToday(new Date('2026-10-15T22:30:00Z'))).toBe('2026-10-16')
+    expect(riyadhToday(new Date('2026-10-15T20:30:00Z'))).toBe('2026-10-15')
+  })
+})
 
 describe('presetRange', () => {
   it('starts at the first day of the month, quarter or year', () => {

@@ -11,8 +11,12 @@ export const analyticsQuerySchema = z.strictObject({ from: isoDate, to: isoDate 
   { path: ['to'], message: 'Period must be ordered and at most two years' },
 )
 
-/** `no_cancellation_date`: the control plane stores no time for a subscription leaving service. `no_data`: the denominator is empty. */
-export const analyticsUnavailableReasonSchema = z.enum(['no_data', 'no_cancellation_date'])
+/**
+ * `no_cancellation_date`: the control plane stores no time for a subscription leaving service.
+ * `history_not_recorded`: a past figure that a subscription which has since left service would change.
+ * `no_data`: the denominator is empty.
+ */
+export const analyticsUnavailableReasonSchema = z.enum(['no_data', 'no_cancellation_date', 'history_not_recorded'])
 
 function figure<T extends z.ZodType>(value: T) {
   return z.union([
@@ -57,6 +61,8 @@ export const analyticsSnapshotSchema = z.strictObject({
   })),
   upsell: z.array(usageRowSchema),
   low_usage: z.array(usageRowSchema),
+  /** Billable customers with a workspace and limits whose usage could not be read; they are missing from `upsell` and `low_usage`. */
+  usage_unavailable: count,
   renewals: z.array(z.strictObject({ within_days: z.union([z.literal(30), z.literal(60), z.literal(90)]), count, value: moneySchema })),
   stalled_fulfillments: z.strictObject({
     count,
@@ -77,7 +83,8 @@ export const analyticsSchema = z.strictObject({
   generated_at: z.string(),
   current: analyticsFiguresSchema,
   previous: analyticsFiguresSchema,
-  trend: z.array(z.strictObject({ month: z.string().regex(/^\d{4}-\d{2}$/), mrr: moneySchema, customers: count })),
+  /** Months whose book cannot be restated honestly carry unavailable figures. */
+  trend: z.array(z.strictObject({ month: z.string().regex(/^\d{4}-\d{2}$/), mrr: money, customers: figure(count) })),
   snapshot: analyticsSnapshotSchema,
 })
 

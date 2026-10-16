@@ -2,14 +2,14 @@
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import type { RankedRow } from '@/components/analytics/RankedList.vue'
 import { usageMetricLabel } from '@/utils/vendorSubscriptions'
-import { figureNumber, formatFigure, HEADLINE_IDS, KPIS, periodFromQuery, presetRange, toCsv, type KpiGroup, type PeriodChoice } from '@/utils/vendorAnalytics'
+import { figureNumber, formatFigure, HEADLINE_IDS, KPIS, periodFromQuery, presetRange, riyadhToday, toCsv, type KpiGroup, type PeriodChoice } from '@/utils/vendorAnalytics'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, te, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { load } = useVendorAnalytics()
 
-const today = new Date().toISOString().slice(0, 10)
+const today = riyadhToday()
 const period = computed(() => periodFromQuery(route.query, today))
 const { data, error, pending, refresh } = await useAsyncData(
   'vendor:analytics',
@@ -34,10 +34,10 @@ const number = (value: number) => new Intl.NumberFormat(intl.value).format(value
 const percent = (value: number) => new Intl.NumberFormat(intl.value, { style: 'percent', maximumFractionDigits: 0 }).format(value)
 
 const trend = computed(() => (data.value?.trend ?? []).map(point => ({
-  month: point.month, minor: point.mrr.minor,
+  month: point.month, minor: point.mrr.available ? point.mrr.value.minor : null,
   label: new Intl.DateTimeFormat(intl.value, { month: 'short', year: '2-digit', timeZone: 'UTC' }).format(new Date(`${point.month}-01T00:00:00Z`)),
 })))
-const trendHasRevenue = computed(() => trend.value.some(point => point.minor > 0))
+const trendHasRevenue = computed(() => trend.value.some(point => (point.minor ?? 0) > 0))
 
 const share = (value: number, total: number) => (total > 0 ? value / total : 0)
 const aging = computed<RankedRow[]>(() => {
@@ -159,6 +159,7 @@ function exportCsv() {
 
           <section class="grid gap-3" data-testid="analytics-opportunities" aria-labelledby="analytics-opportunities-title">
             <h2 id="analytics-opportunities-title" class="text-lg font-semibold">{{ t('analytics.groups.opportunities') }}</h2>
+            <p v-if="data.snapshot.usage_unavailable" class="text-sm text-warning" data-testid="analytics-usage-skipped">{{ t('analytics.usageSkipped', { count: data.snapshot.usage_unavailable }, data.snapshot.usage_unavailable) }}</p>
             <div class="@container min-w-0">
               <div class="grid gap-5 @min-[768px]:grid-cols-2">
                 <SharedChartPanel :title="t('analytics.upsell.title')" :description="t('analytics.upsell.description')">
