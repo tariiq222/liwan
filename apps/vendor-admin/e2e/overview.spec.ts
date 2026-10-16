@@ -29,9 +29,17 @@ test.describe('the vendor today page', () => {
       await expect(page.getByTestId('today-empty')).toContainText('لا شيء يحتاج تصرّفك الآن')
     })
 
-    test('an unreachable attention list keeps the queue counts and says so', async ({ page }) => {
+    test('a failing attention list shows a retry and keeps the queue counts', async ({ page }) => {
       await open(page, '/customers')
       await page.route('**/api/vendor/v1/commercial/attention', route => route.fulfill({ status: 503, json: { code: 'vendor_unavailable', message: 'down' } }))
+      await navigateClient(page, '/overview')
+      await expect(page.getByTestId('today-attention').getByRole('button', { name: 'إعادة المحاولة' })).toBeVisible()
+      await expect(page.getByTestId('status-tenants')).toBeVisible()
+    })
+
+    test('an attention list that is not deployed yet says so and keeps the queue counts', async ({ page }) => {
+      await open(page, '/customers')
+      await page.route('**/api/vendor/v1/commercial/attention', route => route.fulfill({ status: 404, json: { code: 'not_found', message: 'missing' } }))
       await navigateClient(page, '/overview')
       await expect(page.getByTestId('today-attention')).toContainText('تعذّر تحميل')
       await expect(page.getByTestId('status-tenants')).toBeVisible()

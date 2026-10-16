@@ -23,12 +23,12 @@ test.describe('Plan 7: commercial dates hydrate in the interface language', () =
         await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${locale}(?:-|$)`))
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
         if (path === '/overview') await expect(page.locator('time[datetime]')).toBeVisible()
-        else if (path.includes('/customers/')) await expect(page.locator('[data-slot="properties-panel"]').first()).toBeVisible()
+        else if (path.includes('/customers/')) await expect(page.locator('[data-slot="customer-glance"]')).toBeVisible()
         else await expect(page.locator('tbody tr[data-shortcut-row]').first()).toBeVisible()
         const timestamp = path === '/overview'
           ? page.locator('time[datetime]')
           : path.includes('/customers/')
-            ? page.locator('[data-slot="properties-panel"] [data-slot="property-row"]').last().locator('dd')
+            ? page.locator('[data-slot="customer-glance"] [data-testid="metric-tile"]').nth(1).locator('p[dir="ltr"]')
             : page.locator('tbody tr[data-shortcut-row]').first().locator('td').last()
         if (locale === 'en') {
           await expect(timestamp).toContainText('2026')
