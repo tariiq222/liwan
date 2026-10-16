@@ -8,7 +8,9 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test": "vitest run",
-    "lint": "vue-tsc --build --noEmit"
+    "lint": "vue-tsc --build --noEmit",
+    "e2e": "nuxt build && playwright test --project=prod",
+    "e2e:dev": "E2E_TARGET=dev playwright test --project=dev"
   },
   "dependencies": {
     "@iconify-json/lucide": "1.2.129",
@@ -29,6 +31,7 @@
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.20.1",
+    "jiti": "^2.7.0",
     "typescript": "^5.9.3",
     "vitest": "4.1.11",
     "vue-tsc": "^3.3.11"
