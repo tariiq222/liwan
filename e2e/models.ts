@@ -9,8 +9,8 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
  * Only the models configured in DeepSeek Harness subagent routing
  * (`subagent-model-selection` in settings.yaml) are used here:
  *
- *  - `default`  : xkiro `moonshotai/kimi-k3` (act) with xkiro `z-ai/glm-5.3` as judge.
- *  - `fast`     : xkiro `z-ai/glm-5.3-flash`.
+ *  - `default`  : xkiro `moonshotai/kimi-k3` (act) with Jev as judge (xkiro `google/gemini-3.7-flash` fallback).
+ *  - `fast`     : xkiro `google/gemini-3.7-flash`.
  *  - `deepseek` : commandcode `deepseek/deepseek-v4.1-flash`.
  *  - `codex`    : ChatGPT subscription `gpt-6.1-sol` (`npx e2e login openai`).
  *

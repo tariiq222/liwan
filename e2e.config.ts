@@ -64,7 +64,7 @@ export default {
       judge: jevJudge({ fallback: models.xkiro.chatModel('google/gemini-3.7-flash') }),
     },
     fast: {
-      model: models.xkiro.chatModel('z-ai/glm-5.3-flash'),
+      model: models.xkiro.chatModel('google/gemini-3.7-flash'),
     },
     deepseek: {
       model: models.commandcode.chatModel('deepseek/deepseek-v4.1-flash'),
