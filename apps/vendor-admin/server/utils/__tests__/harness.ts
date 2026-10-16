@@ -1,4 +1,6 @@
-import { createApp, toWebHandler, type EventHandler } from 'h3'
+import { createServer, request } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { createApp, toNodeListener, type EventHandler } from 'h3'
 import { vi } from 'vitest'
 
 export const KEY = 'service-key-service-key-service-key-0123'
@@ -32,17 +34,35 @@ export const json = (status: number, body?: unknown) =>
 
 export type Sent = { method?: string; body?: unknown; rawBody?: string; headers?: Record<string, string> }
 
-/** Sends one request through a handler as the browser would (same-origin JSON unless overridden). */
+/** Sends one request through a handler on a real loopback server, as the browser would (same-origin JSON unless overridden). */
 export async function send(handler: EventHandler, path: string, sent: Sent = {}) {
   const method = sent.method ?? 'POST'
   const app = createApp()
   app.use(handler)
-  const web = toWebHandler(app)
-  const raw = sent.rawBody ?? (sent.body === undefined ? undefined : JSON.stringify(sent.body))
-  const headers: Record<string, string> = method === 'GET' ? {} : { 'content-type': 'application/json', origin: ORIGIN, 'sec-fetch-site': 'same-origin' }
-  const response = await web(new Request(`${ORIGIN}${path}`, { method, body: method === 'GET' ? undefined : (raw ?? '{}'), headers: { ...headers, ...sent.headers } }))
-  const text = await response.text()
-  return { status: response.status, text, body: text ? JSON.parse(text) : null, headers: response.headers }
+  const server = createServer(toNodeListener(app))
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const raw = sent.rawBody ?? (sent.body === undefined ? undefined : JSON.stringify(sent.body))
+    const headers: Record<string, string> = method === 'GET' ? {} : { 'content-type': 'application/json', origin: ORIGIN, 'sec-fetch-site': 'same-origin' }
+    const response = await new Promise<{ status: number; text: string; headers: Headers }>((resolve, reject) => {
+      const req = request({ port: (server.address() as AddressInfo).port, method, path, headers: { ...headers, ...sent.headers } }, (res) => {
+        let text = ''
+        res.on('data', (chunk) => { text += chunk })
+        res.on('end', () => {
+          const out = new Headers()
+          for (const [name, value] of Object.entries(res.headers)) for (const v of [value].flat()) if (v !== undefined) out.append(name, v)
+          resolve({ status: res.statusCode ?? 0, text, headers: out })
+        })
+      })
+      req.on('error', reject)
+      if (method !== 'GET') req.write(raw ?? '{}')
+      req.end()
+    })
+    return { status: response.status, text: response.text, body: response.text ? JSON.parse(response.text) : null, headers: response.headers }
+  } finally {
+    server.closeAllConnections()
+    await new Promise(resolve => server.close(resolve))
+  }
 }
 
 export const cookieHeader = (value = SESSION, name = 'nasq_admin') => ({ cookie: `${name}=${value}` })
