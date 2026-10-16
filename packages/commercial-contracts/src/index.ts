@@ -55,6 +55,8 @@ export const operationSchema = z.strictObject({
   request_id: z.uuid(), reason: z.string(), result: z.record(z.string(), z.unknown()).nullable(),
   created_at: z.iso.datetime(), updated_at: z.iso.datetime(),
   events: z.array(z.strictObject({ stage: z.string(), status: z.string(), at: z.iso.datetime() })).optional(),
+  // Workspace name and owning customer, resolved by the control plane for display (absent on a bare operation row).
+  tenant_name: z.string().nullable().optional(), customer_id: z.uuid().nullable().optional(),
 })
 export type Tenant = z.infer<typeof tenantSchema>
 export type Operation = z.infer<typeof operationSchema>
@@ -65,6 +67,7 @@ export type OperationRequest = z.infer<typeof operationRequestSchema>
 // is the canonical import; this barrel re-export keeps root-package consumers working.
 export * from './shared/provisioning.js'
 export * from './admin.js'
+export * from './audit.js'
 
 export const sharedOnboardingRequestSchema = z.strictObject({
   request_id: z.uuid(), name: z.string().trim().min(1).max(200),

@@ -7,7 +7,7 @@ import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
 import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
 import { paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
-import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter } from '../../utils/vendorOperations'
+import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter, operationTargetTo } from '../../utils/vendorOperations'
 import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 import * as clients from '../../utils/vendorClients'
 import { isNotAvailable } from '../../utils/vendorSubscriptions'
@@ -31,7 +31,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: () => {}, onBeforeUnmount: () => {},
-    definePageMeta: () => {}, useI18n: () => ({ t, locale: Vue.ref('en') }), safeReturnTo, OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter,
+    definePageMeta: () => {}, useI18n: () => ({ t, locale: Vue.ref('en') }), safeReturnTo, OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter, operationTargetTo,
     useRoute: () => ({ params: { id: 'job-id' }, query: { source, ...query }, fullPath: '/operations?source=all' }),
     useRouter: () => ({ replace }), useHydrated: () => Vue.ref(true), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }),
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
@@ -70,7 +70,7 @@ it.each(['verified','needs_intervention'])('loads shared %s detail explicitly, t
   expect(detail.keys[0]).toBe('vendor:operation:shared:job-id')
   expect(detail.state.canRetry.value).toBe(false); expect(detail.state.isActive.value).toBe(false)
   expect(detail.html).not.toContain('shared_execution_verified'); expect(detail.html).not.toContain('Retry operation')
-  expect(detail.captured.find(c => c.name === 'SharedPropertyRow' && c.props.label === 'Operation')?.props.value).toContain('Set up customer workspace')
+  expect(detail.captured.find(c => c.name === 'SharedRecordPage')?.props.title).toContain('Set up customer workspace')
   expect(detail.captured.find(node => node.name === 'UAlert' && String(node.props.description).includes('readiness'))).toBeDefined()
 })
 it('preserves legacy failed read-operation retry and active polling', async () => {
@@ -132,4 +132,15 @@ it('opens a client on its customer page, or on its workspace page when it has no
 it('offers the create action to tenant managers only', async () => {
   const list = await page('customers/index.vue', { items: [], total: 0 })
   expect(list.captured.find(node => node.name === 'SharedListPage')?.props['create-to']).toEqual({ path: '/customers/new', query: { returnTo: '/operations?source=all' } })
+})
+
+it('links an operation to its customer, else to the workspace page, and shows the workspace name', async () => {
+  const owned = { ...operation, tenant_name: 'Acme Workspace', customer_id: 'cust-1' }
+  const list = await page('operations/index.vue', { items: [owned, { ...operation, id: 'job-2', tenant_name: null, customer_id: null }], total: 2 })
+  expect(list.state.targetName(owned)).toBe('Acme Workspace'); expect(list.state.targetName({ ...operation, tenant_name: null })).toBe('Acme')
+  expect(operationTargetTo(owned)).toEqual({ path: '/customers/cust-1', query: { tab: 'operations' } })
+  expect(operationTargetTo({ tenant_id: 'tenant id', customer_id: null })).toEqual({ path: '/tenants/tenant%20id' })
+  const detail = await page('operations/[id].vue', owned, 'shared')
+  expect(detail.state.targetTo.value).toEqual({ path: '/customers/cust-1', query: { tab: 'operations' } })
+  expect(detail.html).toContain('Acme Workspace'); expect(detail.html).not.toContain('open="')
 })

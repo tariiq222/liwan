@@ -86,7 +86,8 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
   it('whitelists shared output, overrides stale stage and uses real or null timestamps', async () => {
     const detail = await get(`/v1/operations/${id(3)}?source=shared`)
     expect(sharedOperationFeedSchema.safeParse(detail).success).toBe(true)
-    expect(Object.keys(detail).sort()).toEqual(['created_at','events','id','last_event_at','reason','request_id','result','source','stage','status','tenant_id','type','updated_at'].sort())
+    expect(Object.keys(detail).sort()).toEqual(['created_at','customer_id','events','id','last_event_at','reason','request_id','result','source','stage','status','tenant_id','tenant_name','type','updated_at'].sort())
+    expect(detail).toMatchObject({ tenant_name: 'feed_a', customer_id: null })
     expect(detail).toMatchObject({ result: null, updated_at: null, last_event_at: '2026-10-01T00:05:00.000Z', reason: 'shared_execution_needs_attention', events: [{ stage: 'started', status: 'running', at: '2026-10-01T00:05:00.000Z' }] })
     expect(JSON.stringify(detail)).not.toMatch(/secret|private|evidence|journal|receipt|postgres/)
     const queued = await get(`/v1/operations/${id(1)}?source=shared`)

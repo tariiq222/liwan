@@ -230,7 +230,10 @@
         "shared_execution_pending": "العملية في الانتظار أو قيد التنفيذ.",
         "shared_execution_verified": "تم التحقق من تنفيذ العملية.",
         "shared_execution_needs_attention": "تحتاج العملية مراجعة من المشغّل قبل متابعة التغييرات."
-      }
+      },
+      "operationId": "معرّف العملية",
+      "workspaceId": "معرّف مساحة العمل",
+      "customerId": "معرّف العميل"
     },
     "audit": {
       "title": "سجل التدقيق",
@@ -238,6 +241,7 @@
       "empty": "لا توجد سجلات تدقيق.",
       "actor": "المنفذ",
       "subject": "الموضوع",
+      "action": "الإجراء",
       "actions": {
         "membership": {
           "granted": "مُنحت صلاحية الإدارة",
@@ -275,7 +279,105 @@
         },
         "shared_onboarding": {
           "reserved": "حجز مساحة عميل مشتركة"
+        },
+        "auth": {
+          "signed_in": "تسجيل دخول",
+          "failed": "محاولة دخول فاشلة",
+          "locked": "قفل مؤقت بعد محاولات فاشلة",
+          "step_up": "تأكيد هوية إضافي",
+          "signed_out": "تسجيل خروج",
+          "passkey_registered": "تسجيل مفتاح مرور"
+        },
+        "account": {
+          "roles_set": "تغيير أدوار حساب",
+          "disabled": "تعطيل حساب",
+          "dev_owner": "إنشاء حساب المالك التجريبي",
+          "invited": "دعوة حساب",
+          "reset_issued": "إصدار رابط إعادة تعيين",
+          "reset_completed": "إكمال إعادة التعيين",
+          "enrolled": "إكمال تسجيل حساب"
+        },
+        "plan": {
+          "created": "إنشاء باقة",
+          "revision_created": "إنشاء إصدار جديد من باقة",
+          "deleted": "حذف مسودة باقة",
+          "edit": "تعديل باقة",
+          "validate": "التحقق من باقة",
+          "publish": "نشر باقة",
+          "withdraw": "سحب باقة من البيع",
+          "restore": "استعادة باقة"
+        },
+        "bundle": {
+          "created": "إنشاء حزمة",
+          "revision_created": "إنشاء إصدار جديد من حزمة",
+          "deleted": "حذف مسودة حزمة",
+          "edit": "تعديل حزمة",
+          "validate": "التحقق من حزمة",
+          "publish": "نشر حزمة",
+          "withdraw": "سحب حزمة",
+          "restore": "استعادة حزمة"
+        },
+        "order": {
+          "accepted": "قبول طلب",
+          "cancelled": "إلغاء طلب"
+        },
+        "invoice": {
+          "credit_pending": "رصيد دائن معلّق على فاتورة"
+        },
+        "payment": {
+          "intervention": "دفعة تحتاج تدخلًا"
+        },
+        "customer_terms": {
+          "created": "حفظ شروط عميل"
+        },
+        "catalog_release": {
+          "created": "إنشاء إصدار كتالوج"
+        },
+        "registry": {
+          "recovery_requested": "طلب استرداد سجل المساحات"
         }
+      },
+      "when": "الوقت",
+      "search": "ابحث في السجل",
+      "noResults": "لا توجد سجلات تطابق التصفية. امسح التصفية أو غيّر البحث.",
+      "category": "نوع الإجراء",
+      "allCategories": "كل الأنواع",
+      "actorFilter": "المنفذ",
+      "actorPlaceholder": "اسم أو بريد المنفذ",
+      "from": "من تاريخ",
+      "to": "إلى تاريخ",
+      "customerFilter": "سجل العميل: {name}",
+      "customerFilterUnknown": "سجل عميل محدد",
+      "categories": {
+        "auth": "الدخول والمصادقة",
+        "account": "حسابات الفريق",
+        "tenant": "مساحات العملاء",
+        "operation": "العمليات",
+        "catalog": "الكتالوج",
+        "catalog_release": "إصدارات الكتالوج",
+        "plan": "الباقات",
+        "bundle": "الحزم",
+        "order": "الطلبات",
+        "invoice": "الفواتير",
+        "payment": "المدفوعات",
+        "customer_terms": "شروط العملاء"
+      },
+      "kinds": {
+        "account": "حساب",
+        "customer": "عميل",
+        "tenant": "مساحة عمل",
+        "order": "طلب",
+        "plan": "باقة",
+        "bundle": "حزمة",
+        "catalog": "كتالوج",
+        "other": "سجل"
+      },
+      "actors": {
+        "operator": "مشغّل النظام",
+        "anonymous": "زائر غير مسجّل",
+        "system": "النظام",
+        "shared-worker": "عامل المنصة المشتركة",
+        "legacy": "حساب سابق"
       }
     },
     "packages": {

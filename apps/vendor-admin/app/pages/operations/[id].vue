@@ -3,6 +3,7 @@ import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@nasq/commercial-contracts'
 import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { operationTargetTo } from '@/utils/vendorOperations'
 definePageMeta({ capability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
 
@@ -28,6 +29,8 @@ const isShared = computed(() => source.value === 'shared' || (data.value && 'sou
 const canRetry = computed(() => !isShared.value && data.value?.status === 'failed' && ['tenant.inspect', 'health'].includes(data.value.type))
 const needsAttention = computed(() => data.value?.status === 'needs_intervention' || data.value?.stage === 'deployment_incomplete')
 const deploymentIncomplete = computed(() => data.value?.stage === 'deployment_incomplete' || data.value?.result?.deployment_ready === false)
+const targetTo = computed(() => data.value ? operationTargetTo(data.value) : null)
+const updatedAt = computed(() => (data.value && 'last_event_at' in data.value && data.value.last_event_at) || data.value?.updated_at || null)
 const backupUnverified = computed(() => data.value?.type === 'backup' && data.value?.result?.consistency === 'UNVERIFIED')
 
 function stopPolling() {
@@ -79,33 +82,37 @@ async function retry() {
 
 <template>
 
-    <SharedRecordPage :title="t('vendor.operations.details')" :description="data?.id" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
+    <SharedRecordPage :title="data ? t(`vendor.operations.types.${data.type}`, data.type) : t('vendor.operations.details')" :description="data ? (isShared ? t(`vendor.operations.reasons.${data.reason}`) : data.reason) : undefined" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
       <template #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="pending" @click="manualRefresh">{{ t('vendor.common.refresh') }}</UButton>
       </template>
 
-      <div v-if="data" class="space-y-6">
-        <div class="space-y-4">
+      <template v-if="data" #summary>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="operation-summary">
+          <SharedStatusBadge :tone="operationStatusBadge(data.status).tone" :label="t(operationStatusBadge(data.status).labelKey)" />
+          <span class="text-sm text-muted">{{ t('vendor.operations.stage') }}: {{ t(`vendor.operations.stages.${data.stage}`, data.stage) }}</span>
+        </div>
+      </template>
 
-          <p class="mt-4 text-sm">{{ isShared ? t(`vendor.operations.reasons.${data.reason}`) : data.reason }}</p>
-          <UAlert v-if="isShared" class="mt-4" color="info" variant="subtle" :title="t('vendor.operations.sharedExecution')" :description="t('vendor.operations.sharedExecutionHint')" />
-          <UAlert v-if="needsAttention" class="mt-4" color="warning" variant="subtle" :title="t(deploymentIncomplete ? 'vendor.operations.deploymentIncomplete' : 'vendor.operations.needsAttention')" :description="t('vendor.operations.reconcileHint')" />
-          <UAlert v-else-if="backupUnverified" class="mt-4" color="warning" variant="subtle" :title="t('vendor.operations.backupUnverified')" :description="t('vendor.operations.backupUnverifiedHint')" />
-          <div v-if="can('vendor.operations.run') && canRetry" class="mt-5 border-t border-default pt-4">
-            <h2 class="font-medium">{{ t('vendor.operations.retryTitle') }}</h2>
-            <p class="my-2 text-sm text-muted">{{ t('vendor.operations.retryHint') }}</p>
-            <UAlert v-if="actionError" color="error" variant="subtle" :title="t('vendor.errors.action')" />
-            <form class="grid gap-3" @submit.prevent="retry">
-              <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="reason" required maxlength="1000" class="w-full" /></UFormField>
-              <div><UButton type="submit" color="neutral" variant="outline" :loading="busy" :disabled="busy || !reason.trim()">{{ t('vendor.operations.retry') }}</UButton></div>
-            </form>
-          </div>
+      <div v-if="data" class="space-y-6">
+        <div v-if="isShared || needsAttention || backupUnverified" class="space-y-3">
+          <UAlert v-if="isShared" color="info" variant="subtle" :title="t('vendor.operations.sharedExecution')" :description="t('vendor.operations.sharedExecutionHint')" />
+          <UAlert v-if="needsAttention" color="warning" variant="subtle" :title="t(deploymentIncomplete ? 'vendor.operations.deploymentIncomplete' : 'vendor.operations.needsAttention')" :description="t('vendor.operations.reconcileHint')" />
+          <UAlert v-else-if="backupUnverified" color="warning" variant="subtle" :title="t('vendor.operations.backupUnverified')" :description="t('vendor.operations.backupUnverifiedHint')" />
         </div>
 
+        <SharedRecordSection v-if="can('vendor.operations.run') && canRetry" :title="t('vendor.operations.retryTitle')" :description="t('vendor.operations.retryHint')" panel>
+          <UAlert v-if="actionError" class="mb-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />
+          <form class="grid gap-3" @submit.prevent="retry">
+            <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="reason" required maxlength="1000" class="w-full" /></UFormField>
+            <div><UButton type="submit" color="neutral" variant="outline" :loading="busy" :disabled="busy || !reason.trim()">{{ t('vendor.operations.retry') }}</UButton></div>
+          </form>
+        </SharedRecordSection>
+
         <SharedRecordSection :title="t('vendor.operations.events')">
-          <ol v-if="data.events?.length" class="grid gap-3">
+          <ol v-if="data.events?.length" class="grid gap-3" data-testid="operation-events">
             <li v-for="(event, index) in data.events" :key="`${event.at}:${index}`" class="border-s-2 border-default ps-3">
-              <p class="font-medium">{{ t(`vendor.operations.stages.${event.stage}`, event.stage) }} · {{ t(`vendor.status.${event.status}`) }}</p>
+              <p class="flex flex-wrap items-center gap-2 font-medium">{{ t(`vendor.operations.stages.${event.stage}`, event.stage) }} <SharedStatusBadge :tone="operationStatusBadge(event.status).tone" :label="operationStatusBadge(event.status).labelKey ? t(operationStatusBadge(event.status).labelKey) : event.status" /></p>
               <time class="text-xs text-muted" :datetime="event.at">{{ formatNasqDateTime(event.at) }}</time>
             </li>
           </ol>
@@ -114,20 +121,22 @@ async function retry() {
           <p v-if="pollingPaused" class="mt-4 text-xs text-muted" role="status">{{ t('vendor.operations.pollingPaused') }}</p>
         </SharedRecordSection>
 
-        <div v-if="data.result">
-          <details>
-            <summary class="cursor-pointer font-medium">{{ t('vendor.operations.result') }}</summary>
-            <pre class="mt-3 max-h-96 overflow-auto rounded-md bg-elevated p-3 text-xs">{{ JSON.stringify(data.result, null, 2) }}</pre>
-          </details>
-        </div>
+        <details data-testid="operation-technical">
+          <summary class="cursor-pointer font-medium">{{ t('vendor.operations.result') }}</summary>
+          <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-4">
+            <dt class="text-muted">{{ t('vendor.operations.operationId') }}</dt><dd><bdi dir="ltr" class="break-all">{{ data.id }}</bdi></dd>
+            <dt class="text-muted">{{ t('vendor.operations.requestId') }}</dt><dd><bdi dir="ltr" class="break-all">{{ data.request_id }}</bdi></dd>
+            <dt class="text-muted">{{ t('vendor.operations.workspaceId') }}</dt><dd><bdi dir="ltr" class="break-all">{{ data.tenant_id }}</bdi></dd>
+            <template v-if="data.customer_id"><dt class="text-muted">{{ t('vendor.operations.customerId') }}</dt><dd><bdi dir="ltr" class="break-all">{{ data.customer_id }}</bdi></dd></template>
+          </dl>
+          <pre v-if="data.result" class="mt-3 max-h-96 overflow-auto rounded-md bg-elevated p-3 text-xs" dir="ltr">{{ JSON.stringify(data.result, null, 2) }}</pre>
+        </details>
       </div>
 
   <template #aside><SharedPropertiesPanel v-if="data">
-            <SharedPropertyRow :label="t('vendor.operations.type')" :value="t(`vendor.operations.types.${data.type}`, data.type)" />
-            <SharedPropertyRow :label="t('vendor.common.status')"><SharedStatusBadge :tone="operationStatusBadge(data.status).tone" :label="t(operationStatusBadge(data.status).labelKey)" /></SharedPropertyRow>
-            <SharedPropertyRow :label="t('vendor.operations.stage')" :value="t(`vendor.operations.stages.${data.stage}`, data.stage)" />
-            <SharedPropertyRow :label="t('vendor.operations.target')"><NuxtLink :to="`/tenants/${data.tenant_id}`" class="text-primary underline"><bdi>{{ data.tenant_id }}</bdi></NuxtLink></SharedPropertyRow>
-            <SharedPropertyRow :label="t('vendor.operations.requestId')" :value="data.request_id" />
+            <SharedPropertyRow :label="t('vendor.operations.target')"><NuxtLink v-if="targetTo" :to="targetTo" class="text-primary underline" data-testid="operation-target"><bdi>{{ data.tenant_name ?? data.tenant_id }}</bdi></NuxtLink></SharedPropertyRow>
+            <SharedPropertyRow :label="t('vendor.operations.created')" :value="formatNasqDateTime(data.created_at)" />
+            <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatNasqDateTime(updatedAt)" />
           </SharedPropertiesPanel></template>
 </SharedRecordPage>
 </template>
