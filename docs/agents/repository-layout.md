@@ -91,7 +91,6 @@ limits describe implementation stages, not permanent product exclusions.
   components in `app/components/personal-tasks`. Presentational building blocks live in
   the `packages/ui` Nuxt layer (`@nasq/ui`, shared by every Nuxt app);
   `app/components/shared/{data,form,commerce}` keeps only those that need app data.
-- `odoo-addons/web_theme_shadcn` holds the vendor-console theme.
 - `deploy` holds per-customer Docker, Caddy, provisioning, and branding
   templates.
 

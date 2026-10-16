@@ -103,7 +103,7 @@ docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not r
 # Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
 docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
   -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai,web_theme_shadcn --stop-after-init
+  -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai --stop-after-init
 docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
