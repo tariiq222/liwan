@@ -25,8 +25,8 @@ const requests = [
   () => send(stepUpVerify, '/api/auth/step-up-verify', { body: { challenge_id: 'c'.repeat(36), response: { id: SECRET } }, headers: secretHeaders }),
   () => send(logout, '/api/auth/logout', { body: {}, headers: secretHeaders }),
   () => send(session, '/api/auth/session', { method: 'GET', headers: secretHeaders }),
-  () => send(proxy, '/api/vendor/v1/plans', { body: { note: SECRET }, headers: secretHeaders }),
-  () => send(proxy, `/api/vendor/v1/plans?q=${SECRET}`, { method: 'GET', headers: secretHeaders }),
+  () => send(proxy, '/api/vendor/v1/commercial/plans', { body: { note: SECRET }, headers: secretHeaders }),
+  () => send(proxy, `/api/vendor/v1/commercial/plans?q=${SECRET}`, { method: 'GET', headers: secretHeaders }),
 ]
 
 describe('no secret reaches the logs', () => {

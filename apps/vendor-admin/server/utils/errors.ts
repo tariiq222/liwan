@@ -1,4 +1,4 @@
-import { sendNoContent, setResponseStatus, defineEventHandler, type EventHandlerRequest, type H3Event } from 'h3'
+import { defineEventHandler, sendNoContent, setHeader, setResponseStatus, type EventHandlerRequest, type H3Event } from 'h3'
 
 /** A failure with the exact `{ code }` body the browser receives. */
 export class BffError extends Error {
@@ -11,11 +11,12 @@ export const bffFail = (status: number, code: string): never => {
   throw new BffError(status, code)
 }
 
-/** Writes an upstream or local result: the status, and the body unless it is 204. */
+/** Writes an upstream or local result: the status, and the body (always labelled JSON) unless it is 204. */
 export function respond(event: H3Event, status: number, data?: unknown): unknown {
   if (status === 204) return sendNoContent(event)
   setResponseStatus(event, status)
-  return data ?? null
+  setHeader(event, 'content-type', 'application/json; charset=utf-8')
+  return JSON.stringify(data ?? null)
 }
 
 /**

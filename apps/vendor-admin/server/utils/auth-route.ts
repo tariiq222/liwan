@@ -46,6 +46,15 @@ export type AuthRouteSpec = {
   onSuccess?: (event: H3Event, result: ControlResult) => unknown
 }
 
+/**
+ * A 401 on a step-up route is either a dead session or a failed passkey assertion, and only the
+ * first must end the local session: ask the control plane who the cookie belongs to.
+ */
+async function sessionIsGone(event: H3Event, session: AdminSession): Promise<boolean> {
+  const me = await controlCall(event, { path: '/v1/admin/me', method: 'GET', session })
+  return me.status === 401
+}
+
 /** A POST route that validates the body, signs it as the anonymous actor and relays the result. */
 export function authRoute(name: string, spec: AuthRouteSpec) {
   return bffHandler(name, async (event) => {
@@ -57,6 +66,7 @@ export function authRoute(name: string, spec: AuthRouteSpec) {
     let session: AdminSession | undefined
     if (spec.session === 'required') session = readSession(event) ?? bffFail(401, 'auth_failed')
     const result = await controlCall(event, { path: spec.path, method: 'POST', body: parsed.data as object, anonymous: true, session })
+    if (result.status === 401 && session && await sessionIsGone(event, session)) clearSession(event)
     if (result.status >= 400) return respond(event, result.status, result.data)
     return spec.onSuccess ? spec.onSuccess(event, result) : respond(event, result.status, result.data)
   })
@@ -72,8 +82,9 @@ export const logoutRoute = bffHandler('logout', async (event) => {
   clearSession(event)
   if (!session) return respond(event, 204)
   const result = await controlCall(event, { path: '/v1/admin/auth/logout', method: 'POST', body: {}, anonymous: true, session })
-  if (result.status === 401) return respond(event, 204)
-  return respond(event, result.status, result.data)
+  // Only the genuine "this session is not valid" answer means it was already signed out.
+  const alreadyOut = result.status === 401 && (result.data as { code?: unknown } | undefined)?.code === 'auth_failed'
+  return alreadyOut ? respond(event, 204) : respond(event, result.status, result.data)
 })
 
 /** The profile behind the cookie; an absent, expired or revoked session is 401 auth_failed. */

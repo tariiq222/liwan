@@ -31,7 +31,7 @@ describe('vendor API proxy', () => {
 
   it('passes the body bytes and the query through', async () => {
     const calls = stubUpstream(() => json(201, { id: 1 }))
-    const result = await post('/plans?x=1', { body: { b: [1, 2] } })
+    const result = await post('/commercial/plans?x=1', { body: { b: [1, 2] } })
     expect(result).toMatchObject({ status: 201, body: { id: 1 } })
     expect(at(calls, 0).body).toBe('{"b":[1,2]}')
     expect(at(calls, 0).url.search).toBe('?x=1')
@@ -40,24 +40,24 @@ describe('vendor API proxy', () => {
 
   it('passes an upstream 403 step_up_required through unchanged', async () => {
     stubUpstream(() => json(403, { code: 'step_up_required' }))
-    expect(await post('/plans')).toMatchObject({ status: 403, body: { code: 'step_up_required' } })
+    expect(await post('/commercial/plans')).toMatchObject({ status: 403, body: { code: 'step_up_required' } })
   })
 
   it('passes other upstream 4xx through, with a generic code when the body is not JSON', async () => {
     stubUpstream(() => json(409, { code: 'conflict' }))
-    expect(await post('/plans')).toMatchObject({ status: 409, body: { code: 'conflict' } })
+    expect(await post('/commercial/plans')).toMatchObject({ status: 409, body: { code: 'conflict' } })
     stubUpstream(() => new Response('<html>', { status: 422 }))
-    expect(await post('/plans')).toMatchObject({ status: 422, body: { code: 'vendor_request_failed' } })
+    expect(await post('/commercial/plans')).toMatchObject({ status: 422, body: { code: 'vendor_request_failed' } })
   })
 
   it('answers an upstream 204 with no body', async () => {
     stubUpstream(() => json(204))
-    expect(await post('/plans/1/disable')).toMatchObject({ status: 204, text: '' })
+    expect(await post('/commercial/plans/1/disable')).toMatchObject({ status: 204, text: '' })
   })
 
   it('turns an upstream 5xx, a network failure and a redirect into 503 vendor_unavailable', async () => {
     stubUpstream(() => json(500, { detail: 'secret upstream text' }))
-    const failed = await post('/plans')
+    const failed = await post('/commercial/plans')
     expect(failed).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
     expect(failed.text).not.toContain('secret')
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('boom')))
@@ -74,22 +74,22 @@ describe('vendor API proxy', () => {
   it('rejects a body over 1 MB with 413', async () => {
     const calls = stubUpstream(() => json(200))
     const rawBody = JSON.stringify({ pad: 'x'.repeat(1024 * 1024) })
-    expect(await post('/plans', { rawBody })).toMatchObject({ status: 413, body: { code: 'payload_too_large' } })
+    expect(await post('/commercial/plans', { rawBody })).toMatchObject({ status: 413, body: { code: 'payload_too_large' } })
     expect(calls).toHaveLength(0)
   })
 
   it('rejects a body that is not a JSON object with 400', async () => {
     const calls = stubUpstream(() => json(200))
     for (const rawBody of ['[1]', 'null', '"x"', '{bad']) {
-      expect(await post('/plans', { rawBody }), rawBody).toMatchObject({ status: 400, body: { code: 'invalid_json' } })
+      expect(await post('/commercial/plans', { rawBody }), rawBody).toMatchObject({ status: 400, body: { code: 'invalid_json' } })
     }
     expect(calls).toHaveLength(0)
   })
 
   it('rejects a cross-site request with 403 cross_site_request', async () => {
     const calls = stubUpstream(() => json(200))
-    expect(await post('/plans', { body: {}, headers: { 'sec-fetch-site': 'cross-site' } })).toMatchObject({ status: 403, body: { code: 'cross_site_request' } })
-    expect(await post('/plans', { body: {}, headers: { origin: 'https://evil.example' } })).toMatchObject({ status: 403 })
+    expect(await post('/commercial/plans', { body: {}, headers: { 'sec-fetch-site': 'cross-site' } })).toMatchObject({ status: 403, body: { code: 'cross_site_request' } })
+    expect(await post('/commercial/plans', { body: {}, headers: { origin: 'https://evil.example' } })).toMatchObject({ status: 403 })
     expect(calls).toHaveLength(0)
   })
 
@@ -101,8 +101,43 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(0)
   })
 
+  it('answers 404 for traversal and encoded-slash tricks aimed at the sign-in surface', async () => {
+    const calls = stubUpstream(() => json(200))
+    for (const path of ['/api/vendor/v1/x/../admin/auth/logout', '/api/vendor/v1/admin%2fauth/logout', '/api/vendor/v1/admin%2Fauth/logout', '/api/vendor/v1/%2e%2e/admin/auth/logout', '/api/vendor/v1/tenants/%2e%2e/%2e%2e/admin/auth/logout', '/api/vendor/v1/tenants\\..\\admin', '/api/vendor/v1//admin/auth/logout', '/api/vendor/v1/admin/auth/logout', '/api/vendor/v1/admin/auth/passkey/options']) {
+      expect((await send(proxy, path, { method: 'GET', headers: cookieHeader() })).status, path).toBe(404)
+    }
+    expect(calls).toHaveLength(0)
+  })
+
+  it('forwards only the vendor surface the console uses', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/commercial/customers', '/commercial/orders/ab-1/cancel', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
+    for (const path of allowed) expect((await get(path)).status, path).toBe(200)
+    expect(calls).toHaveLength(allowed.length)
+    const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts']
+    for (const path of denied) expect((await get(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(allowed.length)
+  })
+
+  it('drops every upstream header, including set-cookie', async () => {
+    stubUpstream(() => new Response('{"ok":true}', { status: 200, headers: { 'set-cookie': 'evil=1; Path=/', 'x-powered-by': 'upstream', 'content-type': 'application/json' } }))
+    const result = await get('/context')
+    expect(result.headers.get('set-cookie')).toBeNull()
+    expect(result.headers.get('x-powered-by')).toBeNull()
+  })
+
+  it('always labels its bodies application/json, including errors and non-object JSON', async () => {
+    stubUpstream(() => new Response('"plain"', { status: 200 }))
+    const text = await get('/context')
+    expect(text.headers.get('content-type')).toMatch(/^application\/json/)
+    expect(text.body).toBe('plain')
+    expect((await get('/context', {})).headers.get('content-type')).toMatch(/^application\/json/)
+    stubUpstream(() => json(500))
+    expect((await get('/context')).headers.get('content-type')).toMatch(/^application\/json/)
+  })
+
   it('rejects methods outside GET, POST, PATCH and DELETE', async () => {
-    expect((await send(proxy, '/api/vendor/v1/plans', { method: 'PUT', body: {}, headers: cookieHeader() })).status).toBe(405)
+    expect((await send(proxy, '/api/vendor/v1/commercial/plans', { method: 'PUT', body: {}, headers: cookieHeader() })).status).toBe(405)
   })
 
   it('answers 503 for every call when the service key is short or the control URL is not secure', async () => {

@@ -24,9 +24,9 @@ describe('BFF to control-plane signing', () => {
 
   it('signs a session request as the numeric actor from the cookie, without the anonymous flag', async () => {
     const calls = stubUpstream(() => json(200, { items: [], total: 0 }))
-    await send(proxy, '/api/vendor/v1/customers?q=a', { method: 'GET', headers: cookieHeader() })
+    await send(proxy, '/api/vendor/v1/commercial/customers?q=a', { method: 'GET', headers: cookieHeader() })
     const call = at(calls, 0)
-    expect(call.url.pathname + call.url.search).toBe('/v1/customers?q=a')
+    expect(call.url.pathname + call.url.search).toBe('/v1/commercial/customers?q=a')
     expect(verify(call)).toMatchObject({ actor: 7, issuer: INSTALLATION })
     expect(verify(call, { anonymous: true })).toBeNull()
     expect(call.headers['x-nasq-session']).toBe(SESSION)
@@ -41,7 +41,7 @@ describe('BFF to control-plane signing', () => {
 
   it('rejects a tampered body, path or actor', async () => {
     const calls = stubUpstream(() => json(200, { items: [], total: 0 }))
-    await send(proxy, '/api/vendor/v1/customers', { method: 'POST', body: { a: 1 }, headers: cookieHeader() })
+    await send(proxy, '/api/vendor/v1/commercial/customers', { method: 'POST', body: { a: 1 }, headers: cookieHeader() })
     const call = at(calls, 0)
     expect(verify(call)).not.toBeNull()
     expect(verify({ ...call, body: '{"a":2}' })).toBeNull()

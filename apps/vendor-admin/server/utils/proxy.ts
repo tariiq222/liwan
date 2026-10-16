@@ -7,16 +7,24 @@ import { clearSession, readSession } from './session-cookie'
 import { bffConfig } from './config'
 
 const METHODS = ['GET', 'POST', 'PATCH', 'DELETE']
-const BROWSER_PREFIX = '/api/vendor'
-const AUTH_PREFIX = '/v1/admin/auth/'
+const BROWSER_PREFIX = '/api/vendor/v1/'
+const SEGMENT = '[A-Za-z0-9_-]+'
 
-/** Maps /api/vendor/v1/** to the control plane's /v1/**; the sign-in surface is never reachable through here. */
+// The control-plane surface the vendor console uses (routes in apps/control-plane/src/http.ts and
+// commercial/http.ts). Plain segments only: dots, percent escapes and backslashes can never match.
+const ALLOWED = [
+  new RegExp(`^/v1/(audit|catalog|context|operations|overview|targets|tenants|commercial|shared/tenants)(/${SEGMENT})*$`),
+  /^\/v1\/admin\/(me|accounts)$/,
+  /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,
+]
+
+/** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */
 function upstreamPath(event: H3Event): string {
   const url = getRequestURL(event)
-  const path = url.pathname.slice(BROWSER_PREFIX.length)
-  const resolved = new URL(`${path}${url.search}`, 'http://upstream.invalid')
-  if (!resolved.pathname.startsWith('/v1/') || resolved.pathname.startsWith(AUTH_PREFIX) || resolved.pathname !== path) bffFail(404, 'not_found')
-  return `${resolved.pathname}${resolved.search}`
+  if (!url.pathname.startsWith(BROWSER_PREFIX)) bffFail(404, 'not_found')
+  const path = `/v1/${url.pathname.slice(BROWSER_PREFIX.length)}`
+  if (!ALLOWED.some(pattern => pattern.test(path))) bffFail(404, 'not_found')
+  return `${path}${url.search}`
 }
 
 /** Signed pass-through of one browser API call, as the account named by the session cookie. */

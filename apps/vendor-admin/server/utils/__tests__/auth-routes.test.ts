@@ -117,6 +117,25 @@ describe('auth routes', () => {
   })
 })
 
+describe('session header and signing mode by route', () => {
+  beforeEach(() => stubConfig())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each(cases.filter(c => !c.sessionCookie))('$name never sends x-nasq-session even when the browser has the cookie', async ({ handler, path, body }) => {
+    const calls = stubUpstream(() => json(200, { ...signedIn }))
+    await send(handler, path, { body, headers: cookieHeader() })
+    expect(Object.keys(at(calls, 0).headers)).not.toContain('x-nasq-session')
+  })
+
+  it('signs logout as the anonymous actor with the session header', async () => {
+    const calls = stubUpstream(() => json(204))
+    await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
+    const call = at(calls, 0)
+    expect(call.headers['x-nasq-actor']).toBe('anonymous')
+    expect(call.headers['x-nasq-session']).toBe(SESSION)
+  })
+})
+
 describe('GET /api/auth/session', () => {
   beforeEach(() => stubConfig())
   afterEach(() => vi.unstubAllGlobals())
@@ -150,6 +169,26 @@ describe('GET /api/auth/session', () => {
   })
 })
 
+describe('step-up routes with a rejected session', () => {
+  beforeEach(() => stubConfig())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each([['step-up-options', stepUpOptions, '/api/auth/step-up-options', {}], ['step-up-verify', stepUpVerify, '/api/auth/step-up-verify', { challenge_id: CHALLENGE, response: { id: 'x' } }]] as const)('%s clears the cookie on a 401', async (_n, handler, path, body) => {
+    stubUpstream(() => json(401, { code: 'auth_failed' }))
+    const result = await send(handler, path, { body, headers: cookieHeader() })
+    expect(result).toMatchObject({ status: 401, body: { code: 'auth_failed' } })
+    expect(result.headers.get('set-cookie')).toMatch(/nasq_admin=;/)
+  })
+
+  it('a failed passkey assertion on a live session keeps the cookie', async () => {
+    const calls = stubUpstream(call => call.url.pathname === '/v1/admin/me' ? json(200, { id: 7 }) : json(401, { code: 'auth_failed' }))
+    const result = await send(stepUpVerify, '/api/auth/step-up-verify', { body: { challenge_id: CHALLENGE, response: { id: 'x' } }, headers: cookieHeader() })
+    expect(result).toMatchObject({ status: 401, body: { code: 'auth_failed' } })
+    expect(result.headers.get('set-cookie')).toBeNull()
+    expect(calls.map(c => c.url.pathname)).toEqual(['/v1/admin/auth/step-up/verify', '/v1/admin/me'])
+  })
+})
+
 describe('POST /api/auth/logout', () => {
   beforeEach(() => stubConfig())
   afterEach(() => vi.unstubAllGlobals())
@@ -163,11 +202,21 @@ describe('POST /api/auth/logout', () => {
     expect(at(calls, 0).headers['x-nasq-session']).toBe(SESSION)
   })
 
-  it('still clears the cookie when the session is already invalid or the control plane is down', async () => {
+  it('treats only the genuine auth_failed of an already-invalid session as logged out', async () => {
     stubUpstream(() => json(401, { code: 'auth_failed' }))
     const expired = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     expect(expired.status).toBe(204)
     expect(expired.headers.get('set-cookie')).toMatch(/nasq_admin=;/)
+    // Any other 401 (signature, clock) is reported as it is, and the cookie is still cleared.
+    stubUpstream(() => json(401, { code: 'unauthorized' }))
+    const other = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
+    expect(other).toMatchObject({ status: 401, body: { code: 'unauthorized' } })
+    expect(other.headers.get('set-cookie')).toMatch(/nasq_admin=;/)
+    stubUpstream(() => json(429, { code: 'rate_limited' }))
+    expect((await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })).status).toBe(429)
+  })
+
+  it('still clears the cookie when the control plane is down', async () => {
     stubUpstream(() => json(500))
     const down = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     expect(down.status).toBe(503)
