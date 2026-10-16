@@ -1,15 +1,14 @@
 import type { ShellRailItem } from '@nasq/ui/app/types/shell'
 
-/** `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, the retired legacy packages under plans). */
-interface AdminNavEntry { id: string, icon: string, capability: string, alsoUnder?: readonly string[] }
+/** `to`: the section's landing path when it is not `/<id>`; `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, bundles and the retired legacy packages under the catalog). */
+interface AdminNavEntry { id: string, icon: string, capability: string, to?: string, alsoUnder?: readonly string[] }
 
 // Display order. The control plane enforces every capability; hiding an entry here is presentation only.
 const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'overview', icon: 'i-lucide-house', capability: 'vendor.read' },
   { id: 'analytics', icon: 'i-lucide-chart-line', capability: 'vendor.billing.manage' },
   { id: 'customers', icon: 'i-lucide-users', capability: 'vendor.read', alsoUnder: ['/tenants'] },
-  { id: 'plans', icon: 'i-lucide-badge-percent', capability: 'vendor.read', alsoUnder: ['/catalog'] },
-  { id: 'bundles', icon: 'i-lucide-boxes', capability: 'vendor.read' },
+  { id: 'catalog', icon: 'i-lucide-boxes', capability: 'vendor.read', to: '/plans', alsoUnder: ['/bundles', '/catalog'] },
   { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage' },
   { id: 'operations', icon: 'i-lucide-wrench', capability: 'vendor.read' },
   { id: 'audit', icon: 'i-lucide-history', capability: 'vendor.audit.read' },
@@ -22,7 +21,7 @@ const EXTRA_PREFIXES: Record<string, readonly string[] | undefined> = Object.fro
 export function adminNav(capabilities: readonly string[]): ShellRailItem[] {
   return ENTRIES
     .filter(entry => capabilities.includes(entry.capability))
-    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: `/${entry.id}` }))
+    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: entry.to ?? `/${entry.id}` }))
 }
 
 /** The id of the item whose section contains `path`; the root belongs to the overview. */

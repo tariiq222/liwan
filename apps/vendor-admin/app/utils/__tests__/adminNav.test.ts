@@ -16,8 +16,8 @@ const ROLES: Record<string, string[]> = {
 const caps = (role: string) => ROLES[role]!.map(name => `vendor.${name}`)
 const ids = (capabilities: string[]) => adminNav(capabilities).map(item => item.id)
 
-const READ_SECTIONS = ['overview', 'customers', 'plans', 'bundles', 'operations']
-const BEFORE_INVOICES = ['overview', 'analytics', 'customers', 'plans', 'bundles']
+const READ_SECTIONS = ['overview', 'customers', 'catalog', 'operations']
+const BEFORE_INVOICES = ['overview', 'analytics', 'customers', 'catalog']
 
 describe('adminNav', () => {
   it('shows the owner every section in the fixed order', () => {
@@ -49,7 +49,7 @@ describe('adminNav', () => {
 
   it('points every item at a root path without the old /vendor prefix', () => {
     for (const item of adminNav(caps('owner'))) {
-      expect(item.to).toBe(`/${item.id}`)
+      expect(item.to).toBe(item.id === 'catalog' ? '/plans' : `/${item.id}`)
       expect(item.labelKey).toBe(`app.nav.${item.id}`)
       expect(item.icon).toMatch(/^i-lucide-/)
     }
@@ -63,7 +63,7 @@ describe('activeNavId', () => {
     expect(activeNavId(items, '/customers')).toBe('customers')
     expect(activeNavId(items, '/analytics?period=year')).toBe('analytics')
     expect(activeNavId(items, '/customers/12/change')).toBe('customers')
-    expect(activeNavId(items, '/plans/new')).toBe('plans')
+    expect(activeNavId(items, '/plans/new')).toBe('catalog')
     expect(activeNavId(items, '/team/new')).toBe('team')
   })
 
@@ -74,14 +74,16 @@ describe('activeNavId', () => {
     expect(items.map(item => item.id)).not.toContain('tenants')
   })
 
-  it('keeps the retired legacy packages under plans', () => {
-    expect(activeNavId(items, '/catalog')).toBe('plans')
-    expect(activeNavId(items, '/catalog/pkg-1')).toBe('plans')
+  it('keeps plans, bundles and the retired legacy packages under the catalog', () => {
+    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/pkg-1']) expect(activeNavId(items, path), path).toBe('catalog')
+    expect(items.map(item => item.id)).not.toContain('plans')
+    expect(items.map(item => item.id)).not.toContain('bundles')
     expect(activeNavId(items, '/catalogx')).toBeNull()
   })
 
   it('does not match a path that only shares a prefix', () => {
     expect(activeNavId(items, '/plansx')).toBeNull()
+    expect(activeNavId(items, '/bundlesx')).toBeNull()
   })
 
   it('treats the root as the overview and ignores query and trailing slash', () => {

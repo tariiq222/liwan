@@ -129,13 +129,14 @@
       "recentOperations": "Latest operations"
     },
     "catalog": {
-      "title": "Legacy packages",
+      "title": "Catalog",
       "tiers": {
         "core": "Core",
         "projects": "Projects",
         "people": "People",
         "messaging": "Messaging"
-      }
+      },
+      "tabs": "Catalog sections"
     },
     "features": {
       "users": {
@@ -282,7 +283,7 @@
       "title": "Legacy packages",
       "description": "Define what each customer can use, review its limits, then make a version available for new customers.",
       "create": "Create package",
-      "empty": "No packages yet. Create your first package from an available application composition.",
+      "empty": "There are no legacy packages.",
       "noResults": "No packages match these filters. Clear the filters or try another name.",
       "search": "Search packages",
       "name": "Package name",
@@ -381,9 +382,18 @@
       "empty": "No bundles yet.",
       "details": "Bundle details",
       "edit": "Edit bundle draft",
-      "noRelease": "There is no catalog release to build bundles on.",
-      "noReleaseHint": "Create a release from the latest published catalog version, with a reason.",
-      "createRelease": "Create release"
+      "createRelease": "Create release and continue",
+      "guide": {
+        "title": "Create a catalog release first",
+        "why": "A bundle is built on a catalog release: a fixed snapshot of the available apps and features, so a published bundle never changes underneath. There is none yet. Create one from the latest published catalog version with a reason, then continue building the bundle.",
+        "steps": "Steps to create the bundle",
+        "step1": "Create a catalog release",
+        "step2": "Build the bundle"
+      },
+      "usedBy": "Plans that include this bundle",
+      "usedByHint": "Plans that reference this exact version of the bundle.",
+      "usedByNone": "No plan includes this bundle yet.",
+      "usedByUnavailable": "Plans could not be loaded."
     },
     "plans": {
       "title": "Plans",
@@ -394,9 +404,10 @@
       "empty": "No plans yet.",
       "details": "Plan details",
       "edit": "Edit plan draft",
-      "summary": "Plan summary",
       "termMonths": "{count}-month term | {count}-month term",
-      "bundlesCount": "{included} included · {optional} optional bundles"
+      "bundlesCount": "{included} included · {optional} optional bundles",
+      "sold": "What the plan includes",
+      "soldHint": "The bundles sold with the plan and its platform limits. Open a bundle to see its apps."
     },
     "pricing": {
       "status": {
