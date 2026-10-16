@@ -19,8 +19,8 @@ def fixture() -> dict:
     return {
         "images": {
             "caddy": "caddy:2.10.2@sha256:" + "a" * 64,
-            "web": "nasq-web:fixture@sha256:" + "b" * 64,
-            "odoo": "nasq-odoo:fixture@sha256:" + "c" * 64,
+            "web": "webvue-web:fixture@sha256:" + "b" * 64,
+            "odoo": "webvue-odoo:fixture@sha256:" + "c" * 64,
             "postgres": "postgres:16@sha256:" + "d" * 64,
         },
         "address_pool_checked": True,
@@ -91,7 +91,7 @@ class ManagedLocalTests(unittest.TestCase):
 
     def test_missing_image_identity_or_network_availability_fails_closed(self):
         data = fixture()
-        data["images"]["odoo"] = "nasq-odoo:fixture"
+        data["images"]["odoo"] = "webvue-odoo:fixture"
         with self.assertRaises(managed.ConfigError):
             managed.render(data)
         data = fixture()
@@ -114,7 +114,7 @@ class ManagedLocalTests(unittest.TestCase):
             lambda d: d["tenants"][1].update(subnet=d["tenants"][0]["subnet"]),
             lambda d: d["tenants"][1].update(port=d["tenants"][0]["port"]),
             lambda d: d["tenants"][1].update(hostname=d["tenants"][0]["hostname"]),
-            lambda d: d["tenants"][1].update(compose_project="nasq"),
+            lambda d: d["tenants"][1].update(compose_project="webvue"),
             lambda d: d["tenants"][0].update(database="bad;touch /tmp/pwned"),
             lambda d: d["tenants"][0].update(db_secret=d["tenants"][0]["admin_secret"]),
         ]

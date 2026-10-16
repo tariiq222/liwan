@@ -30,7 +30,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.1\.0/)
   assert.match(recipe, /http.handlers.rate_limit/)
   const config = read('Caddyfile')
-  const zones = ['nasq_auth', 'nasq_api', 'nasq_odoo_image', 'nasq_odoo', 'nasq_web']
+  const zones = ['webvue_auth', 'webvue_api', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web']
   const declared = [...config.matchAll(/^\s*zone\s+(\S+)\s*\{/gm)].map(match => match[1])
   assert.equal(declared.length, zones.length)
   for (const name of zones) assert.equal(declared.filter(zone => zone === name).length, 1, name)
@@ -38,18 +38,18 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.match(config, /respond @privateRevision 403/)
   assert.match(config, /reverse_proxy guard:8080/)
   assert.doesNotMatch(config, /reverse_proxy (?:odoo|web):/)
-  const webZone = config.split('zone nasq_web {')[1].split('}')[0]
+  const webZone = config.split('zone webvue_web {')[1].split('}')[0]
   // The built web image serves only /_nuxt/*, /_i18n/* (Nitro route
   // /_i18n/:hash/:locale/messages.json), /fonts/*, /favicon.ico, /robots.txt.
   // There is no /i18n/* route, so it must NOT be exempted (r2 verification).
   for (const p of ['/_nuxt/*', '/_i18n/*', '/fonts/*', '/favicon.ico', '/robots.txt']) {
-    assert.ok(webZone.includes(p), `nasq_web must exempt ${p}`)
+    assert.ok(webZone.includes(p), `webvue_web must exempt ${p}`)
   }
-  assert.ok(!webZone.includes('/i18n/*'), 'nasq_web must not exempt the nonexistent /i18n/* prefix')
+  assert.ok(!webZone.includes('/i18n/*'), 'webvue_web must not exempt the nonexistent /i18n/* prefix')
 })
 test('F5 rate matchers: version probe leaves auth, images keep a limited zone, auth stays 20/min', () => {
   const config = read('Caddyfile')
-  const zone = n => config.split(`zone nasq_${n} {`)[1].split('\n\t\t\t}')[0]
+  const zone = n => config.split(`zone webvue_${n} {`)[1].split('\n\t\t\t}')[0]
   assert.match(zone('auth'), /path \/api\/auth\/\* \/api\/v1\/auth\/\* \/web\/session\/\* \/web\/login/)
   assert.match(zone('auth'), /not path \/web\/session\/get_session_info\n/)
   assert.match(zone('auth'), /events 20\n/)
@@ -64,7 +64,7 @@ test('health probe uses only loopback TCP with timeout and fails invalid configu
   assert.match(script, /127\.0\.0\.1/)
   assert.match(script, /setTimeout\(2000\)/)
   assert.doesNotMatch(script, /fetch\(|http\.request|session_id/)
-  const result = spawnSync(process.execPath, [new URL('healthcheck.mjs', import.meta.url).pathname], { env: { ...process.env, NASQ_GUARD_PORT: 'invalid' }, encoding: 'utf8' })
+  const result = spawnSync(process.execPath, [new URL('healthcheck.mjs', import.meta.url).pathname], { env: { ...process.env, WEBVUE_GUARD_PORT: 'invalid' }, encoding: 'utf8' })
   assert.equal(result.status, 1); assert.equal(result.stdout, ''); assert.equal(result.stderr, '')
 })
 test('all executable MJS files parse without opening a listener', () => {

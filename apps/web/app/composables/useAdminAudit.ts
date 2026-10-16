@@ -6,7 +6,7 @@ import {
   AccessAuditListSchema,
   type AccessAuditDetail,
   type AccessAuditList,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 import { ADMIN_PAGE_SIZE } from './adminSettingsPaths'
 
 export type AdminAuditListParams = {

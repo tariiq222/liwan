@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ProjectDetailSchema } from '@nasq/contracts'
+import { ProjectDetailSchema } from '@webvue/contracts'
 
 const captured = vi.hoisted(() => ({ options: undefined as any, qc: undefined as any }))
 vi.mock('@tanstack/vue-query', () => ({

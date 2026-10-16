@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { CLIENT_LIST_PAGE_SIZE, clientListSchema, clientStateFilterSchema } from '@nasq/commercial-contracts'
+import { CLIENT_LIST_PAGE_SIZE, clientListSchema, clientStateFilterSchema } from '@webvue/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 
 // One row per customer (with its workspace, when provisioned) plus one row per workspace without a customer.

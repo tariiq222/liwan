@@ -16,20 +16,20 @@ addresses. A request matches exactly one zone.
 
 | Zone | Paths | Events / minute | Why |
 | --- | --- | --- | --- |
-| `nasq_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
-| `nasq_api` | other `/api/v1/*` | 300 | authenticated product API |
-| `nasq_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
-| `nasq_web` | Nuxt responses | 600 | customer UI |
+| `webvue_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
+| `webvue_api` | other `/api/v1/*` | 300 | authenticated product API |
+| `webvue_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
+| `webvue_web` | Nuxt responses | 600 | customer UI |
 
 `/websocket*` is not counted. `/web/health` is exempt so a probe cannot consume
 a customer's interactive budget. These are abuse boundaries, not billing quotas.
 
 ## Authentication client identity
 
-The dedicated edge overwrites `X-Nasq-Client-IP`, `X-Nasq-Client-Host` and
-`X-Nasq-Client-Proto` on its Nuxt hop after removing Connection-nominated
+The dedicated edge overwrites `X-WebVue-Client-IP`, `X-WebVue-Client-Host` and
+`X-WebVue-Client-Proto` on its Nuxt hop after removing Connection-nominated
 headers. The dedicated Compose web service sets
-`NUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-nasq-client-ip`. Login and TOTP validate
+`NUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-webvue-client-ip`. Login and TOTP validate
 these fields and send them as the three `X-Forwarded-*` headers to Odoo.
 Stock Odoo needs `proxy_mode=True` and `X-Forwarded-Host` to activate ProxyFix;
 this lets its worker-local login cooldown use the real peer instead of Nuxt's IP.
@@ -60,10 +60,10 @@ or Nuxt.
 Before using the template, build and validate the pinned module image:
 
 ```sh
-docker build -f deploy/proxy/Dockerfile -t nasq-caddy:check .
-docker run --rm nasq-caddy:check list-modules | grep http.handlers.rate_limit
+docker build -f deploy/proxy/Dockerfile -t webvue-caddy:check .
+docker run --rm webvue-caddy:check list-modules | grep http.handlers.rate_limit
 docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
-  -e DOMAIN=example.test nasq-caddy:check validate --config /etc/caddy/Caddyfile
+  -e DOMAIN=example.test webvue-caddy:check validate --config /etc/caddy/Caddyfile
 ```
 
 A green local build proves the template and module. It does not prove a

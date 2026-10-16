@@ -3,9 +3,9 @@ import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useP
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
 import { ApiError } from '@/composables/useApi'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()

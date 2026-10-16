@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ProjectCharterReferenceForm from '@/components/pmo/projects/settings/ProjectCharterReferenceForm.vue'
 import { isCharterCatalogResource } from '@/composables/useProjectCharterCatalogs'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

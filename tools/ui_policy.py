@@ -40,7 +40,7 @@ UI_COMPONENTS = UI + 'components/'
 COMMERCIAL_COMPONENTS = COMMERCIAL + 'components/'
 VENDOR_ADMIN_COMPONENTS = VENDOR_ADMIN + 'components/'
 COMPONENT_ROOTS = (COMPONENTS, UI_COMPONENTS, COMMERCIAL_COMPONENTS, VENDOR_ADMIN_COMPONENTS)
-# Presentational components that live in the @nasq/ui layer (relative to components/); every other
+# Presentational components that live in the @webvue/ui layer (relative to components/); every other
 # component listed below stays in apps/web.
 LAYER_COMPONENTS = frozenset(
     ['shared/feedback/' + name + '.vue' for name in ('EmptyState', 'ErrorState', 'ForbiddenState', 'LoadingSkeleton', 'NotFoundState', 'PageState')]
@@ -54,7 +54,7 @@ LAYER_COMPONENTS = frozenset(
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
     + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellFrame')]
 )
-# Billing presentation shared by the customer subscription pages and the vendor console (@nasq/commercial-ui).
+# Billing presentation shared by the customer subscription pages and the vendor console (@webvue/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
 
 
@@ -176,10 +176,10 @@ def story_file(path: str) -> bool:
 def resolve_specifier(path: str, specifier: str) -> str | None:
     if specifier.startswith(('@/', '~/')):
         return APP + specifier[2:]
-    if specifier.startswith('@nasq/ui/'):
-        return 'packages/ui/' + specifier[len('@nasq/ui/'):]
-    if specifier.startswith('@nasq/commercial-ui/'):
-        return 'packages/commercial-ui/' + specifier[len('@nasq/commercial-ui/'):]
+    if specifier.startswith('@webvue/ui/'):
+        return 'packages/ui/' + specifier[len('@webvue/ui/'):]
+    if specifier.startswith('@webvue/commercial-ui/'):
+        return 'packages/commercial-ui/' + specifier[len('@webvue/commercial-ui/'):]
     if specifier.startswith('.'):
         return posixpath.normpath(posixpath.join(posixpath.dirname(path), specifier))
     return None
@@ -399,7 +399,7 @@ RETIRED_PATTERNS = (
                 r'|(?<![\w-])(?:left|right)-(?:\d|px|full|auto|\[)'
                 r'|(?<![\w-])text-(?:left|right)(?![\w-])'),
      'physical property; use the logical form (ms-/me-/ps-/pe-/start-/end-/text-start)'),
-    (re.compile(r'(?<![\w-])nasq-(?:input|toolbar|panel)(?![\w-])'),
+    (re.compile(r'(?<![\w-])webvue-(?:input|toolbar|panel)(?![\w-])'),
      'retired pre-unification class; use the Nuxt UI primitive'),
 )
 RETIRED_PATTERN_OWNERS = {component_file('shared/form/RichText.vue')}
@@ -514,7 +514,7 @@ def keyboard_layer_errors(current: dict[str, str]) -> list[str]:
 
 # Components render with Nuxt UI's stock recipes; the z-index tokens are the one
 # shell exception.
-CUSTOM_RECIPE = re.compile(r'nasq-ui-(?!z-)[a-z-]+|nasq-elevation-\d|data-nasq-reference-detail|--nasq-ui-progress')
+CUSTOM_RECIPE = re.compile(r'webvue-ui-(?!z-)[a-z-]+|webvue-elevation-\d|data-webvue-reference-detail|--webvue-ui-progress')
 
 
 def recipe_errors(current: dict[str, str]) -> list[str]:
@@ -534,7 +534,7 @@ def whole_tree(current: dict[str, str]) -> bool:
     return APP + 'app.vue' in current
 
 
-# The theme inputs are the brand primary, the slate neutral, Nasq midnight/lime,
+# The theme inputs are the brand primary, the slate neutral, WebVue midnight/lime,
 # the official --ui-radius token, the Arabic font and the light/dark modes (DESIGN.md).
 ALLOWED_RECIPE_KEYS = frozenset((
     'colors', 'button', 'input', 'inputNumber', 'textarea', 'select', 'selectMenu', 'card', 'table', 'badge',
@@ -542,8 +542,8 @@ ALLOWED_RECIPE_KEYS = frozenset((
     'switch', 'formField',
 ))
 BRAND_COLORS = re.compile(r"colors:\s*\{\s*primary:\s*'brand',\s*neutral:\s*'slate'\s*\}")
-REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--nasq-midnight', '--nasq-lime', '.dark')
-RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
+REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--webvue-midnight', '--webvue-lime', '.dark')
+RETIRED_TOKENS = ('--webvue-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
 
 
 def theme_errors(current: dict[str, str]) -> list[str]:
@@ -568,7 +568,7 @@ def theme_errors(current: dict[str, str]) -> list[str]:
     for token in RETIRED_TOKENS:
         if token in tokens:
             errors.append(f'{UI}assets/css/tokens.css: retired token {token}')
-    if re.search(r'\.nasq-ui-|\.nasq-elevation-|data-nasq-reference-detail', components):
+    if re.search(r'\.webvue-ui-|\.webvue-elevation-|data-webvue-reference-detail', components):
         errors.append(f'{UI}assets/css/components.css: component recipes belong to Nuxt UI, not this sheet')
     if 'content-shadow' in shell:
         errors.append(f'{UI}assets/css/shell.css: retired content-shadow')
@@ -577,7 +577,7 @@ def theme_errors(current: dict[str, str]) -> list[str]:
 
 # Every internal page sits in one of the approved shells, and the width
 # vocabulary lives in CSS classes rather than ad-hoc max-width utilities.
-PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'nasq-page-width-form',
+PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'webvue-page-width-form',
                'ChatWorkspace', 'TaskDetailPage',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
                'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
@@ -589,13 +589,13 @@ PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
     'projects.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
     'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
 ))
-AD_HOC_WIDTH = re.compile(r'nasq-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
+AD_HOC_WIDTH = re.compile(r'webvue-page-stack[^"\n]*(?:max-w-\[1440px\]|max-w-\[940px\]|max-w-(?:2xl|3xl|4xl|5xl|7xl))'
                           r'|class="[^"]*max-w-(?:3xl|4xl|5xl|7xl)[^"]*"')
-PAGE_WIDTHS = tuple(re.compile(rf'\.nasq-page-width-{name}\s*\{{[^}}]*max-width:\s*{value}')
+PAGE_WIDTHS = tuple(re.compile(rf'\.webvue-page-width-{name}\s*\{{[^}}]*max-width:\s*{value}')
                     for name, value in (('list', 'none'), ('detail', '68rem'), ('form', '58rem')))
 STATUS_TOKENS = ('--status-success', '--status-warning', '--status-info', '--status-danger',
-                 '--status-danger-foreground', '--unread-count-foreground', '.nasq-status-text-warning',
-                 '.nasq-unread-count')
+                 '--status-danger-foreground', '--unread-count-foreground', '.webvue-status-text-warning',
+                 '.webvue-unread-count')
 
 
 def page_shell_errors(current: dict[str, str]) -> list[str]:
@@ -749,8 +749,8 @@ RETIRED_FILES = (
     COMPONENTS + 'pmo/projects/workspace/ProjectRouteModal.vue',
     APP + 'utils/projectOverlayRoute.ts',
 )
-RETIRED_ARTIFACT = re.compile(r'nasq-sheet-in|nasq-sheet-out|project-overlay-enter|project-overlay-exit'
-                              r'|project-sheet-backdrop|nasq-ui-route-sheet|ProjectRouteHost')
+RETIRED_ARTIFACT = re.compile(r'webvue-sheet-in|webvue-sheet-out|project-overlay-enter|project-overlay-exit'
+                              r'|project-sheet-backdrop|webvue-ui-route-sheet|ProjectRouteHost')
 
 
 def retired_artifact_errors(current: dict[str, str]) -> list[str]:
@@ -892,11 +892,12 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     allowed_source = dependencies(baseline) | {
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
         # Internal schemas and server-only signing; no visual components or UI library.
-        '@nasq/commercial-contracts',
-        # Nasq's own Nuxt layer that owns the @nuxt/ui theme (the same library, not a second one).
-        '@nasq/ui',
-        # The billing presentation layer, which itself extends @nasq/ui.
-        '@nasq/commercial-ui',
+        '@webvue/contracts',  # Same product schemas under the renamed workspace namespace.
+        '@webvue/commercial-contracts',
+        # WebVue's own Nuxt layer that owns the @nuxt/ui theme (the same library, not a second one).
+        '@webvue/ui',
+        # The billing presentation layer, which itself extends @webvue/ui.
+        '@webvue/commercial-ui',
         # Browser half of WebAuthn for the vendor admin sign-in: calls navigator.credentials, renders nothing.
         '@simplewebauthn/browser',
         # Draws the vendor admin TOTP setup QR in the browser: dependency-free, renders no components.

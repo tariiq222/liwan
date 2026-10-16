@@ -1,4 +1,4 @@
-import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
+import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 
 /** What an application map returns for one value; the call site translates `labelKey` for SharedStatusBadge. */
 export interface StatusBadgeEntry { tone: StatusTone; labelKey: string }

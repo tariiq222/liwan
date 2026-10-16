@@ -7,7 +7,7 @@ import { discoverLocaleFiles } from './i18n/localeFiles'
 const localeFiles = discoverLocaleFiles(fileURLToPath(new URL('./i18n/locales', import.meta.url)))
 
 export default defineNuxtConfig({
-  extends: ['@nasq/ui', '@nasq/commercial-ui'],
+  extends: ['@webvue/ui', '@webvue/commercial-ui'],
   compatibilityDate: '2025-07-15',
   hooks: {
     ready(nuxt) {
@@ -34,7 +34,7 @@ export default defineNuxtConfig({
   components: [{ path: '~/components', ignore: ['**/__tests__/**'] }],
   app: {
     head: {
-      title: 'nasq',
+      title: 'webvue',
       meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
     },
   },
@@ -71,7 +71,7 @@ export default defineNuxtConfig({
     '/api/**': { headers: { 'Cache-Control': 'no-store' } },
   },
   vite: {
-    define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.NASQ_HYDRATION_DEBUG === '1' },
+    define: { __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: process.env.WEBVUE_HYDRATION_DEBUG === '1' },
   },
   typescript: { strict: true },
 })

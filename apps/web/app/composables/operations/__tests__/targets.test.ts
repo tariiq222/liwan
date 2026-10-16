@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { OperationTargetsSchema } from '@nasq/contracts'
+import { OperationTargetsSchema } from '@webvue/contracts'
 import { operationTargetQueryOptions } from '../useOperations'
 import type { OperationApi } from '../mutations'
 

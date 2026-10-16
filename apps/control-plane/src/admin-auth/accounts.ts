@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
-import { VENDOR_ROLES, type AdminErrorCode, type VendorRole } from '@nasq/commercial-contracts'
+import { VENDOR_ROLES, type AdminErrorCode, type VendorRole } from '@webvue/commercial-contracts'
 
 export class AdminAuthError extends Error {
   constructor(public status: 401 | 403 | 404 | 409 | 422 | 429, public code: AdminErrorCode, message: string = code) { super(message) }
@@ -22,7 +22,7 @@ function requireReason(reason: string): string {
 // Serializes every owner-set change: the advisory lock is taken first, then the owners are read
 // in a new statement so it sees changes committed by the previous lock holder (READ COMMITTED).
 export async function lockOwners(client: PoolClient): Promise<number[]> {
-  await client.query("SELECT pg_advisory_xact_lock(hashtext('nasq-vendor-owners'))")
+  await client.query("SELECT pg_advisory_xact_lock(hashtext('webvue-vendor-owners'))")
   const rows = await client.query("SELECT a.id FROM vendor_accounts a JOIN vendor_account_roles r ON r.account_id=a.id AND r.role='owner' WHERE a.status='active' ORDER BY a.id")
   return rows.rows.map((r) => Number(r.id))
 }

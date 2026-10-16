@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRowNavigation } from '@nasq/ui/app/composables/useRowNavigation'
+import { useRowNavigation } from '@webvue/ui/app/composables/useRowNavigation'
 import { projectRefs } from '../fixtures/pmo'
 
 // No component: the J / K contract (data-shortcut-row + useRowNavigation) that Plan 4's DataTable wires.

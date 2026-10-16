@@ -1,5 +1,5 @@
 // AC-01/02 isolation matrix: ten synthetic tenants (matching the authorized
-// scratch databases nasq_shared_scratch_sharedgate20260928_t01..t10) exercised
+// scratch databases webvue_shared_scratch_sharedgate20260928_t01..t10) exercised
 // through the REAL guard edge and the REAL built shared-mode Nuxt server.
 // Chain: client -> guard -> (Nuxt SSR | Odoo hop) -> guard internal hop ->
 // synthetic tenant-aware upstream. 90 directional A->B pairs per surface.
@@ -20,13 +20,13 @@ import { test } from 'node:test'
 import { createGuard } from '../../deploy/shared/guard.mjs'
 
 const root = new URL('../../', import.meta.url).pathname
-const artifact = resolve(process.env.NASQ_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output'))
+const artifact = resolve(process.env.WEBVUE_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output'))
 const SUFFIX = 'sharedgate20260928'
 const tenants = Array.from({ length: 10 }, (_, i) => {
   const nn = String(i + 1).padStart(2, '0')
   return {
     host: `t${nn}.isolation-matrix.invalid`, tenantId: `t${nn}`,
-    database: `nasq_shared_scratch_${SUFFIX}_t${nn}`, filestore: `nasq_shared_scratch_${SUFFIX}_t${nn}`,
+    database: `webvue_shared_scratch_${SUFFIX}_t${nn}`, filestore: `webvue_shared_scratch_${SUFFIX}_t${nn}`,
     enabled: true, registryRevision: 1,
     uid: 101 + i, marker: `ISOLATION_T${nn}`, sid: `sid_t${nn}`, projectId: 5000 + i, contentId: 9000 + i,
   }
@@ -36,7 +36,7 @@ const token = 'matrix-synthetic-proxy-token-00000000'
 const keys = { test: 'matrix-synthetic-session-key-000000' }
 
 test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs per surface', { timeout: 240000 }, async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'nasq-isolation-matrix-'))
+  const directory = await mkdtemp(join(tmpdir(), 'webvue-isolation-matrix-'))
   const registry = join(directory, 'registry.json')
   await writeFile(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: targetsOnly(tenants) }))
   const calls = []
@@ -55,18 +55,18 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
       let body = {}
       try { body = JSON.parse(Buffer.concat(chunks).toString() || '{}') } catch { body = {} }
       if (req.method === 'POST' && req.url === '/web/session/authenticate') {
-        calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-nasq-proxy-token'] })
+        calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-webvue-proxy-token'] })
         if (body.params?.db !== tenant.database) { res.writeHead(403); res.end('{}'); return }
         res.setHeader('set-cookie', `session_id=${tenant.sid}; Path=/; HttpOnly`)
         res.end(JSON.stringify({ jsonrpc: '2.0', id: body.id ?? null, result: { uid: tenant.uid, username: 'fixture', is_admin: true } }))
         return
       }
       if (req.url.startsWith('/api/v1/branding')) {
-        calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-nasq-proxy-token'] })
+        calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-webvue-proxy-token'] })
         res.end(JSON.stringify({ name: tenant.marker, logo_url: '/fixture-logo.svg', primary_color: '#18181b', font: 'fixture' }))
         return
       }
-      calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-nasq-proxy-token'] })
+      calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-webvue-proxy-token'] })
       if (req.headers.cookie !== `session_id=${tenant.sid}`) { res.writeHead(403); res.end('{}'); return }
       if (req.url === '/api/v1/me') {
         res.end(JSON.stringify({ id: tenant.uid, name: tenant.marker, login: tenant.marker, email: `${tenant.tenantId}@example.invalid`, lang: 'en', tz: 'UTC', role: 'employee', capabilities: ['pmo.projects.read'], entitlements: { 'pmo.enabled': true }, company: { id: tenant.uid, name: tenant.marker } }))
@@ -92,7 +92,7 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
   })
   mock.on('connection', s => { sockets.add(s); s.once('close', () => sockets.delete(s)) })
   mock.on('upgrade', (req, socket) => {
-    calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-nasq-proxy-token'] })
+    calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, proxyToken: req.headers['x-webvue-proxy-token'] })
     const tenant = tenants.find(t => t.database === req.headers.host)
     if (!tenant || req.headers.cookie !== `session_id=${tenant.sid}`) { socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return }
     socket.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n')
@@ -110,7 +110,7 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
 
   let child, exited, timer, stderr = ''
   try {
-    child = spawn(process.execPath, ['--import', join(root, 'tools/shared_isolation_acceptance/t17-ssr-probe.mjs'), join(artifact, 'server/index.mjs')], { env: { PATH: process.env.PATH, NODE_ENV: 'production', NASQ_TENANCY_MODE: 'shared', NASQ_SHARED_PROXY_TOKEN: token, NASQ_TENANT_REGISTRY_PATH: registry, NUXT_ODOO_URL: `http://127.0.0.1:${guardPort}`, T17_ALLOWED_PORT: String(guardPort) }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
+    child = spawn(process.execPath, ['--import', join(root, 'tools/shared_isolation_acceptance/t17-ssr-probe.mjs'), join(artifact, 'server/index.mjs')], { env: { PATH: process.env.PATH, NODE_ENV: 'production', WEBVUE_TENANCY_MODE: 'shared', WEBVUE_SHARED_PROXY_TOKEN: token, WEBVUE_TENANT_REGISTRY_PATH: registry, NUXT_ODOO_URL: `http://127.0.0.1:${guardPort}`, T17_ALLOWED_PORT: String(guardPort) }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     child.stdout.resume(); child.stderr.on('data', c => { stderr += c })
     exited = once(child, 'exit')
     const address = await Promise.race([new Promise(r => child.on('message', m => m.bound && r(m.bound))), new Promise((_, reject) => { timer = setTimeout(() => reject(Error(`startup_timeout: ${stderr}`)), 30000) }), exited.then(() => { throw Error(stderr) })])
@@ -212,14 +212,14 @@ test('ten-tenant guard+Nuxt isolation matrix rejects all 90 directional pairs pe
       // Phase 6 — unknown host, forged headers, direct-to-Nuxt bypass, stale internal binding.
       assert.equal((await call('GET', '/api/v1/me', { host: 'unknown.isolation-matrix.invalid', cookie: cookies.get(tenants[0]) })).status, 403)
       assert.equal((await call('GET', '/search', { host: 'unknown.isolation-matrix.invalid' })).status, 403)
-      for (const header of ['x-odoo-database', 'x-openerp-session-id', 'x-forwarded-host', 'forwarded', 'x-nasq-proxy-token']) {
+      for (const header of ['x-odoo-database', 'x-openerp-session-id', 'x-forwarded-host', 'forwarded', 'x-webvue-proxy-token']) {
         const result = await call('GET', '/api/v1/me', { host: tenants[0].host, cookie: cookies.get(tenants[0]), [header]: 'forged' })
         assert.equal(result.status, 403, `forged ${header} accepted`)
         assert.equal(result.text, 'tenant_boundary_rejected')
       }
       const bypass = await directToNuxt('/search', { host: tenants[0].host, cookie: cookies.get(tenants[0]) })
       assert.equal(bypass.status, 403, 'direct Nuxt access without the guard was not rejected')
-      const stale = await call('GET', '/api/v1/me', { host: tenants[0].host, 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '2' })
+      const stale = await call('GET', '/api/v1/me', { host: tenants[0].host, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '2' })
       assert.equal(stale.status, 403, 'stale internal revision accepted')
       assert.equal(stale.text, 'tenant_boundary_rejected')
       console.log('Phase 6: unknown host, forged routing headers, direct-Nuxt bypass and stale internal binding all rejected')

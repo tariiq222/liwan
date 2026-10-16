@@ -51,7 +51,7 @@ test('project sections are in-page group tabs while the sidebar keeps the projec
   await expect(sidebar.getByRole('heading', { name: 'المشاريع', level: 2 })).toBeVisible()
   await expect(sidebar.getByRole('heading', { name: 'العمل اليومي' })).toHaveCount(0)
   await expect(sidebar.getByRole('heading', { name: 'متابعة المشروع' })).toHaveCount(0)
-  const links = await sidebar.locator('.nasq-context-link').allTextContents()
+  const links = await sidebar.locator('.webvue-context-link').allTextContents()
   expect(links.map(s => s.trim())).toEqual(['مشروع جديد', 'نظرة عامة', 'كل المشاريع', 'مهامي'])
   const tabs = await page.getByTestId('project-workspace-tabs').getByRole('link').allTextContents()
   expect(tabs.map(s => s.trim())).toEqual(['الملخص', 'التنفيذ', 'الحوكمة', 'المالية', 'التحديثات'])

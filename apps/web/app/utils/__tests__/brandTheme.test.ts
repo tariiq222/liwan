@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CATEGORICAL_CHART_COLORS, createBrandTheme, darkLink, darkSolid, DEFAULT_PRIMARY, MODE_SURFACES, STATUS_CHART_COLORS } from '../brandTheme'
-import { contrastRatio, DARK_SURFACES } from '../nasqPalette'
+import { contrastRatio, DARK_SURFACES } from '../webvuePalette'
 
 function channel(value: number) {
   const normalized = value / 255
@@ -242,8 +242,8 @@ describe('createBrandTheme', () => {
   })
 })
 
-describe('Nasq palette in the brand engine', () => {
-  it('defaults to Nasq midnight', () => {
+describe('WebVue palette in the brand engine', () => {
+  it('defaults to WebVue midnight', () => {
     expect(DEFAULT_PRIMARY).toBe('#13234a')
   })
 
@@ -317,7 +317,7 @@ describe('Nasq palette in the brand engine', () => {
 })
 
 describe('darkSolid input', () => {
-  it('treats an invalid colour as the Nasq default', () => {
+  it('treats an invalid colour as the WebVue default', () => {
     expect(darkSolid('not-a-colour')).toBe(darkSolid('#13234a'))
   })
 })

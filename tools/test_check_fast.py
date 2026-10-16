@@ -26,7 +26,7 @@ class TestCheckFast(unittest.TestCase):
         self.assertEqual(len(base), 6)
 
     def test_addon_change_adds_ruff_only(self):
-        self.assertEqual(set(names(['odoo-addons/nasq_hr/a.py'])) - set(names([])), {'ruff'})
+        self.assertEqual(set(names(['odoo-addons/webvue_hr/a.py'])) - set(names([])), {'ruff'})
 
     def test_tools_change_adds_unittest(self):
         self.assertIn('tools_unittest', names(['tools/x.py']))

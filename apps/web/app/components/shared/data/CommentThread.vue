@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
 export interface SharedComment { id: number; authorName: string | null; createdAt: string; body: string }
 
@@ -24,7 +24,7 @@ const { locale } = useI18n()
         <li v-for="comment in props.comments" :key="comment.id" class="grid gap-1 py-3">
           <div class="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
             <span class="font-medium text-default">{{ comment.authorName ?? unknownAuthor }}</span>
-            <time :datetime="comment.createdAt">{{ formatNasqDateTime(comment.createdAt, locale) }}</time>
+            <time :datetime="comment.createdAt">{{ formatWebVueDateTime(comment.createdAt, locale) }}</time>
           </div>
           <p class="whitespace-pre-wrap break-words text-sm text-default">{{ comment.body }}</p>
         </li>

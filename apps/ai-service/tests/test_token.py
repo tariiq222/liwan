@@ -6,15 +6,15 @@ import httpx
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
-from nasq_ai_service.service import create_app
-from nasq_ai_service.settings import Settings, SettingsError
-from nasq_ai_service.store import MemoryRunStore
 from tests.fakes import ScriptedChatModel, ai_text
 from tests.test_service import BODY, HEADERS, parse_sse
+from webvue_ai_service.service import create_app
+from webvue_ai_service.settings import Settings, SettingsError
+from webvue_ai_service.store import MemoryRunStore
 
 TOKEN = "t" * 24 + "-service-token"
 ENV = {"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true"}
-WITH_TOKEN = {**HEADERS, "X-Nasq-Service-Token": TOKEN}
+WITH_TOKEN = {**HEADERS, "X-WebVue-Service-Token": TOKEN}
 
 
 def make_client(token=TOKEN, responses=()):
@@ -38,7 +38,7 @@ def test_a_token_shorter_than_24_characters_is_rejected_without_echoing_it(token
 async def test_a_missing_or_wrong_token_is_401_with_a_fixed_body_on_every_route():
     async with make_client() as client:
         bodies = set()
-        for headers in (HEADERS, {**HEADERS, "X-Nasq-Service-Token": "wrong"}, {**HEADERS, "X-Nasq-Service-Token": TOKEN + "x"}):
+        for headers in (HEADERS, {**HEADERS, "X-WebVue-Service-Token": "wrong"}, {**HEADERS, "X-WebVue-Service-Token": TOKEN + "x"}):
             for method, path, kwargs in (
                 ("POST", "/v1/runs", {"json": BODY}),
                 ("POST", "/v1/runs/r_x/resume", {"json": {"call_id": "c", "result": {"ok": False, "decision": "rejected"}}}),
@@ -80,12 +80,12 @@ async def test_the_token_is_compared_in_constant_time(monkeypatch):
     monkeypatch.setattr(hmac, "compare_digest", spy)
     async with make_client() as client:
         await client.get("/v1/runs/r_x", headers=WITH_TOKEN)
-        await client.get("/v1/runs/r_x", headers={**HEADERS, "X-Nasq-Service-Token": "nope"})
+        await client.get("/v1/runs/r_x", headers={**HEADERS, "X-WebVue-Service-Token": "nope"})
     assert len(seen) == 2 and all(TOKEN.encode() in pair for pair in seen[:1])
 
 
 async def test_env_app_passes_the_token_through(monkeypatch):
-    from nasq_ai_service import service
+    from webvue_ai_service import service
 
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
@@ -110,7 +110,7 @@ async def test_env_app_passes_the_token_through(monkeypatch):
 
 
 async def test_a_too_short_token_stops_the_server_from_starting(monkeypatch):
-    from nasq_ai_service import service
+    from webvue_ai_service import service
 
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")

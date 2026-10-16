@@ -1,6 +1,6 @@
 # Vendor administration separation — master plan
 
-**Spec:** [`docs/superpowers/specs/2026-10-15-nasq-vendor-admin-separation-design.md`](../specs/2026-10-15-nasq-vendor-admin-separation-design.md)
+**Spec:** [`docs/superpowers/specs/2026-10-15-webvue-vendor-admin-separation-design.md`](../specs/2026-10-15-webvue-vendor-admin-separation-design.md)
 
 The spec covers four subsystems. Each gets its own detailed plan, written when its inputs are
 stable, so every plan argues from the code as it is when that phase starts.
@@ -20,17 +20,17 @@ on its internals beyond the HTTP contract recorded in its plan.
 Phase 3's BFF relies on exactly this, and phase 2's tests pin it:
 
 - Pre-session routes `POST /v1/admin/auth/*` are signed with `signServiceRequest({ ..., actor:
-  'anonymous', anonymous: true })` from `@nasq/commercial-contracts/server`.
+  'anonymous', anonymous: true })` from `@webvue/commercial-contracts/server`.
 - Successful sign-in returns `{ session: "<accountId>.<token>", expires_at, idle_expires_at }`.
-  The BFF stores the whole string in cookie `__Host-nasq_admin` and never parses the token.
-- Every other `/v1/*` vendor request carries header `x-nasq-session: <cookie value>` and is signed
+  The BFF stores the whole string in cookie `__Host-webvue_admin` and never parses the token.
+- Every other `/v1/*` vendor request carries header `x-webvue-session: <cookie value>` and is signed
   with `actor` = the integer before the dot. The control plane rejects a mismatch with `401`.
 - Step-up: a `403` body `{ code: 'step_up_required' }` means the BFF must run
   `POST /v1/admin/auth/step-up/options` then `/verify` and retry.
 - Errors from `/v1/admin/auth/*` are `{ code: 'auth_failed' }` (401), `rate_limited` (429),
   `invalid` (422), `admin_unavailable` (503, admin settings absent) or `not_found` (404, non-POST);
   they never say whether an email exists.
-- The BFF must overwrite `x-nasq-client-ip` with the real client address and never pass a browser
+- The BFF must overwrite `x-webvue-client-ip` with the real client address and never pass a browser
   value through; otherwise every client shares one `ip:` attempt scope.
 - Before phase 3 exposes these routes publicly: a request from an already locked IP must not
   increment the account scope (reserve `ip:` first, stop at the first blocked scope).
@@ -42,7 +42,7 @@ Phase 3's BFF relies on exactly this, and phase 2's tests pin it:
 - One worktree per phase under `.worktrees/`, created with `npm run wt -- new <area>-<slug>`,
   installed with `npm ci --ignore-scripts`, own ports and scratch databases.
 - Control-plane DB tests use `CONTROL_TEST_DATABASE_URL` pointing at a fresh loopback
-  `nasq_control_scratch_<suffix>` database. Never `nasq_control_dev`, never `odoo19`.
+  `webvue_control_scratch_<suffix>` database. Never `webvue_control_dev`, never `odoo19`.
 - Before review: merge current `main`, run the phase's focused checks, `npm test`,
   `python3 -B tools/git_policy.py --base main`, `python3 -B tools/arch_policy.py --base main`.
 - Commit, merge and push only with the owner's authorization for that action.

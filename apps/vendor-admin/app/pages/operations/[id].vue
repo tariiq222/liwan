@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
-import type { Operation as LegacyOperation, OperationFeed } from '@nasq/commercial-contracts'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import type { Operation as LegacyOperation, OperationFeed } from '@webvue/commercial-contracts'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { operationTargetTo } from '@/utils/vendorOperations'
 definePageMeta({ capability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
@@ -113,7 +113,7 @@ async function retry() {
           <ol v-if="data.events?.length" class="grid gap-3" data-testid="operation-events">
             <li v-for="(event, index) in data.events" :key="`${event.at}:${index}`" class="border-s-2 border-default ps-3">
               <p class="flex flex-wrap items-center gap-2 font-medium">{{ t(`vendor.operations.stages.${event.stage}`, event.stage) }} <SharedStatusBadge :tone="operationStatusBadge(event.status).tone" :label="operationStatusBadge(event.status).labelKey ? t(operationStatusBadge(event.status).labelKey) : event.status" /></p>
-              <time class="text-xs text-muted" :datetime="event.at">{{ formatNasqDateTime(event.at) }}</time>
+              <time class="text-xs text-muted" :datetime="event.at">{{ formatWebVueDateTime(event.at) }}</time>
             </li>
           </ol>
           <p v-else class="text-sm text-muted">{{ t('vendor.operations.noEvents') }}</p>
@@ -135,8 +135,8 @@ async function retry() {
 
   <template #aside><SharedPropertiesPanel v-if="data">
             <SharedPropertyRow :label="t('vendor.operations.target')"><NuxtLink v-if="targetTo" :to="targetTo" class="text-primary underline" data-testid="operation-target"><bdi>{{ data.tenant_name ?? data.tenant_id }}</bdi></NuxtLink></SharedPropertyRow>
-            <SharedPropertyRow :label="t('vendor.operations.created')" :value="formatNasqDateTime(data.created_at)" />
-            <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatNasqDateTime(updatedAt)" />
+            <SharedPropertyRow :label="t('vendor.operations.created')" :value="formatWebVueDateTime(data.created_at)" />
+            <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatWebVueDateTime(updatedAt)" />
           </SharedPropertiesPanel></template>
 </SharedRecordPage>
 </template>

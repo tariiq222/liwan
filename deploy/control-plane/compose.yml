@@ -1,12 +1,12 @@
-name: nasq-saas-control-local
+name: webvue-saas-control-local
 services:
   control-db:
     image: postgres:16@sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5
     pull_policy: never
     restart: unless-stopped
     environment:
-      POSTGRES_DB: nasq_control
-      POSTGRES_USER: nasq_control
+      POSTGRES_DB: webvue_control
+      POSTGRES_USER: webvue_control
       POSTGRES_PASSWORD_FILE: /run/secrets/control_db_password
     secrets:
       - control_db_password
@@ -15,7 +15,7 @@ services:
     volumes:
       - control_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nasq_control -d nasq_control"]
+      test: ["CMD-SHELL", "pg_isready -U webvue_control -d webvue_control"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -24,10 +24,10 @@ services:
 
 secrets:
   control_db_password:
-    file: ${NASQ_CONTROL_HOME:?run init-local.sh first}/control-db-password
+    file: ${WEBVUE_CONTROL_HOME:?run init-local.sh first}/control-db-password
 volumes:
   control_db_data:
-    name: nasq-saas-control-local-db
+    name: webvue-saas-control-local-db
 networks:
   control-private:
-    name: nasq-saas-control-local-private
+    name: webvue-saas-control-local-private

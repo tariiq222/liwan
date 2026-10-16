@@ -7,7 +7,7 @@ ROOT="$(git -C "$(dirname "$0")/../.." rev-parse --show-toplevel)"
 FIXTURE="$ROOT/deploy/control-plane-outage"
 STATE="$FIXTURE/state"
 ODOO_BIN=/Users/tariq/code/odoo/odoo-bin
-DB=nasq_scratch_p1outage
+DB=webvue_scratch_p1outage
 PORT=18179
 WRAPPER="$ROOT/deploy/check_isolated.py"
 PYTHON=/Users/tariq/code/odoo/.venv/bin/python
@@ -16,10 +16,10 @@ STOCK=/Users/tariq/code/odoo/addons
 fail() { printf 'fixture Odoo restart stopped: %s\n' "$1" >&2; exit 1; }
 expected="$PYTHON $ODOO_BIN -c $STATE/odoo.conf --addons-path=/Users/tariq/code/odoo/odoo/addons,$STOCK,$ADDONS -d $DB --http-port $PORT --http-interface 127.0.0.1 --max-cron-threads 0 --db-filter=^$DB$"
 expected_wrapper="$PYTHON $WRAPPER runtime --worktree $ROOT --addons-path $ADDONS --stock-addons $STOCK --python $PYTHON --odoo-bin $ODOO_BIN --odoo-conf $STATE/odoo.conf --scratch-db $DB --scratch-lifecycle CREATE_NEW_SCRATCH --http-port $PORT"
-[[ "$ROOT" == /Users/tariq/code/nasq-saas-outage-fixture ]] || fail 'unexpected worktree root'
+[[ "$ROOT" == /Users/tariq/code/webvue-saas-outage-fixture ]] || fail 'unexpected worktree root'
 [[ "$(git -C "$ROOT" branch --show-current)" == codex/saas-outage-fixture ]] || fail 'wrong task branch'
 [[ -f "$STATE/odoo.conf" && -f "$STATE/pg-password" && -f "$STATE/odoo.pid" && -f "$STATE/odoo.starttime" ]] || fail 'fixture runtime identity state missing'
-[[ -x "$PYTHON" && -f "$ODOO_BIN" && -f "$WRAPPER" && -d "$ADDONS/nasq_core" ]] || fail 'required runtime paths missing'
+[[ -x "$PYTHON" && -f "$ODOO_BIN" && -f "$WRAPPER" && -d "$ADDONS/webvue_core" ]] || fail 'required runtime paths missing'
 
 # The handed-off process may have an orphaned wrapper after its previous
 # supervisor exited. Require exact PID record, start time, argv and listener;
@@ -49,7 +49,7 @@ done
 lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 && fail 'Odoo port still occupied by another process'
 
 # Launch exact isolated Odoo runtime with secret only in process environment.
-PGPASSWORD="$(<"$STATE/pg-password")" PGHOST=127.0.0.1 PGPORT=55439 PGUSER=nasq_fixture \
+PGPASSWORD="$(<"$STATE/pg-password")" PGHOST=127.0.0.1 PGPORT=55439 PGUSER=webvue_fixture \
   "$PYTHON" "$WRAPPER" runtime --worktree "$ROOT" --addons-path "$ADDONS" \
   --stock-addons "$STOCK" --python "$PYTHON" --odoo-bin "$ODOO_BIN" \
   --odoo-conf "$STATE/odoo.conf" --scratch-db "$DB" \

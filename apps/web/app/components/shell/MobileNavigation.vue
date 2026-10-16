@@ -4,7 +4,7 @@ import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import type { ShellContextLink } from '@/composables/nav/shellModules'
-import type { ShellRailItem } from '@nasq/ui/app/types/shell'
+import type { ShellRailItem } from '@webvue/ui/app/types/shell'
 import type { ShellContextSection } from '@/composables/nav/sidebarModel'
 
 // The one mobile drawer (< 768px): modules, then the current module's create
@@ -45,11 +45,11 @@ function onModuleActivate(item: ShellRailItem) {
     :title="menuTitle"
     :description="props.title"
     :content="dialogContent"
-    :ui="{ content: 'nasq-mobile-menu', overlay: 'nasq-mobile-menu-overlay' }"
+    :ui="{ content: 'webvue-mobile-menu', overlay: 'webvue-mobile-menu-overlay' }"
   >
     <UButton
       id="mobile-navigation-trigger"
-      class="nasq-mobile-menu-trigger"
+      class="webvue-mobile-menu-trigger"
       type="button"
       color="neutral"
       variant="ghost"
@@ -61,18 +61,18 @@ function onModuleActivate(item: ShellRailItem) {
       :disabled="!hydrated"
     >
       <template #leading>
-        <UIcon name="i-lucide-menu" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+        <UIcon name="i-lucide-menu" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
       </template>
     </UButton>
     <template #body>
-      <nav data-fresh-navigation :aria-label="t('nav.modules')" class="nasq-mobile-section">
+      <nav data-fresh-navigation :aria-label="t('nav.modules')" class="webvue-mobile-section">
         <UButton
           v-for="item in props.modules"
           :key="item.id"
           :to="item.to"
           color="neutral"
           variant="ghost"
-          class="nasq-context-link"
+          class="webvue-context-link"
           :data-active="props.activeId === item.id"
           :active="props.activeId === item.id"
           :aria-current="props.activeId === item.id ? 'page' : undefined"
@@ -80,14 +80,14 @@ function onModuleActivate(item: ShellRailItem) {
           @click="onModuleActivate(item)"
         >
           <template #leading>
-            <UIcon :name="item.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+            <UIcon :name="item.icon" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
           </template>
           <span data-slot="label">{{ t(item.labelKey) }}</span>
         </UButton>
       </nav>
       <USeparator class="my-4" />
-      <h2 class="nasq-mobile-title">{{ props.title }}</h2>
-      <div v-if="props.createLinks.length" class="nasq-mobile-section">
+      <h2 class="webvue-mobile-title">{{ props.title }}</h2>
+      <div v-if="props.createLinks.length" class="webvue-mobile-section">
         <SidebarCreateAction
           v-for="link in props.createLinks"
           :key="link.id"
@@ -98,16 +98,16 @@ function onModuleActivate(item: ShellRailItem) {
           @click="closeIfCurrent(link.to)"
         />
       </div>
-      <nav data-fresh-navigation v-if="props.sections.length" :aria-label="props.title" class="nasq-mobile-section">
+      <nav data-fresh-navigation v-if="props.sections.length" :aria-label="props.title" class="webvue-mobile-section">
         <template v-for="section in props.sections" :key="section.id">
-          <h3 v-if="section.titleKey" class="nasq-context-section-title">{{ t(section.titleKey) }}</h3>
+          <h3 v-if="section.titleKey" class="webvue-context-section-title">{{ t(section.titleKey) }}</h3>
           <UButton
             v-for="link in section.links"
             :key="link.id"
             :to="link.to"
             color="neutral"
             variant="ghost"
-            class="nasq-context-link"
+            class="webvue-context-link"
             :aria-label="t(link.labelKey)"
             :aria-current="link.active ? 'page' : undefined"
             :data-active="link.active"
@@ -116,7 +116,7 @@ function onModuleActivate(item: ShellRailItem) {
             @click="closeIfCurrent(link.to)"
           >
             <template #leading>
-              <UIcon :name="link.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+              <UIcon :name="link.icon" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
             </template>
             <span data-slot="label">{{ t(link.labelKey) }}</span>
           </UButton>

@@ -1,4 +1,4 @@
-import type { ProjectReportRow, ProjectStatus } from '@nasq/contracts'
+import type { ProjectReportRow, ProjectStatus } from '@webvue/contracts'
 
 export type DashboardProject = ProjectReportRow & { updated_at?: string | null }
 

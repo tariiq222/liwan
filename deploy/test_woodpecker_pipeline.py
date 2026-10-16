@@ -23,17 +23,17 @@ class TestWoodpeckerOdooSteps(unittest.TestCase):
         self.assertEqual(names.index('odoo-tasks-standalone'), names.index('odoo') + 1)
         self.assertEqual(names.index('odoo-tasks-bridge'), names.index('odoo') + 2)
 
-    def test_standalone_installs_only_nasq_tasks_and_asserts_no_pmo(self):
+    def test_standalone_installs_only_webvue_tasks_and_asserts_no_pmo(self):
         script = self.script('odoo-tasks-standalone')
-        self.assertIn('MODULES="nasq_tasks"', script)
-        self.assertIn('--test-tags "/nasq_tasks"', script)
-        self.assertIn("name IN ('nasq_pmo', 'nasq_tasks_pmo') AND state = 'installed'", script)
+        self.assertIn('MODULES="webvue_tasks"', script)
+        self.assertIn('--test-tags "/webvue_tasks"', script)
+        self.assertIn("name IN ('webvue_pmo', 'webvue_tasks_pmo') AND state = 'installed'", script)
 
     def test_bridge_installs_the_bridge_configuration_and_asserts_it_installed(self):
         script = self.script('odoo-tasks-bridge')
-        self.assertIn('MODULES="nasq_tasks,nasq_pmo,nasq_tasks_pmo"', script)
-        self.assertIn('--test-tags "/nasq_tasks,/nasq_tasks_pmo"', script)
-        self.assertIn("name = 'nasq_tasks_pmo'", script)
+        self.assertIn('MODULES="webvue_tasks,webvue_pmo,webvue_tasks_pmo"', script)
+        self.assertIn('--test-tags "/webvue_tasks,/webvue_tasks_pmo"', script)
+        self.assertIn("name = 'webvue_tasks_pmo'", script)
         self.assertIn('test "$bridge_state" = installed', script)
 
     def test_tasks_steps_use_their_own_databases_and_ports(self):

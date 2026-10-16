@@ -1,6 +1,6 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@nasq/commercial-contracts'
+import type { BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@webvue/commercial-contracts'
 import type { VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */

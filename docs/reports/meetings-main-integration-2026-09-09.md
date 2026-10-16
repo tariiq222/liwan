@@ -12,10 +12,10 @@ User authorized commit and local merge into main.
 
 - 157 contract tests and 707 web tests passed.
 - Contract TypeScript build, web vue-tsc, Nuxt production build, Ruff, and staged diff whitespace checks passed.
-- 84 Odoo meeting, history, permissions, series and workspace tests passed on isolated `nasq_meeting_workspace_test_20260909`, using this integration checkout's addons and independent test data directory.
+- 84 Odoo meeting, history, permissions, series and workspace tests passed on isolated `webvue_meeting_workspace_test_20260909`, using this integration checkout's addons and independent test data directory.
 - The first web test invocation preceded Nuxt preparation and could not load generated tsconfig files; rerunning after preparation/build passed without changing tests or product code.
-- Logs: `/tmp/nasq-meeting-workspace/integration-*`.
+- Logs: `/tmp/webvue-meeting-workspace/integration-*`.
 
 This is local source integration. No push, deployment, primary-database upgrade, branch deletion or worktree cleanup is included. The existing preview remains separate. The previously documented PDF runtime limitation remains: native wkhtmltopdf is absent locally and actual PDF pagination has not been verified.
 
-For running the new backend against another database, deploy the matching source and upgrade `nasq_pmo` against that explicitly selected database after backup; restarting alone does not create the new model tables/fields. This integration did not run that upgrade against `odoo19`.
+For running the new backend against another database, deploy the matching source and upgrade `webvue_pmo` against that explicitly selected database after backup; restarting alone does not create the new model tables/fields. This integration did not run that upgrade against `odoo19`.

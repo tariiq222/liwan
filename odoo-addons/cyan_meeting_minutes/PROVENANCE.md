@@ -3,10 +3,10 @@
 - Upstream: https://github.com/rezachidotnet/meeting_minutes-odoo
 - Pin: `3a549ffe5ce6a92daa318810bce5e199f7c5c24b`
 - Upstream version: `19.0.1.3.0` (author Cyan, license LGPL-3)
-- This tree: `19.0.1.3.1` — Nasq privacy/lock/calendar hardening of that vendor module
+- This tree: `19.0.1.3.1` — WebVue privacy/lock/calendar hardening of that vendor module
 - No LICENSE file was shipped upstream. Manifest declares `license: LGPL-3` and author Cyan. That is the declared identifier only, not a legal opinion or guarantee.
-- Nasq did not author the original module. New tests, `secretary_id`, record rules, write guards, Arabic `i18n/ar.po`, and this file are Nasq changes.
-- `project.task` is not linked. A future adapter would go through `nasq_pmo` only.
+- WebVue did not author the original module. New tests, `secretary_id`, record rules, write guards, Arabic `i18n/ar.po`, and this file are WebVue changes.
+- `project.task` is not linked. A future adapter would go through `webvue_pmo` only.
 
 Sudo exceptions (READ only):
 

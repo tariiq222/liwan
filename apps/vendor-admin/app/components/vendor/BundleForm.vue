@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CatalogRelease } from '@nasq/commercial-contracts'
+import type { CatalogRelease } from '@webvue/commercial-contracts'
 import { appName, bundleLimitKeys, bundleDraftFromView, dependencyHints, emptyBundleDraft, keyLabel, commercialFailure, commercialErrorKey, fieldIssue, limitFromDraft, priceRowErrors, type BundleDraft, type BundleView, type LimitDraft } from '@/utils/vendorCommercial'
 const props = withDefaults(defineProps<{ releases: CatalogRelease[]; initial?: BundleView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean; canPrice?: boolean }>(), { busy: false, resetKey: 0, requireReason: false, canPrice: true })
 const emit = defineEmits<{ save: [draft: BundleDraft, release: CatalogRelease | undefined]; cancel: [] }>()

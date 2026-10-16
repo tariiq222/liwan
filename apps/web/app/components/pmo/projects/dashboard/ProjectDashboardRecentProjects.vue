@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { ProjectStatus } from '@nasq/contracts'
+import type { ProjectStatus } from '@webvue/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
+import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
 import type { TableColumn } from '@nuxt/ui'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import type { DashboardProject } from '@/utils/projectChartData'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
 // The dashboard's actionable table: recently updated, late (overdue tasks) and at-risk projects.
 // `rows` is the recent list; `allRows` is every matching project, the source of the late and at-risk views.
@@ -53,7 +53,7 @@ const columns = computed<TableColumn<DashboardProject>[]>(() => [
 function updatedAt(value: string | null | undefined) {
   if (!value) return t('projects.dashboard.unknown')
   const date = new Date(value)
-  return Number.isNaN(date.valueOf()) ? t('projects.dashboard.unknown') : formatNasqDateTime(date, locale.value)
+  return Number.isNaN(date.valueOf()) ? t('projects.dashboard.unknown') : formatWebVueDateTime(date, locale.value)
 }
 </script>
 

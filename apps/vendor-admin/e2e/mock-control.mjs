@@ -15,7 +15,7 @@ import { createJiti } from 'jiti'
 import { handleCommercial } from './commercial-mock-routes.mjs'
 import { ADMIN_PASSWORD, INSTALLATION_ID, MOCK_PORT, OWNER_EMAIL, SERVICE_KEY, SUPPORT_EMAIL, TOTP_CODE } from './mock-settings.mjs'
 
-const { verifyServiceRequest } = await createJiti(import.meta.url).import('@nasq/commercial-contracts/server')
+const { verifyServiceRequest } = await createJiti(import.meta.url).import('@webvue/commercial-contracts/server')
 
 const RP_ID = 'localhost'
 const FAILURES_BEFORE_LOCK = 5
@@ -82,7 +82,7 @@ export function createMockControl() {
     return found?.kind === kind ? found : null
   }
   const credentialId = response => (typeof response?.id === 'string' ? response.id : null)
-  const sessionOf = req => sessions.get(String(req.headers['x-nasq-session'] ?? ''))
+  const sessionOf = req => sessions.get(String(req.headers['x-webvue-session'] ?? ''))
   const invitationOf = token => invitations.get(token)
 
   const statusOf = account => (account.disabled ? 'disabled' : account.active ? 'active' : 'enrolling')
@@ -123,7 +123,7 @@ export function createMockControl() {
       return json(res, 200, {
         challenge_id: newChallenge('register', account.id),
         options: {
-          rp: { name: 'Nasq', id: RP_ID }, user: { id: b64url(16), name: account.email, displayName: account.display_name },
+          rp: { name: 'WebVue', id: RP_ID }, user: { id: b64url(16), name: account.email, displayName: account.display_name },
           challenge: b64url(32), pubKeyCredParams: [{ type: 'public-key', alg: -7 }], timeout: 60000, attestation: 'none',
           authenticatorSelection: { residentKey: 'required', requireResidentKey: true, userVerification: 'required' },
         },
@@ -142,7 +142,7 @@ export function createMockControl() {
       const inv = invitationOf(body.token)
       if (!inv) return json(res, 401, { code: 'auth_failed' })
       const email = accounts.get(inv.accountId).email
-      return json(res, 200, { totp_uri: `otpauth://totp/${encodeURIComponent(`Nasq:${email}`)}?secret=JBSWY3DPEHPK3PXP&issuer=Nasq&algorithm=SHA1&digits=6&period=30`, totp_box: Buffer.from('mock-box').toString('base64') })
+      return json(res, 200, { totp_uri: `otpauth://totp/${encodeURIComponent(`WebVue:${email}`)}?secret=JBSWY3DPEHPK3PXP&issuer=WebVue&algorithm=SHA1&digits=6&period=30`, totp_box: Buffer.from('mock-box').toString('base64') })
     },
     '/v1/admin/auth/enroll/complete': ({ body }, res) => {
       const inv = invitationOf(body.token)
@@ -196,7 +196,7 @@ export function createMockControl() {
       return json(res, 204)
     },
     '/v1/admin/auth/logout': ({ req }, res) => {
-      const key = String(req.headers['x-nasq-session'] ?? '')
+      const key = String(req.headers['x-webvue-session'] ?? '')
       if (!sessions.delete(key)) return json(res, 401, { code: 'auth_failed' })
       return json(res, 204)
     },
@@ -285,7 +285,7 @@ export function createMockControl() {
     if (isAuth && config.unavailable) return json(res, 503, { code: 'admin_unavailable' })
     const path = `${url.pathname}${url.search}`
     const signed = verifyServiceRequest({ method: req.method, path, body: raw, key: SERVICE_KEY, headers: req.headers, anonymous: isAuth })
-    const session = String(req.headers['x-nasq-session'] ?? '')
+    const session = String(req.headers['x-webvue-session'] ?? '')
     const consistent = isAuth || (signed && session.split('.')[0] === String(signed.actor))
     if (!signed || signed.issuer !== INSTALLATION_ID || !consistent || nonces.has(signed.nonce)) {
       stats.rejected += 1
@@ -293,7 +293,7 @@ export function createMockControl() {
     }
     nonces.add(signed.nonce)
     stats[isAuth ? 'anonymous' : 'numeric'] += 1
-    stats.lastClientIp = req.headers['x-nasq-client-ip'] ?? null
+    stats.lastClientIp = req.headers['x-webvue-client-ip'] ?? null
     if (isAuth && req.method !== 'POST') return json(res, 404, { code: 'not_found' })
     const action = req.method === 'POST' ? ACCOUNT_ACTION.exec(url.pathname) : null
     if (action) {
@@ -307,7 +307,7 @@ export function createMockControl() {
       return void handleCommercial(req, res, url, { capabilities: capabilitiesOf(account.roles) })
     }
     if (!handler) return json(res, 404, { code: 'not_found' })
-    return handler({ req, body, ip: String(req.headers['x-nasq-client-ip'] ?? 'unknown') }, res)
+    return handler({ req, body, ip: String(req.headers['x-webvue-client-ip'] ?? 'unknown') }, res)
   }
 
   return createServer((req, res) => { handle(req, res).catch(() => json(res, 500, { code: 'mock_error' })) })

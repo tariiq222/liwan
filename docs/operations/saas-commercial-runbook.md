@@ -1,4 +1,4 @@
-# دليل تشغيل نسق SaaS التجاري
+# دليل تشغيل ويب فيو SaaS التجاري
 
 التاريخ: 2026-10-02. الحالة: **مسودة تشغيل، لا إعلان جاهزية.** الدليل مبني على الشيفرة الموجودة في الـworktree `codex/saas-commercial` (غير ملتزمة). الأقسام التي تشير إلى شيفرة لم تكتمل (مسارات webhook والتجديد والمصالحة وصفحات العمليات التجارية، أي B2/B4 وC2) **ستؤكَّد أو تُصحَّح بعد اكتمال C2**؛ لا تُنفَّذ خطواتها في بيئة حقيقية قبل ذلك.
 
@@ -34,20 +34,20 @@
 
 | المتغير | الاستخدام |
 |---|---|
-| `NASQ_PAYMENT_PROVIDER` | `moyasar` أو `simulator` (غيرها يرفض) |
+| `WEBVUE_PAYMENT_PROVIDER` | `moyasar` أو `simulator` (غيرها يرفض) |
 | `MOYASAR_MODE` | `test` أو `live` فقط؛ `live` يُستخدم بعد تفويض إنتاج صريح |
 | `MOYASAR_SECRET_KEY` | مفتاح API (سر) |
 | `MOYASAR_WEBHOOK_SECRET` | سر الـwebhook (`secret_token`) (سر) |
 | `MOYASAR_ACCOUNT_NAME` | اسم حساب التاجر؛ أي webhook بحساب آخر يُرفض (`merchant_mismatch`) |
-| `NASQ_PAYMENT_RETURN_ORIGINS` | قائمة origins مسموحة لعودة الدفع مفصولة بفواصل |
-| `NASQ_MAIL_MODE` | الافتراضي `smtp`؛ غيره يرفض |
-| `NASQ_MAIL_SMTP_HOST`, `NASQ_MAIL_SMTP_PORT`, `NASQ_MAIL_FROM` | وجهة الإرسال والمرسِل |
-| `NASQ_MAIL_REQUIRE_TLS` | إلزام TLS |
-| `NASQ_MAIL_SMTP_USER`, `NASQ_MAIL_SMTP_PASSWORD` | اعتماد SMTP اختياري (سر) |
+| `WEBVUE_PAYMENT_RETURN_ORIGINS` | قائمة origins مسموحة لعودة الدفع مفصولة بفواصل |
+| `WEBVUE_MAIL_MODE` | الافتراضي `smtp`؛ غيره يرفض |
+| `WEBVUE_MAIL_SMTP_HOST`, `WEBVUE_MAIL_SMTP_PORT`, `WEBVUE_MAIL_FROM` | وجهة الإرسال والمرسِل |
+| `WEBVUE_MAIL_REQUIRE_TLS` | إلزام TLS |
+| `WEBVUE_MAIL_SMTP_USER`, `WEBVUE_MAIL_SMTP_PASSWORD` | اعتماد SMTP اختياري (سر) |
 
 غير متوفر حاليًا: مفاتيح Moyasar للاختبار وإعدادات SMTP **[محجوب]**. مفاتيح الإنتاج لا تُستخدم في اختبار محلي أبدًا.
 
-## 3. حسابات لوحة تحكم نسق
+## 3. حسابات لوحة تحكم ويب فيو
 
 الصلاحيات مشتقة من أدوار الحساب (`owner` وغيره)؛ لم يعد هناك منح أو إلغاء يدوي بمعرّف Odoo (أُزيل الأمران `grant` و`revoke`). الأوامر أدناه تتطلب ضبط `ADMIN_SECRET_KEY` و`ADMIN_RP_ID` و`ADMIN_ORIGIN`؛ وبدونها ترفض التنفيذ.
 
@@ -177,7 +177,7 @@ npm -w apps/control-plane run admin -- migrate-saas-commercial --run --report /a
 | تجهيز متعثر | طلب `paid` بلا `applied` بعد مهلة، أو مهمة بلا تقدّم/lease منتهٍ | 4.1 | تصعيد `needs_intervention` |
 | عدم تطابق desired/observed | `observed_digest` ≠ مقصود الاتفاق، أو فروع/حدود Odoo تخالف الاشتراك | قارن readback بإصدار الاشتراك | أعد reconfigure؛ لا تعلن النجاح قبل التطابق |
 | تقادم الاستخدام | `usage_snapshots.freshness` = `stale/unavailable` لأكثر من المهلة | تحقق وصول العامل إلى Odoo | لا تفرض حدودًا/فوترة اعتمادًا على قراءة قديمة بلا قرار |
-| فشل تسليم الدعوة | فشل SMTP/ارتداد/دعوة غير مفتوحة | تحقق `NASQ_MAIL_*` وTLS | أعد إرسال دعوة جديدة (رموز الدعوة محدودة)؛ لا تُرسل كلمة مرور مباشرة |
+| فشل تسليم الدعوة | فشل SMTP/ارتداد/دعوة غير مفتوحة | تحقق `WEBVUE_MAIL_*` وTLS | أعد إرسال دعوة جديدة (رموز الدعوة محدودة)؛ لا تُرسل كلمة مرور مباشرة |
 | عمر النسخة الاحتياطية | آخر نسخة ناجحة أقدم من الهدف، أو فشل restore | شغّل نسخة؛ افحص مساحة/مضيف خارجي | RPO غير معتمد؛ لا وعد SLA قبل قرار |
 
 حدود العتبات (المهل، الأعمار) **مفتوحة** حتى اعتماد أهداف السعة وSLA.

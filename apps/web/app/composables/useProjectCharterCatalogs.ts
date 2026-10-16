@@ -13,7 +13,7 @@ import {
   type ProjectCharterReferenceCreate,
   type ProjectCharterReferenceList,
   type ProjectCharterReferencePatch,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 
 export type { ProjectCharterCatalogResource, ProjectCharterReference, ProjectCharterReferenceList }
 

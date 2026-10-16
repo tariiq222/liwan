@@ -2,7 +2,7 @@
 
 > Agentic workers: use subagent-driven-development with bounded ownership; coordinator alone runs final integrated checks. No commits without separate authorization.
 
-Goal: complete local operations foundation and a real vendor administration section inside the vendor company's existing Nasq workspace.
+Goal: complete local operations foundation and a real vendor administration section inside the vendor company's existing WebVue workspace.
 Architecture: company business database stays separate from headless control-plane PostgreSQL and from every customer database. Existing Odoo login is checked server-side; explicit control-plane grants authorize vendor operations.
 Tech stack: existing Nuxt UI/Vue, TypeScript/Zod, Node HTTP service, PostgreSQL, Python local CLI.
 Spec: docs/superpowers/specs/2026-09-23-company-vendor-workspace-design.md plus existing CP0 contracts; shared execution contract .superpowers/vendor-control/contracts.md.
@@ -24,9 +24,9 @@ Spec: docs/superpowers/specs/2026-09-23-company-vendor-workspace-design.md plus 
 5. Control-plane outage or disabled customer config never blocks ordinary company/customer work.
 
 ## Task 1: CP2 execution foundation
-Ownership: tools/nasq_cli/**, tools/test_nasq_cli*.py, tools/check_cp2_scratch.py.
+Ownership: tools/webvue_cli/**, tools/test_webvue_cli*.py, tools/check_cp2_scratch.py.
 Consumes: explicit commercial classification, existing backup/restore tools.
-Produces: python -m nasq_cli.operator; private inventory, guarded policy, durable receipt.
+Produces: python -m webvue_cli.operator; private inventory, guarded policy, durable receipt.
 - [x] Baseline unit checks and independent source review.
 - [ ] Tests for journal replay/conflict, locks, revision race, sensitive-output redaction.
 - [ ] Implement durable operation journal, explicit target execution, create/entitle/backup/restore/upgrade safely on scratch.

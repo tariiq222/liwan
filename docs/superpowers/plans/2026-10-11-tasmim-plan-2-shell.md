@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver phase 2 of the spec — the restyled three-layer shell (48px header with breadcrumb, 64px fixed-midnight module rail with a lime active bar and the Nasq wordmark, 232px context sidebar with sections, counters, `[` collapse and persisted state, one mobile drawer below 768px), with a Storybook story and a geometry test for every shell part — ending at owner checkpoint CP2.
+**Goal:** Deliver phase 2 of the spec — the restyled three-layer shell (48px header with breadcrumb, 64px fixed-midnight module rail with a lime active bar and the WebVue wordmark, 232px context sidebar with sections, counters, `[` collapse and persisted state, one mobile drawer below 768px), with a Storybook story and a geometry test for every shell part — ending at owner checkpoint CP2.
 
 **Architecture:** The shell stays custom (decision and evidence below). One pure model (`composables/nav/sidebarModel.ts`, `composables/nav/breadcrumb.ts`) and one composable (`composables/useShellModel.ts`) derive everything the shell shows from the route, the identity and the manifests; `ModuleRail`, `ContextSidebar`, `MobileNavigation` and `ShellBreadcrumb` become props-only components rendered by two containers (`AppSidebar`, `ShellHeader`) inside a new `ShellFrame`. Applications contribute to the shell only through `app/modules/<app>/manifest.ts`: chat's conversation list arrives through a new typed `sidebarPanel` field and PMO's "my tasks" counter through `contextCounts`. Geometry lives in `assets/css/shell.css`; tokens stay in `tokens.css`. No Odoo, contract or API change.
 
 **Tech Stack:** Nuxt 4, Nuxt UI 4.11.1, Tailwind 4.3, Storybook 10.6, Playwright 1.62, Vitest 4, `@tanstack/vue-query`, Python policy checks in `tools/`.
 
-**Spec:** `docs/superpowers/specs/2026-10-11-nasq-tasmim-design.md` (§2, §3, §5, §6 contracts, §7 items 3–4, §10 phase 2, §13)
+**Spec:** `docs/superpowers/specs/2026-10-11-webvue-tasmim-design.md` (§2, §3, §5, §6 contracts, §7 items 3–4, §10 phase 2, §13)
 
 ## Owner amendments (2026-10-11, binding — override any task text below)
 
@@ -21,7 +21,7 @@
 
 Spec §5 adopts `UDashboardGroup/Sidebar/Panel/Navbar` only if they keep RTL behaviour and the three-layer layout. They do not; the decision is taken from source, so no spike is needed.
 
-| Evidence (Nuxt UI 4.11.1, `node_modules/@nuxt/ui/dist/…`) | Consequence for Nasq |
+| Evidence (Nuxt UI 4.11.1, `node_modules/@nuxt/ui/dist/…`) | Consequence for WebVue |
 |---|---|
 | `shared/ui.DCJ9twx8.mjs:2420` `dashboardGroup.base: "fixed inset-0 flex overflow-hidden"`; `:2425` the navbar is `h-(--ui-header-height)` **inside each `DashboardPanel`** | The group is one horizontal row of sidebars and panels; there is no header layer spanning the context sidebar. Our header-over-sidebar frame needs the header outside the group and the group's `fixed inset-0` overridden — a two-layer layout in disguise. |
 | `:2509` sidebar root `hidden lg:flex`; `:2514-2515` menu `content/overlay: "lg:hidden"`; `:2546` collapse `hidden lg:flex`; `:2556` toggle `lg:hidden`; `:2457` panel `lg:w-(--width)` | The breakpoint is hard-wired to 1024px; ours is 768px. Moving it needs theme overrides for six components in `app.config.ts`, whose keys `tools/ui_policy.py:444-448` (`ALLOWED_RECIPE_KEYS`) does not allow. |
@@ -32,7 +32,7 @@ Spec §5 adopts `UDashboardGroup/Sidebar/Panel/Navbar` only if they keep RTL beh
 
 **`[` shortcut:** Nuxt UI 4.11.1 cannot express `[` in layout-independent mode. `runtime/composables/defineShortcuts.js:194-198` lower-cases the key and passes it to `convertKeyToCode` (`:7-30`), which only maps letters, digits, F-keys and nine named keys, then `:110` compares `e.code !== shortcut.key` — so neither `'['` nor `'bracketleft'` ever equals `'BracketLeft'`. Without `layoutIndependent`, `:118` compares `e.key`, which is «ج» on an Arabic layout. The shell therefore listens for `event.code === 'BracketLeft'` itself (`composables/nav/sidebarShortcut.ts`); Plan 3 owns the general shortcut layer.
 
-**Persistence:** cookie `nasq-context-sidebar` (`open` | `closed`, `path=/`, `SameSite=Lax`, one year) through Nuxt `useCookie`. It is read during SSR, so the server renders the collapsed width and the first paint never jumps; a user preference would need an API change, which this branch excludes. Same pattern as `nasq-appearance` (`composables/useAppearance.ts:17`).
+**Persistence:** cookie `webvue-context-sidebar` (`open` | `closed`, `path=/`, `SameSite=Lax`, one year) through Nuxt `useCookie`. It is read during SSR, so the server renders the collapsed width and the first paint never jumps; a user preference would need an API change, which this branch excludes. Same pattern as `webvue-appearance` (`composables/useAppearance.ts:17`).
 
 ## Global Constraints
 
@@ -49,9 +49,9 @@ Spec §5 adopts `UDashboardGroup/Sidebar/Panel/Navbar` only if they keep RTL beh
 - Every shell component ships with a story (with `storyContext(...)`), an entry in `STORYBOOK_COMPONENTS` (`tools/ui_policy.py:37`), a row in `docs/design-system/components.md`, and the catalog regenerated (`node tools/ui_catalog.mjs`) in the same commit — `npm test` runs `ui_catalog.mjs --check` and `ui_policy.py`.
 - After changing a story or a cited file, run `python3 -B tools/ui_policy.py --refresh-story-context` to repoint `storyContext` line numbers.
 - Shell geometry (px, independent of the font size): header 48px; module rail 64px, full height, always midnight, no expand state; context sidebar 232px, 48px collapsed, 400px for a wide sidebar panel (320px between 768–1100px); below 768px the rail and sidebar are hidden, the header spans the width and the drawer is `min(320px, 100vw − 48px)` (320px at 390px) from the inline-start side; mobile header controls ≥ 44px.
-- Content widths keep the `nasq-page-width-*` vocabulary: `list` becomes full width (`max-width: none`, spec §5 "full width for tables/boards/dashboards"); `detail` 68rem and `form` 58rem stay.
+- Content widths keep the `webvue-page-width-*` vocabulary: `list` becomes full width (`max-width: none`, spec §5 "full width for tables/boards/dashboards"); `detail` 68rem and `form` 58rem stay.
 - Never use ports 3000 or 8069 or the `odoo19` database; the mock stack uses 4097 (Nuxt) / 4498 (mock API).
-- Palette from Plan 1: rail `--nasq-rail` `#13234a` light / `#0d1a38` dark (`rgb(19, 35, 74)` / `rgb(13, 26, 56)`), lime `#c8f031` (`rgb(200, 240, 49)`). Lime appears in the shell only as the rail's active bar and the wordmark dot.
+- Palette from Plan 1: rail `--webvue-rail` `#13234a` light / `#0d1a38` dark (`rgb(19, 35, 74)` / `rgb(13, 26, 56)`), lime `#c8f031` (`rgb(200, 240, 49)`). Lime appears in the shell only as the rail's active bar and the wordmark dot.
 
 ## Review Focus
 
@@ -77,7 +77,7 @@ Covers the final-review items M2, M3, M4 and the deferred minors for `.storybook
 - Create (generated): `apps/web/e2e/storybook-visual.spec.ts-snapshots/shared-brandwordmark--*-darwin.png`
 
 **Interfaces:**
-- Produces: `requireStorybook(): void` (call inside a `test.describe` body; skips when `storybook-static` is missing, unless `NASQ_REQUIRE_STORYBOOK=1`, where it registers one failing test). Every later Storybook spec uses it.
+- Produces: `requireStorybook(): void` (call inside a `test.describe` body; skips when `storybook-static` is missing, unless `WEBVUE_REQUIRE_STORYBOOK=1`, where it registers one failing test). Every later Storybook spec uses it.
 
 - [ ] **Step 1: Write the failing token tests (M2, M3)**
 
@@ -87,7 +87,7 @@ Create `apps/web/app/assets/css/__tests__/tokens.test.ts`:
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { DARK_SURFACES } from '../../../utils/nasqPalette'
+import { DARK_SURFACES } from '../../../utils/webvuePalette'
 
 const sheet = (name: string) => readFileSync(resolve(import.meta.dirname, '..', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 
@@ -111,19 +111,19 @@ function declarations(body: string): Map<string, string> {
 
 const LITERAL = /^#[0-9a-f]{6}$/i
 
-describe('the module rail is fixed Nasq midnight', () => {
+describe('the module rail is fixed WebVue midnight', () => {
   for (const selector of [':root', '.dark']) {
-    it(`${selector} declares --nasq-rail and --nasq-rail-deep as literal colours`, () => {
+    it(`${selector} declares --webvue-rail and --webvue-rail-deep as literal colours`, () => {
       const found = declarations(ruleBodies(sheet('tokens.css'), selector))
-      expect(found.get('--nasq-rail')).toMatch(LITERAL)
-      expect(found.get('--nasq-rail-deep')).toMatch(LITERAL)
+      expect(found.get('--webvue-rail')).toMatch(LITERAL)
+      expect(found.get('--webvue-rail-deep')).toMatch(LITERAL)
     })
   }
 
-  it('.nasq-module-rail paints with the rail tokens and nothing tenant-derived', () => {
-    const rail = ruleBodies(sheet('shell.css'), '.nasq-module-rail')
-    expect(rail).toContain('var(--nasq-rail)')
-    expect(rail).toContain('var(--nasq-rail-deep)')
+  it('.webvue-module-rail paints with the rail tokens and nothing tenant-derived', () => {
+    const rail = ruleBodies(sheet('shell.css'), '.webvue-module-rail')
+    expect(rail).toContain('var(--webvue-rail)')
+    expect(rail).toContain('var(--webvue-rail-deep)')
     expect(rail).not.toMatch(/--primary|--brand|--ui-primary|--color-brand/)
   })
 })
@@ -150,10 +150,10 @@ describe('dark surfaces', () => {
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 npx vitest run app/assets/css/__tests__/tokens.test.ts
-sed -i '' 's/--nasq-rail: #13234a;/--nasq-rail: var(--primary);/' app/assets/css/tokens.css
+sed -i '' 's/--webvue-rail: #13234a;/--webvue-rail: var(--primary);/' app/assets/css/tokens.css
 npx vitest run app/assets/css/__tests__/tokens.test.ts; git checkout app/assets/css/tokens.css
 ```
-Expected: first run PASS (4 tests); the run after `sed` FAILS on `:root declares --nasq-rail…`; `git checkout` restores the file.
+Expected: first run PASS (4 tests); the run after `sed` FAILS on `:root declares --webvue-rail…`; `git checkout` restores the file.
 
 - [ ] **Step 3: Extend the BrandWordmark test**
 
@@ -187,14 +187,14 @@ import { test } from '@playwright/test'
 
 /**
  * Call inside a `test.describe` body. Without a Storybook build the describe is
- * skipped, unless NASQ_REQUIRE_STORYBOOK=1 (checkpoints and CI), where a missing
+ * skipped, unless WEBVUE_REQUIRE_STORYBOOK=1 (checkpoints and CI), where a missing
  * build is a failure, not a silent skip.
  */
 export function requireStorybook(): void {
   if (storybookBuilt) return
-  if (process.env.NASQ_REQUIRE_STORYBOOK === '1') {
+  if (process.env.WEBVUE_REQUIRE_STORYBOOK === '1') {
     test('Storybook build is present', () => {
-      throw new Error('NASQ_REQUIRE_STORYBOOK=1 but apps/web/storybook-static/index.json is missing. Run `npm -w apps/web run build-storybook`.')
+      throw new Error('WEBVUE_REQUIRE_STORYBOOK=1 but apps/web/storybook-static/index.json is missing. Run `npm -w apps/web run build-storybook`.')
     })
     return
   }
@@ -229,9 +229,9 @@ npm run build-storybook
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-brandwordmark' --update-snapshots=missing --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts --reporter=line
 mv storybook-static storybook-static.off
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-density.spec.ts --reporter=line; mv storybook-static.off storybook-static
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-density.spec.ts --reporter=line; mv storybook-static.off storybook-static
 ```
-Expected: the `--update-snapshots=missing` run writes 8 `shared-brandwordmark--*` PNGs; the second run passes (density now 8 tests); the third run reports `1 failed` with the "NASQ_REQUIRE_STORYBOOK=1 but … missing" message.
+Expected: the `--update-snapshots=missing` run writes 8 `shared-brandwordmark--*` PNGs; the second run passes (density now 8 tests); the third run reports `1 failed` with the "WEBVUE_REQUIRE_STORYBOOK=1 but … missing" message.
 
 - [ ] **Step 7: Gates and commit**
 
@@ -661,17 +661,17 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
 <template>
   <aside
     data-testid="context-sidebar"
-    class="nasq-context-sidebar"
+    class="webvue-context-sidebar"
     :data-expanded="props.expanded"
     :data-panel="props.panel ? 'true' : undefined"
     :data-panel-width="props.panel ? props.panelWidth : undefined"
     :aria-label="t('nav.context')"
   >
-    <Transition name="nasq-context" mode="out-in">
-      <div :id="navigationId" :key="props.motionKey" class="nasq-context-sidebar-inner">
-        <div class="nasq-context-heading">
+    <Transition name="webvue-context" mode="out-in">
+      <div :id="navigationId" :key="props.motionKey" class="webvue-context-sidebar-inner">
+        <div class="webvue-context-heading">
           <h2>{{ props.title }}</h2>
-          <div v-if="props.createLinks.length" class="nasq-context-create-actions">
+          <div v-if="props.createLinks.length" class="webvue-context-create-actions">
             <UTooltip v-for="link in props.createLinks" :key="link.id" :text="t(link.labelKey)">
               <UButton
                 :to="link.to"
@@ -680,7 +680,7 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
                 square
                 size="sm"
                 icon="i-lucide-plus"
-                class="nasq-context-create-icon"
+                class="webvue-context-create-icon"
                 :data-active="link.active"
                 :aria-current="link.active ? 'page' : undefined"
                 :aria-label="t(link.labelKey)"
@@ -690,16 +690,16 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
           </div>
         </div>
 
-        <nav v-if="props.showNav" class="nasq-context-nav" :aria-label="props.title">
-          <div v-for="section in props.sections" :key="section.id" class="nasq-context-section">
-            <h3 v-if="section.titleKey" class="nasq-context-section-title">{{ t(section.titleKey) }}</h3>
-            <div v-for="link in section.links" :key="link.id" class="nasq-context-row">
+        <nav v-if="props.showNav" class="webvue-context-nav" :aria-label="props.title">
+          <div v-for="section in props.sections" :key="section.id" class="webvue-context-section">
+            <h3 v-if="section.titleKey" class="webvue-context-section-title">{{ t(section.titleKey) }}</h3>
+            <div v-for="link in section.links" :key="link.id" class="webvue-context-row">
               <UTooltip :text="t(link.labelKey)" :disabled="props.expanded">
                 <UButton
                   :to="link.to"
                   color="neutral"
                   variant="ghost"
-                  class="nasq-context-link"
+                  class="webvue-context-link"
                   :data-active="link.active"
                   :active="!!link.active"
                   :aria-current="link.active ? 'page' : undefined"
@@ -708,21 +708,21 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
                   :data-testid="contextLinkTestId(link.id)"
                 >
                   <template #leading>
-                    <UIcon :name="link.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+                    <UIcon :name="link.icon" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
                   </template>
                   <span data-slot="label">{{ t(link.labelKey) }}</span>
                 </UButton>
               </UTooltip>
-              <span v-if="props.counts[link.id] !== undefined" :id="countId(link.id)" class="nasq-context-count">{{ countLabel(props.counts[link.id]!) }}</span>
+              <span v-if="props.counts[link.id] !== undefined" :id="countId(link.id)" class="webvue-context-count">{{ countLabel(props.counts[link.id]!) }}</span>
             </div>
           </div>
         </nav>
 
-        <div v-if="props.panel && props.renderPanel" v-show="props.expanded" class="nasq-context-panel">
+        <div v-if="props.panel && props.renderPanel" v-show="props.expanded" class="webvue-context-panel">
           <component :is="props.panel" />
         </div>
 
-        <div class="nasq-context-footer">
+        <div class="webvue-context-footer">
           <UTooltip :text="t(props.expanded ? 'nav.collapseContext' : 'nav.expandContext')" :kbds="['[']">
             <UButton
               type="button"
@@ -730,7 +730,7 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
               variant="ghost"
               square
               size="sm"
-              class="nasq-context-toggle"
+              class="webvue-context-toggle"
               data-testid="context-sidebar-toggle"
               :disabled="!props.hydrated"
               :aria-expanded="props.expanded"
@@ -740,7 +740,7 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
               @click="emit('toggle')"
             >
               <template #leading>
-                <UIcon :name="props.expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="nasq-shell-icon size-4.5 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
+                <UIcon :name="props.expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="webvue-shell-icon size-4.5 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
               </template>
             </UButton>
           </UTooltip>
@@ -800,11 +800,11 @@ function onModuleActivate(item: ShellRailItem) {
     :title="menuTitle"
     :description="props.title"
     :content="dialogContent"
-    :ui="{ content: 'nasq-mobile-menu', overlay: 'nasq-mobile-menu-overlay' }"
+    :ui="{ content: 'webvue-mobile-menu', overlay: 'webvue-mobile-menu-overlay' }"
   >
     <UButton
       id="mobile-navigation-trigger"
-      class="nasq-mobile-menu-trigger"
+      class="webvue-mobile-menu-trigger"
       type="button"
       color="neutral"
       variant="ghost"
@@ -816,11 +816,11 @@ function onModuleActivate(item: ShellRailItem) {
       :disabled="!hydrated"
     >
       <template #leading>
-        <UIcon name="i-lucide-menu" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+        <UIcon name="i-lucide-menu" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
       </template>
     </UButton>
     <template #body>
-      <nav :aria-label="t('nav.modules')" class="nasq-mobile-section">
+      <nav :aria-label="t('nav.modules')" class="webvue-mobile-section">
         <UButton
           v-for="item in props.modules"
           :key="item.id"
@@ -830,7 +830,7 @@ function onModuleActivate(item: ShellRailItem) {
           :rel="item.external ? 'noopener' : undefined"
           color="neutral"
           variant="ghost"
-          class="nasq-context-link"
+          class="webvue-context-link"
           :data-active="props.activeId === item.id"
           :active="props.activeId === item.id"
           :aria-current="props.activeId === item.id ? 'page' : undefined"
@@ -838,14 +838,14 @@ function onModuleActivate(item: ShellRailItem) {
           @click="onModuleActivate(item)"
         >
           <template #leading>
-            <UIcon :name="item.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+            <UIcon :name="item.icon" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
           </template>
           <span data-slot="label">{{ t(item.labelKey) }}</span>
         </UButton>
       </nav>
       <USeparator class="my-4" />
-      <h2 class="nasq-mobile-title">{{ props.title }}</h2>
-      <div v-if="props.createLinks.length" class="nasq-mobile-section">
+      <h2 class="webvue-mobile-title">{{ props.title }}</h2>
+      <div v-if="props.createLinks.length" class="webvue-mobile-section">
         <SidebarCreateAction
           v-for="link in props.createLinks"
           :key="link.id"
@@ -856,16 +856,16 @@ function onModuleActivate(item: ShellRailItem) {
           @click="closeIfCurrent(link.to)"
         />
       </div>
-      <nav v-if="props.sections.length" :aria-label="props.title" class="nasq-mobile-section">
+      <nav v-if="props.sections.length" :aria-label="props.title" class="webvue-mobile-section">
         <template v-for="section in props.sections" :key="section.id">
-          <h3 v-if="section.titleKey" class="nasq-context-section-title">{{ t(section.titleKey) }}</h3>
+          <h3 v-if="section.titleKey" class="webvue-context-section-title">{{ t(section.titleKey) }}</h3>
           <UButton
             v-for="link in section.links"
             :key="link.id"
             :to="link.to"
             color="neutral"
             variant="ghost"
-            class="nasq-context-link"
+            class="webvue-context-link"
             :aria-label="t(link.labelKey)"
             :aria-current="link.active ? 'page' : undefined"
             :data-active="link.active"
@@ -874,7 +874,7 @@ function onModuleActivate(item: ShellRailItem) {
             @click="closeIfCurrent(link.to)"
           >
             <template #leading>
-              <UIcon :name="link.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+              <UIcon :name="link.icon" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
             </template>
             <span data-slot="label">{{ t(link.labelKey) }}</span>
           </UButton>
@@ -993,7 +993,7 @@ Then check chat on the mock stack (both processes from `apps/web`, stop them aft
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498 node e2e/internal-ui-audit-mock.mjs &
-NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 &
+NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 &
 E2E_BASE_URL=http://localhost:4097 npx playwright test e2e/chat-presentation-mocked.spec.ts e2e/internal-pages.spec.ts --reporter=line
 ```
 Expected: no failing title that is absent from `.superpowers/tasmim-shared/e2e-baseline-failures.txt`.
@@ -1036,7 +1036,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `railModel`, `ShellRailItem`, `useShellModel().rail/activeModule/homePath` (Task 2).
-- Produces: `ShellFrame` (slots `header`, `sidebar`, default); `ModuleRail` props `{ modules: ShellRailItem[]; utility: ShellRailItem[]; activeId: string | null; homeTo: string }`; CSS custom properties on `.nasq-shell`: `--shell-header-height: 48px`, `--module-rail-width: 64px`, `--context-sidebar-width: 232px` (48px collapsed); classes used by Tasks 4–6 (`.nasq-context-*`, `.nasq-shell-header*`, `.nasq-shell-breadcrumb`, `.nasq-mobile-*`); Storybook ids `shell-shellframe--default`, `shell-shellframe--bright-tenant`, `shell-modulerail--default`, `shell-modulerail--settings-active`, `shell-appsidebar--default`; `__getRouter(): Router | null` in `.storybook/nuxt-shims.ts`; `shellMe`, `shellBranding`, `shellRail` fixtures and `shellHandlers`.
+- Produces: `ShellFrame` (slots `header`, `sidebar`, default); `ModuleRail` props `{ modules: ShellRailItem[]; utility: ShellRailItem[]; activeId: string | null; homeTo: string }`; CSS custom properties on `.webvue-shell`: `--shell-header-height: 48px`, `--module-rail-width: 64px`, `--context-sidebar-width: 232px` (48px collapsed); classes used by Tasks 4–6 (`.webvue-context-*`, `.webvue-shell-header*`, `.webvue-shell-breadcrumb`, `.webvue-mobile-*`); Storybook ids `shell-shellframe--default`, `shell-shellframe--bright-tenant`, `shell-modulerail--default`, `shell-modulerail--settings-active`, `shell-appsidebar--default`; `__getRouter(): Router | null` in `.storybook/nuxt-shims.ts`; `shellMe`, `shellBranding`, `shellRail` fixtures and `shellHandlers`.
 
 - [ ] **Step 1: Storybook can render the real header**
 
@@ -1056,7 +1056,7 @@ export function __getRouter(): Router | null { return router }
 Create `apps/web/stories/fixtures/shell.ts`:
 
 ```ts
-import { BrandingSchema, MeSchema } from '@nasq/contracts'
+import { BrandingSchema, MeSchema } from '@webvue/contracts'
 import { visibleShellModules } from '../../app/composables/nav/shellModules'
 import { railModel } from '../../app/composables/nav/sidebarModel'
 
@@ -1191,17 +1191,17 @@ Create `apps/web/app/components/shell/ShellFrame.vue`:
 <script setup lang="ts">
 // The Tasmim application frame (spec 2026-10-11 §5): fixed header, fixed
 // midnight module rail, context sidebar and the scrolling workspace. Geometry
-// lives in assets/css/shell.css (.nasq-shell custom properties).
+// lives in assets/css/shell.css (.webvue-shell custom properties).
 defineSlots<{ header?: () => unknown; sidebar?: () => unknown; default?: () => unknown }>()
 const { localeProperties } = useI18n()
 const dir = computed(() => localeProperties.value.dir ?? 'ltr')
 </script>
 
 <template>
-  <div data-nasq-shell class="nasq-shell" :data-direction="dir">
+  <div data-webvue-shell class="webvue-shell" :data-direction="dir">
     <slot name="header" />
     <slot name="sidebar" />
-    <div class="nasq-shell-workspace">
+    <div class="webvue-shell-workspace">
       <slot />
     </div>
   </div>
@@ -1223,7 +1223,7 @@ const workspaceTheme = computed(() => isWorkspaceThemeRoute(route.path))
   <ShellFrame>
     <template #header><ShellHeader /></template>
     <template #sidebar><ShellAppSidebar /></template>
-    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="nasq-shell-main focus:outline-none" :class="{ 'nasq-page-content-motion': pageMotionActive }">
+    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="webvue-shell-main focus:outline-none" :class="{ 'webvue-page-content-motion': pageMotionActive }">
       <slot />
     </main>
   </ShellFrame>
@@ -1241,7 +1241,7 @@ Replace `apps/web/app/components/shell/ModuleRail.vue` with:
 import BrandWordmark from '@/components/shared/BrandWordmark.vue'
 import type { ShellRailItem } from '@/composables/nav/sidebarModel'
 
-// The module rail (spec §3, §5): always Nasq midnight, 64px, icon over a small
+// The module rail (spec §3, §5): always WebVue midnight, 64px, icon over a small
 // label; the active module carries a lime bar on the rail's inline-start edge.
 const props = defineProps<{
   modules: ShellRailItem[]
@@ -1251,14 +1251,14 @@ const props = defineProps<{
 }>()
 const { t } = useI18n()
 const groups = computed(() => [
-  { key: 'modules', items: props.modules, label: t('nav.modules'), class: 'nasq-module-rail-links' },
-  { key: 'utility', items: props.utility, label: t('nav.settings'), class: 'nasq-module-rail-utility' },
+  { key: 'modules', items: props.modules, label: t('nav.modules'), class: 'webvue-module-rail-links' },
+  { key: 'utility', items: props.utility, label: t('nav.settings'), class: 'webvue-module-rail-utility' },
 ].filter(group => group.items.length))
 </script>
 
 <template>
-  <aside data-testid="module-rail" class="nasq-module-rail" :aria-label="t('nav.modules')">
-    <NuxtLink :to="props.homeTo" class="nasq-module-rail-brand" :aria-label="`${t('app.productName')} — ${t('nav.home')}`">
+  <aside data-testid="module-rail" class="webvue-module-rail" :aria-label="t('nav.modules')">
+    <NuxtLink :to="props.homeTo" class="webvue-module-rail-brand" :aria-label="`${t('app.productName')} — ${t('nav.home')}`">
       <BrandWordmark size="sm" inverted />
     </NuxtLink>
     <nav v-for="group in groups" :key="group.key" :class="group.class" :aria-label="group.label">
@@ -1267,14 +1267,14 @@ const groups = computed(() => [
         :key="item.id"
         :to="item.to"
         :external="item.external"
-        class="nasq-module-rail-link"
+        class="webvue-module-rail-link"
         :data-active="item.id === props.activeId"
         :aria-current="item.id === props.activeId ? 'page' : undefined"
         :aria-label="t(item.labelKey)"
         :title="t(item.labelKey)"
       >
-        <span v-if="item.id === props.activeId" data-slot="indicator" class="nasq-module-rail-indicator" aria-hidden="true" />
-        <UIcon :name="item.icon" class="nasq-shell-icon" aria-hidden="true" />
+        <span v-if="item.id === props.activeId" data-slot="indicator" class="webvue-module-rail-indicator" aria-hidden="true" />
+        <UIcon :name="item.icon" class="webvue-shell-icon" aria-hidden="true" />
         <span data-slot="label">{{ t(item.labelKey) }}</span>
       </NuxtLink>
     </nav>
@@ -1289,16 +1289,16 @@ Delete `useModuleRail` (lines 14–21) from `apps/web/app/composables/useShellNa
 - [ ] **Step 5: Frame CSS**
 
 In `apps/web/app/assets/css/shell.css`:
-- Line 11: `.nasq-page-width-list { max-width: none; }` (spec §5: tables, boards and dashboards use the full width).
-- Lines 54–58: drop `.nasq-module-rail-toggle,` from the coarse-pointer selector list.
+- Line 11: `.webvue-page-width-list { max-width: none; }` (spec §5: tables, boards and dashboards use the full width).
+- Lines 54–58: drop `.webvue-module-rail-toggle,` from the coarse-pointer selector list.
 - Replace everything from line 72 (`/* Approved application frame…`) to the end of the file with:
 
 ```css
 /* Tasmim application frame (spec 2026-10-11 §5): a 48px neutral header, a
-   64px module rail that is always Nasq midnight, a 232px context sidebar that
+   64px module rail that is always WebVue midnight, a 232px context sidebar that
    collapses to 48px, one drawer below 768px. Geometry is px so the frame does
    not grow with the user's font size; text inside it uses rem. */
-.nasq-shell {
+.webvue-shell {
   --shell-duration: 150ms;
   --shell-ease: cubic-bezier(.22, 1, .36, 1);
   --shell-header-height: 48px;
@@ -1309,15 +1309,15 @@ In `apps/web/app/assets/css/shell.css`:
 }
 html[dir="rtl"] body { padding-right: 0 !important; }
 @media (min-width: 768px) {
-  .nasq-shell:has(.nasq-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 400px; }
-  .nasq-shell:has(.nasq-context-sidebar[data-expanded="false"]) { --context-sidebar-width: 48px; }
+  .webvue-shell:has(.webvue-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 400px; }
+  .webvue-shell:has(.webvue-context-sidebar[data-expanded="false"]) { --context-sidebar-width: 48px; }
 }
 @media (min-width: 768px) and (max-width: 1100px) {
-  .nasq-shell:has(.nasq-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 320px; }
+  .webvue-shell:has(.webvue-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 320px; }
 }
 
 /* Header: neutral, from the rail to the inline end. */
-.nasq-shell-header {
+.webvue-shell-header {
   position: fixed;
   inset-block-start: 0;
   inset-inline-start: var(--module-rail-width);
@@ -1332,27 +1332,27 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   border-block-end: 1px solid var(--ui-border);
   color: var(--ui-text);
 }
-.nasq-shell-header-start { display: flex; min-width: 0; flex: 1; align-items: center; gap: 8px; }
-.nasq-shell-brand { display: inline-flex; min-width: 0; flex: none; align-items: center; gap: 8px; color: var(--ui-text-highlighted); font-size: .875rem; font-weight: 600; text-decoration: none; }
-.nasq-shell-brand-logo, .nasq-shell-brand-mark { width: 24px; height: 24px; flex: none; border-radius: 6px; object-fit: contain; }
-.nasq-shell-brand-mark { display: grid; place-items: center; background: var(--ui-bg-elevated); font-size: .75rem; }
-.nasq-shell-brand-name { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nasq-shell-header-divider { width: 1px; height: 16px; flex: none; background: var(--ui-border); }
-.nasq-shell-breadcrumb { min-width: 0; }
-.nasq-shell-breadcrumb [data-slot="linkLabel"] { display: block; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nasq-shell-header-actions { display: flex; flex: none; align-items: center; gap: 4px; }
-.nasq-shell-header .nasq-search-trigger { width: 15rem; min-width: 0; justify-content: space-between; color: var(--ui-text-muted); }
-.nasq-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 8px; padding-inline: 6px; text-align: start; }
-.nasq-shell-header .account-copy { display: grid; min-width: 0; max-width: 10rem; line-height: 1.25; }
-.nasq-shell-header .account-name, .nasq-shell-header .account-role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nasq-shell-header .account-name { font-size: .8125rem; font-weight: 600; }
-.nasq-shell-header .account-role { color: var(--ui-text-muted); font-size: .6875rem; }
+.webvue-shell-header-start { display: flex; min-width: 0; flex: 1; align-items: center; gap: 8px; }
+.webvue-shell-brand { display: inline-flex; min-width: 0; flex: none; align-items: center; gap: 8px; color: var(--ui-text-highlighted); font-size: .875rem; font-weight: 600; text-decoration: none; }
+.webvue-shell-brand-logo, .webvue-shell-brand-mark { width: 24px; height: 24px; flex: none; border-radius: 6px; object-fit: contain; }
+.webvue-shell-brand-mark { display: grid; place-items: center; background: var(--ui-bg-elevated); font-size: .75rem; }
+.webvue-shell-brand-name { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.webvue-shell-header-divider { width: 1px; height: 16px; flex: none; background: var(--ui-border); }
+.webvue-shell-breadcrumb { min-width: 0; }
+.webvue-shell-breadcrumb [data-slot="linkLabel"] { display: block; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.webvue-shell-header-actions { display: flex; flex: none; align-items: center; gap: 4px; }
+.webvue-shell-header .webvue-search-trigger { width: 15rem; min-width: 0; justify-content: space-between; color: var(--ui-text-muted); }
+.webvue-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 8px; padding-inline: 6px; text-align: start; }
+.webvue-shell-header .account-copy { display: grid; min-width: 0; max-width: 10rem; line-height: 1.25; }
+.webvue-shell-header .account-name, .webvue-shell-header .account-role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.webvue-shell-header .account-name { font-size: .8125rem; font-weight: 600; }
+.webvue-shell-header .account-role { color: var(--ui-text-muted); font-size: .6875rem; }
 .approved-account-menu { z-index: 80; }
 .approved-account-menu [data-slot="dropdown-menu-item"] { width: 100%; overflow: hidden; white-space: nowrap; }
-.approved-account-menu .nasq-shell-icon { width: 18px; height: 18px; flex: none; }
+.approved-account-menu .webvue-shell-icon { width: 18px; height: 18px; flex: none; }
 
-/* Module rail: always Nasq midnight, never tenant-derived (tokens.css). */
-.nasq-module-rail {
+/* Module rail: always WebVue midnight, never tenant-derived (tokens.css). */
+.webvue-module-rail {
   position: fixed;
   inset-block: 0;
   inset-inline-start: 0;
@@ -1360,16 +1360,16 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   display: flex;
   width: var(--module-rail-width);
   flex-direction: column;
-  background: var(--nasq-rail);
-  background-image: linear-gradient(180deg, var(--nasq-rail) 0%, var(--nasq-rail-deep) 100%);
+  background: var(--webvue-rail);
+  background-image: linear-gradient(180deg, var(--webvue-rail) 0%, var(--webvue-rail-deep) 100%);
   color: rgb(255 255 255 / 72%);
 }
-.nasq-module-rail-brand { display: grid; height: var(--shell-header-height); flex: none; place-items: center; color: #fff; text-decoration: none; }
-.nasq-module-rail-brand:focus-visible { outline: 2px solid var(--nasq-lime); outline-offset: -4px; }
-.nasq-module-rail-links, .nasq-module-rail-utility { display: flex; flex-direction: column; gap: 2px; padding: 8px 4px; }
-.nasq-module-rail-links { min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
-.nasq-module-rail-utility { flex: none; border-block-start: 1px solid rgb(255 255 255 / 12%); }
-.nasq-module-rail-link {
+.webvue-module-rail-brand { display: grid; height: var(--shell-header-height); flex: none; place-items: center; color: #fff; text-decoration: none; }
+.webvue-module-rail-brand:focus-visible { outline: 2px solid var(--webvue-lime); outline-offset: -4px; }
+.webvue-module-rail-links, .webvue-module-rail-utility { display: flex; flex-direction: column; gap: 2px; padding: 8px 4px; }
+.webvue-module-rail-links { min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+.webvue-module-rail-utility { flex: none; border-block-start: 1px solid rgb(255 255 255 / 12%); }
+.webvue-module-rail-link {
   position: relative;
   display: flex;
   min-height: 52px;
@@ -1383,19 +1383,19 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   text-decoration: none;
   transition: background-color var(--shell-duration) ease, color var(--shell-duration) ease;
 }
-.nasq-module-rail-link:hover { background: var(--rail-hover); color: #fff; }
-.nasq-module-rail-link[data-active="true"] { background: rgb(255 255 255 / 12%); color: #fff; }
-.nasq-module-rail-link:focus-visible { outline: 2px solid var(--nasq-lime); outline-offset: -2px; }
-.nasq-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 11px; font-weight: 500; line-height: 14px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.nasq-module-rail-link[data-active="true"] [data-slot="label"] { font-weight: 600; }
+.webvue-module-rail-link:hover { background: var(--rail-hover); color: #fff; }
+.webvue-module-rail-link[data-active="true"] { background: rgb(255 255 255 / 12%); color: #fff; }
+.webvue-module-rail-link:focus-visible { outline: 2px solid var(--webvue-lime); outline-offset: -2px; }
+.webvue-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 11px; font-weight: 500; line-height: 14px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.webvue-module-rail-link[data-active="true"] [data-slot="label"] { font-weight: 600; }
 /* The bar sits on the rail's own inline-start edge: 4px out of the link, through the nav padding. */
-.nasq-module-rail-indicator { position: absolute; inset-block: 12px; inset-inline-start: -4px; width: 3px; border-start-end-radius: 3px; border-end-end-radius: 3px; background: var(--nasq-lime); }
+.webvue-module-rail-indicator { position: absolute; inset-block: 12px; inset-inline-start: -4px; width: 3px; border-start-end-radius: 3px; border-end-end-radius: 3px; background: var(--webvue-lime); }
 @media (forced-colors: active) {
-  .nasq-module-rail-indicator { forced-color-adjust: none; background: Highlight; }
+  .webvue-module-rail-indicator { forced-color-adjust: none; background: Highlight; }
 }
 
 /* Context sidebar. */
-.nasq-context-sidebar {
+.webvue-context-sidebar {
   position: fixed;
   inset-block-start: var(--shell-header-height);
   inset-block-end: 0;
@@ -1410,22 +1410,22 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   color: var(--ui-text);
   transition: width var(--shell-duration) var(--shell-ease);
 }
-.nasq-context-enter-active, .nasq-context-leave-active { transition: opacity 120ms ease; }
-.nasq-context-enter-from, .nasq-context-leave-to { opacity: 0; }
-.nasq-context-sidebar-inner { display: flex; min-height: 0; flex: 1; flex-direction: column; }
-.nasq-context-heading { display: flex; height: 44px; flex: none; align-items: center; gap: 8px; padding-inline: 12px 8px; }
-.nasq-context-heading h2 { min-width: 0; flex: 1; margin: 0; overflow: hidden; font-size: .875rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.nasq-context-create-actions { display: flex; gap: 2px; }
-.nasq-context-create-icon { color: var(--brand-link); }
-.nasq-context-nav { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 12px; overflow-y: auto; padding: 4px 8px 8px; }
-.nasq-context-section { display: grid; gap: 1px; }
-.nasq-context-section-title { margin: 0; padding: 4px 8px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
-.nasq-context-row { position: relative; display: flex; align-items: center; }
-.nasq-context-link {
+.webvue-context-enter-active, .webvue-context-leave-active { transition: opacity 120ms ease; }
+.webvue-context-enter-from, .webvue-context-leave-to { opacity: 0; }
+.webvue-context-sidebar-inner { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.webvue-context-heading { display: flex; height: 44px; flex: none; align-items: center; gap: 8px; padding-inline: 12px 8px; }
+.webvue-context-heading h2 { min-width: 0; flex: 1; margin: 0; overflow: hidden; font-size: .875rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.webvue-context-create-actions { display: flex; gap: 2px; }
+.webvue-context-create-icon { color: var(--brand-link); }
+.webvue-context-nav { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 12px; overflow-y: auto; padding: 4px 8px 8px; }
+.webvue-context-section { display: grid; gap: 1px; }
+.webvue-context-section-title { margin: 0; padding: 4px 8px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
+.webvue-context-row { position: relative; display: flex; align-items: center; }
+.webvue-context-link {
   position: relative;
   display: flex;
   width: 100%;
-  min-height: var(--nasq-control-h);
+  min-height: var(--webvue-control-h);
   align-items: center;
   justify-content: start;
   gap: 8px;
@@ -1438,93 +1438,93 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   text-decoration: none;
   transition: background-color var(--shell-duration) ease, color var(--shell-duration) ease;
 }
-.nasq-context-link:hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
-.nasq-context-link[data-active="true"] { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); font-weight: 500; }
-.nasq-context-link[data-active="true"]::before { content: ''; position: absolute; inset-block: 6px; inset-inline-start: 0; width: 2px; border-radius: 2px; background: var(--ui-primary); pointer-events: none; }
-.nasq-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.webvue-context-link:hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
+.webvue-context-link[data-active="true"] { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); font-weight: 500; }
+.webvue-context-link[data-active="true"]::before { content: ''; position: absolute; inset-block: 6px; inset-inline-start: 0; width: 2px; border-radius: 2px; background: var(--ui-primary); pointer-events: none; }
+.webvue-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 @media (forced-colors: active) {
-  .nasq-context-link[data-active="true"]::before { forced-color-adjust: none; background: Highlight; }
+  .webvue-context-link[data-active="true"]::before { forced-color-adjust: none; background: Highlight; }
 }
-.nasq-context-count { position: absolute; inset-inline-end: 8px; color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
-.nasq-context-row:has(.nasq-context-count) .nasq-context-link { padding-inline-end: 36px; }
-.nasq-context-panel { display: flex; min-height: 0; flex: 1; flex-direction: column; }
-.nasq-context-footer { display: flex; flex: none; justify-content: flex-end; padding: 6px 8px; border-block-start: 1px solid var(--ui-border-muted); }
-.nasq-context-toggle { color: var(--ui-text-muted); }
+.webvue-context-count { position: absolute; inset-inline-end: 8px; color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
+.webvue-context-row:has(.webvue-context-count) .webvue-context-link { padding-inline-end: 36px; }
+.webvue-context-panel { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.webvue-context-footer { display: flex; flex: none; justify-content: flex-end; padding: 6px 8px; border-block-start: 1px solid var(--ui-border-muted); }
+.webvue-context-toggle { color: var(--ui-text-muted); }
 @media (min-width: 768px) {
-  .nasq-context-sidebar[data-expanded="false"] :is(.nasq-context-heading h2, .nasq-context-create-actions, .nasq-context-section-title, .nasq-context-count) { display: none; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-heading { padding-inline: 0; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-nav { padding-inline: 8px; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-link { justify-content: center; padding-inline: 0; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .nasq-context-sidebar[data-expanded="false"] .nasq-context-footer { justify-content: center; padding-inline: 0; }
+  .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
+  .webvue-context-sidebar[data-expanded="false"] .webvue-context-heading { padding-inline: 0; }
+  .webvue-context-sidebar[data-expanded="false"] .webvue-context-nav { padding-inline: 8px; }
+  .webvue-context-sidebar[data-expanded="false"] .webvue-context-link { justify-content: center; padding-inline: 0; }
+  .webvue-context-sidebar[data-expanded="false"] .webvue-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .webvue-context-sidebar[data-expanded="false"] .webvue-context-footer { justify-content: center; padding-inline: 0; }
 }
 
 /* Chat pages keep their conversation layout beside the wide sidebar panel. */
-.nasq-chat-workspace { max-width: none; height: calc(100svh - var(--shell-header-height)); }
-.nasq-chat-pane, .nasq-chat-thread { min-height: 0; background: var(--background); }
-.nasq-chat-list-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; }
-.nasq-chat-list-search { display: flex; min-width: 0; flex: 1; }
-.nasq-chat-list-filters { display: flex; gap: 6px; overflow-x: auto; padding: 0 12px 10px; scrollbar-width: thin; }
-.nasq-chat-thread-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border-block-end: 1px solid color-mix(in srgb, var(--border) 65%, transparent); background: var(--card); padding: 8px 12px; }
-.nasq-chat-thread-search { flex: 1 1 100%; width: 100%; }
-.nasq-chat-scroller { background: color-mix(in srgb, var(--muted) 45%, var(--background)); }
-.nasq-chat-day { margin-block: 8px; text-align: center; color: var(--muted-foreground); font-size: .72rem; }
-.nasq-chat-bubble { border-radius: 8px 8px 8px 2px; background: var(--card); padding: 6px 10px 4px; box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent); }
-.nasq-chat-bubble[data-out="true"] { border-radius: 8px 8px 2px 8px; background: var(--brand-soft); color: var(--foreground); }
-.nasq-chat-bubble-meta { display: flex; justify-content: flex-end; gap: 6px; margin-block-start: 2px; color: var(--muted-foreground); font-size: 10px; }
-.nasq-chat-composer { display: flex; flex-direction: column; gap: 8px; border-block-start: 1px solid color-mix(in srgb, var(--border) 65%, transparent); background: var(--card); padding: 8px 12px 12px; }
-.nasq-chat-conversation-link { display: flex; min-height: 72px; align-items: center; gap: 12px; margin-inline: 0; border-radius: 0; padding: 10px 16px; color: var(--foreground); text-align: start; text-decoration: none; }
-.nasq-chat-conversation-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); }
-.nasq-chat-conversation-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
-.nasq-chat-conversation-link[data-selected="true"] { background: color-mix(in srgb, var(--brand-soft) 80%, var(--context-surface)); }
-.nasq-chat-conversation-link[data-selected="true"] .nasq-chat-avatar { background: var(--brand-link); color: var(--brand-soft); }
-.nasq-chat-avatar { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 999px; background: var(--muted); font-size: .75rem; font-weight: 600; transition: background-color 150ms ease, color 150ms ease; }
-.nasq-chat-avatar-sm { width: 24px; height: 24px; font-size: .6rem; }
-.nasq-chat-avatar-badge { position: absolute; inset-inline-end: 0; inset-block-end: 0; display: grid; width: 16px; height: 16px; place-items: center; border-radius: 999px; background: var(--brand-link); color: var(--brand-soft); }
-.nasq-chat-list-time { flex: none; color: var(--muted-foreground); font-size: 11px; }
-.nasq-chat-msg-actions { opacity: 1; }
+.webvue-chat-workspace { max-width: none; height: calc(100svh - var(--shell-header-height)); }
+.webvue-chat-pane, .webvue-chat-thread { min-height: 0; background: var(--background); }
+.webvue-chat-list-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; }
+.webvue-chat-list-search { display: flex; min-width: 0; flex: 1; }
+.webvue-chat-list-filters { display: flex; gap: 6px; overflow-x: auto; padding: 0 12px 10px; scrollbar-width: thin; }
+.webvue-chat-thread-header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border-block-end: 1px solid color-mix(in srgb, var(--border) 65%, transparent); background: var(--card); padding: 8px 12px; }
+.webvue-chat-thread-search { flex: 1 1 100%; width: 100%; }
+.webvue-chat-scroller { background: color-mix(in srgb, var(--muted) 45%, var(--background)); }
+.webvue-chat-day { margin-block: 8px; text-align: center; color: var(--muted-foreground); font-size: .72rem; }
+.webvue-chat-bubble { border-radius: 8px 8px 8px 2px; background: var(--card); padding: 6px 10px 4px; box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent); }
+.webvue-chat-bubble[data-out="true"] { border-radius: 8px 8px 2px 8px; background: var(--brand-soft); color: var(--foreground); }
+.webvue-chat-bubble-meta { display: flex; justify-content: flex-end; gap: 6px; margin-block-start: 2px; color: var(--muted-foreground); font-size: 10px; }
+.webvue-chat-composer { display: flex; flex-direction: column; gap: 8px; border-block-start: 1px solid color-mix(in srgb, var(--border) 65%, transparent); background: var(--card); padding: 8px 12px 12px; }
+.webvue-chat-conversation-link { display: flex; min-height: 72px; align-items: center; gap: 12px; margin-inline: 0; border-radius: 0; padding: 10px 16px; color: var(--foreground); text-align: start; text-decoration: none; }
+.webvue-chat-conversation-link:hover { background: color-mix(in srgb, var(--foreground) 6%, var(--context-surface)); }
+.webvue-chat-conversation-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+.webvue-chat-conversation-link[data-selected="true"] { background: color-mix(in srgb, var(--brand-soft) 80%, var(--context-surface)); }
+.webvue-chat-conversation-link[data-selected="true"] .webvue-chat-avatar { background: var(--brand-link); color: var(--brand-soft); }
+.webvue-chat-avatar { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 999px; background: var(--muted); font-size: .75rem; font-weight: 600; transition: background-color 150ms ease, color 150ms ease; }
+.webvue-chat-avatar-sm { width: 24px; height: 24px; font-size: .6rem; }
+.webvue-chat-avatar-badge { position: absolute; inset-inline-end: 0; inset-block-end: 0; display: grid; width: 16px; height: 16px; place-items: center; border-radius: 999px; background: var(--brand-link); color: var(--brand-soft); }
+.webvue-chat-list-time { flex: none; color: var(--muted-foreground); font-size: 11px; }
+.webvue-chat-msg-actions { opacity: 1; }
 @media (hover: hover) and (pointer: fine) {
-  .nasq-chat-msg-actions { opacity: 0; }
+  .webvue-chat-msg-actions { opacity: 0; }
 }
-.nasq-chat-row:hover .nasq-chat-msg-actions, .nasq-chat-row:focus-within .nasq-chat-msg-actions { opacity: 1; }
+.webvue-chat-row:hover .webvue-chat-msg-actions, .webvue-chat-row:focus-within .webvue-chat-msg-actions { opacity: 1; }
 
 /* Workspace. */
-.nasq-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--ui-bg); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
-.nasq-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--ui-bg); padding: 20px 24px 48px; }
-.nasq-shell:has(.nasq-context-sidebar[data-panel="true"]) .nasq-shell-main { padding: 0; overflow: hidden; }
-.nasq-page-content-motion { animation: nasq-page-content-enter 150ms ease both; }
-@keyframes nasq-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.webvue-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--ui-bg); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
+.webvue-shell-main { min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--ui-bg); padding: 20px 24px 48px; }
+.webvue-shell:has(.webvue-context-sidebar[data-panel="true"]) .webvue-shell-main { padding: 0; overflow: hidden; }
+.webvue-page-content-motion { animation: webvue-page-content-enter 150ms ease both; }
+@keyframes webvue-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 [data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
 [data-slot="table-row"]:last-child { border-block-end: 0; }
 
 @media (max-width: 1100px) and (min-width: 768px) {
-  .nasq-shell-brand-name, .nasq-shell-header .account-copy { display: none; }
-  .nasq-shell-header .nasq-search-trigger { width: 11rem; }
+  .webvue-shell-brand-name, .webvue-shell-header .account-copy { display: none; }
+  .webvue-shell-header .webvue-search-trigger { width: 11rem; }
 }
 
 /* Below 768px: no rail or sidebar; the header spans the width and the drawer
-   (components.css .nasq-mobile-menu) carries modules and sections. */
+   (components.css .webvue-mobile-menu) carries modules and sections. */
 @media (max-width: 767px) {
-  .nasq-shell { --module-rail-width: 0px; --context-sidebar-width: 0px; }
-  .nasq-module-rail, .nasq-context-sidebar { display: none !important; }
-  .nasq-shell-header { inset-inline-start: 0; gap: 4px; padding-inline: 4px 8px; }
-  .nasq-mobile-menu-trigger { display: inline-flex; flex: none; }
-  .nasq-shell-header-divider,
-  .nasq-shell-breadcrumb,
-  .nasq-shell-brand-name,
-  .nasq-shell-header .account-copy,
-  .nasq-shell-header .nasq-search-trigger kbd,
-  .nasq-shell-header .nasq-search-trigger .nasq-search-trigger-label { display: none; }
-  .nasq-shell-header .nasq-search-trigger { width: 44px; padding: 0; justify-content: center; }
-  .nasq-shell-header :is(.nasq-search-trigger, .nasq-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"], [data-testid="appearance-menu"]) { min-height: 44px; min-width: 44px; }
-  .nasq-shell-workspace { margin-inline-start: 0; }
-  .nasq-shell-main { padding: 16px 12px max(16px, env(safe-area-inset-bottom)); }
+  .webvue-shell { --module-rail-width: 0px; --context-sidebar-width: 0px; }
+  .webvue-module-rail, .webvue-context-sidebar { display: none !important; }
+  .webvue-shell-header { inset-inline-start: 0; gap: 4px; padding-inline: 4px 8px; }
+  .webvue-mobile-menu-trigger { display: inline-flex; flex: none; }
+  .webvue-shell-header-divider,
+  .webvue-shell-breadcrumb,
+  .webvue-shell-brand-name,
+  .webvue-shell-header .account-copy,
+  .webvue-shell-header .webvue-search-trigger kbd,
+  .webvue-shell-header .webvue-search-trigger .webvue-search-trigger-label { display: none; }
+  .webvue-shell-header .webvue-search-trigger { width: 44px; padding: 0; justify-content: center; }
+  .webvue-shell-header :is(.webvue-search-trigger, .webvue-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"], [data-testid="appearance-menu"]) { min-height: 44px; min-width: 44px; }
+  .webvue-shell-workspace { margin-inline-start: 0; }
+  .webvue-shell-main { padding: 16px 12px max(16px, env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nasq-chat-msg-actions { opacity: 1; }
-  .nasq-shell,
-  .nasq-shell * {
+  .webvue-chat-msg-actions { opacity: 1; }
+  .webvue-shell,
+  .webvue-shell * {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
@@ -1532,7 +1532,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 ```
 
-In `apps/web/app/assets/css/components.css` delete line 7 (`.nasq-shell-header-start …`, now in shell.css) and lines 35–38 (`.nasq-mobile-menu .nasq-module-rail-link, .nasq-module-rail[data-expanded="true"] …` block; Task 6 rewrites the rest of the drawer rules).
+In `apps/web/app/assets/css/components.css` delete line 7 (`.webvue-shell-header-start …`, now in shell.css) and lines 35–38 (`.webvue-mobile-menu .webvue-module-rail-link, .webvue-module-rail[data-expanded="true"] …` block; Task 6 rewrites the rest of the drawer rules).
 
 In `tools/ui_policy.py`, `PAGE_WIDTHS`: `(('list', 'none'), ('detail', '68rem'), ('form', '58rem'))`. In `tools/test_ui_policy.py:406` and `:501` replace `max-width: 100rem` / `max-width:100rem` with `max-width: none` / `max-width:none`.
 
@@ -1563,7 +1563,7 @@ type Story = StoryObj<typeof meta>
 
 /** Route and sidebar state for one story; loaders run before render. */
 const at = (path: string, sidebar: 'open' | 'closed' = 'open') => async () => {
-  document.cookie = `nasq-context-sidebar=${sidebar}; path=/`
+  document.cookie = `webvue-context-sidebar=${sidebar}; path=/`
   await __getRouter()!.replace(path)
   return {}
 }
@@ -1577,7 +1577,7 @@ const frame = (before?: () => void) => ({
   template: `<ShellFrame>
     <template #header><ShellHeader /></template>
     <template #sidebar><AppSidebar /></template>
-    <main class="nasq-shell-main" data-testid="shell-main"><div class="nasq-page-stack nasq-page-width-list"><h1 class="text-xl font-semibold">{{ t('nav.tasks') }}</h1></div></main>
+    <main class="webvue-shell-main" data-testid="shell-main"><div class="webvue-page-stack webvue-page-width-list"><h1 class="text-xl font-semibold">{{ t('nav.tasks') }}</h1></div></main>
   </ShellFrame>`,
 })
 
@@ -1619,7 +1619,7 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   name: 'المشاريع نشطة',
   parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:1'),
-  render: args => ({ components: { ModuleRail }, setup: () => ({ args }), template: '<div class="nasq-shell"><ModuleRail v-bind="args" /></div>' }),
+  render: args => ({ components: { ModuleRail }, setup: () => ({ args }), template: '<div class="webvue-shell"><ModuleRail v-bind="args" /></div>' }),
 }
 
 export const SettingsActive: Story = { ...Default, name: 'الإعدادات نشطة', args: { activeId: 'settings' } }
@@ -1645,8 +1645,8 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   name: 'الشريط والقائمة السياقية',
   parameters: storyContext('apps/web/app/layouts/default.vue:1'),
-  loaders: [async () => { document.cookie = 'nasq-context-sidebar=open; path=/'; await __getRouter()!.replace('/projects'); return {} }],
-  render: () => ({ components: { AppSidebar }, template: '<div class="nasq-shell min-h-svh"><AppSidebar /></div>' }),
+  loaders: [async () => { document.cookie = 'webvue-context-sidebar=open; path=/'; await __getRouter()!.replace('/projects'); return {} }],
+  render: () => ({ components: { AppSidebar }, template: '<div class="webvue-shell min-h-svh"><AppSidebar /></div>' }),
 }
 ```
 
@@ -1737,7 +1737,7 @@ python3 -B tools/ui_policy.py && (cd tools && python3 -B -m unittest test_ui_pol
 cd apps/web && npm run build-storybook
 npx playwright test e2e/storybook-shell.spec.ts e2e/storybook-smoke.spec.ts --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-shellframe|shell-modulerail|shell-appsidebar' --update-snapshots=missing --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-|axe' --reporter=line
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-|axe' --reporter=line
 ```
 Expected: `storybook-shell.spec.ts` passes (8 geometry + 2 bar + 2 colour tests); smoke passes for the new stories (a console error from an unhandled request means a missing handler in `stories/handlers/shell.ts` — add it, do not silence the smoke test); the snapshot run writes the new shell PNGs (desktop and `-mobile`); the last run passes including `shell-* has no serious axe violations`. Snapshots of `shell-sidebarcreateaction--` may differ (sidebar CSS changed) — leave them for the CP2 re-baseline (Task 8) and note them in the commit body.
 
@@ -1747,7 +1747,7 @@ Expected: `storybook-shell.spec.ts` passes (8 geometry + 2 bar + 2 colour tests)
 git add -A apps/web tools/ui_policy.py tools/test_ui_policy.py docs/design-system
 git commit -m "feat(web): rebuild the shell frame with a fixed midnight rail
 
-48px header, 64px rail with the Nasq wordmark and a lime active bar,
+48px header, 64px rail with the WebVue wordmark and a lime active bar,
 232px context sidebar, full-width lists. Drops the rail expand state
 and the html theme attributes (spec 7.4).
 
@@ -1771,7 +1771,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: create `apps/web/app/composables/nav/__tests__/contextSidebarState.test.ts`, `apps/web/app/composables/nav/__tests__/sidebarShortcut.test.ts`; extend `apps/web/app/modules/__tests__/surfaces.test.ts`
 
 **Interfaces:**
-- Produces: `CONTEXT_SIDEBAR_COOKIE = 'nasq-context-sidebar'`, `type ContextSidebarCookie = 'open' | 'closed'`, `contextSidebarState(cookie: Ref<ContextSidebarCookie | null | undefined>, hydrated: Readonly<Ref<boolean>>) → { expanded: ComputedRef<boolean>; hydrated; toggle(): void }`; `isSidebarToggleShortcut(event: SidebarShortcutEvent, overlayOpen: boolean): boolean`; `AppContextCounts { module: string; capability: string; queryKey: readonly unknown[]; load(api: AppSearchApi): Promise<Record<string, number>> }`; `contextCountsFor(module: string | null): AppContextCounts | undefined`; `useShellCounts(module: ComputedRef<string | null>, identity: ComputedRef<AccessIdentity>): ComputedRef<Record<string, number>>`. Story ids `shell-contextsidebar--projects`, `shell-contextsidebar--with-sections`, `shell-contextsidebar--collapsed`, `shell-shellframe--collapsed`.
+- Produces: `CONTEXT_SIDEBAR_COOKIE = 'webvue-context-sidebar'`, `type ContextSidebarCookie = 'open' | 'closed'`, `contextSidebarState(cookie: Ref<ContextSidebarCookie | null | undefined>, hydrated: Readonly<Ref<boolean>>) → { expanded: ComputedRef<boolean>; hydrated; toggle(): void }`; `isSidebarToggleShortcut(event: SidebarShortcutEvent, overlayOpen: boolean): boolean`; `AppContextCounts { module: string; capability: string; queryKey: readonly unknown[]; load(api: AppSearchApi): Promise<Record<string, number>> }`; `contextCountsFor(module: string | null): AppContextCounts | undefined`; `useShellCounts(module: ComputedRef<string | null>, identity: ComputedRef<AccessIdentity>): ComputedRef<Record<string, number>>`. Story ids `shell-contextsidebar--projects`, `shell-contextsidebar--with-sections`, `shell-contextsidebar--collapsed`, `shell-shellframe--collapsed`.
 
 - [ ] **Step 1: Failing unit tests**
 
@@ -1871,7 +1871,7 @@ import { computed, type Ref } from 'vue'
 
 export type ContextSidebarCookie = 'open' | 'closed'
 /** Read during SSR, so the server renders the collapsed width and the first paint never jumps. */
-export const CONTEXT_SIDEBAR_COOKIE = 'nasq-context-sidebar'
+export const CONTEXT_SIDEBAR_COOKIE = 'webvue-context-sidebar'
 
 /** Expanded unless the cookie says `closed`; a toggle before hydration is ignored (useHydrated contract). */
 export function contextSidebarState(cookie: Ref<ContextSidebarCookie | null | undefined>, hydrated: Readonly<Ref<boolean>>) {
@@ -2051,7 +2051,7 @@ type Story = StoryObj<typeof meta>
 const render = (titleKey: string) => (args: Story['args']) => ({
   components: { ContextSidebar },
   setup: () => ({ args, t: useI18n().t }),
-  template: `<div class="nasq-shell min-h-svh"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div>`,
+  template: `<div class="webvue-shell min-h-svh"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div>`,
 })
 
 export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:1'), render: render('nav.projects') }
@@ -2102,12 +2102,12 @@ Append inside `test.describe('Tasmim shell (desktop)', …)` in `apps/web/e2e/st
     await expect(link).toHaveAccessibleName('مهامي')
     const counter = page.locator(`[id="${await link.getAttribute('aria-describedby')}"]`)
     await expect(counter).toHaveText('7')
-    await expect(page.locator('.nasq-context-section-title')).toHaveCount(0)
+    await expect(page.locator('.webvue-context-section-title')).toHaveCount(0)
   })
 
   test('section headings render when links declare them', async ({ page }) => {
     await open(page, 'shell-contextsidebar--with-sections', 'locale:ar;appearance:light')
-    await expect(page.locator('.nasq-context-section-title')).toHaveText(['إدارة النظام', 'هوية الجهة'])
+    await expect(page.locator('.webvue-context-section-title')).toHaveText(['إدارة النظام', 'هوية الجهة'])
   })
 ```
 (If `settings.branding.title` in `ar/settings.json` is not «هوية الجهة», use its actual value: `python3 -c "import json;print(json.load(open('apps/web/i18n/locales/ar/settings.json'))['branding']['title'])"`.)
@@ -2133,7 +2133,7 @@ test.describe('Tasmim context sidebar', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
 
   test('collapse survives a reload and is server-rendered before hydration', async ({ page, context }) => {
-    await context.clearCookies({ name: 'nasq-context-sidebar' })
+    await context.clearCookies({ name: 'webvue-context-sidebar' })
     await page.goto('/tasks')
     const sidebar = page.getByTestId('context-sidebar')
     const toggle = page.getByTestId('context-sidebar-toggle')
@@ -2142,7 +2142,7 @@ test.describe('Tasmim context sidebar', () => {
     await toggle.click()
     await expect(sidebar).toHaveAttribute('data-expanded', 'false')
     await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(48)
-    expect((await context.cookies()).find(cookie => cookie.name === 'nasq-context-sidebar')?.value).toBe('closed')
+    expect((await context.cookies()).find(cookie => cookie.name === 'webvue-context-sidebar')?.value).toBe('closed')
 
     const hydrate = await beforeHydration(page, '/tasks')
     await expect(sidebar).toHaveAttribute('data-expanded', 'false')
@@ -2390,7 +2390,7 @@ const items = computed(() => props.items.map(item => ({ label: item.label, to: i
 </script>
 
 <template>
-  <UBreadcrumb v-if="items.length" :items="items" :aria-label="t('nav.breadcrumb')" data-testid="shell-breadcrumb" class="nasq-shell-breadcrumb" />
+  <UBreadcrumb v-if="items.length" :items="items" :aria-label="t('nav.breadcrumb')" data-testid="shell-breadcrumb" class="webvue-shell-breadcrumb" />
 </template>
 ```
 
@@ -2425,8 +2425,8 @@ const mobileCreateLinks = computed(() => mobile.value.createLinks.map(link => ({
 </script>
 
 <template>
-  <header data-testid="shell-header" class="nasq-shell-header" :aria-label="t('nav.header')">
-    <div class="nasq-shell-header-start">
+  <header data-testid="shell-header" class="webvue-shell-header" :aria-label="t('nav.header')">
+    <div class="webvue-shell-header-start">
       <MobileNavigation
         v-model:open="mobileOpen"
         :modules="rail.all"
@@ -2435,27 +2435,27 @@ const mobileCreateLinks = computed(() => mobile.value.createLinks.map(link => ({
         :create-links="mobileCreateLinks"
         :sections="mobile.sections"
       />
-      <NuxtLink :to="homePath" class="nasq-shell-brand" :aria-label="`${brandName} — ${t('nav.home')}`">
-        <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="brandName" class="nasq-shell-brand-logo">
-        <span v-else class="nasq-shell-brand-mark" aria-hidden="true">{{ brandName.slice(0, 1) }}</span>
-        <span class="nasq-shell-brand-name">{{ brandName }}</span>
+      <NuxtLink :to="homePath" class="webvue-shell-brand" :aria-label="`${brandName} — ${t('nav.home')}`">
+        <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="brandName" class="webvue-shell-brand-logo">
+        <span v-else class="webvue-shell-brand-mark" aria-hidden="true">{{ brandName.slice(0, 1) }}</span>
+        <span class="webvue-shell-brand-name">{{ brandName }}</span>
       </NuxtLink>
-      <span v-if="crumbs.length" class="nasq-shell-header-divider" aria-hidden="true" />
+      <span v-if="crumbs.length" class="webvue-shell-header-divider" aria-hidden="true" />
       <ShellBreadcrumb :items="crumbs" />
       <UBadge v-if="isConsole" color="neutral" variant="subtle" size="sm" data-testid="vendor-console-badge">{{ t('nav.consoleBadge') }}</UBadge>
     </div>
-    <div class="nasq-shell-header-actions">
+    <div class="webvue-shell-header-actions">
       <GlobalSearch />
       <AppearanceMenu />
-      <NotificationCenter v-if="can('nasq.notifications')" />
+      <NotificationCenter v-if="can('webvue.notifications')" />
       <AppAccountMenu />
     </div>
   </header>
 </template>
 ```
-(`homePath` from `useShellModel()` is `firstAllowedPath(me)`, as before. `.nasq-shell-brand` and its aria-label keep `branding.spec.ts:197,274-275` valid.)
+(`homePath` from `useShellModel()` is `firstAllowedPath(me)`, as before. `.webvue-shell-brand` and its aria-label keep `branding.spec.ts:197,274-275` valid.)
 
-Locales — `ar/common.json` `nav`: `"breadcrumb": "مسار الصفحة"`, `"consoleBadge": "وحدة إدارة نسق"`; `en/common.json` `nav`: `"breadcrumb": "Breadcrumb"`, `"consoleBadge": "Nasq console"`.
+Locales — `ar/common.json` `nav`: `"breadcrumb": "مسار الصفحة"`, `"consoleBadge": "وحدة إدارة ويب فيو"`; `en/common.json` `nav`: `"breadcrumb": "Breadcrumb"`, `"consoleBadge": "WebVue console"`.
 
 - [ ] **Step 5: Stories**
 
@@ -2479,10 +2479,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const at = (path: string) => async () => { await __getRouter()!.replace(path); return {} }
-const render = () => ({ components: { ShellHeader }, template: '<div class="nasq-shell" style="min-height: 64px"><ShellHeader /></div>' })
+const render = () => ({ components: { ShellHeader }, template: '<div class="webvue-shell" style="min-height: 64px"><ShellHeader /></div>' })
 
 export const Default: Story = { name: 'مهامي', parameters: storyContext('apps/web/app/layouts/default.vue:1'), loaders: [at('/tasks')], render }
-export const Console: Story = { name: 'وحدة إدارة نسق', parameters: storyContext('apps/web/app/layouts/default.vue:1'), loaders: [at('/vendor/overview')], render }
+export const Console: Story = { name: 'وحدة إدارة ويب فيو', parameters: storyContext('apps/web/app/layouts/default.vue:1'), loaders: [at('/vendor/overview')], render }
 ```
 
 `apps/web/stories/shell/ShellBreadcrumb.stories.ts`:
@@ -2523,11 +2523,11 @@ type Story = StoryObj<typeof meta>
 export const Default: Story = {
   name: 'زر المظهر',
   parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:1'),
-  render: () => ({ components: { AppearanceMenu }, template: '<div class="nasq-shell-header-actions"><AppearanceMenu /></div>' }),
+  render: () => ({ components: { AppearanceMenu }, template: '<div class="webvue-shell-header-actions"><AppearanceMenu /></div>' }),
 }
 ```
 
-Add `Console` to `ShellFrame.stories.ts`: `export const Console: Story = { name: 'وحدة إدارة نسق', parameters: storyContext('apps/web/app/layouts/default.vue:1'), loaders: [at('/vendor/overview')], render: () => frame() }`.
+Add `Console` to `ShellFrame.stories.ts`: `export const Console: Story = { name: 'وحدة إدارة ويب فيو', parameters: storyContext('apps/web/app/layouts/default.vue:1'), loaders: [at('/vendor/overview')], render: () => frame() }`.
 
 Register the five components in `STORYBOOK_COMPONENTS`, add `ShellBreadcrumb.vue` (new file) and the story paths to `components.md`, append `'shell-shellheader--', 'shell-shellbreadcrumb--', 'shell-appearancemenu--', 'shell-appaccountmenu--', 'shell-globalsearch--'` to `VISUAL_STORIES`.
 
@@ -2550,7 +2550,7 @@ Append inside the desktop describe of `storybook-shell.spec.ts`:
 
   test('the vendor console shows its badge', async ({ page }) => {
     await open(page, 'shell-shellframe--console', 'locale:ar;appearance:light')
-    await expect(page.getByTestId('vendor-console-badge')).toHaveText('وحدة إدارة نسق')
+    await expect(page.getByTestId('vendor-console-badge')).toHaveText('وحدة إدارة ويب فيو')
   })
 
   test('header controls wait for nothing in Storybook and keep the 32px control height', async ({ page }) => {
@@ -2571,7 +2571,7 @@ python3 -B tools/ui_policy.py && (cd tools && python3 -B -m unittest test_ui_pol
 cd apps/web && npm run build-storybook
 npx playwright test e2e/storybook-shell.spec.ts e2e/storybook-smoke.spec.ts --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-' --update-snapshots=missing --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'axe' --reporter=line
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'axe' --reporter=line
 cd ../.. && git add -A apps/web tools/ui_policy.py tools/test_ui_policy.py docs/design-system
 git commit -m "feat(web): add the shell breadcrumb and the 48px header
 
@@ -2593,7 +2593,7 @@ Expected: all pass; axe reports no serious/critical violation for any `shell-` s
 
 **Interfaces:**
 - Consumes: `MobileNavigation` props and `v-model:open` (Task 2), `shellRail`, `projectsSidebar` fixtures.
-- Produces: story `shell-mobilenavigation--open`; CSS `.nasq-mobile-menu` (width `min(320px, calc(100vw - 48px))`), `.nasq-mobile-section`, `.nasq-mobile-title`.
+- Produces: story `shell-mobilenavigation--open`; CSS `.webvue-mobile-menu` (width `min(320px, calc(100vw - 48px))`), `.webvue-mobile-section`, `.webvue-mobile-title`.
 
 - [ ] **Step 1: Failing drawer tests**
 
@@ -2670,19 +2670,19 @@ Run the Storybook spec — Expected: FAIL (drawer width is the old `min(22rem, �
 
 - [ ] **Step 2: Drawer CSS**
 
-In `apps/web/app/assets/css/components.css` replace the lines from `.nasq-mobile-menu-trigger { display: none; }` through `.nasq-mobile-menu-overlay { z-index: 65; }` (top of the file) with:
+In `apps/web/app/assets/css/components.css` replace the lines from `.webvue-mobile-menu-trigger { display: none; }` through `.webvue-mobile-menu-overlay { z-index: 65; }` (top of the file) with:
 
 ```css
-.nasq-mobile-menu-trigger { display: none; }
+.webvue-mobile-menu-trigger { display: none; }
 /* The one mobile drawer (Tasmim spec §5): 320px at a 390px phone, from the inline-start side. */
-.nasq-mobile-menu { width: min(320px, calc(100vw - 48px)); max-width: none; z-index: 70; }
-.nasq-mobile-menu-overlay { z-index: 65; }
-.nasq-mobile-section { display: grid; gap: 2px; }
-.nasq-mobile-title { margin-block: 0 8px; font-size: .875rem; font-weight: 600; }
-.nasq-mobile-menu .nasq-context-link { width: 100%; min-height: 44px; }
-.nasq-mobile-menu .nasq-context-section-title { margin-block-start: 8px; }
+.webvue-mobile-menu { width: min(320px, calc(100vw - 48px)); max-width: none; z-index: 70; }
+.webvue-mobile-menu-overlay { z-index: 65; }
+.webvue-mobile-section { display: grid; gap: 2px; }
+.webvue-mobile-title { margin-block: 0 8px; font-size: .875rem; font-weight: 600; }
+.webvue-mobile-menu .webvue-context-link { width: 100%; min-height: 44px; }
+.webvue-mobile-menu .webvue-context-section-title { margin-block-start: 8px; }
 ```
-and delete the old drawer rules that follow (`.nasq-mobile-menu .nasq-context-link, .nasq-mobile-menu .nasq-module-rail-link { width: 100%; }`, the `@media (max-width: 767px)` block's `.nasq-mobile-menu .nasq-context-link, .nasq-mobile-menu .nasq-module-rail-link { min-height: 44px; }` line — keep its `[data-slot="body"]` safe-area line — and the whole `/* The mobile list renders visible labels… */ .nasq-mobile-menu .nasq-module-rail-link [data-slot="label"] { … }` block). Then `rg -n "nasq-module-rail" apps/web/app/assets/css/components.css` prints nothing.
+and delete the old drawer rules that follow (`.webvue-mobile-menu .webvue-context-link, .webvue-mobile-menu .webvue-module-rail-link { width: 100%; }`, the `@media (max-width: 767px)` block's `.webvue-mobile-menu .webvue-context-link, .webvue-mobile-menu .webvue-module-rail-link { min-height: 44px; }` line — keep its `[data-slot="body"]` safe-area line — and the whole `/* The mobile list renders visible labels… */ .webvue-mobile-menu .webvue-module-rail-link [data-slot="label"] { … }` block). Then `rg -n "webvue-module-rail" apps/web/app/assets/css/components.css` prints nothing.
 
 - [ ] **Step 3: Story**
 
@@ -2722,7 +2722,7 @@ export const Open: Story = {
   render: args => ({
     components: { MobileNavigation },
     setup: () => ({ args, open: ref(true), t: useI18n().t }),
-    template: '<div class="nasq-shell min-h-svh"><MobileNavigation v-bind="args" v-model:open="open" :title="t(\'nav.projects\')" /></div>',
+    template: '<div class="webvue-shell min-h-svh"><MobileNavigation v-bind="args" v-model:open="open" :title="t(\'nav.projects\')" /></div>',
   }),
 }
 ```
@@ -2762,13 +2762,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Line 51 becomes:
 
-> هندسة الغلاف (`shell.css`، خطة «تصميم» 2): هيدر محايد بارتفاع `48px`، شريط موديولات بعرض `64px` بالأزرق الليلي الثابت، قائمة سياقية بعرض `232px` (`48px` مطوية، و`400px` لِلوحة جانبية عريضة مثل المحادثات)، والمقاسات بالبكسل فلا تكبر مع حجم الخط. المحتوى: القوائم والجداول واللوحات بعرض كامل (`nasq-page-width-list`)، والتفاصيل `68rem` والنماذج `58rem`. نقطة الجوال `768px`؛ تحتها درج واحد بعرض `min(320px, 100vw − 48px)`.
+> هندسة الغلاف (`shell.css`، خطة «تصميم» 2): هيدر محايد بارتفاع `48px`، شريط موديولات بعرض `64px` بالأزرق الليلي الثابت، قائمة سياقية بعرض `232px` (`48px` مطوية، و`400px` لِلوحة جانبية عريضة مثل المحادثات)، والمقاسات بالبكسل فلا تكبر مع حجم الخط. المحتوى: القوائم والجداول واللوحات بعرض كامل (`webvue-page-width-list`)، والتفاصيل `68rem` والنماذج `58rem`. نقطة الجوال `768px`؛ تحتها درج واحد بعرض `min(320px, 100vw − 48px)`.
 
 Replace §3 bullets (lines 113–118) with:
 
-> - هيدر ثابت `48px` محايد: علامة الجهة (شعارها واسمها، رابط للرئيسية)، مسار الصفحة (الموديول › القسم › عنوان الصفحة؛ آخر عنصر بلا رابط)، زر البحث مع `⌘K`، زر المظهر، الإشعارات، الحساب. على `/vendor/*` شارة «وحدة إدارة نسق». مسار الصفحة يملكه `shell/ShellBreadcrumb.vue` وحده؛ لا تبني صفحة مسارًا خاصًا (`ui_policy`).
-> - شريط الموديولات على بداية القراءة بعرض ثابت `64px`، أزرق ليلي في الوضعين ولا يتبع لون المؤسسة؛ في أعلاه علامة «نَسَق» النصية. كل موديول أيقونة فوق تسمية صغيرة، والنشط طبقة بيضاء شفافة مع شريط ليموني على حافة بداية الشريط. لا توسيع للشريط. الإعدادات ووحدة التحكم في خانة الأدوات أسفله.
-> - قائمة سياقية بجانب الشريط من `useShellModel()` و`sidebarModel()`: إجراءات الإنشاء المثبتة في رأسها، ثم الروابط، ويجوز تقسيمها إلى أقسام بعناوين صغيرة (`section` في رابط الـmanifest) وعدّادات صغيرة بجانب الرابط (`contextCounts`؛ تُجلب بعد الترطيب). تُطوى إلى أيقونات بزر أسفلها أو بالمفتاح `[` (بالمفتاح الفعلي، فيعمل على لوحة المفاتيح العربية، ولا يعمل أثناء الكتابة أو مع قائمة مفتوحة)، وتُحفظ الحالة في كوكي `nasq-context-sidebar` فيرسمها الخادم من أول إطار.
+> - هيدر ثابت `48px` محايد: علامة الجهة (شعارها واسمها، رابط للرئيسية)، مسار الصفحة (الموديول › القسم › عنوان الصفحة؛ آخر عنصر بلا رابط)، زر البحث مع `⌘K`، زر المظهر، الإشعارات، الحساب. على `/vendor/*` شارة «وحدة إدارة ويب فيو». مسار الصفحة يملكه `shell/ShellBreadcrumb.vue` وحده؛ لا تبني صفحة مسارًا خاصًا (`ui_policy`).
+> - شريط الموديولات على بداية القراءة بعرض ثابت `64px`، أزرق ليلي في الوضعين ولا يتبع لون المؤسسة؛ في أعلاه علامة «ويب فيو» النصية. كل موديول أيقونة فوق تسمية صغيرة، والنشط طبقة بيضاء شفافة مع شريط ليموني على حافة بداية الشريط. لا توسيع للشريط. الإعدادات ووحدة التحكم في خانة الأدوات أسفله.
+> - قائمة سياقية بجانب الشريط من `useShellModel()` و`sidebarModel()`: إجراءات الإنشاء المثبتة في رأسها، ثم الروابط، ويجوز تقسيمها إلى أقسام بعناوين صغيرة (`section` في رابط الـmanifest) وعدّادات صغيرة بجانب الرابط (`contextCounts`؛ تُجلب بعد الترطيب). تُطوى إلى أيقونات بزر أسفلها أو بالمفتاح `[` (بالمفتاح الفعلي، فيعمل على لوحة المفاتيح العربية، ولا يعمل أثناء الكتابة أو مع قائمة مفتوحة)، وتُحفظ الحالة في كوكي `webvue-context-sidebar` فيرسمها الخادم من أول إطار.
 > - التطبيق يضيف إلى الغلاف عبر `app/modules/<app>/manifest.ts` فقط: `sidebarPanel` لمحتوى القائمة (المحادثات)، و`contextCounts` للعدّادات. الغلاف لا يستورد مكونات تطبيق (R3، يفحصه `arch_policy`).
 > - الجوال تحت 768px: هيدر بعرض الشاشة وأزرار `44px`، و☰ يفتح درجًا واحدًا من جهة بداية القراءة فيه الموديولات ثم إجراءات الإنشاء والأقسام؛ يغلق بعد التنقل أو Escape، ولا يتجاوز حماية المسودة.
 > - H1 واحد للصفحة داخل المحتوى؛ مسار الصفحة في الهيدر لا يكرره كسطر سياق فوق العنوان. صفحات التفاصيل/الإنشاء/التعديل تملك زر رجوع يحفظ الفلاتر و`hash`.
@@ -2814,7 +2814,7 @@ cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 npm run build-storybook
 npx playwright test e2e/storybook-visual.spec.ts --reporter=line 2>&1 | tail -15   # expected: diffs only in shell-* and shell-adjacent stories
 npx playwright test e2e/storybook-visual.spec.ts --update-snapshots --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-shell.spec.ts --reporter=line
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-shell.spec.ts --reporter=line
 ```
 Expected: the last run passes with no skipped describe. A diff outside `shell-`, `shared-brandwordmark-` and `shell-sidebarcreateaction-` is a regression to investigate before re-baselining — report it, do not re-baseline it blindly.
 
@@ -2869,7 +2869,7 @@ const base = 'http://localhost:4097'
   const browser = await chromium.launch()
   for (const locale of ['ar', 'en']) for (const mode of ['light', 'dark']) for (const [width, height, tag] of [[1440, 900, 'desktop'], [390, 844, 'mobile']]) {
     const context = await browser.newContext({ viewport: { width, height }, locale: 'ar-SA', reducedMotion: 'reduce' })
-    await context.addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
+    await context.addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
     const page = await context.newPage()
     await page.goto(`${base}/tasks`)
     await page.locator(tag === 'mobile' ? '[data-testid="mobile-navigation-trigger"]:not([disabled])' : '[data-testid="context-sidebar-toggle"]:not([disabled])').waitFor()

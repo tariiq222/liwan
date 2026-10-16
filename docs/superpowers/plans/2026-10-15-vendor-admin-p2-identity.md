@@ -4,18 +4,18 @@
 
 **Goal:** The control plane owns vendor accounts, passkey/password+TOTP/recovery sign-in, sessions with step-up, and six named roles, and authorizes every vendor request from a session instead of an Odoo user id.
 
-**Architecture:** A new `src/admin-auth/` module in `apps/control-plane` holds accounts, credentials, sessions and roles in new `nasq_control` tables. `vendor_memberships` stays as the derived capability table that the workers already re-check, written only by the account service. `authorize()` in `http.ts` resolves the actor from the `x-nasq-session` header, keeps the existing service signature and nonce checks, and enforces step-up for sensitive capabilities.
+**Architecture:** A new `src/admin-auth/` module in `apps/control-plane` holds accounts, credentials, sessions and roles in new `webvue_control` tables. `vendor_memberships` stays as the derived capability table that the workers already re-check, written only by the account service. `authorize()` in `http.ts` resolves the actor from the `x-webvue-session` header, keeps the existing service signature and nonce checks, and enforces step-up for sensitive capabilities.
 
 **Tech Stack:** Node 22, TypeScript, `pg`, `zod`, `vitest 4.1.11`, `@simplewebauthn/server@14.0.3`, `@node-rs/argon2@2.2.1`, `node:crypto` (HMAC-SHA1 TOTP, AES-256-GCM, SHA-256).
 
-**Spec:** [`docs/superpowers/specs/2026-10-15-nasq-vendor-admin-separation-design.md`](../specs/2026-10-15-nasq-vendor-admin-separation-design.md) · master plan [`2026-10-15-vendor-admin-separation-master.md`](2026-10-15-vendor-admin-separation-master.md)
+**Spec:** [`docs/superpowers/specs/2026-10-15-webvue-vendor-admin-separation-design.md`](../specs/2026-10-15-webvue-vendor-admin-separation-design.md) · master plan [`2026-10-15-vendor-admin-separation-master.md`](2026-10-15-vendor-admin-separation-master.md)
 
 ## Global Constraints
 
 - Branch `codex/cp-vendor-identity` in worktree `.worktrees/cp-vendor-identity`; start only after `codex/cp-saas-admin-roles` is merged; merge current `main` before review.
 - Commit subjects `type(cp): imperative subject`, at most 72 characters, one logical change per commit, ending with the session's `Co-Authored-By` line.
 - Dependencies pinned exactly: `@simplewebauthn/server` `14.0.3`, `@node-rs/argon2` `2.2.1`. Install with `npm ci --ignore-scripts` after adding them with `npm install --ignore-scripts --save-exact -w apps/control-plane`.
-- DB tests: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/nasq_control_scratch_<suffix>`; never `nasq_control_dev` or `odoo19`.
+- DB tests: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/webvue_control_scratch_<suffix>`; never `webvue_control_dev` or `odoo19`.
 - Session: 256-bit token, hash stored only, idle timeout 30 minutes, absolute lifetime 12 hours.
 - Step-up window 5 minutes, required for `vendor.pricing.manage`, `vendor.billing.manage`, `vendor.operations.run`, `vendor.accounts.manage`, and catalog publication.
 - Invitation link single-use, valid 24 hours. Ten recovery codes, single-use, stored hashed.
@@ -28,7 +28,7 @@
 ## Review Focus
 
 1. Two owners demote or disable each other at the same moment → exactly one request wins and one active owner remains (owner rows locked `FOR UPDATE` in one transaction). Test in Task 5.
-2. The same email typed with different case or surrounding spaces (`Admin@Nasq.sa `) → one account; invitation and sign-in match it. Test in Task 6.
+2. The same email typed with different case or surrounding spaces (`Admin@WebVue.sa `) → one account; invitation and sign-in match it. Test in Task 6.
 3. A TOTP code reused inside its 30-second window → second use fails. Test in Task 4 and Task 10.
 4. One invitation link opened twice in parallel → only one enrollment succeeds. Test in Task 6.
 5. A malformed cookie value, a cookie whose account id differs from the signed actor, or a session of a disabled account → `401` before any route runs. Test in Task 11.
@@ -120,7 +120,7 @@ git commit -m "feat(cp): add accounts capability and anonymous service signing"
 - Test: `apps/control-plane/src/__tests__/config-admin.test.ts` (create)
 
 **Interfaces:**
-- Produces: `Config['admin']: { secretKey: Buffer; rpId: string; origin: string; rpName: 'Nasq' }`, read from `ADMIN_SECRET_KEY`, `ADMIN_RP_ID`, `ADMIN_ORIGIN`. Absent `ADMIN_SECRET_KEY` → `admin` undefined and every `/v1/admin/*` route answers `503 { code: 'admin_unavailable' }` (Task 10).
+- Produces: `Config['admin']: { secretKey: Buffer; rpId: string; origin: string; rpName: 'WebVue' }`, read from `ADMIN_SECRET_KEY`, `ADMIN_RP_ID`, `ADMIN_ORIGIN`. Absent `ADMIN_SECRET_KEY` → `admin` undefined and every `/v1/admin/*` route answers `503 { code: 'admin_unavailable' }` (Task 10).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -133,13 +133,13 @@ describe('adminConfig', () => {
   afterEach(() => { delete process.env.ADMIN_SECRET_KEY })
   it('is off without a secret', () => { expect(adminConfig({ ...base })).toBeUndefined() })
   it('requires 32 bytes and distinct keys', () => {
-    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'short', ADMIN_RP_ID: 'admin.nasq.sa', ADMIN_ORIGIN: 'https://admin.nasq.sa' })).toThrow(/ADMIN_SECRET_KEY/)
-    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'c'.repeat(40), ADMIN_RP_ID: 'admin.nasq.sa', ADMIN_ORIGIN: 'https://admin.nasq.sa' })).toThrow(/distinct/)
-    expect(() => adminConfig({ ...base, INTERNAL_EFFECT_KEY: 'i'.repeat(40), ADMIN_SECRET_KEY: 'i'.repeat(40), ADMIN_RP_ID: 'admin.nasq.sa', ADMIN_ORIGIN: 'https://admin.nasq.sa' })).toThrow(/distinct/)
+    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'short', ADMIN_RP_ID: 'admin.webvue.sa', ADMIN_ORIGIN: 'https://admin.webvue.sa' })).toThrow(/ADMIN_SECRET_KEY/)
+    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'c'.repeat(40), ADMIN_RP_ID: 'admin.webvue.sa', ADMIN_ORIGIN: 'https://admin.webvue.sa' })).toThrow(/distinct/)
+    expect(() => adminConfig({ ...base, INTERNAL_EFFECT_KEY: 'i'.repeat(40), ADMIN_SECRET_KEY: 'i'.repeat(40), ADMIN_RP_ID: 'admin.webvue.sa', ADMIN_ORIGIN: 'https://admin.webvue.sa' })).toThrow(/distinct/)
   })
   it('binds origin to the relying party id', () => {
-    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'a'.repeat(40), ADMIN_RP_ID: 'admin.nasq.sa', ADMIN_ORIGIN: 'https://evil.example' })).toThrow(/ADMIN_ORIGIN/)
-    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'a'.repeat(40), ADMIN_RP_ID: 'admin.nasq.sa', ADMIN_ORIGIN: 'http://admin.nasq.sa' })).toThrow(/ADMIN_ORIGIN/)
+    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'a'.repeat(40), ADMIN_RP_ID: 'admin.webvue.sa', ADMIN_ORIGIN: 'https://evil.example' })).toThrow(/ADMIN_ORIGIN/)
+    expect(() => adminConfig({ ...base, ADMIN_SECRET_KEY: 'a'.repeat(40), ADMIN_RP_ID: 'admin.webvue.sa', ADMIN_ORIGIN: 'http://admin.webvue.sa' })).toThrow(/ADMIN_ORIGIN/)
     expect(adminConfig({ ...base, ADMIN_SECRET_KEY: 'a'.repeat(40), ADMIN_RP_ID: 'localhost', ADMIN_ORIGIN: 'http://localhost:3100' })).toMatchObject({ rpId: 'localhost', origin: 'http://localhost:3100' })
   })
 })
@@ -153,7 +153,7 @@ Expected: FAIL (`adminConfig` not exported).
 - [ ] **Step 3: Implement** (in `config.ts`, and call it from `getConfig()` as `admin: adminConfig(process.env)`, adding `admin?: AdminConfig` to `Config`)
 
 ```ts
-export type AdminConfig = { secretKey: Buffer; rpId: string; origin: string; rpName: 'Nasq' }
+export type AdminConfig = { secretKey: Buffer; rpId: string; origin: string; rpName: 'WebVue' }
 export function adminConfig(env: Record<string, string | undefined>): AdminConfig | undefined {
   const secret = env.ADMIN_SECRET_KEY
   if (!secret) return undefined
@@ -165,7 +165,7 @@ export function adminConfig(env: Record<string, string | undefined>): AdminConfi
   try { origin = new URL(env.ADMIN_ORIGIN ?? '') } catch { throw new Error('ADMIN_ORIGIN is required') }
   const loopback = rpId === 'localhost' && origin.hostname === 'localhost'
   if (origin.hostname !== rpId || (origin.protocol !== 'https:' && !(loopback && origin.protocol === 'http:')) || origin.pathname !== '/' || origin.search) throw new Error('ADMIN_ORIGIN must be the https origin of ADMIN_RP_ID')
-  return { secretKey: Buffer.from(secret), rpId, origin: origin.origin, rpName: 'Nasq' }
+  return { secretKey: Buffer.from(secret), rpId, origin: origin.origin, rpName: 'WebVue' }
 }
 ```
 
@@ -214,11 +214,11 @@ else describe('admin schema', () => {
   })
   it('stores emails case-insensitively unique', async () => {
     await pool.query("TRUNCATE vendor_accounts CASCADE")
-    await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('a@nasq.sa','A')")
-    await expect(pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('A@NASQ.SA','B')")).rejects.toThrow()
+    await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('a@webvue.sa','A')")
+    await expect(pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('A@WEBVUE.SA','B')")).rejects.toThrow()
   })
   it('rejects unknown role keys', async () => {
-    const a = await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('r@nasq.sa','R') RETURNING id")
+    const a = await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('r@webvue.sa','R') RETURNING id")
     await expect(pool.query("INSERT INTO vendor_account_roles(account_id,role) VALUES($1,'god')", [a.rows[0].id])).rejects.toThrow()
   })
 })
@@ -226,7 +226,7 @@ else describe('admin schema', () => {
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/nasq_control_scratch_p2 npm -w apps/control-plane test -- admin-schema` (create the database first with `createdb nasq_control_scratch_p2`)
+Run: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/webvue_control_scratch_p2 npm -w apps/control-plane test -- admin-schema` (create the database first with `createdb webvue_control_scratch_p2`)
 Expected: FAIL (tables missing).
 
 - [ ] **Step 3: Write `schema_022.sql`**
@@ -462,7 +462,7 @@ export function checkTotp(secret: Buffer, code: string, nowMs: number, lastStep:
   return null
 }
 export const totpUri = (secret: Buffer, email: string): string =>
-  `otpauth://totp/${encodeURIComponent(`Nasq:${email}`)}?secret=${base32(secret).toUpperCase()}&issuer=Nasq&algorithm=SHA1&digits=6&period=30`
+  `otpauth://totp/${encodeURIComponent(`WebVue:${email}`)}?secret=${base32(secret).toUpperCase()}&issuer=WebVue&algorithm=SHA1&digits=6&period=30`
 ```
 
 `passwords.ts`:
@@ -532,7 +532,7 @@ describe('roles', () => {
     expect(capabilitiesFor([])).toEqual([])
   })
   it('normalizes email', () => {
-    expect(normalizeEmail('  Admin@Nasq.SA ')).toBe('admin@nasq.sa')
+    expect(normalizeEmail('  Admin@WebVue.SA ')).toBe('admin@webvue.sa')
     expect(() => normalizeEmail('nope')).toThrow()
   })
 })
@@ -555,8 +555,8 @@ else describe('accounts', () => {
   beforeEach(async () => {
     await migrate(pool)
     await pool.query('TRUNCATE vendor_accounts, vendor_memberships, audit_events CASCADE')
-    a = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('a@nasq.sa','A','active') RETURNING id")).rows[0].id
-    b = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('b@nasq.sa','B','active') RETURNING id")).rows[0].id
+    a = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('a@webvue.sa','A','active') RETURNING id")).rows[0].id
+    b = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('b@webvue.sa','B','active') RETURNING id")).rows[0].id
     await pool.query("INSERT INTO vendor_account_roles VALUES($1,'owner'),($2,'owner')", [a, b])
     await transaction(pool, async (c) => { await syncMembership(c, issuer, a); await syncMembership(c, issuer, b) })
   })
@@ -600,7 +600,7 @@ Expected: FAIL (modules missing).
 `roles.ts`:
 
 ```ts
-import type { VendorCapability } from '@nasq/commercial-contracts'
+import type { VendorCapability } from '@webvue/commercial-contracts'
 
 export const VENDOR_ROLES = ['owner','customer_success','finance','product','operations','support'] as const
 export type VendorRole = typeof VENDOR_ROLES[number]
@@ -718,9 +718,9 @@ const secretKey = Buffer.alloc(32, 3)
 const now = new Date('2026-11-01T10:00:00Z')
 
 it('enrolls once from a normalized email invitation', async () => {
-  const { token } = await transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: ' Owner@Nasq.SA ', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, now))
+  const { token } = await transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: ' Owner@WebVue.SA ', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, now))
   const opened = await transaction(pool, (c) => openInvitation(c, token, now))
-  expect(opened.email).toBe('owner@nasq.sa')
+  expect(opened.email).toBe('owner@webvue.sa')
   await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES('cred-1',$1,'\\x00')", [opened.accountId])
   const secret = newTotpSecret()
   const input = { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: seal(secretKey, secret), passkeyRegistered: true }
@@ -731,15 +731,15 @@ it('enrolls once from a normalized email invitation', async () => {
   expect([first.status, second.status].sort()).toEqual(['fulfilled', 'rejected'])
   const done = (first.status === 'fulfilled' ? first : second) as PromiseFulfilledResult<{ recoveryCodes: string[] }>
   expect(done.value.recoveryCodes).toHaveLength(10)
-  const account = await pool.query('SELECT status FROM vendor_accounts WHERE email=$1', ['owner@nasq.sa'])
+  const account = await pool.query('SELECT status FROM vendor_accounts WHERE email=$1', ['owner@webvue.sa'])
   expect(account.rows[0].status).toBe('active')
 })
 it('refuses a duplicate email in another case', async () => {
-  await transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: 'x@nasq.sa', displayName: 'X', roles: ['support'], reason: 'support' }, now))
-  await expect(transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: 'X@NASQ.SA', displayName: 'X2', roles: ['support'], reason: 'support' }, now))).rejects.toMatchObject({ code: 'conflict' })
+  await transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: 'x@webvue.sa', displayName: 'X', roles: ['support'], reason: 'support' }, now))
+  await expect(transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: 'X@WEBVUE.SA', displayName: 'X2', roles: ['support'], reason: 'support' }, now))).rejects.toMatchObject({ code: 'conflict' })
 })
 it('rejects an expired invitation and enrollment without passkey', async () => {
-  const { token } = await transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: 'late@nasq.sa', displayName: 'L', roles: ['support'], reason: 'support' }, now))
+  const { token } = await transaction(pool, (c) => inviteAccount(c, issuer, 'operator', { email: 'late@webvue.sa', displayName: 'L', roles: ['support'], reason: 'support' }, now))
   await expect(transaction(pool, (c) => openInvitation(c, token, new Date(now.getTime() + 24 * 3600_000 + 1)))).rejects.toMatchObject({ code: 'auth_failed' })
   const secret = newTotpSecret()
   await expect(transaction(pool, (c) => completeEnrollment(c, issuer, token, { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: seal(secretKey, secret), passkeyRegistered: false }, secretKey, now))).rejects.toMatchObject({ code: 'invalid' })
@@ -961,16 +961,16 @@ git commit -m "feat(cp): add vendor sessions with idle, absolute and step-up lim
 import { checkAllowed, recordFailure, recordSuccess } from '../attempts.js'
 const t0 = new Date('2026-11-01T10:00:00Z')
 it('locks an account after five failures for fifteen minutes', async () => {
-  for (let i = 0; i < 5; i++) await transaction(pool, (c) => recordFailure(c, ['account:a@nasq.sa', 'ip:1.1.1.1'], t0))
-  await expect(transaction(pool, (c) => checkAllowed(c, ['account:a@nasq.sa'], t0))).rejects.toMatchObject({ code: 'rate_limited' })
+  for (let i = 0; i < 5; i++) await transaction(pool, (c) => recordFailure(c, ['account:a@webvue.sa', 'ip:1.1.1.1'], t0))
+  await expect(transaction(pool, (c) => checkAllowed(c, ['account:a@webvue.sa'], t0))).rejects.toMatchObject({ code: 'rate_limited' })
   await transaction(pool, (c) => checkAllowed(c, ['ip:1.1.1.1'], t0))
-  await transaction(pool, (c) => checkAllowed(c, ['account:a@nasq.sa'], new Date(t0.getTime() + 15 * 60_000 + 1)))
+  await transaction(pool, (c) => checkAllowed(c, ['account:a@webvue.sa'], new Date(t0.getTime() + 15 * 60_000 + 1)))
 })
 it('resets the account count on success but keeps the ip count', async () => {
-  for (let i = 0; i < 4; i++) await transaction(pool, (c) => recordFailure(c, ['account:b@nasq.sa', 'ip:2.2.2.2'], t0))
-  await transaction(pool, (c) => recordSuccess(c, ['account:b@nasq.sa', 'ip:2.2.2.2']))
-  await transaction(pool, (c) => recordFailure(c, ['account:b@nasq.sa'], t0))
-  await transaction(pool, (c) => checkAllowed(c, ['account:b@nasq.sa'], t0))
+  for (let i = 0; i < 4; i++) await transaction(pool, (c) => recordFailure(c, ['account:b@webvue.sa', 'ip:2.2.2.2'], t0))
+  await transaction(pool, (c) => recordSuccess(c, ['account:b@webvue.sa', 'ip:2.2.2.2']))
+  await transaction(pool, (c) => recordFailure(c, ['account:b@webvue.sa'], t0))
+  await transaction(pool, (c) => checkAllowed(c, ['account:b@webvue.sa'], t0))
   const ip = await pool.query("SELECT failures FROM vendor_auth_attempts WHERE scope='ip:2.2.2.2'")
   expect(ip.rows[0].failures).toBe(4)
 })
@@ -1046,7 +1046,7 @@ Run: `sed -n 1,200p node_modules/@simplewebauthn/server/esm/index.d.ts` (path ma
 
 ```ts
 import { authenticationOptions, finishAuthentication, finishRegistration, registrationOptions, type WebAuthnLib } from '../webauthn.js'
-const admin = { secretKey: Buffer.alloc(32), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'Nasq' as const }
+const admin = { secretKey: Buffer.alloc(32), rpId: 'localhost', origin: 'http://localhost:3100', rpName: 'WebVue' as const }
 const now = new Date('2026-11-01T10:00:00Z')
 function lib(overrides: Partial<WebAuthnLib> = {}): WebAuthnLib {
   return {
@@ -1058,7 +1058,7 @@ function lib(overrides: Partial<WebAuthnLib> = {}): WebAuthnLib {
   } as unknown as WebAuthnLib
 }
 it('registers and then signs in with a discoverable passkey, once per challenge', async () => {
-  const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: accountId, email: 'a@nasq.sa', displayName: 'A' }, now))
+  const reg = await transaction(pool, (c) => registrationOptions(c, lib(), admin, { id: accountId, email: 'a@webvue.sa', displayName: 'A' }, now))
   await transaction(pool, (c) => finishRegistration(c, lib(), admin, accountId, reg.challengeId, { id: 'cred-1' }, 'Laptop', now))
   const auth = await transaction(pool, (c) => authenticationOptions(c, lib(), admin, 'login', null, now))
   expect(await transaction(pool, (c) => finishAuthentication(c, lib(), admin, 'login', auth.challengeId, { id: 'cred-1' }, now))).toEqual({ accountId })
@@ -1176,7 +1176,7 @@ git commit -m "feat(cp): verify vendor passkeys"
 
 **Interfaces:**
 - Consumes: Tasks 4-9.
-- Produces HTTP (all `POST`, JSON body, anonymous-signed per Task 1; `remote` = value of header `x-nasq-client-ip`, forwarded by the BFF, used only for attempt scopes):
+- Produces HTTP (all `POST`, JSON body, anonymous-signed per Task 1; `remote` = value of header `x-webvue-client-ip`, forwarded by the BFF, used only for attempt scopes):
 
 | Path | Body | Success |
 |---|---|---|
@@ -1189,9 +1189,9 @@ git commit -m "feat(cp): verify vendor passkeys"
 | `/v1/admin/auth/passkey/verify` | `{ challenge_id, response }` | `200 { session, expires_at, idle_expires_at }` (step-up fresh) |
 | `/v1/admin/auth/fallback` | `{ email, password, totp_code }` | same as above (step-up not fresh) |
 | `/v1/admin/auth/recovery` | `{ email, password, recovery_code }` | same as above (step-up not fresh); code marked used |
-| `/v1/admin/auth/step-up/options` | `{}` + header `x-nasq-session` | `200 { challenge_id, options }` |
-| `/v1/admin/auth/step-up/verify` | `{ challenge_id, response }` + header `x-nasq-session` | `204` |
-| `/v1/admin/auth/logout` | `{}` + header `x-nasq-session` | `204` |
+| `/v1/admin/auth/step-up/options` | `{}` + header `x-webvue-session` | `200 { challenge_id, options }` |
+| `/v1/admin/auth/step-up/verify` | `{ challenge_id, response }` + header `x-webvue-session` | `204` |
+| `/v1/admin/auth/logout` | `{}` + header `x-webvue-session` | `204` |
 
 Every failure in these routes maps to `401 { code: 'auth_failed' }`, `429 { code: 'rate_limited' }`, `422 { code: 'invalid' }` or `503 { code: 'admin_unavailable' }` (when `config.admin` is undefined). No other codes or messages leave this module.
 
@@ -1203,25 +1203,25 @@ Every failure in these routes maps to `401 { code: 'auth_failed' }`, `429 { code
 
 it('signs in with a password and TOTP, and refuses the same TOTP code twice', async () => {
   const code = totpAt(secret, totpStep(Date.now()))
-  const first = await post('/v1/admin/auth/fallback', { email: 'Owner@Nasq.sa', password, totp_code: code })
+  const first = await post('/v1/admin/auth/fallback', { email: 'Owner@WebVue.sa', password, totp_code: code })
   expect(first.status).toBe(200)
   expect(first.body.session).toMatch(/^\d+\.[A-Za-z0-9_-]{43}$/)
-  const replay = await post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password, totp_code: code })
+  const replay = await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password, totp_code: code })
   expect(replay.status).toBe(401)
   expect(replay.body).toEqual({ code: 'auth_failed' })
 })
 it('answers identically for unknown email and wrong password', async () => {
-  const unknown = await post('/v1/admin/auth/fallback', { email: 'nobody@nasq.sa', password, totp_code: '123456' })
-  const wrong = await post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: 'not the password', totp_code: '123456' })
+  const unknown = await post('/v1/admin/auth/fallback', { email: 'nobody@webvue.sa', password, totp_code: '123456' })
+  const wrong = await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: 'not the password', totp_code: '123456' })
   expect([unknown.status, unknown.body]).toEqual([wrong.status, wrong.body])
 })
 it('locks after five failures', async () => {
-  for (let i = 0; i < 5; i++) await post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: 'wrong wrong wrong', totp_code: '000000' })
-  expect((await post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password, totp_code: totpAt(secret, totpStep(Date.now())) })).status).toBe(429)
+  for (let i = 0; i < 5; i++) await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password: 'wrong wrong wrong', totp_code: '000000' })
+  expect((await post('/v1/admin/auth/fallback', { email: 'owner@webvue.sa', password, totp_code: totpAt(secret, totpStep(Date.now())) })).status).toBe(429)
 })
 it('uses a recovery code once', async () => {
-  expect((await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password, recovery_code: recoveryCodes[0] })).status).toBe(200)
-  expect((await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password, recovery_code: recoveryCodes[0] })).status).toBe(401)
+  expect((await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password, recovery_code: recoveryCodes[0] })).status).toBe(200)
+  expect((await post('/v1/admin/auth/recovery', { email: 'owner@webvue.sa', password, recovery_code: recoveryCodes[0] })).status).toBe(401)
 })
 it('rejects unsigned and numeric-actor requests to auth routes', async () => {
   expect((await rawPost('/v1/admin/auth/passkey/options', {}, {})).status).toBe(401)
@@ -1258,7 +1258,7 @@ Handlers:
 - `fallback`: scopes `[account:<normalized email>, ip:<remote>]` → `checkAllowed`; load account by email (`active` only), `verifyPassword`, then `checkTotp` against `open(config.admin.secretKey, secret_box)` with `last_step`; on success update `last_step`, `recordSuccess`, `createSession(..., false)`, audit `auth.signed_in` with reason `fallback`; on any failure `recordFailure` (in a separate committed transaction so the rollback of the main one does not undo the count) and `401`.
 - `recovery`: same scopes; password then `UPDATE vendor_recovery_codes SET used_at=now() WHERE account_id=$1 AND code_hash=$2 AND used_at IS NULL RETURNING 1`; audit reason `recovery`.
 - `passkey/verify`: `finishAuthentication(..., 'login', ...)` → `createSession(..., true)`; audit reason `passkey`. Failures recorded against `ip:<remote>` only.
-- `step-up/*`: `resolveSession` from header `x-nasq-session`, then `authenticationOptions('step_up', accountId)` / `finishAuthentication('step_up')` + `markStepUp`; audit `auth.step_up`.
+- `step-up/*`: `resolveSession` from header `x-webvue-session`, then `authenticationOptions('step_up', accountId)` / `finishAuthentication('step_up')` + `markStepUp`; audit `auth.step_up`.
 - `logout`: `resolveSession` then `revokeSession`; audit `auth.signed_out`.
 - `invitation`, `enroll/*`: `openInvitation` on each call. `enroll/passkey/verify` for a `reset` invitation first deletes the account's passkeys, TOTP, recovery codes and revokes sessions. `enroll/totp` returns `totp_box` = `seal(secretKey, newTotpSecret()).toString('base64')`. `enroll/complete` passes `passkeyRegistered` = existence of a passkey for the account created at or after the invitation's `created_at`, then `createSession(..., true)`.
 
@@ -1296,18 +1296,18 @@ git commit -m "feat(cp): add vendor sign-in, enrollment and step-up routes"
 - Produces:
   - `authorize()` returns `{ actor: number; capabilities: VendorCapability[]; stepUpFresh: boolean }`; `actor` is the account id
   - `requireCapability(auth, capability)` throws `403 { code: 'step_up_required' }` when `capability` is in `STEP_UP_CAPABILITIES`, the request method is not `GET`, and `!auth.stepUpFresh` (reading lists never needs step-up); catalog publication routes call `requireStepUp(auth)` explicitly. `authorize()` therefore also returns `method`.
-  - Test helper `vendorSession(pool, issuer, capabilitiesOrRoles, { stepUp = true } = {}): Promise<{ accountId: number; headers(method, path, body?): Record<string,string> }>` — creates an `active` account (roles mapped from capabilities by choosing `owner` when all are present, else inserting the membership row directly), a session, and returns signed headers including `x-nasq-session`
+  - Test helper `vendorSession(pool, issuer, capabilitiesOrRoles, { stepUp = true } = {}): Promise<{ accountId: number; headers(method, path, body?): Record<string,string> }>` — creates an `active` account (roles mapped from capabilities by choosing `owner` when all are present, else inserting the membership row directly), a session, and returns signed headers including `x-webvue-session`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```ts
 it('rejects requests without a session, with a forged actor, or for a disabled account', async () => {
   const s = await vendorSession(pool, issuer, ['vendor.read'])
-  const noSession = s.headers('GET', '/v1/context'); delete noSession['x-nasq-session']
+  const noSession = s.headers('GET', '/v1/context'); delete noSession['x-webvue-session']
   expect((await get('/v1/context', noSession)).status).toBe(401)
   const forged = signServiceRequest({ method: 'GET', path: '/v1/context', actor: s.accountId + 1, issuer, key })
-  expect((await get('/v1/context', { ...forged, 'x-nasq-session': s.headers('GET', '/v1/context')['x-nasq-session'] })).status).toBe(401)
-  expect((await get('/v1/context', { ...s.headers('GET', '/v1/context'), 'x-nasq-session': 'garbage' })).status).toBe(401)
+  expect((await get('/v1/context', { ...forged, 'x-webvue-session': s.headers('GET', '/v1/context')['x-webvue-session'] })).status).toBe(401)
+  expect((await get('/v1/context', { ...s.headers('GET', '/v1/context'), 'x-webvue-session': 'garbage' })).status).toBe(401)
   await pool.query("UPDATE vendor_accounts SET status='disabled' WHERE id=$1", [s.accountId])
   expect((await get('/v1/context', s.headers('GET', '/v1/context'))).status).toBe(401)
 })
@@ -1342,7 +1342,7 @@ async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: 
     const nonce = await client.query('INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval \'60 seconds\') ON CONFLICT DO NOTHING RETURNING nonce', [signed.issuer, signed.nonce])
     if (!nonce.rowCount) throw new ApiError(401, 'unauthorized', 'Replayed service assertion')
     let session
-    try { session = await resolveSession(client, req.headers['x-nasq-session'], new Date()) } catch { throw new ApiError(401, 'unauthorized', 'Session is not valid') }
+    try { session = await resolveSession(client, req.headers['x-webvue-session'], new Date()) } catch { throw new ApiError(401, 'unauthorized', 'Session is not valid') }
     if (session.accountId !== signed.actor) throw new ApiError(401, 'unauthorized', 'Session is not valid')
     const membership = await client.query('SELECT capabilities FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL', [signed.issuer, signed.actor])
     if (!membership.rowCount) throw new ApiError(403, 'forbidden', 'Vendor membership is not active')
@@ -1365,7 +1365,7 @@ Create the helper and replace every direct `INSERT INTO vendor_memberships` + `s
 
 - [ ] **Step 4: Run the whole control-plane suite**
 
-Run: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/nasq_control_scratch_p2 npm -w apps/control-plane test`
+Run: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/webvue_control_scratch_p2 npm -w apps/control-plane test`
 Expected: PASS, same skipped-test count as before this task (record both counts in the commit body).
 
 - [ ] **Step 5: Commit**
@@ -1404,13 +1404,13 @@ Errors: `403 forbidden`, `403 step_up_required`, `409 { code: 'last_owner' }`, `
 ```ts
 it('lets only owners manage accounts, with step-up', async () => {
   const finance = await vendorSession(pool, issuer, ['vendor.read', 'vendor.billing.manage'])
-  expect((await post('/v1/admin/accounts', { email: 'n@nasq.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }, finance)).status).toBe(403)
+  expect((await post('/v1/admin/accounts', { email: 'n@webvue.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }, finance)).status).toBe(403)
   const owner = await ownerSession({ stepUp: false })
-  expect((await post('/v1/admin/accounts', { email: 'n@nasq.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }, owner)).body.code).toBe('step_up_required')
+  expect((await post('/v1/admin/accounts', { email: 'n@webvue.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }, owner)).body.code).toBe('step_up_required')
   const fresh = await ownerSession({ stepUp: true })
-  const created = await post('/v1/admin/accounts', { email: 'N@Nasq.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }, fresh)
+  const created = await post('/v1/admin/accounts', { email: 'N@WebVue.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }, fresh)
   expect(created.status).toBe(201); expect(created.body.invitation_token).toMatch(/^[A-Za-z0-9_-]{43}$/)
-  expect((await post('/v1/admin/accounts', { email: 'n@nasq.sa', display_name: 'N', roles: ['support'], reason: 'again' }, fresh)).body.code).toBe('conflict')
+  expect((await post('/v1/admin/accounts', { email: 'n@webvue.sa', display_name: 'N', roles: ['support'], reason: 'again' }, fresh)).body.code).toBe('conflict')
 })
 it('returns last_owner when the only owner removes their role', async () => {
   const owner = await ownerSession({ stepUp: true })
@@ -1452,7 +1452,7 @@ git commit -m "feat(cp): add vendor account management routes"
 
 **Files:**
 - Modify: `apps/control-plane/src/admin.ts:27-48` (remove `grant` and `revoke`; add `bootstrap-owner` and `reset-account`)
-- Modify: `docs/operations/saas-commercial-runbook.md` (new section «حسابات لوحة تحكم نسق»)
+- Modify: `docs/operations/saas-commercial-runbook.md` (new section «حسابات لوحة تحكم ويب فيو»)
 - Test: `apps/control-plane/src/__tests__/admin-cli.live.test.ts`
 
 **Interfaces:**
@@ -1465,9 +1465,9 @@ git commit -m "feat(cp): add vendor account management routes"
 
 ```ts
 it('bootstraps the first owner once', async () => {
-  const first = await runCli(['bootstrap-owner', 'owner@nasq.sa', 'Owner', 'first owner'])
+  const first = await runCli(['bootstrap-owner', 'owner@webvue.sa', 'Owner', 'first owner'])
   expect(first.code).toBe(0); expect(first.stdout).toMatch(/^http:\/\/localhost:3100\/enroll#[A-Za-z0-9_-]{43}\n$/)
-  const second = await runCli(['bootstrap-owner', 'other@nasq.sa', 'Other', 'second'])
+  const second = await runCli(['bootstrap-owner', 'other@webvue.sa', 'Other', 'second'])
   expect(second.code).toBe(1); expect(second.stderr).toMatch(/owner already exists/)
 })
 it('no longer accepts grant', async () => {
@@ -1488,7 +1488,7 @@ Runbook section (Arabic, matching the file's style): first owner bootstrap, rese
 
 - [ ] **Step 4: Run tests and all checks**
 
-Run: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/nasq_control_scratch_p2 npm -w apps/control-plane test && npm -w apps/control-plane run build && npm test && python3 -B tools/git_policy.py --base main && python3 -B tools/arch_policy.py --base main`
+Run: `CONTROL_TEST_DATABASE_URL=postgres://127.0.0.1/webvue_control_scratch_p2 npm -w apps/control-plane test && npm -w apps/control-plane run build && npm test && python3 -B tools/git_policy.py --base main && python3 -B tools/arch_policy.py --base main`
 Expected: all PASS.
 
 - [ ] **Step 5: Commit**

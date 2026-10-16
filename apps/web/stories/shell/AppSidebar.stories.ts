@@ -16,5 +16,5 @@ export const Default: Story = {
   name: 'الشريط والقائمة السياقية',
   parameters: storyContext('apps/web/app/layouts/default.vue:48'),
   loaders: [async () => { await __getRouter()!.replace('/projects'); return {} }],
-  render: () => ({ components: { AppSidebar }, template: '<div class="nasq-shell min-h-svh"><AppSidebar /></div>' }),
+  render: () => ({ components: { AppSidebar }, template: '<div class="webvue-shell min-h-svh"><AppSidebar /></div>' }),
 }

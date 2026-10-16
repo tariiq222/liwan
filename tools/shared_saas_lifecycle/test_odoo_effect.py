@@ -11,14 +11,14 @@ from tools.shared_saas_lifecycle import odoo_effect
 
 class PhysicalBoundaryTests(unittest.TestCase):
     def test_database_and_modules_fail_closed(self):
-        self.assertEqual(odoo_effect.validate_database('nasq_scratch_' + 'a' * 32), 'nasq_scratch_' + 'a' * 32)
-        for value in ['odoo19', 'postgres', 'nasq_scratch_prod', 'nasq_scratch_a;drop']:
+        self.assertEqual(odoo_effect.validate_database('webvue_scratch_' + 'a' * 32), 'webvue_scratch_' + 'a' * 32)
+        for value in ['odoo19', 'postgres', 'webvue_scratch_prod', 'webvue_scratch_a;drop']:
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_database(value)
-        for value in [['nasq_core', 'sale'], ['nasq_core', 'nasq_not_shipped'], ['nasq_core', 'nasq_registry_probe'], [{'a': 1}], [], ['nasq_core', 'nasq_core'], 'nasq_core']:
+        for value in [['webvue_core', 'sale'], ['webvue_core', 'webvue_not_shipped'], ['webvue_core', 'webvue_registry_probe'], [{'a': 1}], [], ['webvue_core', 'webvue_core'], 'webvue_core']:
             with self.subTest(value=value), self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_modules(value)
-        release = ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat']
+        release = ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr', 'webvue_chat']
         self.assertEqual(odoo_effect.validate_modules(release), release)
         self.assertFalse(hasattr(odoo_effect, 'ALLOWED_MODULES'))
 
@@ -61,7 +61,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             login = 'customer@example.test' if snapshot else 'admin'
             name = 'Customer administrator' if snapshot else 'Administrator'
             support_member = support
-            def _nasq_access_write(self, values, capability):
+            def _webvue_access_write(self, values, capability):
                 writes.append(('user', values, capability))
                 for key, value in values.items():
                     if key == 'group_ids':
@@ -70,10 +70,10 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                         self.support_member = False
                     else:
                         setattr(self, key, value)
-            def _nasq_sync_capability_groups(self):
+            def _webvue_sync_capability_groups(self):
                 writes.append(('sync', set(roles)))
             def has_group(self, xmlid):
-                assert xmlid == 'nasq_core.group_vendor_support'
+                assert xmlid == 'webvue_core.group_vendor_support'
                 return self.support_member
             def _crypt_context(self):
                 return SimpleNamespace(verify=lambda value, hashed: value == 'known-secret' and hashed == 'hash')
@@ -98,7 +98,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                 writes.append(('role', values['role_id']))
 
         class Cursor:
-            dbname = 'nasq_scratch_' + 'a' * 32
+            dbname = 'webvue_scratch_' + 'a' * 32
             def rollback(self):
                 pass
             def commit(self):
@@ -113,24 +113,24 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             uid = 1
             cr = Cursor()
             def __getitem__(self, model):
-                if model == 'nasq.tenant.profile':
+                if model == 'webvue.tenant.profile':
                     return SimpleNamespace(search=lambda *args, **kwargs: Records([1]))
-                if model == 'nasq.access.assignment':
+                if model == 'webvue.access.assignment':
                     return Assignments()
-                if model == 'nasq.entitlement.service':
+                if model == 'webvue.entitlement.service':
                     return SimpleNamespace(
-                        _nasq_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
-                        _nasq_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
-                        _nasq_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
-                        _nasq_limit_value=lambda key: limit if key == 'users.limit' else None,
+                        _webvue_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
+                        _webvue_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
+                        _webvue_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
+                        _webvue_limit_value=lambda key: limit if key == 'users.limit' else None,
                     )
-                if model == 'nasq.access.role':
+                if model == 'webvue.access.role':
                     return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
                 raise AssertionError(model)
             def ref(self, xmlid):
                 if xmlid == 'base.user_admin':
                     return admin
-                if xmlid == 'nasq_core.group_vendor_support':
+                if xmlid == 'webvue_core.group_vendor_support':
                     return SimpleNamespace(id=99)
                 raise AssertionError(xmlid)
             def invalidate_all(self, **kwargs):
@@ -141,23 +141,23 @@ class PackageAdministratorScriptTests(unittest.TestCase):
         runner = object.__new__(odoo_effect.Runner)
         runner.database = Cursor.dbname
         runner.request = {'admin': {'name': 'Customer administrator', 'login': 'customer@example.test'},
-                          'companyName': 'Company', 'job': {'policy': {'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr']}}}
+                          'companyName': 'Company', 'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
         if package:
             runner.request['job']['packageAuthority'] = {'schemaVersion': 2}
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             exec(compile(runner.admin_script('known-secret', snapshot=snapshot), '<generated-admin>', 'exec'), {'env': Environment()})
-        result = json.loads(output.getvalue().strip().removeprefix('NASQ_SHARED_ADMIN:'))
+        result = json.loads(output.getvalue().strip().removeprefix('WEBVUE_SHARED_ADMIN:'))
         return result, writes, admin, roles
 
     def test_admin_script_reads_roles_from_the_entitlement_not_modules(self):
         script = object.__new__(odoo_effect.Runner)
-        script.database = 'nasq_scratch_' + 'a' * 32
+        script.database = 'webvue_scratch_' + 'a' * 32
         script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C',
-                          'job': {'policy': {'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr']}}}
+                          'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
         text = script.admin_script('known-secret', snapshot=False)
-        self.assertIn('_nasq_entitled_admin_roles()', text)
-        self.assertNotIn("'nasq_pmo' in values['modules']", text)
+        self.assertIn('_webvue_entitled_admin_roles()', text)
+        self.assertNotIn("'webvue_pmo' in values['modules']", text)
         self.assertNotIn('"modules"', text.split('\n', 2)[1])
 
     def test_package_apply_removes_only_support_and_preserves_customer_roles(self):
@@ -211,7 +211,7 @@ class PackageAdministratorScriptTests(unittest.TestCase):
 
     def test_admin_script_has_no_package_branch(self):
         runner = object.__new__(odoo_effect.Runner)
-        runner.database = 'nasq_scratch_' + 'a' * 32
+        runner.database = 'webvue_scratch_' + 'a' * 32
         runner.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C', 'job': {'policy': {}}}
         text = runner.admin_script('known-secret', snapshot=False)
         self.assertNotIn('packageAdmin', text)
@@ -225,16 +225,16 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
 
     def assert_preflight_failure(self, error, expected_stdout, users_limit=None):
         """Exercise real main/observe/preflight, with no runtime or file access."""
-        config = {'schemaVersion': 1, 'projectName': 'nasq-shared-diagnostic',
+        config = {'schemaVersion': 1, 'projectName': 'webvue-shared-diagnostic',
                   'composeFile': '/synthetic/compose.yml', 'envFile': '/synthetic/runtime.env',
                   'stateDir': '/synthetic/state', 'domainSuffix': 'example.test'}
-        database = 'nasq_scratch_' + 'a' * 32
+        database = 'webvue_scratch_' + 'a' * 32
         digest = 'b' * 64
         request = {'action': 'observe', 'config': config,
                    'job': {'operation': 'provision',
                            'binding': {'database': database, 'filestore': database},
                            'policy': {'schema_version': 1, 'channel': 'control_plane',
-                                      'modules': ['nasq_core', 'nasq_platform', 'nasq_api'],
+                                      'modules': ['webvue_core', 'webvue_platform', 'webvue_api'],
                                       'features': {'users.limit': users_limit, 'storage.limit_mb': None,
                                                    'branches.extra_limit': 0}},
                            'catalog': {'sourceSha256': digest}}}
@@ -347,7 +347,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                 self.assert_preflight_failure(error, '{"error_code":"shared_effect_unverified"}\n')
 
     def test_classify_error_allowlists_non_secret_codes_only(self):
-        from tools.nasq_cli.managed_verify import VerificationError
+        from tools.webvue_cli.managed_verify import VerificationError
         from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError
         for code in ('policy_script_failed', 'target_mismatch', 'policy_already_initialized',
                      'features_mismatch', 'modules_mismatch', 'snapshot_invalid'):
@@ -355,7 +355,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
         self.assertEqual(odoo_effect.classify_error(CatalogSourceError('catalog_source_ambiguous')),
                          'catalog_source_ambiguous')
         # Managed-policy refusal codes are stable safe identifiers and propagate.
-        from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError
+        from tools.webvue_cli.managed_policy import POLICY_ERROR_CODES, PolicyError
         for code in POLICY_ERROR_CODES:
             self.assertEqual(odoo_effect.classify_error(PolicyError(code)), code)
         self.assertEqual(odoo_effect.classify_error(PolicyError('not_an_allowlisted_code')),
@@ -374,7 +374,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
 
     def test_policy_payload_is_checked_against_sha_pinned_catalog_bytes(self):
         import hashlib
-        from tools.nasq_cli.managed_policy import PolicyError, parse_create_policy
+        from tools.webvue_cli.managed_policy import PolicyError, parse_create_policy
         from tools.shared_saas_lifecycle.catalog_source import resolve_catalog_path
         root = Path(__file__).resolve().parents[2]
         raw = (root / 'deploy/catalog/solutions/platform_v2.json').read_bytes()
@@ -393,7 +393,7 @@ class DiagnosticsAndCatalogTests(unittest.TestCase):
                                 catalog_sha256='sha256:' + digest, commercial_mode='saas')
 
 class RuntimeWriterCodeTests(unittest.TestCase):
-    PROJECT = 'nasq-shared-test'
+    PROJECT = 'webvue-shared-test'
 
     def test_codes_cross_the_boundary_by_name(self):
         for code in ('runtime_writer_present', 'runtime_writer_after_effect'):
@@ -420,7 +420,7 @@ class RuntimeWriterCodeTests(unittest.TestCase):
 
 class RuntimeWriterCheckOrderTests(unittest.TestCase):
     """The writer check runs before the gate exists, so a busy project never wedges the lane."""
-    PROJECT = 'nasq-shared-test'
+    PROJECT = 'webvue-shared-test'
 
     def runner(self, root, containers, calls):
         runner = object.__new__(odoo_effect.Runner)

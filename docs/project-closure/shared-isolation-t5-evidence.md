@@ -14,11 +14,11 @@ commit, deployment, Docker build/up/pull, live SQL migration or Odoo execution.
   proof, **not** measured network reachability or protection from a privileged host.
 - Shared Odoo replaces inherited command including `--proxy-mode`, uses no CLI
   overrides, and mounts t9's validating launcher before the preserved secure
-  `nasq-odoo` entrypoint. Full external secret config is mandatory via
-  `NASQ_SHARED_ODOO_CONFIG`; the committed template is NOT a usable credentials
+  `webvue-odoo` entrypoint. Full external secret config is mandatory via
+  `WEBVUE_SHARED_ODOO_CONFIG`; the committed template is NOT a usable credentials
   source. The custom image does not interpret HOST/USER/PASSWORD env values.
-- Registry mounts use `NASQ_TENANT_REGISTRY_DIR:/etc/nasq:ro`, not single inode
-  mounts. Both readers access `/etc/nasq/registry.json` fresh. Atomic rename test
+- Registry mounts use `WEBVUE_TENANT_REGISTRY_DIR:/etc/webvue:ro`, not single inode
+  mounts. Both readers access `/etc/webvue/registry.json` fresh. Atomic rename test
   verifies next request rejects disabled target and stale envelope after re-enable.
   This tests filesystem readers, not an actual Docker mount or durable publisher.
 - Guard packaging, shared Caddy four rate-limit zones and Odoo validator are
@@ -30,12 +30,12 @@ commit, deployment, Docker build/up/pull, live SQL migration or Odoo execution.
   route rules belong outside the conditional spread. Config evaluation tested.
   **Build/runtime mode mismatch is a residual security/deployment blocker, not
   dynamically blocked in a prebuilt dedicated image**: compiled dedicated proxy
-  rules may survive runtime `NASQ_TENANCY_MODE=shared`; deployment must rebuild
+  rules may survive runtime `WEBVUE_TENANCY_MODE=shared`; deployment must rebuild
   with shared argument. The config test reproduces the premise: dedicated compile
   has seven proxy rules while shared compile has none. It is not a built-image
   exploit test or a runtime mismatch guard. No full
   built-Nuxt SSR proof is claimed; this is a remaining acceptance blocker.
-- Package `@nasq/commercial-contracts/shared` exported and t3 imports reconciled.
+- Package `@webvue/commercial-contracts/shared` exported and t3 imports reconciled.
   Root barrel exports schemas only; Node hashing/planner remain server-side.
 - Shared control-plane execution is explicitly dormant: shared/invalid mode rejects
   target resolution and enqueue, returns no available actions, does not claim
@@ -66,8 +66,8 @@ proxy call gained empty third headers argument in t2). Reported to captain for
 routing-owned t10; do not classify this as a pre-existing baseline failure.
 After routing t10 fixed dedicated two-argument proxy behavior without altering
 vendor-outage.test.ts, final full rerun passed 902 tests / 134 files; log retained
-at `/tmp/nasq-t5-web-final.log`. Full combined CP/lint/type gates also passed.
-Final launcher review caught its required `NASQ_TENANCY_MODE=shared` precondition;
+at `/tmp/webvue-t5-web-final.log`. Full combined CP/lint/type gates also passed.
+Final launcher review caught its required `WEBVUE_TENANCY_MODE=shared` precondition;
 added Odoo service environment and reran rendered topology 3/3 plus diff check.
 
 RED/GREEN: dormant tests first 4 failed then 4 passed; migration tests first

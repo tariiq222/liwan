@@ -103,9 +103,9 @@ test('project task filters survive collapsing, view changes and reload; create s
 test('schedule toolbar changes scale and retains it after reload', async ({ page }) => {
   await page.goto('/projects/1/schedule')
   await ready(page)
-  await page.locator('.nasq-ui-segment').getByRole('button', { name: 'شهري', exact: true }).click()
+  await page.locator('.webvue-ui-segment').getByRole('button', { name: 'شهري', exact: true }).click()
   await expect(page).toHaveURL(/scale=month/)
   await page.reload()
   await ready(page)
-  await expect(page.locator('.nasq-ui-segment').getByRole('button', { name: 'شهري', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.webvue-ui-segment').getByRole('button', { name: 'شهري', exact: true })).toHaveAttribute('aria-pressed', 'true')
 })

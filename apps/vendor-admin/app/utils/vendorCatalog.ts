@@ -1,4 +1,4 @@
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import type { PlanView } from './vendorCommercial'
 
 /** The catalog section's tabs: each keeps its own URL (links elsewhere point at them) and its own list filters. */

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { attentionSchema } from '@nasq/commercial-contracts'
+import { attentionSchema } from '@webvue/commercial-contracts'
 import { routesB } from '../commercial/routes-b.js'
 import { migrate } from '../db.js'
 import { url } from './commercial-helpers.js'
@@ -10,7 +10,7 @@ const BILLING = ['vendor.read', 'vendor.billing.manage'] as any[]
 const suite = url ? describe : describe.skip
 suite('vendor attention list on PostgreSQL', () => {
   // A database of its own: the list is capped, and other suites leave hundreds of customers needing setup in the shared one.
-  const dbName = `nasq_control_scratch_attention${randomUUID().slice(0, 8).replace(/-/g, '')}`
+  const dbName = `webvue_control_scratch_attention${randomUUID().slice(0, 8).replace(/-/g, '')}`
   const withDb = (name: string) => { const u = new URL(url!); u.pathname = `/${name}`; return u.toString() }
   const pool = new Pool({ connectionString: withDb(dbName) })
   const tag = `at${randomUUID().slice(0, 8)}`

@@ -1,5 +1,5 @@
 import { accessStateBadge } from '../../utils/accessStateBadge'
-import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
+import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
 export interface AccessBadge extends StatusBadgeEntry {
   icon?: string

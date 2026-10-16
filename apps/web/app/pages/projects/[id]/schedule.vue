@@ -4,7 +4,7 @@ import { useProject } from '@/composables/useProjects'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import ScheduleGantt from '@/components/pmo/projects/schedule/ScheduleGantt.vue'
 import { buildScheduleAxis, scheduleColumnSpan, type ScheduleScale } from '@/utils/projectSchedule'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

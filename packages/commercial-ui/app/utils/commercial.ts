@@ -1,4 +1,4 @@
-import type { Cadence, Money, Quote } from '@nasq/commercial-contracts'
+import type { Cadence, Money, Quote } from '@webvue/commercial-contracts'
 
 export function formatCommercialMoney(money: Money, locale = 'ar'): string {
   const intl = locale.startsWith('ar') ? 'ar-SA-u-nu-latn' : 'en-US'

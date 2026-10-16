@@ -4,7 +4,7 @@
 These tests encode the frozen P2 design
 (``docs/verification/2026-09-23-saas-p2-design-review.md``) and the confirmed
 Package 2 plan (``docs/superpowers/plans/2026-09-23-saas-p2-managed-runtime-plan.md``).
-They are authored before ``tools/nasq_cli/managed_runtime.py`` exists, so the
+They are authored before ``tools/webvue_cli/managed_runtime.py`` exists, so the
 first run is the RED gate.
 
 The local managed-create acceptance slice now supplies a real catalog-bound
@@ -30,7 +30,7 @@ Case groups and their plan ids:
 
 T-50..T-52 are a deliberate, minimal in-file regression anchor: the general
 scratch operator lane must stay unchanged. The comprehensive scratch suite lives
-in ``tools/test_nasq_cli_scratch_guards.py`` and is not duplicated here.
+in ``tools/test_webvue_cli_scratch_guards.py`` and is not duplicated here.
 
 Refusal-stage contract under test:
 Phase A (structural, no journal, no effects) refuses with ``status: "error"``.
@@ -55,12 +55,12 @@ from unittest.mock import patch
 # RED gate: the module under test does not exist yet. Detect absence precisely
 # (find_spec) so that a genuinely broken import inside the module raises loudly
 # instead of being swallowed and reported as "not implemented".
-if importlib.util.find_spec('nasq_cli.managed_runtime') is None:
+if importlib.util.find_spec('webvue_cli.managed_runtime') is None:
     managed_runtime = None
 else:
-    from nasq_cli import managed_runtime
+    from webvue_cli import managed_runtime
 
-from nasq_cli import journal, operator
+from webvue_cli import journal, operator
 
 FIXED_CLOCK = '2026-09-23T00:00:00Z'
 _DEFAULT_RECEIPT_BODY = object()
@@ -71,17 +71,17 @@ PAYLOAD_SCHEMA_VERSION = 1
 IMAGE_A = 'sha256:' + 'a' * 64
 IMAGE_WEB = 'sha256:' + 'b' * 64
 IMAGE_PROXY = 'sha256:' + 'c' * 64
-DB_A = 'nasq_scratch_accept_a'
-DB_B = 'nasq_scratch_accept_b'
-PROJECT_A = 'nasq-saas-accept-a-local'
+DB_A = 'webvue_scratch_accept_a'
+DB_B = 'webvue_scratch_accept_b'
+PROJECT_A = 'webvue-saas-accept-a-local'
 CATALOG_PATH = Path(__file__).resolve().parents[1] / 'deploy/catalog/solutions/platform.json'
 CORE_POLICY = {
     'schema_version': 1, 'channel': 'control_plane',
-    'modules': ['nasq_core', 'nasq_platform', 'nasq_api'],
+    'modules': ['webvue_core', 'webvue_platform', 'webvue_api'],
     'features': {'users.limit': None, 'storage.limit_mb': None},
 }
 
-INVENTORY_ENV = 'NASQ_MANAGED_INVENTORY'
+INVENTORY_ENV = 'WEBVUE_MANAGED_INVENTORY'
 
 
 def canonical_digest(target_id, descriptor):
@@ -137,7 +137,7 @@ class RecordingRunner:
             if not isinstance(stdin_text, str) or not stdin_text:
                 message = 'a simulated shell requires a script on stdin'
                 raise AssertionError(message)
-            if 'NASQ_MANAGED_CREDENTIALS:' in stdin_text:
+            if 'WEBVUE_MANAGED_CREDENTIALS:' in stdin_text:
                 if '\nsnapshot = False\n' in stdin_text:
                     changed = True
                 elif '\nsnapshot = True\n' in stdin_text:
@@ -149,14 +149,14 @@ class RecordingRunner:
                     'database': argv[argv.index('-d') + 1],
                     'changed': changed, 'verified': True,
                 }
-                return 0, 'NASQ_MANAGED_CREDENTIALS:' + json.dumps(credentials) + '\n', ''
+                return 0, 'WEBVUE_MANAGED_CREDENTIALS:' + json.dumps(credentials) + '\n', ''
             snapshot = {
                 'database': argv[argv.index('-d') + 1],
                 'commercial_mode': 'saas', 'entitlement_source': 'control_plane',
                 'status': 'active', 'valid_until': None, 'policy_revision': 1,
                 'features': CORE_POLICY['features'], 'modules': CORE_POLICY['modules'],
             }
-            return 0, 'NASQ_MANAGED_POLICY:' + json.dumps(snapshot) + '\n', ''
+            return 0, 'WEBVUE_MANAGED_POLICY:' + json.dumps(snapshot) + '\n', ''
         return 0, '', ''
 
     @property
@@ -253,7 +253,7 @@ class ManagedRuntimeCase(unittest.TestCase):
         """RED gate: fail individually so the initial run counts every case."""
         if managed_runtime is None:
             self.fail(
-                'nasq_cli.managed_runtime is not implemented yet '
+                'webvue_cli.managed_runtime is not implemented yet '
                 '(expected RED state before the implementation step)',
             )
         return managed_runtime
@@ -345,7 +345,7 @@ class ManagedRuntimeCase(unittest.TestCase):
     def sibling(self, target_id=TARGET_B, **overrides):
         entry = self.descriptor(**overrides)
         entry['resource_refs'] = dict(entry['resource_refs'])
-        entry['resource_refs']['project'] = 'nasq-saas-accept-b-local'
+        entry['resource_refs']['project'] = 'webvue-saas-accept-b-local'
         entry['resource_refs']['db_name'] = DB_B
         entry['resource_refs']['data_dir'] = str(self.root / 'data-b')
         entry['resource_refs']['backup_root'] = str(self.root / 'backups-b')
@@ -429,26 +429,26 @@ class ManagedRuntimeCase(unittest.TestCase):
         self.assertIn('OPERATOR_CONTEXT', shell_calls[0][2])
         self.assertNotIn('OPERATOR_CONTEXT', shell_calls[1][2])
         for call in shell_calls[:2]:
-            self.assertIn('NASQ_MANAGED_POLICY:', call[2])
+            self.assertIn('WEBVUE_MANAGED_POLICY:', call[2])
             self.assertNotIn('-e', call[0])
         for call in shell_calls[2:]:
             argv, env, script = call
-            self.assertIn('NASQ_MANAGED_CREDENTIALS:', script)
-            self.assertEqual(argv[argv.index('-e') + 1], 'NASQ_ADMIN_PASSWORD')
+            self.assertIn('WEBVUE_MANAGED_CREDENTIALS:', script)
+            self.assertEqual(argv[argv.index('-e') + 1], 'WEBVUE_ADMIN_PASSWORD')
             self.assertLess(argv.index('-e'), argv.index('odoo'))
-            self.assertEqual(env['NASQ_ADMIN_PASSWORD'], self.admin_value)
+            self.assertEqual(env['WEBVUE_ADMIN_PASSWORD'], self.admin_value)
             for secret in (self.secret_value, self.admin_value):
                 self.assertNotIn(secret, ' '.join(argv))
                 self.assertNotIn(secret, script)
         self.assertIn('\nsnapshot = False\n', shell_calls[2][2])
         self.assertIn('\nsnapshot = True\n', shell_calls[3][2])
-        self.assertIn("_nasq_access_write({'password': secret}", shell_calls[2][2])
-        self.assertNotIn('_nasq_access_write', shell_calls[3][2])
+        self.assertIn("_webvue_access_write({'password': secret}", shell_calls[2][2])
+        self.assertNotIn('_webvue_access_write', shell_calls[3][2])
         self.assertIn('SET TRANSACTION READ ONLY', shell_calls[3][2])
         self.assertEqual(runner.argv[-1][-2:], ['up', '-d'])
         self.assertIs(payload['policy_verified'], True)
         self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
-        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
+        self.assertEqual(payload['expected_modules'], ['webvue_api', 'webvue_core', 'webvue_platform'])
         return code, payload, runner
 
     def failed_create(self, runner=None, request_id='req_0001'):
@@ -673,8 +673,8 @@ class PreflightCollisionCase(ManagedRuntimeCase):
         self.assertEqual(payload['status'], 'conflict')
 
     def test_t15_disallowed_target_database_is_refused(self):
-        for db_name in ('odoo19', 'production', 'nasq_scratch_prod', 'nasq_demo',
-                        'nasq_scratch_odoo19'):
+        for db_name in ('odoo19', 'production', 'webvue_scratch_prod', 'webvue_demo',
+                        'webvue_scratch_odoo19'):
             with self.subTest(db_name=db_name):
                 self.write_inventory({TARGET_A: self.descriptor(
                     resource_refs={'db_name': db_name})})
@@ -705,7 +705,7 @@ class PreflightCollisionCase(ManagedRuntimeCase):
                 payload = self.refuse(3, 'control_plane_overlap')
                 self.assertEqual(payload['status'], 'error')
         self.write_inventory({TARGET_A: self.descriptor(
-            resource_refs={'project': 'nasq-saas-control-local'})})
+            resource_refs={'project': 'webvue-saas-control-local'})})
         self.refuse(3, 'control_plane_overlap')
 
     def test_t21_sibling_descriptors_cannot_share_resources(self):
@@ -1124,13 +1124,13 @@ class StatusReceiptCase(ManagedRuntimeCase):
         self.assertIs(payload['policy_verified'], True)
         self.assertIs(payload['deployment_ready'], True)
         self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])
-        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
+        self.assertEqual(payload['expected_modules'], ['webvue_api', 'webvue_core', 'webvue_platform'])
         self.assertEqual(payload['profile']['policy_revision'], 1)
 
     def test_status_ignores_a_forged_journal_expected_modules(self):
         self.successful_create()
         stored = json.loads(self.raw_journal_row('req_0001')[5])
-        stored['expected_modules'] = ['nasq_core', 'nasq_forged']
+        stored['expected_modules'] = ['webvue_core', 'webvue_forged']
         connection = sqlite3.connect(str(self.state / 'operations.sqlite3'))
         try:
             connection.execute('UPDATE operations SET receipt = ? WHERE target = ? AND request_id = ?',
@@ -1140,7 +1140,7 @@ class StatusReceiptCase(ManagedRuntimeCase):
             connection.close()
         code, payload = self.adapter(self.status_fields(), runner=ForbiddenRunner(), probe=ForbiddenProbe())
         self.assertEqual(code, 0, payload)
-        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
+        self.assertEqual(payload['expected_modules'], ['webvue_api', 'webvue_core', 'webvue_platform'])
 
     def test_legacy_incomplete_receipt_stays_unverified_and_read_only(self):
         self.seed_journal_row('req_legacy')
@@ -1351,9 +1351,9 @@ class LifecycleCase(ManagedRuntimeCase):
                 'entitlement_source': 'control_plane', 'status': 'active',
                 'valid_until': None, 'policy_revision': 2,
                 'features': CORE_POLICY['features'],
-                'modules': [*CORE_POLICY['modules'], 'nasq_unknown'],
+                'modules': [*CORE_POLICY['modules'], 'webvue_unknown'],
             }
-            return 0, 'NASQ_MANAGED_POLICY:' + json.dumps(snapshot) + '\\n', ''
+            return 0, 'WEBVUE_MANAGED_POLICY:' + json.dumps(snapshot) + '\\n', ''
 
         code, payload = self.adapter(self.fields('tenant.inspect'), runner=mismatched)
         self.assertEqual(code, 4, payload)
@@ -1372,9 +1372,9 @@ class LifecycleCase(ManagedRuntimeCase):
                 'valid_until': None, 'policy_revision': 2,
                 'features': {'users.limit': None, 'storage.limit_mb': None,
                              'hr.enabled': True},
-                'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_hr'],
+                'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_hr'],
             }
-            return 0, 'NASQ_MANAGED_POLICY:' + json.dumps(snapshot) + '\\n', ''
+            return 0, 'WEBVUE_MANAGED_POLICY:' + json.dumps(snapshot) + '\\n', ''
 
         code, payload = self.adapter(self.fields('tenant.inspect'), runner=other_tier)
         self.assertEqual(code, 4, payload)
@@ -1544,8 +1544,8 @@ class BoundedArgvSecretsCase(ManagedRuntimeCase):
         self.assertEqual(caught.exception.code, 'policy_invalid')
 
     def test_t45_argv_rejects_injection(self):
-        for db_name in ('nasq_scratch_a;rm -rf /', 'nasq_scratch_a\n--privileged',
-                        'nasq_scratch_$(id)', 'nasq_scratch_a`id`'):
+        for db_name in ('webvue_scratch_a;rm -rf /', 'webvue_scratch_a\n--privileged',
+                        'webvue_scratch_$(id)', 'webvue_scratch_a`id`'):
             with self.subTest(db_name=db_name):
                 self.write_inventory({TARGET_A: self.descriptor(
                     resource_refs={'db_name': db_name})})
@@ -1604,12 +1604,12 @@ class ScratchRegressionCase(ManagedRuntimeCase):
             (addons / module).mkdir(parents=True, exist_ok=True)
             (addons / module / '__manifest__.py').write_text('{}')
         (self.root / 'classification.json').write_text(json.dumps({
-            'schema_version': 1, 'database': 'nasq_scratch_demo',
+            'schema_version': 1, 'database': 'webvue_scratch_demo',
             'commercial_mode': 'non_saas', 'entitlement_source': 'local_policy',
             'expected_valid_until': None, 'valid_until_action': 'preserve',
         }))
         return {
-            'database': 'nasq_scratch_demo', 'kind': kind,
+            'database': 'webvue_scratch_demo', 'kind': kind,
             'pg_host': '127.0.0.1', 'pg_port': 5432, 'pg_user': 'scratch_user',
             'python': sys.executable, 'odoo_bin': str(self.root / 'odoo-bin'),
             'addons_paths': [str(addons)], 'data_dir': str(self.data),

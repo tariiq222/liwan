@@ -7,10 +7,10 @@ import unittest
 from pathlib import Path
 
 import catalog_check
-from nasq_cli import module_closure, operator
+from webvue_cli import module_closure, operator
 
 ADDONS = Path(__file__).resolve().parents[1] / 'odoo-addons'
-BASE = ['nasq_core', 'nasq_platform', 'nasq_api']
+BASE = ['webvue_core', 'webvue_platform', 'webvue_api']
 
 
 def _release_tiers():
@@ -25,7 +25,7 @@ def _release_tiers():
 
 
 # Hand-computed pin for the three base modules; applications are derived from the release.
-EXPECTED = {'core': (BASE, {'nasq_core', 'nasq_platform', 'nasq_api'}), **_release_tiers()}
+EXPECTED = {'core': (BASE, {'webvue_core', 'webvue_platform', 'webvue_api'}), **_release_tiers()}
 
 
 class RealManifestClosureTest(unittest.TestCase):
@@ -43,67 +43,67 @@ class RealManifestClosureTest(unittest.TestCase):
     def test_operator_still_rejects_a_missing_module(self):
         entry = {'addons_paths': [str(ADDONS)]}
         with self.assertRaises(operator.OperatorFailure):
-            operator._validate_module_closure(entry, BASE + ['nasq_no_such_module'])
+            operator._validate_module_closure(entry, BASE + ['webvue_no_such_module'])
 
     def test_missing_dependency_manifest_is_an_error(self):
         with tempfile.TemporaryDirectory() as root:
-            module = Path(root) / 'nasq_lonely'
+            module = Path(root) / 'webvue_lonely'
             module.mkdir()
-            (module / '__manifest__.py').write_text("{'depends': ['nasq_ghost']}")
+            (module / '__manifest__.py').write_text("{'depends': ['webvue_ghost']}")
             with self.assertRaises(module_closure.ClosureError):
-                module_closure.install_closure([root], ['nasq_lonely'])
+                module_closure.install_closure([root], ['webvue_lonely'])
             with self.assertRaises(operator.OperatorFailure):
-                operator._validate_module_closure({'addons_paths': [root]}, ['nasq_lonely'])
+                operator._validate_module_closure({'addons_paths': [root]}, ['webvue_lonely'])
 
     def test_auto_install_module_joins_when_dependencies_are_inside(self):
         with tempfile.TemporaryDirectory() as root:
             for name, manifest in {
-                'nasq_a': "{'depends': ['base']}",
-                'nasq_glue': "{'depends': ['nasq_a'], 'auto_install': True}",
-                'nasq_other': "{'depends': ['nasq_a', 'nasq_b'], 'auto_install': True}",
-                'nasq_b': "{'depends': ['base']}",
+                'webvue_a': "{'depends': ['base']}",
+                'webvue_glue': "{'depends': ['webvue_a'], 'auto_install': True}",
+                'webvue_other': "{'depends': ['webvue_a', 'webvue_b'], 'auto_install': True}",
+                'webvue_b': "{'depends': ['base']}",
             }.items():
                 (Path(root) / name).mkdir()
                 (Path(root) / name / '__manifest__.py').write_text(manifest)
-            self.assertEqual(module_closure.install_closure([root], ['nasq_a']), {'nasq_a', 'nasq_glue'})
+            self.assertEqual(module_closure.install_closure([root], ['webvue_a']), {'webvue_a', 'webvue_glue'})
 
     def test_auto_install_module_needs_its_odoo_dependencies_in_the_closure(self):
         with tempfile.TemporaryDirectory() as root:
             for name, manifest in {
-                'nasq_a': "{'depends': ['project']}",
-                'nasq_b': "{'depends': ['hr']}",
-                'nasq_glue_project': "{'depends': ['nasq_a', 'project'], 'auto_install': True}",
-                'nasq_glue_mail': "{'depends': ['nasq_a', 'mail'], 'auto_install': True}",
-                'nasq_glue_base': "{'depends': ['base'], 'auto_install': True}",
+                'webvue_a': "{'depends': ['project']}",
+                'webvue_b': "{'depends': ['hr']}",
+                'webvue_glue_project': "{'depends': ['webvue_a', 'project'], 'auto_install': True}",
+                'webvue_glue_mail': "{'depends': ['webvue_a', 'mail'], 'auto_install': True}",
+                'webvue_glue_base': "{'depends': ['base'], 'auto_install': True}",
             }.items():
                 (Path(root) / name).mkdir()
                 (Path(root) / name / '__manifest__.py').write_text(manifest)
             self.assertEqual(
-                module_closure.install_closure([root], ['nasq_a']),
-                {'nasq_a', 'nasq_glue_project', 'nasq_glue_base'},
+                module_closure.install_closure([root], ['webvue_a']),
+                {'webvue_a', 'webvue_glue_project', 'webvue_glue_base'},
             )
-            self.assertEqual(module_closure.install_closure([root], ['nasq_b']), {'nasq_b', 'nasq_glue_base'})
+            self.assertEqual(module_closure.install_closure([root], ['webvue_b']), {'webvue_b', 'webvue_glue_base'})
 
     def test_the_real_meetings_bridge_joins_only_with_both_applications(self):
-        shared = {'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory'}
+        shared = {'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_notify', 'webvue_directory'}
         self.assertEqual(
-            module_closure.install_closure([ADDONS], BASE + ['nasq_meetings']), shared | {'nasq_meetings'},
+            module_closure.install_closure([ADDONS], BASE + ['webvue_meetings']), shared | {'webvue_meetings'},
         )
-        self.assertEqual(module_closure.install_closure([ADDONS], BASE + ['nasq_pmo']), shared | {'nasq_pmo'})
+        self.assertEqual(module_closure.install_closure([ADDONS], BASE + ['webvue_pmo']), shared | {'webvue_pmo'})
         self.assertIn(
-            'nasq_meetings_pmo', module_closure.install_closure([ADDONS], BASE + ['nasq_meetings', 'nasq_pmo']),
+            'webvue_meetings_pmo', module_closure.install_closure([ADDONS], BASE + ['webvue_meetings', 'webvue_pmo']),
         )
 
     def test_projects_tier_closure_from_real_manifests_includes_the_bridge(self):
-        projects = module_closure.install_closure([ADDONS], BASE + ['nasq_pmo', 'nasq_meetings'])
-        self.assertIn('nasq_meetings_pmo', projects)
+        projects = module_closure.install_closure([ADDONS], BASE + ['webvue_pmo', 'webvue_meetings'])
+        self.assertIn('webvue_meetings_pmo', projects)
         for tier_name in ('people', 'messaging', 'core'):
             with self.subTest(tier=tier_name):
                 self.assertNotIn(
-                    'nasq_meetings_pmo', module_closure.install_closure([ADDONS], EXPECTED[tier_name][0]),
+                    'webvue_meetings_pmo', module_closure.install_closure([ADDONS], EXPECTED[tier_name][0]),
                 )
-        # Meetings without nasq_pmo: bridge stays out.
-        self.assertNotIn('nasq_meetings_pmo', module_closure.install_closure([ADDONS], BASE + ['nasq_meetings']))
+        # Meetings without webvue_pmo: bridge stays out.
+        self.assertNotIn('webvue_meetings_pmo', module_closure.install_closure([ADDONS], BASE + ['webvue_meetings']))
 
 
 if __name__ == '__main__':

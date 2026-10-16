@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChartPanel from '@nasq/ui/app/components/shared/data/ChartPanel.vue'
+import ChartPanel from '@webvue/ui/app/components/shared/data/ChartPanel.vue'
 import DashboardChart from '../../app/components/shared/data/DashboardChart.client.vue'
-import DashboardPage from '@nasq/ui/app/components/shared/layout/DashboardPage.vue'
-import MetricTile from '@nasq/ui/app/components/shared/data/MetricTile.vue'
+import DashboardPage from '@webvue/ui/app/components/shared/layout/DashboardPage.vue'
+import MetricTile from '@webvue/ui/app/components/shared/data/MetricTile.vue'
 import { dashboardCharts } from '../fixtures/projectReports'
 import { storyContext } from '../support/context'
 
@@ -32,7 +32,7 @@ const page = (states: boolean): Story['render'] => () => ({
     onMounted(() => { void document.fonts.ready.then(() => { fontsReady.value = true }) })
     return { t, states, fontsReady, charts: computed(() => dashboardCharts(t)) }
   },
-  template: `<main class="nasq-shell-main">
+  template: `<main class="webvue-shell-main">
     <DashboardPage :title="t('projects.dashboard.title')">
       <template #actions>
         <UButton color="neutral" variant="outline" to="/projects" :label="t('projects.dashboard.allProjects')" />

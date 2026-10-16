@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { TaskDetail } from '@nasq/contracts'
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
-import { sectionTabsUi } from '@nasq/ui/app/utils/sectionTabs'
+import type { TaskDetail } from '@webvue/contracts'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
+import { sectionTabsUi } from '@webvue/ui/app/utils/sectionTabs'
 import DependencyPicker from './DependencyPicker.vue'
 import TaskActivity from './TaskActivity.vue'
 import TaskAttachments from './TaskAttachments.vue'
@@ -26,7 +26,7 @@ const tabs = computed(() => [
 // The details tab stacks its sections as rows: title in the start column, content beside it.
 const rowClass = 'grid gap-x-8 gap-y-4 py-6 first:pt-2 last:pb-0 lg:grid-cols-[11rem_minmax(0,1fr)]'
 const rowTitleClass = 'text-sm font-semibold text-highlighted'
-const dateTimeFmt = computed(() => ({ format: (value: Date) => formatNasqDateTime(value, locale.value) }))
+const dateTimeFmt = computed(() => ({ format: (value: Date) => formatWebVueDateTime(value, locale.value) }))
 
 // --- metrics ---------------------------------------------------------------
 const createdLabel = computed(() => dateTimeFmt.value.format(new Date(props.task.created_at)))

@@ -190,10 +190,10 @@ test('the list state comes back from history and rows carry returnTo', async ({ 
   await expect(rows(page)).toHaveCount(1)
   const link = page.locator('tbody').getByRole('link', { name: 'حجز قاعة الاجتماع' })
   const href = (await link.getAttribute('href'))!
-  const returnTo = new URL(href, 'http://nasq.local').searchParams.get('returnTo')!
-  expect(new URL(returnTo, 'http://nasq.local').searchParams.get('tab')).toBe('closed')
-  expect(new URL(returnTo, 'http://nasq.local').searchParams.get('scope')).toBe('created')
-  expect(new URL(returnTo, 'http://nasq.local').searchParams.get('q')).toBe('حجز')
+  const returnTo = new URL(href, 'http://webvue.local').searchParams.get('returnTo')!
+  expect(new URL(returnTo, 'http://webvue.local').searchParams.get('tab')).toBe('closed')
+  expect(new URL(returnTo, 'http://webvue.local').searchParams.get('scope')).toBe('created')
+  expect(new URL(returnTo, 'http://webvue.local').searchParams.get('q')).toBe('حجز')
 
   await open(page, '/account')
   await expect(page).toHaveURL(/\/account/)
@@ -286,8 +286,8 @@ test('a second-page live Arabic ampersand search carries the reset offset and ha
   await input.fill('عربي & بحث')
   const link = page.locator('tbody').getByRole('link', { name: 'ترتيب ملفات الأرشيف', exact: true })
   await expect(link).toHaveAttribute('href', /returnTo=/)
-  const origin = new URL((await link.getAttribute('href'))!, 'http://nasq.local').searchParams.get('returnTo')!
-  const url = new URL(origin, 'http://nasq.local')
+  const origin = new URL((await link.getAttribute('href'))!, 'http://webvue.local').searchParams.get('returnTo')!
+  const url = new URL(origin, 'http://webvue.local')
   expect(url.searchParams.get('q')).toBe('عربي & بحث')
   expect(url.searchParams.has('offset')).toBe(false)
   expect(url.searchParams.get('scope')).toBe('created')

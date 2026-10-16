@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Architecture rules R1-R10 with a shrinking baseline.
 
-Spec: docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md
+Spec: docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md
 """
 from __future__ import annotations
 
@@ -28,14 +28,14 @@ FOUNDATION_MAX_RANK = 2
 # R2 tokens that are not an addon of this repository: Odoo models and the meeting engine.
 # app_token() adds every registered application and bridge (ranks 4 and 5 in arch_layers.json).
 STATIC_APP_TOKENS = ('project', 'cyan_meeting_minutes')
-ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
+ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:webvue|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
 # UI1: a file of a shared UI layer (packages/ui, packages/commercial-ui) reaches into an application, an addon, an app alias, the contracts or the control plane.
 UI_LAYER_FORBIDDEN = re.compile(
     # A JS specifier needs its opening quote, so prose such as "moved from apps/web/app/x" in a comment is not an import;
     # CSS at-rules and url() may be unquoted.
     r"""(?:(?:\bfrom|\bimport|\brequire\(|import\.meta\.glob\()\s*[(\[]?\s*['"]|(?:@import|@source|url\()\s*['"]?)"""
-    r"""(?:[./]*/)?(?:apps/|odoo-addons/|@/|@@/|~/|~~/|@nasq/contracts|[^'"\n]*control-plane)""",
+    r"""(?:[./]*/)?(?:apps/|odoo-addons/|@/|@@/|~/|~~/|@webvue/contracts|[^'"\n]*control-plane)""",
 )
 UI_LAYER_FILES = ('.ts', '.vue', '.css')
 # VA1: a file of the vendor admin app (a) imports an application, an addon, the customer contracts or the control plane, or
@@ -52,7 +52,7 @@ VENDOR_ADMIN_FILES = ('.ts', '.vue', '.css', '.js', '.mjs', '.mts', '.cjs', '.ts
 VENDOR_ADMIN_SKIPPED_DIRS = {'node_modules', '.nuxt', '.output', 'dist', 'storybook-static'}
 VENDOR_ADMIN_TEST_DIRS = {'test', 'tests', 'e2e'}
 FORBIDDEN_SEGMENTS = {'apps', 'odoo-addons', 'control-plane'}
-COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
+COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@webvue/commercial-contracts""")
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
 SQL_TABLE = re.compile(
     r'\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+(?:ONLY\s+)?'
@@ -63,7 +63,7 @@ SQL_TABLE = re.compile(
 SQL_NON_TABLE_FROM = re.compile(
     r'\bIS\s+(?:NOT\s+)?DISTINCT\s+FROM\b|\b(?:EXTRACT|SUBSTRING|TRIM|OVERLAY|POSITION)\s*\([^()]*\)', re.IGNORECASE,
 )
-ODOO_INHERIT = re.compile(r'''_inherit\s*=\s*['"](?!nasq\.)''')
+ODOO_INHERIT = re.compile(r'''_inherit\s*=\s*['"](?!webvue\.)''')
 ACCESS_OVERRIDE = re.compile(r'^\s+def (?:_search|check_access|_check_access)\(', re.MULTILINE)
 ENABLED_FEATURE = re.compile(r'''['"]key['"]\s*:\s*['"][a-z_]+\.enabled['"]''')
 
@@ -112,7 +112,7 @@ def vendor_admin_violations(text: str, file: Path, app_dir: Path) -> int:
         segments = specifier.split('/')
         bare = not specifier.startswith(('.', '~', '@/', '@@'))
         if escapes_app(specifier, file, app_dir) or (
-                bare and (FORBIDDEN_SEGMENTS & set(segments) or segments[:2] == ['@nasq', 'contracts'])):
+                bare and (FORBIDDEN_SEGMENTS & set(segments) or segments[:2] == ['@webvue', 'contracts'])):
             found += 1
     return found
 
@@ -135,13 +135,13 @@ def count(pattern: re.Pattern[str], text: str) -> int:
 def app_token(ranks: dict[str, int]) -> re.Pattern[str]:
     """R2: `<prefix>.x` and `<addon>.` tokens a foundation file must not contain.
 
-    Each registered application or bridge `nasq_<name>` contributes `<name>.` (its capability
-    and feature keys) and `nasq_<name>.` (its xml ids and imports). Shared services (rank 3),
+    Each registered application or bridge `webvue_<name>` contributes `<name>.` (its capability
+    and feature keys) and `webvue_<name>.` (its xml ids and imports). Shared services (rank 3),
     the foundation and customer overlays contribute nothing. Longer alternatives come first,
-    and `\\b` keeps `meetings_pmo.` inside `nasq_meetings_pmo.` from counting twice.
+    and `\\b` keeps `meetings_pmo.` inside `webvue_meetings_pmo.` from counting twice.
     """
     addons = sorted((a for a, rank in ranks.items() if rank in (APP_RANK, BRIDGE_RANK)), key=lambda a: (-len(a), a))
-    prefixes = sorted({*STATIC_APP_TOKENS, *(a.removeprefix('nasq_') for a in addons)}, key=lambda p: (-len(p), p))
+    prefixes = sorted({*STATIC_APP_TOKENS, *(a.removeprefix('webvue_') for a in addons)}, key=lambda p: (-len(p), p))
     names = '|'.join(map(re.escape, addons)) or '(?!)'
     return re.compile(rf'\b(?:(?:{"|".join(map(re.escape, prefixes))})\.[a-z_]|(?:{names})\.)')
 
@@ -155,8 +155,8 @@ def unregistered_addons(addons: list[str], ranks: dict[str, int], exempt: list[s
 
 
 def core_depends_violations(depends: list[str]) -> dict[str, int]:
-    """R1: nasq_core depends on base only."""
-    return {f'nasq_core depends on {dep}': 1 for dep in depends if dep != 'base'}
+    """R1: webvue_core depends on base only."""
+    return {f'webvue_core depends on {dep}': 1 for dep in depends if dep != 'base'}
 
 
 def layer_violations(addon: str, targets: list[str], ranks: dict[str, int], kind: str) -> dict[str, int]:
@@ -270,9 +270,9 @@ def _sql_strings(text: str) -> list[str]:
 
 
 def sql_on_odoo_tables(text: str) -> int:
-    """R9: SQL passed to execute()/SQL() that names a table that is not a nasq_ table."""
+    """R9: SQL passed to execute()/SQL() that names a table that is not a webvue_ table."""
     return sum(
-        1 for sql in _sql_strings(text) for table in SQL_TABLE.findall(SQL_NON_TABLE_FROM.sub(' ', sql)) if not table.lower().startswith('nasq_')
+        1 for sql in _sql_strings(text) for table in SQL_TABLE.findall(SQL_NON_TABLE_FROM.sub(' ', sql)) if not table.lower().startswith('webvue_')
     )
 
 
@@ -481,13 +481,13 @@ def _addon_files(addon_dir: Path, suffixes: tuple[str, ...], root: Path | None =
 
 
 def new_app_r2_hits(root: Path, layers: dict, app: str) -> dict[str, int]:
-    """R2 hits a new application `app` (addon `nasq_<app>`, rank 4) would add to files of rank 0-3.
+    """R2 hits a new application `app` (addon `webvue_<app>`, rank 4) would add to files of rank 0-3.
 
     The token set is built exactly as `collect` does, once for the current ranks and once with the
     new application added; a file whose count grows would gain a violation.
     """
     ranks = layers['ranks']
-    before, after = app_token(ranks), app_token({**ranks, f'nasq_{app}': APP_RANK})
+    before, after = app_token(ranks), app_token({**ranks, f'webvue_{app}': APP_RANK})
     addons_root = root / 'odoo-addons'
     hits: dict[str, int] = {}
     if app in STATIC_APP_TOKENS:
@@ -522,7 +522,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
         addon_dir = addons_root / addon
         manifest = ast.literal_eval(_read(addon_dir / '__manifest__.py'))
         depends = list(manifest.get('depends', []))
-        if addon == 'nasq_core':
+        if addon == 'webvue_core':
             v['R1'].update(core_depends_violations(depends))
         v['R4'].update(layer_violations(addon, depends, ranks, 'depends on'))
         if ranks[addon] == BRIDGE_RANK and not manifest.get('auto_install'):

@@ -1,4 +1,4 @@
-// Payment-provider adapter contract for the Nasq control plane. Provider
+// Payment-provider adapter contract for the WebVue control plane. Provider
 // events are never trusted on their own: callers must confirm them with an
 // authoritative provider fetch (see confirmEvent in moyasar-adapter.ts).
 // Types are local; the coordinator aligns them with shared contracts later.
@@ -84,7 +84,7 @@ export function toBytes(raw: Uint8Array | string): Uint8Array {
 }
 
 export function paymentAdapterFromEnv(env: Record<string, string | undefined>): PaymentAdapter {
-  const provider = env.NASQ_PAYMENT_PROVIDER
+  const provider = env.WEBVUE_PAYMENT_PROVIDER
   const need = (k: string): string => {
     const v = env[k]
     if (!v) throw new PaymentError('provider_not_configured', `missing ${k}`)
@@ -102,8 +102,8 @@ export function paymentAdapterFromEnv(env: Record<string, string | undefined>): 
       webhookSecret: need('MOYASAR_WEBHOOK_SECRET'),
       merchantAccount: need('MOYASAR_ACCOUNT_NAME'),
       expectLive: mode === 'live',
-      allowedReturnOrigins: need('NASQ_PAYMENT_RETURN_ORIGINS').split(',').map(s => s.trim()).filter(Boolean),
+      allowedReturnOrigins: need('WEBVUE_PAYMENT_RETURN_ORIGINS').split(',').map(s => s.trim()).filter(Boolean),
     })
   }
-  throw new PaymentError('provider_not_configured', 'NASQ_PAYMENT_PROVIDER must be moyasar|simulator')
+  throw new PaymentError('provider_not_configured', 'WEBVUE_PAYMENT_PROVIDER must be moyasar|simulator')
 }

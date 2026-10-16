@@ -18,14 +18,14 @@ All numbers are single runs on a warm cache. They are indicative, not benchmarks
 | `npm ci --ignore-scripts --prefer-offline` in a fresh worktree | 4.7 s | 632 MB `node_modules` per worktree |
 | Odoo install of the 10 release modules, fresh scratch DB | 17.1 s | |
 | `createdb -T <installed db> <new>` | 1.2 s | template clone of a 40 MB DB |
-| `nasq_hr` tests only (`-u nasq_hr --test-tags /nasq_hr`) | 31.1 s | 70 tests |
+| `webvue_hr` tests only (`-u webvue_hr --test-tags /webvue_hr`) | 31.1 s | 70 tests |
 | **Full Odoo run (install + all release-module tests)** | **234 s** | 658 tests, 283k queries |
 
 Not measured: Playwright e2e (needs a full stack), Woodpecker CI wall time, `docker` image step, restore drill.
 
 Environment debris found:
 
-- 447 `nasq_*` databases in local PostgreSQL, 8.9 GB (163 are not `shared_scratch*`). `data_directory` is 9.0 GB.
+- 447 `webvue_*` databases in local PostgreSQL, 8.9 GB (163 are not `shared_scratch*`). `data_directory` is 9.0 GB.
 - 9 worktrees in `.worktrees`, 4.5 GB, 4777 `node_modules`-related directories.
 - Agent instruction files in parallel: `CLAUDE.md` (469 lines), `AGENTS.md` (216), `GEMINI.md`, `GROK.md`, `opencode.json`, `.github/copilot-instructions.md`.
 - Stray root files: `odoo.log`, `nonexistent-home/`, `plans/`.
@@ -44,7 +44,7 @@ Environment debris found:
 | File | Problem | Fix |
 | --- | --- | --- |
 | `docs/parallel-work.md` "Shared-file protocol" | Lists `apps/web/nuxt.config.ts` locale entries and `apps/web/app/composables/useNav.ts` as orchestrator-only integration points. `useNav.ts` does not exist; CLAUDE.md says manifests and locale files are auto-discovered and "no foundation file lists an application". | Rewrite the list to the real shared files (`tools/arch_layers.json`, `deploy/catalog/solutions/platform_v3.json`, `packages/contracts/src/index.ts`). |
-| `docs/parallel-work.md` ownership note | Says PMO owns `/api/v1/people`. The route lives in `odoo-addons/nasq_directory/controllers/people.py`; CLAUDE.md says `nasq_directory` owns it. | Correct the owner; add a `nasq_directory`, `nasq_notify`, `nasq_meetings*` row to the table. |
+| `docs/parallel-work.md` ownership note | Says PMO owns `/api/v1/people`. The route lives in `odoo-addons/webvue_directory/controllers/people.py`; CLAUDE.md says `webvue_directory` owns it. | Correct the owner; add a `webvue_directory`, `webvue_notify`, `webvue_meetings*` row to the table. |
 | `CLAUDE.md` | Same rules stated 2-3 times (sudo cases, RTL/i18n, capability registration, API conventions). | Deduplicate; see task D2. |
 | Agent files | `AGENTS.md`, `GEMINI.md`, `GROK.md`, `opencode.json`, `.github/copilot-instructions.md` drift from `CLAUDE.md`. | Owner decides which tools are in use; keep one source (see D3). |
 
@@ -54,7 +54,7 @@ Each task is one logical commit (`type(scope): subject`, scopes from the area li
 
 ### Phase A - hygiene (no behavior change)
 
-- **A1 `chore(tools)`: scratch database cleaner.** `tools/scratch_db_gc.py`, dry-run by default, `--apply` drops databases matching `^nasq_.*(scratch|test|e2e)` that are older than N days and have no active connection. Never matches `odoo19`, `postgres`, templates. Needs a unit test with a fake `psql` runner. Owner approval is required before the first `--apply` on the real server because it deletes data.
+- **A1 `chore(tools)`: scratch database cleaner.** `tools/scratch_db_gc.py`, dry-run by default, `--apply` drops databases matching `^webvue_.*(scratch|test|e2e)` that are older than N days and have no active connection. Never matches `odoo19`, `postgres`, templates. Needs a unit test with a fake `psql` runner. Owner approval is required before the first `--apply` on the real server because it deletes data.
   Done when: dry-run lists the 447 databases with sizes; test passes.
 - **A2 `docs(docs)`: fix `docs/parallel-work.md`** per section 3. Add a check to `tools/docs_policy.py` (new, small) that fails when a doc references a path in backticks that does not exist, for `docs/parallel-work.md` and `CLAUDE.md` only.
   Done when: the check passes and fails on the old text.
@@ -62,9 +62,9 @@ Each task is one logical commit (`type(scope): subject`, scopes from the area li
 
 ### Phase B - speed of the loops that dominate
 
-- **B1 `feat(tools)`: `tools/odoo_test.py` (or extend `nasq_cli`).** Inputs: list of addons (default: derived from `git diff --name-only main...` and `tools/arch_layers.json` closure). Steps: create scratch DB from a cached template, run `-u <addons> --test-tags /<addons>`, drop the DB. Template DB `nasq_scratch_template_<odoo_commit>_<addons-hash>` is created once with the 17 s install and reused via `createdb -T`.
-  Constraint: DB name must satisfy the classification fixture guard (`nasq_*scratch*`); never touch `odoo19`.
-  Done when: `nasq_hr` change runs in under ~40 s end to end; script refuses non-scratch names.
+- **B1 `feat(tools)`: `tools/odoo_test.py` (or extend `webvue_cli`).** Inputs: list of addons (default: derived from `git diff --name-only main...` and `tools/arch_layers.json` closure). Steps: create scratch DB from a cached template, run `-u <addons> --test-tags /<addons>`, drop the DB. Template DB `webvue_scratch_template_<odoo_commit>_<addons-hash>` is created once with the 17 s install and reused via `createdb -T`.
+  Constraint: DB name must satisfy the classification fixture guard (`webvue_*scratch*`); never touch `odoo19`.
+  Done when: `webvue_hr` change runs in under ~40 s end to end; script refuses non-scratch names.
 - **B2 `feat(tools)`: `npm run check:fast`.** Runs `ruff`, `arch_policy`, `git_policy --base main`, `secret_guard`, `ui_policy`, `vitest --changed`, and `vue-tsc` when `apps/web` changed. Target under 25 s. `npm test` stays the binding full gate.
 - **B3 `feat(tools)`: `tools/wt.sh new <area-slug>`.** Creates the worktree, runs `npm ci --ignore-scripts`, picks free ports for Nuxt and Odoo, derives DB name, writes `.env.worktree`. Removes per-task manual steps listed in `CLAUDE.md` "Safe worktree workflow".
 - **B4 measure e2e first (no code).** Record `npm run e2e` and the Playwright suite wall time in `docs/testing.md`. Only then decide on `workers`/sharding; the suites share a seeded DB, so parallel workers may need one DB per worker.
@@ -133,7 +133,7 @@ Focused tests for each new tool (`tools/test_*.py`, wired into `npm test` by dis
 ## 9. Owner decisions (2026-10-13)
 
 - Only Codex and Claude are used. `GEMINI.md`, `GROK.md`, `.github/copilot-instructions.md` removed (staged, not committed); local untracked `opencode.json` removed. `AGENTS.md` (Codex) and `CLAUDE.md` stay; D3 reduces to deduplicating those two.
-- All 447 local `nasq_*` scratch databases dropped (none had active connections); `odoo19`, `oca_test`, `shadcn_test`, `postgres` kept. PostgreSQL data dir went from 9.0 GB to 313 MB. A1 stays useful as a recurring cleaner, no longer as a one-off.
+- All 447 local `webvue_*` scratch databases dropped (none had active connections); `odoo19`, `oca_test`, `shadcn_test`, `postgres` kept. PostgreSQL data dir went from 9.0 GB to 313 MB. A1 stays useful as a recurring cleaner, no longer as a one-off.
 
 ## 10. Remaining open questions
 

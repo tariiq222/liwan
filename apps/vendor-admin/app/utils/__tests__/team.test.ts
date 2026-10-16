@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { StepUpCancelled } from '../../composables/useStepUp'
-import { VENDOR_ROLES } from '@nasq/commercial-contracts'
+import { VENDOR_ROLES } from '@webvue/commercial-contracts'
 import { invitationLink, reasonValid, sortedRoles, teamErrorKey } from '../team'
 
 describe('team vocabulary', () => {

@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { AUDIT_PAGE_SIZE, type AuditEvent, type AuditList, type AuditListQuery, type AuditSubjectKind } from '@nasq/commercial-contracts'
+import { AUDIT_PAGE_SIZE, type AuditEvent, type AuditList, type AuditListQuery, type AuditSubjectKind } from '@webvue/commercial-contracts'
 
 // Read model of audit_events for the vendor console. Every filter is a bound parameter; the SQL text
 // only ever names columns. Subjects are stored as plain strings (a record id or `account:<n>`), so the

@@ -4,7 +4,7 @@
 
 Worktree `/Users/tariq/code/nasq-managed-saas-acceptance`, branch
 `codex/managed-saas-acceptance`, baseline `d780862e`. This slice owns only
-`tools/nasq_cli/managed_probe.py`, `tools/test_managed_probe.py`, and this document.
+`tools/webvue_cli/managed_probe.py`, `tools/test_managed_probe.py`, and this document.
 The parent owns `managed_runtime.py`, secret resolution, provisioning and any
 separately authorized real acceptance run. `generate.py` is unchanged.
 
@@ -16,7 +16,7 @@ unit tests is a fixture/mock.
 ## Integration API
 
 ```python
-from nasq_cli.managed_probe import DockerProbe, ProbeError
+from webvue_cli.managed_probe import DockerProbe, ProbeError
 
 probe = DockerProbe(descriptor, catalog_path=explicit_catalog_file, runner=runner)
 # runner(argv, env=None, stdin_text=None) -> (exit_code, stdout, stderr)
@@ -79,7 +79,7 @@ must equal descriptor project. Services are exactly `db`, `odoo`, `web`, `edge`.
 | Service | Image | Published ports | Environment | Mounts |
 | --- | --- | --- | --- | --- |
 | db | local immutable image ID or repo digest | `127.0.0.1:<ports.db>:5432` | exact POSTGRES_DB target db_name; POSTGRES_USER `odoo`; POSTGRES_PASSWORD `${POSTGRES_PASSWORD}` | `db_data:/var/lib/postgresql/data` |
-| odoo | exact release_ref.odoo_image | `127.0.0.1:<ports.odoo>:8069` | exact NASQ_COMMERCIAL_CONFIG `/etc/odoo/commercial.json` | `odoo_data:/var/lib/odoo`; private config to `/etc/odoo/odoo.conf:ro`; classification to `/etc/odoo/commercial.json:ro` |
+| odoo | exact release_ref.odoo_image | `127.0.0.1:<ports.odoo>:8069` | exact WEBVUE_COMMERCIAL_CONFIG `/etc/odoo/commercial.json` | `odoo_data:/var/lib/odoo`; private config to `/etc/odoo/odoo.conf:ro`; classification to `/etc/odoo/commercial.json:ro` |
 | web | exact release_ref.web_image | none | exact NUXT_ODOO_URL `http://odoo:8069`; NUXT_ODOO_DB target db_name | none |
 | edge | exact release_ref.proxy_image | `127.0.0.1:<ports.web>:80` | empty/omitted | private Caddyfile to `/etc/caddy/Caddyfile:ro` |
 
@@ -116,11 +116,11 @@ INI config has only `[options]`, no DEFAULT section or duplicate keys. Required
 exact options: `db_host=db`, `db_port=5432`, `db_user=odoo`, `db_name=<target>`,
 `dbfilter=^<target>$`, `list_db=False`, `proxy_mode=True`. `db_password` and
 `admin_passwd` must be nonempty; the parent compares them to resolved handles
-before mutation. No unsupported HOST/USER/PASSWORD or NASQ_PG_PASSWORD shortcut.
+before mutation. No unsupported HOST/USER/PASSWORD or WEBVUE_PG_PASSWORD shortcut.
 Required `workers=2` and `max_cron_threads=0` keep the approved acceptance
 process model fixed; optional
 `http_port=8069`, `gevent_port=8072`, `data_dir=/var/lib/odoo`, and
-`addons_path=/opt/odoo/addons,/opt/nasq/addons` have fixed values. Unknown hooks
+`addons_path=/opt/odoo/addons,/opt/webvue/addons` have fixed values. Unknown hooks
 and alternate database endpoints are refused.
 
 Classification is required and exactly:
@@ -163,7 +163,7 @@ Command (worktree root):
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=tools python3 -B -m unittest tools/test_managed_probe.py
-python3 -B -m ruff check --no-cache tools/nasq_cli/managed_probe.py tools/test_managed_probe.py
+python3 -B -m ruff check --no-cache tools/webvue_cli/managed_probe.py tools/test_managed_probe.py
 ```
 
 - RED before implementation: 18 tests, 18 failures explicitly reporting missing

@@ -74,18 +74,18 @@ done
 
 # Explicit classification is required before starting any Docker service.
 # Keep the validated snapshot separate from branding's replaceable staging directory.
-CLASSIFICATION_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nasq-classification.XXXXXX")"
+CLASSIFICATION_DIR="$(mktemp -d "${TMPDIR:-/tmp}/webvue-classification.XXXXXX")"
 trap 'rm -rf -- "$CLASSIFICATION_DIR"' EXIT
 python3 classification.py stage \
-  --file "${NASQ_COMMERCIAL_CONFIG:?set NASQ_COMMERCIAL_CONFIG to an absolute operator mapping file}" \
+  --file "${WEBVUE_COMMERCIAL_CONFIG:?set WEBVUE_COMMERCIAL_CONFIG to an absolute operator mapping file}" \
   --output "$CLASSIFICATION_DIR/classification.json" --database "$DB_NAME" \
   --expected-valid-until none --fresh
-export NASQ_CLASSIFICATION_FILE="$CLASSIFICATION_DIR/classification.json"
+export WEBVUE_CLASSIFICATION_FILE="$CLASSIFICATION_DIR/classification.json"
 # Directory traversal for the container's unprivileged UID; input contains no secrets.
 chmod 0755 "$CLASSIFICATION_DIR"
 
 export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
-export NASQ_IMAGE_TAG="${NASQ_IMAGE_TAG:-$(git -C "$PWD/.." rev-parse --short HEAD)}"
+export WEBVUE_IMAGE_TAG="${WEBVUE_IMAGE_TAG:-$(git -C "$PWD/.." rev-parse --short HEAD)}"
 
 mkdir -p data
 envsubst < odoo.conf > data/odoo.conf
@@ -100,22 +100,22 @@ for _ in $(seq 1 60); do
 done
 docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not ready after 60s"; exit 1; }
 
-# Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
+# Every pillar must be listed explicitly: pillars depend on webvue_api, not the other way round.
 docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
   -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai --stop-after-init
+  -d "$DB_NAME" -i webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai --stop-after-init
 docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
-# Nasq AI's database role must not connect to a customer database. Postgres grants CONNECT on a
+# WebVue AI's database role must not connect to a customer database. Postgres grants CONNECT on a
 # new database to PUBLIC, so close it for the tenant database just created. A no-op when the
-# nasq_ai role does not exist (deployments without AI); a real error still stops provisioning.
+# webvue_ai role does not exist (deployments without AI); a real error still stops provisioning.
 docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" <<'SQL'
 SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nasq_ai') \gexec
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM nasq_ai', :'tenant_db')
-  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nasq_ai') \gexec
+  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'webvue_ai') \gexec
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM webvue_ai', :'tenant_db')
+  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'webvue_ai') \gexec
 SQL
 docker compose up -d
 echo "https://$DOMAIN is provisioning; vendor login: admin / (VENDOR_PASSWORD from .env)."

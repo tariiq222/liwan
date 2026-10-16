@@ -1,6 +1,6 @@
 import { owningListBack, recordEntryOrigin } from './recordListOrigin'
 import type { LocationQuery } from 'vue-router'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 /** Recover the list origin even after opening a nested project form. */
 export function projectListReturnTo(query: Record<string, unknown>): string {
@@ -8,7 +8,7 @@ export function projectListReturnTo(query: Record<string, unknown>): string {
   for (let depth = 0; depth < 6; depth++) {
     const safe = safeReturnTo(candidate, '', ['/projects'])
     if (!safe) return '/projects'
-    const url = new URL(safe, 'http://nasq.local')
+    const url = new URL(safe, 'http://webvue.local')
     if (url.pathname === '/projects' || url.pathname === '/projects/dashboard') return safe
     candidate = url.searchParams.get('projectListReturnTo') ?? url.searchParams.get('returnTo')
   }
@@ -19,7 +19,7 @@ export function projectListReturnTo(query: Record<string, unknown>): string {
 export function projectRecordBack(query: LocationQuery, currentId: number | null, paths: readonly string[], hash = '') {
   const origins = paths.filter(path => path !== `/projects/${currentId}`)
   const safe = safeReturnTo(query.returnTo, '', ['/projects'])
-  const parent = safe && new URL(safe, 'http://nasq.local').pathname
+  const parent = safe && new URL(safe, 'http://webvue.local').pathname
   const match = parent && /^\/projects\/([1-9]\d*)$/.exec(parent)
   if (match && Number(match[1]) !== currentId && origins.includes('/projects')) {
     const origin = recordEntryOrigin(safe, parent as string, origins)

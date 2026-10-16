@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_webvue_project_stakeholder_employee,webvue.project.stakeholder.employee,model_webvue_project_stakeholder,webvue_core.group_employee,1,1,1,1
+access_webvue_project_stakeholder_reader,webvue.project.stakeholder.reader,model_webvue_project_stakeholder,group_cap_pmo_projects_read,1,1,1,1
+access_webvue_project_stakeholder_manager,webvue.project.stakeholder.manager,model_webvue_project_stakeholder,group_cap_pmo_projects_manage,1,1,1,1
+access_webvue_project_raci_employee,webvue.project.raci.employee,model_webvue_project_raci,webvue_core.group_employee,1,1,1,1
+access_webvue_project_raci_reader,webvue.project.raci.reader,model_webvue_project_raci,group_cap_pmo_projects_read,1,1,1,1
+access_webvue_project_raci_manager,webvue.project.raci.manager,model_webvue_project_raci,group_cap_pmo_projects_manage,1,1,1,1
+access_webvue_project_register_employee,webvue.project.register.employee,model_webvue_project_register,webvue_core.group_employee,1,1,1,1
+access_webvue_project_register_reader,webvue.project.register.reader,model_webvue_project_register,group_cap_pmo_projects_read,1,1,1,1
+access_webvue_project_register_manager,webvue.project.register.manager,model_webvue_project_register,group_cap_pmo_projects_manage,1,1,1,1

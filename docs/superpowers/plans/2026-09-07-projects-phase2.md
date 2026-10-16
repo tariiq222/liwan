@@ -7,7 +7,7 @@
 > **For agentic workers:** Use executing-plans together with the requested Claude/Grok relays; the coordinator owns execution checks.
 
 **Goal:** Deliver project budget entries, actual cost ledger and consolidated project reports.
-**Architecture:** Add isolated nasq_pmo finance records and strict contracts; two parallel implementers consume frozen contracts. Coordinator copies reviewed owned files into integration worktree without Git merge or commits.
+**Architecture:** Add isolated webvue_pmo finance records and strict contracts; two parallel implementers consume frozen contracts. Coordinator copies reviewed owned files into integration worktree without Git merge or commits.
 **Tech Stack:** Odoo19 CE, Nuxt4, Vue3, Zod, TanStack Query.
 **Spec:** docs/superpowers/specs/2026-09-07-projects-phase2-design.md
 
@@ -30,7 +30,7 @@ npm test
 npm run lint
 npm run build
 cd /Users/tariq/code/odoo
-.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-projects-phase2/odoo-addons -d nasq_phase2_20260907 -i nasq_core,nasq_api,nasq_pmo,nasq_hr --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr --http-port=9969 --stop-after-init
+.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-projects-phase2/odoo-addons -d webvue_phase2_20260907 -i webvue_core,webvue_api,webvue_pmo,webvue_hr --test-tags /webvue_core,/webvue_api,/webvue_pmo,/webvue_hr --http-port=9969 --stop-after-init
 ```
 Browser fixture and runtime commands follow existing apps/web/e2e and playwright.config.ts with isolated env/database/ports. Target assertions: budget 1000 plus expense 250 yields planned1000/actual250/remaining750, filtering entries does not alter summary; unknown budget stays null, explicit zero with expense is over budget; edit stale returns409, deleting referenced budget409, reader cannot mutate, hidden/foreign project excluded, 201+ visible project reports cover all matching totals across pages. No source changes to pre-existing tests to dilute assertions.
 

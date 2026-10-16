@@ -1,4 +1,4 @@
-import type { TaskState } from '@nasq/contracts'
+import type { TaskState } from '@webvue/contracts'
 import type { TaskListParams } from './useTasks'
 
 // The project screen keeps its task filters in the URL query (not localStorage

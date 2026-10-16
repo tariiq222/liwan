@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import ProjectCharterForm from '../../app/components/pmo/projects/ProjectCharterForm.vue'
-import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { projectCreateDefaults } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -16,7 +16,7 @@ const meta = {
   render: args => ({
     components: { FormSection, PageContainer, ProjectCharterForm },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><FormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')"><ProjectCharterForm v-bind="args" /></FormSection></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><FormSection :title="t('projects.charter.title')" :description="t('projects.create.defaultsHint')"><ProjectCharterForm v-bind="args" /></FormSection></PageContainer></main>`,
   }),
 } satisfies Meta<typeof ProjectCharterForm>
 export default meta
@@ -32,7 +32,7 @@ export const WaitingForDefaults: Story = {
   parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
 }
 export const AiDraft: Story = {
-  name: 'مسودة من Nasq AI',
+  name: 'مسودة من WebVue AI',
   args: {
     initialDraft: {
       name: 'بوابة خدمات العملاء',
@@ -43,5 +43,5 @@ export const AiDraft: Story = {
     },
     attestRequired: true,
   },
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'مسودة جهّزها Nasq AI تفتح في نموذج الإنشاء نفسه. تظهر الشارة، ويشترط زر الإنشاء في الخطوة الأخيرة إقرار المستخدم.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'مسودة جهّزها WebVue AI تفتح في نموذج الإنشاء نفسه. تظهر الشارة، ويشترط زر الإنشاء في الخطوة الأخيرة إقرار المستخدم.'),
 }

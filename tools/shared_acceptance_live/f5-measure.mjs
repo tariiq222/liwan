@@ -31,11 +31,11 @@ const classify = path => path === '/web/session/get_session_info' ? 'get_session
 const result = { date: new Date().toISOString(), project: state.PROJECT_NAME, client: 'one loopback client IP',
   sessionsPerTenant: 1, loads: [], auth: [], bypass: [] }
 const save = () => writeFileSync(resolve(outdir, 'f5-results.json'), JSON.stringify(result, null, 2))
-const browser = await chromium.launch({ args: ['--no-proxy-server', '--host-resolver-rules=MAP a.accept.nasq.test 127.0.0.1, MAP b.accept.nasq.test 127.0.0.1'] })
+const browser = await chromium.launch({ args: ['--no-proxy-server', '--host-resolver-rules=MAP a.accept.webvue.test 127.0.0.1, MAP b.accept.webvue.test 127.0.0.1'] })
 try {
   const tenants = []
   for (const name of ['a', 'b']) {
-    const host = `${name}.accept.nasq.test`
+    const host = `${name}.accept.webvue.test`
     const auth = await request(host, '/api/auth/login', 'POST', {
       login: `admin@${host}`, password: readFileSync(resolve(state.TMPDIR_BASE, `admin_${name}_password`), 'utf8').trim() })
     if (auth.status !== 200) throw new Error(`Session setup ${name}: HTTP ${auth.status}`)
@@ -48,13 +48,13 @@ try {
     tenants.push({ name, host, context, page, cookie: `session_id=${value}`, current: null })
     page.on('request', r => {
       const t = tenants.find(t => t.page === page)
-      if (!t?.current || !r.url().includes('.accept.nasq.test')) return
+      if (!t?.current || !r.url().includes('.accept.webvue.test')) return
       const path = new URL(r.url()).pathname
       t.current.requests.push({ path, method: r.method(), class: classify(path), status: null })
     })
     page.on('response', r => {
       const t = tenants.find(t => t.page === page)
-      if (!t?.current || !r.url().includes('.accept.nasq.test')) return
+      if (!t?.current || !r.url().includes('.accept.webvue.test')) return
       const path = new URL(r.url()).pathname
       const item = t.current.requests.find(x => x.path === path && x.method === r.request().method() && x.status === null)
       if (item) item.status = r.status()

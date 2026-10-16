@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectStakeholder, ProjectStakeholderWrite } from '@nasq/contracts'
+import type { ProjectStakeholder, ProjectStakeholderWrite } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useCreateProjectStakeholder, useUpdateProjectStakeholder } from '@/composables/useProjectGovernance'

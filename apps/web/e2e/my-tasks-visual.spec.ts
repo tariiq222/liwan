@@ -4,7 +4,7 @@ import { startStorybookServer, requireStorybook } from './support/storybookServe
 
 // Geometry/state coverage, with inspectable screenshots; does not silently update reference baselines.
 const stories = ['mytasks-mytaskform--create', 'mytasks-mytaskform--edit', 'mytasks-mytaskrecord--open', 'mytasks-mytaskrow--personal', 'shared-checklist--controlled-draft', 'mytasks-mytaskrow--cards']
-const screenshotDir = process.env.E2E_MY_TASKS_VISUAL_DIR ?? '/tmp/nasq-my-tasks-visual'
+const screenshotDir = process.env.E2E_MY_TASKS_VISUAL_DIR ?? '/tmp/webvue-my-tasks-visual'
 let base = ''
 let close: () => Promise<void>
 requireStorybook()

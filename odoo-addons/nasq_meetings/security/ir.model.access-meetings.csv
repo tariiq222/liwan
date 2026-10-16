@@ -1,8 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_nasq_meeting_series_read,nasq.meeting.series.read,model_nasq_meeting_series,group_cap_meetings_read,1,0,0,0
-access_nasq_meeting_series_create,nasq.meeting.series.create,model_nasq_meeting_series,group_cap_meetings_create,1,1,1,0
-access_nasq_meeting_series_manage,nasq.meeting.series.manage,model_nasq_meeting_series,group_cap_meetings_manage,1,1,1,1
-access_nasq_meeting_event_read,nasq.meeting.event.read,model_nasq_meeting_event,group_cap_meetings_read,1,0,0,0
-access_nasq_meeting_minutes_version_read,nasq.meeting.minutes.version.read,model_nasq_meeting_minutes_version,group_cap_meetings_read,1,0,0,0
-access_nasq_meeting_event_manage_read,nasq.meeting.event.manage.read,model_nasq_meeting_event,group_cap_meetings_manage,1,0,0,0
-access_nasq_meeting_minutes_version_manage_read,nasq.meeting.minutes.version.manage.read,model_nasq_meeting_minutes_version,group_cap_meetings_manage,1,0,0,0

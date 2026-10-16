@@ -22,7 +22,7 @@ describe('commercial scheduler payment recovery', () => {
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {})
     const logs: string[] = []
     const scheduler = createCommercialScheduler({ pool: {} as Pool, config: {} as Config,
-      env: { NASQ_COMMERCIAL_RECONCILE_EVERY: '2' }, clock: () => 0, paymentAdapter: new SimulatorAdapter(),
+      env: { WEBVUE_COMMERCIAL_RECONCILE_EVERY: '2' }, clock: () => 0, paymentAdapter: new SimulatorAdapter(),
       log: (message, error) => logs.push(`${message}: ${error instanceof Error ? error.message : error}`) })
     await scheduler.tick()
     expect(JSON.parse(debug.mock.calls.at(-1)![0]).jobs['reconcile-payments']).toBeUndefined()

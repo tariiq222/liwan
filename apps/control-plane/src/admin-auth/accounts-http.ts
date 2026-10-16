@@ -1,6 +1,6 @@
 import type { Pool } from 'pg'
 import { z } from 'zod'
-import { adminAccountListSchema, adminInviteBodySchema, adminInviteResultSchema, adminMeSchema, adminReasonBodySchema, adminResetResultSchema, adminRolesBodySchema, type VendorCapability } from '@nasq/commercial-contracts'
+import { adminAccountListSchema, adminInviteBodySchema, adminInviteResultSchema, adminMeSchema, adminReasonBodySchema, adminResetResultSchema, adminRolesBodySchema, type VendorCapability } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { AdminAuthError, disableAccount, lockOwners, requireActingOwner, setRoles } from './accounts.js'
 import { inviteAccount, issueReset } from './enrollment.js'

@@ -13,7 +13,7 @@ Usage::
 
 Per-route request/response bodies are not yet wired to named components; every
 contract schema is published under components/schemas and each operation
-carries an ``x-nasq-contracts`` namespace hint. Route-level refs are the next
+carries an ``x-webvue-contracts`` namespace hint. Route-level refs are the next
 increment once the route->symbol map is curated.
 """
 from __future__ import annotations
@@ -99,7 +99,7 @@ def feature_metadata(fn: ast.FunctionDef) -> tuple[list[str], str | None]:
 
 
 def api_version() -> str:
-    manifest = ast.literal_eval((ADDONS / "nasq_api" / "__manifest__.py").read_text())
+    manifest = ast.literal_eval((ADDONS / "webvue_api" / "__manifest__.py").read_text())
     return str(manifest.get("version", "0.0.0"))
 
 
@@ -166,9 +166,9 @@ def openapi_params(odoo_path: str) -> tuple[str, list[dict]]:
 
 
 def application_names() -> frozenset[str]:
-    """Rank-4 applications of arch_layers.json without their `nasq_` prefix."""
+    """Rank-4 applications of arch_layers.json without their `webvue_` prefix."""
     ranks = json.loads((TOOLS / "arch_layers.json").read_text(encoding="utf-8")).get("ranks", {})
-    return frozenset(name.removeprefix("nasq_") for name, rank in ranks.items() if rank == 4)
+    return frozenset(name.removeprefix("webvue_") for name, rank in ranks.items() if rank == 4)
 
 
 def namespace_hint(path: str) -> str | None:
@@ -194,7 +194,7 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                     "tags": [route["addon"]],
                     "summary": route["summary"] or route["handler"],
                     "operationId": f"{route['addon']}.{route['controller']}.{route['handler']}.{method.lower()}",
-                    "x-nasq": {
+                    "x-webvue": {
                         "addon": route["addon"],
                         "controller": route["controller"],
                         "handler": route["handler"],
@@ -211,7 +211,7 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                 if path_params:
                     operation["parameters"] = path_params
                 if route["http_type"] == "json2":
-                    operation["x-nasq"]["body"] = "application/json (JSON-RPC style params)"
+                    operation["x-webvue"]["body"] = "application/json (JSON-RPC style params)"
                 if secured:
                     operation["security"] = [{"sessionCookie": []}]
                     operation["responses"]["403"] = {"$ref": "#/components/responses/Forbidden"}
@@ -234,19 +234,19 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
         "responses": {
             "Forbidden": {
                 "description": "Caller lacks the capability or entitlement.",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NasqError"}}},
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebVueError"}}},
             },
             "NotFound": {
                 "description": "Resource does not exist or is not visible.",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NasqError"}}},
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebVueError"}}},
             },
             "Invalid": {
                 "description": "Payload failed validation.",
-                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/NasqError"}}},
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebVueError"}}},
             },
         },
         "schemas": {
-            "NasqError": {
+            "WebVueError": {
                 "type": "object",
                 "description": "Contract error shape returned by api_handler with a real HTTP status.",
                 "required": ["code", "message"],
@@ -269,11 +269,11 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
     return {
         "openapi": "3.1.0",
         "info": {
-            "title": "nasq /api/v1",
+            "title": "webvue /api/v1",
             "version": api_version(),
             "description": (
-                "Generated surface of every /api/v1 route across the nasq Odoo addons, "
-                "with contract schemas harvested from @nasq/contracts. Regenerate with "
+                "Generated surface of every /api/v1 route across the webvue Odoo addons, "
+                "with contract schemas harvested from @webvue/contracts. Regenerate with "
                 "`python3 tools/api_surface.py`; never edit by hand."
             ),
         },

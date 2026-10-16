@@ -5,7 +5,7 @@
 This scoped child implementation follows [the managed SaaS charter](managed-saas-charter.md).
 It owns only:
 
-- `tools/nasq_cli/managed_verify.py`
+- `tools/webvue_cli/managed_verify.py`
 - `tools/test_managed_verify.py`
 - this evidence document
 
@@ -24,7 +24,7 @@ read-only shell before declaring readiness. As the runtime caller, reject missin
 ambiguous, oversized, malformed, or mismatched evidence without exposing logs.
 
 ```python
-from nasq_cli.managed_verify import (
+from webvue_cli.managed_verify import (
     VerificationError,
     build_policy_script,
     build_snapshot_script,
@@ -52,22 +52,22 @@ oversized output into apparently valid evidence. Host parsing bounds stdout at
 including time spent acquiring the profile row lock.
 
 The guarded image entrypoint recognizes `shell` only as its first command
-argument. Use that entrypoint, an explicit `-d nasq_scratch_<suffix>` and exact
+argument. Use that entrypoint, an explicit `-d webvue_scratch_<suffix>` and exact
 `--db-filter`, `--no-http`, `--workers=0`, and `--max-cron-threads=0`; feed the
 script through stdin. Do not bypass `deploy/security/odoo_secure.py`.
 
-Both scripts emit one `NASQ_MANAGED_POLICY:<json>` line. Success fields are
+Both scripts emit one `WEBVUE_MANAGED_POLICY:<json>` line. Success fields are
 exactly `database`, `commercial_mode`, `entitlement_source`, `status`,
 `valid_until`, `features`, `policy_revision`, and `modules`. The modules list
 contains actual installed Odoo modules, not the embedded requested list. Only
-its `nasq_*` subset must exactly match the requested modules. Upstream `hr` and
-`project` dependencies are not rejected as unselected Nasq pillars.
+its `webvue_*` subset must exactly match the requested modules. Upstream `hr` and
+`project` dependencies are not rejected as unselected WebVue pillars.
 
 Failure emits only a fixed `error_code`; exceptions/logs/credentials are never
 embedded in the sentinel. `VerificationError.code` is allowlisted and suitable
 for a sanitized parent error. The parser rejects extra snapshot keys, duplicate
 JSON keys, nonfinite numbers, coercible-but-wrong feature types, duplicates in
-module lists, extra Nasq modules, wrong targets and wrong classifications.
+module lists, extra WebVue modules, wrong targets and wrong classifications.
 
 ## Application and readback boundaries
 
@@ -75,7 +75,7 @@ The apply script checks `env.cr.dbname` against the validated explicit scratch
 name before touching models. It requires exactly one profile with singleton key
 `tenant`, locks it, reads trusted `load_classification`, and checks SaaS /
 control-plane, active status, and absent expiry. It then calls
-`_nasq_require_policy_source('control_plane')`. Only an actual integer revision
+`_webvue_require_policy_source('control_plane')`. Only an actual integer revision
 zero and an empty feature object may proceed. Existing policies, even ones that
 match the desired policy, are refused rather than changed. The feature write
 uses the existing authorized `OPERATOR_CONTEXT` boundary, not a new sudo path.
@@ -111,7 +111,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=tools python3 -B -m unittest discover -s to
 - **Expanded edge coverage/final GREEN:** same command, 24 tests passed, exit 0.
   Added all published pillar compositions, byte/count limits, nested/error
   payload handling, and commit-failure sanitization.
-- **Lint:** `python3 -B -m ruff check --no-cache tools/nasq_cli/managed_verify.py tools/test_managed_verify.py`
+- **Lint:** `python3 -B -m ruff check --no-cache tools/webvue_cli/managed_verify.py tools/test_managed_verify.py`
   initially reported the repository's raw-exception-string rule and one nested
   function blank line. Refactored safe errors through `_fail` and corrected the
   test formatting. Final result: `All checks passed!`, exit 0.
@@ -120,7 +120,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=tools python3 -B -m unittest discover -s to
 
 | Guarantee | Test group in `tools/test_managed_verify.py` | Evidence |
 | --- | --- | --- |
-| Requested Nasq modules exactly match actual composition; upstream dependencies allowed | `test_module_composition_exact_for_nasq_not_upstream`, `test_each_supported_composition_runs_without_extra_pillars` | PASS |
+| Requested WebVue modules exactly match actual composition; upstream dependencies allowed | `test_module_composition_exact_for_webvue_not_upstream`, `test_each_supported_composition_runs_without_extra_pillars` | PASS |
 | Wrong target is rejected before model access | `test_scripts_reject_wrong_target_before_model_access`, `test_invalid_database_never_builds_executable_script` | PASS |
 | Lock/source authorization precedes one commit; stale initialized policy is refused | `test_apply_locks_checks_source_and_commits_once_before_marker`, `test_apply_rejects_existing_or_changed_policy_after_lock` | PASS |
 | Actual profile values, not expected-policy echoes, provide evidence | `test_apply_does_not_echo_expected_when_write_ignored`, `test_snapshot_reads_real_policy_without_mutating_or_committing` | PASS |

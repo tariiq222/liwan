@@ -30,12 +30,12 @@ describe("mime", () => {
     expect(decoded).toBe(subj);
     expect(encodeHeaderWord("Plain")).toBe("Plain");
     const m = buildMimeMessage(
-      { to: "a@x.test", subject: "دعوة", text: "نص", html: "<p>x</p>", message_id: "id1@nasq" },
-      "Nasq <no-reply@nasq.test>",
+      { to: "a@x.test", subject: "دعوة", text: "نص", html: "<p>x</p>", message_id: "id1@webvue" },
+      "WebVue <no-reply@webvue.test>",
       new Date("2026-01-02T03:04:05Z"),
       "B",
     );
-    expect(m).toContain("Message-ID: <id1@nasq>\r\n");
+    expect(m).toContain("Message-ID: <id1@webvue>\r\n");
     expect(m).toContain("MIME-Version: 1.0\r\n");
     expect(m).toContain('multipart/alternative; boundary="B"');
     expect(m).toContain("Date: Fri, 02 Jan 2026 03:04:05 +0000");
@@ -67,7 +67,7 @@ describe("tokens", () => {
     expect(createInvitationToken().token).not.toBe(token);
   });
   it("url allowlist", () => {
-    expect(buildInvitationUrl("https://app.nasq.sa", "t k")).toBe("https://app.nasq.sa/invite/accept?token=t%20k");
+    expect(buildInvitationUrl("https://app.webvue.sa", "t k")).toBe("https://app.webvue.sa/invite/accept?token=t%20k");
     expect(buildInvitationUrl("http://localhost:3000", "t")).toContain("localhost:3000/invite/accept");
     expect(buildInvitationUrl("http://acme.test", "t")).toContain("acme.test");
     expect(() => buildInvitationUrl("http://evil.com", "t")).toThrow();
@@ -95,16 +95,16 @@ describe("tokens", () => {
 describe("env factory", () => {
   it("fails closed when unconfigured", () => {
     expect(() => mailAdapterFromEnv({})).toThrow(/mail_not_configured/);
-    expect(() => mailAdapterFromEnv({ NASQ_MAIL_SMTP_HOST: "h" })).toThrow(/mail_not_configured/);
-    expect(() => mailAdapterFromEnv({ NASQ_MAIL_SMTP_HOST: "h", NASQ_MAIL_SMTP_PORT: "25", NASQ_MAIL_FROM: "f@x", NASQ_MAIL_SMTP_USER: "u" })).toThrow(/mail_not_configured/);
+    expect(() => mailAdapterFromEnv({ WEBVUE_MAIL_SMTP_HOST: "h" })).toThrow(/mail_not_configured/);
+    expect(() => mailAdapterFromEnv({ WEBVUE_MAIL_SMTP_HOST: "h", WEBVUE_MAIL_SMTP_PORT: "25", WEBVUE_MAIL_FROM: "f@x", WEBVUE_MAIL_SMTP_USER: "u" })).toThrow(/mail_not_configured/);
   });
   it("builds adapters", () => {
-    const a = mailAdapterFromEnv({ NASQ_MAIL_SMTP_HOST: "127.0.0.1", NASQ_MAIL_SMTP_PORT: "55425", NASQ_MAIL_FROM: "n@x.test" });
+    const a = mailAdapterFromEnv({ WEBVUE_MAIL_SMTP_HOST: "127.0.0.1", WEBVUE_MAIL_SMTP_PORT: "55425", WEBVUE_MAIL_FROM: "n@x.test" });
     expect(a).toBeInstanceOf(SmtpMailAdapter);
     expect((a as any).cfg.requireTls).toBe(false);
-    const b = mailAdapterFromEnv({ NASQ_MAIL_SMTP_HOST: "smtp.example.com", NASQ_MAIL_SMTP_PORT: "587", NASQ_MAIL_FROM: "n@x.test" });
+    const b = mailAdapterFromEnv({ WEBVUE_MAIL_SMTP_HOST: "smtp.example.com", WEBVUE_MAIL_SMTP_PORT: "587", WEBVUE_MAIL_FROM: "n@x.test" });
     expect((b as any).cfg.requireTls).toBe(true);
-    const c = mailAdapterFromEnv({ NASQ_MAIL_MODE: "disabled" });
+    const c = mailAdapterFromEnv({ WEBVUE_MAIL_MODE: "disabled" });
     return expect(c.send({ to: "a@b", subject: "s", text: "t", message_id: "m" })).rejects.toThrow(/mail_disabled/);
   });
   it("isLocalCapture", () => {
@@ -114,20 +114,20 @@ describe("env factory", () => {
   });
 });
 
-const SMTP = process.env.NASQ_MAILPIT_SMTP_PORT;
-const API = process.env.NASQ_MAILPIT_API_PORT;
+const SMTP = process.env.WEBVUE_MAILPIT_SMTP_PORT;
+const API = process.env.WEBVUE_MAILPIT_API_PORT;
 describe.skipIf(!SMTP || !API)("mailpit integration (local capture, not external delivery)", () => {
   it("delivers Arabic invitation", async () => {
     const adapter = mailAdapterFromEnv({
-      NASQ_MAIL_SMTP_HOST: "127.0.0.1",
-      NASQ_MAIL_SMTP_PORT: SMTP,
-      NASQ_MAIL_FROM: "نسق <no-reply@nasq.test>".replace("نسق", "Nasq"),
+      WEBVUE_MAIL_SMTP_HOST: "127.0.0.1",
+      WEBVUE_MAIL_SMTP_PORT: SMTP,
+      WEBVUE_MAIL_FROM: "ويب فيو <no-reply@webvue.test>".replace("ويب فيو", "WebVue"),
     });
     const { token } = createInvitationToken();
-    const url = buildInvitationUrl("http://admin.nasq.test", token);
+    const url = buildInvitationUrl("http://admin.webvue.test", token);
     const tpl = renderInvitationEmail({ companyName: "شركة الاختبار", url });
     const to = `admin-${Date.now()}@acme.test`;
-    const res = await adapter.send({ to, ...tpl, message_id: `inv-${Date.now()}@nasq.test` });
+    const res = await adapter.send({ to, ...tpl, message_id: `inv-${Date.now()}@webvue.test` });
     expect(res.accepted).toBe(true);
     const base = `http://127.0.0.1:${API}/api/v1`;
     const list = (await (await fetch(`${base}/messages`)).json()) as any;

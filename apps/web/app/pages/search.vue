@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { searchProviders } from '@/modules/surfaces'
 import { visibleCommands } from '@/composables/nav/paletteModel'

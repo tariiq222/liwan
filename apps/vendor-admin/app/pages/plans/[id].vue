@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { lifecycleBadge } from '@/utils/vendorCommercial'
-import type { Quote } from '@nasq/commercial-contracts'
+import type { Quote } from '@webvue/commercial-contracts'
 import { cadenceKey, commercialErrorKey, keyLabel, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
-import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import { catalogReturn, priceFact } from '@/utils/vendorCatalog'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })

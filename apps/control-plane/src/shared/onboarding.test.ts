@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
+import { sharedOnboardingRequestSchema } from '@webvue/commercial-contracts'
 import { onboardingIdentity, assertOnboardingReplay } from './onboarding.js'
 import { parseSharedRuntimeConfig } from './runtime-config.js'
 const input = {request_id:'ba91699b-c25b-4a01-8c84-b2d39dc4b873',name:'Example',catalog_version:'v1',catalog_tier:'projects',admin_name:'Administrator',admin_login:'admin@example.test',reason:'Create first customer'}
@@ -8,7 +8,7 @@ describe('shared onboarding identity',()=>{
   it('derives stable scratch resources, ignoring no caller authority',()=>{
     const first=onboardingIdentity(input,'local.test')
     expect(onboardingIdentity(input,'local.test')).toEqual(first)
-    expect(first.database).toMatch(/^nasq_scratch_[a-f0-9]{32}$/)
+    expect(first.database).toMatch(/^webvue_scratch_[a-f0-9]{32}$/)
     expect(first.host).toBe(`${first.slug}.local.test`)
     expect(sharedOnboardingRequestSchema.safeParse({...input,password:'secret'}).success).toBe(false)
   })
@@ -21,7 +21,7 @@ describe('shared onboarding identity',()=>{
   })
 })
 it('requires explicit validated local runtime paths and bounded project identity',()=>{
-  const value={schemaVersion:1,projectName:'nasq-saas-acceptance',composeFile:'/scratch/compose.yml',envFile:'/scratch/runtime.env',stateDir:'/scratch/state',domainSuffix:'local.test'}
+  const value={schemaVersion:1,projectName:'webvue-saas-acceptance',composeFile:'/scratch/compose.yml',envFile:'/scratch/runtime.env',stateDir:'/scratch/state',domainSuffix:'local.test'}
   expect(parseSharedRuntimeConfig(value)).toEqual(value)
   for(const extra of [{projectName:'prod'}, {composeFile:'relative'}, {domainSuffix:'https://evil'}, {command:'sh'}])expect(()=>parseSharedRuntimeConfig({...value,...extra})).toThrow()
 })
@@ -30,7 +30,7 @@ import { resolveProvisionTarget } from './onboarding.js'
 import { reconcileOdooOnboardings } from './odoo-adapter.js'
 import {bindJob,payloadDigest} from './provisioning.js'
 import type {Pool,PoolClient} from 'pg'
-const job=bindJob({schemaVersion:1,operation:'provision',requestId:input.request_id,binding:{tenantId:'ta',database:'nasq_scratch_'+'a'.repeat(32),filestore:'nasq_scratch_'+'a'.repeat(32),registryRevision:1},catalog:{version:'v1',tier:'projects',sourceSha256:'a'.repeat(64)},policy:{schema_version:1,channel:'control_plane',modules:['nasq_core'],features:{'users.limit':null,'storage.limit_mb':null}}})
+const job=bindJob({schemaVersion:1,operation:'provision',requestId:input.request_id,binding:{tenantId:'ta',database:'webvue_scratch_'+'a'.repeat(32),filestore:'webvue_scratch_'+'a'.repeat(32),registryRevision:1},catalog:{version:'v1',tier:'projects',sourceSha256:'a'.repeat(64)},policy:{schema_version:1,channel:'control_plane',modules:['webvue_core'],features:{'users.limit':null,'storage.limit_mb':null}}})
 it('disabled routing exception requires exact durable onboarding digest, and never changes the registry',async()=>{
   let eligible=false
   const calls:string[]=[]
@@ -66,15 +66,15 @@ describe('Track A is retired for new shared onboarding (owner decision O1)',()=>
   let config:never
   let previousMode:string|undefined
   beforeEach(()=>{
-    const root=realpathSync(mkdtempSync(join(tmpdir(),'nasq-onboarding-test-')))
+    const root=realpathSync(mkdtempSync(join(tmpdir(),'webvue-onboarding-test-')))
     mkdirSync(join(root,'state'))
     writeFileSync(join(root,'compose.yml'),'');writeFileSync(join(root,'runtime.env'),'')
     const runtime=join(root,'runtime.json')
-    writeFileSync(runtime,JSON.stringify({schemaVersion:1,projectName:'nasq-saas-acceptance',composeFile:join(root,'compose.yml'),envFile:join(root,'runtime.env'),stateDir:join(root,'state'),domainSuffix:'local.test'}))
+    writeFileSync(runtime,JSON.stringify({schemaVersion:1,projectName:'webvue-saas-acceptance',composeFile:join(root,'compose.yml'),envFile:join(root,'runtime.env'),stateDir:join(root,'state'),domainSuffix:'local.test'}))
     config={sharedRuntimeConfigPath:runtime,tenantRegistryPath:join(root,'registry.json'),repositoryRoot:root} as never
-    previousMode=process.env.NASQ_TENANCY_MODE;process.env.NASQ_TENANCY_MODE='shared'
+    previousMode=process.env.WEBVUE_TENANCY_MODE;process.env.WEBVUE_TENANCY_MODE='shared'
   })
-  afterEach(()=>{if(previousMode===undefined)delete process.env.NASQ_TENANCY_MODE;else process.env.NASQ_TENANCY_MODE=previousMode})
+  afterEach(()=>{if(previousMode===undefined)delete process.env.WEBVUE_TENANCY_MODE;else process.env.WEBVUE_TENANCY_MODE=previousMode})
   function fakePool(existing:unknown[]){
     const sql:string[]=[]
     const reply=async(text:string)=>{

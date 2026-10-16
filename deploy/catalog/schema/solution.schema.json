@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://nasq.local/catalog/solution.schema.json",
-  "title": "nasq solution catalog",
-  "description": "A solution is a sellable shape of the one nasq codebase. It carries no prices: pricing belongs to a later authorized phase.",
+  "$id": "https://webvue.local/catalog/solution.schema.json",
+  "title": "webvue solution catalog",
+  "description": "A solution is a sellable shape of the one webvue codebase. It carries no prices: pricing belongs to a later authorized phase.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "id", "name", "base_modules", "tiers"],

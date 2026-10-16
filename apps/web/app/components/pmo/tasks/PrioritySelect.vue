@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 import { useUpdateTask } from '@/composables/useTasks'
 

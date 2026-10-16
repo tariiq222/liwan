@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { SubscriptionView } from '@nasq/commercial-contracts'
-import { cadenceLabel } from '@nasq/commercial-ui/app/utils/commercial'
-import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import type { SubscriptionView } from '@webvue/commercial-contracts'
+import { cadenceLabel } from '@webvue/commercial-ui/app/utils/commercial'
+import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscriptions'
 
 // What changed on the subscription, newest first, from the revisions the control plane returns.
 const props = defineProps<{ subscription: SubscriptionView; planName: (revisionId: string) => string | undefined }>()
 const { t, locale } = useI18n()
-const when = (value: string) => formatNasqDateTime(value, locale.value)
+const when = (value: string) => formatWebVueDateTime(value, locale.value)
 const events = computed(() => {
   const { applied, target, pending_order: order } = props.subscription
   const list: { key: string; at: string; icon: string; title: string; detail: string; badges?: { tone: StatusTone; label: string }[] }[] = []

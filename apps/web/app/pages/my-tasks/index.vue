@@ -2,14 +2,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MyTaskRow from '@/components/personal-tasks/MyTaskRow.vue'
-import { sectionTabsUi } from '@nasq/ui/app/utils/sectionTabs'
-import type { MyTaskListPage } from '@nasq/contracts'
+import { sectionTabsUi } from '@webvue/ui/app/utils/sectionTabs'
+import type { MyTaskListPage } from '@webvue/contracts'
 import { useMyTaskList } from '@/composables/useMyTaskList'
-import { errorStateKind } from '@nasq/ui/app/utils/errorState'
-import { currentListView, listViewQuery } from '@nasq/ui/app/utils/listView'
-import { useRowNavigation } from '@nasq/ui/app/composables/useRowNavigation'
+import { errorStateKind } from '@webvue/ui/app/utils/errorState'
+import { currentListView, listViewQuery } from '@webvue/ui/app/utils/listView'
+import { useRowNavigation } from '@webvue/ui/app/composables/useRowNavigation'
 import {
   listPatch,
   localToday,
@@ -85,7 +85,7 @@ let writesInFlight = 0
 let lastWrite = 0
 let disposed = false
 function isCurrentList() { return (router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/my-tasks' }
-const stopNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => { pendingNavigation = to })
+const stopNavigationStart = useNuxtApp().hook('webvue:navigation:start', to => { pendingNavigation = to })
 function settleNavigation(to: RouteLocationNormalized) {
   if (to !== pendingNavigation) return
   pendingNavigation = null

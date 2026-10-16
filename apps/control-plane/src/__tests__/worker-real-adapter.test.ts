@@ -28,9 +28,9 @@ function canonical(value: unknown): string {
 }
 
 function invoke(args: string[], inventoryPath: string, stateDir: string, path: string): { code: number; receipt: Record<string, unknown> } {
-  const child = spawnSync('python3', ['-B', '-m', 'nasq_cli.managed_runtime', ...args, '--json'], {
+  const child = spawnSync('python3', ['-B', '-m', 'webvue_cli.managed_runtime', ...args, '--json'], {
     cwd: repo, encoding: 'utf8', timeout: 10_000,
-    env: { ...process.env, PYTHONPATH: join(repo, 'tools'), NASQ_MANAGED_INVENTORY: inventoryPath, NASQ_CLI_STATE_DIR: stateDir, PATH: `${path}:${process.env.PATH ?? ''}` },
+    env: { ...process.env, PYTHONPATH: join(repo, 'tools'), WEBVUE_MANAGED_INVENTORY: inventoryPath, WEBVUE_CLI_STATE_DIR: stateDir, PATH: `${path}:${process.env.PATH ?? ''}` },
   })
   if (child.error) throw child.error
   const receipt = JSON.parse(child.stdout.trim()) as Record<string, unknown>
@@ -56,7 +56,7 @@ afterEach(async () => { if (fixture) await rm(fixture, { recursive: true, force:
 
 async function setup(): Promise<{ config: Config; managedInventory: string; policyBytes: Buffer; dockerPath: string; dockerCalls: string }> {
   originalPath ??= process.env.PATH
-  fixture = await mkdtemp(join(tmpdir(), 'nasq-worker-real-adapter-'))
+  fixture = await mkdtemp(join(tmpdir(), 'webvue-worker-real-adapter-'))
   const fake = await fakeDocker(fixture)
   process.env.PATH = `${fake.path}:${originalPath ?? ''}`
   const catalogBytes = await readFile(join(repo, 'deploy/catalog/solutions/platform.json'))
@@ -67,7 +67,7 @@ async function setup(): Promise<{ config: Config; managedInventory: string; poli
   await privateWrite(composeFile, 'services: {}\n')
   const descriptor = {
     adapter: { kind: 'compose-local', version: 1 }, commercial_mode: 'saas', environment_id: 'worker-e2e',
-    resource_refs: { project: 'worker-e2e', compose_file: composeFile, db_name: 'nasq_scratch_worker_e2e', data_dir: join(fixture, 'data'), backup_root: join(fixture, 'backups'), ports: { db: 25001, odoo: 25002, web: 25003 } },
+    resource_refs: { project: 'worker-e2e', compose_file: composeFile, db_name: 'webvue_scratch_worker_e2e', data_dir: join(fixture, 'data'), backup_root: join(fixture, 'backups'), ports: { db: 25001, odoo: 25002, web: 25003 } },
     secret_refs: { db_password: 'db-handle', admin_password: 'admin-handle' },
     release_ref: { catalog_version: 'worker-v1', catalog_sha256: catalogDigest, identity_kind: 'repo_digest', odoo_image: 'odoo@sha256:test', web_image: 'web@sha256:test', proxy_image: 'proxy@sha256:test' },
     allowed_operations: ['tenant.create', 'health'], revision: 1,
@@ -75,7 +75,7 @@ async function setup(): Promise<{ config: Config; managedInventory: string; poli
   const descriptorDigest = `sha256:${createHash('sha256').update(canonical({ target, descriptor })).digest('hex')}`
   const managedInventory = join(inventoryRoot, 'managed.json')
   await privateWrite(managedInventory, JSON.stringify({ schema_version: 3, targets: { [target]: { ...descriptor, descriptor_digest: descriptorDigest } } }))
-  const policyBytes = Buffer.from('{"schema_version":1,"channel":"control_plane","modules":["nasq_core","nasq_platform","nasq_api"],"features":{"users.limit":null,"storage.limit_mb":null}}')
+  const policyBytes = Buffer.from('{"schema_version":1,"channel":"control_plane","modules":["webvue_core","webvue_platform","webvue_api"],"features":{"users.limit":null,"storage.limit_mb":null}}')
   await mkdir(join(fixture, 'worker-state'), { mode: 0o700 })
   const policyPath = join(fixture, 'catalog-policy.json')
   await privateWrite(policyPath, policyBytes)

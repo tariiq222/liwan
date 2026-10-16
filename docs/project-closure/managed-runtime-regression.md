@@ -28,7 +28,7 @@ assertions, rather than demonstrating changed collision or journal behavior.
    `deploy/catalog/solutions/platform.json` bytes, and its SHA-256 reference is
    recomputed from those bytes. The create policy is the valid core composition:
    base modules only and null users/storage limits. No all-pillars assumption.
-2. **Runner evidence:** `RecordingRunner` emits `NASQ_MANAGED_POLICY:` JSON only
+2. **Runner evidence:** `RecordingRunner` emits `WEBVUE_MANAGED_POLICY:` JSON only
    for Odoo `shell` invocations with nonempty script stdin. It supplies the target
    database, SaaS/control-plane classification, active state, revision 1, selected
    core modules and core features. Non-shell commands retain zero exit and empty
@@ -124,7 +124,7 @@ The first baseline run was still **66 tests OK** (0.278s), because the parent's
 runtime wiring had not yet landed at that moment.
 
 The tenth semantic update extends the runner simulation to recognize only
-credential shell scripts containing `NASQ_MANAGED_CREDENTIALS:` and an explicit
+credential shell scripts containing `WEBVUE_MANAGED_CREDENTIALS:` and an explicit
 `snapshot = False` (apply) or `snapshot = True` (readback). It returns a separate
 DB-bound credential sentinel with `changed=True` or `False` respectively and
 `verified=True`. Explicit runner results/defaults still take precedence; empty
@@ -133,7 +133,7 @@ output is never upgraded to evidence by the double.
 Successful-create assertions now require **eight** runner calls and **four**
 independent shell calls: policy apply/readback, credential apply/readback, then
 services up. Policy shell invocations do not carry `-e`; credential shell calls
-must carry `-e NASQ_ADMIN_PASSWORD` before the `odoo` service name. The secret is
+must carry `-e WEBVUE_ADMIN_PASSWORD` before the `odoo` service name. The secret is
 in the synthetic child environment only, never embedded in argv or script text.
 Credential readback must contain `SET TRANSACTION READ ONLY`, not the password
 write helper. Existing third-call installation failures are unchanged. These are

@@ -18,7 +18,7 @@ class RunLocalOrderingTests(unittest.TestCase):
         self.assertLess(create, guard)
 
     def test_actual_caller_exports_derived_root_before_begin_generation(self):
-        with tempfile.TemporaryDirectory(prefix='nasq-run-order-') as tmp:
+        with tempfile.TemporaryDirectory(prefix='webvue-run-order-') as tmp:
             home = Path(tmp); state = home / 'processes'; state.mkdir(mode=0o700)
             for name in ('control-db-password', 'control-service-key', 'control-database-url', 'inventory-v2.json', 'runtime.env'):
                 (home / name).write_text('{}' if name.endswith('.json') else 'fake')
@@ -32,14 +32,14 @@ case "$1" in
   */process_lock.py) exec "${REAL_PYTHON}" "$@" ;;
   */startup_handoff.py) exec "${REAL_PYTHON}" "$@" ;;
   */begin_generation.py)
-    printf '%s\\n' "${NASQ_REPOSITORY_ROOT-unset}" > "$NASQ_CONTROL_HOME/observed-root"
-    printf '%s\\n' "${NASQ_NODE_BIN-unset}" > "$NASQ_CONTROL_HOME/observed-node-bin"
+    printf '%s\\n' "${WEBVUE_REPOSITORY_ROOT-unset}" > "$WEBVUE_CONTROL_HOME/observed-root"
+    printf '%s\\n' "${WEBVUE_NODE_BIN-unset}" > "$WEBVUE_CONTROL_HOME/observed-node-bin"
     exit 91 ;;
   *) exit 92 ;;
 esac
 '''); fake_path.chmod(0o700)
             real_python = subprocess.check_output(['/usr/bin/which', 'python3'], text=True).strip()
-            env = {**os.environ, 'NASQ_CONTROL_HOME': str(home), 'NASQ_NODE_BIN': str(bin_dir),
+            env = {**os.environ, 'WEBVUE_CONTROL_HOME': str(home), 'WEBVUE_NODE_BIN': str(bin_dir),
                    'PATH': f'{bin_dir}:{os.environ.get("PATH", "")}', 'REAL_PYTHON': real_python}
             # Run the real script via an absolute bash path; its first invocation
             # acquires the actual isolated lock and re-enters through startup_handoff.

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { nextOrderState, type OrderStateInput } from '@nasq/commercial-contracts'
+import { nextOrderState, type OrderStateInput } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError, iso } from './lifecycle.js'
 import { assertReturnUrl, toBytes, type AdapterHeaders, type PaymentAdapter, type ProviderEvent } from './payment-adapter.js'
@@ -129,7 +129,7 @@ export async function createPaymentAttempt(pool: Pool, input: { order_id: string
   const row = reservation.row
   try {
     const created = await input.adapter.createAttempt({ attempt_id: row.id,order_id: row.order_id,
-      amount: { minor: Number(row.amount_minor),currency: row.currency,exponent: row.exponent }, description: `Nasq order ${row.order_id}`,
+      amount: { minor: Number(row.amount_minor),currency: row.currency,exponent: row.exponent }, description: `WebVue order ${row.order_id}`,
       success_url: urls.returnUrl, back_url: urls.returnUrl, callback_url: urls.callbackUrl, expires_at: new Date(Date.now()+30*60_000).toISOString() })
     const updated = await pool.query(`UPDATE payment_attempts SET provider_ref=$2,redirect_url=$3,
       status=CASE WHEN status='created' THEN 'redirected' ELSE status END,updated_at=now() WHERE id=$1 RETURNING *`, [row.id,created.provider_ref,created.redirect_url])

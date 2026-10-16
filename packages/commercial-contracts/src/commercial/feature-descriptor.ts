@@ -1,5 +1,5 @@
 /** The single TypeScript implementation of the catalog feature-descriptor grammar.
- * Mirrors tools/nasq_cli/managed_policy.py; parity is pinned by the shared fixtures
+ * Mirrors tools/webvue_cli/managed_policy.py; parity is pinned by the shared fixtures
  * deploy/catalog/fixtures/descriptor_parity.json and release_features.json.
  *
  *   boolean:<key>        -> true

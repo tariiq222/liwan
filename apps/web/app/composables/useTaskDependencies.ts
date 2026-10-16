@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { DependencyCandidateListSchema, DependencyListSchema, TaskDetailSchema, type TaskDetail } from '@nasq/contracts'
+import { DependencyCandidateListSchema, DependencyListSchema, TaskDetailSchema, type TaskDetail } from '@webvue/contracts'
 import type { Ref } from 'vue'
 import { taskKeys } from './useTasks'
 import { invalidateProjectCaches } from './projectKeys'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
+import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
 import { formatSubscriptionMoney } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities()

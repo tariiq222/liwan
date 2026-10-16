@@ -80,14 +80,14 @@ describe('developer sign-in routes', () => {
       expect(at(calls, 0).url.pathname).toBe('/v1/admin/auth/dev-login')
       expect(result.status).toBe(200)
       expect(result.body).toEqual({ expires_at: signedIn.expires_at, idle_expires_at: signedIn.idle_expires_at })
-      expect(result.headers.get('set-cookie')).toContain(`nasq_admin=${SESSION}`)
+      expect(result.headers.get('set-cookie')).toContain(`webvue_admin=${SESSION}`)
     })
 
     it('dev-step-up forwards the cookie session and answers 204', async () => {
       const calls = stubUpstream(() => json(204))
       const result = await send(devStepUp, '/api/auth/dev-step-up', { body: {}, headers: cookieHeader() })
       expect(at(calls, 0).url.pathname).toBe('/v1/admin/auth/dev-step-up')
-      expect(at(calls, 0).headers['x-nasq-session']).toBe(SESSION)
+      expect(at(calls, 0).headers['x-webvue-session']).toBe(SESSION)
       expect(result.status).toBe(204)
     })
 

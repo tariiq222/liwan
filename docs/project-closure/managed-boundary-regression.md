@@ -3,7 +3,7 @@
 The adapter-boundary and real-worker subprocess tests exercise the actual managed
 runtime without connecting to Docker, a network service, or a database. Their
 fixtures are bound to the checked-in platform catalog bytes and the catalog's
-real `core` composition (`nasq_core`, `nasq_platform`, `nasq_api`, with
+real `core` composition (`webvue_core`, `webvue_platform`, `webvue_api`, with
 `users.limit` and `storage.limit_mb` both unbounded/null).
 
 A private, isolated fake `docker` executable answers only the runtime's initial

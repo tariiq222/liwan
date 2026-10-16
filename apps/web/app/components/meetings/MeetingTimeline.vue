@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { MeetingListItem } from '@nasq/contracts'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
-import { formatCalendarDate, formatNasqTime } from '@nasq/ui/app/composables/calendarDate'
+import type { MeetingListItem } from '@webvue/contracts'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
 import { groupMeetingsByMonth, meetingTimelinePhase } from '@/utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const props = withDefaults(defineProps<{
   meetings: MeetingListItem[]
@@ -37,7 +37,7 @@ function phase(meeting: MeetingListItem) {
 function localTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return t('meetingTimeline.unknownDate')
-  return hydrated.value ? formatNasqTime(parsed, locale.value) : ''
+  return hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
 }
 
 function meetingDate(meeting: MeetingListItem) {

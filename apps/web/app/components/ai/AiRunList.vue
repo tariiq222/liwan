@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { formatDate, formatTime } from '@nasq/ui/app/utils/formatDate'
-import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@nasq/contracts'
+import { formatDate, formatTime } from '@webvue/ui/app/utils/formatDate'
+import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema, type AiRunSummary } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAiRunActions, useAiRuns } from '@/composables/useAiRuns'
 

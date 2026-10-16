@@ -15,8 +15,8 @@ from pathlib import Path
 LAUNCHER = Path(__file__).with_name("odoo_secure.py")
 ODOO_ROOT = Path(
     os.environ.get(
-        "NASQ_ODOO_ROOT",
-        "/Users/tariq/code/nasq-security-evidence-20260909/odoo-runtime",
+        "WEBVUE_ODOO_ROOT",
+        "/Users/tariq/code/webvue-security-evidence-20260909/odoo-runtime",
     ),
 )
 

@@ -7,7 +7,7 @@ for (const locale of ['ar', 'en']) for (const mode of ['light', 'dark']) {
     test.setTimeout(90_000)
     await login(page)
     await page.request.patch('/api/v1/me/appearance', { data: { mode, font_size: 'medium' } })
-    await context.addCookies([{ name: 'nasq-locale', value: locale, url: new URL('/', test.info().project.use.baseURL as string).href }])
+    await context.addCookies([{ name: 'webvue-locale', value: locale, url: new URL('/', test.info().project.use.baseURL as string).href }])
     for (const width of [390, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 })
       for (const path of ['/projects/2', '/projects/2/milestones/12', '/projects/2/schedule?scale=month']) {

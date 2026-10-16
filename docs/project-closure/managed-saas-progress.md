@@ -2,10 +2,10 @@
 
 ## خط أساس وفجوات مثبتة
 
-- `PYTHONPATH=tools python3 -B -m unittest test_managed_runtime test_nasq_cli_operator test_nasq_cli_scratch_guards`: نجح 121 اختبارًا في 0.560 ثانية قبل أي تغيير إنتاجي (bash-6، exit 0).
+- `PYTHONPATH=tools python3 -B -m unittest test_managed_runtime test_webvue_cli_operator test_webvue_cli_scratch_guards`: نجح 121 اختبارًا في 0.560 ثانية قبل أي تغيير إنتاجي (bash-6، exit 0).
 - أضيفت `tools/test_managed_create_acceptance.py`؛ الأمر `PYTHONPATH=tools python3 -B -m unittest test_managed_create_acceptance` شغّل 5 اختبارات وفشلت الخمسة للأسباب المستهدفة (RED، exit 1): ملف سياسة غير صالح/قناة مختلفة/بصمة كتالوج مختلفة لا ترفض قبل الأثر، قائمة تثبيت ثابتة لا تطابق people، ونتيجة بلا إثبات تعاد ok بدل عدم اليقين.
-- الاستكشاف المستقل أكد أن مولد `deploy/managed-local/generate.py` قالب ثنائي ساكن لا يطابق عقد المحوّل، وأن صورة المشروع تحتاج ملف odoo.conf وNASQ_COMMERCIAL_CONFIG أثناء التثبيت. لن نغير عقد المولد السابق بلا حاجة؛ سنوفر تركيب قبول أحادي محكوم.
-- لا توجد صور Nasq محلية عند البداية. Docker 29.8.0 / Compose 5.5.1 متاحان على aarch64، مساحة الجهاز المتاحة 331GiB. يجري بناء صور قبول منفصلة من Dockerfiles الموجودة؛ لم تُشغل حاويات جديدة بعد. لا نلمس الحاويات الموجودة بما فيها nasq-saas-control-local.
+- الاستكشاف المستقل أكد أن مولد `deploy/managed-local/generate.py` قالب ثنائي ساكن لا يطابق عقد المحوّل، وأن صورة المشروع تحتاج ملف odoo.conf وWEBVUE_COMMERCIAL_CONFIG أثناء التثبيت. لن نغير عقد المولد السابق بلا حاجة؛ سنوفر تركيب قبول أحادي محكوم.
+- لا توجد صور WebVue محلية عند البداية. Docker 29.8.0 / Compose 5.5.1 متاحان على aarch64، مساحة الجهاز المتاحة 331GiB. يجري بناء صور قبول منفصلة من Dockerfiles الموجودة؛ لم تُشغل حاويات جديدة بعد. لا نلمس الحاويات الموجودة بما فيها webvue-saas-control-local.
 - Python `coverage` غير مثبت (فحص version exit 1)، بينما ruff وuv موجودان. هذا قيد أداة وليس فشل التطبيق؛ لا نتيجة تغطية بعد.
 
 ## ملكية الملفات
@@ -26,10 +26,10 @@ readiness_state: local-create-accepted; regression-and-scoped-review-passed
 
 ## بناء صور التجربة
 
-- صورة web بُنيت محليًا باسم nasq-acceptance-web:d780862e.
+- صورة web بُنيت محليًا باسم webvue-acceptance-web:d780862e.
 - بناء proxy الإنتاجي فشل (bash-8، exit1): مرجع github.com/mholt/caddy-ratelimit@v0.2.0 غير موجود. لم يُعدّل اعتماد الإنتاج.
 - جُلب Caddy الرسمي 2.11.4 بنجاح (bash-9، exit0)، digest sha256:0c994536bddb66445885237f1a5dcc1916bccea922661c76b4e9fc24061f9b52 لتوجيه قبول محلي فقط دون rate_limit. هذا لا يثبت جاهزية صورة proxy الإنتاجية.
-- بناء Odoo اكتمل في bash-7، exit0؛ صورة nasq-acceptance-odoo:d780862e بهوية محلية sha256:4b38c91f957233dc90fd631cebebf0e0039a32791e2e9d07db449896975bfa75.
+- بناء Odoo اكتمل في bash-7، exit0؛ صورة webvue-acceptance-odoo:d780862e بهوية محلية sha256:4b38c91f957233dc90fd631cebebf0e0039a32791e2e9d07db449896975bfa75.
 
 ## تحديث التكامل والتجربة الفعلية
 
@@ -40,8 +40,8 @@ readiness_state: local-create-accepted; regression-and-scoped-review-passed
 - التجربة الأولى bash-11 خرجت 4 قبل أي أثر: status conflict، stage preflight، changed=false، code probe_malformed. لم تُنشأ حاويات/قاعدة من هذه المحاولة. ملف الحالة الخاص خارج المستودع محفوظ ولم ينظف.
 - التشخيص: Docker يعرض Labels مفصولة بفواصل بينما بعض قيم labels نفسها تحتوي فواصل؛ افتراض parser غير صحيح. إخراج volume ls الكامل يزيد عن64KiB في الجهاز كثير الموارد. إصلاح محصور لدى وكيل **Luna high** لإسقاط الاسم وcompose-project label فقط بصيغة JSON، دون إضعاف رفض الخرج المبتور.
 - إصلاح إسقاط Docker rows اكتمل لدى Luna:29 اختبارًا ناجحًا، وتوافق read-only فعلي مع37 حاوية/198volume/16network دون تعديلها.
-- المحاولة الثانية bash-12 اجتازت preflight وثبّتت people فعلًا، لكنها حُجرت عند initial_policy. قراءة مستقلة read-only أثبتت `features=False` وrevision0 في Odoo الجديد، لا `{}` كما افترضت doubles. الوحدات الفعلية: nasq_api,nasq_core,nasq_hr,nasq_platform فقط. عُدّل عقد البداية لقبول False حصريًا قبل أول تطبيق عند revision0، مع استمرار رفض False كإثبات بعد التطبيق؛ RED ثم25 اختبارverify ناجحًا.
-- موارد المحاولة الثانية محفوظة: project `nasq-accept-243b7e2a`، DB `nasq_scratch_243b7e2a`، حالتها quarantined؛ لم تُستأنف ولم تنظف ولم تُشغّل خدمات العميل منها. بدأ bash-13 لهدف جديد بعد الإصلاح.
+- المحاولة الثانية bash-12 اجتازت preflight وثبّتت people فعلًا، لكنها حُجرت عند initial_policy. قراءة مستقلة read-only أثبتت `features=False` وrevision0 في Odoo الجديد، لا `{}` كما افترضت doubles. الوحدات الفعلية: webvue_api,webvue_core,webvue_hr,webvue_platform فقط. عُدّل عقد البداية لقبول False حصريًا قبل أول تطبيق عند revision0، مع استمرار رفض False كإثبات بعد التطبيق؛ RED ثم25 اختبارverify ناجحًا.
+- موارد المحاولة الثانية محفوظة: project `webvue-accept-243b7e2a`، DB `webvue_scratch_243b7e2a`، حالتها quarantined؛ لم تُستأنف ولم تنظف ولم تُشغّل خدمات العميل منها. بدأ bash-13 لهدف جديد بعد الإصلاح.
 - الفحص الأوسع control-plane كشف3 fixtures حدود قديمة (92pass/3fail/1skip)؛ Luna يعالج fixtures بسياسة صحيحة وفشل Docker اصطناعي دون أي وصول Docker حقيقي من الاختبارات. لا تُعرض المجموعة الكاملة كناجحة حتى إعادة التحقق.
 - bash-13 ثبّت السياسة وقرأها وحقق كلمة مرور المسؤول، ثم حُجر عند health بسبب ID مختصر من Compose ps. أضيف RED ثم --no-trunc بدل قبول الهوية المختصرة؛16 اختبارhealth ناجحًا وفحص الهدف read-only ناجح لاحقًا، دون تغيير إيصال الحجر.
 - **bash-14 exit0**: إنشاء فعلي ناجح للهدف tgt_local_54b24f06، policy_verified/deployment_ready=true، revision1 وميزاتpeople والوحدات الأربع الصحيحة. نجحت اختبارات replay دون أي runner/probe/resolver، status متحقق، ورفض بايتات مختلفة وطلب إنشاء ثان. التفاصيل في managed-saas-acceptance.md وmanaged-saas-receipt.json.

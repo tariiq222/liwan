@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / 'deploy' / 'catalog' / 'solutions' / 'platform.json'
 PG_BIN_DEFAULT = Path('/opt/homebrew/opt/postgresql@16/bin')
-DB_RE = re.compile(r'^nasq_scratch_[a-z0-9_]{1,42}$')
+DB_RE = re.compile(r'^webvue_scratch_[a-z0-9_]{1,42}$')
 
 
 def _write_private(path, value):
@@ -70,7 +70,7 @@ def prepare(args):
         msg = '--evidence-dir must be a new absolute path'
         raise ValueError(msg)
     if not DB_RE.fullmatch(args.db_prefix + '_saas'):
-        msg = '--db-prefix must start nasq_scratch_ and allow two safe suffixes'
+        msg = '--db-prefix must start webvue_scratch_ and allow two safe suffixes'
         raise ValueError(msg)
     python = _path_file(args.odoo_python, 'Odoo Python')
     odoo_bin = _path_file(args.odoo_bin, 'odoo-bin')
@@ -116,7 +116,7 @@ def prepare(args):
     inventory = evidence / 'inventory.json'
     _write_private(inventory, {'version': 2, 'targets': targets})
     release = releases / 'platform-upgrade.json'
-    _write_private(release, {'schema_version': 1, 'modules': ['nasq_platform']})
+    _write_private(release, {'schema_version': 1, 'modules': ['webvue_platform']})
     return {'evidence_dir': str(evidence), 'inventory': str(inventory),
             'state': str(state), 'targets': targets, 'release': str(release)}
 
@@ -124,13 +124,13 @@ def prepare(args):
 def run_prepared(prepared, args):
     evidence = Path(prepared['evidence_dir'])
     out_file = evidence / 'operations.jsonl'
-    env = {**os.environ, 'NASQ_CLI_INVENTORY': prepared['inventory'],
-           'NASQ_CLI_STATE_DIR': prepared['state'], 'PYTHONDONTWRITEBYTECODE': '1',
+    env = {**os.environ, 'WEBVUE_CLI_INVENTORY': prepared['inventory'],
+           'WEBVUE_CLI_STATE_DIR': prepared['state'], 'PYTHONDONTWRITEBYTECODE': '1',
            'PYTHONPATH': str(ROOT / 'tools')}
 
     def invoke(argv):
         completed = subprocess.run(
-            [sys.executable, '-B', '-m', 'nasq_cli.operator', *argv, '--json'],
+            [sys.executable, '-B', '-m', 'webvue_cli.operator', *argv, '--json'],
             cwd=str(ROOT), env=env, text=True, capture_output=True, check=False,
             timeout=3600,
         )
@@ -204,7 +204,7 @@ def main(argv=None):
     parser.add_argument('--evidence-dir', required=True,
                         help='new absolute private path; all evidence is retained')
     parser.add_argument('--db-prefix', required=True,
-                        help='new prefix such as nasq_scratch_cp2_abc123')
+                        help='new prefix such as webvue_scratch_cp2_abc123')
     parser.add_argument('--target-prefix', default='cp2')
     parser.add_argument('--tier', choices=('core', 'projects', 'people', 'messaging'),
                         default='projects')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ProjectDetail } from '@nasq/contracts'
+import type { ProjectDetail } from '@webvue/contracts'
 import {
   CHARTER_FIELD_KEYS,
   canOverwriteWithLatest,

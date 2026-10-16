@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PROJECT_STATUSES, type ProjectDetail, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES, type ProjectDetail, type ProjectStatus } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { PROJECT_STATUS_LABEL_KEY, PROJECT_STATUS_UNSET_KEY } from '@/composables/projectStatus'
 import { useSetProjectStatus } from '@/composables/useProjects'

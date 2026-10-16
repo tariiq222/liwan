@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { meetingCreateRoute } from '@/utils/meetingRoutes'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingSeriesResolutions } from '@/composables/useMeetingWorkspace'
-import { formatCalendarDate, formatNasqTime } from '@nasq/ui/app/composables/calendarDate'
-import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPreviousMeeting } from '@/utils/meetingWorkspace'
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
@@ -122,7 +122,7 @@ function loadMoreMeetings() {
 function localTime(value: string | null) {
   if (!value) return '—'
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatNasqTime(parsed, locale.value) : ''
+  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
 }
 function occurrenceLabel(meeting: { meeting_date: string | null; start_datetime: string | null }) {
   const date = meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale.value) : t('meetingTimeline.unknownDate')

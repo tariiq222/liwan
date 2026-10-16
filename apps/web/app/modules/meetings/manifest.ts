@@ -1,4 +1,4 @@
-import { MeetingNotificationSchema } from '@nasq/contracts'
+import { MeetingNotificationSchema } from '@webvue/contracts'
 import type { AppManifest } from '../types'
 
 const manifest: AppManifest = {

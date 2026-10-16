@@ -18,14 +18,14 @@
   و`apps/control-plane/src/shared/**` واختباراتهما.
 - لا يملك/لا يعدّل مباشرة: `packages/commercial-contracts/src/index.ts`،
   `apps/control-plane/src/http.ts`، `apps/control-plane/src/worker.ts`،
-  `apps/control-plane/src/schema*.sql`، `tools/nasq_cli/managed_runtime.py`.
+  `apps/control-plane/src/schema*.sql`، `tools/webvue_cli/managed_runtime.py`.
 - ربط المستهلكين الحقيقيين = `baseline` في t5.
 
 ## 3. ملكية t4 — sovereign (non_saas)
 
-- يملك: `odoo-addons/nasq_platform/commercial_config.py`،
-  `odoo-addons/nasq_platform/models/entitlement_service.py`،
-  `odoo-addons/nasq_platform/tests/**`، وأي اختبار pure جديد
+- يملك: `odoo-addons/webvue_platform/commercial_config.py`،
+  `odoo-addons/webvue_platform/models/entitlement_service.py`،
+  `odoo-addons/webvue_platform/tests/**`، وأي اختبار pure جديد
   `tools/test_non_saas_*.py`.
 - لا يملك: ملفات platform أخرى أو وثائق مشتركة — يطلبها من `baseline`.
 - لا اختبار على `odoo19`؛ أي Odoo اختبار يحتاج scratch محددًا واعتماد موارد.

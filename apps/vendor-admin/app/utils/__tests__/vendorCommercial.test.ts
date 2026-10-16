@@ -147,7 +147,7 @@ describe('error codes', () => {
   })
   it('shows an application that only registered its keys and got a catalog tier (spec 3.6 acceptance 4)', () => {
     const release = { id: 'r', version: 'v', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: [
-      { id: 'probe', name_ar: 'Probe', name_en: 'Probe', modules: ['nasq_registry_probe'], requires_apps: [], conflicts_with_apps: [], selectable: true,
+      { id: 'probe', name_ar: 'Probe', name_en: 'Probe', modules: ['webvue_registry_probe'], requires_apps: [], conflicts_with_apps: [], selectable: true,
         features: [{ key: 'probe.enabled', kind: 'boolean', selectable: true, requires: [], enforcement_refs: [] }, { key: 'probe.max_items', kind: 'limit', selectable: false, requires: [], enforcement_refs: [] }] },
     ] } as never
     expect(appName((release as { applications: never[] }).applications[0]!, 'ar')).toBe('Probe')

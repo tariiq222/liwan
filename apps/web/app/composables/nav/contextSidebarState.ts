@@ -2,7 +2,7 @@ import { computed, ref, type Ref } from 'vue'
 
 export type ContextSidebarCookie = 'open' | 'closed'
 /** Read during SSR, so the server renders the collapsed width and the first paint never jumps. */
-export const CONTEXT_SIDEBAR_COOKIE = 'nasq-context-sidebar'
+export const CONTEXT_SIDEBAR_COOKIE = 'webvue-context-sidebar'
 
 /** Automatic geometry follows the viewport; only an explicit toggle persists a preference. */
 export function contextSidebarState(cookie: Ref<ContextSidebarCookie | null | undefined>, hydrated: Readonly<Ref<boolean>>, wide: Readonly<Ref<boolean>> = ref(true)) {

@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization } from '../../../../utils/projectFinance'
 import { projectSectionLocation } from '../../../../utils/projectWorkspaceMemory'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { isDirtySnapshot } from '../../../../lib/formDirty'
 import { ApiError } from '../../../../composables/useApi'
 
@@ -141,7 +141,7 @@ describe('RACI task prerequisite navigation', () => {
     })
     const html = await renderView(view, {})
     const href = html.match(/href="([^"]+)"/)?.[1]?.replaceAll('&amp;', '&')
-    const destination = new URL(href!, 'http://nasq.local')
+    const destination = new URL(href!, 'http://webvue.local')
     expect(destination.pathname).toBe('/projects/12/tasks')
     expect(Object.fromEntries(destination.searchParams)).toEqual({ q: 'site', view: 'board', closed: '1', returnTo: '/projects?mine=1', projectListReturnTo: '/projects?mine=1' })
     expect(html).not.toContain('tab=tasks')

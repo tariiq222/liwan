@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
+import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
 import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerCommercialEnabled, customerRoute, forwardCustomerRequest, rateLimitMutation, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
@@ -15,8 +15,8 @@ const config = { customerCommercialEnabled: true, customerCommercialControlUrl: 
 const me = (capabilities: string[]) => ({ id: 7, name: 'U', login: 'u', email: '', lang: 'ar_001', tz: 'UTC', role: 'employee', capabilities, company: { id: 1, name: 'C' } })
 
 function setup(opts: { method?: string; url?: string; body?: string; headers?: Record<string, string>; cookies?: Record<string, string>; caps?: string[]; cfg?: Record<string, unknown> } = {}) {
-  const headers: Record<string, string> = { cookie: 'session_id=s', origin: 'https://acme.example', 'content-type': 'application/json', 'x-nasq-csrf': CSRF, ...opts.headers }
-  const cookies: Record<string, string> = { nasq_csrf: CSRF, ...opts.cookies }
+  const headers: Record<string, string> = { cookie: 'session_id=s', origin: 'https://acme.example', 'content-type': 'application/json', 'x-webvue-csrf': CSRF, ...opts.headers }
+  const cookies: Record<string, string> = { webvue_csrf: CSRF, ...opts.cookies }
   vi.stubGlobal('useRuntimeConfig', () => ({ ...config, ...opts.cfg }))
   vi.stubGlobal('getMethod', () => opts.method ?? 'GET')
   vi.stubGlobal('getHeader', (_e: unknown, n: string) => headers[n])
@@ -58,9 +58,9 @@ describe('customer commercial BFF', () => {
     expect(url).toBe('https://control.example/v1/customer/subscription')
     const h = init.headers as Record<string, string>
     expect(h).not.toHaveProperty('cookie')
-    const principal = JSON.parse(Buffer.from(h['x-nasq-principal']!, 'base64').toString())
+    const principal = JSON.parse(Buffer.from(h['x-webvue-principal']!, 'base64').toString())
     expect(principal).toEqual({ actor_id: '7', kind: 'customer', tenant_id: 'tenant-acme', capabilities: ['subscription.read', 'subscription.manage', 'branches.manage', 'billing.read'] })
-    const ok = verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(h['x-nasq-principal']!, undefined), key: KEY, headers: h })
+    const ok = verifyServiceRequest({ method: 'GET', path: '/v1/customer/subscription', body: signedBodyFor(h['x-webvue-principal']!, undefined), key: KEY, headers: h })
     expect(ok).toMatchObject({ actor: 7, issuer: 'customer-web' })
     // Tampering with the principal invalidates the signature.
     const forged = Buffer.from(JSON.stringify({ ...principal, tenant_id: 'tenant-other' })).toString('base64')
@@ -79,7 +79,7 @@ describe('customer commercial BFF', () => {
   it('requires CSRF header = cookie, JSON, and same origin for mutations', async () => {
     const body = JSON.stringify({ kind: 'new' })
     const url = 'https://acme.example/api/commercial/v1/quotes'
-    setup({ method: 'POST', url, body, headers: { 'x-nasq-csrf': 'z'.repeat(40) } })
+    setup({ method: 'POST', url, body, headers: { 'x-webvue-csrf': 'z'.repeat(40) } })
     await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'csrf_failed' } })
     setup({ method: 'POST', url, body, headers: { origin: 'https://evil.example' } })
     await expect(forwardCustomerRequest({} as never)).rejects.toMatchObject({ statusCode: 403, data: { code: 'cross_site_request' } })

@@ -1,7 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_nasq_project_type_employee,nasq.project.type.employee,model_nasq_project_type,nasq_core.group_employee,1,1,1,1
-access_nasq_project_owning_unit_employee,nasq.project.owning.unit.employee,model_nasq_project_owning_unit,nasq_core.group_employee,1,1,1,1
-access_nasq_project_type_reader,nasq.project.type.reader,model_nasq_project_type,group_cap_pmo_projects_read,1,0,0,0
-access_nasq_project_type_settings_manager,nasq.project.type.settings.manager,model_nasq_project_type,group_cap_pmo_settings_manage,1,1,1,1
-access_nasq_project_owning_unit_reader,nasq.project.owning.unit.reader,model_nasq_project_owning_unit,group_cap_pmo_projects_read,1,0,0,0
-access_nasq_project_owning_unit_settings_manager,nasq.project.owning.unit.settings.manager,model_nasq_project_owning_unit,group_cap_pmo_settings_manage,1,1,1,1

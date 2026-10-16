@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectDetail } from '@nasq/contracts'
+import type { ProjectDetail } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAddStage, useDeleteStage, useReorderStages, useUpdateStage } from '@/composables/useProjectStages'
 import FollowerList from './FollowerList.vue'

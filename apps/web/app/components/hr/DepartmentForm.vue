@@ -85,10 +85,10 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, parentId, managerId }" class="nasq-form" method="post" :loading-auto="false" novalidate @submit="submit">
+  <UForm :state="{ name, parentId, managerId }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
     <SharedFormSection :panel="props.panel" :title="t('hr.depts.formDescription')">
-      <div class="nasq-form-grid mt-4">
+      <div class="webvue-form-grid mt-4">
         <UFormField :label="t('hr.depts.name')" name="hr-dept-name" required :error="fieldError('name')">
           <UInput id="hr-dept-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || pending" required />
         </UFormField>

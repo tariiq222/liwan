@@ -11,15 +11,15 @@ revision:
 ```sh
 docker build -f deploy/odoo/Dockerfile \
   --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" \
-  --build-arg NASQ_REVISION="$(git rev-parse --short HEAD)" \
-  -t "nasq-odoo:${NASQ_IMAGE_TAG:-dev}" .
+  --build-arg WEBVUE_REVISION="$(git rev-parse --short HEAD)" \
+  -t "webvue-odoo:${WEBVUE_IMAGE_TAG:-dev}" .
 ```
 
-`NASQ_IMAGE_TAG` selects the image tag used by Compose. `ODOO_COMMIT` selects
+`WEBVUE_IMAGE_TAG` selects the image tag used by Compose. `ODOO_COMMIT` selects
 the immutable upstream Odoo revision fetched during the image build. The
-Odoo source and Nasq addons are baked into the image and made read-only at
+Odoo source and WebVue addons are baked into the image and made read-only at
 runtime; only `/var/lib/odoo` is writable customer data. Every container start
-passes through `/opt/nasq/odoo_secure.py`, including provisioning shell runs.
+passes through `/opt/webvue/odoo_secure.py`, including provisioning shell runs.
 The image replaces Debian's unpatched `wkhtmltopdf` with the architecture-
 specific, vendored `wkhtmltox 0.12.6.1-3 bookworm` package after verifying the
 matching entry in `deploy/odoo/vendor/SHA256SUMS`. The build fails when the
@@ -34,7 +34,7 @@ is not a claim that backups, DNS, or a customer deployment are in place.
 
 | Piece | Path / value |
 | --- | --- |
-| Nasq checkout | `/Users/tariq/code/nasq` on `main`; this worktree is `/Users/tariq/code/الاصلاحات` on `codex/الاصلاحات` |
+| WebVue checkout | `/Users/tariq/code/nasq` on `main`; this worktree is `/Users/tariq/code/الاصلاحات` on `codex/الاصلاحات` |
 | Odoo source (read-only) | `/Users/tariq/code/odoo`, `odoo-bin`, `.venv/bin/python` |
 | Core `base` | `/Users/tariq/code/odoo/odoo/addons/base` (next to `odoo-bin`, not under extra `addons/`) |
 | Extra official addons | `/Users/tariq/code/odoo/addons` (`project`, `hr`; no `base` here) |
@@ -43,7 +43,7 @@ is not a claim that backups, DNS, or a customer deployment are in place.
 | Config `http_port` | `8069` (forbidden as a wrapper port) |
 | Config `data_dir` | `/Users/tariq/code/odoo/.local` |
 | Filestore | `/Users/tariq/code/odoo/.local/filestore/<dbname>` (includes `odoo19` and historical scratch names) |
-| PostgreSQL | `localhost:5432`, peer/ident as the local OS user; databases include `odoo19` and many `nasq_*` scratch names |
+| PostgreSQL | `localhost:5432`, peer/ident as the local OS user; databases include `odoo19` and many `webvue_*` scratch names |
 | Default Nuxt | port `3000` (`apps/web/playwright.config.ts` still defaults `E2E_BASE_URL` to `http://localhost:3000` if unset — the E2E wrapper exists so that default is never used) |
 
 ### Docker Compose template (`deploy/docker-compose.yml`)
@@ -53,10 +53,10 @@ Not started by these tools. Named volumes, not bind mounts:
 | Service | Image | Data |
 | --- | --- | --- |
 | `db` | `postgres:16` | volume `db_data` → `/var/lib/postgresql/data` |
-| `odoo` | `nasq-odoo:${NASQ_IMAGE_TAG}` | baked Odoo and Nasq addons; volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
+| `odoo` | `webvue-odoo:${WEBVUE_IMAGE_TAG}` | baked Odoo and WebVue addons; volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
 | `web` | apps/web image | listens on container port `3000` |
-| `ai` (profile `ai`, optional) | apps/ai-service image | Nasq AI service on container port `8600`, no published port; run state in the `nasq_ai` database under the `nasq_ai` role |
-| `proxy` | `nasq-caddy:${NASQ_IMAGE_TAG}` from `deploy/proxy/Dockerfile` | `80`/`443`; official Caddy plus `http.handlers.rate_limit` |
+| `ai` (profile `ai`, optional) | apps/ai-service image | WebVue AI service on container port `8600`, no published port; run state in the `webvue_ai` database under the `webvue_ai` role |
+| `proxy` | `webvue-caddy:${WEBVUE_IMAGE_TAG}` from `deploy/proxy/Dockerfile` | `80`/`443`; official Caddy plus `http.handlers.rate_limit` |
 
 `deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) validates all three secrets, selects the pinned baked image, then installs and seeds through its guarded entrypoint. The manual backup wrappers do not invoke provisioning.
 
@@ -65,7 +65,7 @@ To back up a Compose customer, the operator must supply **host paths** for
 mounting the volume themselves. This tool does not `docker exec`, `docker cp`,
 `docker compose stop`, or read secrets from `deploy/.env`.
 
-## Nasq AI
+## WebVue AI
 
 The `ai` service (`apps/ai-service`, port `8600`, `/healthz`) is optional and off by default: it sits under the Compose profile `ai`, so it does not exist unless `COMPOSE_PROFILES=ai` is set. Only `web` reaches it, through `NUXT_AI_SERVICE_URL=http://ai:8600`; it publishes no port. In the shared overlay it sits on `guard_web` (reachable from `web`) and `database` (reaches `db`) only.
 
@@ -75,29 +75,29 @@ OpenRouter: set `AI_PROVIDER=openrouter`, `AI_API_KEY` to the OpenRouter key and
 
 Enabling:
 
-1. Generate the secrets: `AI_DB_PASSWORD=$(openssl rand -hex 24)` and `AI_SERVICE_TOKEN=$(openssl rand -hex 32)`. `AI_DB_PASSWORD` must be URL-safe (hex or base64url) because it is placed inside `AI_DATABASE_URL`, which you set to `postgresql://nasq_ai:<AI_DB_PASSWORD>@db:5432/nasq_ai`. `AI_SERVICE_TOKEN` is at least 24 characters; `web` sends it as `X-Nasq-Service-Token` (`NUXT_AI_SERVICE_TOKEN`) and the service rejects any other caller.
+1. Generate the secrets: `AI_DB_PASSWORD=$(openssl rand -hex 24)` and `AI_SERVICE_TOKEN=$(openssl rand -hex 32)`. `AI_DB_PASSWORD` must be URL-safe (hex or base64url) because it is placed inside `AI_DATABASE_URL`, which you set to `postgresql://webvue_ai:<AI_DB_PASSWORD>@db:5432/webvue_ai`. `AI_SERVICE_TOKEN` is at least 24 characters; `web` sends it as `X-WebVue-Service-Token` (`NUXT_AI_SERVICE_TOKEN`) and the service rejects any other caller.
 2. In `deploy/.env` set `COMPOSE_PROFILES=ai`, `NUXT_AI_SERVICE_URL=http://ai:8600`, `AI_MODEL`, the provider variables, `AI_DB_PASSWORD`, `AI_DATABASE_URL` and `AI_SERVICE_TOKEN`. `AI_DATABASE_URL` is mandatory: the service refuses to start without it (only `AI_ALLOW_MEMORY_STATE=true` allows in-memory state, for development). A claimed write whose executor crashed is never executed twice: after the stale window the run reports `failed` and only a new user message continues it.
 3. `docker compose up -d`. Without `NUXT_AI_SERVICE_URL` the `/ai` page stays hidden.
 
-Database isolation: the service connects as the dedicated role `nasq_ai`, which owns only the `nasq_ai` database. It is not the `odoo` superuser and has no access to tenant databases. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-nasq-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `nasq_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `nasq_ai` (`postgres`, `template1`). `deploy/provision.sh` does the same for each tenant database it creates, right after the install and before the services start: when the `nasq_ai` role exists it revokes `CONNECT` on the tenant database from `PUBLIC` and from `nasq_ai`, and it does nothing when the role does not exist. Only a database created before this step existed, or by another route (shared-mode tenant databases), still inherits the default `PUBLIC` `CONNECT`; revoke it for each: `docker compose exec db psql -U odoo -c 'REVOKE CONNECT ON DATABASE "<tenant_db>" FROM PUBLIC'`. Tenant tables grant nothing to `PUBLIC`, so even a connection could read no table data.
+Database isolation: the service connects as the dedicated role `webvue_ai`, which owns only the `webvue_ai` database. It is not the `odoo` superuser and has no access to tenant databases. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-webvue-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `webvue_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `webvue_ai` (`postgres`, `template1`). `deploy/provision.sh` does the same for each tenant database it creates, right after the install and before the services start: when the `webvue_ai` role exists it revokes `CONNECT` on the tenant database from `PUBLIC` and from `webvue_ai`, and it does nothing when the role does not exist. Only a database created before this step existed, or by another route (shared-mode tenant databases), still inherits the default `PUBLIC` `CONNECT`; revoke it for each: `docker compose exec db psql -U odoo -c 'REVOKE CONNECT ON DATABASE "<tenant_db>" FROM PUBLIC'`. Tenant tables grant nothing to `PUBLIC`, so even a connection could read no table data.
 
 Existing `db_data` volume (init scripts do not rerun): create the role and database once, by hand, with the password passed as a psql variable:
 
 ```sh
 docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v ai_password="$AI_DB_PASSWORD" <<'SQL'
-SELECT format('CREATE ROLE nasq_ai LOGIN PASSWORD %L', :'ai_password') \gexec
-CREATE DATABASE nasq_ai OWNER nasq_ai;
-REVOKE CONNECT ON DATABASE nasq_ai FROM PUBLIC;
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', datname) FROM pg_database WHERE datname <> 'nasq_ai' \gexec
-SELECT format('REVOKE CONNECT ON DATABASE %I FROM nasq_ai', datname) FROM pg_database WHERE datname <> 'nasq_ai' \gexec
+SELECT format('CREATE ROLE webvue_ai LOGIN PASSWORD %L', :'ai_password') \gexec
+CREATE DATABASE webvue_ai OWNER webvue_ai;
+REVOKE CONNECT ON DATABASE webvue_ai FROM PUBLIC;
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', datname) FROM pg_database WHERE datname <> 'webvue_ai' \gexec
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM webvue_ai', datname) FROM pg_database WHERE datname <> 'webvue_ai' \gexec
 SQL
 ```
 
 (`docker compose exec` forwards the host shell's `AI_DB_PASSWORD` through the `-v` argument, so export it first; the value never appears in SQL text.)
 
-- Retention cleanup of old runs: `docker compose exec ai python -m nasq_ai_service.cleanup`, scheduled by the host cron.
+- Retention cleanup of old runs: `docker compose exec ai python -m webvue_ai_service.cleanup`, scheduled by the host cron.
 - Stopping `ai`, or never enabling the profile, changes nothing else: `web`, `odoo` and `proxy` do not depend on it (works in `saas` and `non_saas`).
-- Threat model: the service holds no Nasq credential (no Odoo session or token, no `odoo` database password), only its own database role and the shared service token; all Nasq data reaches it per request through `web`, under the caller's own permissions.
+- Threat model: the service holds no WebVue credential (no Odoo session or token, no `odoo` database password), only its own database role and the shared service token; all WebVue data reaches it per request through `web`, under the caller's own permissions.
 
 ## Isolated Odoo / E2E (`deploy/check_isolated.py`)
 
@@ -112,16 +112,16 @@ python3 deploy/check_isolated.py odoo \
   --python /Users/tariq/code/odoo/.venv/bin/python \
   --odoo-bin /Users/tariq/code/odoo/odoo-bin \
   --odoo-conf /Users/tariq/code/odoo/odoo.conf \
-  --scratch-db nasq_scratch_example \
+  --scratch-db webvue_scratch_example \
   --scratch-lifecycle CREATE_NEW_SCRATCH \
   --http-port 8169 \
-  --modules nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai \
-  --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_directory,/nasq_notify,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat,/nasq_tasks,/nasq_tasks_pmo,/nasq_operations,/nasq_operations_pmo,/nasq_ai,/nasq_pmo_ai
+  --modules webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai \
+  --test-tags /webvue_core,/webvue_platform,/webvue_api,/webvue_directory,/webvue_notify,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat,/webvue_tasks,/webvue_tasks_pmo,/webvue_operations,/webvue_operations_pmo,/webvue_ai,/webvue_pmo_ai
 
 python3 deploy/check_isolated.py e2e \
   --worktree /absolute/worktree \
   --addons-path /absolute/worktree/odoo-addons \
-  --scratch-db nasq_scratch_example \
+  --scratch-db webvue_scratch_example \
   --scratch-lifecycle CREATE_NEW_SCRATCH \
   --base-url http://127.0.0.1:3100 \
   --odoo-url http://127.0.0.1:8169 \
@@ -141,7 +141,7 @@ must be exactly `/websocket`. Remote hosts are refused.
 Refuses: `odoo19` / `production` / `postgres` names, names without `scratch`,
 scratch names without `--scratch-lifecycle CREATE_NEW_SCRATCH`, ports
 `80/443/3000/5432/8069/8072`, non-loopback URLs, credentialed URLs, relative
-paths, missing nasq/project/hr/base manifests, `shell=True`.
+paths, missing webvue/project/hr/base manifests, `shell=True`.
 
 `--scratch-lifecycle CREATE_NEW_SCRATCH` is an operator attestation only. The
 wrapper does not query PostgreSQL, does not `createdb`/`dropdb`, and does not
@@ -230,16 +230,16 @@ PGBIN=$(dirname "$(command -v pg_dump)"); WORK=$(mktemp -d)
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
-  -d nasq_drill_src_scratch --db-filter='^nasq_drill_src_scratch$' \
+  -d webvue_drill_src_scratch --db-filter='^webvue_drill_src_scratch$' \
   --data-dir="$WORK/data" --without-demo=all \
-  -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai \
+  -i webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai \
   --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
 python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
-  --db-name nasq_drill_src_scratch --filestore "$WORK/data/filestore/nasq_drill_src_scratch" \
+  --db-name webvue_drill_src_scratch --filestore "$WORK/data/filestore/webvue_drill_src_scratch" \
   --output-dir "$WORK/backup" --pg-dump "$PGBIN/pg_dump" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
-python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored_scratch \
-  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored_scratch" \
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db webvue_drill_restored_scratch \
+  --target-filestore "$WORK/restored-data/filestore/webvue_drill_restored_scratch" \
   --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
 ```
@@ -256,7 +256,7 @@ Start Odoo against the restored scratch database without `-i`, `-u`, or
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
-  -d nasq_drill_restored_scratch --db-filter='^nasq_drill_restored_scratch$' \
+  -d webvue_drill_restored_scratch --db-filter='^webvue_drill_restored_scratch$' \
   --data-dir="$WORK/restored-data" --http-port=8169 --http-interface=127.0.0.1 \
   --workers=0 --max-cron-threads=0 &
 RESTORED_PID=$!
@@ -271,12 +271,12 @@ the missing file in `missing_attachment_files`:
 
 ```sh
 STORE_FNAME=$("$PGBIN/psql" --host="$PGHOST" --port="$PGPORT" --username="$PGUSER" \
-  -d nasq_drill_src_scratch -At \
+  -d webvue_drill_src_scratch -At \
   -c "SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1")
 test -n "$STORE_FNAME"
 rm -- "$WORK/backup/filestore/$STORE_FNAME"
-python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored2_scratch \
-  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored2_scratch" \
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db webvue_drill_restored2_scratch \
+  --target-filestore "$WORK/restored-data/filestore/webvue_drill_restored2_scratch" \
   --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
 ```
@@ -286,7 +286,7 @@ the temporary `$WORK` directory. Never reuse an existing database or filestore.
 
 ## Upgrade recovery: meetings split
 
-If the `nasq_meetings` install fails in the same upgrade run after `nasq_pmo` reached 19.0.1.4.0, recover with `-i nasq_meetings,nasq_meetings_pmo`; a plain `-u` will not re-mark them.
+If the `webvue_meetings` install fails in the same upgrade run after `webvue_pmo` reached 19.0.1.4.0, recover with `-i webvue_meetings,webvue_meetings_pmo`; a plain `-u` will not re-mark them.
 
 ## Unresolved (do not invent answers)
 

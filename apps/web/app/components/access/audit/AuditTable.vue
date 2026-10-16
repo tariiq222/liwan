@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { AccessAuditSummary } from '@nasq/contracts'
+import type { AccessAuditSummary } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
 // The access-log table on SharedDataTable: a row (background click, Enter, the time link) opens the event
 // through `toFor`. Filters and pagination belong to the page.
@@ -32,7 +32,7 @@ const actionLabels: Record<AccessAuditSummary['action'], string> = {
 }
 const actionLabel = (action: AccessAuditSummary['action']) => t(actionLabels[action])
 const eventTo = (event: AccessAuditSummary) => props.toFor(event.id)
-const when = (event: AccessAuditSummary) => formatNasqDateTime(event.occurred_at, locale.value)
+const when = (event: AccessAuditSummary) => formatWebVueDateTime(event.occurred_at, locale.value)
 const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: eventTo(event) }]
 const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
   { accessorKey: 'id', header: t('app.recordNumber') },

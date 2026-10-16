@@ -32,16 +32,16 @@ def load_service():
         setattr(exceptions, name, type(name, (Exception,), {}))
     http = types.ModuleType('odoo.http')
     http.request = None
-    access = types.ModuleType('odoo.addons.nasq_core.models.access_service')
-    access.NasqAccessRule = PolicyError
+    access = types.ModuleType('odoo.addons.webvue_core.models.access_service')
+    access.WebVueAccessRule = PolicyError
     spec = importlib.util.spec_from_file_location(
         '_non_saas_entitlement_under_test',
-        ROOT / 'odoo-addons/nasq_platform/models/entitlement_service.py',
+        ROOT / 'odoo-addons/webvue_platform/models/entitlement_service.py',
     )
     module = importlib.util.module_from_spec(spec)
     with patch.dict('sys.modules', {
         'odoo': odoo, 'odoo.exceptions': exceptions, 'odoo.http': http,
-        'odoo.addons.nasq_core.models.access_service': access,
+        'odoo.addons.webvue_core.models.access_service': access,
     }):
         spec.loader.exec_module(module)
     return module
@@ -59,19 +59,19 @@ class TestNonSaasPolicy(unittest.TestCase):
             features={'pmo.enabled': True, 'hr.enabled': False, 'users.limit': 2},
             retained_read_features=['hr.enabled'],
         )
-        self.service = service_module.NasqEntitlementService()
-        self.service._nasq_profile = lambda: self.profile
-        self.service._nasq_installed_modules = lambda: ('nasq_pmo', 'nasq_hr')
+        self.service = service_module.WebVueEntitlementService()
+        self.service._webvue_profile = lambda: self.profile
+        self.service._webvue_installed_modules = lambda: ('webvue_pmo', 'webvue_hr')
         definitions = {
-            'pmo.enabled': {'type': 'boolean', 'module': 'nasq_pmo'},
-            'hr.enabled': {'type': 'boolean', 'module': 'nasq_hr'},
-            'users.limit': {'type': 'limit', 'module': 'nasq_platform'},
+            'pmo.enabled': {'type': 'boolean', 'module': 'webvue_pmo'},
+            'hr.enabled': {'type': 'boolean', 'module': 'webvue_hr'},
+            'users.limit': {'type': 'limit', 'module': 'webvue_platform'},
         }
-        self.service._nasq_registry = lambda: types.SimpleNamespace(
-            _nasq_feature_map=lambda: definitions,
+        self.service._webvue_registry = lambda: types.SimpleNamespace(
+            _webvue_feature_map=lambda: definitions,
         )
-        self.service._nasq_is_support_user = lambda user=None: False
-        self.service._nasq_support_login_allowed = lambda user=None: False
+        self.service._webvue_is_support_user = lambda user=None: False
+        self.service._webvue_support_login_allowed = lambda user=None: False
         self.service.env = types.SimpleNamespace(
             su=False, context={}, user=types.SimpleNamespace(_is_public=lambda: False),
             _=lambda text: text,
@@ -95,12 +95,12 @@ class TestNonSaasPolicy(unittest.TestCase):
     def test_local_policy_remains_writable_without_checkout_or_heartbeat(self):
         for today in (date(2020, 1, 1), date(2099, 12, 31)):
             with self.subTest(today=today):
-                self.service._nasq_utc_today = lambda: today
-                self.assertEqual(self.service._nasq_effective_state(), 'active')
+                self.service._webvue_utc_today = lambda: today
+                self.assertEqual(self.service._webvue_effective_state(), 'active')
                 self.assertTrue(self.service.require('pmo.enabled'))
                 self.assertTrue(self.service.require_within_limit('users.limit', 2))
-                self.assertTrue(self.service._nasq_assert_login_allowed(self.service.env.user))
-                self.assertFalse(self.service._nasq_session_forbidden())
+                self.assertTrue(self.service._webvue_assert_login_allowed(self.service.env.user))
+                self.assertFalse(self.service._webvue_session_forbidden())
 
     def test_offline_tripwire_is_active(self):
         with self.assertRaises(AssertionError):
@@ -113,7 +113,7 @@ class TestNonSaasPolicy(unittest.TestCase):
         self.assertTrue(self.service.require_read('hr.enabled'))
 
     def test_local_policy_requires_installed_feature_owner(self):
-        self.service._nasq_installed_modules = lambda: ()
+        self.service._webvue_installed_modules = lambda: ()
         self.assert_policy_error('feature_not_included', lambda: self.service.require('pmo.enabled'))
         self.assert_policy_error('feature_not_included', lambda: self.service.require_read('pmo.enabled'))
 
@@ -127,24 +127,24 @@ class TestNonSaasPolicy(unittest.TestCase):
         self.assert_policy_error('tenant_suspended', lambda: self.service.require('pmo.enabled'))
         self.assert_policy_error('tenant_suspended', lambda: self.service.require_read('pmo.enabled'))
         with self.assertRaises(service_module.AccessDenied):
-            self.service._nasq_assert_login_allowed(self.service.env.user)
-        self.assertTrue(self.service._nasq_session_forbidden())
+            self.service._webvue_assert_login_allowed(self.service.env.user)
+        self.assertTrue(self.service._webvue_session_forbidden())
 
     def test_saas_cutoff_still_expires_and_today_is_inclusive(self):
         self.profile.commercial_mode = 'saas'
         self.profile.entitlement_source = 'control_plane'
         self.profile.valid_until = date(2026, 1, 1)
-        self.service._nasq_utc_today = lambda: date(2026, 1, 1)
+        self.service._webvue_utc_today = lambda: date(2026, 1, 1)
         self.assertTrue(self.service.require('pmo.enabled'))
-        self.service._nasq_utc_today = lambda: date(2026, 1, 2)
-        self.assertEqual(self.service._nasq_effective_state(), 'expired')
+        self.service._webvue_utc_today = lambda: date(2026, 1, 2)
+        self.assertEqual(self.service._webvue_effective_state(), 'expired')
         self.assertTrue(self.service.require_read('pmo.enabled'))
         self.assert_policy_error('tenant_read_only', lambda: self.service.require('pmo.enabled'))
         self.assert_policy_error(
             'tenant_read_only', lambda: self.service.require_within_limit('users.limit', 1),
         )
         self.profile.status = 'suspended'
-        self.assertEqual(self.service._nasq_effective_state(), 'suspended')
+        self.assertEqual(self.service._webvue_effective_state(), 'suspended')
 
     def test_operator_context_alone_never_grants_authority(self):
         for su, context, allowed in (
@@ -157,10 +157,10 @@ class TestNonSaasPolicy(unittest.TestCase):
                 self.service.env.su = su
                 self.service.env.context = context
                 if allowed:
-                    self.assertTrue(self.service._nasq_assert_operator())
+                    self.assertTrue(self.service._webvue_assert_operator())
                 else:
                     with self.assertRaises(service_module.AccessError):
-                        self.service._nasq_assert_operator()
+                        self.service._webvue_assert_operator()
 
 
 if __name__ == '__main__':

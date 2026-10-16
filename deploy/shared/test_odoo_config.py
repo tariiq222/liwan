@@ -27,7 +27,7 @@ workers = 2
 class SharedConfigTest(unittest.TestCase):
     def setUp(self):
         # Retain synthetic artifacts rather than deleting any resources.
-        self.root = Path(tempfile.mkdtemp(prefix="nasq-config-fixture-"))
+        self.root = Path(tempfile.mkdtemp(prefix="webvue-config-fixture-"))
         self.path = self.root / "synthetic.conf"
 
     def fixture(self, content=FIXTURE, mode=0o400):
@@ -75,15 +75,15 @@ class SharedConfigTest(unittest.TestCase):
         self.assertEqual(output.getvalue(), "shared_config_rejected\n")
 
     def test_launch_delegates_secure_entrypoint_only_after_validation(self):
-        with patch.dict(os.environ, {"NASQ_TENANCY_MODE": "shared"}), patch("sys.argv", ["launch"]), patch.object(launch_odoo, "validate_config") as validate, patch.object(launch_odoo.os, "execv") as execute:
+        with patch.dict(os.environ, {"WEBVUE_TENANCY_MODE": "shared"}), patch("sys.argv", ["launch"]), patch.object(launch_odoo, "validate_config") as validate, patch.object(launch_odoo.os, "execv") as execute:
             launch_odoo.main()
             validate.assert_called_once_with("/etc/odoo/odoo.conf")
-            execute.assert_called_once_with("/usr/local/bin/nasq-odoo", ["nasq-odoo"])
+            execute.assert_called_once_with("/usr/local/bin/webvue-odoo", ["webvue-odoo"])
 
     def test_launch_rejects_overrides_and_bad_config_without_exec(self):
         for argv in (["launch", "--db-filter=.*"], ["launch"]):
             output = io.StringIO()
-            with patch.dict(os.environ, {"NASQ_TENANCY_MODE": "shared"}), patch("sys.argv", argv), patch.object(launch_odoo, "validate_config", side_effect=ConfigRejected()), patch.object(launch_odoo.os, "execv") as execute, contextlib.redirect_stderr(output):
+            with patch.dict(os.environ, {"WEBVUE_TENANCY_MODE": "shared"}), patch("sys.argv", argv), patch.object(launch_odoo, "validate_config", side_effect=ConfigRejected()), patch.object(launch_odoo.os, "execv") as execute, contextlib.redirect_stderr(output):
                 self.assertEqual(launch_odoo.main(), 1)
                 execute.assert_not_called()
             self.assertEqual(output.getvalue(), "shared_config_rejected\n")

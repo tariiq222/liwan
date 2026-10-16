@@ -128,7 +128,7 @@ test('task sheet menus stay clickable and dependency selection persists', async 
     tasks.push(await response.json())
   }
   await page.goto(`/projects/${project.id}/tasks/${tasks[0].id}`)
-  await expect(page.locator('.nasq-ui-route-sheet')).toBeVisible()
+  await expect(page.locator('.webvue-ui-route-sheet')).toBeVisible()
   const tabs = page.getByTestId('task-detail-tabs')
   await expect(tabs.getByRole('tab', { name: 'التفاصيل', exact: true })).toHaveAttribute('data-state', 'active')
   await tabs.getByRole('tab', { name: 'المهام السابقة', exact: true }).click()
@@ -143,7 +143,7 @@ test('task sheet menus stay clickable and dependency selection persists', async 
   await option.click()
   await expect.poll(async () => (await (await page.request.get(`/api/v1/tasks/${tasks[0].id}`)).json()).depends_on.map(item => item.id)).toContain(tasks[1].id)
   await page.keyboard.press('Escape')
-  await expect(page.locator('.nasq-ui-route-sheet')).toBeVisible()
+  await expect(page.locator('.webvue-ui-route-sheet')).toBeVisible()
   await page.reload()
   const reloadedTabs = page.getByTestId('task-detail-tabs')
   await reloadedTabs.getByRole('tab', { name: 'المهام السابقة', exact: true }).click()
@@ -165,7 +165,7 @@ test('desktop task record number opens its routed sheet', async ({ page }) => {
   await page.goto(`/projects/${project.id}?tab=tasks`)
   await page.locator('table tbody tr').filter({ hasText: 'Clickable number' }).locator('td').first().click()
   await expect(page).toHaveURL(new RegExp(`/projects/${project.id}/tasks/${task.id}`))
-  await expect(page.locator('.nasq-ui-route-sheet')).toBeVisible()
+  await expect(page.locator('.webvue-ui-route-sheet')).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -175,7 +175,7 @@ test('mobile menu exposes visible module names and navigates successfully', asyn
   await page.goto('/projects')
   await expect(page.getByTestId('module-rail')).not.toBeVisible()
   await page.getByTestId('mobile-navigation-trigger').click()
-  const menu = page.locator('.nasq-mobile-menu')
+  const menu = page.locator('.webvue-mobile-menu')
   await expect(menu).toBeVisible()
   // The personal-work module and the PMO context both expose this label.
   // Exercise the context destination this migration case has always checked.

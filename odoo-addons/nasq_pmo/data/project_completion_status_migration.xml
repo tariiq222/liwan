@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <function model="project.project" name="_nasq_backfill_completion_status"/>
-</odoo>

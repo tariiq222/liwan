@@ -79,7 +79,7 @@ def changed_paths(base):
 
 
 def run_semgrep(files):
-    with tempfile.TemporaryDirectory(prefix='nasq-semgrep-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='webvue-semgrep-') as tmp:
         output = Path(tmp) / 'out.json'
         cmd = ['semgrep', 'scan', '--metrics=off', '--disable-version-check', '--quiet', '--json', '--output', str(output)]
         for ruleset in RULESETS:

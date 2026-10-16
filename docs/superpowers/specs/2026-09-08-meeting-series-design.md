@@ -10,11 +10,11 @@
 4. Notifications + PDF/templates
 5. Full acceptance with the user
 
-Keep independent meetings. Series is optional. Extend `nasq_pmo` / `nasq_core` grants; do not rewrite Cyan.
+Keep independent meetings. Series is optional. Extend `webvue_pmo` / `webvue_core` grants; do not rewrite Cyan.
 
 ## Data
 
-`nasq.meeting.series`: name, company, optional project, default organizer/secretary/attendees, recurrence `none|weekly|biweekly|monthly`, `until_date` xor `until_count` when recurring.
+`webvue.meeting.series`: name, company, optional project, default organizer/secretary/attendees, recurrence `none|weekly|biweekly|monthly`, `until_date` xor `until_count` when recurring.
 
 `cyan.meeting.minute` gains optional `series_id` and `project_id`. Minutes, attendance and resolutions stay per occurrence.
 

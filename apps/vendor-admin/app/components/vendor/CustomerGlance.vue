@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { Invoice, SubscriptionView } from '@nasq/commercial-contracts'
-import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
-import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
-import { formatNasqDate } from '@nasq/ui/app/composables/calendarDate'
+import type { Invoice, SubscriptionView } from '@webvue/commercial-contracts'
+import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
+import { formatWebVueDate } from '@webvue/ui/app/composables/calendarDate'
 import type { RouteLocationRaw } from 'vue-router'
 import type { ClientTab } from '@/utils/vendorClients'
-import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
+import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 import { customerDisplayBadge } from '@/utils/vendorBadges'
 import { daysUntilDate, isStalled, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 
@@ -40,7 +40,7 @@ const renewal = computed(() => {
   if (!at || ['cancelled', 'suspended'].includes(sub.value?.state ?? '')) return null
   const days = daysUntilDate(at, new Date())
   const hint = days > 0 ? t('vendor.customers.glance.renewalIn', { days }) : days === 0 ? t('vendor.customers.glance.renewalToday') : t('vendor.customers.glance.renewalLate', { days: -days })
-  return { date: formatNasqDate(at, locale.value), hint: `${hint} · ${t(sub.value?.auto_renew.enabled ? 'vendor.customers.glance.autoRenewOn' : 'vendor.customers.glance.autoRenewOff')}` }
+  return { date: formatWebVueDate(at, locale.value), hint: `${hint} · ${t(sub.value?.auto_renew.enabled ? 'vendor.customers.glance.autoRenewOn' : 'vendor.customers.glance.autoRenewOff')}` }
 })
 const lastInvoice = computed(() => props.invoices?.[0] ?? null)
 

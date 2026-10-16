@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
-const TEST_PASSWORD = 'NasqPsc-E2E-123!'
+const TEST_PASSWORD = 'WebVuePsc-E2E-123!'
 
 test.setTimeout(120_000)
 
@@ -98,7 +98,7 @@ test('assignee is not the reviewer: request, return with note, resubmit, accept'
   const project = await json(page, 'post', '/api/v1/projects', {
     name: `PSC two-user ${Date.now()}`, date_end: '2035-12-31', user_id: mgr.user.id,
   })
-  await json(page, 'patch', `/api/v1/projects/${project.id}`, { nasq_completion_approval: 'project_manager' })
+  await json(page, 'patch', `/api/v1/projects/${project.id}`, { webvue_completion_approval: 'project_manager' })
   const task = await json(page, 'post', '/api/v1/tasks', { name: `PSC two-user task ${Date.now()}`, project_id: project.id })
   await json(page, 'patch', `/api/v1/tasks/${task.id}`, { user_ids: [emp.user.id] })
 
@@ -134,7 +134,7 @@ test('self-approval is allowed for the designated manager assignee', async ({ pa
   const project = await json(page, 'post', '/api/v1/projects', {
     name: `PSC self ${Date.now()}`, date_end: '2035-12-31', user_id: me.id,
   })
-  await json(page, 'patch', `/api/v1/projects/${project.id}`, { nasq_completion_approval: 'project_manager' })
+  await json(page, 'patch', `/api/v1/projects/${project.id}`, { webvue_completion_approval: 'project_manager' })
   const task = await json(page, 'post', '/api/v1/tasks', { name: `PSC self task ${Date.now()}`, project_id: project.id })
   await page.goto(`/tasks/${task.id}`)
   await page.getByTestId('task-completion-request').click()
@@ -193,7 +193,7 @@ test('cancelled pending request rejects a stale accept in the UI', async ({ page
   const project = await json(page, 'post', '/api/v1/projects', {
     name: `PSC cancel ${Date.now()}`, date_end: '2035-12-31', user_id: mgr.user.id,
   })
-  await json(page, 'patch', `/api/v1/projects/${project.id}`, { nasq_completion_approval: 'project_manager' })
+  await json(page, 'patch', `/api/v1/projects/${project.id}`, { webvue_completion_approval: 'project_manager' })
   const task = await json(page, 'post', '/api/v1/tasks', { name: `PSC cancel task ${Date.now()}`, project_id: project.id })
   await json(page, 'patch', `/api/v1/tasks/${task.id}`, { user_ids: [emp.user.id] })
   const empSession = await loginContext(browser, emp.login, TEST_PASSWORD)
@@ -221,7 +221,7 @@ test('withdraw while reviewer is blocked then resubmit after repair', async ({ p
   const project = await json(page, 'post', '/api/v1/projects', {
     name: `PSC withdraw ${Date.now()}`, date_end: '2035-12-31', user_id: mgr.user.id,
   })
-  await json(page, 'patch', `/api/v1/projects/${project.id}`, { nasq_completion_approval: 'project_manager' })
+  await json(page, 'patch', `/api/v1/projects/${project.id}`, { webvue_completion_approval: 'project_manager' })
   const task = await json(page, 'post', '/api/v1/tasks', { name: `PSC withdraw task ${Date.now()}`, project_id: project.id })
   await json(page, 'patch', `/api/v1/tasks/${task.id}`, { user_ids: [emp.user.id] })
   const empSession = await loginContext(browser, emp.login, TEST_PASSWORD)

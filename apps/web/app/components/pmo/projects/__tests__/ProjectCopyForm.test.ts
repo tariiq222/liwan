@@ -4,7 +4,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { ProjectCopyInputSchema } from '@nasq/contracts'
+import { ProjectCopyInputSchema } from '@webvue/contracts'
 
 const filename = resolve(import.meta.dirname, '../ProjectCopyForm.vue')
 const arMessages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../../../i18n/locales/ar/projects.json'), 'utf8'))

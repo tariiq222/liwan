@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Cadence } from '@nasq/commercial-contracts'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import type { Cadence } from '@webvue/commercial-contracts'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 import { cadenceKey, commercialErrorKey } from '@/utils/vendorCommercial'
-import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import { planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import TimelineFrame from '@nasq/ui/app/components/shared/layout/TimelineFrame.vue'
+import TimelineFrame from '@webvue/ui/app/components/shared/layout/TimelineFrame.vue'
 import { storyContext } from '../support/context'
 
 // A fixed "today" keeps the range label, and so the screenshots, stable.
@@ -33,7 +33,7 @@ export const Calendar: Story = {
       const today = () => { cursor.value = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1) }
       return { t, rangeLabel, shift, today }
     },
-    template: `<main class="nasq-shell-main">
+    template: `<main class="webvue-shell-main">
       <TimelineFrame :title="t('nav.meetingCalendar')" :range-label="rangeLabel" @prev="shift(-1)" @next="shift(1)" @today="today">
         <template #actions><UButton icon="i-lucide-plus" :label="t('meetingsUi.new')" /></template>
         <div class="rounded-lg bg-default p-6 text-sm text-muted ring ring-default">{{ t('meetingsUi.empty') }}</div>
@@ -60,7 +60,7 @@ export const Schedule: Story = {
       }
       return { t, scale, scales, rangeLabel, shift, today: () => { start.value = new Date(TODAY) } }
     },
-    template: `<main class="nasq-shell-main">
+    template: `<main class="webvue-shell-main">
       <TimelineFrame v-model:scale="scale" :title="t('projects.schedule.title')" :range-label="rangeLabel" :scales="scales" @prev="shift(-1)" @next="shift(1)" @today="today">
         <template #actions><UButton icon="i-lucide-plus" :label="t('tasks.new')" /></template>
         <div class="rounded-lg bg-default p-6 text-sm text-muted ring ring-default">{{ t('projects.schedule.empty') }}</div>

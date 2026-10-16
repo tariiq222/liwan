@@ -27,13 +27,13 @@ export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut
 
 /** Nav items of the foundation (home, settings, subscription); applications declare theirs in their manifest. */
 const foundationItems: NavItem[] = [
-  { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'nasq.internal' },
+  { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'webvue.internal' },
   { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'i', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', goKey: 'u', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', goKey: 'r', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
   // The approved SaaS commercial spec (2026-10-02) puts the customer's subscription inside the workspace as /subscription,
-  // gated by the customer capability subscription.read (derived from Nasq settings capabilities, see utils/customerCapabilities.ts)
+  // gated by the customer capability subscription.read (derived from WebVue settings capabilities, see utils/customerCapabilities.ts)
   // and the customerCommercialEnabled runtime flag. /settings/billing stays absent: no billing placeholder under settings routes.
   { to: '/subscription', labelKey: 'subscription.nav', icon: 'i-lucide-credit-card', shortcut: 'b', group: 'settings', module: 'settings', capability: 'subscription.read' },
 ]
@@ -73,7 +73,7 @@ export function useNav(identity: AccessIdentity): NavItem[] {
     return Array.isArray(identity?.capabilities) && feature !== undefined && hasFeature(identity, feature)
   }
   return allNavItems().filter(item => (
-    item.capability === 'nasq.internal'
+    item.capability === 'webvue.internal'
       ? internalAccess(item)
       : item.capability.startsWith('subscription.')
         ? customerCommercialOn() && (deriveCustomerCapabilities(identity?.capabilities) as string[]).includes(item.capability)

@@ -1,4 +1,4 @@
-import { BrandingSchema, KNOWN_NASQ_MODULE_IDS, MeAppearancePatchSchema, MeSchema } from '../index'
+import { BrandingSchema, KNOWN_WEBVUE_MODULE_IDS, MeAppearancePatchSchema, MeSchema } from '../index'
 
 describe('BrandingSchema', () => {
   it('accepts the shape served by GET /api/v1/branding', () => {
@@ -42,7 +42,7 @@ describe('MeSchema', () => {
     const me = MeSchema.parse({
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
       tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
-      modules: ['nasq_pmo', 'nasq_meetings', 'nasq_hr'],
+      modules: ['webvue_pmo', 'webvue_meetings', 'webvue_hr'],
       entitlements: { 'pmo.enabled': true, 'users.limit': null, 'projects.max_projects': 12 },
       platform: {
         schema_version: 1, policy_revision: 3, state: 'expired', valid_until: '2026-01-01',
@@ -53,17 +53,17 @@ describe('MeSchema', () => {
     expect(me.platform?.state).toBe('expired')
     expect(me.entitlements['projects.max_projects']).toBe(12)
     expect(me.terminology.ar.project).toBe('مبادرة')
-    expect(me.modules).toEqual(['nasq_pmo', 'nasq_meetings', 'nasq_hr'])
+    expect(me.modules).toEqual(['webvue_pmo', 'webvue_meetings', 'webvue_hr'])
   })
   it("accepts a newer application's module id and rejects malformed ones", () => {
     const base = {
       id: 2, name: 'Sara', login: 'emp', email: 'sara@example.com', lang: 'ar_001',
       tz: 'Asia/Riyadh', role: 'employee', company: { id: 1, name: 'Erada' },
     }
-    expect(MeSchema.parse({ ...base, modules: ['nasq_sales', 'customer_acme_reports'] }).modules)
-      .toEqual(['nasq_sales', 'customer_acme_reports'])
-    expect(KNOWN_NASQ_MODULE_IDS).toEqual(['nasq_chat', 'nasq_hr', 'nasq_meetings', 'nasq_pmo'])
-    for (const id of ['sales', 'nasq_', 'NASQ_SALES', 'nasq-sales', 'odoo_sales']) {
+    expect(MeSchema.parse({ ...base, modules: ['webvue_sales', 'customer_acme_reports'] }).modules)
+      .toEqual(['webvue_sales', 'customer_acme_reports'])
+    expect(KNOWN_WEBVUE_MODULE_IDS).toEqual(['webvue_chat', 'webvue_hr', 'webvue_meetings', 'webvue_pmo'])
+    for (const id of ['sales', 'webvue_', 'WEBVUE_SALES', 'webvue-sales', 'odoo_sales']) {
       expect(() => MeSchema.parse({ ...base, modules: [id] })).toThrow()
     }
   })

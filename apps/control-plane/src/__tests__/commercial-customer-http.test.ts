@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signServiceRequest } from '@webvue/commercial-contracts/server'
 import { migrate } from '../db.js'
 import { createApp } from '../http.js'
 import { url } from './commercial-helpers.js'
@@ -37,10 +37,10 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
     const method=options.body===undefined?'GET':'POST', raw=options.body===undefined?'':JSON.stringify(options.body)
     const principal={actor_id:'7',kind:'customer',tenant_id:options.tenantId??tenant,capabilities:options.capabilities??['billing.read']}
     const header=Buffer.from(JSON.stringify(principal)).toString('base64')
-    const signed=signServiceRequest({method,path,body:`nasq-principal:${header}\n${raw}`,actor:7,
+    const signed=signServiceRequest({method,path,body:`webvue-principal:${header}\n${raw}`,actor:7,
       issuer:options.issuer??config.customerCommercialIssuer,key:options.badSignature?'wrong-test-key-'.repeat(4):config.customerCommercialServiceKey})
     const principalHeader=options.tamperPrincipal?Buffer.from(JSON.stringify({...principal,capabilities:['subscription.manage']})).toString('base64'):header
-    return fetch(origin+path,{method,headers:{...signed,'x-nasq-principal':principalHeader,'content-type':'application/json'},body:raw||undefined})
+    return fetch(origin+path,{method,headers:{...signed,'x-webvue-principal':principalHeader,'content-type':'application/json'},body:raw||undefined})
   }
   it('accepts a correctly signed request without vendor credentials',async()=>{
     const response=await call(`/v1/customer/invoices/${ownInvoice}`)
@@ -57,7 +57,7 @@ suite('signed customer commercial HTTP boundary on PostgreSQL', () => {
   it('resolves a shared web registry tenant id through its enabled binding only',async()=>{
     const slug=`t${tenant.replaceAll('-','')}`
     expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)
-    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',[tenant,slug,`${slug}.test`,`nasq_scratch_${slug.slice(1)}`])
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',[tenant,slug,`${slug}.test`,`webvue_scratch_${slug.slice(1)}`])
     expect((await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})).status).toBe(404)
     await pool.query('UPDATE shared_registry_bindings SET enabled=true,registry_revision=registry_revision+1 WHERE control_tenant_id=$1',[tenant])
     const response=await call(`/v1/customer/invoices/${ownInvoice}`,{tenantId:slug})

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { addCadence, riyadhDate } from '@nasq/commercial-contracts'
-import { computeQuote } from '@nasq/commercial-contracts/server'
+import { addCadence, riyadhDate } from '@webvue/commercial-contracts'
+import { computeQuote } from '@webvue/commercial-contracts/server'
 import { transaction } from '../db.js'
 import { loadQuoteSources } from './quotes.js'
 import { policyWire } from './policies.js'
@@ -93,7 +93,7 @@ export async function generateRenewals(pool: Pool, { now = new Date(), adapter, 
     })
     try {
       const event = await adapter.chargeToken({given_id:order.id,token:sub.provider_token_ref,amount:invoice.total,
-        description:`Nasq renewal ${order.id}`,callback_url:urls.callbackUrl})
+        description:`WebVue renewal ${order.id}`,callback_url:urls.callbackUrl})
       // A charge response only identifies the attempt; settlement requires provider lookup.
       await pool.query("UPDATE payment_attempts SET provider_ref=$2,status=CASE WHEN status='created' THEN 'pending' ELSE status END,updated_at=now() WHERE id=$1", [attemptId,event.provider_ref])
     } catch {

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import MeetingMinutesDocument from '../../app/components/meetings/MeetingMinutesDocument.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meeting = {
@@ -44,7 +44,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingMinutesDocument, PageContainer },
   setup: () => ({ args }),
-  template: '<main class="nasq-shell-main"><PageContainer width="detail"><MeetingMinutesDocument v-bind="args" /></PageContainer></main>',
+  template: '<main class="webvue-shell-main"><PageContainer width="detail"><MeetingMinutesDocument v-bind="args" /></PageContainer></main>',
 })
 
 export const Structured: Story = {

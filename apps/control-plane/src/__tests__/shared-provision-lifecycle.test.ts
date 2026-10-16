@@ -28,7 +28,7 @@ const url = process.env.CONTROL_TEST_DATABASE_URL
 const tenantDatabases = url ? tenantDatabaseNames(2, url) : []
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
 }
 if (!url) describe.skip('shared provision lifecycle (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('shared provision lifecycle', () => {
@@ -49,7 +49,7 @@ else describe('shared provision lifecycle', () => {
   }
 
   beforeAll(async () => {
-    registryDir = process.env.NASQ_LIVE_GATE_ROOT ? join(process.env.NASQ_LIVE_GATE_ROOT, 'lifecycle') : await mkdtemp(join(tmpdir(), 'nasq-lifecycle-'))
+    registryDir = process.env.WEBVUE_LIVE_GATE_ROOT ? join(process.env.WEBVUE_LIVE_GATE_ROOT, 'lifecycle') : await mkdtemp(join(tmpdir(), 'webvue-lifecycle-'))
     await mkdir(registryDir, { recursive: true })
     await migrate(pool)
     await ensureTenantDatabases(pool, tenantDatabases)
@@ -80,7 +80,7 @@ else describe('shared provision lifecycle', () => {
   afterAll(async () => {
     for (const database of tenantDatabases) await tenantPools.get(database)!.end()
     await pool.end()
-    if (!process.env.NASQ_LIVE_GATE_ROOT) await rm(registryDir, { recursive: true, force: true })
+    if (!process.env.WEBVUE_LIVE_GATE_ROOT) await rm(registryDir, { recursive: true, force: true })
   })
 
   const tenantStatus = async (id: string) => (await pool.query('SELECT status FROM tenants WHERE id=$1', [id])).rows[0].status as string

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Nuxt 4.6, Nuxt UI 4.11.1 (`UTable`, `UBadge`, `UAlert`, `USkeleton`, `UButton`, `USlideover`, `UPagination`), Tailwind 4.3, Storybook 10.6 with `@storybook/addon-a11y`, Playwright 1.62 with `@axe-core/playwright`, Vitest 4 (no DOM: SSR string rendering through `@vue/compiler-sfc` + `@vue/server-renderer`, as the existing `components/shared/__tests__` do), Python policy checks in `tools/`.
 
-**Spec:** `docs/superpowers/specs/2026-10-11-nasq-tasmim-design.md` (§6 page templates and states, §9 tooling, §10 phase 4 / CP4, §11 documentation, §12 verification, §13 risks)
+**Spec:** `docs/superpowers/specs/2026-10-11-webvue-tasmim-design.md` (§6 page templates and states, §9 tooling, §10 phase 4 / CP4, §11 documentation, §12 verification, §13 risks)
 
 ## Owner rulings (2026-10-13, binding — override any task text below)
 
@@ -569,7 +569,7 @@ const meta = {
   render: args => ({
     components: { LoadingSkeleton, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="nasq-shell-main"><PageContainer width="list"><LoadingSkeleton v-bind="args" /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="list"><LoadingSkeleton v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof LoadingSkeleton>
 export default meta
@@ -597,7 +597,7 @@ const meta = {
   render: args => ({
     components: { ErrorState, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="nasq-shell-main"><PageContainer width="list"><ErrorState v-bind="args" /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="list"><ErrorState v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof ErrorState>
 export default meta
@@ -622,7 +622,7 @@ const meta = {
   render: args => ({
     components: { ForbiddenState, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="nasq-shell-main"><PageContainer width="detail"><ForbiddenState v-bind="args" /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="detail"><ForbiddenState v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof ForbiddenState>
 export default meta
@@ -653,14 +653,14 @@ export const WithBack: Story = {
   render: () => ({
     components: { NotFoundState, PageContainer },
     setup: () => ({ t: useI18n().t }),
-    template: '<main class="nasq-shell-main"><PageContainer width="detail"><NotFoundState back-to="/projects" :back-label="t(\'nav.projects\')" /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="detail"><NotFoundState back-to="/projects" :back-label="t(\'nav.projects\')" /></PageContainer></main>',
   }),
 }
 export const Bare: Story = {
   name: 'بلا رابط',
   render: () => ({
     components: { NotFoundState, PageContainer },
-    template: '<main class="nasq-shell-main"><PageContainer width="detail"><NotFoundState /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="detail"><NotFoundState /></PageContainer></main>',
   }),
 }
 ```
@@ -735,15 +735,15 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(loadingskeleton|errorstate|forbiddenstate|notfoundstate)' --update-snapshots=missing --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(loadingskeleton|errorstate|forbiddenstate|notfoundstate|pagestate|emptystate)' --reporter=line 2>&1 | tail -15
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(loadingskeleton|errorstate|forbiddenstate|notfoundstate|pagestate|emptystate)' --reporter=line 2>&1 | tail -15
 ```
 
 Expected: lint, tests and both policies pass. 28 new PNGs are written (7 stories × 4). The second run passes every new screenshot and every axe test, and fails only `shared-pagestate--` screenshots: the error, forbidden, not-found and empty stories change on purpose (alert → dedicated state; dashed paragraph → `EmptyState`). `shared-pagestate--loading-*` and `--content-*` must not change. If an axe test fails, fix the component, not the list. Re-baseline exactly that family:
 
 ```bash
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-pagestate--' --update-snapshots --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-pagestate--' --update-snapshots --reporter=line | tail -3
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v -E 'shared-(pagestate|loadingskeleton|errorstate|forbiddenstate|notfoundstate)--' ; echo "unexpected=$?"
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-(pagestate|loadingskeleton|errorstate|forbiddenstate|notfoundstate)' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-(pagestate|loadingskeleton|errorstate|forbiddenstate|notfoundstate)' --reporter=line | tail -3
 ```
 
 Expected: the `grep -v` prints nothing (`unexpected=1`), and the smoke tests pass.
@@ -958,7 +958,7 @@ export function accessStateBadge(row: { active: boolean; protected?: boolean; re
 Create `apps/web/app/utils/hrAccessBadge.ts`:
 
 ```ts
-import type { HrEmployee } from '@nasq/contracts'
+import type { HrEmployee } from '@webvue/contracts'
 import type { StatusBadgeEntry } from './statusBadge'
 
 /** The directory's account column: neutral outline, labelled by account state and role. */
@@ -1079,7 +1079,7 @@ Every call site becomes `SharedStatusBadge` (auto-imported). Remove the old comp
   <SharedStatusBadge v-bind="projectBadge(project.status)" data-testid="project-status" />
   ```
 
-  with, in each file's script: `import { projectStatusBadge } from '@/composables/projectStatus'` and `const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }` plus `import { badgeLabel } from '@/utils/statusBadge'` and the file's existing `const { t } = useI18n()` (add it where missing) and `import type { ProjectStatus } from '@nasq/contracts'`.
+  with, in each file's script: `import { projectStatusBadge } from '@/composables/projectStatus'` and `const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }` plus `import { badgeLabel } from '@/utils/statusBadge'` and the file's existing `const { t } = useI18n()` (add it where missing) and `import type { ProjectStatus } from '@webvue/contracts'`.
 
 - `task/StateMenu.vue:34,38`, `task/SubtaskList.vue:46`, `task/DependencyPicker.vue:62`: `<SharedStatusBadge v-bind="stateBadge(task.state)" />` (use each line's existing expression in place of `task.state`), with `const stateBadge = (state: TaskState) => { const entry = taskStateBadge(state); return { tone: entry.tone, label: badgeLabel(entry, state, t) } }`.
 - `task/TaskCard.vue:88`, `task/TaskDetailPanel.vue:247`, `task/TaskTable.vue:215` (keep `class="shrink-0"`):
@@ -1115,7 +1115,7 @@ Create `apps/web/stories/shared/StatusBadge.stories.ts`:
 
 ```ts
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { ProjectStatusSchema, TaskStateSchema } from '@nasq/contracts'
+import { ProjectStatusSchema, TaskStateSchema } from '@webvue/contracts'
 import { useI18n } from 'vue-i18n'
 import StatusBadge from '../../app/components/shared/StatusBadge.vue'
 import { projectStatusBadge } from '../../app/composables/projectStatus'
@@ -1219,7 +1219,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && rm -f e2e/storybook-visual.spec.ts-snapshots/task-statebadge--* && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-statusbadge' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts --reporter=line 2>&1 | tail -12
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts --reporter=line 2>&1 | tail -12
 ```
 
 Expected: the `rg` prints nothing. Lint, tests and policies pass. 32 `shared-statusbadge--*` PNGs are written (8 stories × 4) and their axe test passes. The full visual and smoke runs pass except the known `shared-createpanel--form` smoke failure (fixed in Task 9). Any other visual diff is a regression: the badges keep their colours and labels.
@@ -1442,7 +1442,7 @@ rg -n "FilterCard" apps/web/app apps/web/stories docs/design-system/components.m
 (cd apps/web && npx vitest run app/components/shared)
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py
 cd apps/web && npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-filterbar' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-filterbar' --reporter=line | tail -3
 ```
 
 Expected: `rg` prints nothing after the `components.md` edit (the class prefix `filter-card-` in `contentId` is an id, not the component). All tests pass, and the 16 `shared-filterbar--*` screenshots match with no update.
@@ -1514,7 +1514,7 @@ Create or extend `apps/web/app/utils/__tests__/subscription.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import type { Invoice } from '@nasq/commercial-contracts'
+import type { Invoice } from '@webvue/commercial-contracts'
 import { formatSubscriptionMoney, subscriptionInvoiceView } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -1565,7 +1565,7 @@ export interface InvoiceLineView {
 }
 ```
 
-Append to `apps/web/app/utils/subscription.ts` (with `import type { InvoiceLineView } from './invoiceLines'` and `import type { Invoice } from '@nasq/commercial-contracts'` if not already imported):
+Append to `apps/web/app/utils/subscription.ts` (with `import type { InvoiceLineView } from './invoiceLines'` and `import type { Invoice } from '@webvue/commercial-contracts'` if not already imported):
 
 ```ts
 /** The customer invoice: list lines (× quantity · free · paid), the "not official" notice and the totals. */
@@ -1819,7 +1819,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-invoicelines' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts -g 'invoicelines' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts -g 'invoicelines' --reporter=line | tail -3
 cd ../.. && git add -A apps/web tools/ui_policy.py docs/design-system
 git commit -m "refactor(web): merge the two InvoiceLines into one shared component
 
@@ -1850,7 +1850,7 @@ Two small, mechanical moves into `shared/`.
 **Interfaces:**
 - Produces (contract):
   - `SharedRouteTabs` props `{ items: { key: string; label: string; to: RouteLocationRaw; active: boolean; icon?: string }[]; ariaLabel: string }`. Renders `<nav :aria-label>` of `UButton` links with `routeTabsStripClass` / `routeTabClass` (`utils/sectionTabs.ts`), `aria-current="page"` and `data-active` on the active item, and `data-testid` = `item.key`. Callers therefore pass `key: \`project-tab-${id}\`` to keep today's test ids. Root attributes (`data-testid`, `class`) fall through.
-  - `SharedSettingsPage` props `{ width?: 'list' | 'detail' | 'form' = 'list' }`, `data-testid="settings-layout"` and the global `.nasq-settings-*` style, both unchanged.
+  - `SharedSettingsPage` props `{ width?: 'list' | 'detail' | 'form' = 'list' }`, `data-testid="settings-layout"` and the global `.webvue-settings-*` style, both unchanged.
 
 - [ ] **Step 1: `RouteTabs` (failing test first)**
 
@@ -2003,7 +2003,7 @@ Rows for the Task 1 section of `components.md`:
 
 ```markdown
 | `apps/web/app/components/shared/RouteTabs.vue` | `apps/web/stories/shared/RouteTabs.stories.ts` | `UButton` روابط، `UIcon`؛ `routeTabsStripClass`/`routeTabClass`، و`aria-current="page"` للقسم الحالي |
-| `apps/web/app/components/shared/SettingsPage.vue` | `apps/web/stories/shared/SettingsPage.stories.ts` | `SharedPageContainer` وأنماط `.nasq-settings-*` العامة (نُقل من `settings/SettingsLayout.vue`) |
+| `apps/web/app/components/shared/SettingsPage.vue` | `apps/web/stories/shared/SettingsPage.stories.ts` | `SharedPageContainer` وأنماط `.webvue-settings-*` العامة (نُقل من `settings/SettingsLayout.vue`) |
 ```
 
 and change line 61's `apps/web/app/components/settings/SettingsLayout.vue` (قصة: `apps/web/stories/settings/SettingsLayout.stories.ts`) to the new paths, and line 29's tab row to add `، عبر \`apps/web/app/components/shared/RouteTabs.vue\``.
@@ -2017,7 +2017,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(routetabs|settingspage)' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts --reporter=line 2>&1 | tail -8
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts --reporter=line 2>&1 | tail -8
 ```
 
 Expected: `rg` prints only the history note in `SettingsPage.vue`'s style comment (`DESIGN.md` has no mention; Task 15 documents the template). All checks pass; new `shared-routetabs--workspace-*` (4 desktop + 4 mobile) and `shared-settingspage--*` (12) PNGs are written and pass axe; every other baseline, including `shared-pagestate--*`, `shared-formsection--*` and `shared-filterbar--*`, matches without an update (the stories render the same DOM under a new name). Smoke fails only on the known `shared-createpanel--form`.
@@ -2391,7 +2391,7 @@ cd /Users/tariq/code/nasq/.worktrees/tasmim
 python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.mjs
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py
 cd apps/web && npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-shell.spec.ts -g 'row navigation' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-shell.spec.ts -g 'row navigation' --reporter=line | tail -3
 ```
 
 Expected: everything passes. The Plan 3 demo story test passes unchanged (its rows are all visible).
@@ -2928,7 +2928,7 @@ const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; select
     ])
     return { t, columns, selected, rows: state.rows ?? rows, loading: state.loading ?? false, error: state.error, selectable: state.selectable ?? false, rowTo: (row: Row) => `/projects/${row.id}` }
   },
-  template: `<main class="nasq-shell-main"><PageContainer width="list">
+  template: `<main class="webvue-shell-main"><PageContainer width="list">
     <DataTable v-model:selected="selected" :rows="rows" :columns="columns" row-key="id" :row-to="rowTo" :caption="t('projects.title')"
       :loading="loading" :error="error" :selectable="selectable" :page="1" :pages="3" :empty-text="t('projects.empty')">
       <template #filters>
@@ -3048,7 +3048,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-datatable' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-datatable|DataTable' --reporter=line | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-datatable|DataTable' --reporter=line | tail -5
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v 'shared-datatable--' ; echo "unexpected=$?"
 ```
 
@@ -3489,13 +3489,13 @@ const page = {
 export const Default: Story = {
   name: 'قائمة بجدول',
   loaders: [at('/projects')],
-  render: () => ({ components: { Page: page }, template: '<main class="nasq-shell-main"><Page /></main>' }),
+  render: () => ({ components: { Page: page }, template: '<main class="webvue-shell-main"><Page /></main>' }),
 }
 
 export const Board: Story = {
   name: 'رابط ?view=board',
   loaders: [at('/projects?view=board')],
-  render: () => ({ components: { Page: page }, template: '<main class="nasq-shell-main"><Page /></main>' }),
+  render: () => ({ components: { Page: page }, template: '<main class="webvue-shell-main"><Page /></main>' }),
 }
 
 export const InShell: Story = {
@@ -3503,11 +3503,11 @@ export const InShell: Story = {
   loaders: [at('/projects')],
   render: () => ({
     components: { AppSidebar, Page: page, ShellFrame, ShellHeader },
-    setup: () => { useCookie<'open' | 'closed'>('nasq-context-sidebar').value = 'open' },
+    setup: () => { useCookie<'open' | 'closed'>('webvue-context-sidebar').value = 'open' },
     template: `<ShellFrame>
       <template #header><ShellHeader /></template>
       <template #sidebar><AppSidebar /></template>
-      <main class="nasq-shell-main" data-testid="shell-main"><Page /></main>
+      <main class="webvue-shell-main" data-testid="shell-main"><Page /></main>
     </ShellFrame>`,
   }),
 }
@@ -3580,7 +3580,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(listpage|viewswitch)' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-(listpage|viewswitch)|view switch|view=board|C presses' --reporter=line | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-(listpage|viewswitch)|view switch|view=board|C presses' --reporter=line | tail -5
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v -E 'shared-(listpage|viewswitch)--' ; echo "unexpected=$?"
 ```
 
@@ -3928,7 +3928,7 @@ const record = (state: { loading?: boolean; error?: unknown } = {}) => ({
     ])
     return { t, tabs, project, loading: state.loading ?? false, error: state.error }
   },
-  template: `<main class="nasq-shell-main">
+  template: `<main class="webvue-shell-main">
     <RecordPage :title="loading ? '' : project.name" :description="t('projects.description')" back-to="/projects" :back-label="t('projects.backToProjects')" :loading="loading" :error="error">
       <template #actions><UButton color="neutral" variant="outline" icon="i-lucide-pencil">{{ t('app.edit') }}</UButton></template>
       <template #tabs><RouteTabs :items="tabs" :aria-label="t('projects.title')" /></template>
@@ -4108,7 +4108,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(recordpage|propertiespanel|propertyrow|recordsection)' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-(recordpage|propertiespanel|propertyrow|recordsection)|RecordPage|PropertyRow' --reporter=line | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-(recordpage|propertiespanel|propertyrow|recordsection)|RecordPage|PropertyRow' --reporter=line | tail -5
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v -E 'shared-(recordpage|propertiespanel|propertyrow|recordsection)--' ; echo "unexpected=$?"
 ```
 
@@ -4190,7 +4190,7 @@ reka merges `$attrs` after its own attributes (`:86`). So `CreatePanel` passes `
 
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web && npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-createpanel--form' --reporter=line | tail -12
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-createpanel--form' --reporter=line | tail -12
 ```
 
 Expected: FAIL, `locator('#storybook-root').locator(':scope > *').first()` … `element(s) not found`. The error context lists a `dialog` with the heading «مهمة جديدة», two textboxes and the buttons «إلغاء» and «إنشاء».
@@ -4220,7 +4220,7 @@ with:
 
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts --reporter=line | tail -3
 ```
 
 Expected: every smoke test passes, `shared-createpanel--form` included.
@@ -4336,7 +4336,7 @@ node tools/ui_catalog.mjs
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-createpanel' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-createpanel|create panel dialog' --reporter=line | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-createpanel|create panel dialog' --reporter=line | tail -5
 ```
 
 Expected:
@@ -4391,7 +4391,7 @@ Append inside the `test.describe('Tasmim page templates', …)` block of `apps/w
 
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-templates.spec.ts -g 'Form template' --reporter=line | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-templates.spec.ts -g 'Form template' --reporter=line | tail -5
 ```
 
 Expected: FAIL in both tests. No story `shared-createpanel--form-template` exists yet, so the dialog never appears.
@@ -4430,7 +4430,7 @@ export const FormTemplate: Story = {
           return { t, state, dirty }
         },
         template: `<CreatePanel :title="t('tasks.new')" back-to="/tasks">
-          <UForm :state="state" class="nasq-form grid gap-6">
+          <UForm :state="state" class="webvue-form grid gap-6">
             <UnsavedChanges :dirty="dirty" />
             <FormSection>
               <UFormField :label="t('tasks.newTitle')" name="name" required>
@@ -4471,8 +4471,8 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-createpanel--form-template' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-createpanel|Form template|create panel dialog' --reporter=line | tail -5
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-unsavedchanges|shared-formsection' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts -g 'shared-createpanel|Form template|create panel dialog' --reporter=line | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-unsavedchanges|shared-formsection' --reporter=line | tail -3
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v 'shared-createpanel--' ; echo "unexpected=$?"
 ```
 
@@ -4837,7 +4837,7 @@ const page = (states: boolean): Story['render'] => () => ({
     const { t } = useI18n()
     return { t, states, charts: computed(() => dashboardCharts(t)) }
   },
-  template: `<main class="nasq-shell-main">
+  template: `<main class="webvue-shell-main">
     <DashboardPage :title="t('projects.dashboard.title')">
       <template #actions>
         <UButton color="neutral" variant="outline" to="/projects" :label="t('projects.dashboard.allProjects')" />
@@ -4945,8 +4945,8 @@ npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_polic
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-display-templates.spec.ts -g 'dashboard template' --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(chartpanel|dashboardpage)' --update-snapshots=missing --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(chartpanel|dashboardpage)' --repeat-each=2 --reporter=line 2>&1 | tail -5
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-(chartpanel|dashboardpage)' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(chartpanel|dashboardpage)' --repeat-each=2 --reporter=line 2>&1 | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-(chartpanel|dashboardpage)' --reporter=line | tail -3
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v -E 'shared-(chartpanel|dashboardpage)--' ; echo "unexpected=$?"
 ```
 
@@ -4989,9 +4989,9 @@ The parent owns the range and the scale; the frame only emits. Plan 5 moves the 
 
 The template adds two things:
 - the `info` region (today `/chat/[id]/info` is a separate page): an aside at the inline end on desktop, which replaces the thread on a phone;
-- the full-height frame (`assets/css/shell.css:240` `.nasq-chat-workspace`), with a Tailwind arbitrary height instead of a chat class.
+- the full-height frame (`assets/css/shell.css:240` `.webvue-chat-workspace`), with a Tailwind arbitrary height instead of a chat class.
 
-Chat's own visuals (`nasq-chat-thread-header`, `nasq-chat-composer`, …) stay in the slot content that Plan 6 passes in. The template names no application (R3).
+Chat's own visuals (`webvue-chat-thread-header`, `webvue-chat-composer`, …) stay in the slot content that Plan 6 passes in. The template names no application (R3).
 
 **Files:**
 - Create: `apps/web/app/components/shared/TimelineFrame.vue`, `apps/web/app/components/shared/ConversationLayout.vue`
@@ -5359,7 +5359,7 @@ export const Calendar: Story = {
       const today = () => { cursor.value = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1) }
       return { t, rangeLabel, shift, today }
     },
-    template: `<main class="nasq-shell-main">
+    template: `<main class="webvue-shell-main">
       <TimelineFrame :title="t('nav.meetingCalendar')" :range-label="rangeLabel" @prev="shift(-1)" @next="shift(1)" @today="today">
         <template #actions><UButton icon="i-lucide-plus" :label="t('meetingsUi.new')" /></template>
         <div class="rounded-lg bg-default p-6 text-sm text-muted ring ring-default">{{ t('meetingsUi.empty') }}</div>
@@ -5386,7 +5386,7 @@ export const Schedule: Story = {
       }
       return { t, scale, scales, rangeLabel, shift, today: () => { start.value = new Date(TODAY) } }
     },
-    template: `<main class="nasq-shell-main">
+    template: `<main class="webvue-shell-main">
       <TimelineFrame v-model:scale="scale" :title="t('projects.schedule.title')" :range-label="rangeLabel" :scales="scales" @prev="shift(-1)" @next="shift(1)" @today="today">
         <template #actions><UButton icon="i-lucide-plus" :label="t('tasks.new')" /></template>
         <div class="rounded-lg bg-default p-6 text-sm text-muted ring ring-default">{{ t('projects.schedule.empty') }}</div>
@@ -5579,8 +5579,8 @@ npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_polic
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-display-templates.spec.ts -g 'timeline template|conversation template' --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(timelineframe|conversationlayout)' --update-snapshots=missing --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(timelineframe|conversationlayout)' --reporter=line 2>&1 | tail -5
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-(timelineframe|conversationlayout)' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-(timelineframe|conversationlayout)' --reporter=line 2>&1 | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-(timelineframe|conversationlayout)' --reporter=line | tail -3
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v -E 'shared-(timelineframe|conversationlayout)--' ; echo "unexpected=$?"
 ```
 
@@ -5616,10 +5616,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Neither page removes the shell's offsets, and neither forces black on white, so a print from dark mode is light text on white paper.
 
-**The template.** `variant="card"` is the page's `<main>`. `variant="print"` is an `<article class="nasq-print">` that sits inside the shell's `<main>` on screen. The print rules go in `assets/css/components.css`, a `THEME_OWNERS` file (`tools/ui_policy.py:63-70`):
+**The template.** `variant="card"` is the page's `<main>`. `variant="print"` is an `<article class="webvue-print">` that sits inside the shell's `<main>` on screen. The print rules go in `assets/css/components.css`, a `THEME_OWNERS` file (`tools/ui_policy.py:63-70`):
 - In print, the shell header, module rail, context sidebar and mobile trigger are dropped, and the workspace loses their offsets. This holds on every page, because paper never needs app chrome.
-- `.nasq-print` resets the Nuxt UI tokens, and the `tokens.css:59-75` aliases (which `:root` resolves once), to black on white. Every utility inside then follows, in either appearance.
-- `.nasq-print-hide` (the footer actions) is not printed.
+- `.webvue-print` resets the Nuxt UI tokens, and the `tokens.css:59-75` aliases (which `:root` resolves once), to black on white. Every utility inside then follows, in either appearance.
+- `.webvue-print-hide` (the footer actions) is not printed.
 
 The two print pages move onto the variant in Plan 6, which can then delete their scoped blocks and shrink `STYLE_OWNERS`.
 
@@ -5637,10 +5637,10 @@ The two print pages move onto the variant in Plan 6, which can then delete their
 - Produces:
   - `SharedStandalonePage`: props `{ variant?: 'card' | 'print' (default 'card'); title?: string }`, slots `default`, `footer`.
     - `card` renders `<main data-template="standalone-page" data-variant="card">` with a centred `UCard`. `title` is its `h1`, and `footer` is the card footer.
-    - `print` renders `<article class="nasq-print" data-template="standalone-page" data-variant="print">`. `title` is its `h1`, and `footer` is a `<footer class="nasq-print-hide">`.
+    - `print` renders `<article class="webvue-print" data-template="standalone-page" data-variant="print">`. `title` is its `h1`, and `footer` is a `<footer class="webvue-print-hide">`.
   - CSS contract (`components.css`, `@media print`):
-    - `.nasq-print` prints black on white;
-    - `.nasq-print-hide` is not printed;
+    - `.webvue-print` prints black on white;
+    - `.webvue-print-hide` is not printed;
     - the shell chrome is never printed.
   - No new strings.
 
@@ -5663,17 +5663,17 @@ describe('SharedStandalonePage', () => {
     expect(html).toContain('min-h-svh')
     expect(html).toMatch(/<h1[^>]*>Sign in<\/h1>/)
     expect(html.indexOf('data-body')).toBeLessThan(html.indexOf('>Print<'))
-    expect(html).not.toContain('nasq-print')
+    expect(html).not.toContain('webvue-print')
   })
 
   it('print is an article inside the shell main, black-on-white class, footer not printed', async () => {
     const html = await renderShared('StandalonePage', { variant: 'print', title: 'Minutes' }, body)
     expect(html.startsWith('<article')).toBe(true)
     expect(html).not.toContain('<main')
-    expect(html).toMatch(/class="nasq-print[ "]/)
+    expect(html).toMatch(/class="webvue-print[ "]/)
     expect(html).toContain('data-variant="print"')
     expect(html).toMatch(/<h1[^>]*>Minutes<\/h1>/)
-    expect(html).toMatch(/<footer class="nasq-print-hide[^"]*">(?:<!--\[-->)?<button>Print<\/button>/)
+    expect(html).toMatch(/<footer class="webvue-print-hide[^"]*">(?:<!--\[-->)?<button>Print<\/button>/)
   })
 
   it('renders no heading and no footer when they are not given', async () => {
@@ -5724,16 +5724,16 @@ function declarations(block: string, selector: string): Map<string, string> {
 const print = printBlock(css)
 
 describe('the print sheet', () => {
-  it('never prints the shell chrome or a .nasq-print-hide element', () => {
-    for (const selector of ['.nasq-shell-header', '.nasq-module-rail', '.nasq-context-sidebar', '.nasq-mobile-menu-trigger', '.nasq-print-hide']) {
+  it('never prints the shell chrome or a .webvue-print-hide element', () => {
+    for (const selector of ['.webvue-shell-header', '.webvue-module-rail', '.webvue-context-sidebar', '.webvue-mobile-menu-trigger', '.webvue-print-hide']) {
       expect(declarations(print, selector).get('display'), selector).toBe('none !important')
     }
-    expect(declarations(print, '.nasq-shell-workspace').get('margin-inline-start')).toBe('0 !important')
-    expect(declarations(print, '.nasq-shell-workspace').get('padding-block-start')).toBe('0 !important')
+    expect(declarations(print, '.webvue-shell-workspace').get('margin-inline-start')).toBe('0 !important')
+    expect(declarations(print, '.webvue-shell-workspace').get('padding-block-start')).toBe('0 !important')
   })
 
-  it('prints a .nasq-print page black on white through the tokens and their aliases', () => {
-    const page = declarations(print, '.nasq-print')
+  it('prints a .webvue-print page black on white through the tokens and their aliases', () => {
+    const page = declarations(print, '.webvue-print')
     for (const token of ['--ui-bg', '--ui-bg-muted', '--ui-bg-elevated', '--ui-bg-accented', '--background', '--card', '--muted']) {
       expect(page.get(token), token).toBe('#fff')
     }
@@ -5789,17 +5789,17 @@ const props = withDefaults(defineProps<{
       </template>
     </UCard>
   </main>
-  <article v-else class="nasq-print nasq-page-width-detail grid min-w-0 gap-6" data-template="standalone-page" data-variant="print">
+  <article v-else class="webvue-print webvue-page-width-detail grid min-w-0 gap-6" data-template="standalone-page" data-variant="print">
     <h1 v-if="props.title" class="text-2xl font-semibold text-highlighted">{{ props.title }}</h1>
     <slot />
-    <footer v-if="$slots.footer" class="nasq-print-hide flex flex-wrap items-center justify-end gap-2">
+    <footer v-if="$slots.footer" class="webvue-print-hide flex flex-wrap items-center justify-end gap-2">
       <slot name="footer" />
     </footer>
   </article>
 </template>
 ```
 
-(`class` comes first on the `<article>` so the test's `class="nasq-print` match holds.)
+(`class` comes first on the `<article>` so the test's `class="webvue-print` match holds.)
 
 - [ ] **Step 4: The print sheet**
 
@@ -5807,25 +5807,25 @@ Append to `apps/web/app/assets/css/components.css` (after `:106`):
 
 ```css
 /* Print (Tasmim Plan 4). Paper never carries the app chrome: the header, the module
-   rail, the context sidebar, the mobile trigger and anything marked .nasq-print-hide are
+   rail, the context sidebar, the mobile trigger and anything marked .webvue-print-hide are
    dropped, and the workspace loses their offsets. A print page (SharedStandalonePage
-   variant="print", .nasq-print) is black on white in either appearance: it resets the
+   variant="print", .webvue-print) is black on white in either appearance: it resets the
    Nuxt UI tokens and the tokens.css aliases (resolved once on :root), so every utility
    inside follows. */
 @media print {
-  .nasq-shell-header,
-  .nasq-module-rail,
-  .nasq-context-sidebar,
-  .nasq-mobile-menu-trigger,
-  .nasq-print-hide { display: none !important; }
-  .nasq-shell-workspace { min-height: 0; margin-inline-start: 0 !important; padding-block-start: 0 !important; }
-  .nasq-shell-main { min-height: 0; padding: 0 !important; overflow: visible !important; }
-  :root:has(.nasq-print),
-  :root:has(.nasq-print) :is(body, .nasq-shell, .nasq-shell-workspace, .nasq-shell-main) {
+  .webvue-shell-header,
+  .webvue-module-rail,
+  .webvue-context-sidebar,
+  .webvue-mobile-menu-trigger,
+  .webvue-print-hide { display: none !important; }
+  .webvue-shell-workspace { min-height: 0; margin-inline-start: 0 !important; padding-block-start: 0 !important; }
+  .webvue-shell-main { min-height: 0; padding: 0 !important; overflow: visible !important; }
+  :root:has(.webvue-print),
+  :root:has(.webvue-print) :is(body, .webvue-shell, .webvue-shell-workspace, .webvue-shell-main) {
     background: #fff !important;
     color-scheme: light;
   }
-  .nasq-print {
+  .webvue-print {
     --ui-bg: #fff;
     --ui-bg-muted: #fff;
     --ui-bg-elevated: #fff;
@@ -5848,7 +5848,7 @@ Append to `apps/web/app/assets/css/components.css` (after `:106`):
     background: #fff;
     color: #000;
   }
-  .nasq-print * { box-shadow: none !important; }
+  .webvue-print * { box-shadow: none !important; }
 }
 ```
 
@@ -5919,7 +5919,7 @@ export const Print: Story = {
   render: () => ({
     components: { StandalonePage },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>`,
+    template: `<main class="webvue-shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>`,
   }),
 }
 
@@ -5933,7 +5933,7 @@ export const PrintInShell: Story = {
     template: `<ShellFrame>
       <template #header><ShellHeader /></template>
       <template #sidebar><AppSidebar /></template>
-      <main class="nasq-shell-main" data-testid="shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>
+      <main class="webvue-shell-main" data-testid="shell-main"><StandalonePage variant="print" :title="t('meetingMinutesForm.documentTitle')">${DOCUMENT}</StandalonePage></main>
     </ShellFrame>`,
   }),
 }
@@ -5955,7 +5955,7 @@ export const PrintInShell: Story = {
 `docs/design-system/components.md`, one row appended to the Task 1 section table:
 
 ```markdown
-| `apps/web/app/components/shared/StandalonePage.vue` | `apps/web/stories/shared/StandalonePage.stories.ts` | `UCard`؛ `card` هي `<main>` الصفحة، و`print` وثيقة `.nasq-print` تُطبع أسود على أبيض بلا إطار التطبيق (`assets/css/components.css`) |
+| `apps/web/app/components/shared/StandalonePage.vue` | `apps/web/stories/shared/StandalonePage.stories.ts` | `UCard`؛ `card` هي `<main>` الصفحة، و`print` وثيقة `.webvue-print` تُطبع أسود على أبيض بلا إطار التطبيق (`assets/css/components.css`) |
 ```
 
 Append to `apps/web/e2e/storybook-display-templates.spec.ts`:
@@ -5970,14 +5970,14 @@ test.describe('Tasmim standalone page and print sheet', () => {
   for (const appearance of ['light', 'dark'] as const) {
     test(`print drops the shell and prints the page black on white (${appearance})`, async ({ page }) => {
       await open(page, 'shared-standalonepage--print-in-shell', `locale:ar;appearance:${appearance}`)
-      const sheet = page.locator('.nasq-print')
+      const sheet = page.locator('.webvue-print')
       await expect(page.getByTestId('shell-header')).toBeVisible()
       await expect(page.getByTestId('module-rail')).toBeVisible()
       if (appearance === 'dark') await expect(sheet).not.toHaveCSS('color', 'rgb(0, 0, 0)')
 
       await page.emulateMedia({ media: 'print' })
       for (const id of ['shell-header', 'module-rail', 'context-sidebar']) await expect(page.getByTestId(id)).toBeHidden()
-      await expect(sheet.locator('.nasq-print-hide')).toBeHidden()
+      await expect(sheet.locator('.webvue-print-hide')).toBeHidden()
       await expect(sheet).toHaveCSS('color', 'rgb(0, 0, 0)')
       await expect(sheet).toHaveCSS('background-color', 'rgb(255, 255, 255)')
       await expect(sheet.getByRole('heading', { level: 1 })).toHaveCSS('color', 'rgb(0, 0, 0)')
@@ -6011,8 +6011,8 @@ npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_polic
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-display-templates.spec.ts -g 'standalone page' --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-standalonepage' --update-snapshots=missing --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-standalonepage|shell-shellframe' --reporter=line 2>&1 | tail -5
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-standalonepage' --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-standalonepage|shell-shellframe' --reporter=line 2>&1 | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts -g 'shared-standalonepage' --reporter=line | tail -3
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v -E 'shared-standalonepage--' ; echo "unexpected=$?"
 ```
 
@@ -6070,13 +6070,13 @@ Values checked with the real `brandTheme.ts` on 2026-10-13. Each row gives: soli
 - Modify: `apps/web/app/app.config.ts:10` (button `compoundVariants` gains the dark solid entry)
 - Modify: `apps/web/app/assets/css/tokens.css` (`:root` after `:34`; `.dark` after `:136`)
 - Modify: `DESIGN.md:61`, `DESIGN.md:74`
-- Test: `apps/web/app/utils/__tests__/brandTheme.test.ts` (key list `:183-232`; a new test in `describe('Nasq palette in the brand engine')`, before `:260`)
+- Test: `apps/web/app/utils/__tests__/brandTheme.test.ts` (key list `:183-232`; a new test in `describe('WebVue palette in the brand engine')`, before `:260`)
 - Test: `apps/web/app/assets/css/__tests__/tokens.test.ts` (new `describe` at the end, after `:59`)
 - Re-baseline: `apps/web/e2e/storybook-visual.spec.ts-snapshots/*` (the intended list in Step 6 only)
 - Create (not committed): `.superpowers/tasmim-shared/cp4/primary-before/*.png`
 
 **Interfaces:**
-- Consumes: `DARK_SURFACES`, `contrastRatio` (`utils/nasqPalette.ts`); the private `interaction`, `foregroundFor`, `hexToHsl` and `hslToHex` in `brandTheme.ts`.
+- Consumes: `DARK_SURFACES`, `contrastRatio` (`utils/webvuePalette.ts`); the private `interaction`, `foregroundFor`, `hexToHsl` and `hslToHex` in `brandTheme.ts`.
 - Produces:
   - `darkSolid(hex: string): string` (exported from `utils/brandTheme.ts`);
   - `createBrandTheme(input, mode)` also returns `--primary-solid`, `--primary-solid-foreground`, `--primary-solid-hover` and `--primary-solid-hover-foreground`, in both modes. In light mode they are `interaction(--brand-link)` and are not read by any recipe.
@@ -6102,7 +6102,7 @@ Expected: `6`. `.superpowers/` is not committed.
 In `apps/web/app/utils/__tests__/brandTheme.test.ts`, change the import on line 3 to:
 
 ```ts
-import { contrastRatio, DARK_SURFACES } from '../nasqPalette'
+import { contrastRatio, DARK_SURFACES } from '../webvuePalette'
 ```
 
 In the expected key list of `'returns only the primary-derived CSS custom properties'` (`:183`), insert after `'--primary-soft-foreground',` (`:205`):
@@ -6114,7 +6114,7 @@ In the expected key list of `'returns only the primary-derived CSS custom proper
       '--primary-solid-hover-foreground',
 ```
 
-Inside `describe('Nasq palette in the brand engine', …)`, before its closing `})` on line 260, add:
+Inside `describe('WebVue palette in the brand engine', …)`, before its closing `})` on line 260, add:
 
 ```ts
   // Owner amendment 4 (CP2): the dark solid primary must stand out from the page, not read as a grey control.
@@ -6163,7 +6163,7 @@ Inside `describe('Nasq palette in the brand engine', …)`, before its closing `
   })
 ```
 
-At the end of `apps/web/app/assets/css/__tests__/tokens.test.ts`, add the import `import { createBrandTheme, DEFAULT_PRIMARY } from '../../../utils/brandTheme'` next to the existing `nasqPalette` import on line 4, and this block:
+At the end of `apps/web/app/assets/css/__tests__/tokens.test.ts`, add the import `import { createBrandTheme, DEFAULT_PRIMARY } from '../../../utils/brandTheme'` next to the existing `webvuePalette` import on line 4, and this block:
 
 ```ts
 describe('dark solid primary defaults', () => {
@@ -6258,7 +6258,7 @@ In `apps/web/app/app.config.ts`, replace line 10 with:
     // The 32px control floor applies to the default (md) size only; xs/sm stay compact.
     // Dark mode: the solid primary paints from --primary-solid (brandTheme.ts darkSolid), not the
     // greyed --brand-link that text-primary and focus keep (owner amendment 4, CP2).
-    button: { slots: { base: 'rounded-md transition-colors duration-150 motion-reduce:transition-none' }, variants: { size: { md: { base: 'min-h-(--nasq-control-h)' } } }, compoundVariants: [{ size: 'md', square: true, class: 'min-w-(--nasq-control-h)' }, { color: 'primary', variant: 'solid', class: 'dark:bg-(--primary-solid) dark:text-(--primary-solid-foreground) dark:hover:bg-(--primary-solid-hover) dark:hover:text-(--primary-solid-hover-foreground) dark:active:bg-(--primary-solid-hover) dark:active:text-(--primary-solid-hover-foreground) dark:disabled:bg-(--primary-solid) dark:aria-disabled:bg-(--primary-solid)' }] },
+    button: { slots: { base: 'rounded-md transition-colors duration-150 motion-reduce:transition-none' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } }, compoundVariants: [{ size: 'md', square: true, class: 'min-w-(--webvue-control-h)' }, { color: 'primary', variant: 'solid', class: 'dark:bg-(--primary-solid) dark:text-(--primary-solid-foreground) dark:hover:bg-(--primary-solid-hover) dark:hover:text-(--primary-solid-hover-foreground) dark:active:bg-(--primary-solid-hover) dark:active:text-(--primary-solid-hover-foreground) dark:disabled:bg-(--primary-solid) dark:aria-disabled:bg-(--primary-solid)' }] },
 ```
 
 The existing comment on line 9 is replaced by the first comment line above, so the file gains two comment lines. `color` and `variant` are omitted on the default button, but tailwind-variants matches compound variants against `defaultVariants` (`primary`/`solid`), so a bare `<UButton>` is covered. `ui_policy.theme_errors` keys only the four-space `button:` line, which is unchanged.
@@ -6285,7 +6285,7 @@ On `DESIGN.md:74`, replace the row with:
 cd /Users/tariq/code/nasq/.worktrees/tasmim
 npm -w apps/web run lint && npm test 2>&1 | tail -3
 cd apps/web && npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line 2>&1 | grep -E '^\s+[0-9]+\) ' | sed -E 's/.*› //' | sort
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line 2>&1 | grep -E '^\s+[0-9]+\) ' | sed -E 's/.*› //' | sort
 ```
 
 Expected: only the following tests fail. Every failing title ends in `-dark` or `-dark mobile`, except the `foundations-colors--brand-*` light shots, which gain four token rows.
@@ -6303,7 +6303,7 @@ The template row is conditional: a family enters the list only if `rg -n "<UButt
 Then re-baseline exactly those families. For example, for the four fixed families:
 
 ```bash
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --update-snapshots --reporter=line \
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --update-snapshots --reporter=line \
   -g '(foundations-density--controls|shared-pageheader--with-actions|shared-emptystate--in-task-table) (ar|en)-dark|foundations-colors--brand' | tail -3
 ```
 
@@ -6311,7 +6311,7 @@ Repeat with `-g '<family> (ar|en)-dark'` for each template family in the list. T
 
 ```bash
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v -E '(foundations-density--controls|shared-pageheader--with-actions|shared-emptystate--in-task-table|shared-(listpage|createpanel|recordpage|dashboardpage|standalonepage)--[a-z0-9-]+)-(ar|en)-dark(-mobile)?-darwin\.png|foundations-colors--brand-' ; echo "unexpected=$?"
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line 2>&1 | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line 2>&1 | tail -3
 ```
 
 Expected: `unexpected=1` (nothing outside the list), and the full visual run then passes, including every axe test.
@@ -6616,7 +6616,7 @@ Run it on the mock stack (same commands as Plan 3 Task 9 Step 3):
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 SCRATCH=$(mktemp -d)
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498 node e2e/internal-ui-audit-mock.mjs > "$SCRATCH/mock.log" 2>&1 & MOCK_PID=$!
-NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
+NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
 for i in $(seq 1 120); do curl -sf -o /dev/null http://localhost:4097/login && break; sleep 2; done
 E2E_BASE_URL=http://localhost:4097 npx playwright test e2e/shortcuts-tasmim.spec.ts --reporter=line 2>&1 | tail -4
 kill "$NUXT_PID" "$MOCK_PID"; while kill -0 "$NUXT_PID" 2>/dev/null || kill -0 "$MOCK_PID" 2>/dev/null; do sleep 1; done
@@ -6812,7 +6812,7 @@ Insert after line 230, before the bullet list on line 232:
 >   لا تُكتب حالة يدوية في الصفحة.
 > - **الحالة.** الحالة شارة واحدة هي `SharedStatusBadge` بنبرة (`tone`) ونص جاهزين. خريطة النبرة والنص تبقى في مجلد التطبيق. القيمة التي لا تعرفها الواجهة بعد تظهر شارة محايدة بنصها الخام. لا تُنشأ شارة حالة خاصة بتطبيق، ويمنع ذلك `ui_policy`.
 > - **بنود الفاتورة.** `SharedInvoiceLines` يعرض البنود بمبالغ نسّقها المستدعي، فلا يستورد `shared/` أداة من تطبيق.
-> - **الصفحة المستقلة.** `SharedStandalonePage` بطاقة في وسط الصفحة بلا غلاف. نسخة `print` تطبع أسود على أبيض (`nasq-print`).
+> - **الصفحة المستقلة.** `SharedStandalonePage` بطاقة في وسط الصفحة بلا غلاف. نسخة `print` تطبع أسود على أبيض (`webvue-print`).
 > - **إضافة قالب.** القالب الجديد يُضاف إلى `CONTRACT_TEMPLATES` و`STORYBOOK_COMPONENTS` معًا، وإلا يرفضه `ui_policy`.
 
 On line 233 (line numbers after the insertion: search for the text), replace «التنفيذ المشترك: `FilterBar` / `FilterCard`.» with «التنفيذ المشترك: `SharedFilterBar` (دُمج فيه `FilterCard`).»
@@ -6898,7 +6898,7 @@ cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 npm run build-storybook >/dev/null
 SPECS="e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-shell.spec.ts"
 [ -f e2e/storybook-templates.spec.ts ] && SPECS="$SPECS e2e/storybook-templates.spec.ts"
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test $SPECS --reporter=line 2>&1 | tail -15
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test $SPECS --reporter=line 2>&1 | tail -15
 ```
 
 Expected: everything passes, with no failure and no skipped describe. Unlike CP3, there is no allowed exception: Task 9 fixed `shared-createpanel--form`, so the smoke run is fully green. Any visual diff is unexpected, because Tasks 1-13 baselined their own families. Investigate it before running `--update-snapshots`, and list any re-baselined family in the CP4 note.
@@ -6924,7 +6924,7 @@ Expected: every command exits 0, and `git status` shows a clean tree. `test_arch
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 SCRATCH=$(mktemp -d)
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498 node e2e/internal-ui-audit-mock.mjs > "$SCRATCH/mock.log" 2>&1 & MOCK_PID=$!
-NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
+NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
 for i in $(seq 1 120); do curl -sf -o /dev/null http://localhost:4097/login && break; sleep 2; done
 FORCE_COLOR=0 E2E_BASE_URL=http://localhost:4097 E2E_PROJECT_POPUPS=1 npx playwright test --reporter=line > "$SCRATCH/cp4-e2e.log" 2>&1 || true
 awk '/^ +[0-9]+ failed$/{f=1;next} f && /^ +[0-9]+ (flaky|passed|skipped|interrupted|did not run)/{f=0} f' "$SCRATCH/cp4-e2e.log" > ../../.superpowers/tasmim-shared/e2e-cp4-failures.txt
@@ -6978,7 +6978,7 @@ cp e2e/storybook-visual.spec.ts-snapshots/shared-pageheader--with-actions-*-dark
 
 Expected: every family prints a count that is a multiple of 4 and at least 4 (ar/en × light/dark per story, plus 4 more per mobile story). A family with `0` was never added to `VISUAL_STORIES`: report it, do not skip it.
 
-**The dark primary button in the app.** The script follows `cp3-shots.cjs` with the two fixes from the CP3 note: log in with `POST /api/auth/login`, then send `PATCH /api/v1/me/appearance`, because the user's server-side appearance overrides the `nasq-appearance` cookie. Write it to `$SCRATCH/cp4-shots.cjs`:
+**The dark primary button in the app.** The script follows `cp3-shots.cjs` with the two fixes from the CP3 note: log in with `POST /api/auth/login`, then send `PATCH /api/v1/me/appearance`, because the user's server-side appearance overrides the `webvue-appearance` cookie. Write it to `$SCRATCH/cp4-shots.cjs`:
 
 ```js
 const { createRequire } = require('node:module')
@@ -6992,7 +6992,7 @@ const base = 'http://localhost:4097'
     const page = await context.newPage()
     if (!(await page.request.post(`${base}/api/auth/login`, { data: { login: 'admin', password: 'admin' } })).ok()) throw new Error('login failed')
     if (!(await page.request.patch(`${base}/api/v1/me/appearance`, { data: { mode, font_size: 'small' } })).ok()) throw new Error('appearance failed')
-    await context.addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
+    await context.addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
     await page.goto(`${base}/projects`)
     await page.locator('[data-testid="global-search-trigger"]:not([disabled])').waitFor()
     if (locale === 'en') {
@@ -7076,7 +7076,7 @@ Plan 5 does not start until the owner approves CP4.
 | §6 merge: vendor + subscription `InvoiceLines` → one | 4 |
 | §6 merge: `ProjectWorkspaceTabs`/`ProjectGovernanceTabs` → one tab helper | 5 (`RouteTabs`) |
 | §6 merge: seven `*Table.vue` → `DataTable` | Deferred by owner ruling 2: Plan 5 (`ProjectTable`, `TaskTable`) and Plan 6 (the rest) |
-| §6 print: black-on-white stylesheet under `StandalonePage` | 12 (`nasq-print`); the pages adopt it in Plan 6 |
+| §6 print: black-on-white stylesheet under `StandalonePage` | 12 (`webvue-print`); the pages adopt it in Plan 6 |
 | §6 contracts that do not move (routes, URL filters, `?view=board`, inline confirmation, no stacked dialogs, overlay exceptions, `useHydrated()`, testids, headings) | Global Constraints; 7 (`?view=`), 9 (draft guard), 14 (focus after the draft guard), 16 (e2e title diff) |
 | §9 visual snapshots ar/en × light/dark, mobile for templates | each template task (`VISUAL_STORIES`, `VISUAL_MOBILE_STORIES`); 13 (intended dark re-baselines); 16 |
 | §9 a11y: addon at `error` per template; axe on template pages | each template task (`a11y.test = 'error'`); 1 (`VISUAL_AXE_STORIES`), 16 |
@@ -7123,7 +7123,7 @@ Each application ends with its own shot set and e2e title diff.
 
 **Plan 7 — Close-out and merge** (phase 7):
 
-- Remove the leftover `nasq-*` classes, scoped styles and inline styles (`RichText` and Gantt last).
+- Remove the leftover `webvue-*` classes, scoped styles and inline styles (`RichText` and Gantt last).
 - Merge `main` into the branch.
 - Run the full gates: `npm test`, lint, `ui_policy`, `arch_policy --base main`, `git_policy --base main`, the Storybook and mock e2e diffs.
 - Run the `reviewer` pass.

@@ -1,4 +1,4 @@
-import type { TaskCreate } from '@nasq/contracts'
+import type { TaskCreate } from '@webvue/contracts'
 
 export type TaskDeliverable = { name: string; done: boolean }
 

@@ -10,8 +10,8 @@ const source = process.env.CONTROL_TEST_DATABASE_URL
 export const scratchUrl = source ? (() => {
   const u = new URL(source)
   if (!['localhost','127.0.0.1','::1'].includes(u.hostname)) throw Error('scratch_required')
-  if (!u.pathname || u.pathname === '/') u.pathname = '/nasq_control_scratch_reconfigure'
-  if (!/^\/nasq_control_scratch_[a-z0-9]+$/.test(u.pathname)) throw Error('scratch_required')
+  if (!u.pathname || u.pathname === '/') u.pathname = '/webvue_control_scratch_reconfigure'
+  if (!/^\/webvue_control_scratch_[a-z0-9]+$/.test(u.pathname)) throw Error('scratch_required')
   return u.toString()
 })() : undefined
 export async function setupScratch(pool: Pool) {
@@ -21,8 +21,8 @@ export async function setupScratch(pool: Pool) {
 }
 export async function seedOrder(pool: Pool, tenantRequired = false) {
   const tenant = randomUUID(), customer = randomUUID(), subscription = randomUUID(), previous = randomUUID(), target = randomUUID(), order = randomUUID(), branch = randomUUID()
-  const slug = `t${tenant.replaceAll('-','')}`, database = `nasq_scratch_${tenant.replaceAll('-','')}`
-  const entitlement = { modules: ['nasq_platform'], features: {'users.limit':10,'storage.limit_mb':100}, digest:'a'.repeat(64),compiler_version:1 }
+  const slug = `t${tenant.replaceAll('-','')}`, database = `webvue_scratch_${tenant.replaceAll('-','')}`
+  const entitlement = { modules: ['webvue_platform'], features: {'users.limit':10,'storage.limit_mb':100}, digest:'a'.repeat(64),compiler_version:1 }
   await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'B3','saas','managed',$2,true)", [tenant, slug])
   await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)',[tenant,slug,`${slug}.test`,database])
   await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,\'B3\',$2)',[customer,tenantRequired?null:tenant])

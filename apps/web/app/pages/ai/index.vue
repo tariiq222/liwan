@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
-import { AiDraftHandoffSchema, AiDraftPayloadSchema } from '@nasq/contracts'
+import { AiDraftHandoffSchema, AiDraftPayloadSchema } from '@webvue/contracts'
 import AiComposer from '@/components/ai/AiComposer.vue'
 import AiConfirmCard from '@/components/ai/AiConfirmCard.vue'
 import AiDraftCard from '@/components/ai/AiDraftCard.vue'
@@ -83,7 +83,7 @@ function openDraft(item: { callId: string; tool: string; payload: Record<string,
   // The create page is the validation boundary: a payload without a usable name still opens the form, empty.
   const parsed = AiDraftHandoffSchema.safeParse({ ...base, payload: item.payload })
   const handoff = parsed.success ? parsed.data : { ...base, payload: AiDraftPayloadSchema.partial().safeParse(item.payload).data ?? {} }
-  try { sessionStorage.setItem(`nasq:ai-draft:${draftId}`, JSON.stringify(handoff)) } catch { /* private mode: the page still opens empty */ }
+  try { sessionStorage.setItem(`webvue:ai-draft:${draftId}`, JSON.stringify(handoff)) } catch { /* private mode: the page still opens empty */ }
   void router.push({ path: '/projects/new', query: { aiDraft: draftId, returnTo: `/ai?run=${runId.value}&resume=${item.callId}` } })
 }
 

@@ -3,7 +3,7 @@ import type {Pool} from 'pg'
 import {reconcileOdooOnboardings} from './odoo-adapter.js'
 import {bindJob,businessKey,payloadDigest} from './provisioning.js'
 const id='ba91699b-c25b-4a01-8c84-b2d39dc4b873'
-const job=bindJob({schemaVersion:1,operation:'provision',requestId:id,binding:{tenantId:'ta',database:'nasq_scratch_'+'a'.repeat(32),filestore:'nasq_scratch_'+'a'.repeat(32),registryRevision:1},catalog:{version:'v1',tier:'projects',sourceSha256:'a'.repeat(64)},policy:{schema_version:1,channel:'control_plane',modules:['nasq_core'],features:{'users.limit':null,'storage.limit_mb':null,'pmo.enabled':true}}})
+const job=bindJob({schemaVersion:1,operation:'provision',requestId:id,binding:{tenantId:'ta',database:'webvue_scratch_'+'a'.repeat(32),filestore:'webvue_scratch_'+'a'.repeat(32),registryRevision:1},catalog:{version:'v1',tier:'projects',sourceSha256:'a'.repeat(64)},policy:{schema_version:1,channel:'control_plane',modules:['webvue_core'],features:{'users.limit':null,'storage.limit_mb':null,'pmo.enabled':true}}})
 function fixture(enabled:boolean){
   const flags={quarantined:false,lostCas:false,badEvidence:false}
   const writes:Array<{sql:string;params:unknown[]}>=[]
@@ -43,7 +43,7 @@ it('persists the flat feature map used by tenant HTTP/UI policy fields',async()=
 it('quarantines a full failed batch so the healthy eleventh tenant activates next tick',async()=>{
   const rows=Array.from({length:11},(_,index)=>{
     const uuid=`ba91699b-c25b-4a01-8c84-${String(index).padStart(12,'0')}`
-    const binding={...job.binding,tenantId:`tenant${index}`,database:`nasq_scratch_${String(index).padStart(32,'0')}`,filestore:`nasq_scratch_${String(index).padStart(32,'0')}`}
+    const binding={...job.binding,tenantId:`tenant${index}`,database:`webvue_scratch_${String(index).padStart(32,'0')}`,filestore:`webvue_scratch_${String(index).padStart(32,'0')}`}
     const payload=bindJob({...job,requestId:uuid,binding})
     return {payload,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(payload),request_id:uuid,control_tenant_id:uuid,job_id:uuid,stage:'verifying'}
   })

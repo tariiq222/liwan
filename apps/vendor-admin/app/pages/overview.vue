@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ATTENTION_LIMIT, type Attention } from '@nasq/commercial-contracts'
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { ATTENTION_LIMIT, type Attention } from '@webvue/commercial-contracts'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 import type { StatusStat } from '@/utils/vendorAttention'
 import { isNotAvailable } from '@/utils/vendorSubscriptions'
 definePageMeta({ capability: 'vendor.read' })
@@ -55,7 +55,7 @@ const stats = computed<StatusStat[]>(() => {
           <h2 id="today-status-title" class="text-lg font-semibold">{{ t('vendor.today.statusTitle') }}</h2>
           <VendorStatusStrip :stats="stats" :label="t('vendor.today.statusLabel')" />
           <p class="text-sm text-muted">{{ t('vendor.today.statusHint') }}</p>
-          <p v-if="data?.last_health_at" class="text-sm text-muted">{{ t('vendor.today.lastHealth') }}: <time :datetime="data.last_health_at">{{ formatNasqDateTime(data.last_health_at, locale) }}</time></p>
+          <p v-if="data?.last_health_at" class="text-sm text-muted">{{ t('vendor.today.lastHealth') }}: <time :datetime="data.last_health_at">{{ formatWebVueDateTime(data.last_health_at, locale) }}</time></p>
         </section>
       </SharedPageState>
     </div>

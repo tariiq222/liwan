@@ -3,16 +3,16 @@ import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import ts from 'typescript'
-import { ApiErrorSchema } from '@nasq/contracts'
+import { ApiErrorSchema } from '@webvue/contracts'
 import { tenantRequest } from '../tenantRequest'
 
 afterEach(() => vi.unstubAllEnvs())
 it('source SSR replay: cookie-only local dispatch fails; validated event identity repairs only local API', async () => {
-  const path = join(mkdtempSync(join(tmpdir(), 'nasq-ssr-fixture-')), 'registry.json')
+  const path = join(mkdtempSync(join(tmpdir(), 'webvue-ssr-fixture-')), 'registry.json')
   writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }] }))
-  vi.stubEnv('NASQ_TENANCY_MODE', 'shared'); vi.stubEnv('NASQ_TENANT_REGISTRY_PATH', path)
-  const token = 'synthetic-token'.repeat(4); vi.stubEnv('NASQ_SHARED_PROXY_TOKEN', token)
-  const headers: Record<string, string> = { host: 'a.example.test', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1', cookie: 'session_id=envelope' }
+  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared'); vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', path)
+  const token = 'synthetic-token'.repeat(4); vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
+  const headers: Record<string, string> = { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', cookie: 'session_id=envelope' }
   const event = (h: Record<string, string>) => ({ node: { req: { headers: h } } }) as never
   // Exact pre-fix cookie-only shape (Nitro transport itself is not mocked as proven).
   expect(() => tenantRequest(event({ cookie: headers.cookie! }))).toThrow('tenant_boundary_rejected')

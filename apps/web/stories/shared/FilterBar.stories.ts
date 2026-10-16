@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
-import { ProjectStatusSchema } from '@nasq/contracts'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import { ProjectStatusSchema } from '@webvue/contracts'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -20,7 +20,7 @@ const meta = {
       const items = computed(() => [{ value: 'all', label: t('projects.filters.allStatuses') }, ...ProjectStatusSchema.options.map(value => ({ value, label: t(`projects.status.${value}`) }))])
       return { args, t, status, items, search: ref('') }
     },
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="w-full min-w-0" data-testid="projects-toolbar"><FilterBar class="w-full" v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" :items="items" class="w-40" /></template><template #active><UBadge color="primary" variant="subtle">{{ t('projects.status.at_risk') }}</UBadge></template></FilterBar></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="w-full min-w-0" data-testid="projects-toolbar"><FilterBar class="w-full" v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" :items="items" class="w-40" /></template><template #active><UBadge color="primary" variant="subtle">{{ t('projects.status.at_risk') }}</UBadge></template></FilterBar></div></PageContainer></main>`,
   }),
 } satisfies Meta<typeof FilterBar>
 export default meta

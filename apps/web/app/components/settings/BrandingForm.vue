@@ -101,8 +101,8 @@ onBeforeUnmount(() => update.reset())
       <UButton type="button" color="neutral" variant="outline" data-testid="branding-retry" :disabled="!hydrated" @click="retryLoad">{{ t('settings.branding.retry') }}</UButton>
     </template>
   </UAlert>
-  <div v-else-if="branding" class="nasq-settings-branding">
-    <form class="nasq-form" data-testid="branding-form" @submit.prevent="save">
+  <div v-else-if="branding" class="webvue-settings-branding">
+    <form class="webvue-form" data-testid="branding-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <p data-testid="branding-managed-identity" class="text-sm text-muted">
         {{ t('settings.branding.managedIdentity') }}

@@ -6,7 +6,7 @@ import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useCreateMeeting } from '@/composables/useMeetings'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload } from '@/utils/meetingDateTime'
-import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { firstQuery } from '@/utils/routeQuery'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
@@ -160,7 +160,7 @@ async function save() {
         <span v-if="context.project">{{ t('meetingsUx.context.project', { name: context.project }) }}</span>
       </p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
-        <div class="nasq-form-grid">
+        <div class="webvue-form-grid">
           <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="meeting-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>

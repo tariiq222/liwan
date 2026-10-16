@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { TableColumn } from '@nuxt/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DataTable from '@nasq/ui/app/components/shared/data/DataTable.vue'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import DataTable from '@webvue/ui/app/components/shared/data/DataTable.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { people, projectRefs } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -34,7 +34,7 @@ const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; select
     ])
     return { t, columns, selected, rows: state.rows ?? rows, loading: state.loading ?? false, error: state.error, selectable: state.selectable ?? false, rowTo: (row: Row) => `/projects/${row.id}` }
   },
-  template: `<main class="nasq-shell-main"><PageContainer width="list">
+  template: `<main class="webvue-shell-main"><PageContainer width="list">
     <DataTable v-model:selected="selected" :rows="rows" :columns="columns" row-key="id" :row-to="rowTo" :caption="t('projects.title')"
       :loading="loading" :error="error" :selectable="selectable" :page="1" :pages="3" :empty-text="t('projects.empty')">
       <template #filters>

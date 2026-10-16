@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import type { RankedRow } from '@/components/analytics/RankedList.vue'
 import { usageMetricLabel } from '@/utils/vendorSubscriptions'
 import { figureNumber, formatFigure, HEADLINE_IDS, KPIS, periodFromQuery, presetRange, riyadhToday, toCsv, type KpiGroup, type PeriodChoice } from '@/utils/vendorAnalytics'
@@ -85,7 +85,7 @@ function exportCsv() {
   })
   const header = [t('analytics.csv.section'), t('analytics.csv.metric'), `${t('analytics.csv.current')} ${current.period.from}..${current.period.to}`, `${t('analytics.csv.previous')} ${current.previous_period.from}..${current.previous_period.to}`]
   const url = URL.createObjectURL(new Blob([toCsv(header, rows)], { type: 'text/csv;charset=utf-8' }))
-  const link = Object.assign(document.createElement('a'), { href: url, download: `nasq-analytics-${current.period.from}_${current.period.to}.csv` })
+  const link = Object.assign(document.createElement('a'), { href: url, download: `webvue-analytics-${current.period.from}_${current.period.to}.csv` })
   link.click()
   URL.revokeObjectURL(url)
 }

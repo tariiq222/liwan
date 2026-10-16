@@ -198,7 +198,7 @@ const roleRef = {
 const assignment = {
   id: 1,
   role: roleRef,
-  scope: { kind: 'company', id: 1, name: 'شركة نسق' },
+  scope: { kind: 'company', id: 1, name: 'شركة ويب فيو' },
 }
 const employeeRef = { id: 1, name: employee.name, department: DEPARTMENT }
 const adminUser = {

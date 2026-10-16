@@ -32,7 +32,7 @@ export function parseBusFrame(raw: string): { notifications: BusNotification[]; 
   return { notifications, lastId: last?.id }
 }
 
-// Pure: the unique task ids carried by a frame's `nasq/task` notifications,
+// Pure: the unique task ids carried by a frame's `webvue/task` notifications,
 // in first-seen order. A frame with several notifications for the same task
 // (e.g. two quick writes) must only trigger one invalidation per query, not
 // one per occurrence.
@@ -47,11 +47,11 @@ function collectIds(notifications: BusNotification[], type: string): number[] {
 }
 
 export function collectTaskIds(notifications: BusNotification[]): number[] {
-  return collectIds(notifications, 'nasq/task')
+  return collectIds(notifications, 'webvue/task')
 }
 
 export function collectChatIds(notifications: BusNotification[]): number[] {
-  return collectIds(notifications, 'nasq/chat')
+  return collectIds(notifications, 'webvue/chat')
 }
 
 // Pure: exponential backoff, 1s doubling up to a 30s ceiling, with +/-20%
@@ -204,7 +204,7 @@ function handleMessage(event: MessageEvent) {
   if (newLast !== undefined) lastId = newLast
   for (const notification of notifications) {
     const payload = notification.message?.payload
-    if (notification.message?.type !== 'nasq/chat' || payload?.event !== 'typing') continue
+    if (notification.message?.type !== 'webvue/chat' || payload?.event !== 'typing') continue
     if (typeof payload.id !== 'number' || typeof payload.user_id !== 'number') continue
     applyChatTyping({
       conversationId: payload.id,

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from nasq_cli import catalog_source
+from webvue_cli import catalog_source
 
 ROOT = Path(__file__).resolve().parents[1]
 SOLUTIONS = ROOT / 'deploy/catalog/solutions'

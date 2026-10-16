@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { QR_QUIET_ZONE, totpQr } from '../totpQr'
 
-const uri = 'otpauth://totp/Nasq%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=Nasq'
+const uri = 'otpauth://totp/WebVue%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=WebVue'
 
 describe('totpQr', () => {
   it('draws the link as a square of modules with a quiet zone around it', () => {
     const { size, path } = totpQr(uri)
-    // Version 4 at error correction M: 33 modules a side.
-    expect(size).toBe(33 + 2 * QR_QUIET_ZONE)
+    // The WebVue issuer makes this link version 5 at error correction M: 37 modules a side.
+    expect(size).toBe(37 + 2 * QR_QUIET_ZONE)
     expect(path).toMatch(/^(M\d+ \d+h\d+v1h-\d+z)+$/)
   })
 

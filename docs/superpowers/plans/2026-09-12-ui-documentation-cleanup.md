@@ -31,7 +31,7 @@
 
 ## Task 2: Tool entrypoints and product copy
 
-**Files:** `GEMINI.md`, `GROK.md`, `.github/copilot-instructions.md`, `.cursor/rules/nasq-ui.mdc`, `.claude/agents/frontend-theme.md`, `docs/agents/frontend-theme.md`, `apps/web/PRODUCT.md` in the isolated adapters package.
+**Files:** `GEMINI.md`, `GROK.md`, `.github/copilot-instructions.md`, `.cursor/rules/webvue-ui.mdc`, `.claude/agents/frontend-theme.md`, `docs/agents/frontend-theme.md`, `apps/web/PRODUCT.md` in the isolated adapters package.
 **Interfaces:** Same stable policy/catalog paths as Task 1; no dependence on Task 1 output.
 
 - [x] Make tool adapters short pointers to AGENTS.md, CLAUDE.md and DESIGN.md; preserve metadata and independent safety/ownership rules.

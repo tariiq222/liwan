@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectDetail, ProjectPatch, Visibility } from '@nasq/contracts'
+import type { ProjectDetail, ProjectPatch, Visibility } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import TagPicker from '@/components/shared/form/TagPicker.vue'
 import { saveErrorMessage } from '@/utils/formFeedback'
@@ -36,7 +36,7 @@ function save(body: ProjectPatch) {
       onSuccess: () => {
         pendingPatch.value = null
         pendingTags.value = null
-        if (body.nasq_completion_approval !== undefined) {
+        if (body.webvue_completion_approval !== undefined) {
           pendingMode.value = null
           pendingApprover.value = null
         }
@@ -79,8 +79,8 @@ const dirty = computed(() => pendingMode.value !== null || pendingPatch.value !=
 
 function saveApproval(mode: ProjectDetail['completion_approval'], approverId: number | null) {
   save({
-    nasq_completion_approval: mode,
-    nasq_completion_approver_id: mode === 'specific_user' ? approverId : null,
+    webvue_completion_approval: mode,
+    webvue_completion_approver_id: mode === 'specific_user' ? approverId : null,
   })
 }
 

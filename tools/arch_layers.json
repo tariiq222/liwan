@@ -1,26 +1,26 @@
 {
   "ranks": {
-    "nasq_core": 0,
-    "nasq_platform": 1,
-    "nasq_api": 2,
-    "nasq_directory": 3,
-    "nasq_notify": 3,
-    "nasq_ai": 3,
-    "nasq_pmo": 4,
-    "nasq_meetings": 4,
-    "nasq_hr": 4,
-    "nasq_chat": 4,
-    "nasq_tasks": 4,
-    "nasq_operations": 4,
-    "nasq_meetings_pmo": 5,
-    "nasq_tasks_pmo": 5,
-    "nasq_pmo_ai": 5,
+    "webvue_core": 0,
+    "webvue_platform": 1,
+    "webvue_api": 2,
+    "webvue_directory": 3,
+    "webvue_notify": 3,
+    "webvue_ai": 3,
+    "webvue_pmo": 4,
+    "webvue_meetings": 4,
+    "webvue_hr": 4,
+    "webvue_chat": 4,
+    "webvue_tasks": 4,
+    "webvue_operations": 4,
+    "webvue_meetings_pmo": 5,
+    "webvue_tasks_pmo": 5,
+    "webvue_pmo_ai": 5,
     "base_tier_validation": 3,
-    "nasq_operations_pmo": 5
+    "webvue_operations_pmo": 5,
+    "webvue_registry_probe": 3
   },
   "exempt": [
-    "cyan_meeting_minutes",
-    "nasq_registry_probe"
+    "cyan_meeting_minutes"
   ],
   "web_apps": {
     "ai": {

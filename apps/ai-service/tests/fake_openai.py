@@ -27,7 +27,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from nasq_ai_service.titles import TITLE_RULES
+from webvue_ai_service.titles import TITLE_RULES
 
 LEGAL_NAME = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 ROLES = {"system", "user", "assistant", "tool"}

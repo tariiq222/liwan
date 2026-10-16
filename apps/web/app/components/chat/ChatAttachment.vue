@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatAttachment } from '@nasq/contracts'
+import type { ChatAttachment } from '@webvue/contracts'
 
 const props = defineProps<{ attachment: ChatAttachment }>()
 const { t } = useI18n()

@@ -5,7 +5,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/NasqError"
+              "$ref": "#/components/schemas/WebVueError"
             }
           }
         },
@@ -15,7 +15,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/NasqError"
+              "$ref": "#/components/schemas/WebVueError"
             }
           }
         },
@@ -25,7 +25,7 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/NasqError"
+              "$ref": "#/components/schemas/WebVueError"
             }
           }
         },
@@ -6971,7 +6971,7 @@
           "modules": {
             "default": [],
             "items": {
-              "pattern": "^(nasq|customer)_[a-z0-9_]+$",
+              "pattern": "^(webvue|customer)_[a-z0-9_]+$",
               "type": "string"
             },
             "type": "array"
@@ -12189,7 +12189,7 @@
         ],
         "type": "object"
       },
-      "NasqError": {
+      "WebVueError": {
         "description": "Contract error shape returned by api_handler with a real HTTP status.",
         "properties": {
           "code": {
@@ -12214,9 +12214,9 @@
         ],
         "type": "object"
       },
-      "NasqModuleIdSchema": {
+      "WebVueModuleIdSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "pattern": "^(nasq|customer)_[a-z0-9_]+$",
+        "pattern": "^(webvue|customer)_[a-z0-9_]+$",
         "type": "string"
       },
       "NotificationDigestDetailSchema": {
@@ -18109,7 +18109,7 @@
             "minLength": 1,
             "type": "string"
           },
-          "nasq_completion_approval": {
+          "webvue_completion_approval": {
             "enum": [
               "none",
               "project_manager",
@@ -18117,7 +18117,7 @@
             ],
             "type": "string"
           },
-          "nasq_completion_approver_id": {
+          "webvue_completion_approver_id": {
             "anyOf": [
               {
                 "exclusiveMinimum": 0,
@@ -22938,15 +22938,15 @@
     }
   },
   "info": {
-    "description": "Generated surface of every /api/v1 route across the nasq Odoo addons, with contract schemas harvested from @nasq/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
-    "title": "nasq /api/v1",
+    "description": "Generated surface of every /api/v1 route across the webvue Odoo addons, with contract schemas harvested from @webvue/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
+    "title": "webvue /api/v1",
     "version": "19.0.1.0.0"
   },
   "openapi": "3.1.0",
   "paths": {
     "/api/commercial/v1/{subpath}": {
       "delete": {
-        "operationId": "nasq_api.CommercialController.unavailable.delete",
+        "operationId": "webvue_api.CommercialController.unavailable.delete",
         "parameters": [
           {
             "in": "path",
@@ -22978,10 +22978,10 @@
         ],
         "summary": "unavailable",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -22995,7 +22995,7 @@
         }
       },
       "get": {
-        "operationId": "nasq_api.CommercialController.unavailable.get",
+        "operationId": "webvue_api.CommercialController.unavailable.get",
         "parameters": [
           {
             "in": "path",
@@ -23027,10 +23027,10 @@
         ],
         "summary": "unavailable",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23044,7 +23044,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_api.CommercialController.unavailable.patch",
+        "operationId": "webvue_api.CommercialController.unavailable.patch",
         "parameters": [
           {
             "in": "path",
@@ -23076,10 +23076,10 @@
         ],
         "summary": "unavailable",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23093,7 +23093,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_api.CommercialController.unavailable.post",
+        "operationId": "webvue_api.CommercialController.unavailable.post",
         "parameters": [
           {
             "in": "path",
@@ -23125,10 +23125,10 @@
         ],
         "summary": "unavailable",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23142,7 +23142,7 @@
         }
       },
       "put": {
-        "operationId": "nasq_api.CommercialController.unavailable.put",
+        "operationId": "webvue_api.CommercialController.unavailable.put",
         "parameters": [
           {
             "in": "path",
@@ -23174,10 +23174,10 @@
         ],
         "summary": "unavailable",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23193,7 +23193,7 @@
     },
     "/api/v1/admin/access-log": {
       "get": {
-        "operationId": "nasq_api.AccessAdminAuditController.audit.get",
+        "operationId": "webvue_api.AccessAdminAuditController.audit.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23212,10 +23212,10 @@
         ],
         "summary": "audit",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23231,7 +23231,7 @@
     },
     "/api/v1/admin/access-log/{event_id}": {
       "get": {
-        "operationId": "nasq_api.AccessAdminAuditController.event.get",
+        "operationId": "webvue_api.AccessAdminAuditController.event.get",
         "parameters": [
           {
             "in": "path",
@@ -23263,10 +23263,10 @@
         ],
         "summary": "event",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23282,7 +23282,7 @@
     },
     "/api/v1/admin/branding": {
       "get": {
-        "operationId": "nasq_api.BrandingController.admin_branding.get",
+        "operationId": "webvue_api.BrandingController.admin_branding.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23301,10 +23301,10 @@
         ],
         "summary": "admin_branding",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23318,7 +23318,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_api.BrandingController.patch_admin_branding.patch",
+        "operationId": "webvue_api.BrandingController.patch_admin_branding.patch",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23337,10 +23337,10 @@
         ],
         "summary": "patch_admin_branding",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23356,7 +23356,7 @@
     },
     "/api/v1/admin/permissions": {
       "get": {
-        "operationId": "nasq_api.AccessAdminRolesController.permissions.get",
+        "operationId": "webvue_api.AccessAdminRolesController.permissions.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23375,10 +23375,10 @@
         ],
         "summary": "permissions",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23394,7 +23394,7 @@
     },
     "/api/v1/admin/roles": {
       "get": {
-        "operationId": "nasq_api.AccessAdminRolesController.roles.get",
+        "operationId": "webvue_api.AccessAdminRolesController.roles.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23413,10 +23413,10 @@
         ],
         "summary": "roles",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23430,7 +23430,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_api.AccessAdminRolesController.create_role.post",
+        "operationId": "webvue_api.AccessAdminRolesController.create_role.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23449,10 +23449,10 @@
         ],
         "summary": "create_role",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23468,7 +23468,7 @@
     },
     "/api/v1/admin/roles/{role_id}": {
       "delete": {
-        "operationId": "nasq_api.AccessAdminRolesController.delete_role.delete",
+        "operationId": "webvue_api.AccessAdminRolesController.delete_role.delete",
         "parameters": [
           {
             "in": "path",
@@ -23500,10 +23500,10 @@
         ],
         "summary": "delete_role",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23517,7 +23517,7 @@
         }
       },
       "get": {
-        "operationId": "nasq_api.AccessAdminRolesController.role.get",
+        "operationId": "webvue_api.AccessAdminRolesController.role.get",
         "parameters": [
           {
             "in": "path",
@@ -23549,10 +23549,10 @@
         ],
         "summary": "role",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23566,7 +23566,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_api.AccessAdminRolesController.patch_role.patch",
+        "operationId": "webvue_api.AccessAdminRolesController.patch_role.patch",
         "parameters": [
           {
             "in": "path",
@@ -23598,10 +23598,10 @@
         ],
         "summary": "patch_role",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23617,7 +23617,7 @@
     },
     "/api/v1/admin/roles/{role_id}/clone": {
       "post": {
-        "operationId": "nasq_api.AccessAdminRolesController.clone_role.post",
+        "operationId": "webvue_api.AccessAdminRolesController.clone_role.post",
         "parameters": [
           {
             "in": "path",
@@ -23649,10 +23649,10 @@
         ],
         "summary": "clone_role",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23668,7 +23668,7 @@
     },
     "/api/v1/admin/roles/{role_id}/disable": {
       "post": {
-        "operationId": "nasq_api.AccessAdminRolesController.role_state.post",
+        "operationId": "webvue_api.AccessAdminRolesController.role_state.post",
         "parameters": [
           {
             "in": "path",
@@ -23700,10 +23700,10 @@
         ],
         "summary": "role_state",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23719,7 +23719,7 @@
     },
     "/api/v1/admin/roles/{role_id}/enable": {
       "post": {
-        "operationId": "nasq_api.AccessAdminRolesController.role_state.post",
+        "operationId": "webvue_api.AccessAdminRolesController.role_state.post",
         "parameters": [
           {
             "in": "path",
@@ -23751,10 +23751,10 @@
         ],
         "summary": "role_state",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23770,7 +23770,7 @@
     },
     "/api/v1/admin/users": {
       "get": {
-        "operationId": "nasq_api.AccessAdminUsersController.users.get",
+        "operationId": "webvue_api.AccessAdminUsersController.users.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23789,10 +23789,10 @@
         ],
         "summary": "users",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23806,7 +23806,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_api.AccessAdminUsersController.grant.post",
+        "operationId": "webvue_api.AccessAdminUsersController.grant.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23825,10 +23825,10 @@
         ],
         "summary": "grant",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23844,7 +23844,7 @@
     },
     "/api/v1/admin/users/candidates": {
       "get": {
-        "operationId": "nasq_api.AccessAdminUsersController.candidates.get",
+        "operationId": "webvue_api.AccessAdminUsersController.candidates.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -23863,10 +23863,10 @@
         ],
         "summary": "candidates",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23882,7 +23882,7 @@
     },
     "/api/v1/admin/users/{user_id}": {
       "get": {
-        "operationId": "nasq_api.AccessAdminUsersController.user.get",
+        "operationId": "webvue_api.AccessAdminUsersController.user.get",
         "parameters": [
           {
             "in": "path",
@@ -23914,10 +23914,10 @@
         ],
         "summary": "user",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23933,7 +23933,7 @@
     },
     "/api/v1/admin/users/{user_id}/access": {
       "patch": {
-        "operationId": "nasq_api.AccessAdminUsersController.access.patch",
+        "operationId": "webvue_api.AccessAdminUsersController.access.patch",
         "parameters": [
           {
             "in": "path",
@@ -23965,10 +23965,10 @@
         ],
         "summary": "access",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -23984,7 +23984,7 @@
     },
     "/api/v1/admin/users/{user_id}/disable": {
       "post": {
-        "operationId": "nasq_api.AccessAdminUsersController.disable.post",
+        "operationId": "webvue_api.AccessAdminUsersController.disable.post",
         "parameters": [
           {
             "in": "path",
@@ -24016,10 +24016,10 @@
         ],
         "summary": "disable",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24035,7 +24035,7 @@
     },
     "/api/v1/admin/users/{user_id}/password": {
       "post": {
-        "operationId": "nasq_api.AccessAdminUsersController.reset_password.post",
+        "operationId": "webvue_api.AccessAdminUsersController.reset_password.post",
         "parameters": [
           {
             "in": "path",
@@ -24067,10 +24067,10 @@
         ],
         "summary": "reset_password",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24086,7 +24086,7 @@
     },
     "/api/v1/admin/users/{user_id}/reactivate": {
       "post": {
-        "operationId": "nasq_api.AccessAdminUsersController.reactivate.post",
+        "operationId": "webvue_api.AccessAdminUsersController.reactivate.post",
         "parameters": [
           {
             "in": "path",
@@ -24118,10 +24118,10 @@
         ],
         "summary": "reactivate",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24137,7 +24137,7 @@
     },
     "/api/v1/ai/audit": {
       "post": {
-        "operationId": "nasq_ai.AiController.record_audit.post",
+        "operationId": "webvue_ai.AiController.record_audit.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24156,17 +24156,17 @@
         ],
         "summary": "record_audit",
         "tags": [
-          "nasq_ai"
+          "webvue_ai"
         ],
-        "x-nasq": {
-          "addon": "nasq_ai",
+        "x-webvue": {
+          "addon": "webvue_ai",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
           "feature_keys": [
-            "registry:nasq.ai.tool.registry"
+            "registry:webvue.ai.tool.registry"
           ],
           "feature_operation": "write",
           "handler": "record_audit",
@@ -24177,7 +24177,7 @@
     },
     "/api/v1/ai/tools": {
       "get": {
-        "operationId": "nasq_ai.AiController.list_tools.get",
+        "operationId": "webvue_ai.AiController.list_tools.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24196,17 +24196,17 @@
         ],
         "summary": "list_tools",
         "tags": [
-          "nasq_ai"
+          "webvue_ai"
         ],
-        "x-nasq": {
-          "addon": "nasq_ai",
+        "x-webvue": {
+          "addon": "webvue_ai",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "AiController",
           "feature_keys": [
-            "registry:nasq.ai.tool.registry"
+            "registry:webvue.ai.tool.registry"
           ],
           "feature_operation": "read",
           "handler": "list_tools",
@@ -24217,7 +24217,7 @@
     },
     "/api/v1/auth/totp": {
       "post": {
-        "operationId": "nasq_api.AuthController.totp.post",
+        "operationId": "webvue_api.AuthController.totp.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24226,10 +24226,10 @@
         "security": [],
         "summary": "totp",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "public",
           "body": "application/json (JSON-RPC style params)",
@@ -24245,7 +24245,7 @@
     },
     "/api/v1/branding": {
       "get": {
-        "operationId": "nasq_api.BrandingController.branding.get",
+        "operationId": "webvue_api.BrandingController.branding.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24254,10 +24254,10 @@
         "security": [],
         "summary": "branding",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": false,
           "auth": "public",
           "body": "application/json (JSON-RPC style params)",
@@ -24273,7 +24273,7 @@
     },
     "/api/v1/chat/conversations": {
       "get": {
-        "operationId": "nasq_chat.ChatController.list_conversations.get",
+        "operationId": "webvue_chat.ChatController.list_conversations.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24292,10 +24292,10 @@
         ],
         "summary": "list_conversations",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24311,7 +24311,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_chat.ChatController.create_conversation.post",
+        "operationId": "webvue_chat.ChatController.create_conversation.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -24330,10 +24330,10 @@
         ],
         "summary": "create_conversation",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24351,7 +24351,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}": {
       "get": {
-        "operationId": "nasq_chat.ChatController.get_conversation.get",
+        "operationId": "webvue_chat.ChatController.get_conversation.get",
         "parameters": [
           {
             "in": "path",
@@ -24383,10 +24383,10 @@
         ],
         "summary": "get_conversation",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24402,7 +24402,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_chat.ChatController.patch_conversation.patch",
+        "operationId": "webvue_chat.ChatController.patch_conversation.patch",
         "parameters": [
           {
             "in": "path",
@@ -24434,10 +24434,10 @@
         ],
         "summary": "patch_conversation",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24455,7 +24455,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/attachments": {
       "get": {
-        "operationId": "nasq_chat.ChatController.list_attachments.get",
+        "operationId": "webvue_chat.ChatController.list_attachments.get",
         "parameters": [
           {
             "in": "path",
@@ -24487,10 +24487,10 @@
         ],
         "summary": "list_attachments",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24508,7 +24508,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/leave": {
       "post": {
-        "operationId": "nasq_chat.ChatController.leave_conversation.post",
+        "operationId": "webvue_chat.ChatController.leave_conversation.post",
         "parameters": [
           {
             "in": "path",
@@ -24540,10 +24540,10 @@
         ],
         "summary": "leave_conversation",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24561,7 +24561,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/members": {
       "get": {
-        "operationId": "nasq_chat.ChatController.list_members.get",
+        "operationId": "webvue_chat.ChatController.list_members.get",
         "parameters": [
           {
             "in": "path",
@@ -24593,10 +24593,10 @@
         ],
         "summary": "list_members",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24612,7 +24612,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_chat.ChatController.add_members.post",
+        "operationId": "webvue_chat.ChatController.add_members.post",
         "parameters": [
           {
             "in": "path",
@@ -24644,10 +24644,10 @@
         ],
         "summary": "add_members",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24665,7 +24665,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/members/{user_id}": {
       "delete": {
-        "operationId": "nasq_chat.ChatController.remove_member.delete",
+        "operationId": "webvue_chat.ChatController.remove_member.delete",
         "parameters": [
           {
             "in": "path",
@@ -24705,10 +24705,10 @@
         ],
         "summary": "remove_member",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24726,7 +24726,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/messages": {
       "get": {
-        "operationId": "nasq_chat.ChatController.list_messages.get",
+        "operationId": "webvue_chat.ChatController.list_messages.get",
         "parameters": [
           {
             "in": "path",
@@ -24758,10 +24758,10 @@
         ],
         "summary": "list_messages",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24777,7 +24777,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_chat.ChatController.send_message.post",
+        "operationId": "webvue_chat.ChatController.send_message.post",
         "parameters": [
           {
             "in": "path",
@@ -24809,10 +24809,10 @@
         ],
         "summary": "send_message",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24830,7 +24830,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/messages/{message_id}": {
       "patch": {
-        "operationId": "nasq_chat.ChatController.patch_message.patch",
+        "operationId": "webvue_chat.ChatController.patch_message.patch",
         "parameters": [
           {
             "in": "path",
@@ -24870,10 +24870,10 @@
         ],
         "summary": "patch_message",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24891,7 +24891,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/messages/{message_id}/pin": {
       "post": {
-        "operationId": "nasq_chat.ChatController.pin_message.post",
+        "operationId": "webvue_chat.ChatController.pin_message.post",
         "parameters": [
           {
             "in": "path",
@@ -24931,10 +24931,10 @@
         ],
         "summary": "pin_message",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -24952,7 +24952,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/messages/{message_id}/reactions": {
       "post": {
-        "operationId": "nasq_chat.ChatController.react_to_message.post",
+        "operationId": "webvue_chat.ChatController.react_to_message.post",
         "parameters": [
           {
             "in": "path",
@@ -24992,10 +24992,10 @@
         ],
         "summary": "react_to_message",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25013,7 +25013,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/messages/{message_id}/star": {
       "post": {
-        "operationId": "nasq_chat.ChatController.star_message.post",
+        "operationId": "webvue_chat.ChatController.star_message.post",
         "parameters": [
           {
             "in": "path",
@@ -25053,10 +25053,10 @@
         ],
         "summary": "star_message",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25074,7 +25074,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/read": {
       "post": {
-        "operationId": "nasq_chat.ChatController.mark_read.post",
+        "operationId": "webvue_chat.ChatController.mark_read.post",
         "parameters": [
           {
             "in": "path",
@@ -25106,10 +25106,10 @@
         ],
         "summary": "mark_read",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25127,7 +25127,7 @@
     },
     "/api/v1/chat/conversations/{conversation_id}/typing": {
       "post": {
-        "operationId": "nasq_chat.ChatController.notify_typing.post",
+        "operationId": "webvue_chat.ChatController.notify_typing.post",
         "parameters": [
           {
             "in": "path",
@@ -25159,10 +25159,10 @@
         ],
         "summary": "notify_typing",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25180,7 +25180,7 @@
     },
     "/api/v1/chat/recipients": {
       "get": {
-        "operationId": "nasq_chat.ChatController.list_recipients.get",
+        "operationId": "webvue_chat.ChatController.list_recipients.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25199,10 +25199,10 @@
         ],
         "summary": "list_recipients",
         "tags": [
-          "nasq_chat"
+          "webvue_chat"
         ],
-        "x-nasq": {
-          "addon": "nasq_chat",
+        "x-webvue": {
+          "addon": "webvue_chat",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25220,7 +25220,7 @@
     },
     "/api/v1/hr/departments": {
       "get": {
-        "operationId": "nasq_hr.HrDepartmentController.list_departments.get",
+        "operationId": "webvue_hr.HrDepartmentController.list_departments.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25239,10 +25239,10 @@
         ],
         "summary": "list_departments",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25258,7 +25258,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_hr.HrDepartmentController.create_department.post",
+        "operationId": "webvue_hr.HrDepartmentController.create_department.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25277,10 +25277,10 @@
         ],
         "summary": "create_department",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25298,7 +25298,7 @@
     },
     "/api/v1/hr/departments/{department_id}": {
       "delete": {
-        "operationId": "nasq_hr.HrDepartmentController.delete_department.delete",
+        "operationId": "webvue_hr.HrDepartmentController.delete_department.delete",
         "parameters": [
           {
             "in": "path",
@@ -25330,10 +25330,10 @@
         ],
         "summary": "delete_department",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25349,7 +25349,7 @@
         }
       },
       "get": {
-        "operationId": "nasq_hr.HrDepartmentController.get_department.get",
+        "operationId": "webvue_hr.HrDepartmentController.get_department.get",
         "parameters": [
           {
             "in": "path",
@@ -25381,10 +25381,10 @@
         ],
         "summary": "get_department",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25400,7 +25400,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_hr.HrDepartmentController.patch_department.patch",
+        "operationId": "webvue_hr.HrDepartmentController.patch_department.patch",
         "parameters": [
           {
             "in": "path",
@@ -25432,10 +25432,10 @@
         ],
         "summary": "patch_department",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25453,7 +25453,7 @@
     },
     "/api/v1/hr/documents": {
       "get": {
-        "operationId": "nasq_hr.HrDocumentController.list_documents.get",
+        "operationId": "webvue_hr.HrDocumentController.list_documents.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25472,10 +25472,10 @@
         ],
         "summary": "list_documents",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25491,7 +25491,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_hr.HrDocumentController.create_document.post",
+        "operationId": "webvue_hr.HrDocumentController.create_document.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25510,10 +25510,10 @@
         ],
         "summary": "create_document",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25531,7 +25531,7 @@
     },
     "/api/v1/hr/documents/{document_id}": {
       "get": {
-        "operationId": "nasq_hr.HrDocumentController.get_document.get",
+        "operationId": "webvue_hr.HrDocumentController.get_document.get",
         "parameters": [
           {
             "in": "path",
@@ -25563,10 +25563,10 @@
         ],
         "summary": "get_document",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25582,7 +25582,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_hr.HrDocumentController.patch_document.patch",
+        "operationId": "webvue_hr.HrDocumentController.patch_document.patch",
         "parameters": [
           {
             "in": "path",
@@ -25614,10 +25614,10 @@
         ],
         "summary": "patch_document",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25635,7 +25635,7 @@
     },
     "/api/v1/hr/documents/{document_id}/attachments": {
       "post": {
-        "operationId": "nasq_hr.HrDocumentController.upload_document_attachment.post",
+        "operationId": "webvue_hr.HrDocumentController.upload_document_attachment.post",
         "parameters": [
           {
             "in": "path",
@@ -25667,10 +25667,10 @@
         ],
         "summary": "upload_document_attachment",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25688,7 +25688,7 @@
     },
     "/api/v1/hr/employees": {
       "get": {
-        "operationId": "nasq_hr.HrEmployeeController.list_employees.get",
+        "operationId": "webvue_hr.HrEmployeeController.list_employees.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25707,10 +25707,10 @@
         ],
         "summary": "list_employees",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25726,7 +25726,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_hr.HrEmployeeController.create_employee.post",
+        "operationId": "webvue_hr.HrEmployeeController.create_employee.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25745,10 +25745,10 @@
         ],
         "summary": "create_employee",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25766,7 +25766,7 @@
     },
     "/api/v1/hr/employees/{employee_id}": {
       "get": {
-        "operationId": "nasq_hr.HrEmployeeController.get_employee.get",
+        "operationId": "webvue_hr.HrEmployeeController.get_employee.get",
         "parameters": [
           {
             "in": "path",
@@ -25798,10 +25798,10 @@
         ],
         "summary": "get_employee",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25817,7 +25817,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_hr.HrEmployeeController.patch_employee.patch",
+        "operationId": "webvue_hr.HrEmployeeController.patch_employee.patch",
         "parameters": [
           {
             "in": "path",
@@ -25849,10 +25849,10 @@
         ],
         "summary": "patch_employee",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25870,7 +25870,7 @@
     },
     "/api/v1/hr/employees/{employee_id}/archive": {
       "post": {
-        "operationId": "nasq_hr.HrEmployeeController.archive_employee.post",
+        "operationId": "webvue_hr.HrEmployeeController.archive_employee.post",
         "parameters": [
           {
             "in": "path",
@@ -25902,10 +25902,10 @@
         ],
         "summary": "archive_employee",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25923,7 +25923,7 @@
     },
     "/api/v1/hr/employees/{employee_id}/unarchive": {
       "post": {
-        "operationId": "nasq_hr.HrEmployeeController.unarchive_employee.post",
+        "operationId": "webvue_hr.HrEmployeeController.unarchive_employee.post",
         "parameters": [
           {
             "in": "path",
@@ -25955,10 +25955,10 @@
         ],
         "summary": "unarchive_employee",
         "tags": [
-          "nasq_hr"
+          "webvue_hr"
         ],
-        "x-nasq": {
-          "addon": "nasq_hr",
+        "x-webvue": {
+          "addon": "webvue_hr",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -25976,7 +25976,7 @@
     },
     "/api/v1/me": {
       "get": {
-        "operationId": "nasq_api.MeController.me.get",
+        "operationId": "webvue_api.MeController.me.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -25995,10 +25995,10 @@
         ],
         "summary": "me",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26014,7 +26014,7 @@
     },
     "/api/v1/me/appearance": {
       "patch": {
-        "operationId": "nasq_api.MeController.patch_appearance.patch",
+        "operationId": "webvue_api.MeController.patch_appearance.patch",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26033,10 +26033,10 @@
         ],
         "summary": "patch_appearance",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26052,7 +26052,7 @@
     },
     "/api/v1/me/password": {
       "post": {
-        "operationId": "nasq_api.MeController.change_password.post",
+        "operationId": "webvue_api.MeController.change_password.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26071,10 +26071,10 @@
         ],
         "summary": "change_password",
         "tags": [
-          "nasq_api"
+          "webvue_api"
         ],
-        "x-nasq": {
-          "addon": "nasq_api",
+        "x-webvue": {
+          "addon": "webvue_api",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26090,7 +26090,7 @@
     },
     "/api/v1/me/personal-stages": {
       "get": {
-        "operationId": "nasq_pmo.PersonalStageController.personal_stages.get",
+        "operationId": "webvue_pmo.PersonalStageController.personal_stages.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26109,10 +26109,10 @@
         ],
         "summary": "personal_stages",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26130,7 +26130,7 @@
     },
     "/api/v1/meeting-series": {
       "get": {
-        "operationId": "nasq_meetings.MeetingSeriesController.list_series.get",
+        "operationId": "webvue_meetings.MeetingSeriesController.list_series.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26149,10 +26149,10 @@
         ],
         "summary": "list_series",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26168,7 +26168,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_meetings.MeetingSeriesController.create_series.post",
+        "operationId": "webvue_meetings.MeetingSeriesController.create_series.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26187,10 +26187,10 @@
         ],
         "summary": "create_series",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26208,7 +26208,7 @@
     },
     "/api/v1/meeting-series/{series_id}": {
       "get": {
-        "operationId": "nasq_meetings.MeetingSeriesController.get_series.get",
+        "operationId": "webvue_meetings.MeetingSeriesController.get_series.get",
         "parameters": [
           {
             "in": "path",
@@ -26240,10 +26240,10 @@
         ],
         "summary": "get_series",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26259,7 +26259,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_meetings.MeetingSeriesController.patch_series.patch",
+        "operationId": "webvue_meetings.MeetingSeriesController.patch_series.patch",
         "parameters": [
           {
             "in": "path",
@@ -26291,10 +26291,10 @@
         ],
         "summary": "patch_series",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26312,7 +26312,7 @@
     },
     "/api/v1/meeting-series/{series_id}/events": {
       "get": {
-        "operationId": "nasq_meetings.MeetingWorkspaceController.series_events.get",
+        "operationId": "webvue_meetings.MeetingWorkspaceController.series_events.get",
         "parameters": [
           {
             "in": "path",
@@ -26344,10 +26344,10 @@
         ],
         "summary": "series_events",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26365,7 +26365,7 @@
     },
     "/api/v1/meeting-series/{series_id}/occurrences": {
       "post": {
-        "operationId": "nasq_meetings.MeetingSeriesController.add_occurrence.post",
+        "operationId": "webvue_meetings.MeetingSeriesController.add_occurrence.post",
         "parameters": [
           {
             "in": "path",
@@ -26397,10 +26397,10 @@
         ],
         "summary": "add_occurrence",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26418,7 +26418,7 @@
     },
     "/api/v1/meeting-series/{series_id}/resolutions": {
       "get": {
-        "operationId": "nasq_meetings.MeetingWorkspaceController.series_resolutions.get",
+        "operationId": "webvue_meetings.MeetingWorkspaceController.series_resolutions.get",
         "parameters": [
           {
             "in": "path",
@@ -26450,10 +26450,10 @@
         ],
         "summary": "series_resolutions",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26471,7 +26471,7 @@
     },
     "/api/v1/meetings": {
       "get": {
-        "operationId": "nasq_meetings.MeetingController.list_meetings.get",
+        "operationId": "webvue_meetings.MeetingController.list_meetings.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26490,10 +26490,10 @@
         ],
         "summary": "list_meetings",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26509,7 +26509,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_meetings.MeetingController.create_meeting.post",
+        "operationId": "webvue_meetings.MeetingController.create_meeting.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26528,10 +26528,10 @@
         ],
         "summary": "create_meeting",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26549,7 +26549,7 @@
     },
     "/api/v1/meetings/resolutions": {
       "get": {
-        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_followup.get",
+        "operationId": "webvue_meetings.MeetingWorkspaceController.meeting_followup.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -26568,10 +26568,10 @@
         ],
         "summary": "meeting_followup",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26589,7 +26589,7 @@
     },
     "/api/v1/meetings/{meeting_id}": {
       "get": {
-        "operationId": "nasq_meetings.MeetingController.get_meeting.get",
+        "operationId": "webvue_meetings.MeetingController.get_meeting.get",
         "parameters": [
           {
             "in": "path",
@@ -26621,10 +26621,10 @@
         ],
         "summary": "get_meeting",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26640,7 +26640,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_meetings.MeetingController.patch_meeting.patch",
+        "operationId": "webvue_meetings.MeetingController.patch_meeting.patch",
         "parameters": [
           {
             "in": "path",
@@ -26672,10 +26672,10 @@
         ],
         "summary": "patch_meeting",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26693,7 +26693,7 @@
     },
     "/api/v1/meetings/{meeting_id}/attachments": {
       "get": {
-        "operationId": "nasq_meetings.MeetingAttachmentController.list_meeting_attachments.get",
+        "operationId": "webvue_meetings.MeetingAttachmentController.list_meeting_attachments.get",
         "parameters": [
           {
             "in": "path",
@@ -26725,10 +26725,10 @@
         ],
         "summary": "list_meeting_attachments",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26744,7 +26744,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_meetings.MeetingAttachmentController.upload_meeting_attachment.post",
+        "operationId": "webvue_meetings.MeetingAttachmentController.upload_meeting_attachment.post",
         "parameters": [
           {
             "in": "path",
@@ -26776,10 +26776,10 @@
         ],
         "summary": "upload_meeting_attachment",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26797,7 +26797,7 @@
     },
     "/api/v1/meetings/{meeting_id}/attachments/{attachment_id}": {
       "delete": {
-        "operationId": "nasq_meetings.MeetingAttachmentController.delete_meeting_attachment.delete",
+        "operationId": "webvue_meetings.MeetingAttachmentController.delete_meeting_attachment.delete",
         "parameters": [
           {
             "in": "path",
@@ -26837,10 +26837,10 @@
         ],
         "summary": "delete_meeting_attachment",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26858,7 +26858,7 @@
     },
     "/api/v1/meetings/{meeting_id}/cancel": {
       "post": {
-        "operationId": "nasq_meetings.MeetingController.cancel_meeting.post",
+        "operationId": "webvue_meetings.MeetingController.cancel_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -26890,10 +26890,10 @@
         ],
         "summary": "cancel_meeting",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26911,7 +26911,7 @@
     },
     "/api/v1/meetings/{meeting_id}/complete": {
       "post": {
-        "operationId": "nasq_meetings.MeetingController.complete_meeting.post",
+        "operationId": "webvue_meetings.MeetingController.complete_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -26943,10 +26943,10 @@
         ],
         "summary": "complete_meeting",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -26964,7 +26964,7 @@
     },
     "/api/v1/meetings/{meeting_id}/confirm": {
       "post": {
-        "operationId": "nasq_meetings.MeetingController.confirm_meeting.post",
+        "operationId": "webvue_meetings.MeetingController.confirm_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -26996,10 +26996,10 @@
         ],
         "summary": "confirm_meeting",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27017,7 +27017,7 @@
     },
     "/api/v1/meetings/{meeting_id}/events": {
       "get": {
-        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_events.get",
+        "operationId": "webvue_meetings.MeetingWorkspaceController.meeting_events.get",
         "parameters": [
           {
             "in": "path",
@@ -27049,10 +27049,10 @@
         ],
         "summary": "meeting_events",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27070,7 +27070,7 @@
     },
     "/api/v1/meetings/{meeting_id}/minutes.pdf": {
       "get": {
-        "operationId": "nasq_meetings.MeetingController.minutes_pdf.get",
+        "operationId": "webvue_meetings.MeetingController.minutes_pdf.get",
         "parameters": [
           {
             "in": "path",
@@ -27102,10 +27102,10 @@
         ],
         "summary": "minutes_pdf",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": false,
           "auth": "user",
           "contract_namespace": "pmo",
@@ -27122,7 +27122,7 @@
     },
     "/api/v1/meetings/{meeting_id}/reopen": {
       "post": {
-        "operationId": "nasq_meetings.MeetingController.reopen_meeting.post",
+        "operationId": "webvue_meetings.MeetingController.reopen_meeting.post",
         "parameters": [
           {
             "in": "path",
@@ -27154,10 +27154,10 @@
         ],
         "summary": "reopen_meeting",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27175,7 +27175,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions": {
       "post": {
-        "operationId": "nasq_meetings.MeetingController.create_resolution.post",
+        "operationId": "webvue_meetings.MeetingController.create_resolution.post",
         "parameters": [
           {
             "in": "path",
@@ -27207,10 +27207,10 @@
         ],
         "summary": "create_resolution",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27228,7 +27228,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions/{resolution_id}": {
       "patch": {
-        "operationId": "nasq_meetings.MeetingController.patch_resolution.patch",
+        "operationId": "webvue_meetings.MeetingController.patch_resolution.patch",
         "parameters": [
           {
             "in": "path",
@@ -27268,10 +27268,10 @@
         ],
         "summary": "patch_resolution",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27289,7 +27289,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions/{resolution_id}/convert": {
       "post": {
-        "operationId": "nasq_meetings_pmo.MeetingResolutionConvertController.convert_resolution.post",
+        "operationId": "webvue_meetings_pmo.MeetingResolutionConvertController.convert_resolution.post",
         "parameters": [
           {
             "in": "path",
@@ -27329,10 +27329,10 @@
         ],
         "summary": "convert_resolution",
         "tags": [
-          "nasq_meetings_pmo"
+          "webvue_meetings_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings_pmo",
+        "x-webvue": {
+          "addon": "webvue_meetings_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27351,7 +27351,7 @@
     },
     "/api/v1/meetings/{meeting_id}/resolutions/{resolution_id}/{action}": {
       "post": {
-        "operationId": "nasq_meetings.MeetingController.resolution_action.post",
+        "operationId": "webvue_meetings.MeetingController.resolution_action.post",
         "parameters": [
           {
             "in": "path",
@@ -27399,10 +27399,10 @@
         ],
         "summary": "resolution_action",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27420,7 +27420,7 @@
     },
     "/api/v1/meetings/{meeting_id}/versions": {
       "get": {
-        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_versions.get",
+        "operationId": "webvue_meetings.MeetingWorkspaceController.meeting_versions.get",
         "parameters": [
           {
             "in": "path",
@@ -27452,10 +27452,10 @@
         ],
         "summary": "meeting_versions",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27473,7 +27473,7 @@
     },
     "/api/v1/meetings/{meeting_id}/versions/{version_id}": {
       "get": {
-        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_version.get",
+        "operationId": "webvue_meetings.MeetingWorkspaceController.meeting_version.get",
         "parameters": [
           {
             "in": "path",
@@ -27513,10 +27513,10 @@
         ],
         "summary": "meeting_version",
         "tags": [
-          "nasq_meetings"
+          "webvue_meetings"
         ],
-        "x-nasq": {
-          "addon": "nasq_meetings",
+        "x-webvue": {
+          "addon": "webvue_meetings",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27534,7 +27534,7 @@
     },
     "/api/v1/my-tasks": {
       "get": {
-        "operationId": "nasq_tasks.MyTasksController.list_my_tasks.get",
+        "operationId": "webvue_tasks.MyTasksController.list_my_tasks.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -27553,10 +27553,10 @@
         ],
         "summary": "list_my_tasks",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27572,7 +27572,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_tasks.MyTasksController.create_my_task.post",
+        "operationId": "webvue_tasks.MyTasksController.create_my_task.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -27591,10 +27591,10 @@
         ],
         "summary": "create_my_task",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27612,7 +27612,7 @@
     },
     "/api/v1/my-tasks/convert-targets": {
       "get": {
-        "operationId": "nasq_tasks_pmo.MyTaskConvertController.convert_targets.get",
+        "operationId": "webvue_tasks_pmo.MyTaskConvertController.convert_targets.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -27631,10 +27631,10 @@
         ],
         "summary": "convert_targets",
         "tags": [
-          "nasq_tasks_pmo"
+          "webvue_tasks_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks_pmo",
+        "x-webvue": {
+          "addon": "webvue_tasks_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27653,7 +27653,7 @@
     },
     "/api/v1/my-tasks/{task_id}": {
       "get": {
-        "operationId": "nasq_tasks.MyTasksController.get_my_task.get",
+        "operationId": "webvue_tasks.MyTasksController.get_my_task.get",
         "parameters": [
           {
             "in": "path",
@@ -27685,10 +27685,10 @@
         ],
         "summary": "get_my_task",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27704,7 +27704,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_tasks.MyTasksController.update_my_task.patch",
+        "operationId": "webvue_tasks.MyTasksController.update_my_task.patch",
         "parameters": [
           {
             "in": "path",
@@ -27736,10 +27736,10 @@
         ],
         "summary": "update_my_task",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27757,7 +27757,7 @@
     },
     "/api/v1/my-tasks/{task_id}/attachments": {
       "get": {
-        "operationId": "nasq_tasks.MyTaskAttachmentsController.list_my_task_attachments.get",
+        "operationId": "webvue_tasks.MyTaskAttachmentsController.list_my_task_attachments.get",
         "parameters": [
           {
             "in": "path",
@@ -27789,10 +27789,10 @@
         ],
         "summary": "list_my_task_attachments",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27808,7 +27808,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_tasks.MyTaskAttachmentsController.upload_my_task_attachment.post",
+        "operationId": "webvue_tasks.MyTaskAttachmentsController.upload_my_task_attachment.post",
         "parameters": [
           {
             "in": "path",
@@ -27840,10 +27840,10 @@
         ],
         "summary": "upload_my_task_attachment",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27861,7 +27861,7 @@
     },
     "/api/v1/my-tasks/{task_id}/attachments/{att_id}": {
       "delete": {
-        "operationId": "nasq_tasks.MyTaskAttachmentsController.delete_my_task_attachment.delete",
+        "operationId": "webvue_tasks.MyTaskAttachmentsController.delete_my_task_attachment.delete",
         "parameters": [
           {
             "in": "path",
@@ -27901,10 +27901,10 @@
         ],
         "summary": "delete_my_task_attachment",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27922,7 +27922,7 @@
     },
     "/api/v1/my-tasks/{task_id}/cancel": {
       "post": {
-        "operationId": "nasq_tasks.MyTasksController.cancel_my_task.post",
+        "operationId": "webvue_tasks.MyTasksController.cancel_my_task.post",
         "parameters": [
           {
             "in": "path",
@@ -27954,10 +27954,10 @@
         ],
         "summary": "cancel_my_task",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -27975,7 +27975,7 @@
     },
     "/api/v1/my-tasks/{task_id}/comments": {
       "get": {
-        "operationId": "nasq_tasks.MyTaskCommentsController.list_my_task_comments.get",
+        "operationId": "webvue_tasks.MyTaskCommentsController.list_my_task_comments.get",
         "parameters": [
           {
             "in": "path",
@@ -28007,10 +28007,10 @@
         ],
         "summary": "list_my_task_comments",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28026,7 +28026,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_tasks.MyTaskCommentsController.post_my_task_comment.post",
+        "operationId": "webvue_tasks.MyTaskCommentsController.post_my_task_comment.post",
         "parameters": [
           {
             "in": "path",
@@ -28058,10 +28058,10 @@
         ],
         "summary": "post_my_task_comment",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28079,7 +28079,7 @@
     },
     "/api/v1/my-tasks/{task_id}/convert": {
       "post": {
-        "operationId": "nasq_tasks_pmo.MyTaskConvertController.convert_task.post",
+        "operationId": "webvue_tasks_pmo.MyTaskConvertController.convert_task.post",
         "parameters": [
           {
             "in": "path",
@@ -28111,10 +28111,10 @@
         ],
         "summary": "convert_task",
         "tags": [
-          "nasq_tasks_pmo"
+          "webvue_tasks_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks_pmo",
+        "x-webvue": {
+          "addon": "webvue_tasks_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28133,7 +28133,7 @@
     },
     "/api/v1/my-tasks/{task_id}/done": {
       "post": {
-        "operationId": "nasq_tasks.MyTasksController.done_my_task.post",
+        "operationId": "webvue_tasks.MyTasksController.done_my_task.post",
         "parameters": [
           {
             "in": "path",
@@ -28165,10 +28165,10 @@
         ],
         "summary": "done_my_task",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28186,7 +28186,7 @@
     },
     "/api/v1/my-tasks/{task_id}/reopen": {
       "post": {
-        "operationId": "nasq_tasks.MyTasksController.reopen_my_task.post",
+        "operationId": "webvue_tasks.MyTasksController.reopen_my_task.post",
         "parameters": [
           {
             "in": "path",
@@ -28218,10 +28218,10 @@
         ],
         "summary": "reopen_my_task",
         "tags": [
-          "nasq_tasks"
+          "webvue_tasks"
         ],
-        "x-nasq": {
-          "addon": "nasq_tasks",
+        "x-webvue": {
+          "addon": "webvue_tasks",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28239,7 +28239,7 @@
     },
     "/api/v1/notification-digests/{notification_id}": {
       "get": {
-        "operationId": "nasq_pmo.NotificationController.get_digest.get",
+        "operationId": "webvue_pmo.NotificationController.get_digest.get",
         "parameters": [
           {
             "in": "path",
@@ -28271,10 +28271,10 @@
         ],
         "summary": "get_digest",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28292,7 +28292,7 @@
     },
     "/api/v1/notifications": {
       "get": {
-        "operationId": "nasq_notify.NotificationController.list_notifications.get",
+        "operationId": "webvue_notify.NotificationController.list_notifications.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -28311,17 +28311,17 @@
         ],
         "summary": "list_notifications",
         "tags": [
-          "nasq_notify"
+          "webvue_notify"
         ],
-        "x-nasq": {
-          "addon": "nasq_notify",
+        "x-webvue": {
+          "addon": "webvue_notify",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "pmo",
           "controller": "NotificationController",
           "feature_keys": [
-            "registry:nasq.notify.registry"
+            "registry:webvue.notify.registry"
           ],
           "feature_operation": "read",
           "handler": "list_notifications",
@@ -28332,7 +28332,7 @@
     },
     "/api/v1/notifications/read-all": {
       "post": {
-        "operationId": "nasq_notify.NotificationController.mark_all_read.post",
+        "operationId": "webvue_notify.NotificationController.mark_all_read.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -28351,10 +28351,10 @@
         ],
         "summary": "mark_all_read",
         "tags": [
-          "nasq_notify"
+          "webvue_notify"
         ],
-        "x-nasq": {
-          "addon": "nasq_notify",
+        "x-webvue": {
+          "addon": "webvue_notify",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28370,7 +28370,7 @@
     },
     "/api/v1/notifications/{notification_id}/read": {
       "post": {
-        "operationId": "nasq_notify.NotificationController.mark_read.post",
+        "operationId": "webvue_notify.NotificationController.mark_read.post",
         "parameters": [
           {
             "in": "path",
@@ -28402,10 +28402,10 @@
         ],
         "summary": "mark_read",
         "tags": [
-          "nasq_notify"
+          "webvue_notify"
         ],
-        "x-nasq": {
-          "addon": "nasq_notify",
+        "x-webvue": {
+          "addon": "webvue_notify",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28421,7 +28421,7 @@
     },
     "/api/v1/operations/execution-kinds": {
       "get": {
-        "operationId": "nasq_operations.OperationsController.execution_kinds.get",
+        "operationId": "webvue_operations.OperationsController.execution_kinds.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -28440,10 +28440,10 @@
         ],
         "summary": "execution_kinds",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28461,7 +28461,7 @@
     },
     "/api/v1/operations/processes": {
       "get": {
-        "operationId": "nasq_operations.OperationsController.list_processes.get",
+        "operationId": "webvue_operations.OperationsController.list_processes.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -28480,10 +28480,10 @@
         ],
         "summary": "list_processes",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28499,7 +28499,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_operations.OperationsController.create_process.post",
+        "operationId": "webvue_operations.OperationsController.create_process.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -28518,10 +28518,10 @@
         ],
         "summary": "create_process",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28539,7 +28539,7 @@
     },
     "/api/v1/operations/processes/{process_id}": {
       "get": {
-        "operationId": "nasq_operations.OperationsController.get_process.get",
+        "operationId": "webvue_operations.OperationsController.get_process.get",
         "parameters": [
           {
             "in": "path",
@@ -28571,10 +28571,10 @@
         ],
         "summary": "get_process",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28590,7 +28590,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_operations.OperationsController.update_process.patch",
+        "operationId": "webvue_operations.OperationsController.update_process.patch",
         "parameters": [
           {
             "in": "path",
@@ -28622,10 +28622,10 @@
         ],
         "summary": "update_process",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28643,7 +28643,7 @@
     },
     "/api/v1/operations/processes/{process_id}/targets": {
       "get": {
-        "operationId": "nasq_operations.OperationsController.process_targets.get",
+        "operationId": "webvue_operations.OperationsController.process_targets.get",
         "parameters": [
           {
             "in": "path",
@@ -28675,10 +28675,10 @@
         ],
         "summary": "process_targets",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28696,7 +28696,7 @@
     },
     "/api/v1/operations/processes/{process_id}/{action}": {
       "post": {
-        "operationId": "nasq_operations.OperationsController.transition_process.post",
+        "operationId": "webvue_operations.OperationsController.transition_process.post",
         "parameters": [
           {
             "in": "path",
@@ -28736,10 +28736,10 @@
         ],
         "summary": "transition_process",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28757,7 +28757,7 @@
     },
     "/api/v1/operations/requests": {
       "get": {
-        "operationId": "nasq_operations.OperationsController.list_requests.get",
+        "operationId": "webvue_operations.OperationsController.list_requests.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -28776,10 +28776,10 @@
         ],
         "summary": "list_requests",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28795,7 +28795,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_operations.OperationsController.create_request.post",
+        "operationId": "webvue_operations.OperationsController.create_request.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -28814,10 +28814,10 @@
         ],
         "summary": "create_request",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28835,7 +28835,7 @@
     },
     "/api/v1/operations/requests/{request_id}": {
       "get": {
-        "operationId": "nasq_operations.OperationsController.get_request.get",
+        "operationId": "webvue_operations.OperationsController.get_request.get",
         "parameters": [
           {
             "in": "path",
@@ -28867,10 +28867,10 @@
         ],
         "summary": "get_request",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28886,7 +28886,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_operations.OperationsController.update_request.patch",
+        "operationId": "webvue_operations.OperationsController.update_request.patch",
         "parameters": [
           {
             "in": "path",
@@ -28918,10 +28918,10 @@
         ],
         "summary": "update_request",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28939,7 +28939,7 @@
     },
     "/api/v1/operations/requests/{request_id}/attachments": {
       "post": {
-        "operationId": "nasq_operations.OperationsController.upload_attachment.post",
+        "operationId": "webvue_operations.OperationsController.upload_attachment.post",
         "parameters": [
           {
             "in": "path",
@@ -28971,10 +28971,10 @@
         ],
         "summary": "upload_attachment",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -28992,7 +28992,7 @@
     },
     "/api/v1/operations/requests/{request_id}/attachments/{attachment_id}": {
       "delete": {
-        "operationId": "nasq_operations.OperationsController.delete_attachment.delete",
+        "operationId": "webvue_operations.OperationsController.delete_attachment.delete",
         "parameters": [
           {
             "in": "path",
@@ -29032,10 +29032,10 @@
         ],
         "summary": "delete_attachment",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29053,7 +29053,7 @@
     },
     "/api/v1/operations/requests/{request_id}/{action}": {
       "post": {
-        "operationId": "nasq_operations.OperationsController.transition_request.post",
+        "operationId": "webvue_operations.OperationsController.transition_request.post",
         "parameters": [
           {
             "in": "path",
@@ -29093,10 +29093,10 @@
         ],
         "summary": "transition_request",
         "tags": [
-          "nasq_operations"
+          "webvue_operations"
         ],
-        "x-nasq": {
-          "addon": "nasq_operations",
+        "x-webvue": {
+          "addon": "webvue_operations",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29114,7 +29114,7 @@
     },
     "/api/v1/people": {
       "get": {
-        "operationId": "nasq_directory.PeopleController.list_people.get",
+        "operationId": "webvue_directory.PeopleController.list_people.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -29133,17 +29133,17 @@
         ],
         "summary": "list_people",
         "tags": [
-          "nasq_directory"
+          "webvue_directory"
         ],
-        "x-nasq": {
-          "addon": "nasq_directory",
+        "x-webvue": {
+          "addon": "webvue_directory",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": null,
           "controller": "PeopleController",
           "feature_keys": [
-            "registry:nasq.directory"
+            "registry:webvue.directory"
           ],
           "feature_operation": "read",
           "handler": "list_people",
@@ -29154,7 +29154,7 @@
     },
     "/api/v1/project-charter/catalogs/{resource}": {
       "get": {
-        "operationId": "nasq_pmo.ProjectCharterCatalogController.list_catalog.get",
+        "operationId": "webvue_pmo.ProjectCharterCatalogController.list_catalog.get",
         "parameters": [
           {
             "in": "path",
@@ -29186,10 +29186,10 @@
         ],
         "summary": "list_catalog",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29205,7 +29205,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectCharterCatalogController.create_catalog.post",
+        "operationId": "webvue_pmo.ProjectCharterCatalogController.create_catalog.post",
         "parameters": [
           {
             "in": "path",
@@ -29237,10 +29237,10 @@
         ],
         "summary": "create_catalog",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29258,7 +29258,7 @@
     },
     "/api/v1/project-charter/catalogs/{resource}/{item_id}": {
       "delete": {
-        "operationId": "nasq_pmo.ProjectCharterCatalogController.delete_catalog_item.delete",
+        "operationId": "webvue_pmo.ProjectCharterCatalogController.delete_catalog_item.delete",
         "parameters": [
           {
             "in": "path",
@@ -29298,10 +29298,10 @@
         ],
         "summary": "delete_catalog_item",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29317,7 +29317,7 @@
         }
       },
       "get": {
-        "operationId": "nasq_pmo.ProjectCharterCatalogController.get_catalog_item.get",
+        "operationId": "webvue_pmo.ProjectCharterCatalogController.get_catalog_item.get",
         "parameters": [
           {
             "in": "path",
@@ -29357,10 +29357,10 @@
         ],
         "summary": "get_catalog_item",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29376,7 +29376,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.ProjectCharterCatalogController.patch_catalog_item.patch",
+        "operationId": "webvue_pmo.ProjectCharterCatalogController.patch_catalog_item.patch",
         "parameters": [
           {
             "in": "path",
@@ -29416,10 +29416,10 @@
         ],
         "summary": "patch_catalog_item",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29437,7 +29437,7 @@
     },
     "/api/v1/project-charter/defaults": {
       "get": {
-        "operationId": "nasq_pmo.ProjectCharterCatalogController.get_defaults.get",
+        "operationId": "webvue_pmo.ProjectCharterCatalogController.get_defaults.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -29456,10 +29456,10 @@
         ],
         "summary": "get_defaults",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29477,7 +29477,7 @@
     },
     "/api/v1/projects": {
       "get": {
-        "operationId": "nasq_pmo.ProjectController.list_projects.get",
+        "operationId": "webvue_pmo.ProjectController.list_projects.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -29496,10 +29496,10 @@
         ],
         "summary": "list_projects",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29515,7 +29515,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectController.create_project.post",
+        "operationId": "webvue_pmo.ProjectController.create_project.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -29534,10 +29534,10 @@
         ],
         "summary": "create_project",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29555,7 +29555,7 @@
     },
     "/api/v1/projects/{project_id}": {
       "get": {
-        "operationId": "nasq_pmo.ProjectController.get_project.get",
+        "operationId": "webvue_pmo.ProjectController.get_project.get",
         "parameters": [
           {
             "in": "path",
@@ -29587,10 +29587,10 @@
         ],
         "summary": "get_project",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29606,7 +29606,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.ProjectController.patch_project.patch",
+        "operationId": "webvue_pmo.ProjectController.patch_project.patch",
         "parameters": [
           {
             "in": "path",
@@ -29638,10 +29638,10 @@
         ],
         "summary": "patch_project",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29659,7 +29659,7 @@
     },
     "/api/v1/projects/{project_id}/archive": {
       "post": {
-        "operationId": "nasq_pmo.ProjectController.archive_project.post",
+        "operationId": "webvue_pmo.ProjectController.archive_project.post",
         "parameters": [
           {
             "in": "path",
@@ -29691,10 +29691,10 @@
         ],
         "summary": "archive_project",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29712,7 +29712,7 @@
     },
     "/api/v1/projects/{project_id}/charter/approve": {
       "post": {
-        "operationId": "nasq_pmo.ProjectCharterController.approve_charter.post",
+        "operationId": "webvue_pmo.ProjectCharterController.approve_charter.post",
         "parameters": [
           {
             "in": "path",
@@ -29744,10 +29744,10 @@
         ],
         "summary": "approve_charter",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29765,7 +29765,7 @@
     },
     "/api/v1/projects/{project_id}/charter/return": {
       "post": {
-        "operationId": "nasq_pmo.ProjectCharterController.return_charter.post",
+        "operationId": "webvue_pmo.ProjectCharterController.return_charter.post",
         "parameters": [
           {
             "in": "path",
@@ -29797,10 +29797,10 @@
         ],
         "summary": "return_charter",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29818,7 +29818,7 @@
     },
     "/api/v1/projects/{project_id}/charter/submit": {
       "post": {
-        "operationId": "nasq_pmo.ProjectCharterController.submit_charter.post",
+        "operationId": "webvue_pmo.ProjectCharterController.submit_charter.post",
         "parameters": [
           {
             "in": "path",
@@ -29850,10 +29850,10 @@
         ],
         "summary": "submit_charter",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29871,7 +29871,7 @@
     },
     "/api/v1/projects/{project_id}/charter/withdraw": {
       "post": {
-        "operationId": "nasq_pmo.ProjectCharterController.withdraw_charter.post",
+        "operationId": "webvue_pmo.ProjectCharterController.withdraw_charter.post",
         "parameters": [
           {
             "in": "path",
@@ -29903,10 +29903,10 @@
         ],
         "summary": "withdraw_charter",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29924,7 +29924,7 @@
     },
     "/api/v1/projects/{project_id}/copy": {
       "post": {
-        "operationId": "nasq_pmo.ProjectController.copy_project.post",
+        "operationId": "webvue_pmo.ProjectController.copy_project.post",
         "parameters": [
           {
             "in": "path",
@@ -29956,10 +29956,10 @@
         ],
         "summary": "copy_project",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -29977,7 +29977,7 @@
     },
     "/api/v1/projects/{project_id}/finance": {
       "get": {
-        "operationId": "nasq_pmo.ProjectFinanceController.list_finance_entries.get",
+        "operationId": "webvue_pmo.ProjectFinanceController.list_finance_entries.get",
         "parameters": [
           {
             "in": "path",
@@ -30009,10 +30009,10 @@
         ],
         "summary": "list_finance_entries",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30028,7 +30028,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectFinanceController.create_finance_entry.post",
+        "operationId": "webvue_pmo.ProjectFinanceController.create_finance_entry.post",
         "parameters": [
           {
             "in": "path",
@@ -30060,10 +30060,10 @@
         ],
         "summary": "create_finance_entry",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30081,7 +30081,7 @@
     },
     "/api/v1/projects/{project_id}/finance/summary": {
       "get": {
-        "operationId": "nasq_pmo.ProjectFinanceController.get_finance_summary.get",
+        "operationId": "webvue_pmo.ProjectFinanceController.get_finance_summary.get",
         "parameters": [
           {
             "in": "path",
@@ -30113,10 +30113,10 @@
         ],
         "summary": "get_finance_summary",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30134,7 +30134,7 @@
     },
     "/api/v1/projects/{project_id}/finance/{entry_id}": {
       "delete": {
-        "operationId": "nasq_pmo.ProjectFinanceController.delete_finance_entry.delete",
+        "operationId": "webvue_pmo.ProjectFinanceController.delete_finance_entry.delete",
         "parameters": [
           {
             "in": "path",
@@ -30174,10 +30174,10 @@
         ],
         "summary": "delete_finance_entry",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30193,7 +30193,7 @@
         }
       },
       "get": {
-        "operationId": "nasq_pmo.ProjectFinanceController.get_finance_entry.get",
+        "operationId": "webvue_pmo.ProjectFinanceController.get_finance_entry.get",
         "parameters": [
           {
             "in": "path",
@@ -30233,10 +30233,10 @@
         ],
         "summary": "get_finance_entry",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30252,7 +30252,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.ProjectFinanceController.patch_finance_entry.patch",
+        "operationId": "webvue_pmo.ProjectFinanceController.patch_finance_entry.patch",
         "parameters": [
           {
             "in": "path",
@@ -30292,10 +30292,10 @@
         ],
         "summary": "patch_finance_entry",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30313,7 +30313,7 @@
     },
     "/api/v1/projects/{project_id}/followers": {
       "get": {
-        "operationId": "nasq_pmo.ProjectFollowerController.list_followers.get",
+        "operationId": "webvue_pmo.ProjectFollowerController.list_followers.get",
         "parameters": [
           {
             "in": "path",
@@ -30345,10 +30345,10 @@
         ],
         "summary": "list_followers",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30364,7 +30364,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectFollowerController.add_follower.post",
+        "operationId": "webvue_pmo.ProjectFollowerController.add_follower.post",
         "parameters": [
           {
             "in": "path",
@@ -30396,10 +30396,10 @@
         ],
         "summary": "add_follower",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30417,7 +30417,7 @@
     },
     "/api/v1/projects/{project_id}/followers/{user_id}": {
       "delete": {
-        "operationId": "nasq_pmo.ProjectFollowerController.remove_follower.delete",
+        "operationId": "webvue_pmo.ProjectFollowerController.remove_follower.delete",
         "parameters": [
           {
             "in": "path",
@@ -30457,10 +30457,10 @@
         ],
         "summary": "remove_follower",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30478,7 +30478,7 @@
     },
     "/api/v1/projects/{project_id}/milestones": {
       "get": {
-        "operationId": "nasq_pmo.MilestoneController.list_milestones.get",
+        "operationId": "webvue_pmo.MilestoneController.list_milestones.get",
         "parameters": [
           {
             "in": "path",
@@ -30510,10 +30510,10 @@
         ],
         "summary": "list_milestones",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30529,7 +30529,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.MilestoneController.create_milestone.post",
+        "operationId": "webvue_pmo.MilestoneController.create_milestone.post",
         "parameters": [
           {
             "in": "path",
@@ -30561,10 +30561,10 @@
         ],
         "summary": "create_milestone",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30582,7 +30582,7 @@
     },
     "/api/v1/projects/{project_id}/milestones/{mid}": {
       "delete": {
-        "operationId": "nasq_pmo.MilestoneController.delete_milestone.delete",
+        "operationId": "webvue_pmo.MilestoneController.delete_milestone.delete",
         "parameters": [
           {
             "in": "path",
@@ -30622,10 +30622,10 @@
         ],
         "summary": "delete_milestone",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30641,7 +30641,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.MilestoneController.patch_milestone.patch",
+        "operationId": "webvue_pmo.MilestoneController.patch_milestone.patch",
         "parameters": [
           {
             "in": "path",
@@ -30681,10 +30681,10 @@
         ],
         "summary": "patch_milestone",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30702,7 +30702,7 @@
     },
     "/api/v1/projects/{project_id}/phase": {
       "post": {
-        "operationId": "nasq_pmo.ProjectPhaseController.move_phase.post",
+        "operationId": "webvue_pmo.ProjectPhaseController.move_phase.post",
         "parameters": [
           {
             "in": "path",
@@ -30734,10 +30734,10 @@
         ],
         "summary": "move_phase",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30755,7 +30755,7 @@
     },
     "/api/v1/projects/{project_id}/raci": {
       "get": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.list_raci.get",
+        "operationId": "webvue_pmo.ProjectGovernanceController.list_raci.get",
         "parameters": [
           {
             "in": "path",
@@ -30787,10 +30787,10 @@
         ],
         "summary": "list_raci",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30806,7 +30806,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.create_raci.post",
+        "operationId": "webvue_pmo.ProjectGovernanceController.create_raci.post",
         "parameters": [
           {
             "in": "path",
@@ -30838,10 +30838,10 @@
         ],
         "summary": "create_raci",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30859,7 +30859,7 @@
     },
     "/api/v1/projects/{project_id}/raci/{item_id}": {
       "delete": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.delete_raci.delete",
+        "operationId": "webvue_pmo.ProjectGovernanceController.delete_raci.delete",
         "parameters": [
           {
             "in": "path",
@@ -30899,10 +30899,10 @@
         ],
         "summary": "delete_raci",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30918,7 +30918,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.patch_raci.patch",
+        "operationId": "webvue_pmo.ProjectGovernanceController.patch_raci.patch",
         "parameters": [
           {
             "in": "path",
@@ -30958,10 +30958,10 @@
         ],
         "summary": "patch_raci",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -30979,7 +30979,7 @@
     },
     "/api/v1/projects/{project_id}/register": {
       "get": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.list_register.get",
+        "operationId": "webvue_pmo.ProjectGovernanceController.list_register.get",
         "parameters": [
           {
             "in": "path",
@@ -31011,10 +31011,10 @@
         ],
         "summary": "list_register",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31030,7 +31030,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.create_register.post",
+        "operationId": "webvue_pmo.ProjectGovernanceController.create_register.post",
         "parameters": [
           {
             "in": "path",
@@ -31062,10 +31062,10 @@
         ],
         "summary": "create_register",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31083,7 +31083,7 @@
     },
     "/api/v1/projects/{project_id}/register/{item_id}": {
       "delete": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.delete_register.delete",
+        "operationId": "webvue_pmo.ProjectGovernanceController.delete_register.delete",
         "parameters": [
           {
             "in": "path",
@@ -31123,10 +31123,10 @@
         ],
         "summary": "delete_register",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31142,7 +31142,7 @@
         }
       },
       "get": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.get_register.get",
+        "operationId": "webvue_pmo.ProjectGovernanceController.get_register.get",
         "parameters": [
           {
             "in": "path",
@@ -31182,10 +31182,10 @@
         ],
         "summary": "get_register",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31201,7 +31201,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.patch_register.patch",
+        "operationId": "webvue_pmo.ProjectGovernanceController.patch_register.patch",
         "parameters": [
           {
             "in": "path",
@@ -31241,10 +31241,10 @@
         ],
         "summary": "patch_register",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31262,7 +31262,7 @@
     },
     "/api/v1/projects/{project_id}/schedule": {
       "get": {
-        "operationId": "nasq_pmo.ProjectScheduleController.get_schedule.get",
+        "operationId": "webvue_pmo.ProjectScheduleController.get_schedule.get",
         "parameters": [
           {
             "in": "path",
@@ -31294,10 +31294,10 @@
         ],
         "summary": "get_schedule",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31315,7 +31315,7 @@
     },
     "/api/v1/projects/{project_id}/schedule/tasks/{task_id}": {
       "patch": {
-        "operationId": "nasq_pmo.ProjectScheduleController.patch_schedule_task.patch",
+        "operationId": "webvue_pmo.ProjectScheduleController.patch_schedule_task.patch",
         "parameters": [
           {
             "in": "path",
@@ -31355,10 +31355,10 @@
         ],
         "summary": "patch_schedule_task",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31376,7 +31376,7 @@
     },
     "/api/v1/projects/{project_id}/stages": {
       "post": {
-        "operationId": "nasq_pmo.ProjectStageController.add_stage.post",
+        "operationId": "webvue_pmo.ProjectStageController.add_stage.post",
         "parameters": [
           {
             "in": "path",
@@ -31408,10 +31408,10 @@
         ],
         "summary": "add_stage",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31429,7 +31429,7 @@
     },
     "/api/v1/projects/{project_id}/stages/order": {
       "put": {
-        "operationId": "nasq_pmo.ProjectStageController.reorder_stages.put",
+        "operationId": "webvue_pmo.ProjectStageController.reorder_stages.put",
         "parameters": [
           {
             "in": "path",
@@ -31461,10 +31461,10 @@
         ],
         "summary": "reorder_stages",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31482,7 +31482,7 @@
     },
     "/api/v1/projects/{project_id}/stages/{stage_id}": {
       "delete": {
-        "operationId": "nasq_pmo.ProjectStageController.delete_stage.delete",
+        "operationId": "webvue_pmo.ProjectStageController.delete_stage.delete",
         "parameters": [
           {
             "in": "path",
@@ -31522,10 +31522,10 @@
         ],
         "summary": "delete_stage",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31541,7 +31541,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.ProjectStageController.patch_stage.patch",
+        "operationId": "webvue_pmo.ProjectStageController.patch_stage.patch",
         "parameters": [
           {
             "in": "path",
@@ -31581,10 +31581,10 @@
         ],
         "summary": "patch_stage",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31602,7 +31602,7 @@
     },
     "/api/v1/projects/{project_id}/stakeholders": {
       "get": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.list_stakeholders.get",
+        "operationId": "webvue_pmo.ProjectGovernanceController.list_stakeholders.get",
         "parameters": [
           {
             "in": "path",
@@ -31634,10 +31634,10 @@
         ],
         "summary": "list_stakeholders",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31653,7 +31653,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.create_stakeholder.post",
+        "operationId": "webvue_pmo.ProjectGovernanceController.create_stakeholder.post",
         "parameters": [
           {
             "in": "path",
@@ -31685,10 +31685,10 @@
         ],
         "summary": "create_stakeholder",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31706,7 +31706,7 @@
     },
     "/api/v1/projects/{project_id}/stakeholders/{item_id}": {
       "delete": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.delete_stakeholder.delete",
+        "operationId": "webvue_pmo.ProjectGovernanceController.delete_stakeholder.delete",
         "parameters": [
           {
             "in": "path",
@@ -31746,10 +31746,10 @@
         ],
         "summary": "delete_stakeholder",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31765,7 +31765,7 @@
         }
       },
       "get": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.get_stakeholder.get",
+        "operationId": "webvue_pmo.ProjectGovernanceController.get_stakeholder.get",
         "parameters": [
           {
             "in": "path",
@@ -31805,10 +31805,10 @@
         ],
         "summary": "get_stakeholder",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31824,7 +31824,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.ProjectGovernanceController.patch_stakeholder.patch",
+        "operationId": "webvue_pmo.ProjectGovernanceController.patch_stakeholder.patch",
         "parameters": [
           {
             "in": "path",
@@ -31864,10 +31864,10 @@
         ],
         "summary": "patch_stakeholder",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31885,7 +31885,7 @@
     },
     "/api/v1/projects/{project_id}/status": {
       "post": {
-        "operationId": "nasq_pmo.ProjectController.set_status.post",
+        "operationId": "webvue_pmo.ProjectController.set_status.post",
         "parameters": [
           {
             "in": "path",
@@ -31917,10 +31917,10 @@
         ],
         "summary": "set_status",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31938,7 +31938,7 @@
     },
     "/api/v1/projects/{project_id}/unarchive": {
       "post": {
-        "operationId": "nasq_pmo.ProjectController.unarchive_project.post",
+        "operationId": "webvue_pmo.ProjectController.unarchive_project.post",
         "parameters": [
           {
             "in": "path",
@@ -31970,10 +31970,10 @@
         ],
         "summary": "unarchive_project",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -31991,7 +31991,7 @@
     },
     "/api/v1/projects/{project_id}/updates": {
       "get": {
-        "operationId": "nasq_pmo.ProjectUpdateController.list_updates.get",
+        "operationId": "webvue_pmo.ProjectUpdateController.list_updates.get",
         "parameters": [
           {
             "in": "path",
@@ -32023,10 +32023,10 @@
         ],
         "summary": "list_updates",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32042,7 +32042,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.ProjectUpdateController.create_update.post",
+        "operationId": "webvue_pmo.ProjectUpdateController.create_update.post",
         "parameters": [
           {
             "in": "path",
@@ -32074,10 +32074,10 @@
         ],
         "summary": "create_update",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32095,7 +32095,7 @@
     },
     "/api/v1/reports/projects": {
       "get": {
-        "operationId": "nasq_pmo.ProjectReportsController.list_project_reports.get",
+        "operationId": "webvue_pmo.ProjectReportsController.list_project_reports.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32114,10 +32114,10 @@
         ],
         "summary": "list_project_reports",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32135,7 +32135,7 @@
     },
     "/api/v1/reports/projects/analytics": {
       "get": {
-        "operationId": "nasq_pmo.ProjectReportsController.project_dashboard_analytics.get",
+        "operationId": "webvue_pmo.ProjectReportsController.project_dashboard_analytics.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32154,10 +32154,10 @@
         ],
         "summary": "project_dashboard_analytics",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32175,7 +32175,7 @@
     },
     "/api/v1/reports/projects/summary": {
       "get": {
-        "operationId": "nasq_pmo.ProjectReportsController.project_dashboard_summary.get",
+        "operationId": "webvue_pmo.ProjectReportsController.project_dashboard_summary.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32194,10 +32194,10 @@
         ],
         "summary": "project_dashboard_summary",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32215,7 +32215,7 @@
     },
     "/api/v1/settings/projects": {
       "get": {
-        "operationId": "nasq_pmo.SettingsController.get_project_settings.get",
+        "operationId": "webvue_pmo.SettingsController.get_project_settings.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32234,10 +32234,10 @@
         ],
         "summary": "get_project_settings",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32253,7 +32253,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.SettingsController.patch_project_settings.patch",
+        "operationId": "webvue_pmo.SettingsController.patch_project_settings.patch",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32272,10 +32272,10 @@
         ],
         "summary": "patch_project_settings",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32293,7 +32293,7 @@
     },
     "/api/v1/settings/projects/create-defaults": {
       "get": {
-        "operationId": "nasq_pmo.SettingsController.get_project_create_defaults.get",
+        "operationId": "webvue_pmo.SettingsController.get_project_create_defaults.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32312,10 +32312,10 @@
         ],
         "summary": "get_project_create_defaults",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32333,7 +32333,7 @@
     },
     "/api/v1/tags": {
       "get": {
-        "operationId": "nasq_pmo.TagController.list_tags.get",
+        "operationId": "webvue_pmo.TagController.list_tags.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32352,10 +32352,10 @@
         ],
         "summary": "list_tags",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32371,7 +32371,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.TagController.create_tag.post",
+        "operationId": "webvue_pmo.TagController.create_tag.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32390,10 +32390,10 @@
         ],
         "summary": "create_tag",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32411,7 +32411,7 @@
     },
     "/api/v1/tasks": {
       "get": {
-        "operationId": "nasq_pmo.TaskController.list_tasks.get",
+        "operationId": "webvue_pmo.TaskController.list_tasks.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32430,10 +32430,10 @@
         ],
         "summary": "list_tasks",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32449,7 +32449,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.TaskController.create_task.post",
+        "operationId": "webvue_pmo.TaskController.create_task.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32468,10 +32468,10 @@
         ],
         "summary": "create_task",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32489,7 +32489,7 @@
     },
     "/api/v1/tasks/archived": {
       "get": {
-        "operationId": "nasq_pmo.TaskArchiveController.list_archived.get",
+        "operationId": "webvue_pmo.TaskArchiveController.list_archived.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -32508,10 +32508,10 @@
         ],
         "summary": "list_archived",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32529,7 +32529,7 @@
     },
     "/api/v1/tasks/{task_id}": {
       "get": {
-        "operationId": "nasq_pmo.TaskController.get_task.get",
+        "operationId": "webvue_pmo.TaskController.get_task.get",
         "parameters": [
           {
             "in": "path",
@@ -32561,10 +32561,10 @@
         ],
         "summary": "get_task",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32580,7 +32580,7 @@
         }
       },
       "patch": {
-        "operationId": "nasq_pmo.TaskController.patch_task.patch",
+        "operationId": "webvue_pmo.TaskController.patch_task.patch",
         "parameters": [
           {
             "in": "path",
@@ -32612,10 +32612,10 @@
         ],
         "summary": "patch_task",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32633,7 +32633,7 @@
     },
     "/api/v1/tasks/{task_id}/archive": {
       "post": {
-        "operationId": "nasq_pmo.TaskController.archive_task.post",
+        "operationId": "webvue_pmo.TaskController.archive_task.post",
         "parameters": [
           {
             "in": "path",
@@ -32665,10 +32665,10 @@
         ],
         "summary": "archive_task",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32686,7 +32686,7 @@
     },
     "/api/v1/tasks/{task_id}/attachments": {
       "get": {
-        "operationId": "nasq_pmo.TaskAttachmentController.list_task_attachments.get",
+        "operationId": "webvue_pmo.TaskAttachmentController.list_task_attachments.get",
         "parameters": [
           {
             "in": "path",
@@ -32718,10 +32718,10 @@
         ],
         "summary": "list_task_attachments",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32737,7 +32737,7 @@
         }
       },
       "post": {
-        "operationId": "nasq_pmo.TaskAttachmentController.upload_task_attachment.post",
+        "operationId": "webvue_pmo.TaskAttachmentController.upload_task_attachment.post",
         "parameters": [
           {
             "in": "path",
@@ -32769,10 +32769,10 @@
         ],
         "summary": "upload_task_attachment",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32790,7 +32790,7 @@
     },
     "/api/v1/tasks/{task_id}/attachments/{attachment_id}": {
       "delete": {
-        "operationId": "nasq_pmo.TaskAttachmentController.delete_task_attachment.delete",
+        "operationId": "webvue_pmo.TaskAttachmentController.delete_task_attachment.delete",
         "parameters": [
           {
             "in": "path",
@@ -32830,10 +32830,10 @@
         ],
         "summary": "delete_task_attachment",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32851,7 +32851,7 @@
     },
     "/api/v1/tasks/{task_id}/comments": {
       "post": {
-        "operationId": "nasq_pmo.TimelineController.post_comment.post",
+        "operationId": "webvue_pmo.TimelineController.post_comment.post",
         "parameters": [
           {
             "in": "path",
@@ -32883,10 +32883,10 @@
         ],
         "summary": "post_comment",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32904,7 +32904,7 @@
     },
     "/api/v1/tasks/{task_id}/completion/accept": {
       "post": {
-        "operationId": "nasq_pmo.TaskController.accept_completion.post",
+        "operationId": "webvue_pmo.TaskController.accept_completion.post",
         "parameters": [
           {
             "in": "path",
@@ -32936,10 +32936,10 @@
         ],
         "summary": "accept_completion",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -32957,7 +32957,7 @@
     },
     "/api/v1/tasks/{task_id}/completion/request": {
       "post": {
-        "operationId": "nasq_pmo.TaskController.request_completion.post",
+        "operationId": "webvue_pmo.TaskController.request_completion.post",
         "parameters": [
           {
             "in": "path",
@@ -32989,10 +32989,10 @@
         ],
         "summary": "request_completion",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33010,7 +33010,7 @@
     },
     "/api/v1/tasks/{task_id}/completion/return": {
       "post": {
-        "operationId": "nasq_pmo.TaskController.return_completion.post",
+        "operationId": "webvue_pmo.TaskController.return_completion.post",
         "parameters": [
           {
             "in": "path",
@@ -33042,10 +33042,10 @@
         ],
         "summary": "return_completion",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33063,7 +33063,7 @@
     },
     "/api/v1/tasks/{task_id}/completion/withdraw": {
       "post": {
-        "operationId": "nasq_pmo.TaskController.withdraw_completion.post",
+        "operationId": "webvue_pmo.TaskController.withdraw_completion.post",
         "parameters": [
           {
             "in": "path",
@@ -33095,10 +33095,10 @@
         ],
         "summary": "withdraw_completion",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33116,7 +33116,7 @@
     },
     "/api/v1/tasks/{task_id}/dependencies": {
       "get": {
-        "operationId": "nasq_pmo.TaskDependencyController.list_dependencies.get",
+        "operationId": "webvue_pmo.TaskDependencyController.list_dependencies.get",
         "parameters": [
           {
             "in": "path",
@@ -33148,10 +33148,10 @@
         ],
         "summary": "list_dependencies",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33167,7 +33167,7 @@
         }
       },
       "put": {
-        "operationId": "nasq_pmo.TaskDependencyController.set_dependencies.put",
+        "operationId": "webvue_pmo.TaskDependencyController.set_dependencies.put",
         "parameters": [
           {
             "in": "path",
@@ -33199,10 +33199,10 @@
         ],
         "summary": "set_dependencies",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33220,7 +33220,7 @@
     },
     "/api/v1/tasks/{task_id}/dependencies/candidates": {
       "get": {
-        "operationId": "nasq_pmo.TaskDependencyController.list_candidates.get",
+        "operationId": "webvue_pmo.TaskDependencyController.list_candidates.get",
         "parameters": [
           {
             "in": "path",
@@ -33252,10 +33252,10 @@
         ],
         "summary": "list_candidates",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33273,7 +33273,7 @@
     },
     "/api/v1/tasks/{task_id}/thread-tasks": {
       "get": {
-        "operationId": "nasq_pmo.TimelineController.thread_tasks.get",
+        "operationId": "webvue_pmo.TimelineController.thread_tasks.get",
         "parameters": [
           {
             "in": "path",
@@ -33305,10 +33305,10 @@
         ],
         "summary": "Tasks a comment on this task may reference with `/`: its family, minus itself.",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33326,7 +33326,7 @@
     },
     "/api/v1/tasks/{task_id}/timeline": {
       "get": {
-        "operationId": "nasq_pmo.TimelineController.timeline.get",
+        "operationId": "webvue_pmo.TimelineController.timeline.get",
         "parameters": [
           {
             "in": "path",
@@ -33358,10 +33358,10 @@
         ],
         "summary": "timeline",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33379,7 +33379,7 @@
     },
     "/api/v1/tasks/{task_id}/transition": {
       "post": {
-        "operationId": "nasq_pmo.TaskController.transition_task.post",
+        "operationId": "webvue_pmo.TaskController.transition_task.post",
         "parameters": [
           {
             "in": "path",
@@ -33411,10 +33411,10 @@
         ],
         "summary": "transition_task",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33432,7 +33432,7 @@
     },
     "/api/v1/tasks/{task_id}/unarchive": {
       "post": {
-        "operationId": "nasq_pmo.TaskArchiveController.unarchive_task.post",
+        "operationId": "webvue_pmo.TaskArchiveController.unarchive_task.post",
         "parameters": [
           {
             "in": "path",
@@ -33464,10 +33464,10 @@
         ],
         "summary": "unarchive_task",
         "tags": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
-        "x-nasq": {
-          "addon": "nasq_pmo",
+        "x-webvue": {
+          "addon": "webvue_pmo",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -33491,17 +33491,17 @@
     }
   ],
   "tags": [
-    "nasq_ai",
-    "nasq_api",
-    "nasq_chat",
-    "nasq_directory",
-    "nasq_hr",
-    "nasq_meetings",
-    "nasq_meetings_pmo",
-    "nasq_notify",
-    "nasq_operations",
-    "nasq_pmo",
-    "nasq_tasks",
-    "nasq_tasks_pmo"
+    "webvue_ai",
+    "webvue_api",
+    "webvue_chat",
+    "webvue_directory",
+    "webvue_hr",
+    "webvue_meetings",
+    "webvue_meetings_pmo",
+    "webvue_notify",
+    "webvue_operations",
+    "webvue_pmo",
+    "webvue_tasks",
+    "webvue_tasks_pmo"
   ]
 }

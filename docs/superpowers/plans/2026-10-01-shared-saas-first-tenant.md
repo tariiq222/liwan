@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Worktree `/Users/tariq/.codex/worktrees/saas-real-lifecycle/nasq`, branch `codex/saas-real-lifecycle`, baseline `3899a095a3e6f608c90697faaead0b371ecbc9a3`.
+- Worktree `/Users/tariq/.codex/worktrees/saas-real-lifecycle/webvue`, branch `codex/saas-real-lifecycle`, baseline `3899a095a3e6f608c90697faaead0b371ecbc9a3`.
 - No commits, merges, pushes, deployment, deletion, or changes to existing runtimes/databases. Never use `odoo19`. Stock `/Users/tariq/code/odoo` is read-only.
 - Odoo tests/runtime only on the new explicitly isolated Docker project and scratch databases; orchestrator owns runtime. Workers run only the named focused diagnostics.
 - First milestone only: real provisioning and admin browser journey. Backup/restore and second-tenant lifecycle are subsequent milestones, not success claims in this plan.
@@ -26,8 +26,8 @@
 - Shared UI onboarding: signed `POST /v1/shared/tenants`, strict body `{ request_id: UUID, name: string, catalog_version: string, catalog_tier: string, admin_name: string, admin_login: string, reason: string }`. Response `{ tenant_id: UUID, job_id: UUID|null, status: string, host: string, replay: boolean }`. A partial failure remains visible and retryable by the same request, without a second tenant or blind effect retry.
 - Shared progress: signed `GET /v1/shared/tenants/:id/provisioning`; whitelisted `{ tenant_id, job_id, status, host, admin_login, stage, error_code }`, nullable fields explicitly typed. No password/path/log in HTTP.
 - Context adds `shared_onboarding_enabled: boolean` only when the shared runtime is explicitly configured. UI leaves the dedicated form unchanged when false.
-- Server derives tenantId/DB from request identity, using `nasq_scratch_` DB prefix compatible with `tools/nasq_cli/managed_verify.py`; hostname uses configured local suffix, never caller filesystem paths.
-- Runtime config is private JSON selected by `NASQ_SHARED_RUNTIME_CONFIG`, initially `{schemaVersion:1, projectName, composeFile, envFile, stateDir, domainSuffix}` with absolute file paths and explicit project validation. Compose service names `db` and `odoo`; mounted operator files at `/run/nasq-runtime`. Runtime state contains private `credentials/`, `classifications/`, and operation reservations. Backend implementer documents any necessary schema additions before harness integration.
+- Server derives tenantId/DB from request identity, using `webvue_scratch_` DB prefix compatible with `tools/webvue_cli/managed_verify.py`; hostname uses configured local suffix, never caller filesystem paths.
+- Runtime config is private JSON selected by `WEBVUE_SHARED_RUNTIME_CONFIG`, initially `{schemaVersion:1, projectName, composeFile, envFile, stateDir, domainSuffix}` with absolute file paths and explicit project validation. Compose service names `db` and `odoo`; mounted operator files at `/run/webvue-runtime`. Runtime state contains private `credentials/`, `classifications/`, and operation reservations. Backend implementer documents any necessary schema additions before harness integration.
 - `tools/shared_saas_lifecycle/odoo_effect.py` is the bounded physical runner. It consumes validated JSON on stdin and emits one bounded, whitelisted JSON result. No shell interpolation or caller-selected executable. Reuse existing managed policy/credential helpers where their contracts fit.
 - Provision database binding is durably reserved before enqueue; customer route stays closed until real checks pass. Keep existing enabled-binding semantics for reference jobs; do not globally permit disabled customers. Provisioning exception must be tied to the server-created onboarding record and exact request/digest.
 - A fresh route publication after readiness increments registry revision; reconciliation must deliberately handle completed job binding revision without weakening general binding immutability.
@@ -69,7 +69,7 @@
 - [x] Create unique Compose project, private secrets, vendor identity and published fixture catalog only. Customer DB must start absent; only worker may create it.
 - [x] Start new Postgres/Odoo/guard/web/edge plus control API/worker; verify health with bounded waits. Reuse verified base image content where unchanged and record image IDs/source hashes; build changed UI from this worktree.
 - [x] Drive vendor form in real browser, watch queued→running→ready, log in as generated admin, create project/task and upload/download attachment; compare bytes. Record screenshots, job id, DB/module/policy readback and source hashes without credentials.
-- [x] Run integrated control-plane typecheck/focused changed suites, meaningful live PG tests on a dedicated `nasq_control_scratch_*`, Python diagnostics, web applicable checks and browser journey. Diagnose baseline separately. No claim of overall SaaS readiness.
+- [x] Run integrated control-plane typecheck/focused changed suites, meaningful live PG tests on a dedicated `webvue_control_scratch_*`, Python diagnostics, web applicable checks and browser journey. Diagnose baseline separately. No claim of overall SaaS readiness.
 - [x] Independent review of actual changed/untracked diff; fix actionable issues and recheck affected paths. Retain worktree and volumes; no commit or merge. Record first milestone achieved only if browser journey passes.
 
 ## Completion evidence

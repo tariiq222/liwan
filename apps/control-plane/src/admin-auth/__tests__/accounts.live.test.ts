@@ -12,8 +12,8 @@ else describe('accounts', () => {
   beforeEach(async () => {
     await migrate(pool)
     await pool.query('TRUNCATE vendor_accounts, audit_events CASCADE')
-    a = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('a@nasq.sa','A','active','x') RETURNING id")).rows[0].id
-    b = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@nasq.sa','B','active','x') RETURNING id")).rows[0].id
+    a = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('a@webvue.sa','A','active','x') RETURNING id")).rows[0].id
+    b = (await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@webvue.sa','B','active','x') RETURNING id")).rows[0].id
     await pool.query("INSERT INTO vendor_account_roles VALUES($1,'owner'),($2,'owner')", [a, b])
   })
   afterAll(async () => { await pool.end() })

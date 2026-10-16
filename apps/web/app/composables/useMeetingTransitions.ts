@@ -1,5 +1,5 @@
 import { computed, ref, type Ref } from 'vue'
-import type { MeetingDetail } from '@nasq/contracts'
+import type { MeetingDetail } from '@webvue/contracts'
 import { ApiError } from './useApi'
 import { useMeetingAction } from './useMeetings'
 

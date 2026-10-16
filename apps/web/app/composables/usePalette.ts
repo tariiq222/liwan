@@ -9,7 +9,7 @@ interface PaletteState { open: boolean; view: PaletteView; term: string }
  * layer and stories. `useState` keeps one state per request on the server and one per app on the client.
  */
 export function usePalette() {
-  const state = useState<PaletteState>('nasq-palette', () => ({ open: false, view: 'main', term: '' }))
+  const state = useState<PaletteState>('webvue-palette', () => ({ open: false, view: 'main', term: '' }))
   function show(view: PaletteView = 'main', term = '') {
     state.value = { open: true, view, term }
   }

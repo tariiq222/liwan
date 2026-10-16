@@ -33,7 +33,7 @@ class TestRestoreVerify(unittest.TestCase):
             tool.write_text('')
             self.tools[name] = str(tool)
 
-    def run_verify(self, backup, psql_answers, target_db='nasq_restore_scratch'):
+    def run_verify(self, backup, psql_answers, target_db='webvue_restore_scratch'):
         answers = iter(psql_answers)
 
         def runner(argv, **_):

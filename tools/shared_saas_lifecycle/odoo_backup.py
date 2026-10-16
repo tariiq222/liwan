@@ -127,7 +127,7 @@ with connect(database) as conn:
   cr.execute('SELECT count(*) FROM project_task'); tasks=cr.fetchone()[0]
   cr.execute("SELECT name,latest_version,state FROM ir_module_module WHERE state IN ('installed','to install','to upgrade','to remove') ORDER BY name"); modules=cr.fetchall()
   if any(row[2]!='installed' for row in modules): raise Exception('module_state')
-  cr.execute('SELECT row_to_json(p) FROM nasq_tenant_profile p ORDER BY id'); profile=[r[0] for r in cr.fetchall()]
+  cr.execute('SELECT row_to_json(p) FROM webvue_tenant_profile p ORDER BY id'); profile=[r[0] for r in cr.fetchall()]
   if len(profile)!=1 or profile[0].get('policy_revision',0)<1: raise Exception('profile')
 print(json.dumps({'attachments':attachments,'databaseAttachments':database_attachments,'projects':projects,'tasks':tasks,'modules':modules,'profile':profile},default=str,separators=(',',':')))
 '''
@@ -195,7 +195,7 @@ class BackupRunner(Runner):
         self.current_container = name
         # Fixed script, validated positional DB argument. Password stays in service env.
         args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', name,
-            '--entrypoint', '/bin/sh', service, '-c', script, 'nasq-backup', database]
+            '--entrypoint', '/bin/sh', service, '-c', script, 'webvue-backup', database]
         self.stream(args, destination=destination, source=source)
 
     def inspect_service(self, service):
@@ -322,7 +322,7 @@ print('{}')
         # No ordinary application session may remain in any source tenant DB.
         script=CONNECTION+'''\nwith connect('postgres') as c:
  with c.cursor() as cr:
-  cr.execute("SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'nasq_scratch_%' AND backend_type='client backend'")
+  cr.execute("SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'webvue_scratch_%' AND backend_type='client backend'")
   assert cr.fetchone()[0]==0
 print('{}')
 '''

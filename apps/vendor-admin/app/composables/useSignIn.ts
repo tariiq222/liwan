@@ -2,7 +2,7 @@ import { reactive, ref } from 'vue'
 import { startAuthentication, type AuthenticationResponseJSON, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import { authErrorKey } from '../utils/authError'
 import { authPost, type AuthPost } from '../utils/authPost'
-import { safeSameAppPath } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeSameAppPath } from '@webvue/ui/app/utils/safeReturnTo'
 import { AUTH_PATHS } from '../utils/authPaths'
 
 export type SignInMode = 'passkey' | 'fallback' | 'recovery'

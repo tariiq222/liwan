@@ -1,6 +1,6 @@
 import pytest
 
-from nasq_ai_service.settings import CleanupSettings, Settings, SettingsError
+from webvue_ai_service.settings import CleanupSettings, Settings, SettingsError
 
 
 def test_settings_from_env_reads_the_provider_and_defaults():

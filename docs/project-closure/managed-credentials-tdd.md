@@ -6,7 +6,7 @@ Derived from the parent coordinator's authorized implementation task: before exp
 one newly created isolated SaaS stack, initialize the explicit human administrator's
 login password and independently verify its stored hash. Only these files are owned:
 
-- `tools/nasq_cli/managed_credentials.py`
+- `tools/webvue_cli/managed_credentials.py`
 - `tools/test_managed_credentials.py`
 - this evidence record
 
@@ -26,12 +26,12 @@ parse_credentials(stdout, database, *, expected_changed=True) -> dict
 private underlying exception or input. Apply emits exactly one success sentinel:
 
 ```text
-NASQ_MANAGED_CREDENTIALS:{"changed": true, "database": "nasq_scratch_...", "verified": true}
+WEBVUE_MANAGED_CREDENTIALS:{"changed": true, "database": "webvue_scratch_...", "verified": true}
 ```
 
 The independent snapshot emits `changed:false`; parse it with
-`expected_changed=False`. Both scripts consume `NASQ_ADMIN_PASSWORD` from their
-one-shot process environment. The parent passes `-e NASQ_ADMIN_PASSWORD` before
+`expected_changed=False`. Both scripts consume `WEBVUE_ADMIN_PASSWORD` from their
+one-shot process environment. The parent passes `-e WEBVUE_ADMIN_PASSWORD` before
 the Compose service name, never a command-line password value. Neither builder
 accepts or embeds secret bytes. Do not print environment values or raw child logs.
 The parser returns only whitelisted fields, not surrounding logs.
@@ -46,7 +46,7 @@ a standalone authorization to rotate an existing installation's password.
 Scripts require the exact scratch DB, root UID 1 with `su=True`, singleton active
 SaaS/control-plane profile at revision one with nonempty feature dictionary, and
 explicit active `base.user_admin` with login `admin` in the root company. The apply
-script locks the profile, writes through `_nasq_access_write`, flushes password,
+script locks the profile, writes through `_webvue_access_write`, flushes password,
 queries the hash by the resolved administrator ID, verifies the supplied password
 and rejects the shipped `admin` password before its single commit. Errors roll
 back and emit one generic refusal. The separate snapshot begins a read-only
@@ -62,10 +62,10 @@ outside this bounded acceptance setup.
 
 ## Source-supported behavior
 
-- `odoo-addons/nasq_core/models/res_users.py:119-151`: the private mutation helper
+- `odoo-addons/webvue_core/models/res_users.py:119-151`: the private mutation helper
   authorizes actual superuser, owns its internal marker, bumps access version, and
   suppresses the ordinary password-security email. No fake marker or extra sudo is used.
-- `odoo-addons/nasq_core/models/access_service.py:454-459`: the customer reset service
+- `odoo-addons/webvue_core/models/access_service.py:454-459`: the customer reset service
   forbids vendor-support resets; it is intentionally not reused or weakened.
 - Stock Odoo `odoo/cli/shell.py:138-149` uses superuser and rolls back on shell exit;
   `odoo/orm/environments.py:64-67` forces UID 1 into superuser mode.

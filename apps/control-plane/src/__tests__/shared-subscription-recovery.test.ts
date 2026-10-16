@@ -31,7 +31,7 @@ describe.skipIf(!scratchUrl)('subscription recovery integration-fake',()=>{
     const s=await seedOrder(pool);await processFulfillmentOutbox(pool,{limit:100})
     const job=(await pool.query('SELECT id FROM shared_jobs WHERE control_tenant_id=$1',[s.tenant])).rows[0]
     await runSubscriptionReconfigure(pool,job.id,async()=>s.receipt)
-    const target={database:'nasq_scratch_restore_'+s.tenant.replaceAll('-','').slice(0,12),filestore:'',host:'restore.test'};target.filestore=target.database
+    const target={database:'webvue_scratch_restore_'+s.tenant.replaceAll('-','').slice(0,12),filestore:'',host:'restore.test'};target.filestore=target.database
     // A restore approval is mandatory; reuse the existing backup/approval authority shape.
     const backup=randomUUID(),restore=randomUUID()
     const binding=(await pool.query('SELECT * FROM shared_registry_bindings WHERE control_tenant_id=$1',[s.tenant])).rows[0]

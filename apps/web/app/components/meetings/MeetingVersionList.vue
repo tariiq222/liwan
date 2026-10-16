@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
 type MeetingVersion = {
   id: number
@@ -24,7 +24,7 @@ const hydrated = useHydrated()
 const pages = computed(() => Math.max(1, Math.ceil((props.total ?? 0) / props.pageSize)))
 
 function capturedAt(value: string) {
-  return formatNasqDateTime(value, locale.value)
+  return formatWebVueDateTime(value, locale.value)
 }
 </script>
 

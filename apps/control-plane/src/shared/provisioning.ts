@@ -3,7 +3,7 @@ import { z } from 'zod'
 import {
   sharedJobSchema, sharedJournalSchema, sharedObservationSchema, sharedReceiptSchema, tenantBindingSchema,
   type SharedJob, type TenantBinding,
-} from '@nasq/commercial-contracts/shared'
+} from '@webvue/commercial-contracts/shared'
 
 function freeze<T>(value: T): T {
   if (value && typeof value === 'object') {

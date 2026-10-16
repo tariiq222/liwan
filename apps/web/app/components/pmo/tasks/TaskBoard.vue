@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Task, TaskState } from '@nasq/contracts'
+import type { Task, TaskState } from '@webvue/contracts'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { BoardStage, StageSource } from '@/composables/boardStages'
 import { moveTo, stageOf } from '@/composables/boardStages'
@@ -7,10 +7,10 @@ import { STATE_LABEL_KEY, taskStateBadge } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useTasks, useTransitionTask, useUpdateTask } from '@/composables/useTasks'
-import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
+import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
 import { usePersonalStages } from '@/composables/usePersonalStages'
 import TaskCard from './TaskCard.vue'
-import EmptyState from '@nasq/ui/app/components/shared/feedback/EmptyState.vue'
+import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
 
 function isBoardCapped(loadedCount: number, cap: number, hasNextPage: boolean): boolean {
   return loadedCount > cap || (loadedCount >= cap && hasNextPage)

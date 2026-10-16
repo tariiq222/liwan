@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { MilestoneSchema, type Milestone, type MilestonePatch } from '@nasq/contracts'
+import { MilestoneSchema, type Milestone, type MilestonePatch } from '@webvue/contracts'
 import { projectKeys } from './projectKeys'
 
 const MilestoneListSchema = MilestoneSchema.array()

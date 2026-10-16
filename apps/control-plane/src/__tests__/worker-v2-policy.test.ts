@@ -22,14 +22,14 @@ async function config(adapter: (invocation: OperatorInvocation) => Promise<{ cod
   const { mkdtemp, writeFile } = await import('node:fs/promises')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  const fixture = await mkdtemp(join(tmpdir(), 'nasq-worker-v2-'))
+  const fixture = await mkdtemp(join(tmpdir(), 'webvue-worker-v2-'))
   const classification = join(fixture, 'classification.json')
   const inventory = join(fixture, 'inventory.json')
   const managed = join(fixture, 'managed.json')
   const digest = `sha256:${'a'.repeat(64)}`
   const descriptor = { adapter: { kind: 'compose-local', version: 1 }, allowed_operations: ['tenant.create'], commercial_mode: 'saas', environment_id: 'env-a',
     release_ref: { catalog_version: 'catalog-v1', catalog_sha256: digest, identity_kind: 'image_id', odoo_image: digest, web_image: digest, proxy_image: digest },
-    resource_refs: { project: 'managed-fixture', compose_file: join(fixture, 'compose.yml'), db_name: 'nasq_scratch_managed_fixture', data_dir: join(fixture, 'data'), backup_root: join(fixture, 'backups'), ports: { db: 55433, odoo: 18169, web: 13130 } },
+    resource_refs: { project: 'managed-fixture', compose_file: join(fixture, 'compose.yml'), db_name: 'webvue_scratch_managed_fixture', data_dir: join(fixture, 'data'), backup_root: join(fixture, 'backups'), ports: { db: 55433, odoo: 18169, web: 13130 } },
     revision: 1, secret_refs: { db_password: 'db-handle', admin_password: 'admin-handle' } }
   const descriptorDigest = `sha256:${createHash('sha256').update(canonical({ target, descriptor })).digest('hex')}`
   await writeFile(classification, JSON.stringify({ schema_version: 1, database: 'scratch_db', commercial_mode: 'saas', entitlement_source: 'control_plane' }))
@@ -81,6 +81,6 @@ describe('worker catalog policy wire', () => {
     const c = claim(source)
     await executeClaimed(pool(c, await published(source)), c, cfg)
     expect(calls[0].policyBytes && JSON.parse(calls[0].policyBytes.toString())).toMatchObject({ features: expect.objectContaining(expected) })
-    expect(calls[0].policyBytes && JSON.parse(calls[0].policyBytes.toString()).modules).toEqual(['nasq_core', 'nasq_platform', 'nasq_api'])
+    expect(calls[0].policyBytes && JSON.parse(calls[0].policyBytes.toString()).modules).toEqual(['webvue_core', 'webvue_platform', 'webvue_api'])
   })
 })

@@ -10,5 +10,5 @@ net.Server.prototype.listen = function (...args) {
 }
 net.Socket.prototype.connect = function () { process.stdout.write('T16_OUTBOUND_ATTEMPT\n'); throw Error('t16_outbound_denied') }
 process.on('message', (message) => {
-  if (message?.mode) { process.env.NASQ_TENANCY_MODE = message.mode; process.send?.({ mutated: message.mode }) }
+  if (message?.mode) { process.env.WEBVUE_TENANCY_MODE = message.mode; process.send?.({ mutated: message.mode }) }
 })

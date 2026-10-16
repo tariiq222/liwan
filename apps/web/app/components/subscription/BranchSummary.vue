@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BranchSummary } from '@nasq/commercial-contracts'
+import type { BranchSummary } from '@webvue/commercial-contracts'
 defineProps<{ summary: BranchSummary }>()
 const { t } = useI18n()
 </script>

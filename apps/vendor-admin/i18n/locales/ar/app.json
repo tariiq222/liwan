@@ -1,6 +1,6 @@
 {
   "app": {
-    "productName": "نسق",
+    "productName": "ويب فيو",
     "error": {
       "notFound": "الصفحة غير موجودة",
       "generic": "حدث خطأ غير متوقع",
@@ -20,7 +20,7 @@
     },
     "shell": {
       "header": "رأس لوحة التحكم",
-      "consoleBadge": "لوحة تحكم نسق",
+      "consoleBadge": "لوحة تحكم ويب فيو",
       "navigation": "التنقل",
       "openMenu": "فتح القائمة",
       "account": "الحساب",

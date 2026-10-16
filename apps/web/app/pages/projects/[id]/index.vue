@@ -6,7 +6,7 @@ import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject, useProjectList } from '@/composables/useProjects'
 import { canCopyProject } from '@/utils/projectCopyAccess'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

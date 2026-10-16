@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { ProjectSchedule } from '@nasq/contracts'
+import type { ProjectSchedule } from '@webvue/contracts'
 import { STATE_TONE, type StateTone } from '@/composables/taskState'
 import { addCalendarDays, buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const BAR_TONE: Record<StateTone | 'primary', string> = {
   primary: 'schedule-gantt-bar-info',
@@ -96,7 +96,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
             >{{ formatScheduleDate(date, locale) }}</span>
             <span
               v-if="showToday"
-              class="pointer-events-none absolute bottom-0 z-10 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full bg-nasq-lime ring-2 ring-default rtl:translate-x-1/2"
+              class="pointer-events-none absolute bottom-0 z-10 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full bg-webvue-lime ring-2 ring-default rtl:translate-x-1/2"
               :style="datePosition(today)"
               data-testid="schedule-gantt-today-marker"
               aria-hidden="true"
@@ -106,11 +106,11 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
           <template v-if="datedMilestones.length">
             <div class="schedule-gantt-name">{{ t('projects.schedule.milestones') }}</div>
             <div class="schedule-gantt-track" :style="followPageDirection">
-              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-nasq-lime rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
+              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-webvue-lime rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
               <NuxtLink
                 v-for="milestone in datedMilestones"
                 :key="milestone.id"
-                class="schedule-gantt-mark nasq-status-dot-warning rtl:translate-x-full"
+                class="schedule-gantt-mark webvue-status-dot-warning rtl:translate-x-full"
                 :style="markerPosition(milestone.deadline!)"
                 :title="`${milestone.name} · ${milestone.deadline}`"
                 :data-milestone-id="milestone.id"
@@ -130,7 +130,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
               </span>
             </NuxtLink>
             <div class="schedule-gantt-track" :style="followPageDirection">
-              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-nasq-lime rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
+              <span v-if="showToday" class="pointer-events-none absolute inset-y-0 w-0.5 -translate-x-1/2 bg-webvue-lime rtl:translate-x-1/2" :style="datePosition(today)" aria-hidden="true" />
               <div
                 v-if="task.start && task.end"
                 class="schedule-gantt-bar"
@@ -141,7 +141,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
               />
               <span
                 v-else-if="task.end"
-                class="schedule-gantt-mark nasq-status-dot-warning rtl:translate-x-full"
+                class="schedule-gantt-mark webvue-status-dot-warning rtl:translate-x-full"
                 :style="markerPosition(task.end)"
                 :title="t('projects.schedule.endOnly', { date: task.end })"
               />
@@ -155,7 +155,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
         </div>
       </div>
       <ul v-if="legendStates.length" class="schedule-gantt-legend">
-        <li v-if="showToday"><span class="h-3 w-0.5 rounded-full bg-nasq-lime" aria-hidden="true" />{{ t('projects.schedule.today') }} · {{ formatScheduleDate(today, locale) }}</li>
+        <li v-if="showToday"><span class="h-3 w-0.5 rounded-full bg-webvue-lime" aria-hidden="true" />{{ t('projects.schedule.today') }} · {{ formatScheduleDate(today, locale) }}</li>
         <li v-for="state in legendStates" :key="state">
           <span class="schedule-gantt-swatch" :class="barClass(state)" aria-hidden="true" />
           {{ stateLabel(state) }}

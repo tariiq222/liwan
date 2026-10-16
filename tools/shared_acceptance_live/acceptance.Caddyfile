@@ -1,5 +1,5 @@
 # Acceptance Caddyfile — wraps production shared Caddyfile with internal TLS.
-# Proven via `caddy adapt` that DOMAIN="a.accept.nasq.test, b.accept.nasq.test"
+# Proven via `caddy adapt` that DOMAIN="a.accept.webvue.test, b.accept.webvue.test"
 # expands correctly through the {$DOMAIN} site block in the imported file.
 {
 	local_certs

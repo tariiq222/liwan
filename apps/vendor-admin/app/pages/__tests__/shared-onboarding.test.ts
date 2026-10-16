@@ -7,7 +7,7 @@ const webRoot = resolve(import.meta.dirname, '../../..')
 const form = readFileSync(resolve(webRoot, 'app/pages/customers/new.vue'), 'utf8')
 const detail = ['app/components/vendor/WorkspacePanel.vue', 'app/composables/useWorkspaceProvisioning.ts'].map(file => readFileSync(resolve(webRoot, file), 'utf8')).join('\n')
 const input = { name: 'Company', catalog_version: '1', catalog_tier: 'projects', admin_name: 'Admin', admin_login: 'admin@example.test', reason: 'First tenant' }
-const ready: SharedTenantProgress = { tenant_id: 'tenant', job_id: 'job', status: 'active', host: 'tenant.nasq.test', admin_login: input.admin_login, stage: 'active', error_code: null }
+const ready: SharedTenantProgress = { tenant_id: 'tenant', job_id: 'job', status: 'active', host: 'tenant.webvue.test', admin_login: input.admin_login, stage: 'active', error_code: null }
 
 describe('shared tenant onboarding browser contract', () => {
   it('retains request identity through a failed attempt and starts a new one only after accepted navigation', async () => {
@@ -60,7 +60,7 @@ describe('shared tenant onboarding browser contract', () => {
   })
 
   it('does not publish a customer link for failed, stale, or partially activated progress', () => {
-    expect(sharedTenantLoginUrl(ready)).toBe('https://tenant.nasq.test/login')
+    expect(sharedTenantLoginUrl(ready)).toBe('https://tenant.webvue.test/login')
     expect(sharedTenantLoginUrl(null)).toBeNull()
     expect(sharedTenantLoginUrl({ ...ready, error_code: 'verification_failed' })).toBeNull()
     for (const status of ['registered', 'provisioning', 'needs_intervention', 'failed', 'ready']) expect(sharedTenantLoginUrl({ ...ready, status })).toBeNull()

@@ -7,7 +7,7 @@
 تثبت أن آلية backup/restore تعمل على قاعدة شبه فارغة فقط ولا تقيس زمنًا ولا
 حجمًا واقعيًا. هذا التمرين يسد تلك الفجوة بالذات، الموثقة في بوابة الإطلاق
 الرابعة بـ[حالة الاستضافة الموحدة](../project-closure/saas-hosting-direction-status.md#بوابات-الإطلاق-المتبقية)
-وفي [عقد الاستضافة، AC-07](../superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md).
+وفي [عقد الاستضافة، AC-07](../superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md).
 
 ## الأداة
 

@@ -18,7 +18,7 @@ class LauncherError(Exception):
     """A validation or runtime-selection failure before Odoo starts."""
 
 
-_BASE_REEXEC_ATTR = "_nasq_secure_base_stripped_sys_argv"
+_BASE_REEXEC_ATTR = "_webvue_secure_base_stripped_sys_argv"
 _ACTIVE_ODOO_ROOT: str | None = None
 
 

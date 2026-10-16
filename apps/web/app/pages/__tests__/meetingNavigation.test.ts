@@ -67,7 +67,7 @@ async function listPage(file: 'index.vue' | 'series.vue') {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path, component: {} }] })
   await router.push(`${path}?q=review&offset=25`)
   const hooks = createHooks()
-  router.beforeEach(to => hooks.callHook('nasq:navigation:start', to))
+  router.beforeEach(to => hooks.callHook('webvue:navigation:start', to))
   const scope = effectScope()
   const loaded = scope.run(() => page(file, false, {}, router, hooks))!
   listScopes.push(() => scope.stop())

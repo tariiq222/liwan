@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import BrandWordmark from '@nasq/ui/app/components/shared/layout/BrandWordmark.vue'
+import BrandWordmark from '@webvue/ui/app/components/shared/layout/BrandWordmark.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -20,6 +20,6 @@ export const OnRail: Story = {
   render: args => ({
     components: { BrandWordmark },
     setup: () => ({ args }),
-    template: '<div class="bg-nasq-rail p-4"><BrandWordmark v-bind="args" /></div>',
+    template: '<div class="bg-webvue-rail p-4"><BrandWordmark v-bind="args" /></div>',
   }),
 }

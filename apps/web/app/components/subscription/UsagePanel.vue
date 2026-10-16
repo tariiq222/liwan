@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { UsageSnapshot } from '@nasq/commercial-contracts'
+import type { UsageSnapshot } from '@webvue/commercial-contracts'
 import { usageFigure, usageMetricLabel } from '@/utils/subscription'
 const props = defineProps<{ usage: UsageSnapshot }>()
 const { t, te, locale } = useI18n()

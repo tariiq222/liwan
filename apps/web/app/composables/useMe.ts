@@ -1,4 +1,4 @@
-import { MeSchema, type Me } from '@nasq/contracts'
+import { MeSchema, type Me } from '@webvue/contracts'
 
 // Pure and Nuxt-import-free so it can be unit tested directly: 403 means "not
 // logged in" (redirect to /login); any other error is a genuine server failure

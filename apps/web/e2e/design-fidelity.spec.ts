@@ -85,7 +85,7 @@ test('settings use side navigation on desktop and stack on mobile', async ({ pag
   await login(page)
   await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
   await page.goto('/settings/branding')
-  const nav = page.locator('.nasq-settings-nav')
+  const nav = page.locator('.webvue-settings-nav')
   const form = page.getByTestId('branding-form')
   await expect(form).toBeVisible()
   const [navBox, formBox] = await Promise.all([nav.boundingBox(), form.boundingBox()])

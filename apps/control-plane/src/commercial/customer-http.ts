@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema } from '@nasq/commercial-contracts'
-import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
+import { quoteRequestSchema, acceptQuoteRequestSchema } from '@webvue/commercial-contracts'
+import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
@@ -49,9 +49,9 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
   if (!url.pathname.startsWith('/v1/customer/')) return null
   if (!config.customerCommercialIssuer || !config.customerCommercialServiceKey) throw new CommercialHttpError('not_found',404)
   if (config.customerCommercialServiceKey === config.key || config.customerCommercialIssuer === config.installationId) throw new CommercialHttpError('not_found',404)
-  const header=input.headers['x-nasq-principal']
+  const header=input.headers['x-webvue-principal']
   if (typeof header !== 'string') throw new CommercialHttpError('unauthorized',401)
-  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`nasq-principal:${header}\n${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
+  const signed=verifyServiceRequest({method:input.method,path:input.path,body:`webvue-principal:${header}\n${input.raw}`,headers:input.headers,key:config.customerCommercialServiceKey})
   if (!signed || signed.issuer !== config.customerCommercialIssuer) throw new CommercialHttpError('unauthorized',401)
   const unbound=parseCustomerPrincipal(header,'unbound')
   if (unbound.actor_id !== String(signed.actor)) throw new CommercialHttpError('unauthorized',401)

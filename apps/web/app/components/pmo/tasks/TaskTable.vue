@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { deadlineLabel, deadlineTone } from '@/composables/taskState'
 import { taskDaysRemaining } from './taskDeadline'
 import { useTasks, type TaskListParams } from '@/composables/useTasks'
-import EmptyState from '@nasq/ui/app/components/shared/feedback/EmptyState.vue'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
+import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import PrioritySelect from './PrioritySelect.vue'
 import StateMenu from './StateMenu.vue'
 

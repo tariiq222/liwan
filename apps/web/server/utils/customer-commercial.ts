@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { H3Event } from 'h3'
-import { MeSchema } from '@nasq/contracts'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { MeSchema } from '@webvue/contracts'
+import { signServiceRequest } from '@webvue/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { tenantTransport } from './tenantTransport'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
@@ -19,8 +19,8 @@ type CustomerConfig = {
 
 export type CustomerPrincipal = { actor_id: string; kind: 'customer'; tenant_id: string; capabilities: CustomerCommercialCapability[] }
 
-export const CSRF_COOKIE = 'nasq_csrf'
-export const CSRF_HEADER = 'x-nasq-csrf'
+export const CSRF_COOKIE = 'webvue_csrf'
+export const CSRF_HEADER = 'x-webvue-csrf'
 /** Keys that carry identity or authority. They are only ever derived server-side, so a client sending one is rejected. */
 export const FORBIDDEN_KEYS = new Set(['tenant_id', 'customer_id', 'capabilities', 'capability', 'principal', 'actor_id', 'issuer', 'kind_principal', 'tenantid', 'customerid'])
 
@@ -132,17 +132,17 @@ export const encodePrincipal = (p: CustomerPrincipal) => Buffer.from(JSON.string
 /**
  * Signature scheme (verified by the control plane with the customer service key, issuer = NUXT_CUSTOMER_COMMERCIAL_ISSUER):
  *   signServiceRequest({ method, path: '/v1/customer/...?query', actor: <odoo user id>, issuer, key,
- *                        body: `nasq-principal:${x-nasq-principal}\n${rawBody ?? ''}` })
+ *                        body: `webvue-principal:${x-webvue-principal}\n${rawBody ?? ''}` })
  * i.e. the principal header value is covered by the body hash. Verifier recomputes that exact body string.
  */
 export function signedBodyFor(principalHeader: string, rawBody: string | undefined): string {
-  return `nasq-principal:${principalHeader}\n${rawBody ?? ''}`
+  return `webvue-principal:${principalHeader}\n${rawBody ?? ''}`
 }
 
 export function signCustomerForward(input: { method: string; path: string; rawBody?: string; principal: CustomerPrincipal; issuer: string; key: string; timestamp?: number; nonce?: string }) {
   const principalHeader = encodePrincipal(input.principal)
   const signed = signServiceRequest({ method: input.method, path: input.path, body: signedBodyFor(principalHeader, input.rawBody), actor: input.principal.actor_id, issuer: input.issuer, key: input.key, timestamp: input.timestamp, nonce: input.nonce })
-  return { ...signed, 'x-nasq-principal': principalHeader }
+  return { ...signed, 'x-webvue-principal': principalHeader }
 }
 
 export async function customerPrincipal(event: H3Event, config: CustomerConfig): Promise<CustomerPrincipal> {

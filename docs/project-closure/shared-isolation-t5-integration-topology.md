@@ -7,7 +7,7 @@
 - `deploy/odoo.conf`: `dbfilter = ^${DB_NAME}$`، `list_db = False`، **`proxy_mode = True`** —
   قاعدة واحدة لكل عميل؛ لا عزل مشترك.
 - `deploy/docker-compose.yml`: Odoo و`web` (Nuxt) على شبكة داخلية `expose` فقط؛
-  proxy (Caddy) هو المدخل. لا `NASQ_TENANCY_MODE` ولا `registry` ولا حارس.
+  proxy (Caddy) هو المدخل. لا `WEBVUE_TENANCY_MODE` ولا `registry` ولا حارس.
 - `deploy/Caddyfile`: يوزّع على `odoo:8069` و`odoo:8072` (WS) و`web:3000` مباشرة.
 - `apps/web/nuxt.config.ts`: `runtimeConfig.odooUrl` و`odooDb` ثابتان لكل نشر.
 - `apps/web/server/api/auth/login.post.ts`: يرسل `params.db = odooDb` ثابتًا إلى
@@ -45,7 +45,7 @@
 - **Odoo**: `dbfilter = ^%h$`، `list_db = False`، `proxy_mode = False`، بدون `--db-filter`
   بديل أو fallback monodb.
 - **Nuxt (SSR/BFF)**: `NUXT_ODOO_URL` يشير إلى **الحارس** لا إلى Odoo مباشرة، ويحمل
-  `X-Nasq-Proxy-Token` + Host خارجي + `X-Nasq-Tenant-Revision` من registry الجلسة.
+  `X-WebVue-Proxy-Token` + Host خارجي + `X-WebVue-Tenant-Revision` من registry الجلسة.
   لا يستنتج DB من الكوكي ولا يمرّ `params.db` إلا عبر ترويسة الحارس الموثوقة.
 - **WS**: نفس مسار الحارس (تحقق + تمرير) لا مسار مستقل إلى `odoo:8072`.
 
@@ -54,10 +54,10 @@
 | # | الملف/الطبقة | المطلوب |
 |---|---|---|
 | 1 | `deploy/odoo.conf` | `proxy_mode=False`، `dbfilter=^%h$`، `list_db=False` |
-| 2 | `deploy/docker-compose.yml` | حاوية guard، إزالة `expose` العام لـodoo/web عند المشترك، env `NASQ_TENANCY_MODE`، keyring |
+| 2 | `deploy/docker-compose.yml` | حاوية guard، إزالة `expose` العام لـodoo/web عند المشترك، env `WEBVUE_TENANCY_MODE`، keyring |
 | 3 | `deploy/Caddyfile` | توجيه كل HTTP+WS إلى الحارس، لا إلى Odoo مباشرة في shared mode |
 | 4 | `apps/web/nuxt.config.ts` | `odooUrl` → عنوان الحارس؛ تمرير ترويسات المستأجر |
-| 5 | `apps/web/server/api/auth/login.post.ts` | إرسال `X-Nasq-Proxy-Token` + Host؛ عدم تمرير `params.db` من العميل |
+| 5 | `apps/web/server/api/auth/login.post.ts` | إرسال `X-WebVue-Proxy-Token` + Host؛ عدم تمرير `params.db` من العميل |
 | 6 | `apps/web/server/api/auth/logout.post.ts` | تمرير واضح لمسح envelope الجلسة عبر الحارس |
 | 7 | `apps/web/server/routes/api/v1/[...path].ts` | تمرير الترويسات الموثوقة + حفظ كوكي الحارس |
 | 8 | `apps/web/server/api/auth/totp.post.ts` | MFA ضمن نفس قناة الحارس |
@@ -89,7 +89,7 @@
 
 1. **الاستيراد**: مسار `apps/control-plane/src/shared/provisioning.ts` النسبي
    `'../../../../packages/commercial-contracts/src/shared/provisioning.js'` مؤقت مقصود
-   ليبقى executable قبل t5. **t5 يتولى**: تبديله إلى `@nasq/commercial-contracts/shared`
+   ليبقى executable قبل t5. **t5 يتولى**: تبديله إلى `@webvue/commercial-contracts/shared`
    مع subpath export في `packages/commercial-contracts/package.json`. لا barrel إضافي.
 2. **business_key عمود مستقل**: UNIQUE `(tenant_id, business_key)`، singleton لعمر tenant
    لمهمة provision. `request_id` transport/audit فقط ولا يُستخدم للحماية.
@@ -116,14 +116,14 @@ activeKid, odooUrl, webUrl, wsUrl})`.
 
 | env | المستهلك | ملاحظة |
 |---|---|---|
-| `NASQ_SESSION_KEYS` | الحارس | JSON object kid→secret، ≥32 بايت |
-| `NASQ_SESSION_ACTIVE_KID` | الحارس | kid النشط |
-| `NASQ_GUARD_ODOO_URL` / `NASQ_GUARD_WEB_URL` / `NASQ_GUARD_WS_URL` | الحارس | أهداف داخلية |
-| `NASQ_GUARD_PORT` | الحارس | منفذ الاستماع |
+| `WEBVUE_SESSION_KEYS` | الحارس | JSON object kid→secret، ≥32 بايت |
+| `WEBVUE_SESSION_ACTIVE_KID` | الحارس | kid النشط |
+| `WEBVUE_GUARD_ODOO_URL` / `WEBVUE_GUARD_WEB_URL` / `WEBVUE_GUARD_WS_URL` | الحارس | أهداف داخلية |
+| `WEBVUE_GUARD_PORT` | الحارس | منفذ الاستماع |
 | `NUXT_ODOO_URL=http://guard:8080` | Nuxt | SSR وauth معًا |
-| `NASQ_TENANT_REGISTRY_PATH` | الحارس (+Nuxt؟) | سجل JSON |
-| `NASQ_SHARED_PROXY_TOKEN` | الحارس+Nuxt | hop خاص |
-| `NASQ_TENANCY_MODE=shared` | الكل | `shared`/`dedicated` |
+| `WEBVUE_TENANT_REGISTRY_PATH` | الحارس (+Nuxt؟) | سجل JSON |
+| `WEBVUE_SHARED_PROXY_TOKEN` | الحارس+Nuxt | hop خاص |
+| `WEBVUE_TENANCY_MODE=shared` | الكل | `shared`/`dedicated` |
 
 **سلوك الحارس:**
 - `Host = registry.database` **فقط**؛ لا `X-Odoo-Database` يُرسَل.
@@ -138,15 +138,15 @@ activeKid, odooUrl, webUrl, wsUrl})`.
 
 1. **كوكي `session_id`**: نعم **نفس الاسم**، يستبدل الخام. BFF يمرره إلى الحارس فقط
    (لا إلى Odoo مباشرة)، ويعيد `Set-Cookie` من الحارس حرفيًا.
-2. **`NASQ_SHARED_PROXY_TOKEN` ثنائي** (guard↔BFF). لكن **edge MUST reject كل ترويسة
-   `x-nasq-*` واردة** قبل الحارس. مستمع الحارس داخلي/خاص، وBFF خاص.
-3. **Nuxt يقرأ `NASQ_TENANT_REGISTRY_PATH` read-only fresh** بنفسه ويعيد حل المستأجر؛
+2. **`WEBVUE_SHARED_PROXY_TOKEN` ثنائي** (guard↔BFF). لكن **edge MUST reject كل ترويسة
+   `x-webvue-*` واردة** قبل الحارس. مستمع الحارس داخلي/خاص، وBFF خاص.
+3. **Nuxt يقرأ `WEBVUE_TENANT_REGISTRY_PATH` read-only fresh** بنفسه ويعيد حل المستأجر؛
    لا يثق بترويسة الحارس وحدها.
 4. **احذف `routeRules` كاملة في `shared`**. الحارس يسمح `/web/content` فقط ويرفض
    `console/database/RPC`، ولا raw Odoo login. (لا إعادة توجيه — حذف.)
 5. **WS على نفس منفذ الحارس**. `wsUrl=''` في المتصفح (same-origin edge→guard)؛
    **لا WS من Nuxt**.
-6. **Nuxt لا يحتاج مفاتيح HMAC**؛ فقط `NASQ_SHARED_PROXY_TOKEN` + `NASQ_TENANT_REGISTRY_PATH`.
+6. **Nuxt لا يحتاج مفاتيح HMAC**؛ فقط `WEBVUE_SHARED_PROXY_TOKEN` + `WEBVUE_TENANT_REGISTRY_PATH`.
 
 **قرار الملكية النهائي من captain (يحسم الخلاف):**
 
@@ -168,7 +168,7 @@ activeKid, odooUrl, webUrl, wsUrl})`.
 
 **إضافة مهمة في وصف t5 المحدَّث**: تعديل imports ملفات t3 (`apps/control-plane/src/shared/**`)
 بعد freeze وتسليم صريح من provisioning — أي أن t5 يعيد ربط الاستيراد النسبي المؤقت إلى
-subpath `@nasq/commercial-contracts/shared`.
+subpath `@webvue/commercial-contracts/shared`.
 
 **قيود إلزامية أضافها captain على t5 (كلها ملزمة):**
 

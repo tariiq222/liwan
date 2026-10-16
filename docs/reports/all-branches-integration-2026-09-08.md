@@ -43,8 +43,8 @@ in place. No worktree or branch was removed.
 - No backend source/contracts were changed in this integration. No Odoo tests
   were run against `odoo19`, and no database update was performed.
 
-Fresh logs: `/tmp/nasq-all-branches-tests.log`,
-`/tmp/nasq-all-branches-typecheck.log`, `/tmp/nasq-all-branches-build.log`.
+Fresh logs: `/tmp/webvue-all-branches-tests.log`,
+`/tmp/webvue-all-branches-typecheck.log`, `/tmp/webvue-all-branches-build.log`.
 The previous implementation report's uncommitted/unmerged statements describe
 its delivery checkpoint before this explicit merge authorization.
 

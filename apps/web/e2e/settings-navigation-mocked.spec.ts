@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page, type Route } from '@playwright/test'
 
-process.env.NUXT_ODOO_DB = 'nasq_settings_nav_unused_scratch'
+process.env.NUXT_ODOO_DB = 'webvue_settings_nav_unused_scratch'
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const CAPABILITIES = [
@@ -22,8 +22,8 @@ const CAPABILITIES = [
 const ME = {
   id: 2, name: 'مدير النظام', login: 'admin', email: 'admin@example.com', lang: 'ar_001',
   tz: 'Asia/Riyadh', role: 'admin', roles: [], capabilities: [...CAPABILITIES],
-  access_policy_version: 1, company: { id: 1, name: 'نَسَق' },
-  modules: ['nasq_chat', 'nasq_hr', 'nasq_pmo'],
+  access_policy_version: 1, company: { id: 1, name: 'ويب فيو' },
+  modules: ['webvue_chat', 'webvue_hr', 'webvue_pmo'],
   entitlements: {
     'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
@@ -35,7 +35,7 @@ const ME = {
   },
   terminology: { ar: {}, en: {} },
 }
-const BRANDING = { name: 'نَسَق', logo_url: '/web/binary/company_logo?company=1', primary_color: '#13234a', font: 'IBM_Plex_Sans_Arabic' }
+const BRANDING = { name: 'ويب فيو', logo_url: '/web/binary/company_logo?company=1', primary_color: '#13234a', font: 'IBM_Plex_Sans_Arabic' }
 const PROJECT_SETTINGS = {
   project_creators: 'managers',
   default_stages: [{ name: 'جديد', fold: false }, { name: 'جارٍ', fold: false }],
@@ -52,7 +52,7 @@ const USERS = {
     id: 18, name: 'سارة محمد', login: 'sara@example.com',
     employee: { id: 31, name: 'سارة محمد', department: { id: 3, name: 'الموارد البشرية' } },
     active: true, protected: false,
-    assignments: [{ id: 44, role: { id: 4, key: 'hr_manager', name: { ar: 'مسؤول موارد بشرية', en: 'HR manager' }, type: 'built_in', protected: true }, scope: { kind: 'company', id: 1, name: 'نَسَق' } }],
+    assignments: [{ id: 44, role: { id: 4, key: 'hr_manager', name: { ar: 'مسؤول موارد بشرية', en: 'HR manager' }, type: 'built_in', protected: true }, scope: { kind: 'company', id: 1, name: 'ويب فيو' } }],
     version: 'u18-a3-v7',
   }],
   total: 1,
@@ -127,7 +127,7 @@ test.beforeAll(async () => {
       NITRO_PORT: String(appPort),
       NITRO_HOST: '127.0.0.1',
       NUXT_ODOO_URL: `http://127.0.0.1:${upstreamPort}`,
-      NUXT_ODOO_DB: 'nasq_settings_nav_unused_scratch',
+      NUXT_ODOO_DB: 'webvue_settings_nav_unused_scratch',
       NUXT_PUBLIC_WS_URL: '',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -173,7 +173,7 @@ test('settings submenu opens project settings only as a real category page', asy
   await expect(settingsProjects).toHaveAttribute('href', '/projects/settings')
   await expect(settingsProjects).toHaveAttribute('aria-current', 'page')
   await expect(page.locator('#project-creators')).toBeVisible()
-  await expect(page.locator('.nasq-settings-content .nasq-panel')).toHaveCount(1)
+  await expect(page.locator('.webvue-settings-content .webvue-panel')).toHaveCount(1)
   expect(new URL(page.url()).pathname).toBe('/projects/settings')
   await page.screenshot({ path: testInfo.outputPath('submenu-projects-desktop-rtl.png'), fullPage: true })
 })
@@ -181,8 +181,8 @@ test('settings submenu opens project settings only as a real category page', asy
 test('in-page anchors scroll, mark location current, and survive hash refresh', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openApp(page, '/projects/settings')
-  const remindersLink = page.locator('.nasq-settings-nav a[href="#project-reminders"]')
-  const catalogsLink = page.locator('.nasq-settings-nav a[href="#catalogs"]')
+  const remindersLink = page.locator('.webvue-settings-nav a[href="#project-reminders"]')
+  const catalogsLink = page.locator('.webvue-settings-nav a[href="#catalogs"]')
   await expect(remindersLink).toHaveCSS('font-weight', '600')
   await catalogsLink.click()
   await expect(page).toHaveURL(/#catalogs/)
@@ -195,7 +195,7 @@ test('in-page anchors scroll, mark location current, and survive hash refresh', 
     return rect.top < innerHeight && rect.bottom > 0
   })).toBe(true)
   await openApp(page, '/projects/settings#catalogs')
-  await expect(page.locator('.nasq-settings-nav a[href="#catalogs"]')).toHaveAttribute('aria-current', 'location')
+  await expect(page.locator('.webvue-settings-nav a[href="#catalogs"]')).toHaveAttribute('aria-current', 'location')
   await page.screenshot({ path: testInfo.outputPath('anchors-desktop-rtl.png'), fullPage: true })
 })
 
@@ -203,15 +203,15 @@ test('users category is one card without nested chrome; mobile toc is static bel
   await page.setViewportSize({ width: 1440, height: 900 })
   await openApp(page, '/settings/users')
   await expect(page.getByTestId('settings-layout')).toBeVisible()
-  const nested = page.locator('.nasq-settings-content .nasq-panel .nasq-panel')
+  const nested = page.locator('.webvue-settings-content .webvue-panel .webvue-panel')
   await expect(nested).toHaveCount(1)
   await expect(nested).toHaveCSS('border-top-width', '0px')
   await expect(nested).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
 
   await page.setViewportSize({ width: 390, height: 844 })
   await openApp(page, '/settings/users')
-  const header = page.locator('.nasq-app-header')
-  const nav = page.locator('.nasq-settings-nav')
+  const header = page.locator('.webvue-app-header')
+  const nav = page.locator('.webvue-settings-nav')
   await expect(nav).toHaveCSS('position', 'static')
   const headerBox = await header.boundingBox()
   const navBox = await nav.boundingBox()
@@ -225,9 +225,9 @@ test('users category is one card without nested chrome; mobile toc is static bel
 test('users hash navigation keeps list query on click, refresh and back', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openApp(page, '/settings/users?q=sara&status=active&offset=25')
-  const search = page.locator('#filters .nasq-settings-search input')
+  const search = page.locator('#filters .webvue-settings-search input')
   await expect(search).toHaveValue('sara')
-  await page.locator('.nasq-settings-nav a[href="#results"]').click()
+  await page.locator('.webvue-settings-nav a[href="#results"]').click()
   await expect(page).toHaveURL(/q=sara/)
   expect(new URL(page.url()).searchParams.get('status')).toBe('active')
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
@@ -239,14 +239,14 @@ test('users hash navigation keeps list query on click, refresh and back', async 
   expect(new URL(page.url()).searchParams.get('status')).toBe('active')
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
   expect(new URL(page.url()).hash).toBe('#results')
-  await expect(page.locator('#filters .nasq-settings-search input')).toHaveValue('sara')
+  await expect(page.locator('#filters .webvue-settings-search input')).toHaveValue('sara')
   await page.goto(`${origin}/settings/branding`, { waitUntil: 'domcontentloaded' })
   await page.goBack()
   await page.getByTestId('settings-layout').waitFor({ state: 'visible', timeout: 15_000 })
   expect(new URL(page.url()).searchParams.get('q')).toBe('sara')
   expect(new URL(page.url()).searchParams.get('status')).toBe('active')
   expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
-  await expect(page.locator('#filters .nasq-settings-search input')).toHaveValue('sara')
+  await expect(page.locator('#filters .webvue-settings-search input')).toHaveValue('sara')
 })
 
 test('section dividers use last-child not last-of-type', async ({ page }) => {

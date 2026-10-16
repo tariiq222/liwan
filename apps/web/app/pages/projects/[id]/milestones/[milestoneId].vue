@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { MilestonePatch } from '@nasq/contracts'
+import type { MilestonePatch } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import { useMilestones, useUpdateMilestone, useDeleteMilestone } from '@/composables/useMilestones'
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { parsePositiveId } from '@/utils/routeParams'
-import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 
 const route = useRoute()
 const router = useRouter()

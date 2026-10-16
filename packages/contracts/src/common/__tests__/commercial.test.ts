@@ -24,7 +24,7 @@ const PreviousMeSchema = z.object({
   appearance: z.object({
     mode: z.enum(['light', 'cream', 'dark']), font_size: z.enum(['small', 'medium', 'large']),
   }).strict().optional(),
-  modules: z.array(z.enum(['nasq_chat', 'nasq_hr', 'nasq_pmo'])).optional().default([]),
+  modules: z.array(z.enum(['webvue_chat', 'webvue_hr', 'webvue_pmo'])).optional().default([]),
   entitlements: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative().nullable()])).optional().default({}),
   platform: z.object({
     schema_version: z.literal(1), policy_revision: z.number().int().nonnegative(),

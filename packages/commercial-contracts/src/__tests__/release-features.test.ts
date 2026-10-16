@@ -14,7 +14,7 @@ describe('release-complete derivation (same file as tools/test_managed_policy.py
     })
   }
   it('lists the release modules once, base first', () => {
-    expect(releaseModules(fixture.cases[0]!.catalog)).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr'])
+    expect(releaseModules(fixture.cases[0]!.catalog)).toEqual(['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr'])
   })
   it('accepts a ceiling under schema 3 and refuses schema 4', () => {
     expect(parseFeatureDescriptor('limit:a.b:3', 3).value).toBe(3)

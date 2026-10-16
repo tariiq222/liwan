@@ -5,7 +5,7 @@ export function useProjectWorkspaceMemory() {
   const { me } = useMe()
   const hydrated = useHydrated()
   function key(id: number) {
-    return me.value ? `nasq:project-location:v1:${me.value.company.id}:${me.value.id}:${id}` : null
+    return me.value ? `webvue:project-location:v1:${me.value.company.id}:${me.value.id}:${id}` : null
   }
   function remember(path: string, query: Record<string, unknown>) {
     if (!import.meta.client || !hydrated.value) return

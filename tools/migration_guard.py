@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--base', required=True, help='git ref to compare against, e.g. origin/main')
     args = parser.parse_args(argv)
     problems = []
-    for manifest in sorted(ADDONS_ROOT.glob('nasq_*/__manifest__.py')):
+    for manifest in sorted(ADDONS_ROOT.glob('webvue_*/__manifest__.py')):
         addon = manifest.parent.name
         new = _version(manifest.read_text(encoding='utf-8'))
         directory = manifest.parent / 'migrations' / new

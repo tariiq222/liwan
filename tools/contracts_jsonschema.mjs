@@ -1,4 +1,4 @@
-// Harvest every exported Zod schema from @nasq/contracts as JSON Schema.
+// Harvest every exported Zod schema from @webvue/contracts as JSON Schema.
 // Zod v4 converts natively via z.toJSONSchema — no extra dependency.
 // Output: one JSON object { "<export name>": <json schema> } on stdout.
 import { register } from 'node:module';

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import UserTable from '@/components/access/users/UserTable.vue'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { useAdminUsers, type AdminUserListParams } from '@/composables/useAdminUsers'
 import { useAdminRoles } from '@/composables/useAdminRoles'
 import { useHrDepartments } from '@/composables/useHrDepartments'

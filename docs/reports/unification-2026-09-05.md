@@ -1,4 +1,4 @@
-# Nasq branch unification — 2026-09-05
+# WebVue branch unification — 2026-09-05
 
 > تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
@@ -22,7 +22,7 @@ remaining checkout is `/Users/tariq/code/nasq` on `main`.
 All business workflows use internal routes. Account administration is separate
 from HR. HR archival disables linked access; unarchival requires separate
 account reactivation. Company identity is editable only by Odoo system admins;
-Nasq accepts only the primary colour. The HR employee and PMO user-id resources
+WebVue accepts only the primary colour. The HR employee and PMO user-id resources
 remain distinct.
 
 ## Verification
@@ -42,11 +42,11 @@ Fresh combined verification has passed the following gates:
   attachments, second-user notifications, dependencies, archive/restore,
   realtime updates, mobile navigation, and search focus after route/reload.
 - Authenticated tasks, HR, branding and users screenshots were visually
-  inspected: all four are RTL, and Nasq identity editing is colour-only.
+  inspected: all four are RTL, and WebVue identity editing is colour-only.
 
 The completed verification runtime used
-`nasq_unified_20260905`, Odoo `9479`, web `3479`; legacy upgrade and rollback
-use `nasq_unify_legacy_20260905` and `nasq_unify_rollback_20260905`.
+`webvue_unified_20260905`, Odoo `9479`, web `3479`; legacy upgrade and rollback
+use `webvue_unify_legacy_20260905` and `webvue_unify_rollback_20260905`.
 Tests never target `odoo19`; stock Odoo source and configuration are unchanged.
 
 The pre-upgrade dump was restored into the isolated rollback database and
@@ -60,7 +60,7 @@ worktrees, binary patches, SHA256 manifests, all refs and the original stash
 in a verified Git bundle, plus 54 ignored workflow artifacts. Source hashes
 were rechecked after integration preparation with zero drift.
 
-Working recovery directory: `/private/tmp/nasq-unify-recovery-20260905`.
+Working recovery directory: `/private/tmp/webvue-unify-recovery-20260905`.
 Durable recovery directory: `/Users/tariq/code/nasq-recovery-unification-20260905`.
 Before cleanup, **1,314 archive files** were copied and checked byte-for-byte
 with SHA256. The verified `final-all-refs.bundle` preserves all original branch
@@ -75,7 +75,7 @@ and cleanup after checks; it does not include push or deployment.
 New collaboration endpoints require the current company. Legacy company-less
 collaboration compatibility was excluded because explicit authorization did not
 arrive after automatic approval review rejected the proposed access expansion;
-existing baseline record rules are unchanged. New Nasq projects use the current
+existing baseline record rules are unchanged. New WebVue projects use the current
 company and explicit foreign-company projects/tasks remain excluded.
 
 ## Integration repairs
@@ -93,9 +93,9 @@ After contention subsided, the same access and account flows passed; no session,
 capability, or company boundary was relaxed to bypass those errors.
 
 Authoritative local logs are preserved in the recovery `logs/` directory:
-`nasq-unify-final-unit.log`, `nasq-unify-final-odoo3.log`,
-`nasq-unify-final-e2e4.log`, `nasq-unify-final-types2.log`,
-`nasq-unify-final-build2.log`, plus legacy/rollback/concurrency/version logs.
+`webvue-unify-final-unit.log`, `webvue-unify-final-odoo3.log`,
+`webvue-unify-final-e2e4.log`, `webvue-unify-final-types2.log`,
+`webvue-unify-final-build2.log`, plus legacy/rollback/concurrency/version logs.
 
 ## Final local state
 

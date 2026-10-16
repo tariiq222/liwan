@@ -62,7 +62,7 @@ describe('clickedRowIndex', () => {
   it('ignores clicks on a control inside the row, outside any row, or on an unnumbered row', () => {
     expect(clickedRowIndex(target({ a: {}, '[data-shortcut-row]': row('2') }))).toBeNull()
     expect(clickedRowIndex(target({ '[role="checkbox"]': {}, '[data-shortcut-row]': row('0') }))).toBeNull()
-    expect(clickedRowIndex(target({ '.nasq-select-cell': {}, '[data-shortcut-row]': row('0') }))).toBeNull()
+    expect(clickedRowIndex(target({ '.webvue-select-cell': {}, '[data-shortcut-row]': row('0') }))).toBeNull()
     expect(clickedRowIndex(target({}))).toBeNull()
     expect(clickedRowIndex(target({ '[data-shortcut-row]': row(null) }))).toBeNull()
     expect(clickedRowIndex(null)).toBeNull()

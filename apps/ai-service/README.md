@@ -1,15 +1,15 @@
-# Nasq AI service
+# WebVue AI service
 
-The isolated agent service of Nasq AI (spec: `docs/superpowers/specs/2026-10-15-nasq-ai-design.md`).
-It holds no Nasq credential: it receives a message and the caller's tool catalog, decides, and
+The isolated agent service of WebVue AI (spec: `docs/superpowers/specs/2026-10-15-webvue-ai-design.md`).
+It holds no WebVue credential: it receives a message and the caller's tool catalog, decides, and
 stops at every tool with an `interrupt`; the Nuxt server executes tools and resumes it.
 
 ## Run locally
 
     python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
     AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
-    AI_DATABASE_URL=postgresql://localhost/nasq_ai_dev \
-    .venv/bin/uvicorn nasq_ai_service.service:app --port 8600
+    AI_DATABASE_URL=postgresql://localhost/webvue_ai_dev \
+    .venv/bin/uvicorn webvue_ai_service.service:app --port 8600
 
 `AI_DATABASE_URL` is required: without it the service refuses to start. For local development only, set
 `AI_ALLOW_MEMORY_STATE=true` (exactly) to keep the state in memory; the service then logs a warning at startup.
@@ -26,13 +26,13 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
 | `AI_OPENROUTER_TITLE` | optional; sent as `X-Title` to OpenRouter (openrouter only; never required, never logged) |
 | `AI_DATABASE_URL` | Postgres for run state (checkpoints + runs); required unless `AI_ALLOW_MEMORY_STATE=true` |
 | `AI_ALLOW_MEMORY_STATE` | `true` (exactly) lets the service start without a database, keeping state in memory (development only) |
-| `AI_RUN_RETENTION_DAYS` | default 30; `python -m nasq_ai_service.cleanup` deletes older runs |
+| `AI_RUN_RETENTION_DAYS` | default 30; `python -m webvue_ai_service.cleanup` deletes older runs |
 | `AI_DEFAULT_TIMEOUT_SECONDS` | default 120 |
 | `AI_SERVICE_TOKEN` | optional for development (the service logs a warning at startup when unset), at least 24 characters (it refuses to start with a shorter one) |
 
 ## Providers
 
-The registry in `src/nasq_ai_service/provider_registry.py` is the single list of providers: `Settings.from_env` takes the valid
+The registry in `src/webvue_ai_service/provider_registry.py` is the single list of providers: `Settings.from_env` takes the valid
 `AI_PROVIDER` names and the key rule from it, and `build_chat_model` builds the client from it.
 
 | `AI_PROVIDER` | `AI_API_KEY` | Default base URL | Example `AI_MODEL` |
@@ -57,7 +57,7 @@ For `openrouter`, `AI_MODEL` is the OpenRouter model id (`vendor/model`).
 
 ## Service token
 
-When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the header `X-Nasq-Service-Token` to equal it
+When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the header `X-WebVue-Service-Token` to equal it
 (constant-time comparison); anything else answers 401 with a fixed body. Without it the service is open (development only).
 The token is never logged or sent in an event. The Nuxt server sends it from `NUXT_AI_SERVICE_TOKEN`.
 
@@ -98,7 +98,7 @@ a `resume` carrying `decision: "rejected"` answers 409; only the claimer's own r
 ## Tests
 
     .venv/bin/pytest -q
-    AI_TEST_DATABASE_URL=postgresql://localhost/nasq_ai_test .venv/bin/pytest -q tests/test_postgres_state.py
+    AI_TEST_DATABASE_URL=postgresql://localhost/webvue_ai_test .venv/bin/pytest -q tests/test_postgres_state.py
 
 ## Notes
 

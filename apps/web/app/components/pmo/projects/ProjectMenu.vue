@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Project, ProjectDetail } from '@nasq/contracts'
+import type { Project, ProjectDetail } from '@webvue/contracts'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { open } from './support/tasmim6'
 
-const liveEnabled = ['nasq_scratch_meetings_pmo_ux_20261016', 'nasq_scratch_meetings_ux_20261016', 'nasq_scratch_meetings_review_20261016'].includes(process.env.E2E_MEETINGS_LIVE_DB ?? '')
+const liveEnabled = ['webvue_scratch_meetings_pmo_ux_20261016', 'webvue_scratch_meetings_ux_20261016', 'webvue_scratch_meetings_review_20261016'].includes(process.env.E2E_MEETINGS_LIVE_DB ?? '')
 test.skip(!liveEnabled, 'Only the explicitly named isolated meetings acceptance database')
 test.beforeAll(async ({ request }) => { expect((await request.get('/login')).status()).toBe(200) })
 const fixture = liveEnabled ? JSON.parse(readFileSync(process.env.E2E_MEETINGS_FIXTURE!, 'utf8')) : {}
@@ -89,7 +89,7 @@ test('real attachments validate size and type, upload once and delete with inlin
 test('English dark large-text phone pages retain content without horizontal document overflow', async ({ page, baseURL }) => {
   await signIn(page, 'admin')
   expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })).status()).toBe(200)
-  await page.context().addCookies([{ name: 'nasq-locale', value: 'en', url: new URL(baseURL!).origin }])
+  await page.context().addCookies([{ name: 'webvue-locale', value: 'en', url: new URL(baseURL!).origin }])
   await page.setViewportSize({ width: 390, height: 844 })
   for (const path of ['/meetings', '/meetings/follow-up?state=all', '/meetings/calendar?year=2026&month=10', `/meetings/${fixture.meeting_id}?tab=minutes`, `/meetings/series/${fixture.series_id}`, '/meetings/series/new']) {
     await open(page, path)
@@ -136,7 +136,7 @@ test.describe('responsive meetings pages', () => {
       test.setTimeout(90_000)
       await signIn(page, 'admin')
       await page.request.patch('/api/v1/me/appearance', { data: { mode, font_size: 'large' } })
-      await page.context().addCookies([{ name: 'nasq-locale', value: language, url: new URL(baseURL!).origin }])
+      await page.context().addCookies([{ name: 'webvue-locale', value: language, url: new URL(baseURL!).origin }])
       await page.setViewportSize({ width, height: 900 })
       const record = await (await page.request.get(`/api/v1/meetings/${fixture.meeting_id}`)).json()
       const paths = ['/meetings', '/meetings/calendar?year=2026&month=10', '/meetings/new', `/meetings/${fixture.meeting_id}`, `/meetings/${fixture.meeting_id}?tab=minutes`, `/meetings/${fixture.meeting_id}/edit`, `/meetings/${fixture.meeting_id}/minutes`, `/meetings/${fixture.meeting_id}/print`, `/meetings/${fixture.meeting_id}/resolutions/new`, `/meetings/${fixture.meeting_id}/resolutions/${record.resolutions[0].id}/edit`, '/meetings/series', '/meetings/series/new', `/meetings/series/${fixture.series_id}`, `/meetings/series/${fixture.series_id}/edit`, '/meetings/follow-up?state=all']

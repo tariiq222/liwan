@@ -1,5 +1,5 @@
 import { getRouterParam } from 'h3'
-import { AiRunPatchSchema, AiRunSummarySchema } from '@nasq/contracts'
+import { AiRunPatchSchema, AiRunSummarySchema } from '@webvue/contracts'
 import { serviceFetch } from '../../../../utils/ai/upstream'
 import { runSession } from '../../../../utils/ai/session'
 

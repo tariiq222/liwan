@@ -25,8 +25,8 @@ describe('vendor API proxy', () => {
     const other = `42.${'B'.repeat(43)}`
     const calls = stubUpstream(() => json(200, { ok: true }))
     expect((await get('/context', cookieHeader(other))).body).toEqual({ ok: true })
-    expect(at(calls, 0).headers['x-nasq-session']).toBe(other)
-    expect(at(calls, 0).headers['x-nasq-actor']).toBe('42')
+    expect(at(calls, 0).headers['x-webvue-session']).toBe(other)
+    expect(at(calls, 0).headers['x-webvue-actor']).toBe('42')
   })
 
   it('passes the body bytes and the query through', async () => {
@@ -75,7 +75,7 @@ describe('vendor API proxy', () => {
     stubUpstream(() => json(401, { code: 'unauthorized' }))
     const result = await get('/context')
     expect(result.status).toBe(401)
-    expect(result.headers.get('set-cookie')).toMatch(/nasq_admin=;/)
+    expect(result.headers.get('set-cookie')).toMatch(/webvue_admin=;/)
   })
 
   it('rejects a body over 64 KiB with 413', async () => {

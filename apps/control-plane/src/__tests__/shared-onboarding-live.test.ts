@@ -11,7 +11,7 @@ import {publishRegistryMutation} from '../shared/registry-store.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 const url=process.env.CONTROL_TEST_DATABASE_URL
-if(url){const parsed=new URL(url);if(!['127.0.0.1','localhost','::1'].includes(parsed.hostname)||!/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1)))throw Error('scratch control DB required')}
+if(url){const parsed=new URL(url);if(!['127.0.0.1','localhost','::1'].includes(parsed.hostname)||!/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1)))throw Error('scratch control DB required')}
 const suite=url?describe:describe.skip
 suite('real shared onboarding SQL identity and fail-closed publication',()=>{
   const pool=new Pool({connectionString:url})
@@ -19,10 +19,10 @@ suite('real shared onboarding SQL identity and fail-closed publication',()=>{
   const input={request_id:randomUUID(),name:'First tenant',catalog_version:`onboarding-${randomUUID()}`,catalog_tier:'projects',admin_name:'First administrator',admin_login:'first@example.test',reason:'First scratch tenant'}
   let config:any
   beforeAll(async()=>{
-    vi.stubEnv('NASQ_TENANCY_MODE','shared')
+    vi.stubEnv('WEBVUE_TENANCY_MODE','shared')
     await migrate(pool)
-    const root=await realpath(await mkdtemp(join(tmpdir(),'nasq-onboarding-')))
-    const runtime={schemaVersion:1,projectName:'nasq-saas-onboarding',composeFile:join(root,'compose.yml'),envFile:join(root,'runtime.env'),stateDir:root,domainSuffix:'onboarding.test'}
+    const root=await realpath(await mkdtemp(join(tmpdir(),'webvue-onboarding-')))
+    const runtime={schemaVersion:1,projectName:'webvue-saas-onboarding',composeFile:join(root,'compose.yml'),envFile:join(root,'runtime.env'),stateDir:root,domainSuffix:'onboarding.test'}
     await writeFile(runtime.composeFile,'services: {}\n');await writeFile(runtime.envFile,'')
     await writeFile(join(root,'runtime.json'),JSON.stringify(runtime))
     config={installationId:actor.issuer,key:'test-key'.repeat(8),inventoryPath:'/unused',stateDir:root,repositoryRoot:fileURLToPath(new URL('../../../..',import.meta.url)),python:'python3',sharedRuntimeConfigPath:join(root,'runtime.json'),tenantRegistryPath:join(root,'registry.json')}
@@ -36,7 +36,7 @@ suite('real shared onboarding SQL identity and fail-closed publication',()=>{
     const replayed=await onboardSharedTenant(pool,config,actor,input)
     expect(replayed.tenant_id).toBe(first.tenant_id);expect(replayed.job_id).toBe(first.job_id);expect(replayed.replay).toBe(true)
     const jobs=await pool.query('SELECT payload FROM shared_jobs WHERE control_tenant_id=$1',[first.tenant_id])
-    expect(jobs.rowCount).toBe(1);expect(jobs.rows[0].payload.policy.modules).toEqual(['nasq_core','nasq_platform','nasq_api','nasq_pmo','nasq_meetings'])
+    expect(jobs.rowCount).toBe(1);expect(jobs.rows[0].payload.policy.modules).toEqual(['webvue_core','webvue_platform','webvue_api','webvue_pmo','webvue_meetings'])
     expect(jobs.rows[0].payload.policy.features['pmo.enabled']).toBe(true)
     const registry=JSON.parse(await readFile(config.tenantRegistryPath,'utf8'))
     expect(registry.targets.find((target:any)=>target.database===jobs.rows[0].payload.binding.database).enabled).toBe(false)

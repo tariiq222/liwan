@@ -5,8 +5,8 @@ import { randomUUID } from 'node:crypto'
 import { assertReconfigureAuthority, type SubscriptionRunner } from './subscription-reconfigure.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
 import type { Pool } from 'pg'
-import type { SharedJob,SharedReconfigureJob } from '@nasq/commercial-contracts/shared'
-import { sharedObservationSchema } from '@nasq/commercial-contracts/shared'
+import type { SharedJob,SharedReconfigureJob } from '@webvue/commercial-contracts/shared'
+import { sharedObservationSchema } from '@webvue/commercial-contracts/shared'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
 import { businessKey,payloadDigest } from './provisioning.js'
@@ -20,7 +20,7 @@ import { createAdminPasswordRunner } from './admin-password-runner.js'
 import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
 
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
- * Mirrors tools/nasq_cli/managed_verify.py ERROR_CODES plus the managed-policy
+ * Mirrors tools/webvue_cli/managed_verify.py ERROR_CODES plus the managed-policy
  * and catalog-source codes classify_error allows across the IPC boundary. */
 /** The request the subscription effect receives; `admin_login` is sent only when the control plane stored one. */
 export function subscriptionRequest(input:{job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number},adminLogin?:string|null){

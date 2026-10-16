@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
 type MeetingEvent = {
   id: number
@@ -43,7 +43,7 @@ function kindLabel(kind: string) {
   return te(key) ? t(key) : t('meetingMinutesForm.eventKinds.generic')
 }
 function occurredAt(value: string) {
-  return formatNasqDateTime(value, locale.value)
+  return formatWebVueDateTime(value, locale.value)
 }
 function hasInformativeSummary(event: MeetingEvent) {
   const summary = event.summary.trim()

@@ -1,8 +1,8 @@
-# خطة تنفيذ منتج نسق SaaS التجاري — Implementation Plan
+# خطة تنفيذ منتج ويب فيو SaaS التجاري — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Read the spec and the relevant part before execution. No automatic commits or deployment.
 
-**Goal:** تحويل التصور التجاري المعتمد إلى منتج يستطيع العميل الاشتراك فيه واستخدامه، وتستطيع إدارة نسق بيع باقاته وحزمه وتخصيصها وتحصيلها وإدارة فروعه وتجديده من لوحة واحدة.
+**Goal:** تحويل التصور التجاري المعتمد إلى منتج يستطيع العميل الاشتراك فيه واستخدامه، وتستطيع إدارة ويب فيو بيع باقاته وحزمه وتخصيصها وتحصيلها وإدارة فروعه وتجديده من لوحة واحدة.
 
 **Architecture:** لوحة التحكم هي مصدر الاتفاق التجاري والأسعار وإصدارات الاشتراك، وOdoo مصدر بيانات العمل والفروع والاستخدام الفعلي. يحوّل مترجم الاستحقاقات الاتفاق إلى تطبيقات وميزات وحدود، ويطبقه عامل موثق مع قراءة النتيجة؛ تبقى الحالة المالية منفصلة عن حالة تشغيل الخدمة. نعيد استخدام أساس العزل والتجهيز والنسخ والاستعادة الموجود، ونطوره دون محو العمل السابق.
 
@@ -24,7 +24,7 @@
 
 ## أين نحن الآن، وما الذي لا نعيد بناءه
 
-مرجع المصدر في 2026-10-02: `main` عند `5dc1daef79ff4628f92d4b23a8dec2d27e3af1eb`، نظيف محليًا وقت الفحص. مسار العمل الحالي `/Users/tariq/.codex/worktrees/saas-lifecycle-integration/nasq` على `codex/ui-live-review` عند الأساس نفسه مع تعديلات متعددة غير ملتزمة يجب الحفاظ عليها.
+مرجع المصدر في 2026-10-02: `main` عند `5dc1daef79ff4628f92d4b23a8dec2d27e3af1eb`، نظيف محليًا وقت الفحص. مسار العمل الحالي `/Users/tariq/.codex/worktrees/saas-lifecycle-integration/webvue` على `codex/ui-live-review` عند الأساس نفسه مع تعديلات متعددة غير ملتزمة يجب الحفاظ عليها.
 
 | الموجود | حد الدليل والقرار |
 |---|---|
@@ -143,11 +143,11 @@
 
 ## موجز Odoo قبل تنفيذ الفروع والميزات
 
-البيئة المتتبعة Odoo 19.0 من `/Users/tariq/code/odoo`، دون بدء تشغيل. `odoo/addons/base/models/res_company.py:51` يحتوي parent_id وchild_ids وroot_id: نستخدم فرع Odoo تحت الشركة الجذر، لا ننشئ كيان أعمال مكررًا. `odoo-addons/nasq_platform/models/tenant_profile.py:18` يثبت root_company_id، وتحقق الجذر في الملف نفسه؛ قاعدة العميل تظل واحدة للمقر والفروع.
+البيئة المتتبعة Odoo 19.0 من `/Users/tariq/code/odoo`، دون بدء تشغيل. `odoo/addons/base/models/res_company.py:51` يحتوي parent_id وchild_ids وroot_id: نستخدم فرع Odoo تحت الشركة الجذر، لا ننشئ كيان أعمال مكررًا. `odoo-addons/webvue_platform/models/tenant_profile.py:18` يثبت root_company_id، وتحقق الجذر في الملف نفسه؛ قاعدة العميل تظل واحدة للمقر والفروع.
 
-`odoo-addons/nasq_core/models/res_company.py:26` يمنع غير system من إنشاء الشركات؛ لذلك لا نعطي العميل صلاحية إنشاء عامة لتجاوز الفوترة. خدمة ضيقة تتحقق من طلب SaaS موثق تنشئ الفرع. `nasq_core/models/res_users.py:167` يجمع groups عبر الشركات ويعتمد العزل على قواعد السجلات ونطاق الشركة؛ يجب اختبار الصلاحيات فعليًا لكل فرع، ولا نساوي عضوية company بحد تجاري.
+`odoo-addons/webvue_core/models/res_company.py:26` يمنع غير system من إنشاء الشركات؛ لذلك لا نعطي العميل صلاحية إنشاء عامة لتجاوز الفوترة. خدمة ضيقة تتحقق من طلب SaaS موثق تنشئ الفرع. `webvue_core/models/res_users.py:167` يجمع groups عبر الشركات ويعتمد العزل على قواعد السجلات ونطاق الشركة؛ يجب اختبار الصلاحيات فعليًا لكل فرع، ولا نساوي عضوية company بحد تجاري.
 
-`nasq_platform/models/feature_registry.py` يعرّف المستخدمين والمرفقات؛ امتداد PMO يعرّف pmo.enabled وmeetings.enabled وprojects.max_projects، وHR يعرّف hr.enabled، والدردشة chat.enabled. `nasq_api/controllers/common.py:44` يحتوي requires_feature. هذه مفاتيح عامة؛ مربعات مزايا تفصيلية في النموذج تحتاج عقد إنفاذ مستقل قبل بيعها. `nasq_platform/models/entitlement_service.py` نقطة تحقق الميزات والحصص، وليست الواجهة وحدها.
+`webvue_platform/models/feature_registry.py` يعرّف المستخدمين والمرفقات؛ امتداد PMO يعرّف pmo.enabled وmeetings.enabled وprojects.max_projects، وHR يعرّف hr.enabled، والدردشة chat.enabled. `webvue_api/controllers/common.py:44` يحتوي requires_feature. هذه مفاتيح عامة؛ مربعات مزايا تفصيلية في النموذج تحتاج عقد إنفاذ مستقل قبل بيعها. `webvue_platform/models/entitlement_service.py` نقطة تحقق الميزات والحصص، وليست الواجهة وحدها.
 
 ## حدود هذه التسليمة
 

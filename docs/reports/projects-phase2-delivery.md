@@ -19,7 +19,7 @@
 - تنفيذ الخلفية: /Users/tariq/code/nasq-phase2-backend — codex/phase2-backend.
 - تنفيذ الواجهة: /Users/tariq/code/nasq-phase2-web — codex/phase2-web.
 - عند إتمام التحقق كانت التغييرات غير ملتزم بها. أذن المستخدم لاحقًا بحفظها في commit محلي؛ لم ينفذ merge أو push أو deploy. أعمال المرحلة الأولى والتعديلات الموجودة في النسخة الأساسية مستقلة ولم تستورد.
-- قاعدة الاختبار: nasq_phase2_20260907، Odoo:9969، Nuxt:3969. لم تستخدم odoo19 للاختبار. أوقفت خادمي الاختبار المؤقتين بعد اكتمال التحقق، وأبقيت القاعدة والفروع والملفات للمراجعة.
+- قاعدة الاختبار: webvue_phase2_20260907، Odoo:9969، Nuxt:3969. لم تستخدم odoo19 للاختبار. أوقفت خادمي الاختبار المؤقتين بعد اكتمال التحقق، وأبقيت القاعدة والفروع والملفات للمراجعة.
 
 ## توزيع العمل والمراجعة
 Claude Sonnet high عبر اشتراك claude.ai المتصل نفذ الخلفية واختباراتها؛ Grok grok-4.6 medium عبر اشتراك grok.com المتصل نفذ الواجهة واختبارات المساعدات. Codex ثبت العقود، ودمج الملفات المشتركة، وأجرى الاختبارات وتصحيحات الدمج. مراجعة Astra مستقلة قرأت التنفيذ والتصحيحات. لم يستخدم مسار API مدفوع منفصل.
@@ -34,9 +34,9 @@ Claude Sonnet high عبر اشتراك claude.ai المتصل نفذ الخلف�
 | npm -w apps/web run lint | TypeScript ناجح |
 | ruff check odoo-addons | ناجح |
 | npm run build | بناء العقود وNuxt ناجح |
-| Odoo: nasq_core,nasq_api,nasq_pmo,nasq_hr | 400 اختبار، صفر فشل وصفر أخطاء |
+| Odoo: webvue_core,webvue_api,webvue_pmo,webvue_hr | 400 اختبار، صفر فشل وصفر أخطاء |
 | Playwright projects-phase2.spec.ts | 12 ناجحة، 14.8 ثانية |
-| تكرار تحديث nasq_pmo | 13 سجلًا ماليًا محفوظًا دون تغيير في أي عمود |
+| تكرار تحديث webvue_pmo | 13 سجلًا ماليًا محفوظًا دون تغيير في أي عمود |
 | git diff --check | ناجح |
 
 اختبار الحفظ المتزامن أرسل PATCH مرتين بنفس المراجعة: نجح طلب واحد بـ200 ورُفض الآخر بـ409، وظلت قيمة الفائز محفوظة. اختبار التقرير شمل أكثر من 200 مشروع وإجماليات لا تتغير بتغير الصفحة. اختبارات استدعاء ORM شملت حقن القيم الافتراضية، عزل الشركة، الأرشفة والصلاحيات، وتثبت إعادة قراءة 0.12 دون تحويلها إلى 0.10 عند إعداد العملة على تقريب 0.05.
@@ -47,20 +47,20 @@ Claude Sonnet high عبر اشتراك claude.ai المتصل نفذ الخلف�
 - [لقطة التقرير](../evidence/projects-phase2/reports-desktop.png)
 - [لقطة الميزانية على الجوال](../evidence/projects-phase2/finance-mobile.png)
 
-السجلات التفصيلية في /tmp/nasq-phase2-evidence/: node-tests-final.log، web-types.log، ruff.log، build.log، odoo-tests-final.log، e2e-final.log، odoo-upgrade-repeat.log. هذا إثبات محلي للنسخة المعزولة، وليس إثبات نشر إنتاجي أو اختبار حمل واسع. تكرار تحديث الإضافة اختبر حفظ البيانات، ولا يمثل اختبار استعادة نسخة احتياطية.
+السجلات التفصيلية في /tmp/webvue-phase2-evidence/: node-tests-final.log، web-types.log، ruff.log، build.log، odoo-tests-final.log، e2e-final.log، odoo-upgrade-repeat.log. هذا إثبات محلي للنسخة المعزولة، وليس إثبات نشر إنتاجي أو اختبار حمل واسع. تكرار تحديث الإضافة اختبر حفظ البيانات، ولا يمثل اختبار استعادة نسخة احتياطية.
 
 ## أوامر التحقق والمعاينة
 من جذر هذه النسخة، نفذ npm ci --ignore-scripts ثم npm -w apps/web exec nuxt prepare عند تجهيزها من جديد. أوامر Odoo التالية نُفذت قبل بذر بيانات المتصفح. القاعدة الحالية تحتوي بيانات التجربة؛ إعادة المجموعة كاملة تتطلب قاعدة اختبار نظيفة معزولة، ولا تشغّلها على قاعدة المعاينة أو odoo19:
 
 ```sh
 cd /Users/tariq/code/odoo
-.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-projects-phase2/odoo-addons -d nasq_phase2_20260907 -u nasq_core,nasq_api,nasq_pmo,nasq_hr --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr --http-port=9969 --stop-after-init
-.venv/bin/python odoo-bin shell -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-projects-phase2/odoo-addons -d nasq_phase2_20260907 --no-http < /Users/tariq/code/nasq-projects-phase2/apps/web/e2e/fixtures/projects-phase2.py
+.venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-projects-phase2/odoo-addons -d webvue_phase2_20260907 -u webvue_core,webvue_api,webvue_pmo,webvue_hr --test-tags /webvue_core,/webvue_api,/webvue_pmo,/webvue_hr --http-port=9969 --stop-after-init
+.venv/bin/python odoo-bin shell -c /Users/tariq/code/odoo/odoo.conf --addons-path=/Users/tariq/code/odoo/addons,/Users/tariq/code/nasq-projects-phase2/odoo-addons -d webvue_phase2_20260907 --no-http < /Users/tariq/code/nasq-projects-phase2/apps/web/e2e/fixtures/projects-phase2.py
 ```
 
 سكريبت البيانات يرفض أي قاعدة مختلفة، ويجهز حسابات اختبار فقط: phase2_manager وphase2_reader وphase2_no_pmo، بكلمة مرور تجريبية phase2_test_only_2026. المدير يجمع دور PMO مع مجموعة مدير المشاريع الأصلية في Odoo، كما يفعل fixture اختبارات PMO القائم. لا يغطي هذا التسليم تغيير منظومة إنشاء الأدوار. أعد تشغيل خادم Odoo بعد تشغيل سكريبت البيانات لإفراغ صلاحيات الحسابات المخبأة.
 
-للمعاينة، شغّل Odoo على 9969 بنفس قاعدة الاختبار ومسار الإضافات، ثم من apps/web شغّل البناء باستخدام NUXT_ODOO_URL=http://127.0.0.1:9969 وNUXT_ODOO_DB=nasq_phase2_20260907 وNUXT_PUBLIC_WS_URL=ws://127.0.0.1:9969/websocket، وبعده PORT=3969 HOST=127.0.0.1 node .output/server/index.mjs مع متغيرات Odoo نفسها. من جذر المشروع:
+للمعاينة، شغّل Odoo على 9969 بنفس قاعدة الاختبار ومسار الإضافات، ثم من apps/web شغّل البناء باستخدام NUXT_ODOO_URL=http://127.0.0.1:9969 وNUXT_ODOO_DB=webvue_phase2_20260907 وNUXT_PUBLIC_WS_URL=ws://127.0.0.1:9969/websocket، وبعده PORT=3969 HOST=127.0.0.1 node .output/server/index.mjs مع متغيرات Odoo نفسها. من جذر المشروع:
 
 ```sh
 E2E_BASE_URL=http://127.0.0.1:3969 npm -w apps/web run test:e2e -- projects-phase2.spec.ts

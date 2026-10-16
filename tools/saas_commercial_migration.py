@@ -10,13 +10,13 @@ def main() -> int:
     g.add_argument("--run", action="store_true")
     ap.add_argument("--report")
     ap.add_argument("--database-url", default=os.environ.get("CONTROL_DATABASE_URL"))
-    ap.add_argument("--allow-target", action="store_true", help="permit a database not named nasq_control_scratch_*")
+    ap.add_argument("--allow-target", action="store_true", help="permit a database not named webvue_control_scratch_*")
     a = ap.parse_args()
     if not a.database_url:
         print("database URL required (--database-url or CONTROL_DATABASE_URL)", file=sys.stderr); return 64
     db = urlparse(a.database_url).path.lstrip("/")
-    if not re.match(r"^nasq_control_scratch_", db) and not a.allow_target:
-        print(f"refusing database {db!r}: not nasq_control_scratch_* (use --allow-target)", file=sys.stderr); return 65
+    if not re.match(r"^webvue_control_scratch_", db) and not a.allow_target:
+        print(f"refusing database {db!r}: not webvue_control_scratch_* (use --allow-target)", file=sys.stderr); return 65
     env = dict(os.environ, CONTROL_DATABASE_URL=a.database_url)
     cmd = ["npm", "-w", "apps/control-plane", "run", "admin", "--", "migrate-saas-commercial", "--run" if a.run else "--dry-run"]
     if a.report: cmd += ["--report", a.report]

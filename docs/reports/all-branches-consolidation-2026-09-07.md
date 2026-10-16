@@ -1,6 +1,6 @@
 # Authorized all-branch consolidation — 2026-09-07
 
-The user authorized merging all Nasq branches/worktrees into main, cleaning obsolete workspaces, and restarting the canonical local runtime. Scope is Nasq only; upstream Odoo source/configuration and business databases are preserved.
+The user authorized merging all WebVue branches/worktrees into main, cleaning obsolete workspaces, and restarting the canonical local runtime. Scope is WebVue only; upstream Odoo source/configuration and business databases are preserved.
 
 ## Reconciliation
 
@@ -16,7 +16,7 @@ Recovery directory: `/Users/tariq/code/nasq-recovery-all-20260907-212511`. Origi
 
 ## Verification and runtime
 
-Backend verification passed on fresh isolated database `nasq_all_verify_20260907`: 37 focused project/report tests, zero failures/errors. No tests run on `odoo19`. Fresh frontend gates: 122 contract + 542 web unit tests, Vue typecheck, changed-Python Ruff and Nuxt production build passed. Ten browser cases passed against isolated Nuxt3983/Odoo9983 (three widths, dark/large type, navigation, filtered returns, error/retry and cached capability denial). Independent Astra salvage review found no blocker. Canonical local restart completed after promotion at product commit `30901b0`. Odoo8069 and Nuxt3000 use main and database `odoo19`. `/login` and `/api/v1/branding` return 200; unauthenticated `/api/v1/me` returns expected 403, and dashboard requests redirect to login. The browser visibly renders institution branding and the login form after reload. An authenticated canonical dashboard flow was not exercised; authenticated browser acceptance above used the isolated scratch runtime. No production deployment or push is claimed.
+Backend verification passed on fresh isolated database `webvue_all_verify_20260907`: 37 focused project/report tests, zero failures/errors. No tests run on `odoo19`. Fresh frontend gates: 122 contract + 542 web unit tests, Vue typecheck, changed-Python Ruff and Nuxt production build passed. Ten browser cases passed against isolated Nuxt3983/Odoo9983 (three widths, dark/large type, navigation, filtered returns, error/retry and cached capability denial). Independent Astra salvage review found no blocker. Canonical local restart completed after promotion at product commit `30901b0`. Odoo8069 and Nuxt3000 use main and database `odoo19`. `/login` and `/api/v1/branding` return 200; unauthenticated `/api/v1/me` returns expected 403, and dashboard requests redirect to login. The browser visibly renders institution branding and the login form after reload. An authenticated canonical dashboard flow was not exercised; authenticated browser acceptance above used the isolated scratch runtime. No production deployment or push is claimed.
 
 ## Final cleanup and data preservation
 

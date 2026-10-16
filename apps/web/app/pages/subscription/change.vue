@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Quote } from '@nasq/commercial-contracts'
+import type { Quote } from '@webvue/commercial-contracts'
 import { QUOTE_IS_EXPIRED, safeIdemAction } from '@/utils/subscription'
 import { safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'

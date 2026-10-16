@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/vue-query'
-import { PersonalStageSchema } from '@nasq/contracts'
+import { PersonalStageSchema } from '@webvue/contracts'
 import { taskKeys } from './useTasks'
 
 const PersonalStageListSchema = PersonalStageSchema.array()

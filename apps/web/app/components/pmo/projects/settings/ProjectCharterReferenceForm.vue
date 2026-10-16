@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PROJECT_CHARTER_STEPS, type ProjectCharterReference, type ProjectCharterStep } from '@nasq/contracts'
+import { PROJECT_CHARTER_STEPS, type ProjectCharterReference, type ProjectCharterStep } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import {
   useCreateCharterReference,
@@ -94,7 +94,7 @@ async function submit() {
 </script>
 
 <template>
-  <form class="nasq-form" data-testid="charter-reference-form" @submit.prevent="submit">
+  <form class="webvue-form" data-testid="charter-reference-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UFormField :label="t('settings.projects.catalogs.name')" required>
       <UInput id="catalog-name" v-model="name" class="w-full" required :disabled="!hydrated || pending" />

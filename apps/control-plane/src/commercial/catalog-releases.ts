@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
-import { catalogApplicationsFromSolution, catalogDigest } from '@nasq/commercial-contracts/server'
-import { catalogReleaseViewSchema, type CatalogReleaseView } from '@nasq/commercial-contracts'
+import { catalogApplicationsFromSolution, catalogDigest } from '@webvue/commercial-contracts/server'
+import { catalogReleaseViewSchema, type CatalogReleaseView } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, iso, type CommercialActor } from './lifecycle.js'
 

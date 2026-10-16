@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
 import { useQueryClient } from '@tanstack/vue-query'
-import EmptyState from '@nasq/ui/app/components/shared/feedback/EmptyState.vue'
+import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
 import ChatInfoPanel from '@/components/chat/ChatInfoPanel.vue'
 import ConversationList from '@/components/chat/ConversationList.vue'
 import MessageHistory from '@/components/chat/MessageHistory.vue'
@@ -10,7 +10,7 @@ import { ApiError } from '@/composables/useApi'
 import { applyChatAccessFailure, chatKeys } from '@/composables/useChat'
 import { chatTypingEvent } from '@/composables/useBus'
 import { initialsFor, isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
-import type { ChatMessage } from '@nasq/contracts'
+import type { ChatMessage } from '@webvue/contracts'
 
 // The conversation screen on SharedConversationLayout. From 768px the list is the shell's context-sidebar panel
 // (ChatSidebarPanel); below it the list, the thread and the info panel replace one another. The info panel is the URL
@@ -93,13 +93,13 @@ function updateRoute(next: ChatListRoute) {
     </template>
 
     <template v-if="composerOpen" #header>
-      <header class="nasq-chat-thread-header" data-testid="chat-thread-header">
+      <header class="webvue-chat-thread-header" data-testid="chat-thread-header">
         <UTooltip v-if="!isDesktop" :text="t('app.back')">
           <UButton color="neutral" variant="ghost" square :to="{ path: '/chat', query: listQuery }" :aria-label="t('app.back')">
             <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
           </UButton>
         </UTooltip>
-        <span class="nasq-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
+        <span class="webvue-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
         <div class="min-w-0 flex-1 text-start">
           <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.name || t('chat.title') }}</h1>
           <p class="truncate text-xs text-muted">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
@@ -131,7 +131,7 @@ function updateRoute(next: ChatListRoute) {
             </UButton>
           </UTooltip>
         </div>
-        <UInput v-if="showMessageSearch" v-model="messageQuery" class="nasq-chat-thread-search" icon="i-lucide-search" :placeholder="t('chat.searchMessages')" :disabled="!hydrated" />
+        <UInput v-if="showMessageSearch" v-model="messageQuery" class="webvue-chat-thread-search" icon="i-lucide-search" :placeholder="t('chat.searchMessages')" :disabled="!hydrated" />
       </header>
     </template>
 

@@ -72,14 +72,14 @@ export function renderInvitationEmail(input: { companyName: string; url: string 
   html: string;
 } {
   const { companyName, url } = input;
-  const subject = `دعوة للانضمام إلى ${companyName} على نسق | Invitation to join ${companyName} on Nasq`;
+  const subject = `دعوة للانضمام إلى ${companyName} على ويب فيو | Invitation to join ${companyName} on WebVue`;
   const text = [
-    `تمت دعوتك لإدارة ${companyName} على نسق.`,
+    `تمت دعوتك لإدارة ${companyName} على ويب فيو.`,
     `افتح الرابط التالي لقبول الدعوة:`,
     url,
     "",
     "---",
-    `You have been invited to administer ${companyName} on Nasq.`,
+    `You have been invited to administer ${companyName} on WebVue.`,
     `Open this link to accept the invitation:`,
     url,
     "",
@@ -87,9 +87,9 @@ export function renderInvitationEmail(input: { companyName: string; url: string 
   const c = escapeHtml(companyName);
   const u = escapeHtml(url);
   const html =
-    `<div dir="rtl" lang="ar"><p>تمت دعوتك لإدارة <strong>${c}</strong> على نسق.</p>` +
+    `<div dir="rtl" lang="ar"><p>تمت دعوتك لإدارة <strong>${c}</strong> على ويب فيو.</p>` +
     `<p><a href="${u}">قبول الدعوة</a></p></div><hr>` +
-    `<div dir="ltr" lang="en"><p>You have been invited to administer <strong>${c}</strong> on Nasq.</p>` +
+    `<div dir="ltr" lang="en"><p>You have been invited to administer <strong>${c}</strong> on WebVue.</p>` +
     `<p><a href="${u}">Accept the invitation</a></p></div>`;
   return { subject, text, html };
 }

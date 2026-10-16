@@ -1,7 +1,7 @@
 import type { AppearanceMode } from './appearance'
-import { DARK_SURFACES, NASQ_MIDNIGHT, contrastRatio, relativeLuminance } from './nasqPalette'
+import { DARK_SURFACES, WEBVUE_MIDNIGHT, contrastRatio, relativeLuminance } from './webvuePalette'
 
-export const DEFAULT_PRIMARY = NASQ_MIDNIGHT
+export const DEFAULT_PRIMARY = WEBVUE_MIDNIGHT
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 

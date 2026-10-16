@@ -4,7 +4,7 @@ import {
   TaskListSchema, ProjectRaciListSchema, ProjectRaciSchema, ProjectRegisterListSchema, ProjectRegisterSchema,
   ProjectStakeholderListSchema, ProjectStakeholderSchema,
   type ProjectRaci, type ProjectRaciWrite, type ProjectRegisterWrite, type ProjectStakeholderWrite,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 
 import { governanceKeys as projectGovernanceKeys, type GovernanceRegisterFilters } from './projectGovernanceKeys'
 export { projectGovernanceKeys }
@@ -38,7 +38,7 @@ export function useProjectRaci(projectId: MaybeRefOrGetter<number | null>, param
     enabled: computed(() => !!toValue(projectId)),
     queryFn: async ({ signal }) => {
       const query = toValue(params)
-      const items = [] as import('@nasq/contracts').ProjectRaci[]
+      const items = [] as import('@webvue/contracts').ProjectRaci[]
       let total = 0; let can_manage = false
       do {
         signal.throwIfAborted()

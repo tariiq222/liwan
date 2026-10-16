@@ -16,7 +16,7 @@ import {
   type GrantAccountInput,
   type ResetPasswordInput,
   type UpdateUserAccessInput,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 
 export type AdminUserListParams = {
   q?: string

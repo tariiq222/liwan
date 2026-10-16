@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 // The real TOTP verification path (enabling 2FA, checking the code against the
-// secret) is covered server-side by the Odoo test in nasq_api/tests/test_totp.py.
+// secret) is covered server-side by the Odoo test in webvue_api/tests/test_totp.py.
 // This spec only exercises the UI branch: given the Nitro endpoints, does the
 // second step render, submit, and navigate on success.
 test('MFA-pending login shows and submits the TOTP step', async ({ page }) => {
@@ -15,9 +15,9 @@ test('MFA-pending login shows and submits the TOTP step', async ({ page }) => {
       contentType: 'application/json',
       body: JSON.stringify({
         id: 1, name: 'Admin', login: 'admin', email: '', lang: 'ar_001', tz: '',
-        role: 'admin', company: { id: 1, name: 'nasq' },
+        role: 'admin', company: { id: 1, name: 'webvue' },
         roles: [], capabilities: ['pmo.tasks.read'], access_policy_version: 1,
-        modules: ['nasq_pmo'],
+        modules: ['webvue_pmo'],
         entitlements: { 'pmo.enabled': true },
         platform: {
           schema_version: 1, policy_revision: 1, state: 'active',

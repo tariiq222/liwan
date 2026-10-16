@@ -177,7 +177,7 @@ async function retryNextPage() {
                 <span>{{ kindLabel(item) }}</span>
                 <span v-if="!item.is_read" class="inline-flex items-center gap-1.5 font-semibold">
                   <!-- Lime is a fill, never text: the dot marks unread, the word keeps it readable without colour. -->
-                  <span class="size-2 shrink-0 rounded-full bg-nasq-lime" data-testid="notification-unread-dot" aria-hidden="true" />
+                  <span class="size-2 shrink-0 rounded-full bg-webvue-lime" data-testid="notification-unread-dot" aria-hidden="true" />
                   {{ t('notifications.unread') }}
                 </span>
               </span>

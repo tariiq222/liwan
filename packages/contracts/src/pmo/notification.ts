@@ -88,7 +88,7 @@ const KNOWN_NOTIFICATION_KINDS: ReadonlySet<string> = new Set(NotificationKindSc
 
 /**
  * A bell row of a kind this contract does not know: another application registered it in
- * nasq_notify after this build. Only the envelope is read; extra keys are kept. A known kind
+ * webvue_notify after this build. Only the envelope is read; extra keys are kept. A known kind
  * never parses here, so a malformed known row still fails the list.
  */
 export const UnknownNotificationSchema = z.object({

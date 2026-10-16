@@ -4,32 +4,32 @@ import { groupTokens, isColorToken, parseTokenNames } from '../tokens'
 const css = `@theme { --text-xs: 0.85rem; }
 :root {
   /* --commented-out: red; */
-  --nasq-surface: #fff;
-  --ui-bg: var(--nasq-surface);
-  --nasq-radius: 14px;
+  --webvue-surface: #fff;
+  --ui-bg: var(--webvue-surface);
+  --webvue-radius: 14px;
 }
-.dark { --nasq-surface: #111; --status-danger: #f00; }`
+.dark { --webvue-surface: #111; --status-danger: #f00; }`
 
 describe('token names from tokens.css', () => {
   it('lists each declared custom property once, in source order, ignoring comments and usages', () => {
-    expect(parseTokenNames(css)).toEqual(['--text-xs', '--nasq-surface', '--ui-bg', '--nasq-radius', '--status-danger'])
+    expect(parseTokenNames(css)).toEqual(['--text-xs', '--webvue-surface', '--ui-bg', '--webvue-radius', '--status-danger'])
   })
 
   it('groups by the first name segment', () => {
     expect(groupTokens(parseTokenNames(css))).toEqual([
-      { prefix: 'nasq', names: ['--nasq-surface', '--nasq-radius'] },
       { prefix: 'status', names: ['--status-danger'] },
       { prefix: 'text', names: ['--text-xs'] },
       { prefix: 'ui', names: ['--ui-bg'] },
+      { prefix: 'webvue', names: ['--webvue-surface', '--webvue-radius'] },
     ])
   })
 
   it.each([
-    ['--nasq-surface', true],
+    ['--webvue-surface', true],
     ['--status-danger-soft', true],
-    ['--nasq-radius', false],
+    ['--webvue-radius', false],
     ['--elevation-2', false],
-    ['--nasq-ui-z-menu', false],
+    ['--webvue-ui-z-menu', false],
     ['--text-xs', false],
     ['--font-sans', false],
     ['--shell-header-height', false],

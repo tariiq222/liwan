@@ -14,7 +14,7 @@
 // its selection is always explicit.
 import { Pool } from 'pg'
 import { createHash } from 'node:crypto'
-import type { SharedJob } from '@nasq/commercial-contracts/shared'
+import type { SharedJob } from '@webvue/commercial-contracts/shared'
 import { businessKey, payloadDigest } from './provisioning.js'
 import type { SharedFencedAdapter } from './job-worker.js'
 import { restoreBackupToNewTarget } from './shared-backup.js'

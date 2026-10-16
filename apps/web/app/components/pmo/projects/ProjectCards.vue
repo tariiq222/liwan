@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Project } from '@nasq/contracts'
+import type { Project } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import ProjectCardBody from './ProjectCardBody.vue'
 
@@ -32,7 +32,7 @@ function openWithKeyboard(project: Project, event: KeyboardEvent) {
     <article
       v-for="project in items"
       :key="project.id"
-      class="cursor-pointer rounded-lg bg-default p-4 ring ring-default transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      class="min-w-0 cursor-pointer rounded-lg bg-default p-4 ring ring-default transition-colors hover:bg-elevated/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       data-testid="project-card"
       tabindex="0"
       :aria-labelledby="`project-card-${project.id}`"

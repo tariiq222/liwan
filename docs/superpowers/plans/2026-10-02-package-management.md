@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Work only in `/Users/tariq/.codex/worktrees/saas-lifecycle-integration/nasq`, branch `codex/ui-live-review`, base `5dc1daef79ff4628f92d4b23a8dec2d27e3af1eb`.
+- Work only in `/Users/tariq/.codex/worktrees/saas-lifecycle-integration/webvue`, branch `codex/ui-live-review`, base `5dc1daef79ff4628f92d4b23a8dec2d27e3af1eb`.
 - User's newer Astra routing policy supersedes the old Luna paragraph. Backend Astra high; UI Astra medium; independent review Astra high. No paid APIs, children, or full worker test/build/lint runs.
 - Read AGENTS.md/CLAUDE.md/DESIGN.md and preserve all prior dirty UI/operation-feed changes. Parent owns runtime, final checks and integration.
 - Published revision identity/policy immutable; withdrawal stops new enrollment only; drafts deletable only without references. Numeric limits use safe nonnegative integers, null unlimited, 0 unusable. Storage means attachment-accounting MiB, not total disk.
@@ -57,7 +57,7 @@ Read capability `vendor.read`; all mutations `vendor.catalog.manage`. Creation/e
 
 **Owner:** Backend implementer; parent is sole integrator. This is one dependent package, not parallel writers.
 
-**Files:** create `packages/commercial-contracts/src/packages.ts`, package tests; create `apps/control-plane/src/packages.ts`, `package-http.ts`, `schema_011.sql`, package lifecycle tests. Modify existing contracts `index.ts` and shared provisioning schema, control `db.ts`/`http.ts`, `shared/onboarding.ts`, `shared/job-store.ts`, shared worker dispatch/real Odoo adapter as needed, and legacy `shared/shared-order.ts` guard. Modify `tools/nasq_cli/managed_policy.py` and `tools/shared_saas_lifecycle/odoo_effect.py`; add focused Python package authority tests beside existing policy tests. No frontend files.
+**Files:** create `packages/commercial-contracts/src/packages.ts`, package tests; create `apps/control-plane/src/packages.ts`, `package-http.ts`, `schema_011.sql`, package lifecycle tests. Modify existing contracts `index.ts` and shared provisioning schema, control `db.ts`/`http.ts`, `shared/onboarding.ts`, `shared/job-store.ts`, shared worker dispatch/real Odoo adapter as needed, and legacy `shared/shared-order.ts` guard. Modify `tools/webvue_cli/managed_policy.py` and `tools/shared_saas_lifecycle/odoo_effect.py`; add focused Python package authority tests beside existing policy tests. No frontend files.
 
 **Interfaces:** Produces the frozen wire contract above and a worker authority resolver tied to immutable package revision/id/digest/catalog. Keep route plumbing small; package storage/lifecycle in its own module. New SQL references published package revisions from tenants, DB guards prevent published edits/deletes; logical availability separate from immutable content. Capture optimistic revision in each transition. Locked enrollment assignment makes withdrawal race-safe and replays preserve assigned source.
 

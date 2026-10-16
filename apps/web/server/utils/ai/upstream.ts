@@ -8,7 +8,7 @@ import { upstreamError } from './executor'
 export type Upstream = { status: number; body: unknown }
 export type Owner = { tenant: string; user: string }
 
-const AI_ABORT = Symbol('nasq-ai-abort')
+const AI_ABORT = Symbol('webvue-ai-abort')
 const SERVICE_TIMEOUT_MS = 130000
 const ODOO_TIMEOUT_MS = 15000
 const MAX_SSE_BUFFER = 1024 * 1024
@@ -55,7 +55,7 @@ export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH',
   return { status: response.status, body: parsed }
 }
 
-/** One call to the Nasq AI service. It gets no cookie and no bearer: the owner headers (plus the shared service token, when set) are all it sees. */
+/** One call to the WebVue AI service. It gets no cookie and no bearer: the owner headers (plus the shared service token, when set) are all it sees. */
 export async function serviceFetch(event: H3Event, method: 'GET' | 'POST' | 'PATCH', path: string, owner: Owner, body?: unknown, signal?: SignalOption): Promise<Response> {
   const { aiServiceUrl, aiServiceToken } = useRuntimeConfig(event)
   if (!aiServiceUrl) throw serviceUnavailable('the AI service is not configured')
@@ -63,8 +63,8 @@ export async function serviceFetch(event: H3Event, method: 'GET' | 'POST' | 'PAT
     return await fetch(joinURL(aiServiceUrl, path), {
       method,
       headers: {
-        'content-type': 'application/json', accept: 'text/event-stream, application/json', 'x-nasq-tenant': owner.tenant, 'x-nasq-user': owner.user,
-        ...(aiServiceToken ? { 'x-nasq-service-token': aiServiceToken } : {}),
+        'content-type': 'application/json', accept: 'text/event-stream, application/json', 'x-webvue-tenant': owner.tenant, 'x-webvue-user': owner.user,
+        ...(aiServiceToken ? { 'x-webvue-service-token': aiServiceToken } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: withTimeout(event, SERVICE_TIMEOUT_MS, signal),

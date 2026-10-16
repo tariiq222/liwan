@@ -6,12 +6,12 @@ import ts from 'typescript'
 import * as VueRouter from 'vue-router'
 import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ScheduleTaskPatchSchema, type ScheduleTask } from '@nasq/contracts'
-import { DEFAULT_STUBS, loadShared, renderShared, sharedFile } from '@nasq/ui/test/helpers/renderShared'
+import { ScheduleTaskPatchSchema, type ScheduleTask } from '@webvue/contracts'
+import { DEFAULT_STUBS, loadShared, renderShared, sharedFile } from '@webvue/ui/test/helpers/renderShared'
 import { ApiError } from '../../../../composables/useApi'
 import { validateTaskDates } from '../../../../utils/projectDateBounds'
-import { errorStateKind } from '@nasq/ui/app/utils/errorState'
-import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { errorStateKind } from '@webvue/ui/app/utils/errorState'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 
 interface HostNode {
   type: string
@@ -105,14 +105,14 @@ function harness(section = false, routing = false) {
   const schedule = { data: Vue.ref({ project_id: 7, tasks: [task, taskFixture(4)], milestones: [], can_manage: true, total: 2 }), error: Vue.ref<unknown>(null), isLoading: Vue.ref(false), refetch: vi.fn() }
   const project = { data: Vue.ref({ id: 7, active: true, date_start: null, date_end: null }), error: Vue.ref<unknown>(null), isLoading: Vue.ref(false), refetch: vi.fn() }
   const modules: Record<string, unknown> = {
-    '@nasq/contracts': { ScheduleTaskPatchSchema },
+    '@webvue/contracts': { ScheduleTaskPatchSchema },
     '@/composables/useProjectSchedule': { useUpdateProjectScheduleTask: () => ({ isPending: pending, mutateAsync }), useProjectSchedule: () => schedule },
     '@/composables/useProjects': { useProject: () => project },
     '@/composables/useApi': { ApiError },
     '@/utils/projectDateBounds': { validateTaskDates },
-    '@nasq/ui/app/utils/errorState': { errorStateKind },
+    '@webvue/ui/app/utils/errorState': { errorStateKind },
     '../../../utils/errorState': { errorStateKind },
-    '@nasq/ui/app/composables/calendarDate': { formatCalendarDate },
+    '@webvue/ui/app/composables/calendarDate': { formatCalendarDate },
   }
   const options = { modules, globals: { useToast: () => ({ add: toast }) } }
   const form = loadShared(resolve(import.meta.dirname, '../schedule/ScheduleTaskForm.vue'), options)
@@ -162,7 +162,7 @@ it('a pristine schedule cannot reset the time of an existing deadline', async ()
   }, {}, {
     globals: { useRouter: () => ({}), useToast: () => ({ add: () => {} }) },
     modules: {
-      '@nasq/contracts': { ScheduleTaskPatchSchema },
+      '@webvue/contracts': { ScheduleTaskPatchSchema },
       '@/composables/useProjectSchedule': { useUpdateProjectScheduleTask: () => ({ isPending: Vue.ref(false) }) },
       '@/composables/useApi': { ApiError },
       '@/utils/projectDateBounds': { validateTaskDates },

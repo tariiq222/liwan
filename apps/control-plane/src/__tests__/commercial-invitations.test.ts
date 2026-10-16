@@ -31,7 +31,7 @@ d('admin invitations', () => {
 
   it('issues, sends via outbox, scrubs token, stores only hash', async () => {
     const inv = await issue()
-    expect(await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' })).toEqual({ sent: 1, failed: 0 })
+    expect(await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' })).toEqual({ sent: 1, failed: 0 })
     expect(sent[0].to).toBe('admin@x.test')
     const tok = tokenOf()
     const row = (await pool.query('SELECT * FROM admin_invitations WHERE id=$1', [inv.id])).rows[0]
@@ -45,14 +45,14 @@ d('admin invitations', () => {
     expect((await pool.query('SELECT delivery_status FROM admin_invitations')).rows[0].delivery_status).toBe('local_capture')
   })
   it('single use, sets password once', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' })
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' })
     const token = tokenOf()
     await acceptInvitation(pool, { token, password: PW, setPassword })
     await expect(acceptInvitation(pool, { token, password: PW, setPassword })).rejects.toBeInstanceOf(InvitationError)
     expect(set).toHaveLength(1)
   })
   it('rejects short passwords, wrong tokens, and expired', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' })
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' })
     const token = tokenOf()
     await expect(acceptInvitation(pool, { token, password: 'short', setPassword })).rejects.toThrow('invalid')
     await expect(acceptInvitation(pool, { token: 'x'.repeat(43), password: PW, setPassword })).rejects.toThrow('invalid')
@@ -60,13 +60,13 @@ d('admin invitations', () => {
     await expect(acceptInvitation(pool, { token, password: PW, setPassword })).rejects.toThrow('invalid')
   })
   it('reissue revokes the previous token', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const old = tokenOf()
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const fresh = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const old = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const fresh = tokenOf()
     await expect(acceptInvitation(pool, { token: old, password: PW, setPassword })).rejects.toThrow('invalid')
     await acceptInvitation(pool, { token: fresh, password: PW, setPassword })
   })
   it('does not fake success when no password setter exists and keeps invitation usable', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const token = tokenOf()
     await expect(acceptInvitation(pool, { token, password: PW })).rejects.toThrow('password_setter_unavailable')
     await acceptInvitation(pool, { token, password: PW, setPassword })
   })
@@ -87,7 +87,7 @@ d('admin invitations', () => {
     ['unavailable', 503, 'unavailable'],
     ['something_unexpected', 503, 'unavailable'],
   ])('maps setter failure %s to %i %s and keeps the invitation usable', async (failure, status, code) => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const token = tokenOf()
     const r = await accept(token, async () => { throw new InvitationError(failure) })
     expect(r.status).toBe(status); expect(r.code).toBe(code)
     expect(JSON.stringify(r).includes(PW)).toBe(false)
@@ -95,7 +95,7 @@ d('admin invitations', () => {
     expect(set).toHaveLength(1)
   })
   it('passes the invitation token to the setter', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const token = tokenOf()
     let seen: any
     await accept(token, async (x) => { seen = x })
     expect(seen.token === token && seen.password === PW && seen.admin_login === 'admin@x.test' && seen.tenant_id === tenant).toBe(true)
@@ -106,13 +106,13 @@ d('admin invitations', () => {
     expect(r.status).toBe(400); expect(r.code).toBe('invalid_invitation'); expect(called).toBe(false)
   })
   it('answers 503 when the channel is not configured and keeps the invitation usable', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const token = tokenOf()
     const r = await accept(token)
     expect(r.status).toBe(503); expect(r.code).toBe('unavailable')
     expect((await accept(token, setPassword)).status).toBe(200)
   })
   it('rejects an over-length password with 422 and an over-length token with 400 before consuming the token', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const token = tokenOf()
     let called = false
     const watch = async (x: any) => { called = true; await setPassword(x) }
     const longPassword = await invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token, password: 'p'.repeat(257) }), issuer: 'i', actor: 1, capabilities: [], setPassword: watch }).catch((e) => e)
@@ -124,7 +124,7 @@ d('admin invitations', () => {
     expect((await accept(token, setPassword)).status).toBe(200)
   })
   it('answers 409 in_progress to a concurrent accept of the same token while the first setter runs', async () => {
-    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.nasq.test' }); const token = tokenOf()
+    await issue(); await sendInvitationOutbox(pool, { mail, origin: 'https://app.webvue.test' }); const token = tokenOf()
     let release!: () => void, entered!: () => void
     const inside = new Promise<void>(r => { entered = r })
     const first = accept(token, () => new Promise<void>(r => { entered(); release = r }))
@@ -135,10 +135,10 @@ d('admin invitations', () => {
     expect((await first).status).toBe(200)
     expect(set).toHaveLength(0)
   }, 20000)
-  const port = process.env.NASQ_MAILPIT_SMTP_PORT, api = process.env.NASQ_MAILPIT_API_PORT
+  const port = process.env.WEBVUE_MAILPIT_SMTP_PORT, api = process.env.WEBVUE_MAILPIT_API_PORT
   ;(port && api ? it : it.skip)('Mailpit integration', async () => {
     await issue()
-    const smtp = new SmtpMailAdapter({ host: '127.0.0.1', port: Number(port), from: 'Nasq <no-reply@nasq.test>', requireTls: false })
+    const smtp = new SmtpMailAdapter({ host: '127.0.0.1', port: Number(port), from: 'WebVue <no-reply@webvue.test>', requireTls: false })
     expect((await sendInvitationOutbox(pool, { mail: smtp, origin: 'http://localhost:3000', smtpHost: '127.0.0.1' })).sent).toBe(1)
     const list = await (await fetch(`http://127.0.0.1:${api}/api/v1/messages`)).json() as any
     expect(JSON.stringify(list)).toContain('admin@x.test')

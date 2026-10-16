@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { KNOWN_CAPABILITIES, MeSchema } from '@nasq/contracts'
+import { KNOWN_CAPABILITIES, MeSchema } from '@webvue/contracts'
 import { canUse, featureForCapability, featureForPath, hasFeature, isWriteCapability } from '../registry'
 import { firstAllowedPath, postLoginPath } from '../../utils/accessPolicy'
 import { useNav } from '../../composables/nav/shellModules'
@@ -8,7 +8,7 @@ const caps = ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employ
 const withdrawnPmo = {
   role: 'employee',
   capabilities: caps,
-  modules: ['nasq_pmo', 'nasq_hr'],
+  modules: ['webvue_pmo', 'webvue_hr'],
   entitlements: { 'pmo.enabled': false, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': false },
   platform: {
     readable_features: ['meetings.enabled', 'hr.enabled'],
@@ -31,9 +31,9 @@ describe('module registry', () => {
   it('lands a parsed task-reader identity with pmo enabled on /tasks', () => {
     const me = MeSchema.parse({
       id: 1, name: 'Admin', login: 'admin', email: '', lang: 'ar_001', tz: '',
-      role: 'admin', company: { id: 1, name: 'nasq' },
+      role: 'admin', company: { id: 1, name: 'webvue' },
       roles: [], capabilities: ['pmo.tasks.read'], access_policy_version: 1,
-      modules: ['nasq_pmo'],
+      modules: ['webvue_pmo'],
       entitlements: { 'pmo.enabled': true },
       platform: {
         schema_version: 1, policy_revision: 1, state: 'active',
@@ -69,7 +69,7 @@ const TODAY: ReadonlyArray<readonly [string, string | null, boolean]> = [
   ['pmo.tasks.write', 'pmo.enabled', true], ['pmo.tasks.approve', 'pmo.enabled', true],
   ['settings.branding.manage', null, true],
   ['meetings.read', 'meetings.enabled', false], ['meetings.create', 'meetings.enabled', true],
-  ['nasq.internal', 'chat.enabled', false],
+  ['webvue.internal', 'chat.enabled', false],
 ]
 
 describe('capability gate derivation', () => {
@@ -83,10 +83,10 @@ describe('capability gate derivation', () => {
 
   it('leaves the foundation and subscription prefixes ungated by any application feature', () => {
     const locked = { platform: { readable_features: [], writable_features: [] } }
-    for (const capability of ['subscription.read', 'billing.read', 'branches.manage', 'nasq.notifications', 'access.users.grant', 'settings.branding.manage']) {
+    for (const capability of ['subscription.read', 'billing.read', 'branches.manage', 'webvue.notifications', 'access.users.grant', 'settings.branding.manage']) {
       expect(featureForCapability(capability), capability).toBeNull()
-      // nasq.notifications is the bell: canUse gates it on pmo/meetings, so it is only checked above.
-      if (capability !== 'nasq.notifications') expect(canUse(locked, capability, true), capability).toBe(true)
+      // webvue.notifications is the bell: canUse gates it on pmo/meetings, so it is only checked above.
+      if (capability !== 'webvue.notifications') expect(canUse(locked, capability, true), capability).toBe(true)
     }
   })
 
@@ -115,7 +115,7 @@ describe('capability gate derivation', () => {
     expect(isWriteCapability('sales.reports.export')).toBe(true)
     const tenant = (readable: string[], writable: string[]) => ({
       capabilities: ['sales.orders.read', 'sales.orders.write'],
-      modules: ['nasq_sales'],
+      modules: ['webvue_sales'],
       entitlements: { 'sales.enabled': readable.includes('sales.enabled') },
       platform: { readable_features: readable, writable_features: writable },
     })

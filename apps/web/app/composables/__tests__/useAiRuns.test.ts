@@ -1,4 +1,4 @@
-import type { AiRunList, AiRunSummary } from '@nasq/contracts'
+import type { AiRunList, AiRunSummary } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
 import { withPatchedRun } from '../useAiRuns'
 

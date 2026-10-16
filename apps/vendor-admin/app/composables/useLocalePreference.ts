@@ -1,4 +1,4 @@
-export const LOCALE_COOKIE = 'nasq-admin-locale'
+export const LOCALE_COOKIE = 'webvue-admin-locale'
 
 /** The saved language (a cookie, because browser detection is off and Arabic is the default). */
 export function useLocalePreference() {

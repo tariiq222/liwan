@@ -4,7 +4,7 @@
 
 Creators and default stages are company fields with a read-only legacy
 fallback: until a company saves, `get()` reads global
-`nasq_pmo.project_creators` / `nasq_pmo.default_stages`. The first save
+`webvue_pmo.project_creators` / `webvue_pmo.default_stages`. The first save
 snapshots those values onto the current company and never mutates the global
 keys. PSC requirement, approval, and reminder keys are per company
 (`<key>.<company_id>`) and are not migrated from those globals.
@@ -33,12 +33,12 @@ admin-only. A settings PATCH invalidates that create-defaults query key.
 Stock superuser installation/import `project.create` is a documented
 compatibility boundary: it does not receive the new required-on-create rules.
 That exemption is not caller-controlled. Ordinary internal users,
-`base.group_system` business API, and `_nasq_create_from_policy` (even when
+`base.group_system` business API, and `_webvue_create_from_policy` (even when
 the subsequent create is elevated) enforce manager, end date, default approval
 snapshot, and `specific_user` eligibility after resolving actual values.
 
 The verifier refuses `--database` values that do not fully match
-`nasq_psc_[a-z0-9_]+`, including comma names such as `nasq_psc_x,odoo19`.
+`webvue_psc_[a-z0-9_]+`, including comma names such as `webvue_psc_x,odoo19`.
 
 ## Completion approval
 
@@ -63,7 +63,7 @@ Reopen requires a fresh request.
 ## Lone end date
 
 Upstream `project.project.write` (addons/project/models/project_project.py
-666–679) drops a lone `date` when `date_start` is empty. Nasq authorizes the
+666–679) drops a lone `date` when `date_start` is empty. WebVue authorizes the
 write, then continues with `super(StockProjectProject, records).write({'date':
 value})` only for that lone-end portion. It does not call `models.Model.write`,
 `_write`, or raw SQL. Mixed recordsets, paired dates, and explicit clears keep
@@ -78,7 +78,7 @@ serialization retry is used; there is no ad-hoc commit/retry.
 
 ## Reminders and digest
 
-Hourly cron `nasq_pmo.ir_cron_nasq_deadline_notifications` is unchanged.
+Hourly cron `webvue_pmo.ir_cron_webvue_deadline_notifications` is unchanged.
 Reminder candidate window is conservative UTC ±25h for DST; remaining days
 stay 0..`days_before` (today included when 1). Task company_id must match the
 running company. `days_remaining` / `is_overdue` use the recipient-local
@@ -96,7 +96,7 @@ PMO sudo remains settings parameters, policy create for employees, manager
 project write, integer counts, notification create, and digest generation then
 re-check as the recipient. Completion metadata writes are scoped to explicit
 task ids (`COMPLETION_META_IDS`). Task create forces pristine completion
-metadata and does not trust `default_nasq_completion_*` context.
+metadata and does not trust `default_webvue_completion_*` context.
 
 ## Verifier
 
@@ -137,7 +137,7 @@ Later:
 
 Fresh runs after this spec/verifier tightening (same tmp directory):
 
-- `guard-comma-run2.log` — `--database nasq_psc_x,odoo19` rejected, exit 1
+- `guard-comma-run2.log` — `--database webvue_psc_x,odoo19` rejected, exit 1
 - `guard-ok.log` — valid scratch name accepted, exit 0
 - `e2e-fixtures-run5.log` — 52 overdue tasks + cron seed
 - `e2e-run5.log` / `e2e-run6.log` — incomplete/failed while Nuxt `.output` still
@@ -146,7 +146,7 @@ Fresh runs after this spec/verifier tightening (same tmp directory):
 - `e2e-run8.log` — 40 passed / 1 failed (specific_user accept before pending)
 - `e2e-run9.log` — 41 passed, exit 0, after rebuild with
   `NUXT_ODOO_URL=http://127.0.0.1:9692` and
-  `NUXT_ODOO_DB=nasq_psc_loop2_e2e_20260906`
+  `NUXT_ODOO_DB=webvue_psc_loop2_e2e_20260906`
 - `race-run5.log` — accept 1 ok + 1 422; both digest workers OK; unique
   `2099-06-15` key; integrity probe OK; exit 0
 - `lint-run2.log` / `npm-test-run2.log` — exit 0 (vue-tsc, ruff, 261 web tests)

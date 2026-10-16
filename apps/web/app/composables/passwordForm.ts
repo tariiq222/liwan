@@ -1,4 +1,4 @@
-import { MIN_PASSWORD_LENGTH } from '@nasq/contracts'
+import { MIN_PASSWORD_LENGTH } from '@webvue/contracts'
 
 interface PasswordRef {
   value: string

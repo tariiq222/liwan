@@ -19,7 +19,7 @@ coverage, explicitly documented. Arbitrary shell programs and agents with the
 same filesystem permissions cannot be securely sandboxed by a project hook.
 
 Reports identify exact versions/commits, official release/advisory evidence,
-security-only/mixed/core/unknown classification, all Nasq module and customization
+security-only/mixed/core/unknown classification, all WebVue module and customization
 impacts, tests, backup/rollback, and exact ordered tool actions. Unknown changes
 are never called security-only. A human-only terminal approval prints the report
 and asks for its digest; approval binds to its unchanged content and ordered

@@ -25,7 +25,7 @@ test.describe('Plan 6d: the account page', () => {
       await page.getByTestId('pw-new').fill('Brand-New-Secret-1!')
       await page.getByTestId('pw-confirm').fill('Brand-New-Secret-1!')
       await expect(page.getByTestId('pw-submit')).toBeEnabled()
-      expect(await page.locator('.nasq-account-page').count()).toBe(0)
+      expect(await page.locator('.webvue-account-page').count()).toBe(0)
     })
   })
 

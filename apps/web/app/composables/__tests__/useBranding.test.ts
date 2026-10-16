@@ -58,7 +58,7 @@ describe('institution favicon', () => {
     useBranding()
     const style = head().htmlAttrs?.style ?? ''
     expect(style).toContain('--primary-fill:')
-    expect(style).not.toContain('--nasq-brand-secondary')
+    expect(style).not.toContain('--webvue-brand-secondary')
     expect(style).not.toMatch(/(?:^|;)--secondary:/)
     expect(style).not.toContain('#2563eb')
     data.value = { ...data.value!, secondary_color: '#00ff00' }

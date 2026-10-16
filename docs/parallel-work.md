@@ -2,7 +2,7 @@
 
 واجهة العميل: [DESIGN.md](../DESIGN.md). التقارير المؤرخة ليست تعليمات واجهة.
 
-Nasq uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
+WebVue uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
 permanent product pillar checkout. One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 
@@ -21,9 +21,9 @@ own institution identity. PMO collaboration preserves record and company guards.
 
 | Surface | Shared | PMO | HR |
 | --- | --- | --- | --- |
-| Odoo addon | `nasq_core` (access, system groups), `nasq_platform`, `nasq_api`, `nasq_notify` (bell), `nasq_directory` (people picker); each app owns its capability groups | `nasq_pmo`; meetings `nasq_meetings`; bridge `nasq_meetings_pmo` | `nasq_hr` |
-| Controllers and serializers | `nasq_api` common/auth/branding/me/attachment, `nasq_notify` bell routes, `nasq_directory` people route | `nasq_pmo/**`, `nasq_meetings/**`, `nasq_meetings_pmo/**` | `nasq_hr/**` |
-| Tests | shared fixture, `nasq_api`, `nasq_notify` and `nasq_directory` tests | `nasq_pmo/tests/**`, `nasq_meetings/tests/**`, `nasq_meetings_pmo/tests/**` | `nasq_hr/tests/**` |
+| Odoo addon | `webvue_core` (access, system groups), `webvue_platform`, `webvue_api`, `webvue_notify` (bell), `webvue_directory` (people picker); each app owns its capability groups | `webvue_pmo`; meetings `webvue_meetings`; bridge `webvue_meetings_pmo` | `webvue_hr` |
+| Controllers and serializers | `webvue_api` common/auth/branding/me/attachment, `webvue_notify` bell routes, `webvue_directory` people route | `webvue_pmo/**`, `webvue_meetings/**`, `webvue_meetings_pmo/**` | `webvue_hr/**` |
+| Tests | shared fixture, `webvue_api`, `webvue_notify` and `webvue_directory` tests | `webvue_pmo/tests/**`, `webvue_meetings/tests/**`, `webvue_meetings_pmo/tests/**` | `webvue_hr/tests/**` |
 | Contracts | `packages/contracts/src/common/**` | `packages/contracts/src/pmo/**` | `packages/contracts/src/hr/**` |
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
 | Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and `components/pmo/**` | `/hr`, HR composables/components |
@@ -32,11 +32,11 @@ Vendor administration and the shared UI layers have their own owners; none of th
 
 | Surface | Owner | Notes |
 | --- | --- | --- |
-| `apps/vendor-admin` | vendor administration (git area `cp`) | Pages, BFF routes, e2e and `i18n` of the staff console. Imports only the shared UI layers and `@nasq/commercial-contracts` (rule `VA1`). |
+| `apps/vendor-admin` | vendor administration (git area `cp`) | Pages, BFF routes, e2e and `i18n` of the staff console. Imports only the shared UI layers and `@webvue/commercial-contracts` (rule `VA1`). |
 | `packages/ui` | shared design layer | Tokens, theme, shell, presentational components. Shared by `apps/web` and `apps/vendor-admin`; a change needs both apps' checks (rule `UI1`). |
-| `packages/commercial-ui` | shared billing presentation | Price breakdown and invoice components. Extends `@nasq/ui`; used by both apps (rule `UI1`). |
+| `packages/commercial-ui` | shared billing presentation | Price breakdown and invoice components. Extends `@webvue/ui`; used by both apps (rule `UI1`). |
 
-`nasq_directory` owns `/api/v1/people` (the user-id picker; its `id` is a
+`webvue_directory` owns `/api/v1/people` (the user-id picker; its `id` is a
 `res.users` id) and its feature keys are registered by the applications that
 pick people. HR owns `/api/v1/hr/*`, where employee records use `hr.employee`
 ids. Keep these contracts separate.
@@ -76,7 +76,7 @@ shared change must state the contract and the single writer before work starts.
 scratch database name go to the git-ignored `.env.worktree`) in one command (`tools/wt.py`).
 
 Task worktrees live in one place only: `<main checkout>/.worktrees/<area>-<slug>` (git-ignored), which is
-where `wt new` creates them, also when run from another worktree. Do not create them under `../nasq-wt/`
+where `wt new` creates them, also when run from another worktree. Do not create them under `../webvue-wt/`
 or the Claude app's own worktree folder; `wt status` marks such a worktree with `*`. `npm run wt -- status` answers
 "which worktrees exist, which are merged, which are dirty"; `npm run wt -- gc` lists what is safe to
 remove (merged, clean, behind `main`, no process inside) and `--apply` removes it, which needs the
@@ -86,21 +86,21 @@ The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
 configuration, and Git state are read-only. Source inspection and read-only Git
 audits there are allowed. Authorized test or development commands may mutate an
 explicitly isolated scratch database; do not operate on arbitrary databases or
-run tests against the dev `odoo19` database. Start Odoo with the selected Nasq
+run tests against the dev `odoo19` database. Start Odoo with the selected WebVue
 worktree's addons path explicitly, an isolated scratch database, and a unique
 `--http-port`.
 
-For example, for a worktree at `/path/to/nasq-worktree`:
+For example, for a worktree at `/path/to/webvue-worktree`:
 
 ```sh
 cd /Users/tariq/code/odoo
 .venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
-  --addons-path=/Users/tariq/code/odoo/addons,/path/to/nasq-worktree/odoo-addons \
-  -d nasq_scratch --http-port=8169
+  --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons \
+  -d webvue_scratch --http-port=8169
 
-cd /path/to/nasq-worktree
+cd /path/to/webvue-worktree
 NUXT_ODOO_URL=http://127.0.0.1:8169 \
-NUXT_ODOO_DB=nasq_scratch \
+NUXT_ODOO_DB=webvue_scratch \
 NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
 npm -w apps/web run dev -- --port 3200
 ```
@@ -119,7 +119,7 @@ conflicts, and records the resulting branch and runtime state. A passing local
 test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
-The Nasq Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
+The WebVue Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
 tracked by `main`. Push only with explicit authorization, never force-push
 published history, and do not imply that a push occurred. Do not remove a
 branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover

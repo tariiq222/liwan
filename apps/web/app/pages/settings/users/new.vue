@@ -102,7 +102,7 @@ async function submit() {
 <template>
   <SharedCreatePanel :title="t('access.users.grantTitle')" :back-to="backTo">
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
-    <UForm v-else :state="{ employeeId, selectedRoleIds, password, passwordConfirmation }" class="nasq-form" method="post" @submit="submit">
+    <UForm v-else :state="{ employeeId, selectedRoleIds, password, passwordConfirmation }" class="webvue-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('access.users.employee')" class="space-y-4">
         <UFormField :label="t('access.users.employee')" name="employee-search">

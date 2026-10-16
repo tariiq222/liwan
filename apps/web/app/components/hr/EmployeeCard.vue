@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HrEmployee } from '@nasq/contracts'
+import type { HrEmployee } from '@webvue/contracts'
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import { avatarProps } from '@/utils/avatarTone'
 

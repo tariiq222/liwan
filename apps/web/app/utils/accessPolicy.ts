@@ -1,6 +1,6 @@
 import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/registry'
 import { activeManifests, manifestForPath } from '../modules/manifests'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
 export type AccessIdentity = {
@@ -15,12 +15,12 @@ export type AccessIdentity = {
     read_only?: boolean
   }
 } | null | undefined
-/** Authenticated Nasq /api/v1/me identities carry a capabilities array. Portal/legacy role-only objects do not. */
-export const INTERNAL_NASQ_ACCESS = 'nasq.internal'
+/** Authenticated WebVue /api/v1/me identities carry a capabilities array. Portal/legacy role-only objects do not. */
+export const INTERNAL_WEBVUE_ACCESS = 'webvue.internal'
 /** UI predicate for the shared inbox; this is not a server capability grant. */
-export const NOTIFICATION_ACCESS = 'nasq.notifications'
+export const NOTIFICATION_ACCESS = 'webvue.notifications'
 export function hasCapability(identity: AccessIdentity, capability: string): boolean {
-  if (capability === INTERNAL_NASQ_ACCESS) return Array.isArray(identity?.capabilities)
+  if (capability === INTERNAL_WEBVUE_ACCESS) return Array.isArray(identity?.capabilities)
   if (capability === NOTIFICATION_ACCESS) {
     return activeManifests().some(manifest => manifest.bell?.capabilities.some(key => identity?.capabilities?.includes(key)))
   }
@@ -46,7 +46,7 @@ function destinations(): readonly Destination[] {
   ]
 }
 export function canReach(identity: AccessIdentity, capability: string, path?: string): boolean {
-  if (capability === INTERNAL_NASQ_ACCESS && path === '/') return hasCapability(identity, capability)
+  if (capability === INTERNAL_WEBVUE_ACCESS && path === '/') return hasCapability(identity, capability)
   if (capability === NOTIFICATION_ACCESS) {
     return hasCapability(identity, capability) && canUse(identity, capability)
   }
@@ -62,7 +62,7 @@ export function firstAllowedPath(identity: AccessIdentity): string {
 export function postLoginPath(identity: AccessIdentity, next: unknown): string {
   const fallback = Array.isArray(identity?.capabilities) ? '/' : firstAllowedPath(identity)
   const target = safeReturnTo(next, fallback, [...destinations().map(([path]) => path), ...FOUNDATION_RETURN_TO, ...activeManifests().flatMap(manifest => manifest.returnToPaths ?? [])])
-  const pathname = new URL(target, 'http://nasq.local').pathname
+  const pathname = new URL(target, 'http://webvue.local').pathname
   const capability = requiredCapabilityForPath(pathname)
   return capability && !canReach(identity, capability, pathname) ? fallback : target
 }
@@ -79,7 +79,7 @@ export function isProjectSettingsPath(path: string): boolean {
 export function requiredCapabilityForPath(path: string): string | null {
   const owned = manifestForPath(path)?.routeCapabilities?.find(rule => rule.pattern.test(path))
   if (owned) return owned.capability
-  if (path === '/') return INTERNAL_NASQ_ACCESS
+  if (path === '/') return INTERNAL_WEBVUE_ACCESS
   if (path === '/notifications') return NOTIFICATION_ACCESS
   if (path === '/settings/users/new') return 'access.users.grant'
   if (/^\/settings\/users\/[^/]+\/access$/.test(path)) return 'access.users.assign_roles'

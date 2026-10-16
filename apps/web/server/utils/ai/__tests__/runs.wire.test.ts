@@ -34,7 +34,7 @@ const TOOLS = {
   total: 3,
   limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1 },
 }
-const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'نسق' } }
+const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ويب فيو' } }
 
 function sse(res: http.ServerResponse, events: [string, unknown][]) {
   res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -167,8 +167,8 @@ describe('POST /api/ai/runs', () => {
     expect(tasksCall.cookie).toBe('session_id=s1')
     expect(tasksCall.url).toBe('/api/v1/tasks?filter=mine')
     const resumeCall = serviceCalls.find(c => c.url === '/v1/runs/r_1/resume')!
-    expect(resumeCall.headers['x-nasq-tenant']).toBe('x')
-    expect(resumeCall.headers['x-nasq-user']).toBe('42')
+    expect(resumeCall.headers['x-webvue-tenant']).toBe('x')
+    expect(resumeCall.headers['x-webvue-user']).toBe('42')
     expect(JSON.parse(resumeCall.body)).toEqual({ call_id: 'c_1', result: { ok: true, data: { items: [{ id: 5, name: 'تقرير' }], total: 1 } } })
     const audits = odooCalls.filter(c => c.url === '/api/v1/ai/audit').map(c => JSON.parse(c.body!))
     expect(audits.map(a => [a.kind, a.result])).toEqual([['message', 'ok'], ['read', 'ok']])
@@ -254,8 +254,8 @@ describe('POST /api/ai/runs', () => {
     expect(JSON.stringify(list[1]![1])).not.toMatch(/terminated|ECONNRESET|fetch failed/)
   })
 
-  it('sends the service locale from the nasq-locale cookie', async () => {
-    await events(await post('/api/ai/runs', { message: 'هلا' }, 'session_id=s1; nasq-locale=en'))
+  it('sends the service locale from the webvue-locale cookie', async () => {
+    await events(await post('/api/ai/runs', { message: 'هلا' }, 'session_id=s1; webvue-locale=en'))
     expect(JSON.parse(serviceCalls.find(c => c.url === '/v1/runs')!.body).locale).toBe('en')
     serviceCalls = []
     await events(await post('/api/ai/runs', { message: 'هلا' }, 'session_id=s1; i18n_redirected=en'))
@@ -363,7 +363,7 @@ describe('resume and status', () => {
   it('returns the run status with its pending call', async () => {
     const response = await fetch(`${url}/api/ai/runs/r_1`, { headers: { cookie: 'session_id=s1' } })
     expect((await response.json()).pending.tool).toBe('pmo.draft_project')
-    expect(serviceCalls.at(-1)!.headers['x-nasq-user']).toBe('42')
+    expect(serviceCalls.at(-1)!.headers['x-webvue-user']).toBe('42')
   })
 })
 
@@ -375,7 +375,7 @@ describe('GET /api/ai/runs', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ total: 1, items: [{ run_id: 'r_1', title: 'هلا', status: 'done' }] })
     const call = serviceCalls.at(-1)!
-    expect([call.method, call.url, call.headers['x-nasq-tenant'], call.headers['x-nasq-user'], call.headers.cookie]).toEqual(['GET', '/v1/runs', 'x', '42', undefined])
+    expect([call.method, call.url, call.headers['x-webvue-tenant'], call.headers['x-webvue-user'], call.headers.cookie]).toEqual(['GET', '/v1/runs', 'x', '42', undefined])
     expect(odooCalls.map(c => c.url)).toEqual(['/api/v1/me', '/api/v1/ai/tools'])
   })
 
@@ -425,7 +425,7 @@ describe('PATCH /api/ai/runs/{id}', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ run_id: 'r_1', title: 'مشروع البوابة', archived: true })
     const call = serviceCalls.at(-1)!
-    expect([call.method, call.url, call.headers['x-nasq-tenant'], call.headers['x-nasq-user'], call.headers.cookie]).toEqual(['PATCH', '/v1/runs/r_1', 'x', '42', undefined])
+    expect([call.method, call.url, call.headers['x-webvue-tenant'], call.headers['x-webvue-user'], call.headers.cookie]).toEqual(['PATCH', '/v1/runs/r_1', 'x', '42', undefined])
     expect(JSON.parse(call.body)).toEqual({ title: 'مشروع البوابة', archived: true })
   })
 
@@ -614,13 +614,13 @@ describe('draft rejection audit', () => {
 })
 
 describe('service token', () => {
-  it('sends X-Nasq-Service-Token only when configured', async () => {
+  it('sends X-WebVue-Service-Token only when configured', async () => {
     await events(await post('/api/ai/runs', { message: 'هلا' }))
-    expect(serviceCalls.every(c => c.headers['x-nasq-service-token'] === undefined)).toBe(true)
+    expect(serviceCalls.every(c => c.headers['x-webvue-service-token'] === undefined)).toBe(true)
     serviceCalls = []; serviceToken = 'tok-123'
     await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(serviceCalls.length).toBeGreaterThan(0)
-    expect(serviceCalls.every(c => c.headers['x-nasq-service-token'] === 'tok-123')).toBe(true)
+    expect(serviceCalls.every(c => c.headers['x-webvue-service-token'] === 'tok-123')).toBe(true)
   })
 })
 

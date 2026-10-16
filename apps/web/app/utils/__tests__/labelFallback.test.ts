@@ -39,7 +39,7 @@ describe('label fallbacks for applications that ship no label', () => {
 
 describe('built-in role descriptions on /settings/roles', () => {
   const BUILT_INS = ['employee', 'system_admin', 'vendor_support', 'pmo_manager', 'hr_manager'] as const
-  // The unlocalized seed text the addons store for these roles (nasq_core/nasq_pmo/nasq_hr data).
+  // The unlocalized seed text the addons store for these roles (webvue_core/webvue_pmo/webvue_hr data).
   const SEED = { employee: 'Employee', system_admin: 'System administrator', vendor_support: 'Vendor support', pmo_manager: 'PMO manager', hr_manager: 'HR manager' } as const
 
   it('shows the localized purpose, not the stored seed text, for every shipped built-in role', () => {

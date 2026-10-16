@@ -6,7 +6,7 @@
 // marker-data upstream. This file replaces the synthetic upstream with ONE
 // live Odoo process serving all ten tenant databases via `dbfilter = ^%h$`
 // (the documented shared-mode mechanism in deploy/shared/odoo.conf), with
-// real ACLs, real sessions, and real nasq_api/nasq_pmo controllers. It proves
+// real ACLs, real sessions, and real webvue_api/webvue_pmo controllers. It proves
 // (or disproves) the explicit "Real Odoo ACLs are not proven" gap recorded in
 // docs/verification/shared-isolation-matrix.md.
 //
@@ -30,20 +30,20 @@ import { test } from 'node:test'
 import { createGuard } from '../../deploy/shared/guard.mjs'
 
 const root = new URL('../../', import.meta.url).pathname
-const ODOO_ROOT = process.env.NASQ_ODOO_ROOT || '/Users/tariq/code/odoo'
-const PG_HOST = process.env.NASQ_PG_HOST || '127.0.0.1'
-const PG_USER = process.env.NASQ_PG_USER || 'odoo'
-const PG_PASSWORD = process.env.NASQ_PG_PASSWORD || 'odoo'
-const SUFFIX = process.env.NASQ_DRILL_SUFFIX || 'realiso20261009'
+const ODOO_ROOT = process.env.WEBVUE_ODOO_ROOT || '/Users/tariq/code/odoo'
+const PG_HOST = process.env.WEBVUE_PG_HOST || '127.0.0.1'
+const PG_USER = process.env.WEBVUE_PG_USER || 'odoo'
+const PG_PASSWORD = process.env.WEBVUE_PG_PASSWORD || 'odoo'
+const SUFFIX = process.env.WEBVUE_DRILL_SUFFIX || 'realiso20261009'
 const N_TENANTS = 10
 
 const tenants = Array.from({ length: N_TENANTS }, (_, i) => {
   const nn = String(i + 1).padStart(2, '0')
-  const db = `nasq_scratch_${SUFFIX}_t${nn}`
+  const db = `webvue_scratch_${SUFFIX}_t${nn}`
   return {
     host: `t${nn}.real-isolation-matrix.invalid`, tenantId: `t${nn}`,
     database: db, filestore: db, enabled: true, registryRevision: 1,
-    login: `drill_admin_${nn}`, password: 'nasq-real-iso-2026',
+    login: `drill_admin_${nn}`, password: 'webvue-real-iso-2026',
     marker: `REALISO_T${nn}`,
   }
 })
@@ -88,7 +88,7 @@ async function installTenant(cfg, tenant, dataDir, modules) {
     '--addons-path', `${ODOO_ROOT}/addons,${root}odoo-addons`,
     '--data-dir', dataDir, '-d', tenant.database, '-i', modules,
     '--without-demo=all', '--http-port', '0', '--workers=0', '--max-cron-threads=0', '--stop-after-init',
-  ], { env: { ...process.env, PGPASSWORD: PG_PASSWORD, NASQ_COMMERCIAL_CONFIG: classificationPath }, cwd: root })
+  ], { env: { ...process.env, PGPASSWORD: PG_PASSWORD, WEBVUE_COMMERCIAL_CONFIG: classificationPath }, cwd: root })
 
   // Seed a unique per-tenant admin user, a project, and a task-linked attachment via shell.
   const seed = `
@@ -96,12 +96,12 @@ import base64
 login = ${JSON.stringify(tenant.login)}
 password = ${JSON.stringify(tenant.password)}
 marker = ${JSON.stringify(tenant.marker)}
-registry = env["nasq.feature.registry"]  # noqa: F821
-env["nasq.tenant.profile"]._nasq_initialize_legacy_policy(registry._nasq_installed_module_ids())  # noqa: F821
+registry = env["webvue.feature.registry"]  # noqa: F821
+env["webvue.tenant.profile"]._webvue_initialize_legacy_policy(registry._webvue_installed_module_ids())  # noqa: F821
 env.cr.commit()  # noqa: F821
 Users = env["res.users"].with_context(no_reset_password=True)  # noqa: F821
-employee_group = env.ref("nasq_core.group_employee")  # noqa: F821
-manager_group = env.ref("nasq_pmo.group_pmo_manager")  # noqa: F821
+employee_group = env.ref("webvue_core.group_employee")  # noqa: F821
+manager_group = env.ref("webvue_pmo.group_pmo_manager")  # noqa: F821
 user = Users.search([("login", "=", login)], limit=1)
 vals = {"name": f"Drill Admin {marker}", "login": login, "password": password,
         "group_ids": [(6, 0, [employee_group.id, manager_group.id])]}
@@ -127,7 +127,7 @@ print("SEED_OK", project.id, attachment.id)  # noqa: T201
 }
 
 test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind the real guard', { timeout: 20 * 60 * 1000 }, async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), 'nasq-real-isolation-'))
+  const directory = await mkdtemp(join(tmpdir(), 'webvue-real-isolation-'))
   const dataDir = join(directory, 'data')
   await mkdir(dataDir, { recursive: true })
   const registry = join(directory, 'registry.json')
@@ -232,7 +232,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
   const cookies = new Map()
   for (const tenant of tenants) {
     const result = await call('POST', '/web/session/authenticate',
-      { host: tenant.host, 'content-type': 'application/json', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1' },
+      { host: tenant.host, 'content-type': 'application/json', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' },
       JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { db: tenant.database, login: tenant.login, password: tenant.password } }))
     assert.equal(result.status, 200, `login failed for ${tenant.tenantId}: ${result.text.slice(0, 500)}`)
     const body = JSON.parse(result.text)
@@ -244,7 +244,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
   }
   console.log(`Phase 1: ${N_TENANTS}/${N_TENANTS} full-chain logins against REAL Odoo produced sealed per-tenant cookies`)
 
-  // Phase 2: positive controls — own session, own identity, own project/attachment, via real nasq_api.
+  // Phase 2: positive controls — own session, own identity, own project/attachment, via real webvue_api.
   for (const tenant of tenants) {
     const me = await call('GET', '/api/v1/me', { host: tenant.host, cookie: cookies.get(tenant.tenantId) })
     assert.equal(me.status, 200, me.text.slice(0, 300))
@@ -325,7 +325,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
     not_covered: ['SSR/Nuxt markup crossing against real Odoo pages (scoped out)', 'TLS/Caddy', 'physical fenced adapter', 'MFA', 'multi-node', 'concurrent production load'],
   }
   await writeFile(join(directory, 'report.json'), JSON.stringify(report, null, 2))
-  const outPath = process.env.NASQ_REAL_ISOLATION_REPORT
+  const outPath = process.env.WEBVUE_REAL_ISOLATION_REPORT
   if (outPath) await writeFile(outPath, JSON.stringify(report, null, 2))
   console.log('REAL_ISOLATION_REPORT=' + JSON.stringify(report))
 })

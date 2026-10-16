@@ -10,7 +10,7 @@ import {
   type FinanceEntryPatch,
   type FinanceKind,
   type FinanceSummary,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 import { financeListQuery, type FinanceKindFilter } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
 

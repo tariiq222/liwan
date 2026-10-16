@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Project, ProjectStatus } from '@nasq/contracts'
+import type { Project, ProjectStatus } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
+import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import ProjectMenu from './ProjectMenu.vue'
 
 // One project as a body: number, name, status, progress, manager, end date and the actions menu.
@@ -34,7 +34,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
       </div>
       <UProgress :model-value="project.progress" size="sm" :aria-label="t('projects.columns.progress')" />
     </div>
-    <div class="mt-auto box-content flex min-h-(--nasq-control-h) flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
+    <div class="mt-auto box-content flex min-h-(--webvue-control-h) flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
       <span class="inline-flex min-w-0 flex-1 items-center gap-1.5">
         <UIcon name="i-lucide-user-round" class="size-4 shrink-0" aria-hidden="true" />
         <span class="sr-only">{{ t('projects.columns.manager') }}: </span>

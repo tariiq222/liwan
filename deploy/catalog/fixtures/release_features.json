@@ -7,9 +7,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "nasq_core",
-          "nasq_platform",
-          "nasq_api"
+          "webvue_core",
+          "webvue_platform",
+          "webvue_api"
         ],
         "tiers": [
           {
@@ -24,8 +24,8 @@
           {
             "id": "projects",
             "modules": [
-              "nasq_pmo",
-              "nasq_meetings"
+              "webvue_pmo",
+              "webvue_meetings"
             ],
             "features": [
               "boolean:pmo.enabled",
@@ -36,7 +36,7 @@
           {
             "id": "people",
             "modules": [
-              "nasq_hr"
+              "webvue_hr"
             ],
             "features": [
               "boolean:hr.enabled"
@@ -46,12 +46,12 @@
       },
       "tier": "core",
       "modules": [
-        "nasq_core",
-        "nasq_platform",
-        "nasq_api",
-        "nasq_pmo",
-        "nasq_meetings",
-        "nasq_hr"
+        "webvue_core",
+        "webvue_platform",
+        "webvue_api",
+        "webvue_pmo",
+        "webvue_meetings",
+        "webvue_hr"
       ],
       "features": {
         "users.limit": null,
@@ -69,9 +69,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "nasq_core",
-          "nasq_platform",
-          "nasq_api"
+          "webvue_core",
+          "webvue_platform",
+          "webvue_api"
         ],
         "tiers": [
           {
@@ -86,8 +86,8 @@
           {
             "id": "projects",
             "modules": [
-              "nasq_pmo",
-              "nasq_meetings"
+              "webvue_pmo",
+              "webvue_meetings"
             ],
             "features": [
               "boolean:pmo.enabled",
@@ -98,7 +98,7 @@
           {
             "id": "people",
             "modules": [
-              "nasq_hr"
+              "webvue_hr"
             ],
             "features": [
               "boolean:hr.enabled"
@@ -108,12 +108,12 @@
       },
       "tier": "projects",
       "modules": [
-        "nasq_core",
-        "nasq_platform",
-        "nasq_api",
-        "nasq_pmo",
-        "nasq_meetings",
-        "nasq_hr"
+        "webvue_core",
+        "webvue_platform",
+        "webvue_api",
+        "webvue_pmo",
+        "webvue_meetings",
+        "webvue_hr"
       ],
       "features": {
         "users.limit": null,
@@ -131,9 +131,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "nasq_core",
-          "nasq_platform",
-          "nasq_api"
+          "webvue_core",
+          "webvue_platform",
+          "webvue_api"
         ],
         "tiers": [
           {
@@ -148,8 +148,8 @@
           {
             "id": "projects",
             "modules": [
-              "nasq_pmo",
-              "nasq_meetings"
+              "webvue_pmo",
+              "webvue_meetings"
             ],
             "features": [
               "boolean:pmo.enabled",
@@ -160,7 +160,7 @@
           {
             "id": "people",
             "modules": [
-              "nasq_hr"
+              "webvue_hr"
             ],
             "features": [
               "boolean:hr.enabled"
@@ -170,12 +170,12 @@
       },
       "tier": "people",
       "modules": [
-        "nasq_core",
-        "nasq_platform",
-        "nasq_api",
-        "nasq_pmo",
-        "nasq_meetings",
-        "nasq_hr"
+        "webvue_core",
+        "webvue_platform",
+        "webvue_api",
+        "webvue_pmo",
+        "webvue_meetings",
+        "webvue_hr"
       ],
       "features": {
         "users.limit": null,
@@ -193,9 +193,9 @@
         "schema_version": 3,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "nasq_core",
-          "nasq_platform",
-          "nasq_api"
+          "webvue_core",
+          "webvue_platform",
+          "webvue_api"
         ],
         "tiers": [
           {
@@ -210,7 +210,7 @@
           {
             "id": "projects",
             "modules": [
-              "nasq_pmo"
+              "webvue_pmo"
             ],
             "features": [
               "boolean:pmo.enabled",
@@ -221,10 +221,10 @@
       },
       "tier": "projects",
       "modules": [
-        "nasq_core",
-        "nasq_platform",
-        "nasq_api",
-        "nasq_pmo"
+        "webvue_core",
+        "webvue_platform",
+        "webvue_api",
+        "webvue_pmo"
       ],
       "features": {
         "users.limit": null,
@@ -240,9 +240,9 @@
         "schema_version": 2,
         "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
         "base_modules": [
-          "nasq_core",
-          "nasq_platform",
-          "nasq_api"
+          "webvue_core",
+          "webvue_platform",
+          "webvue_api"
         ],
         "tiers": [
           {
@@ -257,8 +257,8 @@
           {
             "id": "projects",
             "modules": [
-              "nasq_pmo",
-              "nasq_meetings"
+              "webvue_pmo",
+              "webvue_meetings"
             ],
             "features": [
               "boolean:pmo.enabled",
@@ -269,7 +269,7 @@
           {
             "id": "people",
             "modules": [
-              "nasq_hr"
+              "webvue_hr"
             ],
             "features": [
               "boolean:hr.enabled"
@@ -279,10 +279,10 @@
       },
       "tier": "people",
       "modules": [
-        "nasq_core",
-        "nasq_platform",
-        "nasq_api",
-        "nasq_hr"
+        "webvue_core",
+        "webvue_platform",
+        "webvue_api",
+        "webvue_hr"
       ],
       "features": {
         "users.limit": null,

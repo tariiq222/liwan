@@ -1,8 +1,8 @@
-# نتائج التجربة: هل يصلح apexive/odoo-llm (`llm` + `llm_tool`، فرع 19.0) أساسًا لمساعد نسق الذكي؟
+# نتائج التجربة: هل يصلح apexive/odoo-llm (`llm` + `llm_tool`، فرع 19.0) أساسًا لمساعد ويب فيو الذكي؟
 
 **الحالة — 2026-10-15:** تجربة قراءة فقط داخل worktree
 `codex/platform-ai-assistant`. لا يوجد أي تغيير في `odoo-addons` ولا commit. كل
-الأدلة أدناه من قاعدة السكراتش `nasq_scratch_platform_ai_assistant` على المنفذ
+الأدلة أدناه من قاعدة السكراتش `webvue_scratch_platform_ai_assistant` على المنفذ
 8174، والسجلات في `.scratch/logs/`. المستودع المستنسخ في
 `.scratch/vendor/odoo-llm` (19.0، آخر commit `c5c99465` بتاريخ 2026-05-09) و
 `.scratch/vendor/odoo-llm-18` (18.0، `609ec6dd` بتاريخ 2026-05-26)، وكلاهما خارج Git.
@@ -25,17 +25,17 @@
    `odoo_record_retriever`.
 3. **الأدوات الافتراضية عامة على ORM وتُرى لكل المستخدمين.** الخمس أدوات
    (`odoo_record_retriever/creator/updater/unlinker`، `odoo_model_inspector`) تصنيفها
-   `general` و`default=True`، فتظهر لأي مستخدم داخلي. هذا عكس مبدأ نسق: أدوات مسمّاة
+   `general` و`default=True`، فتظهر لأي مستخدم داخلي. هذا عكس مبدأ ويب فيو: أدوات مسمّاة
    لكل تطبيق فوق مسارات `json2` وفحوص capability، لا أدوات ORM عامة.
 4. **"موافقة المستخدم" في `llm_tool` تلميح في الـ prompt وليست بوابة في الكود.**
    `requires_user_consent` يُحقن كنص في رسالة النظام
    (`_inject_tool_consent`) ويُترك للنموذج أن "يسأل". لا يوجد سجل انتظار ولا موافقة
-   مسجّلة. مبدأ نسق «الذكاء يجهّز والإنسان يوافق» يحتاج بوابة مفروضة بالكود مثل
+   مسجّلة. مبدأ ويب فيو «الذكاء يجهّز والإنسان يوافق» يحتاج بوابة مفروضة بالكود مثل
    `ai.pending.action` من NullNaveen/odoo-ai-assistant.
 5. **نقل 19.0 غير مكتمل:** ثلاثة مسارات في الوحدتين مكسورة على Odoo 19 (القسم 6)،
    والاختبارات الـ 26 لا تغطيها.
 6. **واجهة الدردشة في 18.0 كلها OWL/`@mail`** (2,703 سطر JS تعتمد على
-   `@mail/core/common/*` و`chatter`). واجهة نسق Nuxt، فهذه الطبقة تُرمى بالكامل.
+   `@mail/core/common/*` و`chatter`). واجهة ويب فيو Nuxt، فهذه الطبقة تُرمى بالكامل.
 
 ما يستحق الاستعارة من التصميم (بدون نسخ الكود كما هو): نمط `_dispatch` للمزوّد
 (`<service>_chat`، `<service>_format_tools`)، مُزخرف `@llm_tool` مع
@@ -128,19 +128,19 @@ message_post_body_json_kwarg_19: ValueError('Those values are not supported
 الفرق بين `llm` 18.0 و19.0: 662 سطر diff (المزايا نفسها؛ تغييرات `res.groups.privilege`
 و`models.Constraint` وتوقيعات). `llm_tool`: 877 سطر diff.
 
-## 4. مراجعة مقابل قواعد نسق R1–R10
+## 4. مراجعة مقابل قواعد ويب فيو R1–R10
 
 | القاعدة | النتيجة في `llm` + `llm_tool` (19.0) |
 |---|---|
-| R1/R4 اتجاه التبعية | `llm` ← `mail`،`web`؛ `llm_tool` ← `llm`. لا تعتمد على أي تطبيق أودو آخر (جيد). لو أُدخلت، رتبتها 3 (خدمة مشتركة) وتُسجَّل في `tools/arch_layers.json` تحت `exempt` لأن المانيفست (المؤلف، التصنيف `Technical`، الترويسة) لا يطابق قواعد نسق. |
-| R2 كل تطبيق يملك صلاحياته | مجموعة واحدة `llm.group_llm_manager` + `base.group_system`. لا capability ولا ربط بـ `nasq.access.service`. |
+| R1/R4 اتجاه التبعية | `llm` ← `mail`،`web`؛ `llm_tool` ← `llm`. لا تعتمد على أي تطبيق أودو آخر (جيد). لو أُدخلت، رتبتها 3 (خدمة مشتركة) وتُسجَّل في `tools/arch_layers.json` تحت `exempt` لأن المانيفست (المؤلف، التصنيف `Technical`، الترويسة) لا يطابق قواعد ويب فيو. |
+| R2 كل تطبيق يملك صلاحياته | مجموعة واحدة `llm.group_llm_manager` + `base.group_system`. لا capability ولا ربط بـ `webvue.access.service`. |
 | R3 لا استيراد بين التطبيقات | `_register_hook` في `llm.tool` يمسح **كل** نماذج السجل (`for model_name in self.env.registry`) ويستدعي `dir()` على كل صنف عند الإقلاع. ليس استيرادًا، لكنه اقتران زمن تشغيل بكل شيء، وزمن إقلاع إضافي. |
 | R5 بدون control plane | لا مشكلة. |
 | R6 لا شرط على اسم عميل | لا مشكلة. |
 | R7 `sudo()` | **صفر** في `llm` و`llm_tool` (grep). `llm_mcp_server` فيه `sudo()` واحد لقراءة `web.base.url`. `llm_thread` (18.0) فيه `sudo().write` واحد في `set_user_vote`. |
 | R8 saas/non_saas | لا تمييز؛ لا `commercial_mode`. يُضاف من جهتنا. |
 | R9 نقاط التمديد العامة فقط | لا SQL مباشر في الوحدتين. لا override لدوال خاصة في أودو عدا `_register_hook` (نقطة تمديد معلنة). `llm_thread` 18.0 يستخدم `cr.execute("SELECT pg_advisory_lock/unlock")` (ليس جدول أودو، لكنه SQL مباشر) ويُعيد تعريف `_message_fetch` و`_extras_to_store` و`_thread_to_store` و`_init_messaging` (كلها خاصة في `mail`). |
-| R10 سجل المزايا | لا يوجد. كل مسار يحتاج `<app>.enabled` وربط بـ `nasq.feature.registry`. |
+| R10 سجل المزايا | لا يوجد. كل مسار يحتاج `<app>.enabled` وربط بـ `webvue.feature.registry`. |
 
 نقاط إضافية من قواعد `docs/agents/odoo-rules.md`: المسارات في `llm_thread` تستخدم
 `type="json"` و`type="http"` (SSE) وليس `json2`/`api_handler`؛ لا serializers
@@ -162,7 +162,7 @@ message_post_body_json_kwarg_19: ValueError('Those values are not supported
 الحالية** بلا أي رفع. من `mail.message.execute_tool_call` يُمرَّر
 `with_context(message=...)` فقط. من MCP: `execute_mcp_tool` يبحث بـ `search()` بلا
 sudo (قواعد السجل حسب `category`) ثم `execute`. أي فحص إضافي للصلاحية (capability
-نسق) غير موجود؛ الاعتماد كله على ACL/record rules للنموذج المستهدف. مع أداة
+ويب فيو) غير موجود؛ الاعتماد كله على ACL/record rules للنموذج المستهدف. مع أداة
 `odoo_model_method_executor` يمكن استدعاء أي دالة عامة على أي نموذج، وبـ
 `allow_private=true` حتى الخاصة.
 
@@ -171,7 +171,7 @@ sudo (قواعد السجل حسب `category`) ثم `execute`. أي فحص إض�
 عندهم: `selection_add` على `category` من وحدات جسر. لا ربط بسياق محادثة.
 
 **المزوّدون والمفاتيح.** `llm.provider` سجل لكل قاعدة (أي لكل مستأجر في نموذج
-نسق) بحقل `company_id` إجباري و`api_key`/`api_base` كـ `Char` بلا تشفير وبلا
+ويب فيو) بحقل `company_id` إجباري و`api_key`/`api_base` كـ `Char` بلا تشفير وبلا
 `groups`. العرض يخفي المفتاح (`password="True"`) لكن ORM لا يخفيه (القسم 2.4).
 `_check_unique_name` يبحث في كل الشركات. قائمة `service` تُملأ من وحدات المزوّدين
 عبر `_get_available_services`، وهي فارغة على 19.0.
@@ -183,7 +183,7 @@ sudo (قواعد السجل حسب `category`) ثم `execute`. أي فحص إض�
 يُنتج أحداثًا (`message_create`، `message_chunk`، `tool_called`، `tool_succeeded`،
 `tool_failed`، `done`)، والمتحكم `/llm/thread/generate` (`type="http"`) يكتبها
 كـ `text/event-stream` بـ `direct_passthrough=True` على cursor جديد من
-`Registry(dbname).cursor()`. هذا النمط صالح للنقل إلى نسق كمسار `http` بجانب
+`Registry(dbname).cursor()`. هذا النمط صالح للنقل إلى ويب فيو كمسار `http` بجانب
 `json2`.
 
 ## 6. مسارات مكسورة في نقل 19.0 (مثبتة)
@@ -218,39 +218,39 @@ sudo (قواعد السجل حسب `category`) ثم `execute`. أي فحص إض�
 - `to_store_format` و`Store` (القسم 6).
 - `mail.message._extras_to_store(store, format_reply)` و`res.users._init_messaging(store)`
   و`bus.bus._sendone` موجودة بالتوقيع نفسه في 19 (لا تغيير).
-- المسار `type="json"` → في 19 الاسم `jsonrpc`؛ في نسق يصبح `json2`.
+- المسار `type="json"` → في 19 الاسم `jsonrpc`؛ في ويب فيو يصبح `json2`.
 - `cr.execute` لقفل `pg_advisory_lock` يبقى كما هو (ليس جدول أودو) لكنه يحتاج
   توثيقًا تحت R9.
 
-الجزء الفعلي القابل للنقل لنسق هو Python فقط (~900 سطر، منها ~400 منطق المحادثة
-والقفل والأحداث). الـ JS والـ XML (3,900 سطر) تُرمى لأن واجهة نسق Nuxt. التقدير:
+الجزء الفعلي القابل للنقل لويب فيو هو Python فقط (~900 سطر، منها ~400 منطق المحادثة
+والقفل والأحداث). الـ JS والـ XML (3,900 سطر) تُرمى لأن واجهة ويب فيو Nuxt. التقدير:
 يومان لنقل Python وتعديل التوقيعات، لكن بما أننا سنعيد كتابته فوق `json2`
 وcapabilities وبوابة الموافقة، كتابته من الصفر باستعارة التصميم تكلفتها مماثلة
 وتُنتج كودًا يطابق قواعدنا من اليوم الأول.
 
-## 8. ما يجب أن تكتبه نسق بنفسها (في كل السيناريوهات)
+## 8. ما يجب أن تكتبه ويب فيو بنفسها (في كل السيناريوهات)
 
-1. **`nasq_ai` (رتبة 3، خدمة مشتركة)**: نماذج `nasq.ai.provider` (مفتاح بحقل
+1. **`webvue_ai` (رتبة 3، خدمة مشتركة)**: نماذج `webvue.ai.provider` (مفتاح بحقل
    محمي بـ `groups=base.group_system` أو تخزين خارج ORM، شركة/مستأجر، `commercial_mode`)،
-   `nasq.ai.model`، `nasq.ai.thread`، امتداد `mail.message` بـ `llm_role`/`body_json`
+   `webvue.ai.model`، `webvue.ai.thread`، امتداد `mail.message` بـ `llm_role`/`body_json`
    مع توسيع `_get_message_create_valid_field_names`.
 2. **عميل مزوّد واحد على الأقل** (Anthropic أولًا) بنمط `_dispatch`، مع بث حقيقي
    وتجميع `tool_calls`. لا يوجد شيء على 19.0 لنأخذه؛ 18.0 `llm_anthropic` مرجع
    للشكل (540 سطر).
 3. **سجل أدوات مسمّى لكل تطبيق**: مُزخرف يشبه `@llm_tool` لكنه يُسجَّل داخل كل
    تطبيق (R2) مع `capability` إجبارية وتصنيف `read_only`/`destructive`، والتنفيذ
-   يمر بفحص `nasq.access.service` ثم بمسار `json2` الموجود، لا `self.env[model]`
+   يمر بفحص `webvue.access.service` ثم بمسار `json2` الموجود، لا `self.env[model]`
    عام. لا `odoo_record_*` ولا `model_method_executor`.
-4. **بوابة الموافقة بالكود** `nasq.ai.pending.action` (على نسق NullNaveen):
+4. **بوابة الموافقة بالكود** `webvue.ai.pending.action` (على ويب فيو NullNaveen):
    كل أداة غير `read_only` تنشئ سجل انتظار بحالة `proposed`، ولا تُنفَّذ إلا عند
    `approve` من مستخدم يملك الـ capability، مع تسجيل من اقترح ومن وافق. لا اعتماد
    على نص prompt.
 5. **مسارات `json2` + مسار SSE** واحد (`type='http'`) للبث، بنمط مولّد وcursor مستقل
    كما في `llm_thread/controllers/main.py`، مع `api_handler` وأخطاء مهيكلة.
 6. **R10**: تسجيل `ai.enabled` والمزايا الفرعية والحدود (عدد الرسائل/الأدوات) في
-   `nasq.feature.registry`، وإخفاء الميزة في `non_saas` إن كانت تجارية.
+   `webvue.feature.registry`، وإخفاء الميزة في `non_saas` إن كانت تجارية.
 7. **واجهة Nuxt** للمحادثة ولوحة الإجراءات المعلّقة (مكوّنات من Storybook).
-8. **اختبارات** `NasqApiCase` للبوابة والصلاحيات والبث، و`i18n/ar.po`.
+8. **اختبارات** `WebVueApiCase` للبوابة والصلاحيات والبث، و`i18n/ar.po`.
 9. **تسجيل الاعتماديات** (`anthropic` أو `httpx` فقط؛ تجنب `mcp` و`pydantic` إن لم
    نحتج خادم MCP) في صورة النشر، مع تثبيت الإصدارات.
 
@@ -258,7 +258,7 @@ sudo (قواعد السجل حسب `category`) ثم `execute`. أي فحص إض�
 
 - بنية `_dispatch(method, *args, record=None)` في `llm_provider.py:46-60`.
 - فكرة `_register_hook` + `savepoint(flush=False)` لتسجيل الأدوات مع تعدد الـ workers
-  (`llm_tool.py:260-400`)، مقيّدة عندنا بنماذج `nasq_*` فقط.
+  (`llm_tool.py:260-400`)، مقيّدة عندنا بنماذج `webvue_*` فقط.
 - تعليقات الأدوات بأسماء MCP (`readOnlyHint`، `destructiveHint`، `idempotentHint`).
 - `llm_role` محسوب ومخزّن من `subtype_id` مع `ormcache` (`llm/models/mail_message.py`).
 - قفل المحادثة بـ `pg_advisory_lock` ومولّد الأحداث وSSE (18.0 `llm_thread`).
@@ -269,4 +269,4 @@ sudo (قواعد السجل حسب `category`) ثم `execute`. أي فحص إض�
 المستنسخان ومجلد `pydeps` والسكربتان والسجلات كلها تحت `.scratch/` (مُتجاهَل).
 قاعدة السكراتش تحوي الآن `llm` و`llm_tool` مثبتتين؛ لإزالتهما قبل أي عمل
 لاحق على القاعدة نفسها: إعادة إنشاء القاعدة أو `-u` بعد حذف المسار من
-`--addons-path` ليست كافية، والأبسط إسقاط القاعدة وإعادة إنشائها من وحدات نسق.
+`--addons-path` ليست كافية، والأبسط إسقاط القاعدة وإعادة إنشائها من وحدات ويب فيو.

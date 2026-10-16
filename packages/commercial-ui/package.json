@@ -1,5 +1,5 @@
 {
-  "name": "@nasq/commercial-ui",
+  "name": "@webvue/commercial-ui",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nasq/commercial-contracts": "0.1.0",
-    "@nasq/ui": "0.1.0"
+    "@webvue/commercial-contracts": "0.1.0",
+    "@webvue/ui": "0.1.0"
   },
   "devDependencies": {
     "@vue/compiler-sfc": "^3.5.42",

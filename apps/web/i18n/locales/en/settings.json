@@ -47,7 +47,7 @@
       "resetDefault": "Reset default colors",
       "presets": {
         "label": "Colour presets",
-        "default": "nasq default",
+        "default": "webvue default",
         "blue": "Blue",
         "teal": "Teal",
         "amber": "Amber"

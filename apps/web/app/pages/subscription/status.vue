@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
-import { subscriptionDisplayState } from '@nasq/commercial-contracts'
+import { subscriptionDisplayState } from '@webvue/commercial-contracts'
 import { safePaymentRedirect } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()

@@ -65,7 +65,7 @@ def main() -> int:
     nuxt_env = {
         **env,
         "NUXT_ODOO_URL": MOCK_URL,
-        "NUXT_ODOO_DB": "nasq_ui_mock_only",
+        "NUXT_ODOO_DB": "webvue_ui_mock_only",
         "NUXT_PUBLIC_WS_URL": f"ws://127.0.0.1:{MOCK_PORT}/websocket",
         "NITRO_HOST": "127.0.0.1",
         "NITRO_PORT": str(NUXT_PORT),

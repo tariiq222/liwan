@@ -1,4 +1,4 @@
-import { VENDOR_ROLES, type VendorCapability, type VendorRole } from '@nasq/commercial-contracts'
+import { VENDOR_ROLES, type VendorCapability, type VendorRole } from '@webvue/commercial-contracts'
 
 const ROLE_CAPABILITIES: Record<VendorRole, VendorCapability[]> = {
   owner: ['vendor.read','vendor.audit.read','vendor.tenants.manage','vendor.subscriptions.manage','vendor.catalog.manage','vendor.pricing.manage','vendor.billing.manage','vendor.operations.run','vendor.accounts.manage'],

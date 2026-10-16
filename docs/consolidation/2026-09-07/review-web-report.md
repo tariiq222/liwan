@@ -21,7 +21,7 @@ Reviewed source: `/Users/tariq/code/nasq/.worktrees/reconcile-web-20260907`, cle
 
 - No tests, builds, browser sessions, runtime changes or databases were run by this reviewer. The worker's reported 56 focused tests were read, not independently rerun; they are not fresh reviewer evidence.
 - Browser coverage remains necessary for Arabic/English accessible names, narrow milestone layout, keyboard interactions, return/filter state and immediate submit after editing a rich-text body. Static checks cannot establish these rendered behaviors.
-- Confirm the coordinator's final shared CSS and locale integration. Project list sorting has a corresponding `sort` API contract in the reviewed checkout (`odoo-addons/nasq_pmo/controllers/projects.py`), so it is not a frontend-only unsupported query.
+- Confirm the coordinator's final shared CSS and locale integration. Project list sorting has a corresponding `sort` API contract in the reviewed checkout (`odoo-addons/webvue_pmo/controllers/projects.py`), so it is not a frontend-only unsupported query.
 - Existing limitation, not introduced by this package: SharedUnsavedChanges uses `onBeforeRouteLeave` only; it does not implement browser refresh/tab-close protection. Do not describe this package as covering those exits.
 - No production, deployment or full integration acceptance is implied.
 

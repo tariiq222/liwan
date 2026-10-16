@@ -3,7 +3,7 @@ import { resolvePackageAuthority } from '../packages.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
-import { sharedPolicySchema, type TenantBinding } from '@nasq/commercial-contracts/shared'
+import { sharedPolicySchema, type TenantBinding } from '@webvue/commercial-contracts/shared'
 import { transaction } from '../db.js'
 import { derivePolicy } from './catalog-features.js'
 import { resolveRegistryBinding, type RegistryActor } from './registry-store.js'
@@ -46,7 +46,7 @@ export async function requireJobAuthority(client: PoolClient, controlTenantId: s
 }
 /** Internal paid-order path: authority comes from locked commercial records, not a vendor/browser actor. */
 export async function enqueueReconfigureJob(client: PoolClient, value: unknown) {
-  const { sharedReconfigureJobSchema } = await import('@nasq/commercial-contracts/shared')
+  const { sharedReconfigureJobSchema } = await import('@webvue/commercial-contracts/shared')
   const { createHash } = await import('node:crypto')
   const job = sharedReconfigureJobSchema.parse(value)
   const key = `${job.controlTenantId}:${job.authority.target_revision_id}${job.restore ? ':restore:'+job.restoreId : ''}`

@@ -12,7 +12,7 @@ suite('vendor invoice list and detail', () => {
   const [a, b] = [randomUUID(), randomUUID()]
   const caps: any[] = ['vendor.read', 'vendor.billing.manage']
   const call = async (path: string, capabilities = caps) => {
-    const target = new URL(`/v1/commercial${path}`, 'http://nasq.test')
+    const target = new URL(`/v1/commercial${path}`, 'http://webvue.test')
     return routesB(pool, { method: 'GET', pathname: target.pathname, raw: '', actor: 7, issuer: 'invoice-test', capabilities, stepUpFresh: true }, target)
   }
   const invoice = (customer: string, subscription: string, status: string, total: number, due: string | null) => pool.query(

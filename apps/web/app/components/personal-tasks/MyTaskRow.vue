@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { MyTaskListItem } from '@nasq/contracts'
+import type { MyTaskListItem } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { deadlineDay, isOverdue } from '@/utils/myTaskList'
 
 // One task of the unified list as the parts SharedDataTable asks for: the name cell, the state, the deadline,

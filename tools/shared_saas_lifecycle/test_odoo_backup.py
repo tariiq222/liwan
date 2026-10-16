@@ -52,11 +52,11 @@ class BackupBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             runner = object.__new__(odoo_backup.BackupRunner)
             runner.root = Path(raw).resolve()
-            runner.config = {'projectName': 'nasq-shared-test'}
+            runner.config = {'projectName': 'webvue-shared-test'}
             commands = []
             def command(args, **_):
                 commands.append(args)
-                return 'nasq-shared-test-effect-12345678-observe-abcd1234' if args[:2] == ['docker', 'ps'] else ''
+                return 'webvue-shared-test-effect-12345678-observe-abcd1234' if args[:2] == ['docker', 'ps'] else ''
             runner.command = command
             stages = []
             with patch.object(odoo_effect, 'permit', stages.append), patch.object(odoo_backup, 'permit', stages.append):
@@ -68,7 +68,7 @@ class BackupBoundaryTests(unittest.TestCase):
 
     def drain_runner(self, observers):
         runner = object.__new__(odoo_backup.BackupRunner)
-        runner.config = {'projectName': 'nasq-shared-test'}
+        runner.config = {'projectName': 'webvue-shared-test'}
         commands = []
         live = list(observers)
         def command(args, **_):
@@ -82,8 +82,8 @@ class BackupBoundaryTests(unittest.TestCase):
         return runner, commands, live
 
     def test_observers_are_waited_for_then_killed_after_the_budget(self):
-        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
-        runner, commands, live = self.drain_runner([name, 'nasq-shared-test-odoo-1'])
+        name = 'webvue-shared-test-effect-12345678-observe-abcd1234'
+        runner, commands, live = self.drain_runner([name, 'webvue-shared-test-odoo-1'])
         now = [0]
         def sleep(seconds): now[0] += seconds
         def run(args, **kwargs):
@@ -94,10 +94,10 @@ class BackupBoundaryTests(unittest.TestCase):
             runner.drain_observers(wait=35, sleep=sleep, clock=lambda: now[0])
         self.assertGreaterEqual(now[0], 35)
         self.assertIn(['docker', 'kill', name], commands)
-        self.assertEqual(live, ['nasq-shared-test-odoo-1'])
+        self.assertEqual(live, ['webvue-shared-test-odoo-1'])
 
     def test_observer_gone_before_the_kill_does_not_fail_the_drain(self):
-        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        name = 'webvue-shared-test-effect-12345678-observe-abcd1234'
         runner, commands, live = self.drain_runner([name])
         now = [0]
         def sleep(seconds): now[0] += seconds
@@ -112,7 +112,7 @@ class BackupBoundaryTests(unittest.TestCase):
         runner.assert_no_effect_containers(code='runtime_writer_after_effect')
 
     def test_observer_that_exits_in_time_is_not_killed(self):
-        name = 'nasq-shared-test-effect-12345678-observe-abcd1234'
+        name = 'webvue-shared-test-effect-12345678-observe-abcd1234'
         runner, commands, live = self.drain_runner([name])
         now = [0]
         def sleep(seconds):
@@ -124,8 +124,8 @@ class BackupBoundaryTests(unittest.TestCase):
 
     def test_mutating_effect_after_stop_refuses_with_the_after_effect_code(self):
         runner = object.__new__(odoo_backup.BackupRunner)
-        runner.config = {'projectName': 'nasq-shared-test'}
-        runner.command = lambda args, **_: 'nasq-shared-test-effect-12345678-install'
+        runner.config = {'projectName': 'webvue-shared-test'}
+        runner.command = lambda args, **_: 'webvue-shared-test-effect-12345678-install'
         with self.assertRaises(odoo_effect.EffectError) as caught:
             runner.assert_no_effect_containers(code='runtime_writer_after_effect')
         self.assertEqual(str(caught.exception), 'runtime_writer_after_effect')
@@ -148,8 +148,8 @@ class BackupBoundaryTests(unittest.TestCase):
 
     def test_restore_observe_writer_after_completion_is_not_retryable(self):
         runner = object.__new__(odoo_backup.BackupRunner)
-        runner.config = {'projectName': 'nasq-shared-test'}
-        runner.command = lambda args, **_: 'nasq-shared-test-effect-12345678-install'
+        runner.config = {'projectName': 'webvue-shared-test'}
+        runner.command = lambda args, **_: 'webvue-shared-test-effect-12345678-install'
         import inspect
         source = inspect.getsource(odoo_backup.BackupRunner.observe)
         self.assertIn("assert_no_effect_containers(code='runtime_writer_after_effect')", source)

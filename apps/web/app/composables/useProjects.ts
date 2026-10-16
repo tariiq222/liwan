@@ -1,7 +1,7 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
-import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectPhase, type ProjectStatus } from '@webvue/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'

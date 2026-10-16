@@ -1,8 +1,8 @@
 import type { IncomingHttpHeaders } from 'node:http'
 import type { Pool } from 'pg'
 import { z } from 'zod'
-import { adminAuthBodies, adminErrorBodySchema, type AdminErrorBody } from '@nasq/commercial-contracts'
-import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
+import { adminAuthBodies, adminErrorBodySchema, type AdminErrorBody } from '@webvue/commercial-contracts'
+import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit } from './accounts.js'
@@ -33,7 +33,7 @@ type AuthRequest = { method: string; pathname: string; path: string; raw: string
 // Only a request that passed the anonymous service signature (the BFF is the only signer) may name the client address.
 // The result is the attempt-scope key of the address (an IPv6 client is counted per /64).
 function clientIp(headers: IncomingHttpHeaders, remoteAddress: string | undefined): string {
-  const forwarded = headers['x-nasq-client-ip']
+  const forwarded = headers['x-webvue-client-ip']
   if (typeof forwarded === 'string' && forwarded.length <= 64 && /^[0-9a-fA-F:.]+$/.test(forwarded)) return ipScopeKey(forwarded)
   return ipScopeKey(remoteAddress ?? 'unknown')
 }

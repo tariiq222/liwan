@@ -14,7 +14,7 @@ import { listAudit } from './audit-feed.js'
 import { allOperationCounts, allOperations, sharedOperationDetail, withTenantLabels } from './operation-feed.js'
 import {approveOdooRestore,odooJobProgress} from './shared/odoo-backup.js'
 import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
-import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
+import { sharedOnboardingRequestSchema } from '@webvue/commercial-contracts'
 import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
 import { actorName, AdminAuthError } from './admin-auth/accounts.js'
@@ -33,8 +33,8 @@ import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
-import { auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@nasq/commercial-contracts'
-import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
+import { auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@webvue/commercial-contracts'
+import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
 import { publishRegistryMutation, recoverRegistry, RegistryError, registryMutationSchema } from './shared/registry-store.js'
@@ -43,7 +43,7 @@ const exec = promisify(execFile)
 // No shared durable publisher/fenced adapter is wired. Never fall back to the
 // dedicated inventory in a shared (or misspelled) process configuration.
 export function dedicatedExecutionEnabled(): boolean {
-  return (process.env.NASQ_TENANCY_MODE ?? 'dedicated') === 'dedicated'
+  return (process.env.WEBVUE_TENANCY_MODE ?? 'dedicated') === 'dedicated'
 }
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 const TENANT_FIELDS = 'id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,status,desired_policy,observed_policy,policy_revision,health_checked_at,operations_enabled,created_at'
@@ -167,7 +167,7 @@ export async function resolveTargetLane(config: Config, targetId: string, commer
       typeof entry.environment_id !== 'string' || !/^[a-z][a-z0-9-]{0,62}$/.test(entry.environment_id) ||
       !resources || Object.keys(resources).sort().join(',') !== 'backup_root,compose_file,data_dir,db_name,ports,project' ||
       typeof resources.project !== 'string' || !/^[a-z][a-z0-9-]{0,62}$/.test(resources.project) ||
-      typeof databaseName !== 'string' || !/^nasq_scratch_[a-z0-9_]{1,42}$/.test(databaseName) || ['odoo19', 'production', 'prod', 'postgres', 'template0', 'template1'].some((token) => databaseName.split('_').includes(token)) ||
+      typeof databaseName !== 'string' || !/^webvue_scratch_[a-z0-9_]{1,42}$/.test(databaseName) || ['odoo19', 'production', 'prod', 'postgres', 'template0', 'template1'].some((token) => databaseName.split('_').includes(token)) ||
       ['compose_file','data_dir','backup_root'].some((key) => typeof resources[key] !== 'string' || !(resources[key] as string).startsWith('/') || (resources[key] as string).split('/').includes('..')) ||
       !ports || Object.keys(ports).sort().join(',') !== 'db,odoo,web' || ['db','odoo','web'].some((key) => !Number.isSafeInteger(ports[key]) || (ports[key] as number) < 1 || (ports[key] as number) > 65535 || [80, 443, 3000, 5432, 8069, 8072].includes(ports[key] as number)) || new Set(['db','odoo','web'].map((key) => ports[key])).size !== 3 ||
       !secrets || Object.keys(secrets).sort().join(',') !== 'admin_password,db_password' || ['admin_password','db_password'].some((key) => typeof secrets[key] !== 'string' || !(secrets[key] as string)) ||
@@ -196,7 +196,7 @@ async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: 
     const nonce = await client.query('INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval \'60 seconds\') ON CONFLICT DO NOTHING RETURNING nonce', [signed.issuer, signed.nonce])
     if (!nonce.rowCount) throw new ApiError(401, 'unauthorized', 'Replayed service assertion')
     let session
-    try { session = await resolveSession(client, req.headers['x-nasq-session'], new Date()) } catch (error) { if (error instanceof AdminAuthError) throw new ApiError(401, 'unauthorized', 'Session is not valid'); throw error }
+    try { session = await resolveSession(client, req.headers['x-webvue-session'], new Date()) } catch (error) { if (error instanceof AdminAuthError) throw new ApiError(401, 'unauthorized', 'Session is not valid'); throw error }
     if (session.accountId !== actor) throw new ApiError(401, 'unauthorized', 'Session is not valid')
     const capabilities = await accountCapabilities(client, actor)
     if (!capabilities?.length) throw new ApiError(403, 'forbidden', 'Vendor account holds no role')
@@ -311,11 +311,11 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
 }
 
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
-  const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.NASQ_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
+  const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.WEBVUE_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
   try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect
-  const setPassword: SetPassword | undefined = process.env.NASQ_TENANCY_MODE === 'shared' && effect?.url && effect.ca
+  const setPassword: SetPassword | undefined = process.env.WEBVUE_TENANCY_MODE === 'shared' && effect?.url && effect.ca
     ? odooSetPassword(internalEffectPasswordAdapter({ url: effect.url, key: effect.key, ca: effect.ca })) : undefined
   let invitationsInFlight = 0
   const invitationAttempts = new Map<string, { count: number; expiresAt: number }>()
@@ -400,7 +400,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       const realProgress=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs/(${UUID})$`))
       const realApproval=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-approvals$`))
       if((method==='GET' && realProgress)||(method==='POST' && realApproval)){
-        if(process.env.NASQ_TENANCY_MODE!=='shared'||!config.sharedRuntimeConfigPath)throw new ApiError(503,'shared_execution_unavailable','Shared runtime is unavailable')
+        if(process.env.WEBVUE_TENANCY_MODE!=='shared'||!config.sharedRuntimeConfigPath)throw new ApiError(503,'shared_execution_unavailable','Shared runtime is unavailable')
         const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
         if(realProgress){requireCapability(auth,'vendor.read');return respond(res,200,await odooJobProgress(pool,realProgress[1]!,realProgress[2]!))}
         requireCapability(auth,'vendor.operations.run')
@@ -409,7 +409,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
       if (method === 'POST' && sharedQueue) {
         requireCapability(auth, 'vendor.operations.run')
-        if (process.env.NASQ_TENANCY_MODE !== 'shared' || !config.tenantRegistryPath) throw new ApiError(503, 'shared_execution_unavailable', 'Shared queue is not configured')
+        if (process.env.WEBVUE_TENANCY_MODE !== 'shared' || !config.tenantRegistryPath) throw new ApiError(503, 'shared_execution_unavailable', 'Shared queue is not configured')
         const input = parseJson(raw, z.strictObject({ reason: z.string().trim().min(3).max(1000), job: z.unknown() }))
         // Restore callers supply only the approval ID; binding, backup and
         // target are derived server-side from the durable approval authority.

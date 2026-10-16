@@ -58,8 +58,8 @@
             "entitlement": {
               "catalog_release_id": "00000000-0000-4000-8000-000000000100",
               "modules": [
-                "nasq_core",
-                "nasq_pmo"
+                "webvue_core",
+                "webvue_pmo"
               ],
               "features": {
                 "pmo.enabled": true,
@@ -97,8 +97,8 @@
             "entitlement": {
               "catalog_release_id": "00000000-0000-4000-8000-000000000100",
               "modules": [
-                "nasq_core",
-                "nasq_pmo"
+                "webvue_core",
+                "webvue_pmo"
               ],
               "features": {
                 "pmo.enabled": true,
@@ -159,8 +159,8 @@
             "entitlement": {
               "catalog_release_id": "00000000-0000-4000-8000-000000000100",
               "modules": [
-                "nasq_core",
-                "nasq_pmo"
+                "webvue_core",
+                "webvue_pmo"
               ],
               "features": {
                 "pmo.enabled": true,
@@ -1292,7 +1292,7 @@
         "available": true,
         "source_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "modules": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
         "features": [
           "pmo.enabled"
@@ -1317,7 +1317,7 @@
         "available": false,
         "source_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
         "modules": [
-          "nasq_pmo"
+          "webvue_pmo"
         ],
         "features": [
           "pmo.enabled"
@@ -1337,14 +1337,14 @@
         "status": "published",
         "solution": {
           "base_modules": [
-            "nasq_core"
+            "webvue_core"
           ],
           "tiers": [
             {
               "id": "growth",
               "name": "النمو",
               "modules": [
-                "nasq_pmo"
+                "webvue_pmo"
               ],
               "features": [
                 "pmo.enabled"
@@ -1366,7 +1366,7 @@
       "source_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "artifact_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "base_modules": [
-        "nasq_core"
+        "webvue_core"
       ],
       "applications": [
         {
@@ -1374,7 +1374,7 @@
           "name_ar": "المشاريع",
           "name_en": "Projects",
           "modules": [
-            "nasq_pmo"
+            "webvue_pmo"
           ],
           "requires_apps": [],
           "conflicts_with_apps": [],
@@ -1396,7 +1396,7 @@
           "name_ar": "الموارد البشرية",
           "name_en": "HR",
           "modules": [
-            "nasq_hr"
+            "webvue_hr"
           ],
           "requires_apps": [],
           "conflicts_with_apps": [],
@@ -1457,8 +1457,8 @@
         "entitlement": {
           "catalog_release_id": "00000000-0000-4000-8000-000000000100",
           "modules": [
-            "nasq_core",
-            "nasq_pmo"
+            "webvue_core",
+            "webvue_pmo"
           ],
           "features": {
             "pmo.enabled": true,
@@ -1496,8 +1496,8 @@
         "entitlement": {
           "catalog_release_id": "00000000-0000-4000-8000-000000000100",
           "modules": [
-            "nasq_core",
-            "nasq_pmo"
+            "webvue_core",
+            "webvue_pmo"
           ],
           "features": {
             "pmo.enabled": true,
@@ -1552,8 +1552,8 @@
         "entitlement": {
           "catalog_release_id": "00000000-0000-4000-8000-000000000100",
           "modules": [
-            "nasq_core",
-            "nasq_pmo"
+            "webvue_core",
+            "webvue_pmo"
           ],
           "features": {
             "pmo.enabled": true,

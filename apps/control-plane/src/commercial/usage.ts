@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg'
-import type { UsageSnapshot, UsageMetric } from '@nasq/commercial-contracts'
+import type { UsageSnapshot, UsageMetric } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 
@@ -16,7 +16,7 @@ function closed(gates: string[], features: Features): boolean {
 /** Both quote preview and acceptance check against the applied entitlement. Same rule as Python's
  * check_downgrade: a numeric target limit is CHECKED when lowered (absent/null previous = unlimited) or when its
  * app reopens (closed before, open now); it is SKIPPED when its app is closed in the target.
- * Metrics are keyed by limit key, in the limit's own unit (Odoo's _nasq_count_usage).
+ * Metrics are keyed by limit key, in the limit's own unit (Odoo's _webvue_count_usage).
  * The branch limit is the exception, as in Python: it is ALWAYS checked against the active plus pending extra
  * branches (never skipped by gates, lowered or not) and needs no usage sample. */
 export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>, input: {

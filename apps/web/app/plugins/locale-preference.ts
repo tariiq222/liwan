@@ -1,10 +1,10 @@
 // The language switch in the account menu is saved in a cookie. `detectBrowserLanguage` is off
 // (Arabic is the default), so this plugin applies the saved choice before the first render.
-export const LOCALE_COOKIE = 'nasq-locale'
+export const LOCALE_COOKIE = 'webvue-locale'
 export const LOCALE_CODES = ['ar', 'en'] as const
 
 export default defineNuxtPlugin({
-  name: 'nasq-locale-preference',
+  name: 'webvue-locale-preference',
   dependsOn: ['i18n:plugin'],
   async setup(nuxtApp) {
     const saved = useCookie<string | null>(LOCALE_COOKIE, { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })

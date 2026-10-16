@@ -23,7 +23,7 @@
       "playwright: playwright dependency",
       "tailwind: tailwindcss dependency",
       "python: python manifest",
-      "odoo: odoo-addons/nasq_api/__manifest__.py"
+      "odoo: odoo-addons/webvue_api/__manifest__.py"
     ]
   },
   "checks": [

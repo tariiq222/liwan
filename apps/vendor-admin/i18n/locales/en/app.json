@@ -1,6 +1,6 @@
 {
   "app": {
-    "productName": "Nasq",
+    "productName": "WebVue",
     "error": {
       "notFound": "Page not found",
       "generic": "Something went wrong",
@@ -20,7 +20,7 @@
     },
     "shell": {
       "header": "Console header",
-      "consoleBadge": "Nasq console",
+      "consoleBadge": "WebVue console",
       "navigation": "Navigation",
       "openMenu": "Open menu",
       "account": "Account",

@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { calendarCoverage } from '../../utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '../../utils/meetingStatus'
 import { parseMeetingListFilters, patchMeetingListQuery } from '../../utils/meetingListFilters'
-import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { firstQuery } from '../../utils/routeQuery'
 
 type CalendarMeeting = {
@@ -37,7 +37,7 @@ function calendar(items: CalendarMeeting[], routeQuery: Record<string, string> =
     useHydrated: () => ref(true),
     useAccess: () => ({ can: () => true }),
     useMeetings, calendarCoverage, meetingStateBadgeProps, parseMeetingListFilters, patchMeetingListQuery, firstQuery, isCalendarDate,
-    formatCalendarDate: (value: string) => value, formatNasqTime: () => '', formatLocalDateTime: (value: string) => value,
+    formatCalendarDate: (value: string) => value, formatWebVueTime: () => '', formatLocalDateTime: (value: string) => value,
   }
   const js = ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
   const exposed = '{ byDate, agenda, shift, weekStart, year, month, selectedMeetings, selectedDay, onStateChange }'

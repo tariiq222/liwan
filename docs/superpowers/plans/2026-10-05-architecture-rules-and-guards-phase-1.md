@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3 standard library, `unittest`, Woodpecker CI (`.woodpecker.yml`), Git.
 
-**Spec:** `docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md` — sections 2, 2.1, 3.1, 4 and 5. Read it before starting.
+**Spec:** `docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md` — sections 2, 2.1, 3.1, 4 and 5. Read it before starting.
 
 ## Global Constraints
 
@@ -27,7 +27,7 @@
 
 - **Baseline abuse:** an agent runs `--write-baseline` to admit a new violation. Expected: the write is refused and the file is unchanged. Pinned by `TestMain.test_later_write_refuses_an_increase_and_keeps_the_file` (Task 1).
 - **Stale baseline:** a violation is fixed but its baseline entry stays, leaving room to reintroduce it. Expected: the check fails until the baseline is lowered. Pinned by `TestMain.test_fixing_a_violation_requires_lowering_the_baseline` (Task 1).
-- **New addon without a layer:** someone adds `odoo-addons/nasq_sales`. Expected: hard failure naming the addon, not baselineable. Pinned by `TestCollect.test_unregistered_and_missing_addons_are_hard_failures` (Task 1).
+- **New addon without a layer:** someone adds `odoo-addons/webvue_sales`. Expected: hard failure naming the addon, not baselineable. Pinned by `TestCollect.test_unregistered_and_missing_addons_are_hard_failures` (Task 1).
 - **Broken config read as a pass:** `arch_layers.json` is malformed or the base ref is missing. Expected: a non-zero exit, never a silent pass. Pinned by `TestMain.test_malformed_layers_file_is_an_error_not_a_pass` (Task 1) and Step 5 of Task 3.
 - **History before the policy:** the ten unpushed commits on `main` do not follow the subject format. Expected: commits at or before `POLICY_START` are never checked. Verified in Task 3 Step 5.
 
@@ -53,8 +53,8 @@
 
 ```bash
 cd /Users/tariq/code/nasq
-git worktree add -b codex/tools-arch-policy ../nasq-arch-policy main
-cd ../nasq-arch-policy
+git worktree add -b codex/tools-arch-policy ../webvue-arch-policy main
+cd ../webvue-arch-policy
 git status --short
 ```
 
@@ -75,20 +75,20 @@ What each rule counts:
 
 | Rule | Key | Counted |
 |---|---|---|
-| R1 | `nasq_core depends on <dep>` | Each `depends` entry of `nasq_core` other than `base` |
+| R1 | `webvue_core depends on <dep>` | Each `depends` entry of `webvue_core` other than `base` |
 | R2 | file path | In foundation addons (rank ≤ 2): tokens `project.`, `hr.`, `pmo.`, `meetings.`, `chat.`, `cyan_meeting_minutes.` in `.py`, `.xml`, `.csv` |
 | R3 | `<addon> imports <target>` / `web <path>` | `odoo.addons.<x>` imports of an equal or higher rank; in `apps/web`, tags and imports of another application's components |
 | R4 | `<addon> depends on <target>` | Manifest dependency on an equal or higher rank |
-| R5 | `control-plane import <path>` / `commercial import <path>` | In `apps/web/app` and `apps/web/server`: import statements whose path contains `control-plane`; imports of `@nasq/commercial-contracts` outside the folders listed in `commercial.allowed` |
+| R5 | `control-plane import <path>` / `commercial import <path>` | In `apps/web/app` and `apps/web/server`: import statements whose path contains `control-plane`; imports of `@webvue/commercial-contracts` outside the folders listed in `commercial.allowed` |
 | R6 | file path | `government`, `is_gov`, `gov_` |
 | R7 | file path | `.sudo()` calls in addon Python, counted from the syntax tree (comments and strings do not count) |
 | R8 | `<path> lacks <middleware> middleware` | Pages under the commercial page folders that do not name their gate middleware |
-| R9 | `sql <path>` / `override <path>` | SQL keywords followed by a non-`nasq_` table outside `migrations/`; `_search`/`check_access` overrides in files extending an Odoo model |
+| R9 | `sql <path>` / `override <path>` | SQL keywords followed by a non-`webvue_` table outside `migrations/`; `_search`/`check_access` overrides in files extending an Odoo model |
 | R10 | `<addon> registers no <app>.enabled feature it owns` / `<path>:<function> has no requires_feature` | Application addons whose `models/feature_registry.py` lacks an owned `.enabled` key; controller functions with a `route` decorator and no `requires_feature` decorator |
 
 Tests, `i18n` and `__pycache__` are excluded everywhere. R1, R3, R4, R5, R7, R8, R10 and the SQL part of R9 are exact on today's tree (every current match was inspected). R2 is a text match and about 5% of its 125 matches are feature or navigation keys rather than capability keys; R6 is a keyword match. The baseline absorbs today's matches, and a rise in any file fails.
 
-The Odoo test `odoo-addons/nasq_api/tests/test_feature_route_coverage.py` already checks route feature metadata at runtime in the CI `odoo` step; the R10 check here gives the same answer without a database.
+The Odoo test `odoo-addons/webvue_api/tests/test_feature_route_coverage.py` already checks route feature metadata at runtime in the CI `odoo` step; the R10 check here gives the same answer without a database.
 
 - [ ] **Step 1: Write the layer registry**
 
@@ -97,17 +97,17 @@ Create `tools/arch_layers.json`:
 ```json
 {
   "ranks": {
-    "nasq_core": 0,
-    "nasq_platform": 1,
-    "nasq_api": 2,
-    "nasq_pmo": 4,
-    "nasq_hr": 4,
-    "nasq_chat": 4
+    "webvue_core": 0,
+    "webvue_platform": 1,
+    "webvue_api": 2,
+    "webvue_pmo": 4,
+    "webvue_hr": 4,
+    "webvue_chat": 4
   },
   "exempt": [
     "cyan_meeting_minutes",
     "web_theme_shadcn",
-    "nasq_registry_probe"
+    "webvue_registry_probe"
   ],
   "web_apps": {
     "pmo": {
@@ -192,7 +192,7 @@ from arch_policy import (
     unregistered_addons,
 )
 
-RANKS = {'nasq_core': 0, 'nasq_platform': 1, 'nasq_api': 2, 'nasq_pmo': 4, 'nasq_hr': 4, 'nasq_meetings_pmo': 5}
+RANKS = {'webvue_core': 0, 'webvue_platform': 1, 'webvue_api': 2, 'webvue_pmo': 4, 'webvue_hr': 4, 'webvue_meetings_pmo': 5}
 WEB_APPS = {
     'pmo': {'components': ['project', 'task'], 'pages': ['projects', 'tasks']},
     'hr': {'components': ['hr'], 'pages': ['hr']},
@@ -209,37 +209,37 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(core_depends_violations(['base']), {})
         self.assertEqual(
             core_depends_violations(['base', 'project', 'hr']),
-            {'nasq_core depends on project': 1, 'nasq_core depends on hr': 1},
+            {'webvue_core depends on project': 1, 'webvue_core depends on hr': 1},
         )
 
     def test_dependencies_must_point_strictly_down(self):
-        self.assertEqual(layer_violations('nasq_pmo', ['nasq_api', 'project', 'nasq_pmo'], RANKS, 'depends on'), {})
+        self.assertEqual(layer_violations('webvue_pmo', ['webvue_api', 'project', 'webvue_pmo'], RANKS, 'depends on'), {})
         self.assertEqual(
-            layer_violations('nasq_pmo', ['nasq_hr'], RANKS, 'imports'),
-            {'nasq_pmo imports nasq_hr': 1},
+            layer_violations('webvue_pmo', ['webvue_hr'], RANKS, 'imports'),
+            {'webvue_pmo imports webvue_hr': 1},
         )
         self.assertEqual(
-            layer_violations('nasq_core', ['nasq_platform', 'nasq_platform'], RANKS, 'imports'),
-            {'nasq_core imports nasq_platform': 2},
+            layer_violations('webvue_core', ['webvue_platform', 'webvue_platform'], RANKS, 'imports'),
+            {'webvue_core imports webvue_platform': 2},
         )
-        self.assertEqual(layer_violations('nasq_meetings_pmo', ['nasq_pmo', 'nasq_api'], RANKS, 'depends on'), {})
+        self.assertEqual(layer_violations('webvue_meetings_pmo', ['webvue_pmo', 'webvue_api'], RANKS, 'depends on'), {})
 
     def test_unregistered_addons_are_listed(self):
         self.assertEqual(
-            unregistered_addons(['nasq_core', 'nasq_sales', 'web_theme_shadcn'], RANKS, ['web_theme_shadcn']),
-            ['nasq_sales'],
+            unregistered_addons(['webvue_core', 'webvue_sales', 'web_theme_shadcn'], RANKS, ['web_theme_shadcn']),
+            ['webvue_sales'],
         )
 
-    def test_sql_counts_only_non_nasq_tables(self):
-        text = 'SELECT 1 FROM hr_employee e JOIN nasq_access_role r ON 1=1; UPDATE res_users SET x=1'
+    def test_sql_counts_only_non_webvue_tables(self):
+        text = 'SELECT 1 FROM hr_employee e JOIN webvue_access_role r ON 1=1; UPDATE res_users SET x=1'
         self.assertEqual(sql_on_odoo_tables(text), 2)
         self.assertEqual(sql_on_odoo_tables('returns rows from the cache'), 0)
 
     def test_access_overrides_count_only_on_odoo_models(self):
         override = '    def _search(self, domain):\n        pass\n    def check_access(self, operation):\n        pass\n'
         self.assertEqual(odoo_access_overrides("    _inherit = 'hr.employee'\n" + override), 2)
-        self.assertEqual(odoo_access_overrides("    _inherit = 'nasq.access.role'\n" + override), 0)
-        self.assertEqual(odoo_access_overrides("    _name = 'nasq.thing'\n" + override), 0)
+        self.assertEqual(odoo_access_overrides("    _inherit = 'webvue.access.role'\n" + override), 0)
+        self.assertEqual(odoo_access_overrides("    _name = 'webvue.thing'\n" + override), 0)
 
     def test_sudo_counts_calls_not_comments_or_strings(self):
         text = "# x.sudo() in a comment\nA = 'y.sudo()'\nb = env['res.users'].sudo().browse(1).sudo()\n"
@@ -265,10 +265,10 @@ class TestPureRules(unittest.TestCase):
         self.assertEqual(foreign_component_uses(text, 'hr', WEB_APPS), 1)
 
     def test_test_paths_are_recognised(self):
-        self.assertTrue(is_test_path(Path('odoo-addons/nasq_pmo/tests/test_tasks.py')))
+        self.assertTrue(is_test_path(Path('odoo-addons/webvue_pmo/tests/test_tasks.py')))
         self.assertTrue(is_test_path(Path('apps/web/app/utils/__tests__/a.ts')))
         self.assertTrue(is_test_path(Path('apps/web/app/utils/a.test.ts')))
-        self.assertFalse(is_test_path(Path('odoo-addons/nasq_pmo/models/project_task.py')))
+        self.assertFalse(is_test_path(Path('odoo-addons/webvue_pmo/models/project_task.py')))
 
 
 class TestCompare(unittest.TestCase):
@@ -296,7 +296,7 @@ class TestCollect(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.layers = {'ranks': {'nasq_core': 0, 'nasq_pmo': 4}, 'exempt': ['web_theme_shadcn'], 'web_apps': WEB_APPS,
+        self.layers = {'ranks': {'webvue_core': 0, 'webvue_pmo': 4}, 'exempt': ['web_theme_shadcn'], 'web_apps': WEB_APPS,
                        'commercial': COMMERCIAL}
 
     def write(self, relative, text):
@@ -308,11 +308,11 @@ class TestCollect(unittest.TestCase):
         self.write(f'odoo-addons/{name}/__manifest__.py', HEADER + repr({'name': name, 'depends': depends}) + extra)
 
     def clean_tree(self):
-        self.addon('nasq_core', ['base'])
-        self.addon('nasq_pmo', ['nasq_core', 'project'])
+        self.addon('webvue_core', ['base'])
+        self.addon('webvue_pmo', ['webvue_core', 'project'])
         self.write(
-            'odoo-addons/nasq_pmo/models/feature_registry.py',
-            HEADER + "X = {'key': 'pmo.enabled', 'owner': 'nasq_pmo'}\n",
+            'odoo-addons/webvue_pmo/models/feature_registry.py',
+            HEADER + "X = {'key': 'pmo.enabled', 'owner': 'webvue_pmo'}\n",
         )
 
     def test_clean_tree_has_no_violations(self):
@@ -322,34 +322,34 @@ class TestCollect(unittest.TestCase):
         self.assertEqual({rule: found for rule, found in violations.items() if found}, {})
 
     def test_each_rule_fires_on_its_violation(self):
-        self.addon('nasq_core', ['base', 'project'])
-        self.addon('nasq_pmo', ['nasq_core', 'project'])
+        self.addon('webvue_core', ['base', 'project'])
+        self.addon('webvue_pmo', ['webvue_core', 'project'])
         self.write(
-            'odoo-addons/nasq_core/models/access.py',
-            HEADER + "from odoo.addons.nasq_pmo.models import x\nKEY = 'pmo.tasks.read'\nrows = env['res.users'].sudo()\n",
+            'odoo-addons/webvue_core/models/access.py',
+            HEADER + "from odoo.addons.webvue_pmo.models import x\nKEY = 'pmo.tasks.read'\nrows = env['res.users'].sudo()\n",
         )
         self.write(
-            'odoo-addons/nasq_pmo/models/project_task.py',
+            'odoo-addons/webvue_pmo/models/project_task.py',
             HEADER + "class T:\n    _inherit = 'project.task'\n    def _search(self, d):\n"
             "        self.env.cr.execute('SELECT id FROM project_task')\n        is_gov = True\n",
         )
-        self.write('odoo-addons/nasq_pmo/tests/test_x.py', HEADER + "x = env['a'].sudo().sudo()\n")
+        self.write('odoo-addons/webvue_pmo/tests/test_x.py', HEADER + "x = env['a'].sudo().sudo()\n")
         self.write('apps/web/app/components/hr/Card.vue', '<template><TaskRow /></template>\n')
         self.write('apps/web/app/utils/cp.ts', "import { x } from '../../../control-plane/src/x'\n// control-plane note\n")
-        self.write('apps/web/app/pages/hr/index.vue', "<script setup>import type { Q } from '@nasq/commercial-contracts'</script>\n")
-        self.write('apps/web/app/pages/subscription/index.vue', "<script setup>import type { Q } from '@nasq/commercial-contracts'</script>\n")
+        self.write('apps/web/app/pages/hr/index.vue', "<script setup>import type { Q } from '@webvue/commercial-contracts'</script>\n")
+        self.write('apps/web/app/pages/subscription/index.vue', "<script setup>import type { Q } from '@webvue/commercial-contracts'</script>\n")
         self.write('apps/web/app/pages/subscription/ok.vue', "definePageMeta({ middleware: 'customer-commercial' })\n")
         self.write(
-            'odoo-addons/nasq_pmo/controllers/tasks.py',
+            'odoo-addons/webvue_pmo/controllers/tasks.py',
             HEADER + "class C:\n    @http.route('/api/v1/tasks')\n    def tasks(self):\n        pass\n",
         )
         violations, hard = collect(self.root, self.layers)
         self.assertEqual(hard, [])
-        self.assertEqual(violations['R1'], {'nasq_core depends on project': 1})
-        self.assertEqual(violations['R2'], {'odoo-addons/nasq_core/models/access.py': 1})
+        self.assertEqual(violations['R1'], {'webvue_core depends on project': 1})
+        self.assertEqual(violations['R2'], {'odoo-addons/webvue_core/models/access.py': 1})
         self.assertEqual(
             violations['R3'],
-            {'nasq_core imports nasq_pmo': 1, 'web apps/web/app/components/hr/Card.vue': 1},
+            {'webvue_core imports webvue_pmo': 1, 'web apps/web/app/components/hr/Card.vue': 1},
         )
         self.assertEqual(
             violations['R5'],
@@ -362,54 +362,54 @@ class TestCollect(unittest.TestCase):
             violations['R8'],
             {'apps/web/app/pages/subscription/index.vue lacks customer-commercial middleware': 1},
         )
-        self.assertEqual(violations['R6'], {'odoo-addons/nasq_pmo/models/project_task.py': 1})
-        self.assertEqual(violations['R7'], {'odoo-addons/nasq_core/models/access.py': 1})
+        self.assertEqual(violations['R6'], {'odoo-addons/webvue_pmo/models/project_task.py': 1})
+        self.assertEqual(violations['R7'], {'odoo-addons/webvue_core/models/access.py': 1})
         self.assertEqual(
             violations['R9'],
             {
-                'sql odoo-addons/nasq_pmo/models/project_task.py': 1,
-                'override odoo-addons/nasq_pmo/models/project_task.py': 1,
+                'sql odoo-addons/webvue_pmo/models/project_task.py': 1,
+                'override odoo-addons/webvue_pmo/models/project_task.py': 1,
             },
         )
         self.assertEqual(
             violations['R10'],
             {
-                'nasq_pmo registers no <app>.enabled feature it owns': 1,
-                'odoo-addons/nasq_pmo/controllers/tasks.py:tasks has no requires_feature': 1,
+                'webvue_pmo registers no <app>.enabled feature it owns': 1,
+                'odoo-addons/webvue_pmo/controllers/tasks.py:tasks has no requires_feature': 1,
             },
         )
 
     def test_upward_manifest_dependency_is_r4(self):
         self.clean_tree()
-        self.addon('nasq_core', ['base', 'nasq_pmo'])
+        self.addon('webvue_core', ['base', 'webvue_pmo'])
         violations, _ = collect(self.root, self.layers)
-        self.assertEqual(violations['R4'], {'nasq_core depends on nasq_pmo': 1})
+        self.assertEqual(violations['R4'], {'webvue_core depends on webvue_pmo': 1})
 
     def test_unregistered_and_missing_addons_are_hard_failures(self):
         self.clean_tree()
-        self.addon('nasq_sales', ['nasq_core'])
+        self.addon('webvue_sales', ['webvue_core'])
         self.addon('web_theme_shadcn', ['web'])
-        self.layers['ranks']['nasq_gone'] = 4
+        self.layers['ranks']['webvue_gone'] = 4
         _, hard = collect(self.root, self.layers)
         self.assertEqual(
             hard,
             [
-                'unregistered addon nasq_sales: add it to tools/arch_layers.json',
-                'arch_layers.json lists missing addon nasq_gone',
+                'unregistered addon webvue_sales: add it to tools/arch_layers.json',
+                'arch_layers.json lists missing addon webvue_gone',
             ],
         )
 
     def test_bridge_must_auto_install(self):
         self.clean_tree()
-        self.layers['ranks']['nasq_meetings_pmo'] = 5
-        self.addon('nasq_meetings_pmo', ['nasq_pmo'])
+        self.layers['ranks']['webvue_meetings_pmo'] = 5
+        self.addon('webvue_meetings_pmo', ['webvue_pmo'])
         _, hard = collect(self.root, self.layers)
-        self.assertEqual(hard, ['bridge addon nasq_meetings_pmo must set auto_install'])
+        self.assertEqual(hard, ['bridge addon webvue_meetings_pmo must set auto_install'])
 
     def test_migrations_may_use_sql(self):
         self.clean_tree()
         self.write(
-            'odoo-addons/nasq_pmo/migrations/19.0.1.1.0/pre-x.py',
+            'odoo-addons/webvue_pmo/migrations/19.0.1.1.0/pre-x.py',
             HEADER + "def migrate(cr, version):\n    cr.execute('UPDATE project_task SET x = 1')\n",
         )
         violations, _ = collect(self.root, self.layers)
@@ -429,14 +429,14 @@ class TestMain(unittest.TestCase):
         self.layers_file = self.root / 'arch_layers.json'
         self.baseline_file = self.root / 'arch_baseline.json'
         self.layers_file.write_text(
-            json.dumps({'ranks': {'nasq_core': 0}, 'exempt': [], 'web_apps': {}, 'commercial': {'pages': {}, 'allowed': []}}), encoding='utf-8',
+            json.dumps({'ranks': {'webvue_core': 0}, 'exempt': [], 'web_apps': {}, 'commercial': {'pages': {}, 'allowed': []}}), encoding='utf-8',
         )
-        self.manifest = self.root / 'odoo-addons' / 'nasq_core' / '__manifest__.py'
+        self.manifest = self.root / 'odoo-addons' / 'webvue_core' / '__manifest__.py'
         self.manifest.parent.mkdir(parents=True)
         self.depends(['base', 'project'])
 
     def depends(self, names):
-        self.manifest.write_text(HEADER + repr({'name': 'nasq_core', 'depends': names}), encoding='utf-8')
+        self.manifest.write_text(HEADER + repr({'name': 'webvue_core', 'depends': names}), encoding='utf-8')
 
     def run_main(self, *argv):
         return main(list(argv), root=self.root, layers_file=self.layers_file, baseline_file=self.baseline_file)
@@ -446,7 +446,7 @@ class TestMain(unittest.TestCase):
 
     def test_first_write_records_debt_and_then_passes(self):
         self.assertEqual(self.run_main('--write-baseline'), 0)
-        self.assertEqual(json.loads(self.baseline_file.read_text())['R1'], {'nasq_core depends on project': 1})
+        self.assertEqual(json.loads(self.baseline_file.read_text())['R1'], {'webvue_core depends on project': 1})
         self.assertEqual(self.run_main(), 0)
 
     def test_later_write_refuses_an_increase_and_keeps_the_file(self):
@@ -492,7 +492,7 @@ Create `tools/arch_policy.py`:
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Architecture rules R1-R10 with a shrinking baseline.
 
-Spec: docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md
+Spec: docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md
 """
 from __future__ import annotations
 
@@ -513,12 +513,12 @@ APP_RANK = 4
 FOUNDATION_MAX_RANK = 2
 
 APP_TOKEN = re.compile(r'\b(?:project|hr|pmo|meetings|chat|cyan_meeting_minutes)\.[a-z_]')
-ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
+ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:webvue|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
-COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
+COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@webvue/commercial-contracts""")
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
 SQL_TABLE = re.compile(r'\b(?:FROM|JOIN|UPDATE|INSERT INTO|DELETE FROM)\s+([a-z][a-z0-9_]*)')
-ODOO_INHERIT = re.compile(r'''_inherit\s*=\s*['"](?!nasq\.)''')
+ODOO_INHERIT = re.compile(r'''_inherit\s*=\s*['"](?!webvue\.)''')
 ACCESS_OVERRIDE = re.compile(r'^\s+def (?:_search|check_access|_check_access)\(', re.MULTILINE)
 ENABLED_FEATURE = re.compile(r'''['"]key['"]\s*:\s*['"][a-z_]+\.enabled['"]''')
 
@@ -543,8 +543,8 @@ def unregistered_addons(addons: list[str], ranks: dict[str, int], exempt: list[s
 
 
 def core_depends_violations(depends: list[str]) -> dict[str, int]:
-    """R1: nasq_core depends on base only."""
-    return {f'nasq_core depends on {dep}': 1 for dep in depends if dep != 'base'}
+    """R1: webvue_core depends on base only."""
+    return {f'webvue_core depends on {dep}': 1 for dep in depends if dep != 'base'}
 
 
 def layer_violations(addon: str, targets: list[str], ranks: dict[str, int], kind: str) -> dict[str, int]:
@@ -584,8 +584,8 @@ def routes_without_feature(text: str) -> list[str]:
 
 
 def sql_on_odoo_tables(text: str) -> int:
-    """R9: SQL keywords followed by a table that is not a nasq_ table."""
-    return sum(1 for table in SQL_TABLE.findall(text) if not table.startswith('nasq_'))
+    """R9: SQL keywords followed by a table that is not a webvue_ table."""
+    return sum(1 for table in SQL_TABLE.findall(text) if not table.startswith('webvue_'))
 
 
 def odoo_access_overrides(text: str) -> int:
@@ -672,7 +672,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
         addon_dir = addons_root / addon
         manifest = ast.literal_eval(_read(addon_dir / '__manifest__.py'))
         depends = list(manifest.get('depends', []))
-        if addon == 'nasq_core':
+        if addon == 'webvue_core':
             v['R1'].update(core_depends_violations(depends))
         v['R4'].update(layer_violations(addon, depends, ranks, 'depends on'))
         if ranks[addon] == BRIDGE_RANK and not manifest.get('auto_install'):
@@ -790,7 +790,7 @@ python3 -c "import json;d=json.load(open('tools/arch_baseline.json'));print({r:(
 Expected (keys, total count), measured on the tree at `7208cf96`:
 `R1 (3, 3)`, `R2 (8, 125)`, `R3 (4, 4)`, `R4 (0, 0)`, `R5 (7, 8)`, `R6 (0, 0)`, `R7 (33, 88)`, `R8 (1, 1)`, `R9 (17, 68)`, `R10 (2, 2)`.
 
-`R1` must list exactly `project`, `hr`, `cyan_meeting_minutes`. `R8` must be `apps/web/app/pages/invite/accept.vue` only. `R10` must be the two notification write routes `mark_read` and `mark_all_read` only. Every `R5` key must start with `commercial import`. No `R7` key may start with `odoo-addons/nasq_hr/`. If `main` has moved and numbers differ, record the actual numbers in your report; do not edit the file by hand.
+`R1` must list exactly `project`, `hr`, `cyan_meeting_minutes`. `R8` must be `apps/web/app/pages/invite/accept.vue` only. `R10` must be the two notification write routes `mark_read` and `mark_all_read` only. Every `R5` key must start with `commercial import`. No `R7` key may start with `odoo-addons/webvue_hr/`. If `main` has moved and numbers differ, record the actual numbers in your report; do not edit the file by hand.
 
 - [ ] **Step 3: Verify the guard and the full tools suite pass**
 
@@ -800,14 +800,14 @@ Expected: exit 0, all tests pass, including `test_repository_matches_baseline`.
 - [ ] **Step 4: Prove the guard rejects a new violation, then undo**
 
 ```bash
-printf "\nX = env['res.users'].sudo()\n" >> odoo-addons/nasq_hr/models/hr_department.py
+printf "\nX = env['res.users'].sudo()\n" >> odoo-addons/webvue_hr/models/hr_department.py
 python3 -B tools/arch_policy.py; echo "exit=$?"
 python3 -B tools/arch_policy.py --write-baseline; echo "exit=$?"
-git checkout -- odoo-addons/nasq_hr/models/hr_department.py
+git checkout -- odoo-addons/webvue_hr/models/hr_department.py
 git status --short
 ```
 
-Expected: both runs print `R7: odoo-addons/nasq_hr/models/hr_department.py: 1 found, baseline allows 0` and `exit=1`; final status shows only the four untracked files under `tools/`.
+Expected: both runs print `R7: odoo-addons/webvue_hr/models/hr_department.py: 1 found, baseline allows 0` and `exit=1`; final status shows only the four untracked files under `tools/`.
 
 - [ ] **Step 5: Commit**
 
@@ -1026,17 +1026,17 @@ Insert this block immediately before the line `## Repository layout`:
 ````markdown
 ## Architecture rules (R1–R10)
 
-Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md).
+Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).
 `tools/arch_policy.py` (runs inside `npm test`) and `tools/git_policy.py` (CI `static` step) enforce these
 rules. Violations that predate them are recorded in `tools/arch_baseline.json`. That baseline only shrinks:
 never add an entry or raise a count to make a check pass.
 
-- **R1** `nasq_core` depends on `base` only and names no application model or group.
+- **R1** `webvue_core` depends on `base` only and names no application model or group.
 - **R2** Each application owns its capabilities, groups, roles and record rules inside its own addon.
 - **R3** No application imports another application. Two applications are linked by a bridge addon
-  `nasq_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
+  `webvue_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
   `pages/` or `components/` does not use another application's components.
-- **R4** Dependencies point down only: foundation (`nasq_core` ← `nasq_platform` ← `nasq_api`) ← shared
+- **R4** Dependencies point down only: foundation (`webvue_core` ← `webvue_platform` ← `webvue_api`) ← shared
   services ← applications ← bridges ← `customer_<name>_*`.
 - **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
   from `apps/control-plane`; no new file references the control plane.
@@ -1048,7 +1048,7 @@ never add an entry or raise a count to make a check pass.
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
   reason and a test, no copied Odoo methods.
 - **R10** Each application registers its `<app>.enabled` feature, sub-features, limits and counters in
-  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature.
+  `webvue.feature.registry` with `owner` set to its addon name, and every route checks its feature.
 
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
 4 application, 5 bridge, 6 customer overlay) before it is merged. After removing a violation, run
@@ -1147,4 +1147,4 @@ Report: the commit `main` was at, the three commit SHAs, the baseline numbers fr
 
 - Merging into `main` is the orchestrator's job. The main checkout has uncommitted changes in `.gitignore`, `docs/WORKSPACE.md`, `package.json`, `package-lock.json`; this branch touches none of them.
 - Branches `codex/saas-*` and the three `~/.codex/worktrees` predate the naming rule and would fail `git_policy` if used; they are removed in Phase 0 with the owner's permission.
-- Updating the `odoo-reviewer` agent, the `nasq-api-endpoint` skill, and creating the `nasq-new-app` skill belong to Phase 4.
+- Updating the `odoo-reviewer` agent, the `webvue-api-endpoint` skill, and creating the `webvue-new-app` skill belong to Phase 4.

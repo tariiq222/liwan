@@ -1,5 +1,5 @@
 import { createEventStream, getRouterParam } from 'h3'
-import { AiRunStatusSchema } from '@nasq/contracts'
+import { AiRunStatusSchema } from '@webvue/contracts'
 import { auditFailedEvent, doneEvent, executeTool, logFailure, relay, resumeFailedEvent, settle, tryAudit } from '../../../../utils/ai/pump'
 import { serviceFetch } from '../../../../utils/ai/upstream'
 import { runSession } from '../../../../utils/ai/session'

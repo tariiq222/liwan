@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { ProjectDetail } from '@nasq/contracts'
+import type { ProjectDetail } from '@webvue/contracts'
 import ProjectPhaseGate from '../../app/components/pmo/projects/ProjectPhaseGate.vue'
 import { projectDetail } from '../fixtures/pmo'
 import { storyContext } from '../support/context'

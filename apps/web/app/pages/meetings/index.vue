@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { MeetingListItem } from '@nasq/contracts'
+import type { MeetingListItem } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import { formatCalendarDate, formatNasqTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
@@ -59,7 +59,7 @@ const { isCurrentList, currentListQuery, liveListQuery, liveReturnTo, replaceLis
     dateFrom.value = next.dateFrom
     dateTo.value = next.dateTo
   },
-  onNavigationStart: handler => useNuxtApp().hook('nasq:navigation:start', handler),
+  onNavigationStart: handler => useNuxtApp().hook('webvue:navigation:start', handler),
 })
 function openRecord(event: MouseEvent, record: { id: number }) {
   if (!hydrated.value || !isCurrentList() || !isPlainClick(event)) return
@@ -133,7 +133,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return hydrated.value ? formatNasqTime(parsed, locale.value) : ''
+  return hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
 }
 
 function meetingRecordNumber(meeting: { reference: string; id: number }) {

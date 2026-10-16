@@ -14,7 +14,7 @@ vi.mock('node:fs/promises', async importOriginal => {
 })
 
 it('excludes recovery until a paused publisher relinquishes the filesystem lock', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-lock-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-lock-')), 'registry.json')
   let release!: () => void
   let entered!: () => void
   const started = new Promise<void>(resolve => { entered = resolve })
@@ -26,13 +26,13 @@ it('excludes recovery until a paused publisher relinquishes the filesystem lock'
   await expect(withPublicationLock(path, async () => 'next')).resolves.toBe('next')
 })
 it('does not steal a leftover filesystem lock based on age', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-lock-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-lock-')), 'registry.json')
   await writeFile(`${path}.publisher-lock`, 'crashed publisher evidence')
   await expect(withPublicationLock(path, async () => 'unsafe')).rejects.toThrow('registry_lock_unavailable')
   expect(await readFile(`${path}.publisher-lock`, 'utf8')).toBe('crashed publisher evidence')
 })
 it('keeps lock and pending barrier after a real publisher process crash', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-crash-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-crash-')), 'registry.json')
   const moduleUrl = new URL('./registry-publisher.ts', import.meta.url).href
   const child = spawn(process.execPath, ['--input-type=module', '-e', `
     import { withPublicationLock, beginPublication } from ${JSON.stringify(moduleUrl)};
@@ -63,7 +63,7 @@ it('keeps lock and pending barrier after a real publisher process crash', async 
   }
 }, 10000)
 it('releases live-process ownership after publication fails without removing the pending barrier', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-failure-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-failure-')), 'registry.json')
   await expect(withPublicationLock(path, async () => {
     await beginPublication(path)
     await completePublication(path, { invalid: 1n })
@@ -74,7 +74,7 @@ it('releases live-process ownership after publication fails without removing the
   expect(JSON.parse(await readFile(path,'utf8'))).toEqual({ revision: 1 })
 })
 it('excludes a competing publisher after rename but before clearing the barrier', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-rename-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-rename-')), 'registry.json')
   let release!: () => void, renamed!: () => void
   const reached = new Promise<void>(resolve => { renamed = resolve })
   const paused = new Promise<void>(resolve => { release = resolve })
@@ -98,7 +98,7 @@ it('excludes a competing publisher after rename but before clearing the barrier'
   expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ revision: 2 })
 })
 it('persists a barrier before replacing the snapshot and clears it only after publication', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-')), 'registry.json')
   await writeFile(path, 'old')
   await beginPublication(path)
   expect(await readFile(path, 'utf8')).toBe('old')
@@ -108,7 +108,7 @@ it('persists a barrier before replacing the snapshot and clears it only after pu
   await expect(access(`${path}.pending`)).rejects.toThrow()
 })
 it('retains the barrier on snapshot serialization failure', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-')), 'registry.json')
   await writeFile(path, 'old')
   await beginPublication(path)
   await expect(completePublication(path, { revision: 2n })).rejects.toThrow()
@@ -116,7 +116,7 @@ it('retains the barrier on snapshot serialization failure', async () => {
   expect(await readFile(path, 'utf8')).toBe('old')
 })
 it('refuses a second mutation while previous publication is unresolved', async () => {
-  const path = join(await mkdtemp(join(tmpdir(), 'nasq-publish-')), 'registry.json')
+  const path = join(await mkdtemp(join(tmpdir(), 'webvue-publish-')), 'registry.json')
   await beginPublication(path)
   await expect(beginPublication(path)).rejects.toThrow()
   await access(`${path}.pending`)

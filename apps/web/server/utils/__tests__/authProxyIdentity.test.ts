@@ -10,7 +10,7 @@ let app: http.Server
 let url: string
 let upstreamUrl: string
 let calls: http.IncomingHttpHeaders[] = []
-let configuredHeader = 'x-nasq-client-ip'
+let configuredHeader = 'x-webvue-client-ip'
 
 beforeAll(async () => {
   // Supply Nitro's auto-imports only; H3 request/response handling and the wire are real.
@@ -37,7 +37,7 @@ beforeAll(async () => {
   url = `http://127.0.0.1:${(app.address() as { port: number }).port}`
 })
 
-beforeEach(() => { vi.stubEnv('NASQ_TENANCY_MODE', 'dedicated'); calls = []; configuredHeader = 'x-nasq-client-ip' })
+beforeEach(() => { vi.stubEnv('WEBVUE_TENANCY_MODE', 'dedicated'); calls = []; configuredHeader = 'x-webvue-client-ip' })
 afterEach(() => vi.unstubAllEnvs())
 afterAll(async () => {
   for (const server of [app, upstream]) {
@@ -47,7 +47,7 @@ afterAll(async () => {
   vi.unstubAllGlobals()
 })
 
-const edge = { 'x-nasq-client-ip': '203.0.113.7', 'x-nasq-client-host': 'nasq.example.test:8443', 'x-nasq-client-proto': 'https' }
+const edge = { 'x-webvue-client-ip': '203.0.113.7', 'x-webvue-client-host': 'webvue.example.test:8443', 'x-webvue-client-proto': 'https' }
 async function request(path: string, headers: Record<string, string> = edge) {
   // Node's fetch may ignore an explicit Host. The shared boundary test needs
   // the literal tenant Host on the wire, as Caddy sends it in production.
@@ -73,18 +73,18 @@ describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
     const response = await request(path, { ...edge, 'x-forwarded-for': '198.51.100.99', 'x-forwarded-host': 'evil.example.test', 'x-forwarded-proto': 'http', forwarded: 'for=198.51.100.100' })
     expect(response.status).toBe(200)
     expect(calls).toHaveLength(1)
-    expect(calls[0]).toMatchObject({ 'x-forwarded-for': '203.0.113.7', 'x-forwarded-host': 'nasq.example.test:8443', 'x-forwarded-proto': 'https' })
+    expect(calls[0]).toMatchObject({ 'x-forwarded-for': '203.0.113.7', 'x-forwarded-host': 'webvue.example.test:8443', 'x-forwarded-proto': 'https' })
     expect(calls[0]?.forwarded).toBeUndefined()
     expect(response.headers.getSetCookie()[0]).toContain('session_id=synthetic-wire-session')
   })
 
   it.each(['2001:db8::1234', '::ffff:192.0.2.8'])('supports a single IPv6 peer %s', async (ip) => {
-    expect((await request(path, { ...edge, 'x-nasq-client-ip': ip })).status).toBe(200)
+    expect((await request(path, { ...edge, 'x-webvue-client-ip': ip })).status).toBe(200)
     expect(calls[0]?.['x-forwarded-for']).toBe(ip)
   })
 
   it.each(['', '192.0.2.1, 192.0.2.2', 'not-an-ip', 'fe80::1%en0', '192.0.2.1:80'])('rejects malformed or ambiguous identity %j before contacting Odoo', async (ip) => {
-    expect((await request(path, { ...edge, 'x-nasq-client-ip': ip })).status).toBe(503)
+    expect((await request(path, { ...edge, 'x-webvue-client-ip': ip })).status).toBe(503)
     expect(calls).toHaveLength(0)
   })
 
@@ -94,10 +94,10 @@ describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
   })
 
   it.each([
-    { 'x-nasq-client-host': 'user@nasq.example.test' },
-    { 'x-nasq-client-host': 'nasq.example.test/other' },
-    { 'x-nasq-client-host': 'nasq.example.test,evil.example.test' },
-    { 'x-nasq-client-proto': 'ftp' },
+    { 'x-webvue-client-host': 'user@webvue.example.test' },
+    { 'x-webvue-client-host': 'webvue.example.test/other' },
+    { 'x-webvue-client-host': 'webvue.example.test,evil.example.test' },
+    { 'x-webvue-client-proto': 'ftp' },
   ])('rejects malformed proxy origin %j', async (invalid) => {
     expect((await request(path, { ...edge, ...invalid })).status).toBe(503)
     expect(calls).toHaveLength(0)
@@ -118,16 +118,16 @@ describe.each(['/login', '/totp'])('dedicated auth identity on %s', (path) => {
 })
 
 it.each(['/login', '/totp'])('shared %s preserves tenant authority without trusting dedicated headers', async (path) => {
-  const directory = mkdtempSync(join(tmpdir(), 'nasq-auth-shared-'))
+  const directory = mkdtempSync(join(tmpdir(), 'webvue-auth-shared-'))
   const registry = join(directory, 'registry.json')
   const token = 'synthetic-shared-auth-boundary'.repeat(2)
   writeFileSync(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', enabled: true, registryRevision: 1 }] }))
-  vi.stubEnv('NASQ_TENANCY_MODE', 'shared')
-  vi.stubEnv('NASQ_TENANT_REGISTRY_PATH', registry)
-  vi.stubEnv('NASQ_SHARED_PROXY_TOKEN', token)
+  vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
+  vi.stubEnv('WEBVUE_TENANT_REGISTRY_PATH', registry)
+  vi.stubEnv('WEBVUE_SHARED_PROXY_TOKEN', token)
   try {
-    expect((await request(path, { host: 'a.example.test', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1', ...edge })).status).toBe(200)
-    expect(calls[0]).toMatchObject({ host: 'a.example.test', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1' })
+    expect((await request(path, { host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', ...edge })).status).toBe(200)
+    expect(calls[0]).toMatchObject({ host: 'a.example.test', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' })
     expect(calls[0]?.['x-forwarded-for']).toBeUndefined()
     expect(calls[0]?.['x-forwarded-host']).toBeUndefined()
   } finally {

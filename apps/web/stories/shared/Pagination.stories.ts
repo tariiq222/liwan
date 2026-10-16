@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import Pagination from '@nasq/ui/app/components/shared/data/Pagination.vue'
+import Pagination from '@webvue/ui/app/components/shared/data/Pagination.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

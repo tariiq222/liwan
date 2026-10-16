@@ -4,7 +4,7 @@ import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
-import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema } from '@nasq/contracts'
+import { AI_RUN_TITLE_MAX_CHARS, AiRunPatchSchema } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../../composables/useApi'
 

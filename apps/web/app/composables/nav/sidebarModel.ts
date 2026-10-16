@@ -1,5 +1,5 @@
 // Relative imports: this module is unit-tested directly under plain vitest.
-import type { ShellRailItem } from '@nasq/ui/app/types/shell'
+import type { ShellRailItem } from '@webvue/ui/app/types/shell'
 import { hidePinnedNewProject, type ShellContextLink, type ShellModuleDefinition } from './shellModules'
 
 /** A run of context links under one optional section heading (a locale key). */

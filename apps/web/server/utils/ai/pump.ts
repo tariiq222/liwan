@@ -1,5 +1,5 @@
 import { isError, type createEventStream, type H3Event } from 'h3'
-import type { AiAuditRequest, AiTool } from '@nasq/contracts'
+import type { AiAuditRequest, AiTool } from '@webvue/contracts'
 import { buildToolRequest, toolError, toolResultFromUpstream, type ToolResult } from './executor'
 import { clientSignal, forwardUpstream, odooJson, readSse, serviceFetch, type SignalOption } from './upstream'
 import type { RunSession } from './session'
@@ -15,7 +15,7 @@ export async function audit(event: H3Event, body: AiAuditRequest, signal?: Signa
 
 /** Server-side log of a failure: the class name only, never a message that could carry Odoo or service details. */
 export function logFailure(what: string, error: unknown): void {
-  console.error(`[nasq-ai] ${what}: ${(error as object | null)?.constructor?.name ?? 'unknown'}`)
+  console.error(`[webvue-ai] ${what}: ${(error as object | null)?.constructor?.name ?? 'unknown'}`)
 }
 
 /** Audit one row without ever throwing; returns whether Odoo recorded it. */

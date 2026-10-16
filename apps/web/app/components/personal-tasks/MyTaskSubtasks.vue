@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PersonalTask } from '@nasq/contracts'
+import type { PersonalTask } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useCreateMyTask, useMyTaskTransition } from '@/composables/useMyTasks'
 

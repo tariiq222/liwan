@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { subscriptionStateBadge } from '@/utils/subscription'
-import { subscriptionDisplayState } from '@nasq/commercial-contracts'
+import { subscriptionDisplayState } from '@webvue/commercial-contracts'
 import { formatSubscriptionMoney } from '@/utils/subscription'
-import { entitledFeaturePrefixes } from '@nasq/commercial-ui/app/utils/entitlementApps'
-import { humanizeId } from '@nasq/ui/app/utils/humanizeId'
+import { entitledFeaturePrefixes } from '@webvue/commercial-ui/app/utils/entitlementApps'
+import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))

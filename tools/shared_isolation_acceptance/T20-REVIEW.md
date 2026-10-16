@@ -4,7 +4,7 @@ Review complete: **known T17-F01 transport defect closed in tested built scope; 
 
 ## Fresh artifact and corrected verifier
 
-Built final sources using `NASQ_TENANCY_MODE=shared npm -w apps/web run build`; copied generated `.output` into owned `tools/shared_isolation_acceptance/t20-built-shared`. Build exit0. Selected source and actual Nitro artifact SHA256 ledger: t20-hashes.txt. Initial accidental default-mode build was cancelled (bash-106 SIGTERM) and not used; subsequent explicit shared build bash-107 completed0. Generated normal Nuxt build directories were used, no production source modification.
+Built final sources using `WEBVUE_TENANCY_MODE=shared npm -w apps/web run build`; copied generated `.output` into owned `tools/shared_isolation_acceptance/t20-built-shared`. Build exit0. Selected source and actual Nitro artifact SHA256 ledger: t20-hashes.txt. Initial accidental default-mode build was cancelled (bash-106 SIGTERM) and not used; subsequent explicit shared build bash-107 completed0. Generated normal Nuxt build directories were used, no production source modification.
 
 Corrected t17-built-ssr harness bookkeeping: explicit x-test-control marks independent transport controls; strict token/revision/Host assertions still apply to **every application request**, controls separately checked. Mock rejects wrong Host and missing token/revision for app traffic; no permissive echo acceptance. Controls retain nativefetch wrongHost403 and http.get correctHost200. Application log values use MATCH/MISSING, never token value.
 
@@ -16,7 +16,7 @@ Corrected t17-built-ssr harness bookkeeping: explicit x-test-control marks indep
 - `/api/auth/login`200 with synthetic MFA-pending result; two Set-Cookie headers preserved. TOTP200 and two cookies preserved. Logout success204, remote logout500 produces client502 rather than false success.
 - Redirect302 rejected as502 without following external Location. Binary response exact bytes `[0,1,255,128]`, two cookies preserved; HEAD200 no body.
 - Oversized33MiB upstream response rejected502; nonresponding upstream deadline returns502 after at least14s (actual measurement raw log). Synthetic private token absent from oversized/error bodies checked.
-- HTML contains neither synthetic token nor x-nasq-proxy-token. All310 public artifact files scanned for token and NASQ_SHARED_PROXY_TOKEN: absent.
+- HTML contains neither synthetic token nor x-webvue-proxy-token. All310 public artifact files scanned for token and WEBVUE_SHARED_PROXY_TOKEN: absent.
 - Every app wire request independently asserted exact Host/token/revision, including auth/session and failure probes. All child/mock sockets closed in finally; raw final log ends T17_SSR_CHILD_AND_MOCK_CLOSED. Test preload restricts child outbound to sole assigned loopback port; no existing upstream used.
 
 These are actual compiled Nitro HTTP/SSR tests with synthetic upstream, NOT real Odoo authentication/MFA/session effects. T7-S01 is closed only for tested anonymous login/useFetch SSR and API binding. Authenticated useApi SSR pages, vendorActor built journey and every payload are NOT independently proven here; t19 vendor tests are implementation evidence, not substituted for this limitation.

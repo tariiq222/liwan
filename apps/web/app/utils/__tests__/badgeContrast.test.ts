@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { layerFile } from '@nasq/ui/test/helpers/layerFile'
-import { contrastRatio, DARK_SURFACES } from '../nasqPalette'
+import { layerFile } from '@webvue/ui/test/helpers/layerFile'
+import { contrastRatio, DARK_SURFACES } from '../webvuePalette'
 
 // Tailwind v4 default palette steps behind the Nuxt UI semantic colours
 // (success: green, warning: yellow, error: red, info/secondary: blue).

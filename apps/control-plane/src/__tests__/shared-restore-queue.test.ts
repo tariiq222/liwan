@@ -59,7 +59,7 @@ const doubleCallTarget = scratchDatabases[14] ?? ''
 const unreachableTarget = url ? tenantDatabaseNames(50, url)[49]! : ''
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
 }
 if (!url) describe.skip('shared restore queue (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('shared restore queue', () => {
@@ -147,7 +147,7 @@ else describe('shared restore queue', () => {
   }
 
   beforeAll(async () => {
-    root = await mkdtemp(join(tmpdir(), 'nasq-restore-queue-'))
+    root = await mkdtemp(join(tmpdir(), 'webvue-restore-queue-'))
     registryPath = join(root, 'registry.json')
     await migrate(pool)
     await ensureTenantDatabases(pool, scratchDatabases)

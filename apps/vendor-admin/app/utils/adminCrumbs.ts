@@ -1,4 +1,4 @@
-import type { ShellCrumb } from '@nasq/ui/app/types/shell'
+import type { ShellCrumb } from '@webvue/ui/app/types/shell'
 
 interface CrumbLevel { label: string, to: string }
 

@@ -13,7 +13,7 @@ const route = useRoute()
 const hydrated = useHydrated()
 // A valid `?copyFrom=<id>` turns the panel into "copy this project"; anything else is the normal create form.
 const copyFrom = computed(() => parsePositiveId(route.query.copyFrom))
-// A valid `?aiDraft=<id>` carries a Nasq AI draft; sessionStorage is client-only, so it is read after hydration.
+// A valid `?aiDraft=<id>` carries a WebVue AI draft; sessionStorage is client-only, so it is read after hydration.
 const aiDraft = computed(() => {
   const id = route.query.aiDraft
   return hydrated.value && typeof id === 'string' ? readAiDraft(id) : null

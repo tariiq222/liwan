@@ -3,7 +3,7 @@ import { recordParentTo } from '@/utils/recordListOrigin'
 import ProcessForm from '@/components/operations/ProcessForm.vue'
 import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
 import { operationId } from '@/composables/operations/forms'
-import type { OperationProcessBody } from '@nasq/contracts'
+import type { OperationProcessBody } from '@webvue/contracts'
 const route = useRoute()
 const router = useRouter()
 const sourcePaths = useRecordListPaths(['/operations/processes', '/operations/pending', '/operations/monitoring', '/operations/processes'])

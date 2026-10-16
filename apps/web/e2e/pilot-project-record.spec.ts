@@ -14,7 +14,7 @@ async function setAppearance(page: Page, baseURL: string | undefined, fontSize: 
   const response = await page.request.patch('/api/v1/me/appearance', { data: { mode: 'light', font_size: fontSize } })
   expect(response.status()).toBe(200)
   await page.context().addCookies([{
-    name: 'nasq-appearance',
+    name: 'webvue-appearance',
     value: encodeURIComponent(JSON.stringify({ mode: 'light', fontSize })),
     url: baseURL!,
   }])

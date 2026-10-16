@@ -20,7 +20,7 @@
     "unsavedChangesTitle": "Unsaved changes"
   },
   "brand": {
-    "name": "Nasq"
+    "name": "WebVue"
   },
   "errors": {
     "conflict": "The data changed since you opened this page. Reload it and try again.",

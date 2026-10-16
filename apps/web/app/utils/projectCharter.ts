@@ -8,7 +8,7 @@ import type {
   ProjectDetail,
   ProjectPatch,
   ProjectPriority,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 
 export const CHARTER_FIELD_KEYS = [
   'name',

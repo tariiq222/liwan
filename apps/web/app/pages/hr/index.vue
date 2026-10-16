@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DirectoryTable from '@/components/hr/DirectoryTable.vue'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const { t } = useI18n()
 const { can } = useAccess()

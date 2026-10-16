@@ -1,7 +1,7 @@
-import type { TaskState } from '@nasq/contracts'
-import { MANAGER_STATES } from '@nasq/contracts'
-import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
-import { statusBadgeEntry, type StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
+import type { TaskState } from '@webvue/contracts'
+import { MANAGER_STATES } from '@webvue/contracts'
+import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
 // Pure state/priority helpers, kept free of Nuxt/vue-query imports so they can
 // be unit tested directly (see __tests__/taskState.test.ts).

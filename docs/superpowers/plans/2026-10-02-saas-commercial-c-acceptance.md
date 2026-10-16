@@ -56,7 +56,7 @@ Run migration again -> identical mapping/row counts and same source digest
 
 **ملفات جديدة:** `tools/shared_saas_lifecycle/commercial_acceptance.py`، `commercial_readback.py`، `commercial-journey.spec.mjs` بجانب `playwright.config.mjs` الحالي، `apps/web/e2e/saas-commercial.spec.ts` لاختبارات الواجهة المعزولة؛ `docs/verification/saas-commercial-integrated-acceptance.md` للأدلة. لا تحول mock Playwright إلى دليل Odoo live بوضع اسم مشابه.
 
-**يعتمد على:** C1 واستقرار A/B. **البيئة:** Compose مخصص باسم `nasq-saas-commercial-acceptance` أو اسم فريد موثق، منافذ وvolumes وقواعد ودليل صور وبيانات scratch خاصة به، ومزود sandbox بمفاتيح اختبار. قبل التشغيل تحقق من عدم التصادم مع الخدمات الحالية. customer frontend يبنى shared وvendor frontend dedicated وفق الحراس الحالية؛ لا تعطل guard لبناء واحد.
+**يعتمد على:** C1 واستقرار A/B. **البيئة:** Compose مخصص باسم `webvue-saas-commercial-acceptance` أو اسم فريد موثق، منافذ وvolumes وقواعد ودليل صور وبيانات scratch خاصة به، ومزود sandbox بمفاتيح اختبار. قبل التشغيل تحقق من عدم التصادم مع الخدمات الحالية. customer frontend يبنى shared وvendor frontend dedicated وفق الحراس الحالية؛ لا تعطل guard لبناء واحد.
 
 **سيناريو البيانات المقرر:**
 

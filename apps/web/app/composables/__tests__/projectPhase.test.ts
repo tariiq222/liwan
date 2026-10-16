@@ -1,4 +1,4 @@
-import type { ProjectPhaseState } from '@nasq/contracts'
+import type { ProjectPhaseState } from '@webvue/contracts'
 import { describe, expect, it } from 'vitest'
 import { canMoveForward, gateCheckRows, isGateCardVisible, phaseFailure, phaseNumber, phaseSteps, UNKNOWN_CHECK_KEY } from '../projectPhase'
 

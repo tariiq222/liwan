@@ -5,10 +5,10 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from nasq_ai_service.contracts import RunRequest, ToolResult
-from nasq_ai_service.graph import build_graph, initial_state, run_config, text_of
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
+from webvue_ai_service.contracts import RunRequest, ToolResult
+from webvue_ai_service.graph import build_graph, initial_state, run_config, text_of
 
 
 def make(responses):

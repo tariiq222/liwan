@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PasswordChangeSchema } from '@nasq/contracts'
+import { PasswordChangeSchema } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { clearPasswordRefs, passwordErrorField, validatePasswordForm } from '@/composables/passwordForm'
 import { useChangePassword } from '@/composables/useChangePassword'
@@ -64,7 +64,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UForm :state="{ current, next, confirm }" class="nasq-form nasq-password-form" method="post" @submit="submit">
+  <UForm :state="{ current, next, confirm }" class="webvue-form webvue-password-form" method="post" @submit="submit">
     <UFormField :label="t('account.currentPassword')" name="pw-current" :error="currentError ?? undefined">
       <UInput
         id="pw-current" v-model="current" data-testid="pw-current" type="password"

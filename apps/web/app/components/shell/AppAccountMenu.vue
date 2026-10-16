@@ -9,7 +9,7 @@ import { clearAiSessionState } from '@/utils/aiDraft'
 const queryClient = useQueryClient()
 const { t, locale, setLocale } = useI18n()
 const { mode, fontSize, setMode, setFontSize } = useAppearance()
-const localeCookie = useCookie<string | null>('nasq-locale', { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })
+const localeCookie = useCookie<string | null>('webvue-locale', { default: () => null, path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 365 })
 const languages = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }] as const
 const modes: AppearanceMode[] = ['light', 'dark']
 const sizes: FontSize[] = ['small', 'medium', 'large']
@@ -19,7 +19,7 @@ const { connected } = useBus()
 const hydrated = useHydrated()
 
 const initials = computed(() => (me.value?.name ?? '?').trim().slice(0, 1))
-const navPreferenceKey = computed(() => `nasq-nav:${me.value?.id ?? 'anonymous'}`)
+const navPreferenceKey = computed(() => `webvue-nav:${me.value?.id ?? 'anonymous'}`)
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST', body: {} })
@@ -32,11 +32,11 @@ async function logout() {
 }
 
 // Checkbox items toggle; each group behaves as a radio, so only a newly checked entry changes the preference.
-type AccountMenuItem = DropdownMenuItem & { nasqIcon?: string }
-const iconOf = (item: DropdownMenuItem) => (item as AccountMenuItem).nasqIcon
+type AccountMenuItem = DropdownMenuItem & { webvueIcon?: string }
+const iconOf = (item: DropdownMenuItem) => (item as AccountMenuItem).webvueIcon
 const items = computed<AccountMenuItem[][]>(() => [
   [
-    { label: t('nav.account'), to: '/account', nasqIcon: 'i-lucide-user-round' },
+    { label: t('nav.account'), to: '/account', webvueIcon: 'i-lucide-user-round' },
   ],
   [
     { type: 'label' as const, label: t('nav.language') },
@@ -56,7 +56,7 @@ const items = computed<AccountMenuItem[][]>(() => [
     ...modes.map(value => ({
       type: 'checkbox' as const,
       label: t(`settings.appearance.${value}`),
-      nasqIcon: modeIcons[value],
+      webvueIcon: modeIcons[value],
       checked: mode.value === value,
       onUpdateChecked: (checked: boolean) => { if (checked) setMode(value) },
     })),
@@ -71,7 +71,7 @@ const items = computed<AccountMenuItem[][]>(() => [
     })),
   ],
   [
-    { label: t('nav.logout'), color: 'error' as const, nasqIcon: 'i-lucide-log-out', onSelect: () => { void logout() } },
+    { label: t('nav.logout'), color: 'error' as const, webvueIcon: 'i-lucide-log-out', onSelect: () => { void logout() } },
   ],
 ])
 </script>
@@ -106,7 +106,7 @@ const items = computed<AccountMenuItem[][]>(() => [
         <ClientOnly>
           <span
             class="absolute -bottom-0.5 -end-0.5 block size-2.5 rounded-full ring-2 ring-background"
-            :class="connected ? 'nasq-status-dot-success' : 'bg-(--ui-text-dimmed)'"
+            :class="connected ? 'webvue-status-dot-success' : 'bg-(--ui-text-dimmed)'"
             :title="connected ? t('bus.connected') : t('bus.disconnected')"
             :aria-label="connected ? t('bus.connected') : t('bus.disconnected')"
             role="status"
@@ -119,7 +119,7 @@ const items = computed<AccountMenuItem[][]>(() => [
       </span>
     </UButton>
     <template #item-leading="{ item }">
-      <UIcon v-if="iconOf(item)" :name="iconOf(item)!" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+      <UIcon v-if="iconOf(item)" :name="iconOf(item)!" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
     </template>
   </UDropdownMenu>
 </template>

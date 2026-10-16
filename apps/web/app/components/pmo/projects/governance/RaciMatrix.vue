@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
-import { STATUS_COLOR } from '@nasq/ui/app/utils/statusTone'
+import type { ProjectRaci, ProjectRaciRole } from '@webvue/contracts'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import { STATUS_COLOR } from '@webvue/ui/app/utils/statusTone'
 import { RACI_ROLE_TONE } from './state'
 
 // Tasks × stakeholders. The first two columns stay in view while the stakeholder columns scroll inside this

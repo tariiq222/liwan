@@ -27,7 +27,7 @@ const url = process.env.CONTROL_TEST_DATABASE_URL
 const tenantDatabases = url ? tenantDatabaseNames(9, url).slice(7) : []
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
 }
 if (!url) describe.skip('shared order and sandbox payment lifecycle (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('shared order and sandbox payment lifecycle', () => {
@@ -43,7 +43,7 @@ else describe('shared order and sandbox payment lifecycle', () => {
   const quote = { schemaVersion: 1, currency: 'SAR', billingCycle: 'monthly', priceMinorUnits: 90000, taxMinorUnits: 13500, catalogVersion: 'live-v1', catalogTier: 'core' }
 
   beforeAll(async () => {
-    const gateRoot = process.env.NASQ_LIVE_GATE_ROOT ?? await mkdtemp(join(tmpdir(), 'nasq-order-'))
+    const gateRoot = process.env.WEBVUE_LIVE_GATE_ROOT ?? await mkdtemp(join(tmpdir(), 'webvue-order-'))
     await mkdir(gateRoot, { recursive: true })
     await migrate(pool)
     await ensureTenantDatabases(pool, tenantDatabases)

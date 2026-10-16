@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { ChatAttachmentSchema } from '@nasq/contracts'
+import { ChatAttachmentSchema } from '@webvue/contracts'
 import ChatAttachment from '../../app/components/chat/ChatAttachment.vue'
-import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
 import { storyContext } from '../support/context'
 
 const attachments = ChatAttachmentSchema.array().parse([

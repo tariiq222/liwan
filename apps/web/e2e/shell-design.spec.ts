@@ -13,7 +13,7 @@ async function login(page: Page, baseURL: string | undefined) {
   })
   expect(response.status()).toBe(200)
   await page.context().addCookies([{
-    name: 'nasq-appearance',
+    name: 'webvue-appearance',
     value: LIGHT_SMALL_APPEARANCE,
     url: baseURL!,
   }])
@@ -93,10 +93,10 @@ test('shell follows the approved neutral frame and independent desktop collapse'
   expect(surfaces.create).not.toBeNull()
   expect(surfaces.create!.color).not.toBe(surfaces.create!.background)
 
-  const railLinks = rail.locator('.nasq-module-rail-link')
+  const railLinks = rail.locator('.webvue-module-rail-link')
   expect(await railLinks.count()).toBeGreaterThan(0)
   for (const link of await railLinks.all()) {
-    const icon = link.locator('.nasq-shell-icon')
+    const icon = link.locator('.webvue-shell-icon')
     await expect(icon).toHaveCount(1)
     await expectDrawnIcon(icon)
   }
@@ -148,8 +148,8 @@ test('mobile navigation replaces desktop columns and retains module and context 
   await expect(page.getByTestId('mobile-navigation-trigger')).toBeEnabled()
   await expect(page.getByTestId('mobile-navigation-trigger')).toHaveAttribute('aria-expanded', 'false')
   const header = page.getByTestId('shell-header')
-  await expect(header.locator('.nasq-search-trigger')).toBeVisible()
-  const searchIcon = header.locator('.nasq-search-trigger .iconify')
+  await expect(header.locator('.webvue-search-trigger')).toBeVisible()
+  const searchIcon = header.locator('.webvue-search-trigger .iconify')
   await expect(searchIcon).toHaveCount(1)
   await expectDrawnIcon(searchIcon)
 
@@ -196,7 +196,7 @@ for (const width of [390, 768, 1440]) {
       await expect(page.locator('main h1')).toHaveCount(1)
       await expect(page.getByRole('button', { name: 'بحث', exact: true })).toBeVisible()
       await expect(page.getByRole('button', { name: /^حسابي/ })).toBeVisible()
-      if (width < 768) await expectDrawnIcon(page.getByTestId('shell-header').locator('.nasq-search-trigger .iconify'))
+      if (width < 768) await expectDrawnIcon(page.getByTestId('shell-header').locator('.webvue-search-trigger .iconify'))
       await expectNoHorizontalOverflow(page)
     }
   })

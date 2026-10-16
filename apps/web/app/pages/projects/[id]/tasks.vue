@@ -8,7 +8,7 @@ import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
 import { useProject } from '@/composables/useProjects'
 import type { TaskListParams } from '@/composables/useTasks'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

@@ -3,7 +3,7 @@ import { owningListBack, recordParentTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
-import type { MeetingPatch } from '@nasq/contracts'
+import type { MeetingPatch } from '@webvue/contracts'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload, localDateFromUtc, localTimeFromUtc } from '@/utils/meetingDateTime'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
@@ -150,7 +150,7 @@ async function save() {
         </p>
       <p class="text-xs text-muted">{{ t('meetingsUx.browserTimeZone', { zone: browserTimeZone }) }}</p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
-        <div class="nasq-form-grid">
+        <div class="webvue-form-grid">
           <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="edit-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>

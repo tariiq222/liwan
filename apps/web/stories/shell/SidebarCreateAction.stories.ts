@@ -16,7 +16,7 @@ export const InContextSidebar: Story = {
   render: args => ({
     components: { SidebarCreateAction },
     setup: () => ({ args }),
-    template: `<div style="width: 232px"><div class="nasq-context-create-actions"><SidebarCreateAction :to="args.to" :label="args.label || $t('nav.newProject')" :active="args.active" /><SidebarCreateAction to="/meetings/new" :label="$t('nav.newMeeting')" /></div></div>`,
+    template: `<div style="width: 232px"><div class="webvue-context-create-actions"><SidebarCreateAction :to="args.to" :label="args.label || $t('nav.newProject')" :active="args.active" /><SidebarCreateAction to="/meetings/new" :label="$t('nav.newMeeting')" /></div></div>`,
   }),
 }
 

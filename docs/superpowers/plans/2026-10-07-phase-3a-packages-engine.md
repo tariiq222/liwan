@@ -4,45 +4,45 @@
 
 **Goal:** Every application of the release is installed in every shared-SaaS tenant and a plan («باقة») controls only feature keys and limits: a policy or compiled entitlement always carries every key of every release application (closed apps `false` / `0`), so downgrading closes an application without an install or a rejected write, and upgrading reopens it without an install job.
 
-**Architecture:** Odoo stays strict (`_nasq_validate_features` unchanged). A new Odoo method `_nasq_close_unlisted_features` lets the operator scripts complete a target with default-closed values, which fixes the latent downgrade failure (ruling E11) and, called from `nasq.tenant.profile._register_hook`, registers a newly installed application's keys closed on an existing tenant (G5). A schema-3 catalog (`platform_v3.json`) is parsed identically in TypeScript (`feature-descriptor.ts`) and Python (`managed_policy.py`): every tier composes to the release module list and a release-complete feature map, pinned by a shared fixture. The commercial compiler becomes `commercial-compiler/2` (release modules, release-complete features). Managed create verification compares with the installation closure the Python readback reports, and the package administrator's roles follow the entitlement.
+**Architecture:** Odoo stays strict (`_webvue_validate_features` unchanged). A new Odoo method `_webvue_close_unlisted_features` lets the operator scripts complete a target with default-closed values, which fixes the latent downgrade failure (ruling E11) and, called from `webvue.tenant.profile._register_hook`, registers a newly installed application's keys closed on an existing tenant (G5). A schema-3 catalog (`platform_v3.json`) is parsed identically in TypeScript (`feature-descriptor.ts`) and Python (`managed_policy.py`): every tier composes to the release module list and a release-complete feature map, pinned by a shared fixture. The commercial compiler becomes `commercial-compiler/2` (release modules, release-complete features). Managed create verification compares with the installation closure the Python readback reports, and the package administrator's roles follow the entitlement.
 
 **Tech Stack:** Odoo 19 Community (`/Users/tariq/code/odoo`, read-only), Python 3 (`tools/`), PostgreSQL scratch databases, TypeScript + Zod + Vitest (`packages/commercial-contracts`, `apps/control-plane`), Nuxt 4 + vue-i18n + Vitest (`apps/web`).
 
-**Spec:** `docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md` §3.6 (amended by the owner decisions of 2026-10-07), roadmap `docs/superpowers/plans/2026-10-05-architecture-roadmap.md` «المرحلة 3» and residual risks (أ)/(ب) of 2ب-2, `docs/superpowers/specs/2026-10-02-package-management-design.md`, `docs/superpowers/specs/2026-10-02-saas-commercial-product.md`, `docs/superpowers/specs/nasq-cp0-commercial-contracts.md`. Rulings: owner O1–O5, engineering E2–E11, G5 (folded into Global Constraints and Deviations). Model for structure, runner and gates: `docs/superpowers/plans/2026-10-07-open-app-lists.md`.
+**Spec:** `docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md` §3.6 (amended by the owner decisions of 2026-10-07), roadmap `docs/superpowers/plans/2026-10-05-architecture-roadmap.md` «المرحلة 3» and residual risks (أ)/(ب) of 2ب-2, `docs/superpowers/specs/2026-10-02-package-management-design.md`, `docs/superpowers/specs/2026-10-02-saas-commercial-product.md`, `docs/superpowers/specs/webvue-cp0-commercial-contracts.md`. Rulings: owner O1–O5, engineering E2–E11, G5 (folded into Global Constraints and Deviations). Model for structure, runner and gates: `docs/superpowers/plans/2026-10-07-open-app-lists.md`.
 
 **This is plan 3a of two.** Phase 3 is split because one document holding every code step of the six ruled groups would exceed what one reviewer can gate (it touches Odoo, tools, the control plane, the commercial contracts, CI and the web). Both plans run in the same worktree on the same branch, in order: **3a** = ruled groups (1) Odoo downgrade test + generic key registration, (2) catalog v3 + completeness + release module list, (3) release-complete compile + compiler v2 + `worker.ts:73` + admin roles + `ALLOWED_MODULES`; **3b** (`2026-10-07-phase-3b-packages-commerce.md`) = groups (4) usage collector, (5) Track A retirement + vocabulary, (6) spec 3.6 acceptance + docs. 3a leaves every suite green and is mergeable alone; 3b starts from 3a's last commit.
 
 ## Deviations from rulings
 
-1. **E11's fix lands in Task 1 in Odoo + the apply script, before the release-complete compiler (Task 5).** The latent failure is in `tools/shared_saas_lifecycle/subscription_effect.py` `_APPLY_BODY`, which back-fills only booleans (`:174-179`). The Odoo test cannot execute that script (a `TransactionCase` forbids `cr.commit()`, `odoo/tests/common.py:1071`), so Task 1 first reproduces the failure with the **real** generated script on a scratch database through `odoo-run.sh shell` (Step 2), then adds `nasq.entitlement.service._nasq_close_unlisted_features` (installed application keys a target omits → `False`/`0`, platform keys never filled) and makes the apply script call it instead of its inline loop. The Odoo validator is not relaxed (E2): `test_incomplete_target_is_still_refused` pins it. After Task 5 the control plane always sends complete maps, so the completion only matters for keys newer than a tenant's pinned release (the G5 case).
-2. **G5 runs from `_register_hook`, not from each application's `post_init_hook`.** At `post_init_hook` time the new module is still `to install` (`odoo/modules/loading.py:239-268` sets `installed` after the hook), and a hook per application would not cover a key an application adds in a later version (spec 3.6 level 2 keys). `nasq.tenant.profile._register_hook` runs once per registry load (`loading.py:588-595`), writes only when an initialized policy lacks an installed application's key, never grants, and logs (does not raise) when a platform key is missing, so a broken policy cannot stop the server.
+1. **E11's fix lands in Task 1 in Odoo + the apply script, before the release-complete compiler (Task 5).** The latent failure is in `tools/shared_saas_lifecycle/subscription_effect.py` `_APPLY_BODY`, which back-fills only booleans (`:174-179`). The Odoo test cannot execute that script (a `TransactionCase` forbids `cr.commit()`, `odoo/tests/common.py:1071`), so Task 1 first reproduces the failure with the **real** generated script on a scratch database through `odoo-run.sh shell` (Step 2), then adds `webvue.entitlement.service._webvue_close_unlisted_features` (installed application keys a target omits → `False`/`0`, platform keys never filled) and makes the apply script call it instead of its inline loop. The Odoo validator is not relaxed (E2): `test_incomplete_target_is_still_refused` pins it. After Task 5 the control plane always sends complete maps, so the completion only matters for keys newer than a tenant's pinned release (the G5 case).
+2. **G5 runs from `_register_hook`, not from each application's `post_init_hook`.** At `post_init_hook` time the new module is still `to install` (`odoo/modules/loading.py:239-268` sets `installed` after the hook), and a hook per application would not cover a key an application adds in a later version (spec 3.6 level 2 keys). `webvue.tenant.profile._register_hook` runs once per registry load (`loading.py:588-595`), writes only when an initialized policy lacks an installed application's key, never grants, and logs (does not raise) when a platform key is missing, so a broken policy cannot stop the server.
 3. **E4's "one canonical release module list" is the install closure of the newest schema-3 catalog, printed by `tools/catalog_check.py --release-modules`.** `.woodpecker.yml` uses that command; four copies that run where the repository tools are not available (`deploy/provision.sh`, `deploy/woodpecker/image.yml`, `tools/shared_acceptance_live/up.sh`, `deploy/check_isolated.py`) keep their literal list and `catalog_check` fails when any of them differs. The vendor-console installs in `tools/shared_saas_lifecycle/lifecycle.py:168` and `tools/saas_commercial_acceptance/commercial_lifecycle.py:180` (`core,platform,api,pmo,hr`) are a different database and stay.
 4. **E2's "same derivation in TS and Python" covers the catalog policy derivation; the commercial compiler is TypeScript only.** Python never compiles plans (it receives the compiled snapshot), so the shared fixture `deploy/catalog/fixtures/release_features.json` pins `deriveCatalogPolicy` (TS) against `_catalog_compositions` (Python). The compiler's completion reads the same `CatalogRelease.applications` and is pinned by `commercial-entitlements.test.ts`.
 5. **An included application's limit that no bundle sets keeps the catalog value (`ceiling ?? null`), a left-out application's limits are `0`.** E3 fixes only the closed value. Refusing an unset limit would break every existing bundle created with `domain_limits: {}` (for example `tools/saas_commercial_acceptance/commercial-journey.spec.mjs`), and `null` is the catalog's own meaning of `limit:<key>` (feature-descriptor grammar, `managed_policy.py:20`). Listed as an owner decision.
 6. **The paid enrollment still provisions the `core` composition and the reconfigure applies the plan** (`commercial/fulfillment.ts:106-112`). With v3 the `core` composition already installs the whole release (closed), so the reconfigure never installs (`missing` is empty). The administrator therefore receives only `system_admin` at provisioning on that path, as today; granting application manager roles after a reconfigure is not part of this phase (recorded in the roadmap by 3b).
 
 **Inventory corrections found while reading the source (`main` `9336317e`):**
-- `tools/catalog_check.py` imports nothing from `nasq_cli` today; Task 4 imports `nasq_cli.module_closure` (allowed by `test_checker_never_imports_network_odoo_or_subprocess`).
+- `tools/catalog_check.py` imports nothing from `webvue_cli` today; Task 4 imports `webvue_cli.module_closure` (allowed by `test_checker_never_imports_network_odoo_or_subprocess`).
 - `apps/control-plane/src/commercial/usage.ts` `getUsage` is called by `customer-http.ts:85` and `routes-b.ts:53` with limit keys (`users.limit`), while snapshots are stored with unit keys (`users`), so customer usage is always `not_collected` today. 3b fixes this with the collector.
-- The admin role script (`odoo_effect.py:329-332`) assigns `pmo_manager` / `hr_manager`; `system_admin` already holds meeting permissions (`nasq_meetings/models/meeting_access_service.py:37`), so a naive "every permission domain must be entitled" rule would drop `system_admin` when meetings are closed. Task 7 uses "a role with any platform permission is always assigned".
+- The admin role script (`odoo_effect.py:329-332`) assigns `pmo_manager` / `hr_manager`; `system_admin` already holds meeting permissions (`webvue_meetings/models/meeting_access_service.py:37`), so a naive "every permission domain must be entitled" rule would drop `system_admin` when meetings are closed. Task 7 uses "a role with any platform permission is always assigned".
 
 ## Global Constraints
 
 - Owner O1/O4: all release applications installed in every shared-SaaS tenant database; a plan controls feature keys and limits only. No customers exist before the first server deploy: no live-tenant migration tooling.
 - Owner O5: names, prices, cadences, limit numbers are commercial and never set by code. Seed or fixture values appear in tests only.
-- E2: release-complete features are computed in the control plane against the tenant's pinned release: every boolean of every release application present (`false` when not entitled), every limit present (`0` when closed). `_nasq_validate_features` is not relaxed.
+- E2: release-complete features are computed in the control plane against the tenant's pinned release: every boolean of every release application present (`false` when not entitled), every limit present (`0` when closed). `_webvue_validate_features` is not relaxed.
 - E3: a closed application's limit is `0`.
 - E4: `deploy/catalog/solutions/platform_v3.json` (`schema_version: 3`) is added; `platform.json` and `platform_v2.json` are not edited (their digests pin existing rows).
 - E6: `entitlement.modules` is the release module list (`commercial-compiler/2`) and is never used for display or roles.
-- E7: `worker.ts:73` compares installed `nasq_*` modules with `expected_modules` returned by the Python readback.
+- E7: `worker.ts:73` compares installed `webvue_*` modules with `expected_modules` returned by the Python readback.
 - E9: the package administrator's roles follow the entitlement; `ALLOWED_MODULES` is removed.
 - Capability keys unchanged (the same 28). No new `sudo()` and no new SQL on Odoo tables: `python3 -B tools/arch_policy.py --base main` stays exit 0 with the totals of Task 0 Step 5; `tools/arch_baseline.json` and `tools/arch_layers.json` are not edited.
 - No addon version changes (code-only Odoo changes; `docs/migrations.md` «التغييرات البرمجية البحتة لا ترفع الإصدار»). Do not edit a released migration.
 - Contracts stay backward compatible for the current web build: `entitlementSnapshotSchema` and `sharedPolicySchema` are unchanged (they already accept `false` and any module list).
 - Every new Python file starts with `# Part of Odoo. See LICENSE file for full copyright and licensing details.`; `ruff check odoo-addons` stays clean.
 - Web: user-facing strings through `t()` in `ar` and `en`; logical Tailwind classes only; new util names (`entitledFeaturePrefixes`, `entitledSelections`) are unused in Nuxt's flat `utils/` namespace today.
-- Odoo scratch databases match `nasq_scratch_packages_[a-z0-9_]+`, plus the one fixed acceptance tenant `nasq_scratch_ffff0000000000000000000000000003` of plan 3b (the effect scripts accept only `nasq_scratch_<32 hex>`); the runner refuses any other name and any name containing `odoo19`. Never run anything against `odoo19`. Odoo HTTP port 8239.
-- Control-plane live suites run only with `CONTROL_TEST_DATABASE_URL=postgres://tariq@127.0.0.1:5432/nasq_control_scratch_packages` through `/tmp/nasq-packages/cp-live.sh`, never against any non-scratch database.
+- Odoo scratch databases match `webvue_scratch_packages_[a-z0-9_]+`, plus the one fixed acceptance tenant `webvue_scratch_ffff0000000000000000000000000003` of plan 3b (the effect scripts accept only `webvue_scratch_<32 hex>`); the runner refuses any other name and any name containing `odoo19`. Never run anything against `odoo19`. Odoo HTTP port 8239.
+- Control-plane live suites run only with `CONTROL_TEST_DATABASE_URL=postgres://tariq@127.0.0.1:5432/webvue_control_scratch_packages` through `/tmp/webvue-packages/cp-live.sh`, never against any non-scratch database.
 - Work only in `/Users/tariq/code/nasq-packages` on branch `codex/cp-packages`. Do not touch the main checkout's uncommitted owner changes (`.gitignore`, `docs/WORKSPACE.md`, `package.json`, `package-lock.json`, untracked `.agents/`, `.planning/`, `docs/e2e.md`, `e2e.config.ts`, `e2e/`, `plans/`).
 - Commit subjects are `type(scope): subject`, at most 72 characters, type in `feat fix refactor perf test docs ci build chore`, scope in `core platform api pmo hr chat meetings web cp deploy tools docs ci`. Every commit is `git commit -m "<subject>" -m "<TRAILER>"`, typing the exact trailer line your dispatch gives in place of `<TRAILER>`. Do not merge, push, delete branches or change Git config.
 - A full ten-addon Odoo run takes 10–25 minutes. Start it in the background and wait on the log; never shorten a run by dropping modules from `-i`. Never `rm` a variable path; the runners only drop guarded scratch databases.
@@ -53,28 +53,28 @@
 - **A downgrade deletes or hides data.** Expected: rows stay, reads stay open through `retained_read_features`, writes answer 403 `feature_not_included`. Pinned by `test_downgrade_without_pmo_closes_writes_keeps_reads_and_data` (Task 1), which counts projects and tasks before and after and reads the list over HTTP.
 - **An upgrade needs an install job.** Expected: reopening `pmo.enabled` makes `POST /api/v1/projects` succeed with the installed module set unchanged. Pinned by the same Task 1 test (`installed_before == installed_after`) and by `test_subscription_effect.py` `test_release_complete_target_installs_nothing` (Task 5).
 - **Registration at registry load grants something or crashes the server.** Expected: only missing keys of installed applications are added, always closed; existing values never change; a policy it cannot complete is logged and left alone. Pinned by the five tests of `test_feature_registration.py` (Task 2).
-- **Managed create verification accepts a wrong install or rejects the true closure.** Expected: the auto-installed bridge and implied services (`nasq_notify`, `nasq_directory`, `nasq_meetings_pmo`) are accepted only when the Python readback reports them; a missing `expected_modules`, one without a policy module, or an extra installed module is refused. Pinned by the new `worker-managed.test.ts` cases (Task 6).
+- **Managed create verification accepts a wrong install or rejects the true closure.** Expected: the auto-installed bridge and implied services (`webvue_notify`, `webvue_directory`, `webvue_meetings_pmo`) are accepted only when the Python readback reports them; a missing `expected_modules`, one without a policy module, or an extra installed module is refused. Pinned by the new `worker-managed.test.ts` cases (Task 6).
 
 ## File Structure
 
 | File | Responsibility |
 |---|---|
-| `odoo-addons/nasq_platform/models/entitlement_service.py` (modify) | `_nasq_close_unlisted_features`, `_nasq_entitled_admin_roles` |
-| `odoo-addons/nasq_platform/models/tenant_profile.py` (modify) | `_register_hook` → `_nasq_register_missing_features` |
-| `odoo-addons/nasq_platform/tests/test_feature_registration.py` (create), `tests/__init__.py` | Registration tests |
-| `odoo-addons/nasq_pmo/tests/test_package_change.py` (create), `tests/__init__.py` | Downgrade/upgrade with pmo installed; admin roles by entitlement |
+| `odoo-addons/webvue_platform/models/entitlement_service.py` (modify) | `_webvue_close_unlisted_features`, `_webvue_entitled_admin_roles` |
+| `odoo-addons/webvue_platform/models/tenant_profile.py` (modify) | `_register_hook` → `_webvue_register_missing_features` |
+| `odoo-addons/webvue_platform/tests/test_feature_registration.py` (create), `tests/__init__.py` | Registration tests |
+| `odoo-addons/webvue_pmo/tests/test_package_change.py` (create), `tests/__init__.py` | Downgrade/upgrade with pmo installed; admin roles by entitlement |
 | `tools/shared_saas_lifecycle/subscription_effect.py`, `test_subscription_effect.py` | Apply script uses the Odoo completion |
 | `packages/commercial-contracts/src/commercial/feature-descriptor.ts`, `__tests__/release-features.test.ts` | Schema 3, `releaseModules`, `deriveCatalogPolicy` |
-| `tools/nasq_cli/managed_policy.py`, `tools/test_managed_policy.py` | Python mirror of schema 3 |
+| `tools/webvue_cli/managed_policy.py`, `tools/test_managed_policy.py` | Python mirror of schema 3 |
 | `deploy/catalog/fixtures/release_features.json` (create), `descriptor_parity.json` (modify) | Shared fixtures |
 | `apps/control-plane/src/shared/catalog-features.ts`, `shared/job-store.ts`, `packages.ts`, `worker.ts` | Policy modules from the shared derivation |
 | `deploy/catalog/solutions/platform_v3.json` (create), `deploy/catalog/schema/solution.schema.json` | Catalog v3 |
 | `tools/catalog_check.py`, `tools/test_catalog_check.py` | Completeness, release modules, copy guard |
-| `apps/control-plane/src/shared/catalog-source.ts` (+test), `tools/nasq_cli/catalog_source.py`, `tools/test_catalog_source.py` | Register v3 |
+| `apps/control-plane/src/shared/catalog-source.ts` (+test), `tools/webvue_cli/catalog_source.py`, `tools/test_catalog_source.py` | Register v3 |
 | `.woodpecker.yml` | Module lists from `catalog_check.py --release-modules` |
 | `packages/commercial-contracts/src/commercial/entitlements.ts`, `__tests__/commercial-entitlements.test.ts` | Compiler 2 |
 | `apps/web/app/utils/entitlementApps.ts` (create) + test, `pages/subscription/index.vue`, `pages/vendor/customers/[id].vue`, `pages/vendor/customers/index.vue`, `i18n/locales/{ar,en}/subscription.json` | Display entitled apps from features |
-| `tools/nasq_cli/managed_verify.py`, `managed_runtime.py`, `tools/test_managed_runtime.py`, `apps/control-plane/src/worker.ts`, `__tests__/worker-managed.test.ts`, `__tests__/worker-v2-policy.test.ts` | `expected_modules` |
+| `tools/webvue_cli/managed_verify.py`, `managed_runtime.py`, `tools/test_managed_runtime.py`, `apps/control-plane/src/worker.ts`, `__tests__/worker-managed.test.ts`, `__tests__/worker-v2-policy.test.ts` | `expected_modules` |
 | `tools/shared_saas_lifecycle/odoo_effect.py`, `test_odoo_effect.py` | Admin roles by entitlement; generic module validation |
 
 ---
@@ -82,19 +82,19 @@
 ### Task 0: Worktree, scratch runners and baselines
 
 **Files:**
-- Create (outside the repo): `/tmp/nasq-packages/odoo-run.sh`, `/tmp/nasq-packages/cp-live.sh`, `/tmp/nasq-packages/scratch-only.conf`
+- Create (outside the repo): `/tmp/webvue-packages/odoo-run.sh`, `/tmp/webvue-packages/cp-live.sh`, `/tmp/webvue-packages/scratch-only.conf`
 - Create: `docs/superpowers/plans/2026-10-07-phase-3a-packages-engine.md`, `docs/superpowers/plans/2026-10-07-phase-3b-packages-commerce.md` (copies of the two plans)
 
 **Interfaces:**
-- Produces: `/tmp/nasq-packages/odoo-run.sh test DB MODULES TAGS | base DB ROOT MODULES | shell DB ROOT | drop DB` and `/tmp/nasq-packages/cp-live.sh [vitest args]`. Module and tag lists used by every later task (shell variables do not persist between commands, so every command spells them out):
+- Produces: `/tmp/webvue-packages/odoo-run.sh test DB MODULES TAGS | base DB ROOT MODULES | shell DB ROOT | drop DB` and `/tmp/webvue-packages/cp-live.sh [vitest args]`. Module and tag lists used by every later task (shell variables do not persist between commands, so every command spells them out):
 
 ```
-TEN=nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat
-TEN_TAGS=/nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat
-HR=nasq_core,nasq_platform,nasq_api,nasq_hr
-HR_TAGS=/nasq_core,/nasq_platform,/nasq_api,/nasq_hr
-MEET=nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_meetings
-MEET_TAGS=/nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_meetings
+TEN=webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat
+TEN_TAGS=/webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat
+HR=webvue_core,webvue_platform,webvue_api,webvue_hr
+HR_TAGS=/webvue_core,/webvue_platform,/webvue_api,/webvue_hr
+MEET=webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_meetings
+MEET_TAGS=/webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_meetings
 ```
 
 - [ ] **Step 1: Create the worktree**
@@ -116,31 +116,31 @@ Expected: empty status; `main` at `9336317e` or later (record it). If `main` and
 - [ ] **Step 2: Create the Odoo scratch runner**
 
 ```bash
-mkdir -p /tmp/nasq-packages/logs /tmp/nasq-packages/data /tmp/nasq-packages/classification
-printf '[options]\nlist_db = False\n' > /tmp/nasq-packages/scratch-only.conf
-cat > /tmp/nasq-packages/odoo-run.sh <<'RUNNER'
+mkdir -p /tmp/webvue-packages/logs /tmp/webvue-packages/data /tmp/webvue-packages/classification
+printf '[options]\nlist_db = False\n' > /tmp/webvue-packages/scratch-only.conf
+cat > /tmp/webvue-packages/odoo-run.sh <<'RUNNER'
 #!/usr/bin/env bash
 # Phase 3 packages scratch runner (plans 2026-10-07-phase-3a/3b).
-# Every database must match nasq_scratch_packages_[a-z0-9_]+; odoo19 is never touched.
+# Every database must match webvue_scratch_packages_[a-z0-9_]+; odoo19 is never touched.
 set -euo pipefail
 export PYTHONDONTWRITEBYTECODE=1
 ODOO_ROOT=/Users/tariq/code/odoo
 ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
 WORKTREE=/Users/tariq/code/nasq-packages
-SCRATCH=/tmp/nasq-packages
+SCRATCH=/tmp/webvue-packages
 CONF="$SCRATCH/scratch-only.conf"
 HTTP_PORT=8239
 export PGHOST="${PGHOST:-127.0.0.1}" PGPORT="${PGPORT:-5432}" PGUSER="${PGUSER:-tariq}"
 
-# Plan 3b's acceptance tenant: the effect scripts accept only nasq_scratch_<32 hex>, so this one
+# Plan 3b's acceptance tenant: the effect scripts accept only webvue_scratch_<32 hex>, so this one
 # fixed name is allowed next to the plan prefix.
-ACCEPT_DB=nasq_scratch_ffff0000000000000000000000000003
+ACCEPT_DB=webvue_scratch_ffff0000000000000000000000000003
 
 die() { echo "odoo-run: $*" >&2; exit 2; }
 guard_db() {
   [[ "$1" != *odoo19* ]] || die "refusing database '$1' (odoo19 is the development database)"
-  [[ "$1" == "$ACCEPT_DB" || "$1" =~ ^nasq_scratch_packages_[a-z0-9_]+$ ]] \
-    || die "refusing database '$1' (scratch names match nasq_scratch_packages_[a-z0-9_]+ or $ACCEPT_DB)"
+  [[ "$1" == "$ACCEPT_DB" || "$1" =~ ^webvue_scratch_packages_[a-z0-9_]+$ ]] \
+    || die "refusing database '$1' (scratch names match webvue_scratch_packages_[a-z0-9_]+ or $ACCEPT_DB)"
 }
 guard_root() {
   [[ "$1" == "$WORKTREE" ]] || die "refusing addons root '$1'"
@@ -150,14 +150,14 @@ addons() { echo "$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$1/odoo-addons"; }
 classify() {  # a new classification file per run: classification.py opens its output exclusively
   local out="$SCRATCH/classification/$1-$(date +%Y%m%d%H%M%S)-$$-$RANDOM.json"
   python3 "$WORKTREE/deploy/classification.py" fixture --database "$1" --mode saas --output "$out"
-  export NASQ_COMMERCIAL_CONFIG="$out"
+  export WEBVUE_COMMERCIAL_CONFIG="$out"
 }
 latest_classification() {  # the newest classification written for DB (shell reuses the base install's)
   ls -t "$SCRATCH/classification/$1-"*.json 2>/dev/null | head -n 1
 }
 probe() {
   psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$1" -Atc \
-    "SELECT 'INSTALLED_PROBE ' || coalesce(string_agg(name, ',' ORDER BY name), '') FROM ir_module_module WHERE state = 'installed' AND name IN ('nasq_chat', 'nasq_hr', 'nasq_meetings', 'nasq_meetings_pmo', 'nasq_pmo', 'nasq_registry_probe', 'project')"
+    "SELECT 'INSTALLED_PROBE ' || coalesce(string_agg(name, ',' ORDER BY name), '') FROM ir_module_module WHERE state = 'installed' AND name IN ('webvue_chat', 'webvue_hr', 'webvue_meetings', 'webvue_meetings_pmo', 'webvue_pmo', 'webvue_registry_probe', 'project')"
 }
 run_odoo() {  # run_odoo DB ROOT LOG [odoo args...]
   local db=$1 root=$2 log=$3
@@ -197,18 +197,18 @@ case "$cmd" in
     db=$1 root=$2
     guard_db "$db"
     guard_root "$root"
-    NASQ_COMMERCIAL_CONFIG="$(latest_classification "$db")"
-    [[ -n "$NASQ_COMMERCIAL_CONFIG" ]] || die "no classification for '$db' (run base first)"
-    export NASQ_COMMERCIAL_CONFIG
+    WEBVUE_COMMERCIAL_CONFIG="$(latest_classification "$db")"
+    [[ -n "$WEBVUE_COMMERCIAL_CONFIG" ]] || die "no classification for '$db' (run base first)"
+    export WEBVUE_COMMERCIAL_CONFIG
     "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" shell -c "$CONF" --addons-path="$(addons "$root")" \
       --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
       -d "$db" --db-filter="^${db}\$" --data-dir="$SCRATCH/data" --no-http ;;
   serve)  # serve DB: HTTP server on 8239 for the acceptance in plan 3b (foreground; stop with kill)
     db=$1
     guard_db "$db"
-    NASQ_COMMERCIAL_CONFIG="$(latest_classification "$db")"
-    [[ -n "$NASQ_COMMERCIAL_CONFIG" ]] || die "no classification for '$db' (run base first)"
-    export NASQ_COMMERCIAL_CONFIG
+    WEBVUE_COMMERCIAL_CONFIG="$(latest_classification "$db")"
+    [[ -n "$WEBVUE_COMMERCIAL_CONFIG" ]] || die "no classification for '$db' (run base first)"
+    export WEBVUE_COMMERCIAL_CONFIG
     run_odoo "$db" "$WORKTREE" "$SCRATCH/logs/$db-serve.log" ;;
   drop)
     guard_db "$1"
@@ -217,11 +217,11 @@ case "$cmd" in
     die "usage: odoo-run.sh test DB MODULES TAGS | base DB ROOT MODULES | shell DB ROOT | serve DB | drop DB" ;;
 esac
 RUNNER
-chmod +x /tmp/nasq-packages/odoo-run.sh
-bash -n /tmp/nasq-packages/odoo-run.sh && echo runner-ok
-/tmp/nasq-packages/odoo-run.sh drop odoo19 || echo "guard refused odoo19 as expected"
-/tmp/nasq-packages/odoo-run.sh drop nasq_scratch_packages_odoo19_copy || echo "guard refused an odoo19 lookalike as expected"
-/tmp/nasq-packages/odoo-run.sh drop nasq_scratch_openlists_x || echo "guard refused another plan's prefix as expected"
+chmod +x /tmp/webvue-packages/odoo-run.sh
+bash -n /tmp/webvue-packages/odoo-run.sh && echo runner-ok
+/tmp/webvue-packages/odoo-run.sh drop odoo19 || echo "guard refused odoo19 as expected"
+/tmp/webvue-packages/odoo-run.sh drop webvue_scratch_packages_odoo19_copy || echo "guard refused an odoo19 lookalike as expected"
+/tmp/webvue-packages/odoo-run.sh drop webvue_scratch_openlists_x || echo "guard refused another plan's prefix as expected"
 ```
 
 Expected: `runner-ok`, then three `odoo-run: refusing database ...` lines, each followed by its `guard refused ... as expected` line.
@@ -229,13 +229,13 @@ Expected: `runner-ok`, then three `odoo-run: refusing database ...` lines, each 
 - [ ] **Step 3: Create the control-plane live-suite runner**
 
 ```bash
-cat > /tmp/nasq-packages/cp-live.sh <<'CPLIVE'
+cat > /tmp/webvue-packages/cp-live.sh <<'CPLIVE'
 #!/usr/bin/env bash
 # Runs the control-plane suites against the one scratch control database of this plan,
 # created fresh and dropped afterwards. Never any other database.
 set -euo pipefail
-DB=nasq_control_scratch_packages
-[[ "$DB" =~ ^nasq_control_scratch_[a-z0-9]+$ ]] || { echo "cp-live: refusing $DB" >&2; exit 2; }
+DB=webvue_control_scratch_packages
+[[ "$DB" =~ ^webvue_control_scratch_[a-z0-9]+$ ]] || { echo "cp-live: refusing $DB" >&2; exit 2; }
 export PGHOST="${PGHOST:-127.0.0.1}" PGPORT="${PGPORT:-5432}" PGUSER="${PGUSER:-tariq}"
 cd /Users/tariq/code/nasq-packages
 dropdb --if-exists "$DB"
@@ -248,8 +248,8 @@ dropdb --if-exists "$DB"
 echo "CP_LIVE_EXIT $code"
 exit $code
 CPLIVE
-chmod +x /tmp/nasq-packages/cp-live.sh
-bash -n /tmp/nasq-packages/cp-live.sh && echo cp-live-ok
+chmod +x /tmp/webvue-packages/cp-live.sh
+bash -n /tmp/webvue-packages/cp-live.sh && echo cp-live-ok
 ```
 
 Expected: `cp-live-ok`. If the local PostgreSQL needs a password, export `PGPASSWORD` in the shell before calling; never put it on a command line or in the script.
@@ -258,7 +258,7 @@ Expected: `cp-live-ok`. If the local PostgreSQL needs a password, export `PGPASS
 
 ```bash
 lsof -nP -iTCP:8239 -sTCP:LISTEN || echo "port 8239 free"
-psql -h 127.0.0.1 -U tariq -d postgres -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'nasq_scratch_packages_%' OR datname IN ('nasq_control_scratch_packages', 'nasq_scratch_ffff0000000000000000000000000003')"
+psql -h 127.0.0.1 -U tariq -d postgres -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'webvue_scratch_packages_%' OR datname IN ('webvue_control_scratch_packages', 'webvue_scratch_ffff0000000000000000000000000003')"
 ```
 
 Expected: `port 8239 free` and no database listed. If 8239 is taken, change `HTTP_PORT` in the runner and report it. If a database is listed, stop and report it.
@@ -300,7 +300,7 @@ Expected: three `exit=0`; `CATALOG_OK solutions=2`; the totals (record them: eve
 - [ ] **Step 7: Record the control-plane live baseline**
 
 ```bash
-/tmp/nasq-packages/cp-live.sh 2>&1 | tail -n 15
+/tmp/webvue-packages/cp-live.sh 2>&1 | tail -n 15
 ```
 
 Expected: `CP_LIVE_EXIT 0` with the number of passed and skipped tests (record both). Failures here are pre-existing; record their titles.
@@ -308,47 +308,47 @@ Expected: `CP_LIVE_EXIT 0` with the number of passed and skipped tests (record b
 - [ ] **Step 8: Run the three Odoo installs once on the unmodified branch (background, one after the other)**
 
 ```bash
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_base \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_base_hr \
-  nasq_core,nasq_platform,nasq_api,nasq_hr /nasq_core,/nasq_platform,/nasq_api,/nasq_hr
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_base_meet \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_meetings \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_meetings
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_base \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_base_hr \
+  webvue_core,webvue_platform,webvue_api,webvue_hr /webvue_core,/webvue_platform,/webvue_api,/webvue_hr
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_base_meet \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_meetings \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_meetings
 ```
 
-Expected: three `ODOO_RUN_TEST_OK`; record the three test counts N. A red run's failures (`grep -E '(FAIL|ERROR): ' /tmp/nasq-packages/logs/<db>.log`) are pre-existing.
+Expected: three `ODOO_RUN_TEST_OK`; record the three test counts N. A red run's failures (`grep -E '(FAIL|ERROR): ' /tmp/webvue-packages/logs/<db>.log`) are pre-existing.
 
 ---
 
 ### Task 1: Reproduce the pmo downgrade failure, then close unlisted keys in the operator
 
 **Files:**
-- Create (outside the repo): `/tmp/nasq-packages/repro_downgrade.py`
-- Create: `odoo-addons/nasq_pmo/tests/test_package_change.py`
-- Modify: `odoo-addons/nasq_pmo/tests/__init__.py`
-- Modify: `odoo-addons/nasq_platform/models/entitlement_service.py` (add one method after `_nasq_merge_retained`, `:510-519`)
+- Create (outside the repo): `/tmp/webvue-packages/repro_downgrade.py`
+- Create: `odoo-addons/webvue_pmo/tests/test_package_change.py`
+- Modify: `odoo-addons/webvue_pmo/tests/__init__.py`
+- Modify: `odoo-addons/webvue_platform/models/entitlement_service.py` (add one method after `_webvue_merge_retained`, `:510-519`)
 - Modify: `tools/shared_saas_lifecycle/subscription_effect.py:172-179`
 - Modify: `tools/shared_saas_lifecycle/test_subscription_effect.py` (append one test to the class that builds `se.SubscriptionEffect`)
 
 **Interfaces:**
-- Produces: `env['nasq.entitlement.service']._nasq_close_unlisted_features(features: dict) -> dict` — a new dict holding `features` plus, for every registry key whose module is installed, not `nasq_platform`, and absent from `features`: `False` for a boolean, `0` for a limit. Used by the apply script (this task), by registration (Task 2) and by the 3b acceptance.
+- Produces: `env['webvue.entitlement.service']._webvue_close_unlisted_features(features: dict) -> dict` — a new dict holding `features` plus, for every registry key whose module is installed, not `webvue_platform`, and absent from `features`: `False` for a boolean, `0` for a limit. Used by the apply script (this task), by registration (Task 2) and by the 3b acceptance.
 
 - [ ] **Step 1: Write the reproduction driver (real generated apply script, scratch database)**
 
 ```bash
-cat > /tmp/nasq-packages/repro_downgrade.py <<'REPRO'
-"""Ruling E11: downgrade a tenant that has nasq_pmo installed to a plan without pmo,
+cat > /tmp/webvue-packages/repro_downgrade.py <<'REPRO'
+"""Ruling E11: downgrade a tenant that has webvue_pmo installed to a plan without pmo,
 with the real generated subscription apply script. Run from the worktree:
-    python3 -B /tmp/nasq-packages/repro_downgrade.py nasq_scratch_packages_repro
+    python3 -B /tmp/webvue-packages/repro_downgrade.py webvue_scratch_packages_repro
 """
 import json
 import subprocess
 import sys
 
 WORKTREE = '/Users/tariq/code/nasq-packages'
-RUNNER = '/tmp/nasq-packages/odoo-run.sh'
+RUNNER = '/tmp/webvue-packages/odoo-run.sh'
 sys.path.insert(0, WORKTREE)
 from tools.shared_saas_lifecycle.subscription_effect import SENTINEL, build_apply_script  # noqa: E402
 
@@ -369,8 +369,8 @@ def tagged(output, tag):
 
 def main(db):
     init = (
-        "profile = env.ref('nasq_platform.tenant_profile')\n"
-        "profile._nasq_initialize_legacy_policy(env['nasq.feature.registry']._nasq_installed_module_ids())\n"
+        "profile = env.ref('webvue_platform.tenant_profile')\n"
+        "profile._webvue_initialize_legacy_policy(env['webvue.feature.registry']._webvue_installed_module_ids())\n"
         "env.cr.commit()\n"
         "print('REPRO_INIT', profile.policy_revision, sorted(k for k, v in profile.features.items() if v is True))\n"
     )
@@ -387,14 +387,14 @@ def main(db):
     print('REPRO_APPLY', tagged(shell(db, build_apply_script(request)), SENTINEL)[len(SENTINEL):])
     # The same write the pre-fix script performed (booleans back-filled only), to print the cause.
     old_loop = (
-        "from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT\n"
+        "from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT\n"
         f"features = dict({TODAY!r})\n"
         "installed = set(env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))\n"
-        "for key, item in env['nasq.feature.registry']._nasq_feature_map().items():\n"
-        "    if item['type'] == 'boolean' and key not in features and item['module'] != 'nasq_platform' and item['module'] in installed:\n"
+        "for key, item in env['webvue.feature.registry']._webvue_feature_map().items():\n"
+        "    if item['type'] == 'boolean' and key not in features and item['module'] != 'webvue_platform' and item['module'] in installed:\n"
         "        features[key] = False\n"
         "try:\n"
-        "    env.ref('nasq_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True}).write({'features': features})\n"
+        "    env.ref('webvue_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True}).write({'features': features})\n"
         "    print('REPRO_OLD_LOOP accepted')\n"
         "except Exception as exc:\n"
         "    print('REPRO_OLD_LOOP', type(exc).__name__, exc)\n"
@@ -403,7 +403,7 @@ def main(db):
     print(tagged(shell(db, old_loop), 'REPRO_OLD_LOOP'))
     state = (
         "import json\n"
-        "p = env.ref('nasq_platform.tenant_profile')\n"
+        "p = env.ref('webvue_platform.tenant_profile')\n"
         "print('REPRO_STATE', json.dumps({k: p.features.get(k) for k in ('pmo.enabled', 'projects.max_projects', 'hr.enabled')}), p.commercial_revision_id)\n"
     )
     print(tagged(shell(db, state), 'REPRO_STATE'))
@@ -412,7 +412,7 @@ def main(db):
 if __name__ == '__main__':
     main(sys.argv[1])
 REPRO
-python3 -B -c "import ast; ast.parse(open('/tmp/nasq-packages/repro_downgrade.py').read()); print('repro-ok')"
+python3 -B -c "import ast; ast.parse(open('/tmp/webvue-packages/repro_downgrade.py').read()); print('repro-ok')"
 ```
 
 Expected: `repro-ok`.
@@ -420,46 +420,46 @@ Expected: `repro-ok`.
 - [ ] **Step 2: Run the reproduction on a scratch tenant with every application installed (background)**
 
 ```bash
-/tmp/nasq-packages/odoo-run.sh base nasq_scratch_packages_repro /Users/tariq/code/nasq-packages \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat
-python3 -B /tmp/nasq-packages/repro_downgrade.py nasq_scratch_packages_repro
-/tmp/nasq-packages/odoo-run.sh drop nasq_scratch_packages_repro
+/tmp/webvue-packages/odoo-run.sh base webvue_scratch_packages_repro /Users/tariq/code/nasq-packages \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat
+python3 -B /tmp/webvue-packages/repro_downgrade.py webvue_scratch_packages_repro
+/tmp/webvue-packages/odoo-run.sh drop webvue_scratch_packages_repro
 ```
 
 Expected (the latent bug, confirmed):
 ```
 REPRO_INIT 1 ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled']
 REPRO_APPLY {"error_code": "subscription_script_failed"}
-REPRO_OLD_LOOP ValidationError nasq_platform: features payload is missing required keys: projects.max_projects
+REPRO_OLD_LOOP ValidationError webvue_platform: features payload is missing required keys: projects.max_projects
 REPRO_STATE {"pmo.enabled": true, "projects.max_projects": null, "hr.enabled": true} False
 ```
 Record these four lines in your report. If `REPRO_APPLY` is `{"applied": true}`, stop and report: the inventory's finding 4 would be wrong.
 
 - [ ] **Step 3: Write the failing Odoo test**
 
-Create `odoo-addons/nasq_pmo/tests/test_package_change.py`:
+Create `odoo-addons/webvue_pmo/tests/test_package_change.py`:
 
 ```python
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
-from odoo.addons.nasq_core.models.access_service import NasqAccessRule
-from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.webvue_core.models.access_service import WebVueAccessRule
+from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-from .common import NasqPmoCase
+from .common import WebVuePmoCase
 
 # What commercial-compiler/1 emitted for a plan without the projects application:
 # the platform limits and the selected booleans only (inventory finding 4).
 TARGET_WITHOUT_PMO = {'users.limit': None, 'storage.limit_mb': None, 'branches.extra_limit': 0}
 
 
-@tagged('post_install', '-at_install', 'nasq')
-class TestPackageChange(NasqPmoCase):
+@tagged('post_install', '-at_install', 'webvue')
+class TestPackageChange(WebVuePmoCase):
     """Spec 3.6: a plan change flips keys and limits only, on a tenant with every app installed."""
 
     def _profile(self):
-        return self.env.ref('nasq_platform.tenant_profile')
+        return self.env.ref('webvue_platform.tenant_profile')
 
     def _write(self, features):
         self._profile().with_context(**{OPERATOR_CONTEXT: True}).write({'features': features})
@@ -468,12 +468,12 @@ class TestPackageChange(NasqPmoCase):
         return set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
 
     def test_downgrade_without_pmo_closes_writes_keeps_reads_and_data(self):
-        service = self.env['nasq.entitlement.service']
+        service = self.env['webvue.entitlement.service']
         installed_before = self._installed()
         projects_before = self.env['project.project'].search_count([])
         tasks_before = self.env['project.task'].search_count([])
 
-        features = service._nasq_close_unlisted_features(TARGET_WITHOUT_PMO)
+        features = service._webvue_close_unlisted_features(TARGET_WITHOUT_PMO)
         self.assertIs(features['pmo.enabled'], False)
         self.assertEqual(features['projects.max_projects'], 0)
         self.assertIs(type(features['projects.max_projects']), int)
@@ -484,14 +484,14 @@ class TestPackageChange(NasqPmoCase):
         self.assertEqual(self.api('GET', '/api/v1/projects?minimal=1').status_code, 200)
         created = self.api('POST', '/api/v1/projects', {'name': 'Closed by plan', 'date_end': '2030-12-31'})
         self.assertEqual((created.status_code, created.json()['code']), (403, 'feature_not_included'))
-        with self.assertRaises(NasqAccessRule):
+        with self.assertRaises(WebVueAccessRule):
             service.require('pmo.enabled')
-        self.assertTrue(service._nasq_feature_read('pmo.enabled'))
+        self.assertTrue(service._webvue_feature_read('pmo.enabled'))
         self.assertEqual(self.env['project.project'].search_count([]), projects_before)
         self.assertEqual(self.env['project.task'].search_count([]), tasks_before)
         self.assertTrue(self.project.exists())
 
-        upgraded = service._nasq_close_unlisted_features({
+        upgraded = service._webvue_close_unlisted_features({
             **TARGET_WITHOUT_PMO, 'pmo.enabled': True, 'projects.max_projects': None,
         })
         self._write(upgraded)
@@ -501,8 +501,8 @@ class TestPackageChange(NasqPmoCase):
 
     def test_incomplete_target_is_still_refused(self):
         # Ruling E2: Odoo stays strict; only the operator completes a target.
-        registry = self.env['nasq.feature.registry']._nasq_feature_map()
-        installed = set(self.env['nasq.feature.registry']._nasq_installed_module_ids())
+        registry = self.env['webvue.feature.registry']._webvue_feature_map()
+        installed = set(self.env['webvue.feature.registry']._webvue_installed_module_ids())
         booleans_only = dict(TARGET_WITHOUT_PMO)
         for key, item in registry.items():
             if item['type'] == 'boolean' and item['module'] in installed:
@@ -511,48 +511,48 @@ class TestPackageChange(NasqPmoCase):
             self._write(booleans_only)
 
     def test_completion_never_fills_platform_keys_or_changes_listed_values(self):
-        service = self.env['nasq.entitlement.service']
-        completed = service._nasq_close_unlisted_features({'pmo.enabled': True})
+        service = self.env['webvue.entitlement.service']
+        completed = service._webvue_close_unlisted_features({'pmo.enabled': True})
         self.assertIs(completed['pmo.enabled'], True)
         for key in ('users.limit', 'storage.limit_mb', 'branches.extra_limit'):
             self.assertNotIn(key, completed)
 ```
 
-In `odoo-addons/nasq_pmo/tests/__init__.py` insert `    test_package_change,` between `    test_notify_ownership_migration,` and `    test_personal_stages,`.
+In `odoo-addons/webvue_pmo/tests/__init__.py` insert `    test_package_change,` between `    test_notify_ownership_migration,` and `    test_personal_stages,`.
 
 - [ ] **Step 4: Run it to see it fail**
 
 ```bash
 ruff check odoo-addons
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_t1 \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  /nasq_pmo:TestPackageChange || true
-grep -E "AttributeError|_nasq_close_unlisted_features" /tmp/nasq-packages/logs/nasq_scratch_packages_t1.log | head -n 3
-/tmp/nasq-packages/odoo-run.sh drop nasq_scratch_packages_t1
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_t1 \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+  /webvue_pmo:TestPackageChange || true
+grep -E "AttributeError|_webvue_close_unlisted_features" /tmp/webvue-packages/logs/webvue_scratch_packages_t1.log | head -n 3
+/tmp/webvue-packages/odoo-run.sh drop webvue_scratch_packages_t1
 ```
 
-Expected: `All checks passed!`; the runner dies with `tests failed`; the grep shows `AttributeError: ... '_nasq_close_unlisted_features'` for two tests (`test_incomplete_target_is_still_refused` passes already).
+Expected: `All checks passed!`; the runner dies with `tests failed`; the grep shows `AttributeError: ... '_webvue_close_unlisted_features'` for two tests (`test_incomplete_target_is_still_refused` passes already).
 
 - [ ] **Step 5: Add the operator completion to the entitlement service**
 
-In `odoo-addons/nasq_platform/models/entitlement_service.py`, insert after `_nasq_merge_retained` (after the line `        return retained` that ends it, before `    @api.model\n    def _nasq_legacy_features_for`):
+In `odoo-addons/webvue_platform/models/entitlement_service.py`, insert after `_webvue_merge_retained` (after the line `        return retained` that ends it, before `    @api.model\n    def _webvue_legacy_features_for`):
 
 ```python
     @api.model
-    def _nasq_close_unlisted_features(self, features):
+    def _webvue_close_unlisted_features(self, features):
         """Return FEATURES plus the closed value of every installed application key it omits.
 
         A target lists what it grants. Every other key whose application is
         installed closes: booleans ``False``, limits ``0`` (default-deny). Keys
         the target lists are never changed, and platform keys are never filled
-        in, so ``_nasq_validate_features`` still refuses a target without them.
+        in, so ``_webvue_validate_features`` still refuses a target without them.
         Operator scripts call this before a policy write; it writes nothing.
         """
         result = dict(features or {})
-        installed = set(self._nasq_installed_modules())
-        for key, item in sorted(self._nasq_registry()._nasq_feature_map().items()):
+        installed = set(self._webvue_installed_modules())
+        for key, item in sorted(self._webvue_registry()._webvue_feature_map().items()):
             module_id = item['module']
-            if key in result or module_id == 'nasq_platform' or module_id not in installed:
+            if key in result or module_id == 'webvue_platform' or module_id not in installed:
                 continue
             result[key] = False if item['type'] == 'boolean' else 0
         return result
@@ -568,9 +568,9 @@ In `tools/shared_saas_lifecycle/subscription_effect.py` replace:
         features = dict(values['features'])
         # Modules stay installed after removal from the target; switch their flags off.
         installed = set(env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
-        for key, item in env['nasq.feature.registry']._nasq_feature_map().items():
+        for key, item in env['webvue.feature.registry']._webvue_feature_map().items():
             if (item['type'] == 'boolean' and key not in features
-                    and item['module'] != 'nasq_platform' and item['module'] in installed):
+                    and item['module'] != 'webvue_platform' and item['module'] in installed):
                 features[key] = False
         operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
 ```
@@ -581,7 +581,7 @@ with:
     if current != values['target_revision_id']:
         # Every application stays installed; keys the target omits close (booleans
         # false, limits 0). Odoo still refuses a target without its platform keys.
-        features = env['nasq.entitlement.service']._nasq_close_unlisted_features(values['features'])
+        features = env['webvue.entitlement.service']._webvue_close_unlisted_features(values['features'])
         operator.write({'features': features, 'commercial_revision_id': values['target_revision_id'],
 ```
 
@@ -591,7 +591,7 @@ Append to `class ReconfigureTests(Base)` in `tools/shared_saas_lifecycle/test_su
 
     def test_apply_script_closes_unlisted_keys_through_odoo(self):
         script = se.build_apply_script(make_request())
-        self.assertIn("._nasq_close_unlisted_features(values['features'])", script)
+        self.assertIn("._webvue_close_unlisted_features(values['features'])", script)
         self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
 ```
 
@@ -607,9 +607,9 @@ Expected: `OK`.
 
 ```bash
 ruff check odoo-addons
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_t1 \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_t1 \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat
 ```
 
 Expected: `All checks passed!`; `ODOO_RUN_TEST_OK` with Task 0's count + 3.
@@ -617,10 +617,10 @@ Expected: `All checks passed!`; `ODOO_RUN_TEST_OK` with Task 0's count + 3.
 - [ ] **Step 9: Re-run the reproduction (background)**
 
 ```bash
-/tmp/nasq-packages/odoo-run.sh base nasq_scratch_packages_repro /Users/tariq/code/nasq-packages \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat
-python3 -B /tmp/nasq-packages/repro_downgrade.py nasq_scratch_packages_repro
-/tmp/nasq-packages/odoo-run.sh drop nasq_scratch_packages_repro
+/tmp/webvue-packages/odoo-run.sh base webvue_scratch_packages_repro /Users/tariq/code/nasq-packages \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat
+python3 -B /tmp/webvue-packages/repro_downgrade.py webvue_scratch_packages_repro
+/tmp/webvue-packages/odoo-run.sh drop webvue_scratch_packages_repro
 ```
 
 Expected: `REPRO_APPLY {"applied": true}`; `REPRO_OLD_LOOP ValidationError ...` unchanged (it replays the old loop on purpose); `REPRO_STATE {"pmo.enabled": false, "projects.max_projects": 0, "hr.enabled": true} 33333333-3333-4333-8333-333333333333`.
@@ -629,8 +629,8 @@ Expected: `REPRO_APPLY {"applied": true}`; `REPRO_OLD_LOOP ValidationError ...` 
 
 ```bash
 python3 -B tools/arch_policy.py --base main; echo "arch_policy exit=$?"
-git add odoo-addons/nasq_platform/models/entitlement_service.py odoo-addons/nasq_pmo/tests/test_package_change.py \
-  odoo-addons/nasq_pmo/tests/__init__.py tools/shared_saas_lifecycle/subscription_effect.py \
+git add odoo-addons/webvue_platform/models/entitlement_service.py odoo-addons/webvue_pmo/tests/test_package_change.py \
+  odoo-addons/webvue_pmo/tests/__init__.py tools/shared_saas_lifecycle/subscription_effect.py \
   tools/shared_saas_lifecycle/test_subscription_effect.py
 git commit -m "fix(platform): close unlisted app keys when a plan drops an app" -m "<TRAILER>"
 ```
@@ -642,37 +642,37 @@ Expected: `arch_policy exit=0`.
 ### Task 2: Register a newly installed application's keys closed on existing tenants
 
 **Files:**
-- Modify: `odoo-addons/nasq_platform/models/tenant_profile.py` (imports `:1-9`; new methods after `_nasq_initialize_legacy_policy`, `:127-155`)
-- Create: `odoo-addons/nasq_platform/tests/test_feature_registration.py`
-- Modify: `odoo-addons/nasq_platform/tests/__init__.py`
+- Modify: `odoo-addons/webvue_platform/models/tenant_profile.py` (imports `:1-9`; new methods after `_webvue_initialize_legacy_policy`, `:127-155`)
+- Create: `odoo-addons/webvue_platform/tests/test_feature_registration.py`
+- Modify: `odoo-addons/webvue_platform/tests/__init__.py`
 
 **Interfaces:**
-- Consumes: `_nasq_close_unlisted_features` (Task 1).
-- Produces: `nasq.tenant.profile._nasq_register_missing_features() -> bool` (True when it wrote) and `_register_hook()` calling it once per registry load.
+- Consumes: `_webvue_close_unlisted_features` (Task 1).
+- Produces: `webvue.tenant.profile._webvue_register_missing_features() -> bool` (True when it wrote) and `_register_hook()` calling it once per registry load.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `odoo-addons/nasq_platform/tests/test_feature_registration.py`:
+Create `odoo-addons/webvue_platform/tests/test_feature_registration.py`:
 
 ```python
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import TransactionCase, tagged
 
-from odoo.addons.nasq_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.webvue_platform.models.entitlement_service import OPERATOR_CONTEXT
 
-LOGGER = 'odoo.addons.nasq_platform.models.tenant_profile'
+LOGGER = 'odoo.addons.webvue_platform.models.tenant_profile'
 
 
-@tagged('post_install', '-at_install', 'nasq')
+@tagged('post_install', '-at_install', 'webvue')
 class TestFeatureRegistration(TransactionCase):
     """G5: an application installed after the one-shot policy gets its keys, closed."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.record = cls.env.ref('nasq_platform.tenant_profile')
-        cls.features = cls.env['nasq.feature.registry']
-        cls.apps = cls.features._nasq_installed_module_ids()
+        cls.record = cls.env.ref('webvue_platform.tenant_profile')
+        cls.features = cls.env['webvue.feature.registry']
+        cls.apps = cls.features._webvue_installed_module_ids()
 
     def _app(self):
         if not self.apps:
@@ -680,12 +680,12 @@ class TestFeatureRegistration(TransactionCase):
         return self.apps[0]
 
     def _initialize(self):
-        self.record._nasq_initialize_legacy_policy(self.apps)
+        self.record._webvue_initialize_legacy_policy(self.apps)
 
     def _grow_registry(self, *extra):
         registry = type(self.features)
-        definitions = registry._nasq_feature_definitions
-        self.patch(registry, '_nasq_feature_definitions', lambda model: (*definitions(model), *extra))
+        definitions = registry._webvue_feature_definitions
+        self.patch(registry, '_webvue_feature_definitions', lambda model: (*definitions(model), *extra))
 
     def _keys(self, app):
         return (
@@ -699,14 +699,14 @@ class TestFeatureRegistration(TransactionCase):
         before = self.record.policy_revision
         retained = list(self.record.retained_read_features)
         self._grow_registry(*self._keys(app))
-        self.assertTrue(self.record._nasq_register_missing_features())
+        self.assertTrue(self.record._webvue_register_missing_features())
         self.assertIs(self.record.features['zz_probe.enabled'], False)
         self.assertEqual(self.record.features['zz_probe.max_items'], 0)
         self.assertIs(type(self.record.features['zz_probe.max_items']), int)
         self.assertEqual(self.record.policy_revision, before + 1)
         self.assertEqual(self.record.retained_read_features, retained)
-        self.assertFalse(self.env['nasq.entitlement.service']._nasq_feature_read('zz_probe.enabled'))
-        self.assertFalse(self.record._nasq_register_missing_features())
+        self.assertFalse(self.env['webvue.entitlement.service']._webvue_feature_read('zz_probe.enabled'))
+        self.assertFalse(self.record._webvue_register_missing_features())
         self.assertEqual(self.record.policy_revision, before + 1)
 
     def test_registry_load_runs_the_registration(self):
@@ -723,7 +723,7 @@ class TestFeatureRegistration(TransactionCase):
         self.record.with_context(**{OPERATOR_CONTEXT: True}).write({
             'features': {**self.record.features, 'zz_probe.enabled': True, 'zz_probe.max_items': 7},
         })
-        self.assertFalse(self.record._nasq_register_missing_features())
+        self.assertFalse(self.record._webvue_register_missing_features())
         self.assertIs(self.record.features['zz_probe.enabled'], True)
         self.assertEqual(self.record.features['zz_probe.max_items'], 7)
 
@@ -732,37 +732,37 @@ class TestFeatureRegistration(TransactionCase):
         self._initialize()
         before = dict(self.record.features)
         # A new platform key needs its own migration; registration never invents one.
-        platform = {'key': 'zz_platform.limit', 'type': 'limit', 'owner': 'nasq_platform', 'module': 'nasq_platform'}
+        platform = {'key': 'zz_platform.limit', 'type': 'limit', 'owner': 'webvue_platform', 'module': 'webvue_platform'}
         self._grow_registry(*self._keys(app), platform)
         with self.assertLogs(LOGGER, level='WARNING'):
-            self.assertFalse(self.record._nasq_register_missing_features())
+            self.assertFalse(self.record._webvue_register_missing_features())
         self.assertEqual(dict(self.record.features), before)
 
     def test_an_uninitialized_tenant_is_left_alone(self):
-        if self.record._nasq_policy_initialized(self.record):
+        if self.record._webvue_policy_initialized(self.record):
             self.skipTest('the tenant policy is already initialized in this database')
         app = self._app()
         self._grow_registry(*self._keys(app))
-        self.assertFalse(self.record._nasq_register_missing_features())
+        self.assertFalse(self.record._webvue_register_missing_features())
         self.assertEqual(self.record.policy_revision, 0)
 ```
 
-In `odoo-addons/nasq_platform/tests/__init__.py` insert `    test_feature_registration,` between `    test_entitlements,` and `    test_legacy_grants,`.
+In `odoo-addons/webvue_platform/tests/__init__.py` insert `    test_feature_registration,` between `    test_entitlements,` and `    test_legacy_grants,`.
 
 - [ ] **Step 2: Run them to see them fail**
 
 ```bash
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_t2 \
-  nasq_core,nasq_platform,nasq_api,nasq_hr /nasq_platform:TestFeatureRegistration || true
-grep -cE "AttributeError: .*_nasq_register_missing_features" /tmp/nasq-packages/logs/nasq_scratch_packages_t2.log
-/tmp/nasq-packages/odoo-run.sh drop nasq_scratch_packages_t2
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_t2 \
+  webvue_core,webvue_platform,webvue_api,webvue_hr /webvue_platform:TestFeatureRegistration || true
+grep -cE "AttributeError: .*_webvue_register_missing_features" /tmp/webvue-packages/logs/webvue_scratch_packages_t2.log
+/tmp/webvue-packages/odoo-run.sh drop webvue_scratch_packages_t2
 ```
 
 Expected: the runner dies with `tests failed`; the count is at least 4.
 
 - [ ] **Step 3: Implement the registration**
 
-In `odoo-addons/nasq_platform/models/tenant_profile.py` replace the import block:
+In `odoo-addons/webvue_platform/models/tenant_profile.py` replace the import block:
 
 ```python
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
@@ -787,15 +787,15 @@ and add after the existing imports (after the closing `)` of the `entitlement_se
 _logger = logging.getLogger(__name__)
 ```
 
-Then insert after `_nasq_initialize_legacy_policy` (after its `        return profile`, before `    def _nasq_lock(self):`):
+Then insert after `_webvue_initialize_legacy_policy` (after its `        return profile`, before `    def _webvue_lock(self):`):
 
 ```python
     def _register_hook(self):
         super()._register_hook()
-        self._nasq_register_missing_features()
+        self._webvue_register_missing_features()
 
     @api.model
-    def _nasq_register_missing_features(self):
+    def _webvue_register_missing_features(self):
         """Close, in the stored policy, every installed application key it lacks.
 
         Runs once per registry load, so an application installed (or a key an
@@ -807,20 +807,20 @@ Then insert after `_nasq_initialize_legacy_policy` (after its `        return pr
         is logged and left unchanged rather than stopping the server.
         """
         profiles = self.search([], limit=2)
-        if len(profiles) != 1 or not self._nasq_policy_initialized(profiles):
+        if len(profiles) != 1 or not self._webvue_policy_initialized(profiles):
             return False
         if not isinstance(profiles.features, dict):
             return False
-        profile = profiles._nasq_lock()
+        profile = profiles._webvue_lock()
         current = dict(profile.features)
-        completed = self.env['nasq.entitlement.service']._nasq_close_unlisted_features(current)
+        completed = self.env['webvue.entitlement.service']._webvue_close_unlisted_features(current)
         if completed == current:
             return False
         try:
             with self.env.cr.savepoint():
                 profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': completed})
         except ValidationError as error:
-            _logger.warning('nasq_platform: the stored policy cannot take its closed keys: %s', error)
+            _logger.warning('webvue_platform: the stored policy cannot take its closed keys: %s', error)
             return False
         return True
 
@@ -830,15 +830,15 @@ Then insert after `_nasq_initialize_legacy_policy` (after its `        return pr
 
 ```bash
 ruff check odoo-addons
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_t2 \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_t2_hr \
-  nasq_core,nasq_platform,nasq_api,nasq_hr /nasq_core,/nasq_platform,/nasq_api,/nasq_hr
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_t2_meet \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_meetings \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_meetings
-grep -c "cannot take its closed keys" /tmp/nasq-packages/logs/nasq_scratch_packages_t2.log
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_t2 \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_t2_hr \
+  webvue_core,webvue_platform,webvue_api,webvue_hr /webvue_core,/webvue_platform,/webvue_api,/webvue_hr
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_t2_meet \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_meetings \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_meetings
+grep -c "cannot take its closed keys" /tmp/webvue-packages/logs/webvue_scratch_packages_t2.log
 ```
 
 Expected: three `ODOO_RUN_TEST_OK` (counts = Task 1 + 5, Task 0 HR + 5, Task 0 MEET + 5); the last count is `1` (only the deliberate warning test; a second hit means a real install could not register its keys).
@@ -847,8 +847,8 @@ Expected: three `ODOO_RUN_TEST_OK` (counts = Task 1 + 5, Task 0 HR + 5, Task 0 M
 
 ```bash
 python3 -B tools/arch_policy.py --base main; echo "arch_policy exit=$?"
-git add odoo-addons/nasq_platform/models/tenant_profile.py odoo-addons/nasq_platform/tests/test_feature_registration.py \
-  odoo-addons/nasq_platform/tests/__init__.py
+git add odoo-addons/webvue_platform/models/tenant_profile.py odoo-addons/webvue_platform/tests/test_feature_registration.py \
+  odoo-addons/webvue_platform/tests/__init__.py
 git commit -m "feat(platform): register new app keys closed on existing tenants" -m "<TRAILER>"
 ```
 
@@ -863,13 +863,13 @@ Expected: `arch_policy exit=0`.
 - Create: `packages/commercial-contracts/src/__tests__/release-features.test.ts`
 - Create: `deploy/catalog/fixtures/release_features.json`
 - Modify: `deploy/catalog/fixtures/descriptor_parity.json` (case `schema_version_3`; four new cases)
-- Modify: `tools/nasq_cli/managed_policy.py:84-140` (`_catalog_compositions`; new `release_modules`)
+- Modify: `tools/webvue_cli/managed_policy.py:84-140` (`_catalog_compositions`; new `release_modules`)
 - Modify: `tools/test_managed_policy.py` (append a test class)
 - Modify: `apps/control-plane/src/shared/catalog-features.ts`, `apps/control-plane/src/shared/job-store.ts:8,24-30`, `apps/control-plane/src/packages.ts:11,45-63`, `apps/control-plane/src/worker.ts:10,141-142`
 - Modify: `apps/control-plane/src/shared/catalog-features.test.ts:44-47` and append one `describe`
 
 **Interfaces:**
-- Produces (TS, exported from `@nasq/commercial-contracts`): `KNOWN_SCHEMA_VERSIONS = [1, 2, 3]`; `releaseModules(solution: unknown): string[]` (base modules then each tier's modules, catalog order, unique); `deriveCatalogPolicy(solution: unknown, tierId: string): { modules: string[]; features: Record<string, FeatureValue>; parsed: ParsedFeature[] }` (schema 3: `modules = releaseModules`, features release-complete; schema 1/2 unchanged: `base + tier.modules`, composed features).
+- Produces (TS, exported from `@webvue/commercial-contracts`): `KNOWN_SCHEMA_VERSIONS = [1, 2, 3]`; `releaseModules(solution: unknown): string[]` (base modules then each tier's modules, catalog order, unique); `deriveCatalogPolicy(solution: unknown, tierId: string): { modules: string[]; features: Record<string, FeatureValue>; parsed: ParsedFeature[] }` (schema 3: `modules = releaseModules`, features release-complete; schema 1/2 unchanged: `base + tier.modules`, composed features).
 - Produces (Python): `managed_policy._catalog_compositions` accepts schema 3 with the same output; `managed_policy.release_modules(catalog) -> list[str]`.
 - Produces (control plane): `derivePolicy(catalog: unknown, tierId: string)` in `shared/catalog-features.ts`; `deriveSharedPolicy`, `derivePackagePolicy` and `policyForCreate` take `modules` from it.
 
@@ -885,37 +885,37 @@ Create `deploy/catalog/fixtures/release_features.json`:
   "cases": [
     {
       "name": "v3_core_closes_every_application",
-      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["nasq_pmo", "nasq_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["nasq_hr"], "features": ["boolean:hr.enabled"]}]},
+      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["webvue_pmo", "webvue_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["webvue_hr"], "features": ["boolean:hr.enabled"]}]},
       "tier": "core",
-      "modules": ["nasq_core", "nasq_platform", "nasq_api", "nasq_pmo", "nasq_meetings", "nasq_hr"],
+      "modules": ["webvue_core", "webvue_platform", "webvue_api", "webvue_pmo", "webvue_meetings", "webvue_hr"],
       "features": {"users.limit": null, "storage.limit_mb": null, "branches.extra_limit": 0, "pmo.enabled": false, "meetings.enabled": false, "projects.max_projects": 0, "hr.enabled": false}
     },
     {
       "name": "v3_projects_opens_its_own_and_closes_people",
-      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["nasq_pmo", "nasq_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["nasq_hr"], "features": ["boolean:hr.enabled"]}]},
+      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["webvue_pmo", "webvue_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["webvue_hr"], "features": ["boolean:hr.enabled"]}]},
       "tier": "projects",
-      "modules": ["nasq_core", "nasq_platform", "nasq_api", "nasq_pmo", "nasq_meetings", "nasq_hr"],
+      "modules": ["webvue_core", "webvue_platform", "webvue_api", "webvue_pmo", "webvue_meetings", "webvue_hr"],
       "features": {"users.limit": null, "storage.limit_mb": null, "branches.extra_limit": 0, "pmo.enabled": true, "meetings.enabled": true, "projects.max_projects": null, "hr.enabled": false}
     },
     {
       "name": "v3_people_closes_the_projects_limit_to_zero",
-      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["nasq_pmo", "nasq_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["nasq_hr"], "features": ["boolean:hr.enabled"]}]},
+      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["webvue_pmo", "webvue_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["webvue_hr"], "features": ["boolean:hr.enabled"]}]},
       "tier": "people",
-      "modules": ["nasq_core", "nasq_platform", "nasq_api", "nasq_pmo", "nasq_meetings", "nasq_hr"],
+      "modules": ["webvue_core", "webvue_platform", "webvue_api", "webvue_pmo", "webvue_meetings", "webvue_hr"],
       "features": {"users.limit": null, "storage.limit_mb": null, "branches.extra_limit": 0, "pmo.enabled": false, "meetings.enabled": false, "projects.max_projects": 0, "hr.enabled": true}
     },
     {
       "name": "v3_a_selected_ceiling_is_kept",
-      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["nasq_pmo"], "features": ["boolean:pmo.enabled", "limit:projects.max_projects:25"]}]},
+      "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["webvue_pmo"], "features": ["boolean:pmo.enabled", "limit:projects.max_projects:25"]}]},
       "tier": "projects",
-      "modules": ["nasq_core", "nasq_platform", "nasq_api", "nasq_pmo"],
+      "modules": ["webvue_core", "webvue_platform", "webvue_api", "webvue_pmo"],
       "features": {"users.limit": null, "storage.limit_mb": null, "branches.extra_limit": 0, "pmo.enabled": true, "projects.max_projects": 25}
     },
     {
       "name": "v2_is_not_release_complete",
-      "catalog": {"schema_version": 2, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["nasq_pmo", "nasq_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["nasq_hr"], "features": ["boolean:hr.enabled"]}]},
+      "catalog": {"schema_version": 2, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["webvue_pmo", "webvue_meetings"], "features": ["boolean:pmo.enabled", "boolean:meetings.enabled", "limit:projects.max_projects"]}, {"id": "people", "modules": ["webvue_hr"], "features": ["boolean:hr.enabled"]}]},
       "tier": "people",
-      "modules": ["nasq_core", "nasq_platform", "nasq_api", "nasq_hr"],
+      "modules": ["webvue_core", "webvue_platform", "webvue_api", "webvue_hr"],
       "features": {"users.limit": null, "storage.limit_mb": null, "branches.extra_limit": 0, "hr.enabled": true}
     }
   ]
@@ -925,10 +925,10 @@ Create `deploy/catalog/fixtures/release_features.json`:
 In `deploy/catalog/fixtures/descriptor_parity.json`, in the case named `schema_version_3`, change `"name": "schema_version_3"` to `"name": "schema_version_4"` and its catalog's `"schema_version": 3` to `"schema_version": 4` (it stays `reject` / `catalog_invalid`). Then append these four objects to `cases` (after the last case):
 
 ```json
-    {"name": "v3_valid_baseline", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["nasq_pmo"], "features": ["boolean:pmo.enabled"]}]}, "expect": "accept"},
-    {"name": "v3_no_core_tier", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "projects", "modules": ["nasq_pmo"], "features": ["limit:users.limit", "limit:storage.limit_mb", "boolean:pmo.enabled"]}]}, "expect": "reject", "error": "catalog_invalid"},
-    {"name": "v3_key_in_two_tiers", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb"]}, {"id": "projects", "modules": ["nasq_pmo"], "features": ["boolean:pmo.enabled"]}, {"id": "more", "modules": ["nasq_hr"], "features": ["boolean:pmo.enabled"]}]}, "expect": "reject", "error": "catalog_invalid"},
-    {"name": "v3_module_in_two_tiers", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["nasq_core", "nasq_platform", "nasq_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb"]}, {"id": "projects", "modules": ["nasq_pmo"], "features": ["boolean:pmo.enabled"]}, {"id": "people", "modules": ["nasq_pmo"], "features": ["boolean:hr.enabled"]}]}, "expect": "reject", "error": "catalog_invalid"}
+    {"name": "v3_valid_baseline", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb", "limit:branches.extra_limit:0"]}, {"id": "projects", "modules": ["webvue_pmo"], "features": ["boolean:pmo.enabled"]}]}, "expect": "accept"},
+    {"name": "v3_no_core_tier", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "projects", "modules": ["webvue_pmo"], "features": ["limit:users.limit", "limit:storage.limit_mb", "boolean:pmo.enabled"]}]}, "expect": "reject", "error": "catalog_invalid"},
+    {"name": "v3_key_in_two_tiers", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb"]}, {"id": "projects", "modules": ["webvue_pmo"], "features": ["boolean:pmo.enabled"]}, {"id": "more", "modules": ["webvue_hr"], "features": ["boolean:pmo.enabled"]}]}, "expect": "reject", "error": "catalog_invalid"},
+    {"name": "v3_module_in_two_tiers", "catalog": {"schema_version": 3, "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key", "base_modules": ["webvue_core", "webvue_platform", "webvue_api"], "tiers": [{"id": "core", "modules": [], "features": ["limit:users.limit", "limit:storage.limit_mb"]}, {"id": "projects", "modules": ["webvue_pmo"], "features": ["boolean:pmo.enabled"]}, {"id": "people", "modules": ["webvue_pmo"], "features": ["boolean:hr.enabled"]}]}, "expect": "reject", "error": "catalog_invalid"}
 ```
 
 Create `packages/commercial-contracts/src/__tests__/release-features.test.ts`:
@@ -950,7 +950,7 @@ describe('release-complete derivation (same file as tools/test_managed_policy.py
     })
   }
   it('lists the release modules once, base first', () => {
-    expect(releaseModules(fixture.cases[0]!.catalog)).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr'])
+    expect(releaseModules(fixture.cases[0]!.catalog)).toEqual(['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr'])
   })
   it('accepts a ceiling under schema 3 and refuses schema 4', () => {
     expect(parseFeatureDescriptor('limit:a.b:3', 3).value).toBe(3)
@@ -982,7 +982,7 @@ class ReleaseFeaturesFixtureCase(unittest.TestCase):
     def test_release_modules_lists_base_first(self):
         catalog = json.loads(RELEASE_PATH.read_text('utf-8'))['cases'][0]['catalog']
         self.assertEqual(managed_policy.release_modules(catalog),
-                         ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr'])
+                         ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr'])
 ```
 
 - [ ] **Step 2: Run them to see them fail**
@@ -1000,7 +1000,7 @@ Replace `packages/commercial-contracts/src/commercial/feature-descriptor.ts` wit
 
 ```ts
 /** The single TypeScript implementation of the catalog feature-descriptor grammar.
- * Mirrors tools/nasq_cli/managed_policy.py; parity is pinned by the shared fixtures
+ * Mirrors tools/webvue_cli/managed_policy.py; parity is pinned by the shared fixtures
  * deploy/catalog/fixtures/descriptor_parity.json and release_features.json.
  *
  *   boolean:<key>        -> true
@@ -1144,7 +1144,7 @@ export function deriveCatalogPolicy(solution: unknown, tierId: string): { module
 
 - [ ] **Step 4: Implement schema 3 in Python**
 
-In `tools/nasq_cli/managed_policy.py` replace the whole function `_catalog_compositions` (from `def _catalog_compositions(catalog) -> list[tuple[list[str], dict]]:` through its `return compositions`) with:
+In `tools/webvue_cli/managed_policy.py` replace the whole function `_catalog_compositions` (from `def _catalog_compositions(catalog) -> list[tuple[list[str], dict]]:` through its `return compositions`) with:
 
 ```python
 def _catalog_compositions(catalog) -> list[tuple[list[str], dict]]:
@@ -1238,8 +1238,8 @@ Replace `apps/control-plane/src/shared/catalog-features.ts` with:
 
 ```ts
 /** Thin control-plane adapter: the descriptor grammar lives only in
- * @nasq/commercial-contracts (commercial/feature-descriptor.ts). */
-import { deriveCatalogFeatures, deriveCatalogPolicy, type FeatureValue, type ParsedFeature } from '@nasq/commercial-contracts'
+ * @webvue/commercial-contracts (commercial/feature-descriptor.ts). */
+import { deriveCatalogFeatures, deriveCatalogPolicy, type FeatureValue, type ParsedFeature } from '@webvue/commercial-contracts'
 
 export type CatalogTierLike = { id: string; features: string[] }
 export type CatalogLike = { schema_version?: number; tiers: CatalogTierLike[] }
@@ -1294,7 +1294,7 @@ describe('schema-3 release-complete policies through every control-plane derivat
   const v3 = JSON.parse(readFileSync(join(root, 'deploy/catalog/fixtures/release_features.json'), 'utf8')).cases[0].catalog
   it('shared onboarding installs the whole release and closes the other apps', () => {
     const policy = deriveSharedPolicy(v3, 'people')
-    expect(policy.modules).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr'])
+    expect(policy.modules).toEqual(['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr'])
     expect(policy.features).toEqual({ 'users.limit': null, 'storage.limit_mb': null, 'branches.extra_limit': 0, 'pmo.enabled': false, 'meetings.enabled': false, 'projects.max_projects': 0, 'hr.enabled': true })
   })
   it('a package may only set the open tier limits, never a closed one', () => {
@@ -1303,7 +1303,7 @@ describe('schema-3 release-complete policies through every control-plane derivat
     expect(() => derivePackagePolicy(v3, 'people', { 'users.limit': 5, 'storage.limit_mb': 100, 'projects.max_projects': 3 })).toThrow('package_limits_invalid')
   })
   it('v2 stays base plus tier modules', () => {
-    expect(deriveSharedPolicy(read('platform_v2.json'), 'people').modules).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_hr'])
+    expect(deriveSharedPolicy(read('platform_v2.json'), 'people').modules).toEqual(['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_hr'])
   })
 })
 ```
@@ -1325,7 +1325,7 @@ Expected: all green (`OK` for the tools suite; the four parity `v3_*` cases pass
 ```bash
 git add packages/commercial-contracts/src/commercial/feature-descriptor.ts packages/commercial-contracts/src/__tests__/release-features.test.ts \
   deploy/catalog/fixtures/release_features.json deploy/catalog/fixtures/descriptor_parity.json \
-  tools/nasq_cli/managed_policy.py tools/test_managed_policy.py \
+  tools/webvue_cli/managed_policy.py tools/test_managed_policy.py \
   apps/control-plane/src/shared/catalog-features.ts apps/control-plane/src/shared/catalog-features.test.ts \
   apps/control-plane/src/shared/job-store.ts apps/control-plane/src/packages.ts apps/control-plane/src/worker.ts
 git commit -m "feat(cp): derive release-complete policies from schema 3 catalogs" -m "<TRAILER>"
@@ -1340,11 +1340,11 @@ git commit -m "feat(cp): derive release-complete policies from schema 3 catalogs
 - Modify: `deploy/catalog/schema/solution.schema.json:10` and the `featureName` description
 - Modify: `tools/catalog_check.py` (imports, new functions before `def check_catalog`, two calls inside it, `main`)
 - Modify: `tools/test_catalog_check.py` (append a test class)
-- Modify: `apps/control-plane/src/shared/catalog-source.ts:8`, `apps/control-plane/src/shared/catalog-source.test.ts`, `tools/nasq_cli/catalog_source.py:17`, `tools/test_catalog_source.py`
+- Modify: `apps/control-plane/src/shared/catalog-source.ts:8`, `apps/control-plane/src/shared/catalog-source.test.ts`, `tools/webvue_cli/catalog_source.py:17`, `tools/test_catalog_source.py`
 - Modify: `.woodpecker.yml` (odoo, upgrade, restore-drill, image steps)
 
 **Interfaces:**
-- Produces: `catalog_check.release_modules(root, data) -> list[str]` (sorted install closure), `catalog_check.current_release(root) -> tuple[str, list[str]] | None`, CLI `python3 -B tools/catalog_check.py --release-modules [--root R]` printing the comma list (`nasq_api,nasq_chat,nasq_core,nasq_directory,nasq_hr,nasq_meetings,nasq_meetings_pmo,nasq_notify,nasq_platform,nasq_pmo` on this repository). `KNOWN_SOURCES` gains `'platform_v3.json'` (last entry) in TS and Python.
+- Produces: `catalog_check.release_modules(root, data) -> list[str]` (sorted install closure), `catalog_check.current_release(root) -> tuple[str, list[str]] | None`, CLI `python3 -B tools/catalog_check.py --release-modules [--root R]` printing the comma list (`webvue_api,webvue_chat,webvue_core,webvue_directory,webvue_hr,webvue_meetings,webvue_meetings_pmo,webvue_notify,webvue_platform,webvue_pmo` on this repository). `KNOWN_SOURCES` gains `'platform_v3.json'` (last entry) in TS and Python.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1356,11 +1356,11 @@ from odoo import api, models
 
 
 class DemoPlatform(models.AbstractModel):
-    _inherit = 'nasq.feature.registry'
+    _inherit = 'webvue.feature.registry'
 
     @api.model
-    def _nasq_feature_definitions(self):
-        return super()._nasq_feature_definitions() + (
+    def _webvue_feature_definitions(self):
+        return super()._webvue_feature_definitions() + (
 %(features)s
         )
 """
@@ -1374,9 +1374,9 @@ class ReleaseCatalogCase(CatalogCase):
         models = self.root / 'odoo-addons' / 'demo_core' / 'models'
         models.mkdir()
         (models / 'feature_registry.py').write_text(PLATFORM_REGISTRY % {'features': (
-            feature('users.limit', 'limit', 'nasq_platform', 'nasq_platform')
-            + feature('storage.limit_mb', 'limit', 'nasq_platform', 'nasq_platform')
-            + feature('branches.extra_limit', 'limit', 'nasq_platform', 'nasq_platform')
+            feature('users.limit', 'limit', 'webvue_platform', 'webvue_platform')
+            + feature('storage.limit_mb', 'limit', 'webvue_platform', 'webvue_platform')
+            + feature('branches.extra_limit', 'limit', 'webvue_platform', 'webvue_platform')
         )})
         self.data = {
             'schema_version': 3,
@@ -1420,8 +1420,8 @@ class ReleaseCatalogCase(CatalogCase):
 
     def test_the_committed_release_is_the_ten_addon_install(self):
         self.assertEqual(catalog_check.current_release(ROOT), ('platform_v3.json', [
-            'nasq_api', 'nasq_chat', 'nasq_core', 'nasq_directory', 'nasq_hr', 'nasq_meetings',
-            'nasq_meetings_pmo', 'nasq_notify', 'nasq_platform', 'nasq_pmo',
+            'webvue_api', 'webvue_chat', 'webvue_core', 'webvue_directory', 'webvue_hr', 'webvue_meetings',
+            'webvue_meetings_pmo', 'webvue_notify', 'webvue_platform', 'webvue_pmo',
         ]))
 ```
 
@@ -1463,13 +1463,13 @@ Create `deploy/catalog/solutions/platform_v3.json`:
   "schema_version": 3,
   "descriptor_grammar": "limit:key | limit:key:<int> | boolean:key",
   "id": "platform_v3",
-  "name": "nasq Platform",
+  "name": "webvue Platform",
   "description": "Release-complete revision (spec 3.6): every application of the release is installed in every shared-SaaS tenant and a plan controls feature keys and limits only. Every tier composes the core limit set, its own keys, and every other application closed (booleans false, limits 0). Names, prices and numeric ceilings remain commercial decisions.",
   "industry": "none",
   "base_modules": [
-    "nasq_core",
-    "nasq_platform",
-    "nasq_api"
+    "webvue_core",
+    "webvue_platform",
+    "webvue_api"
   ],
   "tiers": [
     {
@@ -1488,8 +1488,8 @@ Create `deploy/catalog/solutions/platform_v3.json`:
       "name": "Projects",
       "description": "The project and meeting applications.",
       "modules": [
-        "nasq_pmo",
-        "nasq_meetings"
+        "webvue_pmo",
+        "webvue_meetings"
       ],
       "features": [
         "boolean:pmo.enabled",
@@ -1502,7 +1502,7 @@ Create `deploy/catalog/solutions/platform_v3.json`:
       "name": "People",
       "description": "The HR application.",
       "modules": [
-        "nasq_hr"
+        "webvue_hr"
       ],
       "features": [
         "boolean:hr.enabled"
@@ -1513,7 +1513,7 @@ Create `deploy/catalog/solutions/platform_v3.json`:
       "name": "Messaging",
       "description": "The member-private chat application.",
       "modules": [
-        "nasq_chat"
+        "webvue_chat"
       ],
       "features": [
         "boolean:chat.enabled"
@@ -1525,7 +1525,7 @@ Create `deploy/catalog/solutions/platform_v3.json`:
 
 In `deploy/catalog/schema/solution.schema.json` replace `    "schema_version": { "enum": [1, 2] },` with `    "schema_version": { "enum": [1, 2, 3] },` and in the `featureName` description replace `limit:<key>:<int> (schema_version 2) carries an explicit numeric ceiling.` with `limit:<key>:<int> (schema_version 2 and 3) carries an explicit numeric ceiling.`
 
-Register the file: in `apps/control-plane/src/shared/catalog-source.ts` replace `export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json'] as const` with `export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json', 'platform_v3.json'] as const`; in `tools/nasq_cli/catalog_source.py` replace `KNOWN_SOURCES = ('platform.json', 'platform_v2.json')` with `KNOWN_SOURCES = ('platform.json', 'platform_v2.json', 'platform_v3.json')`.
+Register the file: in `apps/control-plane/src/shared/catalog-source.ts` replace `export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json'] as const` with `export const KNOWN_SOURCES = ['platform.json', 'platform_v2.json', 'platform_v3.json'] as const`; in `tools/webvue_cli/catalog_source.py` replace `KNOWN_SOURCES = ('platform.json', 'platform_v2.json')` with `KNOWN_SOURCES = ('platform.json', 'platform_v2.json', 'platform_v3.json')`.
 
 - [ ] **Step 4: Add the completeness rule, the release list and the copy guard**
 
@@ -1533,7 +1533,7 @@ In `tools/catalog_check.py` add after `from pathlib import Path`:
 
 ```python
 
-from nasq_cli.module_closure import ClosureError, install_closure
+from webvue_cli.module_closure import ClosureError, install_closure
 ```
 
 Add after the `TEST_ONLY_MARKER = 'never installed in production'` line:
@@ -1552,7 +1552,7 @@ RELEASE_COPIES = (
     'deploy/check_isolated.py',
 )
 _COMMA_LIST = re.compile(r'/?[a-z][a-z0-9_]*(?:,/?[a-z][a-z0-9_]*)+')
-_ADDON_TUPLE = re.compile(r'NASQ_ADDONS = \(([^)]*)\)')
+_ADDON_TUPLE = re.compile(r'WEBVUE_ADDONS = \(([^)]*)\)')
 ```
 
 Add before `def check_catalog(root, catalog_dir=CATALOG_DIR):`:
@@ -1594,13 +1594,13 @@ def _check_release(root, where, data, registry, errors):
         module = definition.get('module')
         if module in TEST_ONLY_MODULES:
             continue
-        if (module == 'nasq_platform' or module in release) and key not in tiers_by_key:
+        if (module == 'webvue_platform' or module in release) and key not in tiers_by_key:
             errors.append(f'{where}: feature {key!r} of release module {module!r} is in no tier')
 
 
 def _check_release_copies(root, base_modules, modules, errors):
     """Literal copies of the release list must equal it (names outside the release that
-    are not Nasq addons, such as the theme, are ignored)."""
+    are not WebVue addons, such as the theme, are ignored)."""
     expected = set(modules)
     anchor = base_modules[0] if base_modules else None
     for relative in RELEASE_COPIES:
@@ -1684,7 +1684,7 @@ def main(argv=None):
 
 - [ ] **Step 5: Use the canonical list in CI**
 
-In `.woodpecker.yml`, `odoo` step: add after `SCRATCH_DB="nasq_ci_scratch_${CI_PIPELINE_NUMBER}"`:
+In `.woodpecker.yml`, `odoo` step: add after `SCRATCH_DB="webvue_ci_scratch_${CI_PIPELINE_NUMBER}"`:
 
 ```bash
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
@@ -1694,8 +1694,8 @@ In `.woodpecker.yml`, `odoo` step: add after `SCRATCH_DB="nasq_ci_scratch_${CI_P
 and replace the two lines
 
 ```
-          -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-          --test-tags /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat \
+          -i webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+          --test-tags /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat \
 ```
 
 with
@@ -1705,11 +1705,11 @@ with
           --test-tags "$TAGS" \
 ```
 
-`upgrade` step: replace `        MODULES="nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat"` with `        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"`.
+`upgrade` step: replace `        MODULES="webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat"` with `        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"`.
 
-`restore-drill` step: add `        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"` after `        RST2_DB="nasq_drill_restored2_scratch"` and replace `          -d "$SRC_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \` with `          -d "$SRC_DB" -i "$MODULES" \`.
+`restore-drill` step: add `        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"` after `        RST2_DB="webvue_drill_restored2_scratch"` and replace `          -d "$SRC_DB" -i webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \` with `          -d "$SRC_DB" -i "$MODULES" \`.
 
-`image` step: add `        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"` after `        SCRATCH_DB="nasq_image_scratch"` and replace `          -d "$SCRATCH_DB" -i nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat --without-demo=all --http-port=8169 --stop-after-init` with `          -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init`.
+`image` step: add `        MODULES="$(python3 -B tools/catalog_check.py --release-modules)"` after `        SCRATCH_DB="webvue_image_scratch"` and replace `          -d "$SCRATCH_DB" -i webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat --without-demo=all --http-port=8169 --stop-after-init` with `          -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init`.
 
 - [ ] **Step 6: Run the focused checks**
 
@@ -1717,19 +1717,19 @@ with
 python3 -B tools/catalog_check.py
 python3 -B tools/catalog_check.py --release-modules
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"; echo "/${MODULES//,/,/}"
-grep -c "nasq_core,nasq_platform" .woodpecker.yml || echo "no literal list left in .woodpecker.yml"
+grep -c "webvue_core,webvue_platform" .woodpecker.yml || echo "no literal list left in .woodpecker.yml"
 python3 -B -m unittest discover -s tools -p 'test_*.py' 2>&1 | tail -n 3
 npm -w apps/control-plane test -- src/shared/catalog-source.test.ts src/shared/catalog-features.test.ts 2>&1 | tail -n 4
 python3 -B -m unittest discover -s deploy -p 'test_*.py' 2>&1 | tail -n 3
 ```
 
-Expected: `CATALOG_OK solutions=3`; `nasq_api,nasq_chat,nasq_core,nasq_directory,nasq_hr,nasq_meetings,nasq_meetings_pmo,nasq_notify,nasq_platform,nasq_pmo`; the tag list `/nasq_api,/nasq_chat,...,/nasq_pmo`; `no literal list left in .woodpecker.yml`; tools `OK`; TS green; deploy `OK`.
+Expected: `CATALOG_OK solutions=3`; `webvue_api,webvue_chat,webvue_core,webvue_directory,webvue_hr,webvue_meetings,webvue_meetings_pmo,webvue_notify,webvue_platform,webvue_pmo`; the tag list `/webvue_api,/webvue_chat,...,/webvue_pmo`; `no literal list left in .woodpecker.yml`; tools `OK`; TS green; deploy `OK`.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add deploy/catalog/solutions/platform_v3.json deploy/catalog/schema/solution.schema.json tools/catalog_check.py \
-  tools/test_catalog_check.py tools/nasq_cli/catalog_source.py tools/test_catalog_source.py \
+  tools/test_catalog_check.py tools/webvue_cli/catalog_source.py tools/test_catalog_source.py \
   apps/control-plane/src/shared/catalog-source.ts apps/control-plane/src/shared/catalog-source.test.ts .woodpecker.yml
 git commit -m "feat(tools): add catalog v3 with completeness and one module list" -m "<TRAILER>"
 ```
@@ -1759,7 +1759,7 @@ In `packages/commercial-contracts/src/__tests__/commercial-entitlements.test.ts`
   it('installs the whole release, keeps 0/null, and overrides only explicit limits', () => {
     const input = fixture()
     const result = compileEntitlements({ ...input, terms: { id: id(9), customer_id: id(10), reason: 'Special terms', limits: { 'users.limit': 0 } } })
-    expect(result.modules).toEqual(['nasq_api', 'nasq_chat', 'nasq_core', 'nasq_hr', 'nasq_meetings', 'nasq_platform', 'nasq_pmo'])
+    expect(result.modules).toEqual(['webvue_api', 'webvue_chat', 'webvue_core', 'webvue_hr', 'webvue_meetings', 'webvue_platform', 'webvue_pmo'])
     expect(result.features).toEqual({ 'branches.extra_limit': 8, 'chat.enabled': false, 'hr.enabled': true, 'meetings.enabled': true, 'pmo.enabled': true, 'projects.max_projects': 0, 'storage.limit_mb': null, 'users.limit': 0 })
     expect(result.compiler_version).toBe('commercial-compiler/2')
     expect(input.plan.platform_limits['users.limit']).toBe(20)
@@ -1788,7 +1788,7 @@ Append to `class ReconfigureTests(Base)` in `tools/shared_saas_lifecycle/test_su
 ```python
 
     def test_release_complete_target_installs_nothing(self):
-        modules = ['nasq_api', 'nasq_core', 'nasq_platform', 'nasq_pmo']
+        modules = ['webvue_api', 'webvue_core', 'webvue_platform', 'webvue_pmo']
         request = make_request(entitlement={**make_request()['entitlement'], 'modules': modules})
         runner = FakeRunner(observation(modules=modules), apply_state=applied_state(request))
         receipt = self.effect(runner).reconfigure(request)
@@ -1995,7 +1995,7 @@ npm -w apps/control-plane run build 2>&1 | tail -n 3
 python3 -B -m unittest tools.shared_saas_lifecycle.test_subscription_effect 2>&1 | tail -n 3
 npm -w apps/web run test -- app/utils/__tests__/entitlementApps.test.ts app/pages/__tests__/subscriptionJourney.test.ts 2>&1 | tail -n 5
 npm -w apps/web run lint 2>&1 | tail -n 5
-/tmp/nasq-packages/cp-live.sh 2>&1 | tail -n 15
+/tmp/webvue-packages/cp-live.sh 2>&1 | tail -n 15
 ```
 
 Expected: all green; `CP_LIVE_EXIT 0` with Task 0 Step 7's counts. A live failure that asserts an exact compiled `features` or `modules` map is fixed by updating that assertion to the release-complete map (record each one); any other failure is a blocker.
@@ -2020,27 +2020,27 @@ git commit -m "feat(cp): compile release-complete entitlements (compiler 2)" -m 
 ### Task 6: Compare managed installs with the closure the readback reports (worker.ts:73)
 
 **Files:**
-- Modify: `tools/nasq_cli/managed_verify.py` (add `expected_modules` after `_expected_modules`, `:90-95`)
-- Modify: `tools/nasq_cli/managed_runtime.py:74-79,776-778,1015-1016`
+- Modify: `tools/webvue_cli/managed_verify.py` (add `expected_modules` after `_expected_modules`, `:90-95`)
+- Modify: `tools/webvue_cli/managed_runtime.py:74-79,776-778,1015-1016`
 - Modify: `tools/test_managed_runtime.py:449-450,1123-1125`
 - Modify: `apps/control-plane/src/worker.ts:63-75`
 - Modify: `apps/control-plane/src/__tests__/worker-managed.test.ts:83-89,158-171` (+ one test), `apps/control-plane/src/__tests__/worker-v2-policy.test.ts:61-66`
 
 **Interfaces:**
-- Produces: `managed_verify.expected_modules(policy) -> list[str]` (sorted install closure); managed create and status receipts carry `expected_modules`; `verifiedManagedCreate` requires it, requires every `policy.modules` entry in it, and requires installed `nasq_*` == it.
+- Produces: `managed_verify.expected_modules(policy) -> list[str]` (sorted install closure); managed create and status receipts carry `expected_modules`; `verifiedManagedCreate` requires it, requires every `policy.modules` entry in it, and requires installed `webvue_*` == it.
 
 - [ ] **Step 1: Write the failing tests**
 
 In `tools/test_managed_runtime.py` add after `        self.assertEqual(payload['profile']['features'], CORE_POLICY['features'])` at line 450:
 
 ```python
-        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
+        self.assertEqual(payload['expected_modules'], ['webvue_api', 'webvue_core', 'webvue_platform'])
 ```
 
 and after the same assertion at line 1125 (in `StatusReceiptCase`):
 
 ```python
-        self.assertEqual(payload['expected_modules'], ['nasq_api', 'nasq_core', 'nasq_platform'])
+        self.assertEqual(payload['expected_modules'], ['webvue_api', 'webvue_core', 'webvue_platform'])
 ```
 
 In `apps/control-plane/src/__tests__/worker-managed.test.ts`, in `verifiedReceipt`, replace:
@@ -2062,8 +2062,8 @@ add to the `it.each([...])('rejects truth flags with %s in the durable receipt',
 
 ```ts
     ['missing expected modules', (r: Record<string, unknown>) => { delete r.expected_modules }],
-    ['expected modules without a policy module', (r: Record<string, unknown>) => { r.expected_modules = (r.expected_modules as string[]).filter(name => name !== 'nasq_api') }],
-    ['non-Nasq expected module', (r: Record<string, unknown>) => { r.expected_modules = [...(r.expected_modules as string[]), 'web'] }],
+    ['expected modules without a policy module', (r: Record<string, unknown>) => { r.expected_modules = (r.expected_modules as string[]).filter(name => name !== 'webvue_api') }],
+    ['non-WebVue expected module', (r: Record<string, unknown>) => { r.expected_modules = [...(r.expected_modules as string[]), 'web'] }],
 ```
 
 and add after that `it.each` block:
@@ -2074,8 +2074,8 @@ and add after that `it.each` block:
     const config = await managedConfig(async (invocation) => {
       const receipt = verifiedReceipt(invocation)
       if (invocation.args[0] === 'status') {
-        ;(returnedProfile(receipt).modules as string[]).push('nasq_notify')
-        receipt.expected_modules = [...(receipt.expected_modules as string[]), 'nasq_notify']
+        ;(returnedProfile(receipt).modules as string[]).push('webvue_notify')
+        receipt.expected_modules = [...(receipt.expected_modules as string[]), 'webvue_notify']
       }
       return { code: 0, receipt }
     })
@@ -2098,7 +2098,7 @@ Expected: Python `KeyError: 'expected_modules'`; TS: the three new rejection cas
 
 - [ ] **Step 3: Return the closure from the Python readback**
 
-In `tools/nasq_cli/managed_verify.py` add after `_expected_modules`:
+In `tools/webvue_cli/managed_verify.py` add after `_expected_modules`:
 
 ```python
 
@@ -2109,7 +2109,7 @@ def expected_modules(policy):
     return _expected_modules(policy)
 ```
 
-In `tools/nasq_cli/managed_runtime.py` replace the import block:
+In `tools/webvue_cli/managed_runtime.py` replace the import block:
 
 ```python
 from .managed_verify import (
@@ -2173,8 +2173,8 @@ In `apps/control-plane/src/worker.ts` replace:
 ```ts
   const modules = profile.modules
   if (!Array.isArray(modules) || modules.length > 1024 || modules.some((name) => typeof name !== 'string' || !/^[a-z][a-z0-9_]{0,127}$/.test(name)) || new Set(modules).size !== modules.length) return false
-  // Stock Odoo dependencies are not additional Nasq pillars.
-  if (canonicalJson(modules.filter((name: string) => name.startsWith('nasq_')).sort()) !== canonicalJson([...policy.modules].sort())) return false
+  // Stock Odoo dependencies are not additional WebVue pillars.
+  if (canonicalJson(modules.filter((name: string) => name.startsWith('webvue_')).sort()) !== canonicalJson([...policy.modules].sort())) return false
   return true
 }
 ```
@@ -2187,10 +2187,10 @@ with:
   // Odoo installs the closure of policy.modules (implied services, auto-install bridges).
   // The Python readback proves that closure and reports it as expected_modules.
   const expected = receipt.expected_modules
-  if (!moduleList(expected) || expected.some(name => !name.startsWith('nasq_'))) return false
+  if (!moduleList(expected) || expected.some(name => !name.startsWith('webvue_'))) return false
   if (!policy.modules.every(name => expected.includes(name))) return false
-  // Stock Odoo dependencies are not additional Nasq pillars.
-  if (canonicalJson(modules.filter(name => name.startsWith('nasq_')).sort()) !== canonicalJson([...expected].sort())) return false
+  // Stock Odoo dependencies are not additional WebVue pillars.
+  if (canonicalJson(modules.filter(name => name.startsWith('webvue_')).sort()) !== canonicalJson([...expected].sort())) return false
   return true
 }
 
@@ -2212,7 +2212,7 @@ Expected: all green.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tools/nasq_cli/managed_verify.py tools/nasq_cli/managed_runtime.py tools/test_managed_runtime.py \
+git add tools/webvue_cli/managed_verify.py tools/webvue_cli/managed_runtime.py tools/test_managed_runtime.py \
   apps/control-plane/src/worker.ts apps/control-plane/src/__tests__/worker-managed.test.ts \
   apps/control-plane/src/__tests__/worker-v2-policy.test.ts
 git commit -m "fix(cp): compare managed installs with the reported closure" -m "<TRAILER>"
@@ -2223,33 +2223,33 @@ git commit -m "fix(cp): compare managed installs with the reported closure" -m "
 ### Task 7: Grant the package administrator's roles by entitlement; drop ALLOWED_MODULES
 
 **Files:**
-- Modify: `odoo-addons/nasq_platform/models/entitlement_service.py` (one method after `_nasq_close_unlisted_features`)
-- Modify: `odoo-addons/nasq_pmo/tests/test_package_change.py` (append one test)
+- Modify: `odoo-addons/webvue_platform/models/entitlement_service.py` (one method after `_webvue_close_unlisted_features`)
+- Modify: `odoo-addons/webvue_pmo/tests/test_package_change.py` (append one test)
 - Modify: `tools/shared_saas_lifecycle/odoo_effect.py:20-45,311-341`
 - Modify: `tools/shared_saas_lifecycle/subscription_effect.py:19`
 - Modify: `tools/shared_saas_lifecycle/test_odoo_effect.py:13-19,104-132`
 
 **Interfaces:**
-- Produces: `env['nasq.entitlement.service']._nasq_entitled_admin_roles() -> list[str]` — the keys of `nasq.access.service._nasq_legacy_admin_roles()` whose role holds any platform permission (a permission domain without a registered `<domain>.enabled` boolean), or whose application features `<domain>.enabled` are all `True` in the current policy.
-- Produces: `odoo_effect.validate_modules(value)` accepts any non-empty list of distinct `(nasq|customer)_*` names that each have `odoo-addons/<name>/__manifest__.py`; `ALLOWED_MODULES` no longer exists.
+- Produces: `env['webvue.entitlement.service']._webvue_entitled_admin_roles() -> list[str]` — the keys of `webvue.access.service._webvue_legacy_admin_roles()` whose role holds any platform permission (a permission domain without a registered `<domain>.enabled` boolean), or whose application features `<domain>.enabled` are all `True` in the current policy.
+- Produces: `odoo_effect.validate_modules(value)` accepts any non-empty list of distinct `(webvue|customer)_*` names that each have `odoo-addons/<name>/__manifest__.py`; `ALLOWED_MODULES` no longer exists.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `TestPackageChange` in `odoo-addons/nasq_pmo/tests/test_package_change.py`:
+Append to `TestPackageChange` in `odoo-addons/webvue_pmo/tests/test_package_change.py`:
 
 ```python
 
     def test_administrator_roles_follow_the_entitlement(self):
-        service = self.env['nasq.entitlement.service']
-        self._write(service._nasq_close_unlisted_features({
+        service = self.env['webvue.entitlement.service']
+        self._write(service._webvue_close_unlisted_features({
             **TARGET_WITHOUT_PMO, 'pmo.enabled': True, 'projects.max_projects': None,
         }))
-        opened = service._nasq_entitled_admin_roles()
+        opened = service._webvue_entitled_admin_roles()
         self.assertIn('system_admin', opened)
         self.assertIn('pmo_manager', opened)
         self.assertNotIn('hr_manager', opened)
-        self._write(service._nasq_close_unlisted_features(TARGET_WITHOUT_PMO))
-        closed = service._nasq_entitled_admin_roles()
+        self._write(service._webvue_close_unlisted_features(TARGET_WITHOUT_PMO))
+        closed = service._webvue_entitled_admin_roles()
         self.assertIn('system_admin', closed)  # holds platform permissions next to meetings ones
         self.assertNotIn('pmo_manager', closed)
 ```
@@ -2258,14 +2258,14 @@ In `tools/shared_saas_lifecycle/test_odoo_effect.py` replace `test_database_and_
 
 ```python
     def test_database_and_modules_fail_closed(self):
-        self.assertEqual(odoo_effect.validate_database('nasq_scratch_' + 'a' * 32), 'nasq_scratch_' + 'a' * 32)
-        for value in ['odoo19', 'postgres', 'nasq_scratch_prod', 'nasq_scratch_a;drop']:
+        self.assertEqual(odoo_effect.validate_database('webvue_scratch_' + 'a' * 32), 'webvue_scratch_' + 'a' * 32)
+        for value in ['odoo19', 'postgres', 'webvue_scratch_prod', 'webvue_scratch_a;drop']:
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_database(value)
-        for value in [['nasq_core', 'sale'], ['nasq_core', 'nasq_not_shipped'], [], ['nasq_core', 'nasq_core'], 'nasq_core']:
+        for value in [['webvue_core', 'sale'], ['webvue_core', 'webvue_not_shipped'], [], ['webvue_core', 'webvue_core'], 'webvue_core']:
             with self.subTest(value=value), self.assertRaises(odoo_effect.EffectError):
                 odoo_effect.validate_modules(value)
-        release = ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr', 'nasq_chat']
+        release = ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr', 'webvue_chat']
         self.assertEqual(odoo_effect.validate_modules(release), release)
         self.assertFalse(hasattr(odoo_effect, 'ALLOWED_MODULES'))
 ```
@@ -2273,10 +2273,10 @@ In `tools/shared_saas_lifecycle/test_odoo_effect.py` replace `test_database_and_
 In the `Environment.__getitem__` of `PackageAdministratorScriptTests.run_script`, replace:
 
 ```python
-                if model == 'nasq.entitlement.service':
+                if model == 'webvue.entitlement.service':
                     return SimpleNamespace(
-                        _nasq_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
-                        _nasq_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
+                        _webvue_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
+                        _webvue_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
                     )
                 raise AssertionError(model)
 ```
@@ -2284,13 +2284,13 @@ In the `Environment.__getitem__` of `PackageAdministratorScriptTests.run_script`
 with:
 
 ```python
-                if model == 'nasq.entitlement.service':
+                if model == 'webvue.entitlement.service':
                     return SimpleNamespace(
-                        _nasq_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
-                        _nasq_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
-                        _nasq_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
+                        _webvue_excluded_user_ids=lambda: (1, 2) if admin.support_member else (1,),
+                        _webvue_count_users=lambda: count if count is not None else (0 if admin.support_member else 1),
+                        _webvue_entitled_admin_roles=lambda: ['system_admin', 'pmo_manager', 'hr_manager'],
                     )
-                if model == 'nasq.access.role':
+                if model == 'webvue.access.role':
                     return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
                 raise AssertionError(model)
 ```
@@ -2301,12 +2301,12 @@ and add to the class:
 
     def test_admin_script_reads_roles_from_the_entitlement_not_modules(self):
         script = object.__new__(odoo_effect.Runner)
-        script.database = 'nasq_scratch_' + 'a' * 32
+        script.database = 'webvue_scratch_' + 'a' * 32
         script.request = {'admin': {'name': 'A', 'login': 'a@example.test'}, 'companyName': 'C',
-                          'job': {'policy': {'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_hr']}}}
+                          'job': {'policy': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_hr']}}}
         text = script.admin_script('known-secret', snapshot=False)
-        self.assertIn('_nasq_entitled_admin_roles()', text)
-        self.assertNotIn("'nasq_pmo' in values['modules']", text)
+        self.assertIn('_webvue_entitled_admin_roles()', text)
+        self.assertNotIn("'webvue_pmo' in values['modules']", text)
         self.assertNotIn('"modules"', text.split('\n', 2)[1])
 ```
 
@@ -2316,15 +2316,15 @@ and add to the class:
 python3 -B -m unittest tools.shared_saas_lifecycle.test_odoo_effect 2>&1 | tail -n 4
 ```
 
-Expected: `test_database_and_modules_fail_closed` fails on `hasattr(odoo_effect, 'ALLOWED_MODULES')`, `test_admin_script_reads_roles_from_the_entitlement_not_modules` fails on `_nasq_entitled_admin_roles()`; the other administrator tests still pass (the double now answers both the old and the new lookups).
+Expected: `test_database_and_modules_fail_closed` fails on `hasattr(odoo_effect, 'ALLOWED_MODULES')`, `test_admin_script_reads_roles_from_the_entitlement_not_modules` fails on `_webvue_entitled_admin_roles()`; the other administrator tests still pass (the double now answers both the old and the new lookups).
 
 - [ ] **Step 3: Add the Odoo role derivation**
 
-In `odoo-addons/nasq_platform/models/entitlement_service.py` insert after `_nasq_close_unlisted_features`:
+In `odoo-addons/webvue_platform/models/entitlement_service.py` insert after `_webvue_close_unlisted_features`:
 
 ```python
     @api.model
-    def _nasq_entitled_admin_roles(self):
+    def _webvue_entitled_admin_roles(self):
         """Administrator role keys the current policy opens.
 
         A role holding any platform permission (a permission domain without a
@@ -2333,11 +2333,11 @@ In `odoo-addons/nasq_platform/models/entitlement_service.py` insert after `_nasq
         ``<domain>.enabled`` is granted. Installed modules never decide it: every
         application of the release is installed in every tenant.
         """
-        registry = self._nasq_registry()._nasq_feature_map()
-        payload = self._nasq_features_payload()
-        roles = self.env['nasq.access.role']
+        registry = self._webvue_registry()._webvue_feature_map()
+        payload = self._webvue_features_payload()
+        roles = self.env['webvue.access.role']
         keys = []
-        for key in self.env['nasq.access.service']._nasq_legacy_admin_roles():
+        for key in self.env['webvue.access.service']._webvue_legacy_admin_roles():
             role = roles.search([('key', '=', key)], limit=1)
             if not role:
                 continue
@@ -2355,11 +2355,11 @@ In `odoo-addons/nasq_platform/models/entitlement_service.py` insert after `_nasq
 In `tools/shared_saas_lifecycle/odoo_effect.py` replace:
 
 ```python
-from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
+from tools.webvue_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
 
 ALLOWED_MODULES = {
-    'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_notify', 'nasq_directory',
-    'nasq_pmo', 'nasq_meetings', 'nasq_meetings_pmo', 'nasq_hr', 'nasq_chat',
+    'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_notify', 'webvue_directory',
+    'webvue_pmo', 'webvue_meetings', 'webvue_meetings_pmo', 'webvue_hr', 'webvue_chat',
 }
 MAX_OUTPUT = 65536
 ```
@@ -2367,10 +2367,10 @@ MAX_OUTPUT = 65536
 with:
 
 ```python
-from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
-from tools.nasq_cli.module_closure import REPO_ADDONS
+from tools.webvue_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
+from tools.webvue_cli.module_closure import REPO_ADDONS
 
-MODULE_ID = re.compile(r'(?:nasq|customer)_[a-z0-9_]+')
+MODULE_ID = re.compile(r'(?:webvue|customer)_[a-z0-9_]+')
 MAX_OUTPUT = 65536
 ```
 
@@ -2388,7 +2388,7 @@ with:
 
 ```python
 def validate_modules(value):
-    """A non-empty list of distinct Nasq or customer addons shipped in this repository.
+    """A non-empty list of distinct WebVue or customer addons shipped in this repository.
 
     Which modules a policy installs comes from the trusted catalog; this only refuses
     names that cannot be an addon of this release, so a new application needs no edit.
@@ -2420,9 +2420,9 @@ replace:
 
 ```python
     keys = ['system_admin']
-    if 'nasq_pmo' in values['modules']:
+    if 'webvue_pmo' in values['modules']:
         keys.append('pmo_manager')
-    if 'nasq_hr' in values['modules']:
+    if 'webvue_hr' in values['modules']:
         keys.append('hr_manager')
 ```
 
@@ -2430,19 +2430,19 @@ with:
 
 ```python
     # Every application is installed; the applied policy decides the roles.
-    keys = env['nasq.entitlement.service']._nasq_entitled_admin_roles()
+    keys = env['webvue.entitlement.service']._webvue_entitled_admin_roles()
 ```
 
 and replace:
 
 ```python
-            role = env.ref({'pmo_manager': 'nasq_pmo', 'hr_manager': 'nasq_hr'}.get(key, 'nasq_core') + '.role_' + key)
+            role = env.ref({'pmo_manager': 'webvue_pmo', 'hr_manager': 'webvue_hr'}.get(key, 'webvue_core') + '.role_' + key)
 ```
 
 with:
 
 ```python
-            role = env['nasq.access.role'].search([('key', '=', key)], limit=1)
+            role = env['webvue.access.role'].search([('key', '=', key)], limit=1)
             assert role
 ```
 
@@ -2453,10 +2453,10 @@ In `tools/shared_saas_lifecycle/subscription_effect.py` replace `from tools.shar
 ```bash
 python3 -B -m unittest discover -s tools -p 'test_*.py' 2>&1 | tail -n 3
 ruff check odoo-addons
-rg -n "ALLOWED_MODULES|'nasq_pmo' in values" tools apps || echo "no app list left in the effects"
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_t7 \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat
+rg -n "ALLOWED_MODULES|'webvue_pmo' in values" tools apps || echo "no app list left in the effects"
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_t7 \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat
 ```
 
 Expected: tools `OK`; `All checks passed!`; `no app list left in the effects`; `ODOO_RUN_TEST_OK` with Task 2's TEN count + 1.
@@ -2465,7 +2465,7 @@ Expected: tools `OK`; `All checks passed!`; `no app list left in the effects`; `
 
 ```bash
 python3 -B tools/arch_policy.py --base main; echo "arch_policy exit=$?"
-git add odoo-addons/nasq_platform/models/entitlement_service.py odoo-addons/nasq_pmo/tests/test_package_change.py \
+git add odoo-addons/webvue_platform/models/entitlement_service.py odoo-addons/webvue_pmo/tests/test_package_change.py \
   tools/shared_saas_lifecycle/odoo_effect.py tools/shared_saas_lifecycle/subscription_effect.py \
   tools/shared_saas_lifecycle/test_odoo_effect.py
 git commit -m "refactor(tools): grant admin roles by entitlement, not modules" -m "<TRAILER>"
@@ -2494,7 +2494,7 @@ npm -w apps/web run lint 2>&1 | tail -n 5
 npm -w packages/commercial-contracts run test 2>&1 | tail -n 4
 npm -w packages/commercial-contracts run build 2>&1 | tail -n 3
 npm -w apps/control-plane run build 2>&1 | tail -n 3
-/tmp/nasq-packages/cp-live.sh 2>&1 | tail -n 15
+/tmp/webvue-packages/cp-live.sh 2>&1 | tail -n 15
 ```
 
 Expected: `All checks passed!`; deploy `OK`; `CATALOG_OK solutions=3`; three `exit=0`; the `git diff --stat` prints nothing; everything else green; `CP_LIVE_EXIT 0`.
@@ -2502,14 +2502,14 @@ Expected: `All checks passed!`; deploy `OK`; `CATALOG_OK solutions=3`; three `ex
 - [ ] **Step 2: The three Odoo installs (background, one after the other)**
 
 ```bash
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_3a \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_3a_hr \
-  nasq_core,nasq_platform,nasq_api,nasq_hr /nasq_core,/nasq_platform,/nasq_api,/nasq_hr
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_3a_meet \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_meetings \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_meetings
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_3a \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_3a_hr \
+  webvue_core,webvue_platform,webvue_api,webvue_hr /webvue_core,/webvue_platform,/webvue_api,/webvue_hr
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_3a_meet \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_meetings \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_meetings
 ```
 
 Expected: three `ODOO_RUN_TEST_OK`; counts Task 0 + 9 (TEN), + 5 (HR), + 5 (MEET).

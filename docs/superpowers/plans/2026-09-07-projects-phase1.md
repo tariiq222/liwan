@@ -27,7 +27,7 @@
 
 ### Task 2: Schedule
 **Files:** models/project_task.py; new controllers/project_schedule.py, serializers/project_schedule.py, tests/test_project_schedule.py; pmo/schedule.ts, __tests__/schedule.test.ts; useProjectSchedule.ts; utils/projectSchedule.ts + test; components/project/schedule/*; pages/projects/[id]/schedule.vue and schedule/tasks/[taskId].vue; delivery/schedule-{ar,en}.json.
-**Interfaces:** GET /projects/{id}/schedule; PATCH /projects/{id}/schedule/tasks/{taskId} {start,end}; task._nasq_set_schedule(start,end) private ORM method, date objects/False input.
+**Interfaces:** GET /projects/{id}/schedule; PATCH /projects/{id}/schedule/tasks/{taskId} {start,end}; task._webvue_set_schedule(start,end) private ORM method, date objects/False input.
 - [x] Write tests for reversed and invalid dates, own-project access, ordinary-user denial, date clearing, hidden dependency filtering and date-only round trips.
 - [x] Run focused tests for red; implement guarded scheduling model/API.
 - [x] Build Gantt axis and internal schedule-edit page with safe date math and unsaved guard.
@@ -42,10 +42,10 @@
 - [x] Review package and apply schedule contract at integration.
 
 ### Task 4: Integration, acceptance and delivery
-**Files:** nasq_pmo registration/manifest; pmo/index.ts; projects/[id].vue and projects/index.vue; locale projects.json; new e2e/projects-phase1.spec.ts; docs/projects-phase1-delivery.md.
+**Files:** webvue_pmo registration/manifest; pmo/index.ts; projects/[id].vue and projects/index.vue; locale projects.json; new e2e/projects-phase1.spec.ts; docs/projects-phase1-delivery.md.
 - [x] Register feature models/controllers/tests/ACL/rules; merge locale fragments under projects namespaces and add navigation links.
 - [x] Run npm test, npm run lint and npm run build sequentially in integration worktree.
-- [x] Run Odoo test tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr against isolated DB with explicit addons path; fix observed failures.
+- [x] Run Odoo test tags /webvue_core,/webvue_api,/webvue_pmo,/webvue_hr against isolated DB with explicit addons path; fix observed failures.
 - [x] Run authenticated browser feature CRUD/template application and relevant project regressions on isolated ports; inspect screenshots.
 - [x] Obtain independent package reviews, review shared integration, resolve actionable issues and rerun affected checks.
 - [x] Record source state, evidence and remaining phase-two scope; leave work uncommitted in isolated worktree.

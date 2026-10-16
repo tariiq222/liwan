@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectReportRow } from '@nasq/contracts'
+import type { ProjectReportRow } from '@webvue/contracts'
 import DashboardChart from '@/components/shared/data/DashboardChart.client.vue'
 import DashboardChartPanel from './DashboardChartPanel.vue'
 import {

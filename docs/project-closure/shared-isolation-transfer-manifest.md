@@ -16,12 +16,12 @@ branch: codex/shared-isolation
  M apps/web/i18n/locales/ar/vendor.json
  M apps/web/i18n/locales/en/vendor.json
  M docs/superpowers/plans/2026-09-23-company-operations-and-vendor-roadmap.md
- M docs/superpowers/plans/nasq-commercial-control-plane-plan.md
- M docs/superpowers/specs/2026-09-03-nasq-platform-design.md
- M docs/superpowers/specs/2026-09-15-nasq-vertical-saas-transformation.md
- M docs/superpowers/specs/2026-09-19-nasq-distribution-models-design.md
- M docs/superpowers/specs/nasq-cp0-commercial-contracts.md
- M tools/nasq_cli/managed_runtime.py
+ M docs/superpowers/plans/webvue-commercial-control-plane-plan.md
+ M docs/superpowers/specs/2026-09-03-webvue-platform-design.md
+ M docs/superpowers/specs/2026-09-15-webvue-vertical-saas-transformation.md
+ M docs/superpowers/specs/2026-09-19-webvue-distribution-models-design.md
+ M docs/superpowers/specs/webvue-cp0-commercial-contracts.md
+ M tools/webvue_cli/managed_runtime.py
  M tools/test_managed_runtime.py
 
 ## untracked (transferred)
@@ -54,16 +54,16 @@ branch: codex/shared-isolation
 ?? docs/project-closure/saas-hosting-direction-status.md
 ?? docs/project-closure/shared-isolation-transfer-manifest.md
 ?? docs/project-closure/shared-saas-host-contract-tdd.md
-?? docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md
+?? docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md
 ?? tools/managed_local_acceptance.py
-?? tools/nasq_cli/managed_bundle.py
-?? tools/nasq_cli/managed_credentials.py
-?? tools/nasq_cli/managed_health.py
-?? tools/nasq_cli/managed_policy.py
-?? tools/nasq_cli/managed_probe.py
-?? tools/nasq_cli/managed_process.py
-?? tools/nasq_cli/managed_secrets.py
-?? tools/nasq_cli/managed_verify.py
+?? tools/webvue_cli/managed_bundle.py
+?? tools/webvue_cli/managed_credentials.py
+?? tools/webvue_cli/managed_health.py
+?? tools/webvue_cli/managed_policy.py
+?? tools/webvue_cli/managed_probe.py
+?? tools/webvue_cli/managed_process.py
+?? tools/webvue_cli/managed_secrets.py
+?? tools/webvue_cli/managed_verify.py
 ?? tools/test_managed_bundle.py
 ?? tools/test_managed_create_acceptance.py
 ?? tools/test_managed_credentials.py
@@ -103,16 +103,16 @@ ca0baeed165d5a2e85706c51ab727c147251fee3807ef1640a9dbaf9158f249a  /Users/tariq/c
 f0a89add32a29268370ac57d71b7159c0c7d31077ab1f8c77a4c40a451dbdf74  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-full-cycle-evidence.json
 b3baea49ebed46158d838bee2d92c056de586b332adba3e79d332a65bd7a9012  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/saas-hosting-direction-status.md
 bfb9e36466cdef9797ed0620d5ce5575971a3d7e50b400009ba1d0761c0e77c8  /Users/tariq/code/nasq-managed-saas-acceptance/docs/project-closure/shared-saas-host-contract-tdd.md
-3a85c4e8fb3f6cf3cd4dc3a86f0a85b2ee9ae0597bf0fb0e57086d04c90bae3e  /Users/tariq/code/nasq-managed-saas-acceptance/docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md
+3a85c4e8fb3f6cf3cd4dc3a86f0a85b2ee9ae0597bf0fb0e57086d04c90bae3e  /Users/tariq/code/nasq-managed-saas-acceptance/docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md
 1676d7b991dc3e21212ba7cd96362d27b9943d5f0930547f6472c39ac9e5d44f  /Users/tariq/code/nasq-managed-saas-acceptance/tools/managed_local_acceptance.py
-34d8cd36890c79c85bd8dbb5d274d7b06f566072470a8982cbd19616b0e423b1  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_bundle.py
-daddc44f83f542cb5e71edad7e05fcd1df6dd49582f8a3ee5b30ac9f9c7dce0d  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_credentials.py
-4a4c682a2ad02ea5e64f1a49859814645a363cfb96469ee1adba0387626f6557  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_health.py
-8809ce390f4f74a660474e8bbfffa01a0a4b19c917e555f0e4c881f359f30da9  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_policy.py
-753d870855644992e712340e1b8690d011a9354d8bd4008d0276c8c13af08644  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_probe.py
-c11d1b278ca536cbf9bf6676da83cef780a3ce274d6e792f9c12f9cbc2aa9257  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_process.py
-aa9472a0c75cb7fd2f80f0def2c05500a802eda72c0544fc17946817a7e5fbed  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_secrets.py
-751e000de5794fdd01d2880d32875f51c8d54e2fa0e86d531daba83337381c6a  /Users/tariq/code/nasq-managed-saas-acceptance/tools/nasq_cli/managed_verify.py
+34d8cd36890c79c85bd8dbb5d274d7b06f566072470a8982cbd19616b0e423b1  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_bundle.py
+daddc44f83f542cb5e71edad7e05fcd1df6dd49582f8a3ee5b30ac9f9c7dce0d  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_credentials.py
+4a4c682a2ad02ea5e64f1a49859814645a363cfb96469ee1adba0387626f6557  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_health.py
+8809ce390f4f74a660474e8bbfffa01a0a4b19c917e555f0e4c881f359f30da9  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_policy.py
+753d870855644992e712340e1b8690d011a9354d8bd4008d0276c8c13af08644  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_probe.py
+c11d1b278ca536cbf9bf6676da83cef780a3ce274d6e792f9c12f9cbc2aa9257  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_process.py
+aa9472a0c75cb7fd2f80f0def2c05500a802eda72c0544fc17946817a7e5fbed  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_secrets.py
+751e000de5794fdd01d2880d32875f51c8d54e2fa0e86d531daba83337381c6a  /Users/tariq/code/nasq-managed-saas-acceptance/tools/webvue_cli/managed_verify.py
 6b9e5d2f08f2fcc5bad23a5a10142c733b675253148bf76bd3188c1e8f25fcec  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_bundle.py
 abf2ea4e18996feb006f84edda4e12a6e38577d7d1df4351e5311622ac5e9f11  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_create_acceptance.py
 7e8bad5f183f554b0110df1ff9d95a4beac5a7c947c0492d8c3a6aabbe361716  /Users/tariq/code/nasq-managed-saas-acceptance/tools/test_managed_credentials.py
@@ -152,16 +152,16 @@ ca0baeed165d5a2e85706c51ab727c147251fee3807ef1640a9dbaf9158f249a  /Users/tariq/c
 f0a89add32a29268370ac57d71b7159c0c7d31077ab1f8c77a4c40a451dbdf74  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-full-cycle-evidence.json
 b3baea49ebed46158d838bee2d92c056de586b332adba3e79d332a65bd7a9012  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/saas-hosting-direction-status.md
 bfb9e36466cdef9797ed0620d5ce5575971a3d7e50b400009ba1d0761c0e77c8  /Users/tariq/code/nasq-shared-isolation/docs/project-closure/shared-saas-host-contract-tdd.md
-3a85c4e8fb3f6cf3cd4dc3a86f0a85b2ee9ae0597bf0fb0e57086d04c90bae3e  /Users/tariq/code/nasq-shared-isolation/docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md
+3a85c4e8fb3f6cf3cd4dc3a86f0a85b2ee9ae0597bf0fb0e57086d04c90bae3e  /Users/tariq/code/nasq-shared-isolation/docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md
 1676d7b991dc3e21212ba7cd96362d27b9943d5f0930547f6472c39ac9e5d44f  /Users/tariq/code/nasq-shared-isolation/tools/managed_local_acceptance.py
-34d8cd36890c79c85bd8dbb5d274d7b06f566072470a8982cbd19616b0e423b1  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_bundle.py
-daddc44f83f542cb5e71edad7e05fcd1df6dd49582f8a3ee5b30ac9f9c7dce0d  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_credentials.py
-4a4c682a2ad02ea5e64f1a49859814645a363cfb96469ee1adba0387626f6557  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_health.py
-8809ce390f4f74a660474e8bbfffa01a0a4b19c917e555f0e4c881f359f30da9  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_policy.py
-753d870855644992e712340e1b8690d011a9354d8bd4008d0276c8c13af08644  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_probe.py
-c11d1b278ca536cbf9bf6676da83cef780a3ce274d6e792f9c12f9cbc2aa9257  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_process.py
-aa9472a0c75cb7fd2f80f0def2c05500a802eda72c0544fc17946817a7e5fbed  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_secrets.py
-751e000de5794fdd01d2880d32875f51c8d54e2fa0e86d531daba83337381c6a  /Users/tariq/code/nasq-shared-isolation/tools/nasq_cli/managed_verify.py
+34d8cd36890c79c85bd8dbb5d274d7b06f566072470a8982cbd19616b0e423b1  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_bundle.py
+daddc44f83f542cb5e71edad7e05fcd1df6dd49582f8a3ee5b30ac9f9c7dce0d  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_credentials.py
+4a4c682a2ad02ea5e64f1a49859814645a363cfb96469ee1adba0387626f6557  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_health.py
+8809ce390f4f74a660474e8bbfffa01a0a4b19c917e555f0e4c881f359f30da9  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_policy.py
+753d870855644992e712340e1b8690d011a9354d8bd4008d0276c8c13af08644  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_probe.py
+c11d1b278ca536cbf9bf6676da83cef780a3ce274d6e792f9c12f9cbc2aa9257  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_process.py
+aa9472a0c75cb7fd2f80f0def2c05500a802eda72c0544fc17946817a7e5fbed  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_secrets.py
+751e000de5794fdd01d2880d32875f51c8d54e2fa0e86d531daba83337381c6a  /Users/tariq/code/nasq-shared-isolation/tools/webvue_cli/managed_verify.py
 6b9e5d2f08f2fcc5bad23a5a10142c733b675253148bf76bd3188c1e8f25fcec  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_bundle.py
 abf2ea4e18996feb006f84edda4e12a6e38577d7d1df4351e5311622ac5e9f11  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_create_acceptance.py
 7e8bad5f183f554b0110df1ff9d95a4beac5a7c947c0492d8c3a6aabbe361716  /Users/tariq/code/nasq-shared-isolation/tools/test_managed_credentials.py

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "assessment": "nasq-full-saas-cycle-readonly-audit",
+  "assessment": "webvue-full-saas-cycle-readonly-audit",
   "evidence_date": "2026-09-27",
   "baseline_observed_at_utc": "2026-09-27T12:54:16Z",
   "workspace": "/Users/tariq/code/nasq-managed-saas-acceptance",
@@ -19,7 +19,7 @@
       "scope": "hermetic managed runtime and helper tests"
     },
     {
-      "command": "PYTHONPATH=tools python3 -B -m unittest test_nasq_cli_operator test_nasq_cli_scratch_guards",
+      "command": "PYTHONPATH=tools python3 -B -m unittest test_webvue_cli_operator test_webvue_cli_scratch_guards",
       "job": "bash-16",
       "exit_code": 0,
       "passed": 56,
@@ -77,7 +77,7 @@
     {"command": "npm -w apps/web run lint", "exit_code": 0},
     {"command": "python3 -B tools/catalog_check.py", "exit_code": 0, "result": "CATALOG_OK solutions=1"},
     {"command": "python3 -B tools/ui_policy.py", "exit_code": 0, "limitation": "Visual/behavior review still required"},
-    {"command": "ruff check --no-cache tools/nasq_cli/managed_*.py tools/test_managed*.py tools/managed_local_acceptance.py", "exit_code": 0},
+    {"command": "ruff check --no-cache tools/webvue_cli/managed_*.py tools/test_managed*.py tools/managed_local_acceptance.py", "exit_code": 0},
     {"command": "git diff --check", "exit_code": 0}
   ],
   "reproducer": {

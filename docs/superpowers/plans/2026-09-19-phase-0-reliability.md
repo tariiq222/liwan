@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** جعل nasq قابلاً للبناء والاختبار والترقية والاسترجاع آلياً، دون أي تغيير وظيفي في المنتج.
+**Goal:** جعل webvue قابلاً للبناء والاختبار والترقية والاسترجاع آلياً، دون أي تغيير وظيفي في المنتج.
 
 **Architecture:** خمسة بنود مستقلة (CI، إطار migrations، صورة Odoo مخبوزة، نسخ احتياطي مع استرجاع فعلي، حراسة الأسرار) تتشارك ملف workflow واحداً. كل فحص يُكتب أولاً كأداة Python قابلة للتشغيل محلياً ولها اختبارات وحدة، ثم يُستدعى من CI؛ الـCI لا يحتوي منطقاً لا يمكن تشغيله محلياً.
 
 **Tech Stack:** GitHub Actions · Python 3.12 (`unittest`، بلا اعتماديات خارجية للأدوات) · PostgreSQL 16 · Odoo 19 CE من المصدر عند commit مثبّت · Docker · Node (الإصدار في `.nvmrc`) · Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-09-19-nasq-distribution-models-design.md` (§2.1، §7.5، §10، §12)
+**Spec:** `docs/superpowers/specs/2026-09-19-webvue-distribution-models-design.md` (§2.1، §7.5، §10، §12)
 
 ## Global Constraints
 
-- لا تغيير وظيفي: لا موديلات، ولا routes، ولا صفحات. **لا يبدأ `nasq_platform` ولا الكتالوج ولا Health قبل أن يصبح Phase 0 أخضر بالكامل.**
+- لا تغيير وظيفي: لا موديلات، ولا routes، ولا صفحات. **لا يبدأ `webvue_platform` ولا الكتالوج ولا Health قبل أن يصبح Phase 0 أخضر بالكامل.**
 - كل ملف Python يبدأ بـ `# Part of Odoo. See LICENSE file for full copyright and licensing details.`
 - `ruff check odoo-addons` يبقى نظيفاً. أدوات `tools/` و`deploy/` تتبع أسلوب `deploy/backup.py`: `argparse`، `subprocess` بقائمة argv و`shell=False`، حقن `runner` للاختبار.
 - لا اختبارات على قاعدة `odoo19` إطلاقاً. كل تشغيل Odoo: قاعدة scratch جديدة + `--addons-path` صريح + منفذ غير 8069.
@@ -28,11 +28,11 @@
 | الحقيقة | الأثر |
 |---|---|
 | `deploy/.env` و`deploy/data/` و`deploy/branding.json` **غير متتبَّعة** (`.gitignore`) ولم تدخل التاريخ قط | البند 0.5 حراسة تمنع الانتكاس، لا تنظيف تاريخ |
-| `deploy/check_isolated.py` يملك أوامر `odoo` و`upgrade` و`runtime` و`e2e`، لكن `NASQ_ADDONS` لا تشمل `nasq_chat` | يُصلَّح في Task 3 |
+| `deploy/check_isolated.py` يملك أوامر `odoo` و`upgrade` و`runtime` و`e2e`، لكن `WEBVUE_ADDONS` لا تشمل `webvue_chat` | يُصلَّح في Task 3 |
 | لا يوجد أي مجلد `migrations/` | Task 4 |
 | `deploy/security/README.md` يثبّت Odoo عند `157874aa…`، بينما النسخة المحلية المستخدمة في الاختبارات عند `34eed49d88f0f4357e1f54fe82cb0ad280939572` | Task 2 يحسم commit واحداً في ملف واحد |
 | `requirements-python312-macos.txt` خاص بـmacOS arm64 | Task 2 ينتج نظيره لـLinux |
-| `nasq_pmo` يملك تقارير PDF (`report/meeting_report_history_templates.xml`) | الصورة تحتاج `wkhtmltopdf` |
+| `webvue_pmo` يملك تقارير PDF (`report/meeting_report_history_templates.xml`) | الصورة تحتاج `wkhtmltopdf` |
 | `deploy/docker-compose.yml` يستخدم `image: odoo:19.0` ويربط `../odoo-addons` — أي لا يمرّ عبر `odoo_secure.py` | Task 5 |
 | `backup.py` يرفض عمداً ادّعاء `recovery_ready` | Task 6 يضيف أداة استرجاع منفصلة ولا يغيّر هذا الادّعاء |
 | Playwright الحقيقي يتطلب Odoo بfixtures؛ يوجد mock معتمد: `apps/web/e2e/internal-ui-audit-mock.mjs` | Task 7 يبدأ بالـmock |
@@ -383,29 +383,29 @@ git commit -m "build: pin the Odoo source commit and freeze Linux requirements"
 
 **Interfaces:**
 - Consumes: `deploy/odoo/ODOO_COMMIT`, `deploy/odoo/requirements-python312-linux.txt`
-- Produces: وظيفة CI باسم `odoo`؛ الثابت `NASQ_ADDONS = ('nasq_core', 'nasq_api', 'nasq_pmo', 'nasq_hr', 'nasq_chat')`.
+- Produces: وظيفة CI باسم `odoo`؛ الثابت `WEBVUE_ADDONS = ('webvue_core', 'webvue_api', 'webvue_pmo', 'webvue_hr', 'webvue_chat')`.
 
 - [ ] **Step 1: اختبار فاشل لقائمة الوحدات**
 
 أضف إلى `deploy/test_operations.py` داخل `class TestOdooWrapper` (استخدم اسم الاستيراد المعتمد أعلى الملف لوحدة `check_isolated`):
 
 ```python
-    def test_nasq_addons_cover_every_shipped_pillar(self) -> None:
+    def test_webvue_addons_cover_every_shipped_pillar(self) -> None:
         self.assertEqual(
-            check_isolated.NASQ_ADDONS,
-            ('nasq_core', 'nasq_api', 'nasq_pmo', 'nasq_hr', 'nasq_chat'),
+            check_isolated.WEBVUE_ADDONS,
+            ('webvue_core', 'webvue_api', 'webvue_pmo', 'webvue_hr', 'webvue_chat'),
         )
 ```
 
 Run: `python3 -B -m unittest discover -s deploy -p test_operations.py -v`
-Expected: FAIL — الـtuple الحالي بلا `nasq_chat`.
+Expected: FAIL — الـtuple الحالي بلا `webvue_chat`.
 
 - [ ] **Step 2: أصلح الثابت**
 
 في `deploy/check_isolated.py`:
 
 ```python
-NASQ_ADDONS = ('nasq_core', 'nasq_api', 'nasq_pmo', 'nasq_hr', 'nasq_chat')
+WEBVUE_ADDONS = ('webvue_core', 'webvue_api', 'webvue_pmo', 'webvue_hr', 'webvue_chat')
 ```
 
 Run: نفس الأمر → Expected: PASS للكل. إن فشل اختبار قائم يثبّت الـtuple القديم فحدّث قيمته المتوقعة.
@@ -438,9 +438,9 @@ Run: نفس الأمر → Expected: PASS للكل. إن فشل اختبار ق�
           python _odoo/odoo-bin \
             --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
             --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
-            -d nasq_ci_scratch_${{ github.run_id }} \
-            -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
-            --test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat \
+            -d webvue_ci_scratch_${{ github.run_id }} \
+            -i webvue_core,webvue_api,webvue_pmo,webvue_hr,webvue_chat \
+            --test-tags /webvue_core,/webvue_api,/webvue_pmo,/webvue_hr,/webvue_chat \
             --http-port=8169 --stop-after-init --log-level=test 2>&1 | tee odoo-test.log
           ! grep -E " (ERROR|CRITICAL) |FAIL: " odoo-test.log
       - if: always()
@@ -452,8 +452,8 @@ Run: نفس الأمر → Expected: PASS للكل. إن فشل اختبار ق�
 
 - [ ] **Step 4: تحقق محلي مكافئ**
 
-شغّل أمر "Check commands" من `CLAUDE.md` مع إضافة `nasq_chat` إلى `-i` و`--test-tags`، وقاعدة `nasq_phase0_scratch`، ومسار `<WORKTREE>/odoo-addons`.
-Expected: ينتهي بلا `ERROR`/`FAIL`. ثم `dropdb nasq_phase0_scratch`.
+شغّل أمر "Check commands" من `CLAUDE.md` مع إضافة `webvue_chat` إلى `-i` و`--test-tags`، وقاعدة `webvue_phase0_scratch`، ومسار `<WORKTREE>/odoo-addons`.
+Expected: ينتهي بلا `ERROR`/`FAIL`. ثم `dropdb webvue_phase0_scratch`.
 
 - [ ] **Step 5: Commit**
 
@@ -519,24 +519,24 @@ from migration_guard import check_addon
 
 class TestMigrationGuard(unittest.TestCase):
     def test_unchanged_version_needs_nothing(self):
-        self.assertIsNone(check_addon('nasq_pmo', '19.0.1.0.0', '19.0.1.0.0', set()))
+        self.assertIsNone(check_addon('webvue_pmo', '19.0.1.0.0', '19.0.1.0.0', set()))
 
     def test_bump_without_directory_fails(self):
         self.assertEqual(
-            check_addon('nasq_pmo', '19.0.1.0.0', '19.0.1.1.0', set()),
-            'nasq_pmo: version 19.0.1.0.0 -> 19.0.1.1.0 but migrations/19.0.1.1.0/ is missing or empty',
+            check_addon('webvue_pmo', '19.0.1.0.0', '19.0.1.1.0', set()),
+            'webvue_pmo: version 19.0.1.0.0 -> 19.0.1.1.0 but migrations/19.0.1.1.0/ is missing or empty',
         )
 
     def test_bump_with_script_or_readme_passes(self):
-        self.assertIsNone(check_addon('nasq_pmo', '19.0.1.0.0', '19.0.1.1.0', {'post-backfill.py'}))
-        self.assertIsNone(check_addon('nasq_pmo', '19.0.1.0.0', '19.0.1.1.0', {'README.md'}))
+        self.assertIsNone(check_addon('webvue_pmo', '19.0.1.0.0', '19.0.1.1.0', {'post-backfill.py'}))
+        self.assertIsNone(check_addon('webvue_pmo', '19.0.1.0.0', '19.0.1.1.0', {'README.md'}))
 
     def test_downgrade_and_new_addon(self):
         self.assertEqual(
-            check_addon('nasq_pmo', '19.0.1.1.0', '19.0.1.0.0', set()),
-            'nasq_pmo: version went backwards 19.0.1.1.0 -> 19.0.1.0.0',
+            check_addon('webvue_pmo', '19.0.1.1.0', '19.0.1.0.0', set()),
+            'webvue_pmo: version went backwards 19.0.1.1.0 -> 19.0.1.0.0',
         )
-        self.assertIsNone(check_addon('nasq_new', None, '19.0.1.0.0', set()))
+        self.assertIsNone(check_addon('webvue_new', None, '19.0.1.0.0', set()))
 
 
 if __name__ == '__main__':
@@ -595,7 +595,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--base', required=True, help='git ref to compare against, e.g. origin/main')
     args = parser.parse_args(argv)
     problems = []
-    for manifest in sorted(ADDONS_ROOT.glob('nasq_*/__manifest__.py')):
+    for manifest in sorted(ADDONS_ROOT.glob('webvue_*/__manifest__.py')):
         addon = manifest.parent.name
         new = _version(manifest.read_text(encoding='utf-8'))
         directory = manifest.parent / 'migrations' / new
@@ -624,11 +624,11 @@ Expected: 4 PASS ثم `exit=0`.
 import sys
 
 Module = env['ir.module.module']  # noqa: F821 - `env` is provided by the Odoo shell
-installed = Module.search([('name', '=like', 'nasq_%'), ('state', '=', 'installed')])
+installed = Module.search([('name', '=like', 'webvue_%'), ('state', '=', 'installed')])
 unsettled = Module.search([('state', 'in', ('to upgrade', 'to install', 'to remove'))])
 problems = [f'{m.name} state={m.state}' for m in unsettled]
 if not installed:
-    problems.append('no nasq module is installed')
+    problems.append('no webvue module is installed')
 for problem in problems:
     print(f'UPGRADE_SMOKE_FAIL {problem}')
 print('UPGRADE_SMOKE_FAILED' if problems else f'UPGRADE_SMOKE_OK installed={len(installed)}')
@@ -666,7 +666,7 @@ git tag release/19.0.1.0.0 "$(git merge-base HEAD origin/main)"
           --health-cmd "pg_isready -U odoo" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       ODOO_DB_ARGS: --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo
-      MODULES: nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat
+      MODULES: webvue_core,webvue_api,webvue_pmo,webvue_hr,webvue_chat
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -694,25 +694,25 @@ git tag release/19.0.1.0.0 "$(git merge-base HEAD origin/main)"
         if: steps.base.outputs.tag != ''
         run: |
           python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/_baseline/odoo-addons" \
-            -d nasq_ci_upgrade_scratch -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
+            -d webvue_ci_upgrade_scratch -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
       - name: Upgrade to this commit
         if: steps.base.outputs.tag != ''
         run: |
           python _odoo/odoo-bin $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
-            -d nasq_ci_upgrade_scratch -u "$MODULES" --http-port=8169 --stop-after-init 2>&1 | tee upgrade.log
+            -d webvue_ci_upgrade_scratch -u "$MODULES" --http-port=8169 --stop-after-init 2>&1 | tee upgrade.log
           ! grep -E " (ERROR|CRITICAL) " upgrade.log
       - name: Post-upgrade smoke
         if: steps.base.outputs.tag != ''
         run: |
           python _odoo/odoo-bin shell $ODOO_DB_ARGS --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" \
-            -d nasq_ci_upgrade_scratch --no-http < deploy/odoo/upgrade_smoke.py | tee smoke.log
+            -d webvue_ci_upgrade_scratch --no-http < deploy/odoo/upgrade_smoke.py | tee smoke.log
           grep -q UPGRADE_SMOKE_OK smoke.log
 ```
 
 - [ ] **Step 7: تحقق محلي من دورة الترقية ثم commit**
 
-كرّر الخطوات الثلاث محلياً: `git worktree add /tmp/nasq-baseline release/19.0.1.0.0`، ثبّت منه على `nasq_phase0_upgrade_scratch` (منفذ 8169، بـpython وodoo-bin المحليين)، ثم `-u` بمسار الـworktree الحالي، ثم مرّر `upgrade_smoke.py` إلى `odoo-bin shell`.
-Expected: `UPGRADE_SMOKE_OK installed=5`. ثم `dropdb nasq_phase0_upgrade_scratch` و`git worktree remove /tmp/nasq-baseline`.
+كرّر الخطوات الثلاث محلياً: `git worktree add /tmp/webvue-baseline release/19.0.1.0.0`، ثبّت منه على `webvue_phase0_upgrade_scratch` (منفذ 8169، بـpython وodoo-bin المحليين)، ثم `-u` بمسار الـworktree الحالي، ثم مرّر `upgrade_smoke.py` إلى `odoo-bin shell`.
+Expected: `UPGRADE_SMOKE_OK installed=5`. ثم `dropdb webvue_phase0_upgrade_scratch` و`git worktree remove /tmp/webvue-baseline`.
 
 ```bash
 git add docs/migrations.md tools/migration_guard.py tools/test_migration_guard.py deploy/odoo/upgrade_smoke.py .github/workflows/ci.yml
@@ -733,7 +733,7 @@ git commit -m "ci: add the migration policy, version guard, and upgrade-from-rel
 
 **Interfaces:**
 - Consumes: `deploy/odoo/ODOO_COMMIT`, `deploy/odoo/requirements-python312-linux.txt`, `deploy/security/odoo_secure.py`
-- Produces: صورة `nasq-odoo:<tag>` بلا أي bind mount للكود. المسارات داخلها: `/opt/odoo` (المصدر)، `/opt/nasq/addons`، `/opt/nasq/odoo_secure.py`؛ الإعداد يُركَّب على `/etc/odoo/odoo.conf`؛ البيانات على `/var/lib/odoo`. متغيّرا compose: `NASQ_IMAGE_TAG` و`ODOO_COMMIT`.
+- Produces: صورة `webvue-odoo:<tag>` بلا أي bind mount للكود. المسارات داخلها: `/opt/odoo` (المصدر)، `/opt/webvue/addons`، `/opt/webvue/odoo_secure.py`؛ الإعداد يُركَّب على `/etc/odoo/odoo.conf`؛ البيانات على `/var/lib/odoo`. متغيّرا compose: `WEBVUE_IMAGE_TAG` و`ODOO_COMMIT`.
 
 - [ ] **Step 1: `.dockerignore` (السياق = جذر المستودع)**
 
@@ -751,7 +751,7 @@ test-results
 playwright-report
 ```
 
-تحقق أن `apps/web/Dockerfile` لا يعتمد على أي مسار مُستثنى: `docker build -f apps/web/Dockerfile -t nasq-web:dev .` → Expected: ينجح.
+تحقق أن `apps/web/Dockerfile` لا يعتمد على أي مسار مُستثنى: `docker build -f apps/web/Dockerfile -t webvue-web:dev .` → Expected: ينجح.
 
 - [ ] **Step 2: Dockerfile**
 
@@ -778,20 +778,20 @@ RUN python -m venv /opt/venv && /opt/venv/bin/pip install -r /tmp/requirements.t
 
 FROM base
 ARG ODOO_COMMIT
-ARG NASQ_REVISION=unknown
-LABEL sa.nasq.revision=$NASQ_REVISION sa.nasq.odoo-commit=$ODOO_COMMIT
+ARG WEBVUE_REVISION=unknown
+LABEL sa.webvue.revision=$WEBVUE_REVISION sa.webvue.odoo-commit=$ODOO_COMMIT
 COPY --from=build /opt/odoo /opt/odoo
 COPY --from=build /opt/venv /opt/venv
-COPY odoo-addons /opt/nasq/addons
-COPY deploy/security/odoo_secure.py /opt/nasq/odoo_secure.py
-COPY deploy/odoo/entrypoint.sh /usr/local/bin/nasq-odoo
-RUN chmod 0755 /usr/local/bin/nasq-odoo \
+COPY odoo-addons /opt/webvue/addons
+COPY deploy/security/odoo_secure.py /opt/webvue/odoo_secure.py
+COPY deploy/odoo/entrypoint.sh /usr/local/bin/webvue-odoo
+RUN chmod 0755 /usr/local/bin/webvue-odoo \
     && useradd --system --uid 10001 --home-dir /var/lib/odoo --create-home odoo \
-    && chmod -R a-w /opt/odoo /opt/nasq
+    && chmod -R a-w /opt/odoo /opt/webvue
 USER odoo
 VOLUME /var/lib/odoo
 EXPOSE 8069 8072
-ENTRYPOINT ["nasq-odoo"]
+ENTRYPOINT ["webvue-odoo"]
 ```
 
 ملاحظة معروفة: `wkhtmltopdf` في Debian مبني بلا Qt المرقّع الذي توصي به Odoo؛ قد يختلّ رأس/تذييل تقرير الاجتماعات. Step 4 يختبر ذلك صراحة. إن اختلّ: استبدل الحزمة بملف `.deb` الرسمي `wkhtmltox 0.12.6.1-3 bookworm` مُضمَّناً في `deploy/odoo/vendor/` مع فحص `sha256sum` داخل الـDockerfile (لا تنزيل وقت البناء من مصدر غير مثبّت).
@@ -802,9 +802,9 @@ ENTRYPOINT ["nasq-odoo"]
 #!/bin/sh
 # deploy/odoo/entrypoint.sh — every start goes through the guarded launcher.
 set -eu
-exec /opt/venv/bin/python /opt/nasq/odoo_secure.py --odoo-root /opt/odoo \
+exec /opt/venv/bin/python /opt/webvue/odoo_secure.py --odoo-root /opt/odoo \
   -c /etc/odoo/odoo.conf \
-  --addons-path=/opt/odoo/addons,/opt/nasq/addons \
+  --addons-path=/opt/odoo/addons,/opt/webvue/addons \
   --data-dir=/var/lib/odoo "$@"
 ```
 
@@ -812,28 +812,28 @@ exec /opt/venv/bin/python /opt/nasq/odoo_secure.py --odoo-root /opt/odoo \
 
 ```bash
 docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" \
-  --build-arg NASQ_REVISION="$(git rev-parse --short HEAD)" -t nasq-odoo:dev .
-docker network create nasq-img-test
-docker run -d --name nasq-img-db --network nasq-img-test -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
-printf '[options]\ndb_host = nasq-img-db\ndb_user = odoo\ndb_password = odoo\nlist_db = False\nproxy_mode = True\n' > /tmp/nasq-img.conf
-for i in $(seq 1 30); do docker exec nasq-img-db pg_isready -U odoo && break; sleep 2; done
-docker run --rm --network nasq-img-test -v /tmp/nasq-img.conf:/etc/odoo/odoo.conf:ro nasq-odoo:dev \
-  -d nasq_image_scratch -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --stop-after-init
-docker run --rm --network nasq-img-test -v /tmp/nasq-img.conf:/etc/odoo/odoo.conf:ro nasq-odoo:dev \
-  -d nasq_image_scratch --test-tags /nasq_pmo:TestMeetings --stop-after-init -u nasq_pmo 2>&1 | tail -5
-docker run --rm --entrypoint sh nasq-odoo:dev -c \
-  'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && wkhtmltopdf --version && ! command -v git && echo IMAGE_OK'
-docker rm -f nasq-img-db && docker network rm nasq-img-test
+  --build-arg WEBVUE_REVISION="$(git rev-parse --short HEAD)" -t webvue-odoo:dev .
+docker network create webvue-img-test
+docker run -d --name webvue-img-db --network webvue-img-test -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
+printf '[options]\ndb_host = webvue-img-db\ndb_user = odoo\ndb_password = odoo\nlist_db = False\nproxy_mode = True\n' > /tmp/webvue-img.conf
+for i in $(seq 1 30); do docker exec webvue-img-db pg_isready -U odoo && break; sleep 2; done
+docker run --rm --network webvue-img-test -v /tmp/webvue-img.conf:/etc/odoo/odoo.conf:ro webvue-odoo:dev \
+  -d webvue_image_scratch -i webvue_core,webvue_api,webvue_pmo,webvue_hr,webvue_chat --without-demo=all --stop-after-init
+docker run --rm --network webvue-img-test -v /tmp/webvue-img.conf:/etc/odoo/odoo.conf:ro webvue-odoo:dev \
+  -d webvue_image_scratch --test-tags /webvue_pmo:TestMeetings --stop-after-init -u webvue_pmo 2>&1 | tail -5
+docker run --rm --entrypoint sh webvue-odoo:dev -c \
+  'test ! -w /opt/webvue/addons && test "$(id -u)" = 10001 && wkhtmltopdf --version && ! command -v git && echo IMAGE_OK'
+docker rm -f webvue-img-db && docker network rm webvue-img-test
 ```
 
-Expected: التثبيت بلا `ERROR` · اختبارات الاجتماعات (تشمل توليد PDF) تمر · السطر الأخير `IMAGE_OK`. (اسم صنف الاختبار في `odoo-addons/nasq_pmo/tests/test_meetings.py`؛ إن اختلف عن `TestMeetings` فاستخدم اسمه الفعلي.)
+Expected: التثبيت بلا `ERROR` · اختبارات الاجتماعات (تشمل توليد PDF) تمر · السطر الأخير `IMAGE_OK`. (اسم صنف الاختبار في `odoo-addons/webvue_pmo/tests/test_meetings.py`؛ إن اختلف عن `TestMeetings` فاستخدم اسمه الفعلي.)
 
 - [ ] **Step 5: حدّث compose**
 
 في `deploy/docker-compose.yml` استبدل في خدمة `odoo` الحقول `image` و`command` و`volumes` بـ:
 
 ```yaml
-    image: nasq-odoo:${NASQ_IMAGE_TAG:?set NASQ_IMAGE_TAG to the built image tag}
+    image: webvue-odoo:${WEBVUE_IMAGE_TAG:?set WEBVUE_IMAGE_TAG to the built image tag}
     build:
       context: ..
       dockerfile: deploy/odoo/Dockerfile
@@ -847,15 +847,15 @@ Expected: التثبيت بلا `ERROR` · اختبارات الاجتماعات
 
 أبقِ `depends_on` و`healthcheck` و`restart` القائمة. احذف سطر ربط `../odoo-addons`. واحذف سطر `addons_path` من قالب `deploy/odoo.conf` (يحدده الـentrypoint).
 
-Run: `cd deploy && NASQ_IMAGE_TAG=dev ODOO_COMMIT=$(cat odoo/ODOO_COMMIT) docker compose config >/dev/null && echo COMPOSE_OK`
+Run: `cd deploy && WEBVUE_IMAGE_TAG=dev ODOO_COMMIT=$(cat odoo/ODOO_COMMIT) docker compose config >/dev/null && echo COMPOSE_OK`
 Expected: `COMPOSE_OK`. وفي `provision.sh` صدّر المتغيّرين قبل أول `docker compose`:
 
 ```sh
 export ODOO_COMMIT="$(cat "$(dirname "$0")/odoo/ODOO_COMMIT")"
-export NASQ_IMAGE_TAG="${NASQ_IMAGE_TAG:-$(git -C "$(dirname "$0")/.." rev-parse --short HEAD)}"
+export WEBVUE_IMAGE_TAG="${WEBVUE_IMAGE_TAG:-$(git -C "$(dirname "$0")/.." rev-parse --short HEAD)}"
 ```
 
-واستبدل في خطوتي التثبيت والبذر أي مسار `/mnt/extra-addons` بـ`/opt/nasq/addons`، واحذف `--addons-path` منهما إن وُجد (الـentrypoint يحدده).
+واستبدل في خطوتي التثبيت والبذر أي مسار `/mnt/extra-addons` بـ`/opt/webvue/addons`، واحذف `--addons-path` منهما إن وُجد (الـentrypoint يحدده).
 
 - [ ] **Step 6: `provision.sh` يرفض كل كلمة مرور افتراضية**
 
@@ -873,7 +873,7 @@ for var in DB_PASSWORD ODOO_ADMIN_PASSWORD VENDOR_PASSWORD; do
 done
 ```
 
-Test: انسخ `deploy/` إلى مجلد مؤقت، ضع فيه `.env` بمحتوى `DB_PASSWORD=change-me` وسطرين صالحين للبقية، و`branding.json` من المثال، وشغّل `provision.sh example.test nasq_prov_scratch`.
+Test: انسخ `deploy/` إلى مجلد مؤقت، ضع فيه `.env` بمحتوى `DB_PASSWORD=change-me` وسطرين صالحين للبقية، و`branding.json` من المثال، وشغّل `provision.sh example.test webvue_prov_scratch`.
 Expected: خروج 1 برسالة `DB_PASSWORD is empty or a known placeholder` **قبل** أي أمر docker.
 
 - [ ] **Step 7: وظيفة CI**
@@ -887,28 +887,28 @@ Expected: خروج 1 برسالة `DB_PASSWORD is empty or a known placeholder` 
       - run: |
           docker build -f deploy/odoo/Dockerfile \
             --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" \
-            --build-arg NASQ_REVISION="${GITHUB_SHA::12}" -t nasq-odoo:ci .
+            --build-arg WEBVUE_REVISION="${GITHUB_SHA::12}" -t webvue-odoo:ci .
       - name: Install every pillar inside the image
         run: |
           docker network create t
           docker run -d --name db --network t -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:16
           printf '[options]\ndb_host = db\ndb_user = odoo\ndb_password = odoo\nlist_db = False\n' > odoo.conf
           for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
-          docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" nasq-odoo:ci \
-            -d nasq_image_scratch -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat --without-demo=all --stop-after-init
-          docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
+          docker run --rm --network t -v "$PWD/odoo.conf:/etc/odoo/odoo.conf:ro" webvue-odoo:ci \
+            -d webvue_image_scratch -i webvue_core,webvue_api,webvue_pmo,webvue_hr,webvue_chat --without-demo=all --stop-after-init
+          docker run --rm --entrypoint sh webvue-odoo:ci -c 'test ! -w /opt/webvue/addons && test "$(id -u)" = 10001 && ! command -v git'
 ```
 
 - [ ] **Step 8: وثّق وcommit**
 
-أضف إلى `deploy/OPERATIONS.md` قسم "Odoo image": أمر البناء من Step 4، ومعنى `NASQ_IMAGE_TAG` و`ODOO_COMMIT`، وأن الكود داخل الصورة للقراءة فقط، وأن كل إقلاع يمرّ عبر `odoo_secure.py`.
+أضف إلى `deploy/OPERATIONS.md` قسم "Odoo image": أمر البناء من Step 4، ومعنى `WEBVUE_IMAGE_TAG` و`ODOO_COMMIT`، وأن الكود داخل الصورة للقراءة فقط، وأن كل إقلاع يمرّ عبر `odoo_secure.py`.
 
 ```bash
 git add .dockerignore deploy/odoo/Dockerfile deploy/odoo/entrypoint.sh deploy/docker-compose.yml deploy/odoo.conf deploy/provision.sh deploy/OPERATIONS.md .github/workflows/ci.yml
 git commit -m "build: bake the addons and guarded launcher into the Odoo image"
 ```
 
-**Acceptance:** لا bind mount للكود في compose · الصورة تثبّت الركائز الخمس من الصفر وتولّد PDF الاجتماعات · تعمل كمستخدم 10001 وكودها غير قابل للكتابة وبلا `git` · تحمل وسمي `sa.nasq.revision` و`sa.nasq.odoo-commit` · `provision.sh` يرفض أي كلمة مرور افتراضية أو أقصر من 16.
+**Acceptance:** لا bind mount للكود في compose · الصورة تثبّت الركائز الخمس من الصفر وتولّد PDF الاجتماعات · تعمل كمستخدم 10001 وكودها غير قابل للكتابة وبلا `git` · تحمل وسمي `sa.webvue.revision` و`sa.webvue.odoo-commit` · `provision.sh` يرفض أي كلمة مرور افتراضية أو أقصر من 16.
 **Rollback:** `git revert`؛ compose يعود إلى `odoo:19.0` مع الربط. لا بيانات تتأثر (أسماء الأحجام لم تتغيّر).
 
 ---
@@ -921,7 +921,7 @@ git commit -m "build: bake the addons and guarded launcher into the Odoo image"
 
 **Interfaces:**
 - Consumes: مخرجات `deploy/backup.py`: مجلد فيه `database.dump` و`filestore/` و`manifest.json`.
-- Produces: `perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, createdb, psql, pg_host=None, pg_port=None, pg_user=None, runner=subprocess.run) -> dict` وواجهة CLI بالأعلام نفسها. يكتب `<backup-dir>/restore-verification.json` ويخرج 0/1. **لا يعدّل `manifest.json`**: ادّعاء `consistency=UNVERIFIED` عن لحظة الأخذ يبقى صحيحاً؛ هذا سجلّ منفصل يثبت أن **هذه النسخة استُرجعت فعلاً**. هذه الدالة هي ما سيستدعيه `nasq-cli upgrade` للتراجع في Phase 3.
+- Produces: `perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, createdb, psql, pg_host=None, pg_port=None, pg_user=None, runner=subprocess.run) -> dict` وواجهة CLI بالأعلام نفسها. يكتب `<backup-dir>/restore-verification.json` ويخرج 0/1. **لا يعدّل `manifest.json`**: ادّعاء `consistency=UNVERIFIED` عن لحظة الأخذ يبقى صحيحاً؛ هذا سجلّ منفصل يثبت أن **هذه النسخة استُرجعت فعلاً**. هذه الدالة هي ما سيستدعيه `webvue-cli upgrade` للتراجع في Phase 3.
 
 - [ ] **Step 1: اختبارات فاشلة**
 
@@ -962,7 +962,7 @@ class TestRestoreVerify(unittest.TestCase):
             tool.write_text('')
             self.tools[name] = str(tool)
 
-    def run_verify(self, backup, psql_answers, target_db='nasq_restore_scratch'):
+    def run_verify(self, backup, psql_answers, target_db='webvue_restore_scratch'):
         answers = iter(psql_answers)
 
         def runner(argv, **_):
@@ -1037,7 +1037,7 @@ from pathlib import Path
 
 FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
-SQL_INSTALLED = "SELECT count(*) FROM ir_module_module WHERE name LIKE 'nasq\\_%' AND state = 'installed'"
+SQL_INSTALLED = "SELECT count(*) FROM ir_module_module WHERE name LIKE 'webvue\\_%' AND state = 'installed'"
 SQL_STUCK = "SELECT count(*) FROM ir_module_module WHERE state IN ('to upgrade', 'to install', 'to remove')"
 SQL_ATTACHMENTS = 'SELECT DISTINCT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY 1'
 
@@ -1108,7 +1108,7 @@ def perform_restore(*, backup_dir, target_db, target_filestore, pg_restore, crea
         'restored_into': db,
         'source_manifest': json.loads(manifest.read_text(encoding='utf-8')),
         'checks': {
-            'nasq_modules_installed': installed,
+            'webvue_modules_installed': installed,
             'modules_stuck_mid_transition': stuck,
             'attachment_files_referenced': len(referenced),
             'missing_attachment_files': missing,
@@ -1148,13 +1148,13 @@ Run: `cd deploy && python3 -B -m unittest test_restore_verify -v` → Expected: 
 ```bash
 PGBIN=$(dirname "$(command -v pg_dump)"); WORK=$(mktemp -d)
 # 1) ثبّت قاعدة مصدر scratch بأمر "Check commands" من CLAUDE.md (بلا --test-tags)، مع:
-#    -d nasq_drill_src_scratch  --data-dir="$WORK/data"  --without-demo=all  --http-port=8169
-#    -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat   و --addons-path يشمل <WORKTREE>/odoo-addons
+#    -d webvue_drill_src_scratch  --data-dir="$WORK/data"  --without-demo=all  --http-port=8169
+#    -i webvue_core,webvue_api,webvue_pmo,webvue_hr,webvue_chat   و --addons-path يشمل <WORKTREE>/odoo-addons
 python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
-  --db-name nasq_drill_src_scratch --filestore "$WORK/data/filestore/nasq_drill_src_scratch" \
+  --db-name webvue_drill_src_scratch --filestore "$WORK/data/filestore/webvue_drill_src_scratch" \
   --output-dir "$WORK/backup" --pg-dump "$PGBIN/pg_dump"
-python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored_scratch \
-  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored_scratch" \
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db webvue_drill_restored_scratch \
+  --target-filestore "$WORK/restored-data/filestore/webvue_drill_restored_scratch" \
   --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql"; echo exit=$?
 ```
 
@@ -1163,7 +1163,7 @@ Expected: `exit=0`، و`restore-verification.json` فيه `"restore_verified": t
 
 - [ ] **Step 4: الدليل النهائي — أقلِع Odoo على القاعدة المسترجعة**
 
-شغّل Odoo (بلا `-i`/`-u`، بلا `--stop-after-init`) على `-d nasq_drill_restored_scratch --data-dir="$WORK/restored-data" --http-port=8169 --max-cron-threads=0` في الخلفية، ثم:
+شغّل Odoo (بلا `-i`/`-u`، بلا `--stop-after-init`) على `-d webvue_drill_restored_scratch --data-dir="$WORK/restored-data" --http-port=8169 --max-cron-threads=0` في الخلفية، ثم:
 
 ```bash
 sleep 25; curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8169/web/health
@@ -1175,10 +1175,10 @@ Expected: `200`. أوقف العملية.
 
 ```bash
 find "$WORK/backup/filestore" -type f | head -n1 | xargs rm
-python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db nasq_drill_restored2_scratch \
-  --target-filestore "$WORK/restored-data/filestore/nasq_drill_restored2_scratch" \
+python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db webvue_drill_restored2_scratch \
+  --target-filestore "$WORK/restored-data/filestore/webvue_drill_restored2_scratch" \
   --pg-restore "$PGBIN/pg_restore" --createdb "$PGBIN/createdb" --psql "$PGBIN/psql"; echo exit=$?
-dropdb nasq_drill_src_scratch; dropdb nasq_drill_restored_scratch; dropdb nasq_drill_restored2_scratch; rm -rf "$WORK"
+dropdb webvue_drill_src_scratch; dropdb webvue_drill_restored_scratch; dropdb webvue_drill_restored2_scratch; rm -rf "$WORK"
 ```
 
 Expected: `exit=1` مع اسم الملف المحذوف في `missing_attachment_files`.
@@ -1194,17 +1194,17 @@ Expected: `exit=1` مع اسم الملف المحذوف في `missing_attachmen
           set -eu; B=/usr/lib/postgresql/16/bin; W=$(mktemp -d)
           python _odoo/odoo-bin --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
             --addons-path="$PWD/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
-            -d nasq_drill_src_scratch -i nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat \
+            -d webvue_drill_src_scratch -i webvue_core,webvue_api,webvue_pmo,webvue_hr,webvue_chat \
             --without-demo=all --http-port=8169 --stop-after-init
           python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
-            --db-name nasq_drill_src_scratch --filestore "$W/data/filestore/nasq_drill_src_scratch" \
+            --db-name webvue_drill_src_scratch --filestore "$W/data/filestore/webvue_drill_src_scratch" \
             --output-dir "$W/backup" --pg-dump $B/pg_dump --pg-host 127.0.0.1 --pg-user odoo
           verify() { python3 deploy/restore_verify.py --backup-dir "$W/backup" --target-db "$1" \
             --target-filestore "$W/restored/filestore/$1" --pg-restore $B/pg_restore --createdb $B/createdb \
             --psql $B/psql --pg-host 127.0.0.1 --pg-user odoo; }
-          verify nasq_drill_restored_scratch
+          verify webvue_drill_restored_scratch
           find "$W/backup/filestore" -type f | head -n1 | xargs rm
-          if verify nasq_drill_restored2_scratch; then echo "negative case passed unexpectedly"; exit 1; fi
+          if verify webvue_drill_restored2_scratch; then echo "negative case passed unexpectedly"; exit 1; fi
 ```
 
 - [ ] **Step 7: وثّق وcommit**
@@ -1228,15 +1228,15 @@ git commit -m "ops: add a verified restore tool and a backup/restore drill in CI
 - Modify: `.github/workflows/ci.yml`
 
 **Interfaces:**
-- Consumes: `apps/web/e2e/internal-ui-audit-mock.mjs` (env: `PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT`؛ دخول admin/admin؛ قاعدة `nasq_ui_mock_only`).
-- Produces: وظيفة `e2e-mock`. الـe2e على Odoo حقيقي **خارج Phase 0** (يتطلب fixtures عبر Odoo؛ يُضاف مع `nasq-cli` في Phase 3).
+- Consumes: `apps/web/e2e/internal-ui-audit-mock.mjs` (env: `PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT`؛ دخول admin/admin؛ قاعدة `webvue_ui_mock_only`).
+- Produces: وظيفة `e2e-mock`. الـe2e على Odoo حقيقي **خارج Phase 0** (يتطلب fixtures عبر Odoo؛ يُضاف مع `webvue-cli` في Phase 3).
 
 - [ ] **Step 1: حدّد القائمة بالقياس لا بالتخمين**
 
 ```bash
 cd apps/web
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498 node e2e/internal-ui-audit-mock.mjs &
-NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 &
+NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 &
 for i in $(seq 1 60); do curl -fs http://localhost:4097/login >/dev/null && break; sleep 2; done
 E2E_BASE_URL=http://localhost:4097 E2E_PROJECT_POPUPS=1 npx playwright test --reporter=json > /tmp/e2e.json || true
 node -e 'const r=require("/tmp/e2e.json");const ok=new Set(),bad=new Set();(function w(s){for(const x of s.suites||[])w(x);for(const sp of s.specs||[])(sp.ok?ok:bad).add(sp.file)})(r);console.log([...ok].filter(f=>!bad.has(f)).sort().join("\n"))' > e2e/ci-mock-specs.txt
@@ -1266,7 +1266,7 @@ Expected: ملف يسرد ملفات الـspec التي نجحت **كل** اخ�
           MODULE_UI_PREVIEW: '1'
           MOCK_PORT: '4498'
           NUXT_ODOO_URL: http://127.0.0.1:4498
-          NUXT_ODOO_DB: nasq_ui_mock_only
+          NUXT_ODOO_DB: webvue_ui_mock_only
           NUXT_PUBLIC_WS_URL: ws://127.0.0.1:4498/websocket
           E2E_BASE_URL: http://localhost:4097
           E2E_PROJECT_POPUPS: '1'
@@ -1298,12 +1298,12 @@ git commit -m "ci: run the mock-backed Playwright specs"
 **Files:**
 - Modify: `CLAUDE.md`, `docs/WORKSPACE.md`
 
-- [ ] **Step 1: `CLAUDE.md`** — في قسم "Check commands" أضف فقرة: CI (`.github/workflows/ci.yml`) يشغّل `static`، `odoo`، `upgrade`، `image`، `restore-drill`، `e2e-mock`؛ كل فحص قابل للتشغيل محلياً بالأوامر نفسها؛ سياسة الترحيل في `docs/migrations.md`؛ commit Odoo في `deploy/odoo/ODOO_COMMIT`. وأضف `nasq_chat` إلى أمر الاختبار النموذجي (`-i` و`--test-tags`).
+- [ ] **Step 1: `CLAUDE.md`** — في قسم "Check commands" أضف فقرة: CI (`.github/workflows/ci.yml`) يشغّل `static`، `odoo`، `upgrade`، `image`، `restore-drill`، `e2e-mock`؛ كل فحص قابل للتشغيل محلياً بالأوامر نفسها؛ سياسة الترحيل في `docs/migrations.md`؛ commit Odoo في `deploy/odoo/ODOO_COMMIT`. وأضف `webvue_chat` إلى أمر الاختبار النموذجي (`-i` و`--test-tags`).
 
-**لا تغيّر** سطر "there is no shared tenant layer" في هذه المرحلة. صياغته المعتمدة من المالك تُطبَّق في Phase 1 عند وجود `nasq_platform` فعلاً:
+**لا تغيّر** سطر "there is no shared tenant layer" في هذه المرحلة. صياغته المعتمدة من المالك تُطبَّق في Phase 1 عند وجود `webvue_platform` فعلاً:
 
 ```text
-Nasq has a tenant abstraction through nasq_platform,
+WebVue has a tenant abstraction through webvue_platform,
 but tenant isolation remains database-per-tenant.
 There is no shared-database tenant layer.
 ```

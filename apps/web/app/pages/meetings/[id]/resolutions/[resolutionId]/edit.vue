@@ -105,7 +105,7 @@ async function save() {
       <form ref="formElement" novalidate v-else-if="resolution" class="space-y-8" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <SharedFormSection v-if="canEditDecision" :title="t('meetingsUi.resolutions')">
-          <div class="nasq-form-grid">
+          <div class="webvue-form-grid">
             <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
               <UInput id="resolution-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
             </UFormField>

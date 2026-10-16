@@ -1,5 +1,5 @@
 {
-  "name": "nasq",
+  "name": "webvue",
   "private": true,
   "workspaces": [
     "apps/*",

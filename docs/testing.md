@@ -1,6 +1,6 @@
 # Testing guide
 
-nasq has four test layers. Pick the cheapest one that proves the change.
+webvue has four test layers. Pick the cheapest one that proves the change.
 
 | Layer | Use it for | Run |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ Use these while iterating; `npm test` and the Odoo/CI gates stay binding before 
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, plus a summary line (`tools/wt.py`). |
-| `npm run wt -- gc [--apply]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`nasq_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. |
+| `npm run wt -- gc [--apply]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`webvue_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` step. |
 | `npm run review:jev -- --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against `main` (`tools/jev_review.mjs`; `--base <ref>`, `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Never a gate: see `REVIEW.md`. |
 | `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` step. |
@@ -39,8 +39,8 @@ its own, and `git commit --no-verify` still bypasses it. The merge gates stay bi
 
 `tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
 module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them
-changes) and only ever creates, clones or drops `nasq_scratch_*` databases. Stale
-`nasq_scratch_tpl_*` templates are small and can be dropped by hand.
+changes) and only ever creates, clones or drops `webvue_scratch_*` databases. Stale
+`webvue_scratch_tpl_*` templates are small and can be dropped by hand.
 
 ## Running a CI step locally
 
@@ -49,14 +49,14 @@ backend with no server. Verified for the `static` step (197.6 s, passed):
 
 ```sh
 # 1. a throwaway clone, because the step runs `npm ci` and writes into its workspace
-git clone --local --no-hardlinks /Users/tariq/code/nasq /tmp/nasq-ci && cd /tmp/nasq-ci
+git clone --local --no-hardlinks /Users/tariq/code/nasq /tmp/webvue-ci && cd /tmp/webvue-ci
 # 2. a pipeline file holding only the wanted step (exec cannot select one)
 #    copy `when:` plus the `static` block of .woodpecker.yml into /tmp/static-only.yaml
-woodpecker-cli exec --local --repo-path /tmp/nasq-ci --backend-engine local \
+woodpecker-cli exec --local --repo-path /tmp/webvue-ci --backend-engine local \
   --commit-branch main /tmp/static-only.yaml
 ```
 
-Other steps need extra local services (PostgreSQL role `nasq_test`, the Odoo checkout, a Docker
+Other steps need extra local services (PostgreSQL role `webvue_test`, the Odoo checkout, a Docker
 daemon for `image`) and were not run this way. This mirrors CI for a branch before merge; the
 local policy runs in AGENTS.md stay the binding gate.
 
@@ -70,14 +70,14 @@ Actions is not used. The main pipeline has twelve steps—`static`, `ai-service`
 runnable locally with the same command block in that file (`vendor-admin` type-checks, tests and builds `apps/vendor-admin`): static checks, the
 control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
 commands, the backup and restore drill, and the mock Playwright run. `odoo` installs the whole release;
-`odoo-tasks-standalone` (`-i nasq_tasks` only, then asserts `nasq_pmo` and `nasq_tasks_pmo` are not installed)
-and `odoo-tasks-bridge` (`-i nasq_tasks,nasq_pmo,nasq_tasks_pmo`, then asserts the bridge is installed) prove
+`odoo-tasks-standalone` (`-i webvue_tasks` only, then asserts `webvue_pmo` and `webvue_tasks_pmo` are not installed)
+and `odoo-tasks-bridge` (`-i webvue_tasks,webvue_pmo,webvue_tasks_pmo`, then asserts the bridge is installed) prove
 the tasks application's non-release configurations with hard-coded module lists, their own scratch databases
 and HTTP ports 8193/8194. The
 control-plane live suites run serially by design: its `test` script sets
 `--no-file-parallelism --hookTimeout=60000` because they share one scratch
 control database and TRUNCATE the same tables. `ai-service` installs `apps/ai-service` into a venv, lints it with ruff and runs its pytest
-suite against a throwaway Postgres database (`nasq_ai_ci_<pipeline number>`, created and dropped in the step
+suite against a throwaway Postgres database (`webvue_ai_ci_<pipeline number>`, created and dropped in the step
 like the control-plane suites); locally the scripted-model suite runs without a database and the Postgres
 tests run only when `AI_TEST_DATABASE_URL` is set. The `image` step
 needs a Docker daemon on the agent; `deploy/woodpecker/image.yml` is the separate opt-in pipeline for
@@ -95,7 +95,7 @@ Odoo source commit is [`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT).
 | `tools/wt.py new` (worktree, install, `nuxt prepare`) | about 10 s |
 | Odoo install of the 10 release modules | about 17 s |
 | `createdb -T` clone of the installed template | about 1.2 s |
-| `npm run test:odoo -- --addons nasq_hr` (80 tests), warm / cold template | 30 s / 43 s |
+| `npm run test:odoo -- --addons webvue_hr` (80 tests), warm / cold template | 30 s / 43 s |
 | Full Odoo run (install and tests of all release modules, 658 tests) | 234 s |
 | CI `e2e-mock` locally (`nuxt build` 28.8 s, 7 Playwright tests 4.9 s) | about 35 s |
 | `npm run test:rtl` (Storybook build 7.6 s, 184 stories x 2 viewports, 4 workers) | about 2.4 min |
@@ -105,7 +105,7 @@ Not measured: the agentic e2e runner (needs model credentials) and the Odoo-back
 
 ## 1. Odoo tests
 
-Extend `NasqApiCase` (or `NasqPmoCase`) from `nasq_api/tests/common.py`. Every `test_*.py`
+Extend `WebVueApiCase` (or `WebVuePmoCase`) from `webvue_api/tests/common.py`. Every `test_*.py`
 is imported by its addon `tests/__init__.py`. Never run them against the dev `odoo19` DB.
 
 ## 2. Unit tests
@@ -119,7 +119,7 @@ Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
 
-### Nasq AI spec
+### WebVue AI spec
 
 `e2e/ai-mocked.spec.ts` is in `ci-mock-specs.txt`. Besides the audit mock it needs `e2e/ai-service-mock.mjs`, a
 scripted stand-in for the AI service (no model; port `AI_MOCK_PORT`, 4499 in CI) that Nuxt reaches through
@@ -146,7 +146,7 @@ database), point Nuxt at the wrapper port, and open Nuxt on `localhost`, not `12
 ```sh
 MOCK_PORT=4501 node apps/web/e2e/my-tasks-mock.mjs   # wrapper 4501, upstream 5501
 cd apps/web
-NUXT_ODOO_URL=http://127.0.0.1:4501 NUXT_ODOO_DB=nasq_ui_mock_only \
+NUXT_ODOO_URL=http://127.0.0.1:4501 NUXT_ODOO_DB=webvue_ui_mock_only \
   NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4501/websocket npx nuxt dev --port 4401
 E2E_MY_TASKS=1 E2E_BASE_URL=http://localhost:4401 npx playwright test e2e/my-tasks-*.spec.ts
 ```
@@ -179,7 +179,7 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 - `npm run e2e:odoo` (same wrapper with `E2E_STACK=odoo`) runs against a real scratch Odoo
   instead of the mock, for journeys that write data (`e2e/tests/pmo-journey.e2e.ts`, tag
   `journey`; it skips itself on the mock stack). The database is the fixed
-  `nasq_scratch_e2e` (the wrapper refuses any other name and never uses `odoo19`), served
+  `webvue_scratch_e2e` (the wrapper refuses any other name and never uses `odoo19`), served
   from `/Users/tariq/code/odoo` (override `E2E_ODOO_ROOT`) with a generated config, data
   and logs under `.e2e/odoo/` and a `saas` classification fixture like CI. PostgreSQL comes
   from `PGHOST`/`PGPORT`/`PGUSER` (defaults `127.0.0.1`, `5432`, `tariq`); passwords only
@@ -226,6 +226,6 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 | `npm -w apps/vendor-admin run lint` | Type check (`vue-tsc --build --noEmit`); CI step `vendor-admin`. |
 | `npm -w apps/vendor-admin run test` | Unit tests (vitest); CI step `vendor-admin`. |
 | `npm -w apps/vendor-admin run e2e` | Playwright against the mock control service in `apps/vendor-admin/e2e`, on a production build; `e2e:dev` runs the `*.dev.spec.ts` specs on `nuxt dev`. Not a CI step. |
-| `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `nasq_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
+| `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `webvue_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
 
 Local evidence only; it does not establish deployment readiness.

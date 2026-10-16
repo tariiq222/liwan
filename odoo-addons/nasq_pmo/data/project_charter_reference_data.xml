@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <function model="nasq.project.type" name="_nasq_seed_all_companies"/>
-</odoo>

@@ -1,4 +1,4 @@
-/* Nasq identity (midnight + lime), light/dark modes, dense type and shape on
+/* WebVue identity (midnight + lime), light/dark modes, dense type and shape on
    Nuxt UI's stock theme: the Arabic font and its size modes, the brand primary
    derived at runtime (utils/brandTheme.ts), the fixed shell rail, the chart
    palette, 32px controls, 36px rows and the 4px radius base. */
@@ -53,19 +53,19 @@
   --chart-status-warning: #d97706;
   --chart-status-error: #dc2626;
   --chart-status-neutral: #64748b;
-  /* Nasq identity and density. 2.285714rem = 32px and 2.571429rem = 36px at the 14px root. */
-  --nasq-midnight: #13234a;
-  --nasq-lime: #c8f031;
-  --nasq-lime-foreground: #13234a;
-  --nasq-control-h: 2.285714rem;
-  --nasq-row-h: 2.571429rem;
+  /* WebVue identity and density. 2.285714rem = 32px and 2.571429rem = 36px at the 14px root. */
+  --webvue-midnight: #13234a;
+  --webvue-lime: #c8f031;
+  --webvue-lime-foreground: #13234a;
+  --webvue-control-h: 2.285714rem;
+  --webvue-row-h: 2.571429rem;
   /* Shell: fixed midnight rail (not tenant-derived) and surfaces. */
-  --nasq-rail: #13234a;
-  --nasq-rail-deep: #0d1a38;
+  --webvue-rail: #13234a;
+  --webvue-rail-deep: #0d1a38;
   --rail-hover: #1f3160;
   /* Page canvas: a slate tint behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
-  --nasq-canvas: #f6f7fb;
-  --shell-background: var(--nasq-canvas);
+  --webvue-canvas: #f6f7fb;
+  --shell-background: var(--webvue-canvas);
   --shell-foreground: var(--ui-text);
   --context-surface: var(--ui-bg);
   /* Aliases used by the shell stylesheet and older components; every one
@@ -94,10 +94,10 @@
   --sidebar-accent-foreground: var(--ui-text);
   --sidebar-border: var(--ui-border);
   --sidebar-ring: var(--brand-link);
-  --nasq-surface: var(--ui-bg);
-  --nasq-surface-soft: var(--ui-bg-muted);
-  --nasq-text: var(--ui-text);
-  --nasq-border: var(--ui-border);
+  --webvue-surface: var(--ui-bg);
+  --webvue-surface-soft: var(--ui-bg-muted);
+  --webvue-text: var(--ui-text);
+  --webvue-border: var(--ui-border);
   /* Semantic status colours follow the library's own. */
   --status-success: var(--ui-success);
   --status-success-foreground: var(--ui-success);
@@ -122,8 +122,8 @@
   --project-type-section: var(--text-lg);
   --project-type-title: var(--text-xl);
   --project-section-surface: var(--ui-bg-muted);
-  --nasq-ui-z-sheet: 60;
-  --nasq-ui-z-menu: 130;
+  --webvue-ui-z-sheet: 60;
+  --webvue-ui-z-menu: 130;
 }
 :root[data-font-size="medium"] { font-size: 16px; }
 :root[data-font-size="large"] { font-size: 18px; }
@@ -145,12 +145,12 @@
   --ui-text-muted: #94a3b8;
   --ui-text-toned: #cbd5e1;
   --ui-text-dimmed: #94a3b8;
-  --nasq-canvas: #070d1c;
+  --webvue-canvas: #070d1c;
   /* The rail is a clearly lighter midnight than the page canvas and carries an edge line (shell.css). */
-  --nasq-rail: #172b5c;
-  --nasq-rail-deep: #112247;
+  --webvue-rail: #172b5c;
+  --webvue-rail-deep: #112247;
   --rail-hover: #223a72;
-  --nasq-rail-edge: rgb(255 255 255 / 14%);
+  --webvue-rail-edge: rgb(255 255 255 / 14%);
   /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (brandTheme.ts darkLink; the runtime overwrites these). */
   --brand-link: #8da6e2;
   --ring: #8da6e2;
@@ -188,15 +188,15 @@
   --color-brand-900: color-mix(in srgb, var(--primary) 65%, black);
   --color-brand-950: color-mix(in srgb, var(--primary) 50%, black);
 }
-/* Only nasq-specific colours are exposed as utilities. The shadcn-style names
+/* Only webvue-specific colours are exposed as utilities. The shadcn-style names
    (text-muted-foreground, border-border, text-destructive, bg-card…) were
    retired: use Nuxt UI's text-muted, border-default, text-error, bg-default. */
 @theme inline {
-  --color-nasq-midnight: var(--nasq-midnight);
-  --color-nasq-lime: var(--nasq-lime);
-  --color-nasq-lime-foreground: var(--nasq-lime-foreground);
-  --color-nasq-rail: var(--nasq-rail);
-  --color-nasq-canvas: var(--nasq-canvas);
+  --color-webvue-midnight: var(--webvue-midnight);
+  --color-webvue-lime: var(--webvue-lime);
+  --color-webvue-lime-foreground: var(--webvue-lime-foreground);
+  --color-webvue-rail: var(--webvue-rail);
+  --color-webvue-canvas: var(--webvue-canvas);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-primary-hover-foreground: var(--primary-hover-foreground);

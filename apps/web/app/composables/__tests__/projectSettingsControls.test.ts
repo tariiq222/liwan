@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ProjectCreateDefaultsSchema, ProjectCreateSchema, ProjectSettingsSchema } from '@nasq/contracts'
+import { ProjectCreateDefaultsSchema, ProjectCreateSchema, ProjectSettingsSchema } from '@webvue/contracts'
 import { projectSettingsKeys } from '../useProjectSettings'
 
 describe('project settings controls client contracts', () => {

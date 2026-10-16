@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { subscriptionDisplayState } from '@nasq/commercial-contracts'
+import { subscriptionDisplayState } from '@webvue/commercial-contracts'
 import { url } from './commercial-helpers.js'
 import { migrate } from '../db.js'
 import { routesB } from '../commercial/routes-b.js'
@@ -15,7 +15,7 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
   const ids = Array.from({ length: 215 }, () => randomUUID())
   const caps: any[] = ['vendor.read', 'vendor.subscriptions.manage', 'vendor.billing.manage']
   async function call(method: string, path: string, body?: unknown, capabilities = caps, runtime?: any) {
-    const target = new URL(`/v1/commercial${path}`, 'http://nasq.test')
+    const target = new URL(`/v1/commercial${path}`, 'http://webvue.test')
     return routesB(pool, { method, pathname: target.pathname, raw: body === undefined ? '' : JSON.stringify(body), actor: 7, issuer: 'admin-test', capabilities, stepUpFresh: true }, target, runtime) as Promise<any>
   }
   beforeAll(async () => {
@@ -165,7 +165,7 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
       VALUES($1,$2,$3,$4,'initial','SAR',2,100,0,100,'2026-01-01','2026-02-01')`, [invoice, f.customer, f.subscription, f.id])
     await pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status)
       VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,'unknown')`, [randomUUID(), f.id, invoice])
-    await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' }, caps, { adapter: new SimulatorAdapter(), allowedOrigin: 'http://nasq.test' })).rejects.toMatchObject({ status: 409, code: 'payment_reconciliation_required' })
+    await expect(call('POST', `/orders/${f.id}/cancel`, { reason: 'Customer changed selection' }, caps, { adapter: new SimulatorAdapter(), allowedOrigin: 'http://webvue.test' })).rejects.toMatchObject({ status: 409, code: 'payment_reconciliation_required' })
     expect((await pool.query('SELECT cancelled FROM orders WHERE id=$1', [f.id])).rows[0].cancelled).toBe(false)
     expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE subject=$1 AND action='order.cancelled'", [f.id])).rows[0].n).toBe(0)
   })

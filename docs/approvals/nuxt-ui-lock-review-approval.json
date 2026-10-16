@@ -1,5 +1,5 @@
 {
-  "id": "nasq-nuxt-ui-lock-review-20260910",
+  "id": "webvue-nuxt-ui-lock-review-20260910",
   "classification": "unknown",
   "components": [
     {
@@ -14,7 +14,7 @@
         "https://github.com/nuxt/ui/security/advisories/GHSA-wpmj-r844-vvfg"
       ],
       "security": "ليس تحديثًا أمنيًا فقط. فُحص تنبيه GET قبل hydration للنطاق <=4.7.1؛ المصدر المرشح يحدد POST للنموذج الخارجي، مع بقاء التحقق مطلوبًا. وتنبيه XSS لقالب المحادثات يذكر 3.3.2 ولا يقدم إصدار إصلاح واضحًا؛ لن نستورد القالب. لم يكتمل تدقيق الشجرة الانتقالية ولا ندعي أمانها",
-      "non_security": "تغيير مكونات وموديول ثيم. المصدر يسجل icon/fonts/color-mode وTailwind plugin وroot colors وproviders. المقارنة الحالية: 65 اعتمادًا مباشرًا، 37 اسمًا لها إصدارات موجودة في قفل نسق، 28 اسمًا جديدًا. لا إعداد الموديول أو تشغيله في هذا الإجراء"
+      "non_security": "تغيير مكونات وموديول ثيم. المصدر يسجل icon/fonts/color-mode وTailwind plugin وroot colors وproviders. المقارنة الحالية: 65 اعتمادًا مباشرًا، 37 اسمًا لها إصدارات موجودة في قفل ويب فيو، 28 اسمًا جديدًا. لا إعداد الموديول أو تشغيله في هذا الإجراء"
     },
     {
       "name": "@iconify-json/lucide",
@@ -70,7 +70,7 @@
       "cwd": "/Users/tariq/code/nasq-nuxt-ui-reference",
       "tool_name": "Bash",
       "tool_input": {
-        "command": "npm install --workspace apps/web @nuxt/ui@4.11.1 @iconify-json/lucide@1.2.129 --save-exact --package-lock-only --ignore-scripts --strict-peer-deps --prefer-dedupe --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/nasq-nuxt-ui-npm-cache"
+        "command": "npm install --workspace apps/web @nuxt/ui@4.11.1 @iconify-json/lucide@1.2.129 --save-exact --package-lock-only --ignore-scripts --strict-peer-deps --prefer-dedupe --no-audit --no-fund --registry=https://registry.npmjs.org --cache=/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/webvue-nuxt-ui-npm-cache"
       }
     }
   ]

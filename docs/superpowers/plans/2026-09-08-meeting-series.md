@@ -6,7 +6,7 @@ Single isolated worktree: `/Users/tariq/code/nasq-meetings-series`. Coordinator 
 
 ## Slice A — foundation + scheduling
 
-- Model `nasq.meeting.series` + meeting `series_id`/`project_id`
+- Model `webvue.meeting.series` + meeting `series_id`/`project_id`
 - Record rules that do not leak hidden occurrences
 - Recurrence via `calendar.event`; this / this-and-following
 - List filters + month window (2000)

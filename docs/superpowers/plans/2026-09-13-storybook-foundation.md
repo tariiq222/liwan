@@ -6,7 +6,7 @@
 
 **Architecture:** `@storybook/vue3-vite` without the Nuxt runtime. Auto-imports and component registrations are generated from `.nuxt/imports.d.ts` and `.nuxt/components.d.ts`; the Nuxt runtime APIs that app code calls are served by one shim module, and a scan fails the production build when app code calls an unshimmed API. The global decorator reuses the app's own `htmlAttrsFor` and `createBrandTheme`. `tools/ui_policy.py` forbids copies and enforces usage-context references and coverage.
 
-**Tech Stack:** Storybook 10.6.0 (`storybook`, `@storybook/vue3-vite`, `@storybook/addon-docs`), `msw` 2.15.0 + `msw-storybook-addon` 3.0.0, `@vitejs/plugin-vue` 6.0.8, Nuxt 4.5.2, `@nuxt/ui` 4.11.1, vue-i18n, `@tanstack/vue-query`, Zod contracts from `@nasq/contracts`, Vitest, Playwright, Python `unittest`.
+**Tech Stack:** Storybook 10.6.0 (`storybook`, `@storybook/vue3-vite`, `@storybook/addon-docs`), `msw` 2.15.0 + `msw-storybook-addon` 3.0.0, `@vitejs/plugin-vue` 6.0.8, Nuxt 4.5.2, `@nuxt/ui` 4.11.1, vue-i18n, `@tanstack/vue-query`, Zod contracts from `@webvue/contracts`, Vitest, Playwright, Python `unittest`.
 
 **Spec:** `docs/superpowers/specs/2026-09-13-storybook-foundation-design.md`
 
@@ -18,9 +18,9 @@
 - Install with `npm ci --ignore-scripts` / `npm install --ignore-scripts`; never edit `~/.npmrc`.
 - No `.vue` files under `apps/web/stories/` or `apps/web/.storybook/`. Stories import components from their real path under `apps/web/app/components/**`.
 - Theme comes only from `apps/web/app/assets/css/main.css`, `apps/web/app/app.config.ts`, `apps/web/app/utils/brandTheme.ts`. Token lists are read from `tokens.css` and `getComputedStyle`, never hand-written.
-- Fixture data for wire shapes is parsed through Zod schemas from `@nasq/contracts`. Fixtures are test data, never imported by `apps/web/app`.
+- Fixture data for wire shapes is parsed through Zod schemas from `@webvue/contracts`. Fixtures are test data, never imported by `apps/web/app`.
 - Every component story is wrapped in the real usage context it cites with `storyContext('<repo path>:<line>')`. A component with more than one distinct context gets one story per context, named after the context. An unused component uses `storyContext('unused')` and no wrapper. Token pages and Nuxt UI recipe galleries are exempt.
-- Do not invent widths such as `max-w-xs`. Page-level context is `<main class="nasq-shell-main">` from `apps/web/app/layouts/default.vue:53`. A context that only exists below 768px (`md:hidden`) uses a 375px phone-width wrapper and says so. When a parent's geometry comes from scoped CSS, prefer another real context built from utility classes; if none exists, copy only the layout declarations inline and name the source.
+- Do not invent widths such as `max-w-xs`. Page-level context is `<main class="webvue-shell-main">` from `apps/web/app/layouts/default.vue:53`. A context that only exists below 768px (`md:hidden`) uses a 375px phone-width wrapper and says so. When a parent's geometry comes from scoped CSS, prefer another real context built from utility classes; if none exists, copy only the layout declarations inline and name the source.
 - Storybook package versions are pinned exactly (no `^`).
 - App behaviour must not change. The only app-code edits are the extractions in Task 1 (`htmlAttrsFor`) and Task 10 (`projectChartLabels`), each covered by a unit test.
 - Scope is exactly the 30 components listed in spec §1 and in Task 11's `STORYBOOK_COMPONENTS`; do not add stories for components used once.
@@ -41,7 +41,7 @@ apps/web/
     nuxt-imports.mjs      generated auto-imports/components + runtime API usage report (Task 2)
     nuxt-shims.ts         Nuxt runtime API stand-ins                                  (Task 2)
     preview.ts            plugins, MSW, toolbar globals, document decorator            (Task 2)
-    virtual.d.ts          types for virtual:nasq-i18n                                  (Task 2)
+    virtual.d.ts          types for virtual:webvue-i18n                                  (Task 2)
     tsconfig.json         type-check scope for .storybook + stories                    (Task 2)
     public/mockServiceWorker.js                                                        (Task 2)
   stories/
@@ -186,7 +186,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: `htmlAttrsFor`, `AppearanceMode`, `FontSize` (Task 1); `createBrandTheme(input: string, mode?: AppearanceMode): Record<string, string>` and `DEFAULT_PRIMARY` from `apps/web/app/utils/brandTheme.ts`.
 - Produces:
-  - `storyContext(ref: string, note?: string): { nasqContext: string; docs: { description: { story: string } } }` from `apps/web/stories/support/context.ts`. Every later story uses it as `parameters: storyContext('…')` or `parameters: { ...storyContext('…'), … }`.
+  - `storyContext(ref: string, note?: string): { webvueContext: string; docs: { description: { story: string } } }` from `apps/web/stories/support/context.ts`. Every later story uses it as `parameters: storyContext('…')` or `parameters: { ...storyContext('…'), … }`.
   - Storybook globals `locale: 'ar' | 'en'`, `appearance: 'light' | 'dark' | 'cream'`, `fontSize: 'small' | 'medium' | 'large'`, `primary: string` (URL form `globals=locale:en;appearance:dark`).
   - npm scripts `storybook` (dev, port 6006) and `build-storybook` (output `apps/web/storybook-static`).
   - `REVIEWED_STORYBOOK_TOOLING` set in `tools/ui_policy.py`.
@@ -314,9 +314,9 @@ configGlobals.defineAppConfig ??= c => c
 type LocaleConfig = { code: string; language: string; dir: 'rtl' | 'ltr'; files: string[] }
 
 function i18nMessages(locales: LocaleConfig[]): Plugin {
-  const id = 'virtual:nasq-i18n'
+  const id = 'virtual:webvue-i18n'
   return {
-    name: 'nasq:i18n-messages',
+    name: 'webvue:i18n-messages',
     resolveId: source => (source === id ? `\0${id}` : undefined),
     load(source) {
       if (source !== `\0${id}`) return
@@ -352,7 +352,7 @@ const config: StorybookConfig = {
     const { imports, components, report } = await buildNuxtImports()
 
     if (report.missing.length) {
-      const message = `[nasq-storybook] app code calls Nuxt runtime APIs without a shim in .storybook/nuxt-shims.ts: ${report.missing.join(', ')}`
+      const message = `[webvue-storybook] app code calls Nuxt runtime APIs without a shim in .storybook/nuxt-shims.ts: ${report.missing.join(', ')}`
       if (configType === 'PRODUCTION') throw new Error(message)
       console.warn(message)
     }
@@ -386,7 +386,7 @@ export default config
 - [ ] **Step 9: Write `apps/web/.storybook/virtual.d.ts`**
 
 ```ts
-declare module 'virtual:nasq-i18n' {
+declare module 'virtual:webvue-i18n' {
   export const locales: { code: string; language: string; dir: 'rtl' | 'ltr' }[]
   const messages: Record<string, Record<string, unknown>>
   export default messages
@@ -409,7 +409,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mswLoader } from 'msw-storybook-addon/csf3'
-import messages, { locales } from 'virtual:nasq-i18n'
+import messages, { locales } from 'virtual:webvue-i18n'
 import { useAppearance } from '../app/composables/useAppearance'
 import { htmlAttrsFor, type AppearanceMode, type FontSize } from '../app/utils/appearance'
 import { createBrandTheme, DEFAULT_PRIMARY } from '../app/utils/brandTheme'
@@ -514,13 +514,13 @@ export default preview
 // Every component story cites the real parent it copies, so its size matches the app.
 export function storyContext(ref: string, note?: string) {
   const source = ref === 'unused' ? 'غير مستخدم حاليًا' : `السياق: \`${ref}\``
-  return { nasqContext: ref, docs: { description: { story: note ? `${note}\n\n${source}` : source } } }
+  return { webvueContext: ref, docs: { description: { story: note ? `${note}\n\n${source}` : source } } }
 }
 ```
 
 - [ ] **Step 13: Write the first story `apps/web/stories/shared/RecordNumber.stories.ts`**
 
-Contexts: table cell at `apps/web/app/pages/projects/[id]/stakeholders/index.vue:107` (inside `section.nasq-ui-record-surface > div.min-w-0.overflow-x-auto`), and the phone card at `…/stakeholders/index.vue:149` (`md:hidden`, so below 768px; the wrapper is a 375px phone width).
+Contexts: table cell at `apps/web/app/pages/projects/[id]/stakeholders/index.vue:107` (inside `section.webvue-ui-record-surface > div.min-w-0.overflow-x-auto`), and the phone card at `…/stakeholders/index.vue:149` (`md:hidden`, so below 768px; the wrapper is a 375px phone width).
 
 ```ts
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
@@ -549,7 +549,7 @@ export const InTableCell: Story = {
       const columns = computed(() => [{ accessorKey: 'id', header: '#' }, { accessorKey: 'name', header: t('projects.governance.stakeholders') }])
       return { rows, columns }
     },
-    template: `<section class="nasq-ui-record-surface"><div class="min-w-0 overflow-x-auto"><UTable :data="rows" :columns="columns"><template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template></UTable></div></section>`,
+    template: `<section class="webvue-ui-record-surface"><div class="min-w-0 overflow-x-auto"><UTable :data="rows" :columns="columns"><template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template></UTable></div></section>`,
   }),
 }
 
@@ -573,7 +573,7 @@ npm -w apps/web run build-storybook
 npx -w apps/web vue-tsc --noEmit -p .storybook/tsconfig.json
 ```
 
-Expected: build succeeds with no `[nasq-storybook] app code calls Nuxt runtime APIs without a shim` error; the type-check exits 0. If a Storybook file has a type error, fix that file (not app code).
+Expected: build succeeds with no `[webvue-storybook] app code calls Nuxt runtime APIs without a shim` error; the type-check exits 0. If a Storybook file has a type error, fix that file (not app code).
 
 - [ ] **Step 15: See it in the browser**
 
@@ -858,20 +858,20 @@ import { groupTokens, isColorToken, parseTokenNames } from '../tokens'
 const css = `@theme { --text-xs: 0.85rem; }
 :root {
   /* --commented-out: red; */
-  --nasq-surface: #fff;
-  --ui-bg: var(--nasq-surface);
-  --nasq-radius: 14px;
+  --webvue-surface: #fff;
+  --ui-bg: var(--webvue-surface);
+  --webvue-radius: 14px;
 }
-.dark { --nasq-surface: #111; --status-danger: #f00; }`
+.dark { --webvue-surface: #111; --status-danger: #f00; }`
 
 describe('token names from tokens.css', () => {
   it('lists each declared custom property once, in source order, ignoring comments and usages', () => {
-    expect(parseTokenNames(css)).toEqual(['--text-xs', '--nasq-surface', '--ui-bg', '--nasq-radius', '--status-danger'])
+    expect(parseTokenNames(css)).toEqual(['--text-xs', '--webvue-surface', '--ui-bg', '--webvue-radius', '--status-danger'])
   })
 
   it('groups by the first name segment', () => {
     expect(groupTokens(parseTokenNames(css))).toEqual([
-      { prefix: 'nasq', names: ['--nasq-surface', '--nasq-radius'] },
+      { prefix: 'webvue', names: ['--webvue-surface', '--webvue-radius'] },
       { prefix: 'status', names: ['--status-danger'] },
       { prefix: 'text', names: ['--text-xs'] },
       { prefix: 'ui', names: ['--ui-bg'] },
@@ -879,11 +879,11 @@ describe('token names from tokens.css', () => {
   })
 
   it.each([
-    ['--nasq-surface', true],
+    ['--webvue-surface', true],
     ['--status-danger-soft', true],
-    ['--nasq-radius', false],
+    ['--webvue-radius', false],
     ['--elevation-2', false],
-    ['--nasq-ui-z-menu', false],
+    ['--webvue-ui-z-menu', false],
     ['--text-xs', false],
     ['--font-sans', false],
     ['--shell-header-height', false],
@@ -989,7 +989,7 @@ const table = (names: string[]): StoryObj => ({
 })
 
 export default { title: 'Foundations/Colors' } satisfies Meta
-export const Surfaces: StoryObj = { ...table(colorNames('nasq', 'ui', 'background', 'foreground', 'muted', 'popover', 'border', 'color')), name: 'الأسطح والنص والحدود' }
+export const Surfaces: StoryObj = { ...table(colorNames('webvue', 'ui', 'background', 'foreground', 'muted', 'popover', 'border', 'color')), name: 'الأسطح والنص والحدود' }
 export const Brand: StoryObj = { ...table(colorNames('primary', 'chart')), name: 'لون الهوية والرسوم' }
 export const Status: StoryObj = { ...table(colorNames('status')), name: 'الحالات' }
 export const Shell: StoryObj = { ...table(colorNames('sidebar', 'shell', 'project', 'rail', 'context')), name: 'الغلاف' }
@@ -1013,7 +1013,7 @@ export const Scale: StoryObj = {
   render: (_args, { globals }) => ({
     components: { TokenTable },
     setup: () => ({ names: ['--font-sans', ...sizes], classes, key: JSON.stringify(globals) }),
-    template: `<div class="space-y-6"><div class="space-y-3"><p v-for="size in classes" :key="size" :class="size" class="text-highlighted"><span class="font-mono text-xs text-muted" dir="ltr">{{ size }}</span> نَسَق لإدارة المشاريع — Nasq 0123</p></div><TokenTable :key="key" :names="names" /></div>`,
+    template: `<div class="space-y-6"><div class="space-y-3"><p v-for="size in classes" :key="size" :class="size" class="text-highlighted"><span class="font-mono text-xs text-muted" dir="ltr">{{ size }}</span> ويب فيو لإدارة المشاريع — WebVue 0123</p></div><TokenTable :key="key" :names="names" /></div>`,
   }),
 }
 ```
@@ -1031,7 +1031,7 @@ const names = [...new Set([...parseTokenNames(tokensCss), ...parseTokenNames(com
 const radius = names.filter(name => name.includes('radius'))
 const elevation = names.filter(name => name.startsWith('--elevation-'))
 const layers = names.filter(name => name.includes('-z-'))
-const elevationClasses = [1, 2, 3, 4].map(level => `nasq-elevation-${level}`)
+const elevationClasses = [1, 2, 3, 4].map(level => `webvue-elevation-${level}`)
 
 export default { title: 'Foundations/Shape' } satisfies Meta
 
@@ -1139,18 +1139,18 @@ export const BadgesAndProgress: StoryObj = {
 ```ts
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import { ProjectStatusSchema } from '@nasq/contracts'
+import { ProjectStatusSchema } from '@webvue/contracts'
 
 export default {
   title: 'Nuxt UI/Fields',
-  parameters: { docs: { description: { component: 'وصفات `input` و`inputNumber` و`textarea` و`select` و`selectMenu` و`calendar` (فئة `nasq-ui-field`).' } } },
+  parameters: { docs: { description: { component: 'وصفات `input` و`inputNumber` و`textarea` و`select` و`selectMenu` و`calendar` (فئة `webvue-ui-field`).' } } },
 } satisfies Meta
 
 export const TextInputs: StoryObj = {
   name: 'حقول النص',
   render: () => ({
     setup: () => ({ name: ref(''), count: ref(3), body: ref('') }),
-    template: `<div class="nasq-form-grid">
+    template: `<div class="webvue-form-grid">
       <UFormField :label="$t('meetingsUi.title')" name="name" required><UInput v-model="name" class="w-full" /></UFormField>
       <UFormField :label="$t('meetingsUi.title')" name="invalid" :error="$t('meetingsUx.errors.required')"><UInput class="w-full" aria-invalid="true" /></UFormField>
       <UFormField label="#" name="count"><UInputNumber v-model="count" class="w-full" /></UFormField>
@@ -1167,7 +1167,7 @@ export const Selects: StoryObj = {
       const items = ProjectStatusSchema.options
       return { items, status: ref('on_track'), statuses: ref<string[]>(['at_risk']) }
     },
-    template: `<div class="nasq-form-grid">
+    template: `<div class="webvue-form-grid">
       <UFormField :label="$t('projects.filters.allStatuses')" name="status"><USelect v-model="status" :items="items.map(value => ({ value, label: $t('projects.status.' + value) }))" class="w-full" /></UFormField>
       <UFormField :label="$t('projects.filters.allStatuses')" name="statuses"><USelectMenu v-model="statuses" multiple value-key="value" :items="items.map(value => ({ value, label: $t('projects.status.' + value) }))" class="w-full" /></UFormField>
     </div>`,
@@ -1189,7 +1189,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 
 export default {
   title: 'Nuxt UI/Overlays',
-  parameters: { docs: { description: { component: 'وصفات `dropdownMenu` و`tooltip` و`popover` و`slideover` و`modal` وطبقاتها `--nasq-ui-z-menu` و`--nasq-ui-z-sheet`.' } } },
+  parameters: { docs: { description: { component: 'وصفات `dropdownMenu` و`tooltip` و`popover` و`slideover` و`modal` وطبقاتها `--webvue-ui-z-menu` و`--webvue-ui-z-sheet`.' } } },
 } satisfies Meta
 
 export const Menus: StoryObj = {
@@ -1200,7 +1200,7 @@ export const Menus: StoryObj = {
         <UButton color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down">{{ $t('filterCard.title') }}</UButton>
       </UDropdownMenu>
       <UTooltip :text="$t('app.back')"><UButton color="neutral" variant="ghost" square icon="i-lucide-info" :aria-label="$t('app.back')" /></UTooltip>
-      <UPopover><UButton color="neutral" variant="outline">{{ $t('app.search') }}</UButton><template #content><div class="nasq-ui-filter-content"><UInput icon="i-lucide-search" class="w-full" /></div></template></UPopover>
+      <UPopover><UButton color="neutral" variant="outline">{{ $t('app.search') }}</UButton><template #content><div class="webvue-ui-filter-content"><UInput icon="i-lucide-search" class="w-full" /></div></template></UPopover>
     </div>`,
   }),
 }
@@ -1223,7 +1223,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 
 export default {
   title: 'Nuxt UI/Surfaces',
-  parameters: { docs: { description: { component: 'وصفات `card` (زاوية 14px و`nasq-elevation-1`) و`table` (`nasq-ui-table-head`).' } } },
+  parameters: { docs: { description: { component: 'وصفات `card` (زاوية 14px و`webvue-elevation-1`) و`table` (`webvue-ui-table-head`).' } } },
 } satisfies Meta
 
 export const Card: StoryObj = {
@@ -1244,7 +1244,7 @@ export const Table: StoryObj = {
       data: [{ id: 1, name: 'مشروع ألفا', status: 'on_track' }, { id: 2, name: 'تطوير البوابة', status: 'at_risk' }],
       columns: [{ accessorKey: 'id', header: '#' }, { accessorKey: 'name', header: 'Name' }, { accessorKey: 'status', header: 'Status' }],
     }),
-    template: '<div class="nasq-ui-record-surface"><UTable :data="data" :columns="columns" /></div>',
+    template: '<div class="webvue-ui-record-surface"><UTable :data="data" :columns="columns" /></div>',
   }),
 }
 ```
@@ -1297,10 +1297,10 @@ type Story = StoryObj<typeof meta>
 const page: Story['render'] = args => ({
   components: { PageContainer, PageHeader, PageState },
   setup: () => ({ args, t: useI18n().t }),
-  template: `<main class="nasq-shell-main"><PageContainer v-bind="args"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')" /><PageState :empty="true" /></PageContainer></main>`,
+  template: `<main class="webvue-shell-main"><PageContainer v-bind="args"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')" /><PageState :empty="true" /></PageContainer></main>`,
 })
 
-export const List: Story = { name: 'صفحة قائمة', args: { width: 'list' }, parameters: storyContext('apps/web/app/pages/tasks.vue:47', 'داخل `main.nasq-shell-main` من `apps/web/app/layouts/default.vue:53`.'), render: page }
+export const List: Story = { name: 'صفحة قائمة', args: { width: 'list' }, parameters: storyContext('apps/web/app/pages/tasks.vue:47', 'داخل `main.webvue-shell-main` من `apps/web/app/layouts/default.vue:53`.'), render: page }
 export const Detail: Story = { name: 'صفحة تفاصيل', args: { width: 'detail' }, parameters: storyContext('apps/web/app/pages/meetings/[id]/print.vue:59'), render: page }
 export const Form: Story = { name: 'صفحة نموذج', args: { width: 'form' }, parameters: storyContext('apps/web/app/pages/account.vue:9'), render: page }
 ```
@@ -1329,7 +1329,7 @@ export const WithActions: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 
@@ -1339,7 +1339,7 @@ export const WithBack: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><PageHeader :title="t('app.search')" back-to="/tasks" /></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><PageHeader :title="t('app.search')" back-to="/tasks" /></PageContainer></main>`,
   }),
 }
 
@@ -1349,7 +1349,7 @@ export const TitleAndDescription: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" :description="t('account.description')" /></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><PageHeader :title="t('account.title')" :description="t('account.description')" /></PageContainer></main>`,
   }),
 }
 ```
@@ -1377,17 +1377,17 @@ export const InForm: Story = {
   render: () => ({
     components: { SettingsLayout, FormSection },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><SettingsLayout width="form"><UForm :state="{}" class="nasq-form"><FormSection :title="t('access.users.employee')" class="space-y-4"><UFormField :label="t('access.users.employee')" name="employee-search"><UInput class="w-full" icon="i-lucide-search" /></UFormField></FormSection></UForm></SettingsLayout></main>`,
+    template: `<main class="webvue-shell-main"><SettingsLayout width="form"><UForm :state="{}" class="webvue-form"><FormSection :title="t('access.users.employee')" class="space-y-4"><UFormField :label="t('access.users.employee')" name="employee-search"><UInput class="w-full" icon="i-lucide-search" /></UFormField></FormSection></UForm></SettingsLayout></main>`,
   }),
 }
 
 export const Panel: Story = {
   name: 'لوحة إعدادات',
-  parameters: storyContext('apps/web/app/components/settings/AppearanceForm.vue:12', 'داخل `div.nasq-settings-cards` من `apps/web/app/pages/settings/appearance.vue:11`.'),
+  parameters: storyContext('apps/web/app/components/settings/AppearanceForm.vue:12', 'داخل `div.webvue-settings-cards` من `apps/web/app/pages/settings/appearance.vue:11`.'),
   render: () => ({
     components: { SettingsLayout, FormSection },
     setup: () => ({ t: useI18n().t, modes: ['light', 'cream', 'dark'] }),
-    template: `<main class="nasq-shell-main"><SettingsLayout width="form"><div class="nasq-settings-cards"><FormSection panel class="nasq-ui-record-surface" :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')"><URadioGroup model-value="light" variant="card" orientation="horizontal" indicator="hidden" :items="modes.map(value => ({ value, label: t('settings.appearance.' + value) }))" :ui="{ fieldset: 'grid grid-cols-1 sm:grid-cols-3' }" /></FormSection></div></SettingsLayout></main>`,
+    template: `<main class="webvue-shell-main"><SettingsLayout width="form"><div class="webvue-settings-cards"><FormSection panel class="webvue-ui-record-surface" :title="t('settings.appearance.mode')" :description="t('settings.appearance.modeHint')"><URadioGroup model-value="light" variant="card" orientation="horizontal" indicator="hidden" :items="modes.map(value => ({ value, label: t('settings.appearance.' + value) }))" :ui="{ fieldset: 'grid grid-cols-1 sm:grid-cols-3' }" /></FormSection></div></SettingsLayout></main>`,
   }),
 }
 ```
@@ -1413,7 +1413,7 @@ type Story = StoryObj<typeof meta>
 const layout = (width: 'list' | 'detail' | 'form', title: string): Story['render'] => () => ({
   components: { SettingsLayout, PageHeader, PageState },
   setup: () => ({ t: useI18n().t, width, title }),
-  template: `<main class="nasq-shell-main"><SettingsLayout :width="width"><PageHeader :title="t(title)" /><PageState :empty="true" /></SettingsLayout></main>`,
+  template: `<main class="webvue-shell-main"><SettingsLayout :width="width"><PageHeader :title="t(title)" /><PageState :empty="true" /></SettingsLayout></main>`,
 })
 
 export const FormPage: Story = { name: 'صفحة إعداد بنموذج', parameters: storyContext('apps/web/app/pages/settings/appearance.vue:9'), render: layout('form', 'settings.appearance.title') }
@@ -1439,7 +1439,7 @@ const meta = {
   render: args => ({
     components: { SettingsLayout, PageState },
     setup: () => ({ args }),
-    template: `<main class="nasq-shell-main"><SettingsLayout width="list"><div id="results" class="nasq-settings-anchor"><PageState v-bind="args"><div class="nasq-ui-record-surface p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsLayout></main>`,
+    template: `<main class="webvue-shell-main"><SettingsLayout width="list"><div id="results" class="webvue-settings-anchor"><PageState v-bind="args"><div class="webvue-ui-record-surface p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsLayout></main>`,
   }),
 } satisfies Meta<typeof PageState>
 export default meta
@@ -1473,7 +1473,7 @@ export const InTaskTable: Story = {
   parameters: storyContext('apps/web/app/components/task/TaskTable.vue:165'),
   render: () => ({
     components: { EmptyState },
-    template: `<div class="space-y-2"><div class="nasq-ui-record-surface"><div class="overflow-x-auto"><EmptyState :title="$t('tasks.empty.title')"><template #action><UButton size="sm">{{ $t('tasks.empty.action') }}</UButton></template></EmptyState></div></div></div>`,
+    template: `<div class="space-y-2"><div class="webvue-ui-record-surface"><div class="overflow-x-auto"><EmptyState :title="$t('tasks.empty.title')"><template #action><UButton size="sm">{{ $t('tasks.empty.action') }}</UButton></template></EmptyState></div></div></div>`,
   }),
 }
 
@@ -1482,7 +1482,7 @@ export const InTaskListMobile: Story = {
   parameters: storyContext('apps/web/app/components/task/TaskTable.vue:194', 'يظهر تحت 768px (md:hidden)، فالغلاف بعرض شاشة جوال 375px.'),
   render: () => ({
     components: { EmptyState },
-    template: `<div class="nasq-ui-record-surface" style="width: 375px"><div class="divide-y divide-default"><div class="p-6 text-center"><EmptyState :title="$t('tasks.empty.closedTitle')" /></div></div></div>`,
+    template: `<div class="webvue-ui-record-surface" style="width: 375px"><div class="divide-y divide-default"><div class="p-6 text-center"><EmptyState :title="$t('tasks.empty.closedTitle')" /></div></div></div>`,
   }),
 }
 ```
@@ -1512,7 +1512,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Create: `apps/web/stories/project/ProjectFieldHelp.stories.ts`, `apps/web/stories/task/DescriptionEditor.stories.ts`
 
 **Interfaces:**
-- Consumes: `storyContext`; real components `DateField`, `FileField`, `UnsavedChanges`, `FilterBar`, `FormSection`, `PageContainer`, `SettingsLayout`, `project/ProjectFieldHelp`, `task/DescriptionEditor`; `ProjectStatusSchema` from `@nasq/contracts`.
+- Consumes: `storyContext`; real components `DateField`, `FileField`, `UnsavedChanges`, `FilterBar`, `FormSection`, `PageContainer`, `SettingsLayout`, `project/ProjectFieldHelp`, `task/DescriptionEditor`; `ProjectStatusSchema` from `@webvue/contracts`.
 - Produces (for Task 11): `DateField.InFormField`, `FileField.InMeetingAttachments`, `UnsavedChanges.CleanForm`, `FilterBar.InPageToolbar`, `ProjectFieldHelp.BesideFieldLabel`, `DescriptionEditor.WithContent`.
 
 `shared/FilterCard` is not a building block (used only inside `FilterBar`), so it has no story; its look is covered by the `FilterBar` stories.
@@ -1544,7 +1544,7 @@ const inForm = (error?: string): Story['render'] => args => ({
     const { t } = useI18n()
     return { args, t, value: ref(args.modelValue), error: error ? t(error) : undefined }
   },
-  template: `<main class="nasq-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionSchedule')"><div class="nasq-form-grid"><UFormField :label="t('meetingsUi.date')" name="date" required :error="error"><DateField id="meeting-date" v-model="value" class="w-full" :disabled="args.disabled" :min-value="args.minValue" :max-value="args.maxValue" :aria-invalid="!!error" aria-required="true" /></UFormField></div></FormSection></form></PageContainer></main>`,
+  template: `<main class="webvue-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionSchedule')"><div class="webvue-form-grid"><UFormField :label="t('meetingsUi.date')" name="date" required :error="error"><DateField id="meeting-date" v-model="value" class="w-full" :disabled="args.disabled" :min-value="args.minValue" :max-value="args.maxValue" :aria-invalid="!!error" aria-required="true" /></UFormField></div></FormSection></form></PageContainer></main>`,
 })
 
 const formContext = storyContext('apps/web/app/pages/meetings/new.vue:149')
@@ -1560,7 +1560,7 @@ export const InFilterPopover: Story = {
   render: () => ({
     components: { DateField, FilterBar, PageContainer },
     setup: () => ({ t: useI18n().t, from: ref<string | null>(null) }),
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><FilterBar class="w-full" :default-open="true"><div class="grid min-w-0 content-start gap-1"><label for="meeting-date-from" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.fromDateLabel') }}</label><DateField id="meeting-date-from" v-model="from" class="w-full" /></div></FilterBar></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><FilterBar class="w-full" :default-open="true"><div class="grid min-w-0 content-start gap-1"><label for="meeting-date-from" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.fromDateLabel') }}</label><DateField id="meeting-date-from" v-model="from" class="w-full" /></div></FilterBar></PageContainer></main>`,
   }),
 }
 ```
@@ -1597,7 +1597,7 @@ export const InDocumentCard: Story = {
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<UCard class="nasq-ui-record-surface" :ui="{ header: 'nasq-ui-card-header' }"><template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.attachments') }}</h2></template><div class="space-y-3"><UFormField :label="t('hr.docs.upload')" name="hr-doc-upload"><FileField id="hr-doc-upload" class="w-full" :disabled="args.disabled" /></UFormField></div></UCard>`,
+    template: `<UCard class="webvue-ui-record-surface" :ui="{ header: 'webvue-ui-card-header' }"><template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.attachments') }}</h2></template><div class="space-y-3"><UFormField :label="t('hr.docs.upload')" name="hr-doc-upload"><FileField id="hr-doc-upload" class="w-full" :disabled="args.disabled" /></UFormField></div></UCard>`,
   }),
 }
 
@@ -1639,14 +1639,14 @@ export const GuardsLeavingDirtyForm: Story = {
       const Form = defineComponent({
         components: { FormSection, UnsavedChanges },
         setup: () => ({ args, t }),
-        template: `<UForm :state="{}" class="nasq-form"><UnsavedChanges :dirty="args.dirty" /><FormSection :title="t('access.users.employee')" class="space-y-4"><UFormField :label="t('access.users.employee')" name="employee-search"><UInput class="w-full" /></UFormField></FormSection></UForm>`,
+        template: `<UForm :state="{}" class="webvue-form"><UnsavedChanges :dirty="args.dirty" /><FormSection :title="t('access.users.employee')" class="space-y-4"><UFormField :label="t('access.users.employee')" name="employee-search"><UInput class="w-full" /></UFormField></FormSection></UForm>`,
       })
       if (router.hasRoute('story-unsaved-form')) router.removeRoute('story-unsaved-form')
       router.addRoute({ name: 'story-unsaved-form', path: '/__story/unsaved-form', component: Form })
       onMounted(() => router.push('/__story/unsaved-form'))
       return { t, leave: () => router.push('/__story/elsewhere') }
     },
-    template: `<main class="nasq-shell-main"><SettingsLayout width="form"><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsLayout></main>`,
+    template: `<main class="webvue-shell-main"><SettingsLayout width="form"><RouterView /><div><UButton color="neutral" variant="outline" data-testid="leave" @click="leave">{{ t('app.back') }}</UButton></div></SettingsLayout></main>`,
   }),
   play: async ({ canvasElement, args }) => {
     const leave = await within(canvasElement).findByTestId('leave')
@@ -1667,7 +1667,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
-import { ProjectStatusSchema } from '@nasq/contracts'
+import { ProjectStatusSchema } from '@webvue/contracts'
 import FilterBar from '../../app/components/shared/FilterBar.vue'
 import PageContainer from '../../app/components/shared/PageContainer.vue'
 import { storyContext } from '../support/context'
@@ -1685,7 +1685,7 @@ const meta = {
       const items = computed(() => [{ value: 'all', label: t('projects.filters.allStatuses') }, ...ProjectStatusSchema.options.map(value => ({ value, label: t(`projects.status.${value}`) }))])
       return { args, t, status, items, search: ref('') }
     },
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="w-full min-w-0" data-testid="projects-toolbar"><FilterBar class="w-full" v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" :items="items" class="w-40" /></template><template #active><UBadge color="neutral" variant="subtle">{{ t('projects.status.at_risk') }}</UBadge></template></FilterBar></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="w-full min-w-0" data-testid="projects-toolbar"><FilterBar class="w-full" v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" :items="items" class="w-40" /></template><template #active><UBadge color="neutral" variant="subtle">{{ t('projects.status.at_risk') }}</UBadge></template></FilterBar></div></PageContainer></main>`,
   }),
 } satisfies Meta<typeof FilterBar>
 export default meta
@@ -1724,7 +1724,7 @@ export const BesideFieldLabel: Story = {
       const { t } = useI18n()
       return { t, label: args.label || t('projects.charter.fields.name'), text: args.text || t('projects.charter.help.name') }
     },
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><div class="grid gap-6"><div class="grid gap-2"><div class="flex items-center gap-1"><label for="charter-name" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.name') }}</label><ProjectFieldHelp :label="label" :text="text" /></div><UInput id="charter-name" class="w-full" /></div></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><div class="grid gap-6"><div class="grid gap-2"><div class="flex items-center gap-1"><label for="charter-name" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.charter.fields.name') }}</label><ProjectFieldHelp :label="label" :text="text" /></div><UInput id="charter-name" class="w-full" /></div></div></PageContainer></main>`,
   }),
 }
 ```
@@ -1748,7 +1748,7 @@ const meta = {
   render: args => ({
     components: { DescriptionEditor, FormSection, PageContainer },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.agenda')"><DescriptionEditor v-bind="args" :aria-label="t('meetingsUx.agendaLabel')" /></FormSection></form></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.agenda')"><DescriptionEditor v-bind="args" :aria-label="t('meetingsUx.agendaLabel')" /></FormSection></form></PageContainer></main>`,
   }),
 } satisfies Meta<typeof DescriptionEditor>
 export default meta
@@ -1796,7 +1796,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Create: `apps/web/stories/project/ProjectStatusBadge.stories.ts`, `apps/web/stories/task/StateBadge.stories.ts`, `apps/web/stories/task/DeadlineBadge.stories.ts`, `apps/web/stories/access/AccessStateBadge.stories.ts`, `apps/web/stories/hr/AccessBadge.stories.ts`, `apps/web/stories/chat/ChatAttachment.stories.ts`, `apps/web/stories/shell/SidebarCreateAction.stories.ts`
 
 **Interfaces:**
-- Consumes: `storyContext`; `ProjectStatusSchema`, `TaskStateSchema`, `HrEmployeeAccessSchema`, `ChatAttachmentSchema` from `@nasq/contracts`.
+- Consumes: `storyContext`; `ProjectStatusSchema`, `TaskStateSchema`, `HrEmployeeAccessSchema`, `ChatAttachmentSchema` from `@webvue/contracts`.
 - Produces (for Task 11): `ProjectStatusBadge.InOverviewRow`, `StateBadge.AllStates`, `DeadlineBadge.AllDeadlines`, `AccessStateBadge.InMobileCard`, `AccessBadge.AllAccess`, `ChatAttachment.InConversationInfo`, `SidebarCreateAction.InContextSidebar`.
 
 None of these call the API.
@@ -1805,7 +1805,7 @@ None of these call the API.
 
 ```ts
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { ProjectStatusSchema } from '@nasq/contracts'
+import { ProjectStatusSchema } from '@webvue/contracts'
 import ProjectStatusBadge from '../../app/components/project/ProjectStatusBadge.vue'
 import { storyContext } from '../support/context'
 
@@ -1837,7 +1837,7 @@ export const InTableCell: Story = {
       data: ProjectStatusSchema.options.map((status, index) => ({ id: index + 1, name: `مشروع ${index + 1}`, status })),
       columns: [{ accessorKey: 'name', header: '' }, { accessorKey: 'status', header: '' }],
     }),
-    template: `<div class="nasq-ui-record-surface"><UTable :data="data" :columns="columns"><template #status-cell="{ row }"><ProjectStatusBadge :status="row.original.status" /></template></UTable></div>`,
+    template: `<div class="webvue-ui-record-surface"><UTable :data="data" :columns="columns"><template #status-cell="{ row }"><ProjectStatusBadge :status="row.original.status" /></template></UTable></div>`,
   }),
 }
 ```
@@ -1846,7 +1846,7 @@ export const InTableCell: Story = {
 
 ```ts
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { TaskStateSchema } from '@nasq/contracts'
+import { TaskStateSchema } from '@webvue/contracts'
 import StateBadge from '../../app/components/task/StateBadge.vue'
 import { storyContext } from '../support/context'
 
@@ -1938,7 +1938,7 @@ export const InTableCell: Story = {
   render: () => ({
     components: { AccessStateBadge },
     setup: () => ({ data: cases, columns: [{ accessorKey: 'name', header: '' }, { accessorKey: 'active', header: '' }] }),
-    template: `<div class="min-w-0 space-y-2"><UCard class="nasq-ui-record-surface overflow-hidden" :ui="{ body: 'p-0' }"><div class="overflow-x-auto"><UTable :data="data" :columns="columns"><template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template></UTable></div></UCard></div>`,
+    template: `<div class="min-w-0 space-y-2"><UCard class="webvue-ui-record-surface overflow-hidden" :ui="{ body: 'p-0' }"><div class="overflow-x-auto"><UTable :data="data" :columns="columns"><template #active-cell="{ row }"><AccessStateBadge :active="row.original.active" :protected="row.original.protected" /></template></UTable></div></UCard></div>`,
   }),
 }
 
@@ -1948,7 +1948,7 @@ export const InMobileCard: Story = {
   render: args => ({
     components: { AccessStateBadge },
     setup: () => ({ args }),
-    template: `<ul class="space-y-2" style="width: 375px"><li class="nasq-ui-record-surface p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><p class="font-medium">سارة القحطاني</p></div><AccessStateBadge v-bind="args" /></div></li></ul>`,
+    template: `<ul class="space-y-2" style="width: 375px"><li class="webvue-ui-record-surface p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><p class="font-medium">سارة القحطاني</p></div><AccessStateBadge v-bind="args" /></div></li></ul>`,
   }),
 }
 
@@ -1959,7 +1959,7 @@ export const ReadOnly: Story = { ...InMobileCard, name: 'للقراءة فقط',
 
 ```ts
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { HrEmployeeAccessSchema } from '@nasq/contracts'
+import { HrEmployeeAccessSchema } from '@webvue/contracts'
 import AccessBadge from '../../app/components/hr/AccessBadge.vue'
 import { storyContext } from '../support/context'
 
@@ -1984,7 +1984,7 @@ export const InDirectoryCard: Story = {
   render: args => ({
     components: { AccessBadge },
     setup: () => ({ args }),
-    template: `<ul style="width: 375px"><li class="nasq-ui-record-surface p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><span class="font-medium">سارة القحطاني</span></div><AccessBadge v-bind="args" /></div></li></ul>`,
+    template: `<ul style="width: 375px"><li class="webvue-ui-record-surface p-4"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><bdi class="block text-xs text-muted">#7</bdi><span class="font-medium">سارة القحطاني</span></div><AccessBadge v-bind="args" /></div></li></ul>`,
   }),
 }
 
@@ -1998,7 +1998,7 @@ export const AllAccess: Story = {
 
 ```ts
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { ChatAttachmentSchema } from '@nasq/contracts'
+import { ChatAttachmentSchema } from '@webvue/contracts'
 import ChatAttachment from '../../app/components/chat/ChatAttachment.vue'
 import FormSection from '../../app/components/shared/FormSection.vue'
 import { storyContext } from '../support/context'
@@ -2058,7 +2058,7 @@ export const InContextSidebar: Story = {
   render: args => ({
     components: { SidebarCreateAction },
     setup: () => ({ args }),
-    template: `<div style="width: 236px"><div class="nasq-context-create-actions"><SidebarCreateAction :to="args.to" :label="args.label || $t('tasks.new')" :active="args.active" /><SidebarCreateAction to="/meetings/new" :label="$t('meetingsUi.new')" /></div></div>`,
+    template: `<div style="width: 236px"><div class="webvue-context-create-actions"><SidebarCreateAction :to="args.to" :label="args.label || $t('tasks.new')" :active="args.active" /><SidebarCreateAction to="/meetings/new" :label="$t('meetingsUi.new')" /></div></div>`,
   }),
 }
 
@@ -2089,7 +2089,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Create: `apps/web/stories/task/PrioritySelect.stories.ts`, `StateMenu.stories.ts`, `TagPicker.stories.ts`, `apps/web/stories/project/ProjectMenu.stories.ts`, `apps/web/stories/meetings/MeetingProjectFilter.stories.ts`, `MeetingPeopleFields.stories.ts`
 
 **Interfaces:**
-- Consumes: `TaskSchema`, `TaskDetailSchema`, `ProjectSchema`, `ProjectRefSchema`, `TagSchema`, `PersonRefSchema`, `MeSchema` from `@nasq/contracts`.
+- Consumes: `TaskSchema`, `TaskDetailSchema`, `ProjectSchema`, `ProjectRefSchema`, `TagSchema`, `PersonRefSchema`, `MeSchema` from `@webvue/contracts`.
 - Produces:
   - `apps/web/stories/fixtures/pmo.ts`: `makeTask(overrides?: Partial<Task>): Task`, `taskDetail(overrides?: Record<string, unknown>): TaskDetail`, `boardStages: { id: number; name: string; sequence: number; fold: boolean }[]`, `project: Project`, `archivedProject: Project`, `projectRefs`, `tags`, `people`, `me`.
   - `apps/web/stories/handlers/api.ts`: `apiHandlers` (array of MSW handlers), `transitionForbidden` (handler returning 403 `transition_forbidden`).
@@ -2102,7 +2102,7 @@ The API endpoints come from the real composables: `usePeople` → `GET /api/v1/p
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { MeSchema, TaskDetailSchema, TaskSchema } from '@nasq/contracts'
+import { MeSchema, TaskDetailSchema, TaskSchema } from '@webvue/contracts'
 import { makeTask, me, taskDetail } from '../pmo'
 
 describe('Storybook PMO fixtures follow the wire contracts', () => {
@@ -2123,7 +2123,7 @@ Expected: FAIL — cannot resolve `../pmo`.
 - [ ] **Step 2: Write `apps/web/stories/fixtures/pmo.ts`**
 
 ```ts
-import { MeSchema, PersonRefSchema, ProjectRefSchema, ProjectSchema, TagSchema, TaskDetailSchema, TaskSchema, type Task } from '@nasq/contracts'
+import { MeSchema, PersonRefSchema, ProjectRefSchema, ProjectSchema, TagSchema, TaskDetailSchema, TaskSchema, type Task } from '@webvue/contracts'
 
 export const tags = TagSchema.array().parse([
   { id: 1, name: 'عاجل', color: 1 },
@@ -2182,7 +2182,7 @@ export const projectRefs = ProjectRefSchema.array().parse([
 
 export const me = MeSchema.parse({
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
-  role: 'admin', roles: [], capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'نسق' },
+  role: 'admin', roles: [], capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'ويب فيو' },
 })
 ```
 
@@ -2193,7 +2193,7 @@ Expected: PASS. If a schema rejects a field, read the Zod error and fix the fixt
 
 ```ts
 import { http, HttpResponse } from 'msw'
-import { TagSchema } from '@nasq/contracts'
+import { TagSchema } from '@webvue/contracts'
 import { me, people, projectRefs, tags, taskDetail } from '../fixtures/pmo'
 
 const contains = (value: string, request: Request) => value.includes(new URL(request.url).searchParams.get('q') ?? '')
@@ -2307,7 +2307,7 @@ const meta = {
       const value = ref(args.modelValue)
       return { args, value, t: useI18n().t, onUpdate: (event: { resolved: typeof tags }) => { value.value = event.resolved } }
     },
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><section class="space-y-2"><label id="project-settings-tags-label" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.tags') }}</label><div id="project-settings-tags" aria-labelledby="project-settings-tags-label"><TagPicker :model-value="value" :can-create="args.canCreate" labelledby="project-settings-tags-label" @update:model-value="onUpdate" /></div></section></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><section class="space-y-2"><label id="project-settings-tags-label" class="flex items-center gap-2 text-sm font-medium leading-none">{{ t('projects.settings.tags') }}</label><div id="project-settings-tags" aria-labelledby="project-settings-tags-label"><TagPicker :model-value="value" :can-create="args.canCreate" labelledby="project-settings-tags-label" @update:model-value="onUpdate" /></div></section></PageContainer></main>`,
   }),
 } satisfies Meta<typeof TagPicker>
 export default meta
@@ -2333,7 +2333,7 @@ const meta = {
   render: args => ({
     components: { ProjectMenu },
     setup: () => ({ args }),
-    template: `<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><article class="flex flex-col gap-4 nasq-ui-record-surface p-5"><p class="font-semibold text-highlighted">{{ args.project.name }}</p><div class="mt-auto flex items-center justify-between gap-3 border-t border-default pt-3 text-xs text-muted"><span class="truncate">{{ args.project.manager?.name ?? '—' }}</span><span class="inline-flex shrink-0 items-center gap-2"><span>{{ args.project.date_end ?? '—' }}</span><ProjectMenu v-bind="args" /></span></div></article></div>`,
+    template: `<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><article class="flex flex-col gap-4 webvue-ui-record-surface p-5"><p class="font-semibold text-highlighted">{{ args.project.name }}</p><div class="mt-auto flex items-center justify-between gap-3 border-t border-default pt-3 text-xs text-muted"><span class="truncate">{{ args.project.manager?.name ?? '—' }}</span><span class="inline-flex shrink-0 items-center gap-2"><span>{{ args.project.date_end ?? '—' }}</span><ProjectMenu v-bind="args" /></span></div></article></div>`,
   }),
 } satisfies Meta<typeof ProjectMenu>
 export default meta
@@ -2369,7 +2369,7 @@ export const InFormField: Story = {
   render: args => ({
     components: { FormSection, MeetingProjectFilter, PageContainer },
     setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><FormSection><div class="nasq-form-grid"><UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project"><MeetingProjectFilter id="res-project" hide-label v-model="projectId" :disabled="args.disabled" /></UFormField></div></FormSection></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><FormSection><div class="webvue-form-grid"><UFormField class="sm:col-span-2" :label="t('meetingMinutesForm.project')" name="project"><MeetingProjectFilter id="res-project" hide-label v-model="projectId" :disabled="args.disabled" /></UFormField></div></FormSection></PageContainer></main>`,
   }),
 }
 
@@ -2380,7 +2380,7 @@ export const WithLabel: Story = {
   render: args => ({
     components: { MeetingProjectFilter, PageContainer },
     setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="nasq-ui-filter-content"><MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" v-model="projectId" /></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="webvue-ui-filter-content"><MeetingProjectFilter id="meeting-series-project" :label="t('meetingsFilters.project')" v-model="projectId" /></div></PageContainer></main>`,
   }),
 }
 ```
@@ -2404,7 +2404,7 @@ const meta = {
   render: args => ({
     components: { FormSection, MeetingPeopleFields, PageContainer },
     setup: () => ({ args, t: useI18n().t, attendees: ref(args.attendeeIds), secretary: ref(args.secretaryId) }),
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionPeople')"><MeetingPeopleFields v-model:attendee-ids="attendees" v-model:secretary-id="secretary" :disabled="args.disabled" /></FormSection></form></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionPeople')"><MeetingPeopleFields v-model:attendee-ids="attendees" v-model:secretary-id="secretary" :disabled="args.disabled" /></FormSection></form></PageContainer></main>`,
   }),
 } satisfies Meta<typeof MeetingPeopleFields>
 export default meta
@@ -2451,7 +2451,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Create: `apps/web/stories/fixtures/projectReports.ts`, `apps/web/stories/task/TaskCard.stories.ts`, `apps/web/stories/project/DashboardChartPanel.stories.ts`, `apps/web/stories/shared/DashboardChart.stories.ts`, `apps/web/stories/charts/ChartContainer.stories.ts`
 
 **Interfaces:**
-- Consumes: `makeTask`, `boardStages` (Task 9); chart builders and `ChartLabels` from `apps/web/app/utils/projectChartData.ts`; `ProjectReportRowSchema` from `@nasq/contracts`.
+- Consumes: `makeTask`, `boardStages` (Task 9); chart builders and `ChartLabels` from `apps/web/app/utils/projectChartData.ts`; `ProjectReportRowSchema` from `@webvue/contracts`.
 - Produces: `projectChartLabels(t: (key: string) => string): ChartLabels`; `projectReportRows`; `dashboardCharts(t)` returning `{ status, tasks, progressBands, budget, projectProgress, finance }`. Story exports for Task 11: `TaskCard.InBoardColumn`, `DashboardChartPanel.StatusPie`, `DashboardChart.FinanceComparison`, `ChartContainer.Default`.
 
 The labels map moves out of `ProjectDashboardCharts.vue` so stories use the same keys, not a copy.
@@ -2533,7 +2533,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - [ ] **Step 4: Write `apps/web/stories/fixtures/projectReports.ts`**
 
 ```ts
-import { ProjectReportRowSchema, type ProjectReportRow } from '@nasq/contracts'
+import { ProjectReportRowSchema, type ProjectReportRow } from '@webvue/contracts'
 import {
   projectBudgetHealthChart,
   projectChartLabels,
@@ -2652,7 +2652,7 @@ function panel(key: ChartKey, title: string, options: { variant?: 'pie' | 'donut
       const { t } = useI18n()
       return { chart: computed(() => dashboardCharts(t)[key]), t, title, options, grid: GRID }
     },
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :style="options.wide ? 'grid-column: span 2' : ''" :test-id="'story-' + title" :title-id="'story-' + title + '-title'" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" v-bind="options.height ? { height: options.height } : {}" /></div></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :style="options.wide ? 'grid-column: span 2' : ''" :test-id="'story-' + title" :title-id="'story-' + title + '-title'" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" v-bind="options.height ? { height: options.height } : {}" /></div></div></PageContainer></main>`,
   })
 }
 
@@ -2697,7 +2697,7 @@ export const FinanceComparison: Story = {
       const { t } = useI18n()
       return { chart: computed(() => dashboardCharts(t).finance), t }
     },
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" style="display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr))"><UCard class="min-w-0 overflow-hidden" style="grid-column: span 2"><template #header><h2 class="text-lg font-semibold leading-6 text-highlighted">{{ t('projects.dashboard.charts.financeTitle') }}</h2></template><div class="min-w-0"><DashboardChart :chart="chart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" /></div></UCard></div></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" style="display: grid; gap: 1.25rem; grid-template-columns: repeat(2, minmax(0, 1fr))"><UCard class="min-w-0 overflow-hidden" style="grid-column: span 2"><template #header><h2 class="text-lg font-semibold leading-6 text-highlighted">{{ t('projects.dashboard.charts.financeTitle') }}</h2></template><div class="min-w-0"><DashboardChart :chart="chart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" /></div></UCard></div></div></PageContainer></main>`,
   }),
 }
 ```
@@ -2824,7 +2824,7 @@ import * as ChartContainer from './charts/ChartContainer.stories'
 
 # كل المكونات
 
-المكونات المتكررة في نسق، وتوكناته ووصفات Nuxt UI، كما هي في التطبيق. غيّر اللغة والمظهر وحجم الخط ولون الهوية من الشريط العلوي. لكل مكوّن صفحة بحالاته وسياقاته في القائمة الجانبية.
+المكونات المتكررة في ويب فيو، وتوكناته ووصفات Nuxt UI، كما هي في التطبيق. غيّر اللغة والمظهر وحجم الخط ولون الهوية من الشريط العلوي. لكل مكوّن صفحة بحالاته وسياقاته في القائمة الجانبية.
 
 ## الأساس
 
@@ -2981,7 +2981,7 @@ Storybook في `apps/web` يعرض المكونات **المتكررة** وتو�
 | الاستيرادات التلقائية | تُولَّد من `.nuxt/imports.d.ts` و`.nuxt/components.d.ts` في `nuxt-imports.mjs` |
 | بدائل Nuxt | `apps/web/.storybook/nuxt-shims.ts`؛ البناء يفشل إذا استدعى كود التطبيق واجهة Nuxt بلا بديل |
 | القصص | `apps/web/stories/**`؛ كل قصة مكوّن تذكر سياقها الحقيقي بـ `storyContext('ملف:سطر')` |
-| البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@nasq/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
+| البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@webvue/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
 | قائمة التغطية | `STORYBOOK_COMPONENTS` في `tools/ui_policy.py` |
 
 التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء.

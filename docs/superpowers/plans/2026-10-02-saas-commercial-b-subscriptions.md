@@ -150,9 +150,9 @@ Order marked paid from browser return alone -> forbidden
 
 ### B3 — تطبيق الاتفاق والدخول وتغيير الخدمة
 
-**الملفات الجديدة:** `apps/control-plane/src/shared/{subscription-reconfigure,subscription-reconcile,admin-invitations}.ts`، `__tests__/shared-subscription-{reconfigure,recovery,invitations}.test.ts`. **تعديل:** `shared/{job-dispatcher,job-store,job-worker,odoo-adapter,onboarding}.ts`, `packages/commercial-contracts/src/shared/provisioning.ts`, `tools/shared_saas_lifecycle/odoo_effect.py`, `tools/nasq_cli/managed_policy.py`. **اختبار Python جديد:** `tools/shared_saas_lifecycle/test_subscription_effect.py`.
+**الملفات الجديدة:** `apps/control-plane/src/shared/{subscription-reconfigure,subscription-reconcile,admin-invitations}.ts`، `__tests__/shared-subscription-{reconfigure,recovery,invitations}.test.ts`. **تعديل:** `shared/{job-dispatcher,job-store,job-worker,odoo-adapter,onboarding}.ts`, `packages/commercial-contracts/src/shared/provisioning.ts`, `tools/shared_saas_lifecycle/odoo_effect.py`, `tools/webvue_cli/managed_policy.py`. **اختبار Python جديد:** `tools/shared_saas_lifecycle/test_subscription_effect.py`.
 
-**Odoo:** `nasq_platform/models/{tenant_profile,entitlement_service}.py` مع revision bindings؛ تغيير الإنفاذ الدقيق فقط عند الحاجة ومراجعة odoo-workflow. لا تغيّر `_name` أو بنية tenant المحلية بدون migration/version bump/tests.
+**Odoo:** `webvue_platform/models/{tenant_profile,entitlement_service}.py` مع revision bindings؛ تغيير الإنفاذ الدقيق فقط عند الحاجة ومراجعة odoo-workflow. لا تغيّر `_name` أو بنية tenant المحلية بدون migration/version bump/tests.
 
 **يعتمد على:** B1/B2 وA1. أول enrollment يستخدم provision الحالي بسلطة subscription مثبتة؛ التعديل يستخدم job جديد `reconfigure` ومفتاح `tenant_id + target_revision_id`، لا singleton provision القديم.
 
@@ -185,7 +185,7 @@ Restore old DB with revision 3 while agreement revision 5 -> reconcile before tr
 
 ### B4 — فروع حقيقية واستحقاقها واستخدامها
 
-**الملفات الجديدة:** `apps/control-plane/src/commercial/{branches,usage}.ts`، `__tests__/commercial-{branches,usage}.test.ts`؛ `odoo-addons/nasq_platform/models/branch_service.py`، `tests/test_branch_service.py`؛ `odoo-addons/nasq_api/controllers/branches.py` و`tests/test_branches.py`؛ `tools/shared_saas_lifecycle/test_branch_effect.py`. **تعديل:** ملفات `__init__.py` والmanifest/ACL/record rules حسب المصدر، `nasq_core/models/res_company.py` لتوسعة مدروسة فقط، quota service وsnapshot contracts عند الحاجة. تتبع source brief في الخطة الرئيسية ثم أعده عند التنفيذ قبل أي Odoo code.
+**الملفات الجديدة:** `apps/control-plane/src/commercial/{branches,usage}.ts`، `__tests__/commercial-{branches,usage}.test.ts`؛ `odoo-addons/webvue_platform/models/branch_service.py`، `tests/test_branch_service.py`؛ `odoo-addons/webvue_api/controllers/branches.py` و`tests/test_branches.py`؛ `tools/shared_saas_lifecycle/test_branch_effect.py`. **تعديل:** ملفات `__init__.py` والmanifest/ACL/record rules حسب المصدر، `webvue_core/models/res_company.py` لتوسعة مدروسة فقط، quota service وsnapshot contracts عند الحاجة. تتبع source brief في الخطة الرئيسية ثم أعده عند التنفيذ قبل أي Odoo code.
 
 **يعتمد على:** B1/B2/B3. جدول control-plane `branch_binding` يحتفظ UUID الفرع وtenant/company/root ومعرف operation وحالته؛ Odoo res.company هو كيان العمل. لا ينشئ العميل root ثانيًا ولا tenant آخر.
 

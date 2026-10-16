@@ -7,14 +7,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-PROJECT = 'nasq-saas-control-local'
+PROJECT = 'webvue-saas-control-local'
 SERVICE = 'control-db'
 CONTAINER = f'{PROJECT}-{SERVICE}-1'
 IMAGE = 'sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5'
 COMPOSE_FILE = str(Path(__file__).resolve().with_name('compose.yml'))
 WORKING_DIR = str(Path(__file__).resolve().parent)
-VOLUME = 'nasq-saas-control-local-db'
-NETWORK = 'nasq-saas-control-local-private'
+VOLUME = 'webvue-saas-control-local-db'
+NETWORK = 'webvue-saas-control-local-private'
 
 
 def validate(container: dict, volumes: list[dict], networks: list[dict]) -> bool:

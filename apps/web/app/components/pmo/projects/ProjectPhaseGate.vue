@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectDetail, ProjectPhase } from '@nasq/contracts'
+import type { ProjectDetail, ProjectPhase } from '@webvue/contracts'
 import { PHASE_LABEL_KEY, canMoveForward, gateCheckRows, isGateCardVisible, phaseFailure } from '@/composables/projectPhase'
 import { useMoveProjectPhase } from '@/composables/useProjects'
 
@@ -35,7 +35,7 @@ async function run(phase: ProjectPhase) {
 </script>
 
 <template>
-  <section v-if="isVisible" class="nasq-print-hide flex flex-col gap-3 rounded-lg border border-default p-4" data-testid="project-phase-gate">
+  <section v-if="isVisible" class="webvue-print-hide flex flex-col gap-3 rounded-lg border border-default p-4" data-testid="project-phase-gate">
     <p v-if="isClosed" class="font-medium text-highlighted" data-testid="project-phase-closed-notice">{{ t('projects.phase.closedNotice') }}</p>
     <template v-else-if="state.next">
       <h2 class="text-base font-semibold text-highlighted">{{ t('projects.phase.gateTitle', { phase: phaseLabel(state.next) }) }}</h2>

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Nuxt 4.6, Nuxt UI 4.11.1 (`UTable`, `UButton`, `UBadge`, `UCard`), Tailwind 4.3 (container queries `@container` / `@min-[…]:`), `@tanstack/vue-query`, Storybook 10.6 with `@storybook/addon-a11y`, Playwright 1.62, Vitest 4 (no DOM: SSR string rendering through `@vue/compiler-sfc` + `@vue/server-renderer`, as `components/shared/__tests__` do), Python policy checks in `tools/`.
 
-**Spec:** `docs/superpowers/specs/2026-10-11-nasq-tasmim-design.md` (§6 page templates and states, §5 keyboard, §9 tooling, §10 phase 5 / CP5, §11 documentation, §12 verification, §13 risks). Plan 4 (`docs/superpowers/plans/2026-10-13-tasmim-plan-4-templates.md`) built the templates this plan adopts; Plan 3 (`…-plan-3-palette.md`, Task 9) owns the failing-title normalizer used here.
+**Spec:** `docs/superpowers/specs/2026-10-11-webvue-tasmim-design.md` (§6 page templates and states, §5 keyboard, §9 tooling, §10 phase 5 / CP5, §11 documentation, §12 verification, §13 risks). Plan 4 (`docs/superpowers/plans/2026-10-13-tasmim-plan-4-templates.md`) built the templates this plan adopts; Plan 3 (`…-plan-3-palette.md`, Task 9) owns the failing-title normalizer used here.
 
 ## Binding rulings (2026-10-13, from the owner brief — override any task text below)
 
@@ -116,7 +116,7 @@ for line in sys.stdin:
 ' | sort -u
 }
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT="$MOCK_PORT" node e2e/internal-ui-audit-mock.mjs > "$OUT/mock.log" 2>&1 & MOCK_PID=$!
-NUXT_ODOO_URL="http://127.0.0.1:$MOCK_PORT" NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL="ws://127.0.0.1:$MOCK_PORT/websocket" npx nuxt dev --port "$NUXT_PORT" > "$OUT/nuxt.log" 2>&1 & NUXT_PID=$!
+NUXT_ODOO_URL="http://127.0.0.1:$MOCK_PORT" NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL="ws://127.0.0.1:$MOCK_PORT/websocket" npx nuxt dev --port "$NUXT_PORT" > "$OUT/nuxt.log" 2>&1 & NUXT_PID=$!
 for i in $(seq 1 120); do curl -sf -o /dev/null "http://localhost:$NUXT_PORT/login" && break; sleep 2; done
 FORCE_COLOR=0 E2E_BASE_URL="http://localhost:$NUXT_PORT" E2E_PROJECT_POPUPS=1 npx playwright test "$@" --reporter=line > "$OUT/e2e.log" 2>&1 || true
 awk '/^ +[0-9]+ failed$/{f=1;next} f && /^ +[0-9]+ (flaky|passed|skipped|interrupted|did not run)/{f=0} f' "$OUT/e2e.log" > "$OUT/failures.txt"
@@ -283,7 +283,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -4
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-chartpanel--empty-with-text' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts -g 'shared-chartpanel' --reporter=line | tail -4
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts -g 'shared-chartpanel' --reporter=line | tail -4
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v 'shared-chartpanel--empty-with-text'; echo "unexpected=$?"
 ```
 
@@ -460,7 +460,7 @@ export const HiddenTitle: Story = {
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><h1 class="text-xl font-semibold text-highlighted">{{ t('projects.title') }}</h1><PageHeader :title="t('tasks.title')" hide-title><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><h1 class="text-xl font-semibold text-highlighted">{{ t('projects.title') }}</h1><PageHeader :title="t('tasks.title')" hide-title><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton></template></PageHeader></PageContainer></main>`,
   }),
 }
 ```
@@ -471,7 +471,7 @@ python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.m
 npm -w apps/web run lint && npm test 2>&1 | tail -4
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-visual.spec.ts -g 'shared-pageheader--hidden-title' --update-snapshots=missing --reporter=line | tail -3
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts -g 'shared-pageheader' --reporter=line | tail -4
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts -g 'shared-pageheader' --reporter=line | tail -4
 git status --short e2e/storybook-visual.spec.ts-snapshots | grep -v 'shared-pageheader--hidden-title'; echo "unexpected=$?"
 ```
 
@@ -823,7 +823,7 @@ DashboardPage draws its filter bar between the header and metrics.
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 cd apps/web && npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts e2e/storybook-display-templates.spec.ts -g 'shared-(pageheader|listpage|viewswitch|recordpage|dashboardpage|timelineframe|chartpanel)|Tasmim' --reporter=line | tail -5
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-templates.spec.ts e2e/storybook-display-templates.spec.ts -g 'shared-(pageheader|listpage|viewswitch|recordpage|dashboardpage|timelineframe|chartpanel)|Tasmim' --reporter=line | tail -5
 git status --short e2e/storybook-visual.spec.ts-snapshots; echo "clean=$?"
 ```
 
@@ -867,7 +867,7 @@ Expected: FAIL with `AssertionError: ['apps/web/app/pages/probe.vue: page needs 
 In `tools/ui_policy.py` replace the `PAGE_SHELLS` tuple:
 
 ```python
-PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'nasq-page-width-form',
+PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage', 'webvue-page-width-form',
                'ChatWorkspace', 'TaskDetailPage',
                # The Plan 4 page templates are shells themselves (each wraps SharedPageContainer).
                'SharedListPage', 'SharedRecordPage', 'SharedDashboardPage', 'SharedTimelineFrame',
@@ -1089,7 +1089,7 @@ Create `apps/web/app/components/project/ProjectCardBody.vue`:
 
 ```vue
 <script setup lang="ts">
-import type { Project, ProjectStatus } from '@nasq/contracts'
+import type { Project, ProjectStatus } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
@@ -1147,7 +1147,7 @@ Replace `apps/web/app/components/project/ProjectCards.vue` with:
 
 ```vue
 <script setup lang="ts">
-import type { Project } from '@nasq/contracts'
+import type { Project } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import ProjectCardBody from './ProjectCardBody.vue'
 
@@ -1198,7 +1198,7 @@ Replace `apps/web/app/components/project/ProjectTable.vue` with:
 ```vue
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Project, ProjectStatus } from '@nasq/contracts'
+import type { Project, ProjectStatus } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
@@ -1688,7 +1688,7 @@ Replace `apps/web/app/components/task/TaskTable.vue` with:
 
 ```vue
 <script setup lang="ts">
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { deadlineLabel, deadlineTone } from '@/composables/taskState'
@@ -2243,7 +2243,7 @@ Replace `apps/web/app/components/project/ProjectOverview.vue` with:
 
 ```vue
 <script setup lang="ts">
-import type { ProjectDetail, ProjectStatus } from '@nasq/contracts'
+import type { ProjectDetail, ProjectStatus } from '@webvue/contracts'
 import { formatCalendarDate } from '@/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { useMilestones } from '@/composables/useMilestones'
@@ -2598,7 +2598,7 @@ Replace `apps/web/app/components/project/dashboard/ProjectDashboardCharts.vue` w
 
 ```vue
 <script setup lang="ts">
-import type { ProjectReportRow } from '@nasq/contracts'
+import type { ProjectReportRow } from '@webvue/contracts'
 import DashboardChart from '@/components/shared/DashboardChart.client.vue'
 import DashboardChartPanel from './DashboardChartPanel.vue'
 import {
@@ -2841,7 +2841,7 @@ Expected: `NEW failures` empty and every pilot test passed. `project-dashboard.s
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim-p5-dashboard/apps/web
 npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts e2e/storybook-visual.spec.ts -g 'project-dashboardchartpanel|shared-chartpanel|shared-dashboardpage' --reporter=line | tail -4
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-smoke.spec.ts e2e/storybook-visual.spec.ts -g 'project-dashboardchartpanel|shared-chartpanel|shared-dashboardpage' --reporter=line | tail -4
 git status --short e2e/storybook-visual.spec.ts-snapshots; echo "clean=$?"
 cd .. && cd .. && git add apps/web docs/design-system
 git commit -m "refactor(web): move the project dashboard onto DashboardPage
@@ -2922,7 +2922,7 @@ describe('the pilot pages stay on their templates', () => {
   it('the project overview has no scoped style and no container hack', () => {
     const source = read('components/project/ProjectOverview.vue')
     expect(source).not.toContain('<style')
-    expect(source).not.toContain('nasq-page-width')
+    expect(source).not.toContain('webvue-page-width')
   })
 })
 ```
@@ -2961,7 +2961,7 @@ Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim-p5-cp5/apps/web
 npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-shell.spec.ts e2e/storybook-templates.spec.ts e2e/storybook-display-templates.spec.ts --reporter=line 2>&1 | tail -15
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-shell.spec.ts e2e/storybook-templates.spec.ts e2e/storybook-display-templates.spec.ts --reporter=line 2>&1 | tail -15
 git status --short e2e/storybook-visual.spec.ts-snapshots
 ```
 
@@ -2989,7 +2989,7 @@ cd /Users/tariq/code/nasq/.worktrees/tasmim-p5-cp5/apps/web
 SCRATCH=$(mktemp -d)
 SHARED=/Users/tariq/code/nasq/.worktrees/tasmim/.superpowers/tasmim-shared
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4708 node e2e/internal-ui-audit-mock.mjs > "$SCRATCH/mock.log" 2>&1 & MOCK_PID=$!
-NUXT_ODOO_URL=http://127.0.0.1:4708 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4708/websocket npx nuxt dev --port 4308 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
+NUXT_ODOO_URL=http://127.0.0.1:4708 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4708/websocket npx nuxt dev --port 4308 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
 for i in $(seq 1 120); do curl -sf -o /dev/null http://localhost:4308/login && break; sleep 2; done
 FORCE_COLOR=0 E2E_BASE_URL=http://localhost:4308 E2E_PROJECT_POPUPS=1 npx playwright test --reporter=line > "$SCRATCH/cp5-e2e.log" 2>&1 || true
 awk '/^ +[0-9]+ failed$/{f=1;next} f && /^ +[0-9]+ (flaky|passed|skipped|interrupted|did not run)/{f=0} f' "$SCRATCH/cp5-e2e.log" > "$SHARED/e2e-cp5-failures.txt"
@@ -3046,7 +3046,7 @@ const SIZES = { desktop: { width: 1440, height: 900 }, mobile: { width: 390, hei
     if (!(await page.request.post(`${base}/api/auth/login`, { data: { login: 'admin', password: 'admin' } })).ok()) throw new Error('login failed')
     // The user's server-side appearance wins over the cookie, so set both (CP3 note).
     if (!(await page.request.patch(`${base}/api/v1/me/appearance`, { data: { mode, font_size: 'small' } })).ok()) throw new Error('appearance failed')
-    await context.addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
+    await context.addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
     for (const [name, path] of PAGES) {
       await page.goto(`${base}${path}`)
       await page.waitForFunction(() => document.querySelector('#__nuxt')?.__vue_app__?.$nuxt?.isHydrating === false)
@@ -3132,7 +3132,7 @@ Not in this plan, on purpose: `MilestoneTable`, `FinanceEntryTable` and every ot
 - moves its standalone and print pages onto `SharedStandalonePage`;
 - ends with its own shot set and e2e title diff.
 
-**Plan 7 — Close-out and merge** (phase 7): remove leftover `nasq-*` classes and scoped styles (`RichText` and Gantt last), merge `main` into the branch, run the full gates and the `reviewer` pass, and merge `--no-ff` into `main` with the owner's authorization.
+**Plan 7 — Close-out and merge** (phase 7): remove leftover `webvue-*` classes and scoped styles (`RichText` and Gantt last), merge `main` into the branch, run the full gates and the `reviewer` pass, and merge `--no-ff` into `main` with the owner's authorization.
 
 ### Roadmap additions from this plan
 

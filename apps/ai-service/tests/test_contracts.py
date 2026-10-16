@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from nasq_ai_service.contracts import ResumeRequest, RunRequest, ToolSpec
+from webvue_ai_service.contracts import ResumeRequest, RunRequest, ToolSpec
 
 READ_TOOL = {
     "name": "pmo.list_my_tasks",

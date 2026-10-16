@@ -7,7 +7,7 @@ from time import time_ns
 
 
 def seed(environment, output):
-    if environment.cr.dbname != 'nasq_scratch_e2e':
+    if environment.cr.dbname != 'webvue_scratch_e2e':
         message = 'real UI fixture refuses any non-scratch database'
         raise RuntimeError(message)
     if not output.is_absolute():

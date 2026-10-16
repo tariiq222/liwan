@@ -1,10 +1,10 @@
-# تحليل مشروع نسق (nasq) — الصورة الكاملة
+# تحليل مشروع ويب فيو (webvue) — الصورة الكاملة
 
 تاريخ التحليل: 2026-10-07. تحليل قراءة فقط (لم يُعدَّل ملف ولم يُشغَّل اختبار أو Odoo). جُمع من ستة تقارير وكلاء مستقلين، كلٌّ على طبقة واحدة، مع تحقق مباشر من ملفات السياسات. هذا تقرير مؤرخ؛ تحقق من الحالة الحية قبل الاعتماد عليه.
 
 ## 1. ما هو المشروع
 
-**نسق** منصة عربية RTL-first موحّدة لتشغيل الشركات، بطموح يشبه أودو في الاتساع، لكن بهوية وتجربة خاصة. المحرك **Odoo 19 Community**، وواجهة العميل **Nuxt 4 + Nuxt UI 4**، والعقود بينهما Zod في `packages/contracts`. التطبيقات المنفّذة اليوم: **PMO** (مشاريع/مهام/ميثاق/قوالب/مالية/حوكمة)، **Meetings**، **HR** (دليل/أقسام/وثائق — بلا رواتب)، **Chat**، إضافة إلى الإعدادات والصلاحيات. التعريف المعتمد في `apps/web/PRODUCT.md` يميّز صراحة بين الرؤية (مبيعات/مالية/مخزون…) وما هو منفَّذ.
+**ويب فيو** منصة عربية RTL-first موحّدة لتشغيل الشركات، بطموح يشبه أودو في الاتساع، لكن بهوية وتجربة خاصة. المحرك **Odoo 19 Community**، وواجهة العميل **Nuxt 4 + Nuxt UI 4**، والعقود بينهما Zod في `packages/contracts`. التطبيقات المنفّذة اليوم: **PMO** (مشاريع/مهام/ميثاق/قوالب/مالية/حوكمة)، **Meetings**، **HR** (دليل/أقسام/وثائق — بلا رواتب)، **Chat**، إضافة إلى الإعدادات والصلاحيات. التعريف المعتمد في `apps/web/PRODUCT.md` يميّز صراحة بين الرؤية (مبيعات/مالية/مخزون…) وما هو منفَّذ.
 
 **نموذج التشغيل:** قاعدة بيانات وfilestore منفصلان لكل عميل؛ المستهدف SaaS ذاتي الخدمة على خدمات تطبيق مشتركة، مع بقاء dedicated وcustomer-hosted (non_saas) خيارات منفصلة. حالة الجاهزية المعلنة في `docs/project-closure/saas-hosting-direction-status.md`: **`not ready`**.
 
@@ -25,26 +25,26 @@
 
 | الرتبة | الإضافة | الإصدار | يعتمد على | المسارات | sudo | اختبارات |
 |---|---|---|---|---|---|---|
-| 0 | `nasq_core` | 19.0.1.2.0 | base | — | 2 | 37 |
-| 1 | `nasq_platform` | 19.0.1.3.0 | nasq_core | — | 19 | 48 |
-| 2 | `nasq_api` | 19.0.1.0.0 | core, platform, **auth_totp** | 20 (`/admin/*`, `/me*`, `/branding`, `/auth/totp`) | 5 | 72 |
-| 3 | `nasq_notify` | 19.0.1.0.0 | nasq_api, mail | 3 | 11 | 20 |
-| 3 | `nasq_directory` | 19.0.1.0.0 | nasq_api | 1 (`/people`) | 0 | 7 |
-| 4 | `nasq_pmo` | 19.0.1.4.0 | api, platform, directory, notify, project, mail, bus | **55** | **86** | **362** |
-| 4 | `nasq_hr` | 19.0.1.1.0 | nasq_api, hr, mail | 9 | **0** | 80 |
-| 4 | `nasq_meetings` | 19.0.1.0.0 | api, platform, notify, directory, cyan, calendar, mail | 20 | 25 | 99 |
-| 4 | `nasq_chat` | 19.0.1.1.0 | api, platform, mail | 14 | 3 | 19 |
-| 5 | `nasq_meetings_pmo` | 19.0.1.0.0 (auto_install) | meetings, pmo | 1 | 8 | 37 |
+| 0 | `webvue_core` | 19.0.1.2.0 | base | — | 2 | 37 |
+| 1 | `webvue_platform` | 19.0.1.3.0 | webvue_core | — | 19 | 48 |
+| 2 | `webvue_api` | 19.0.1.0.0 | core, platform, **auth_totp** | 20 (`/admin/*`, `/me*`, `/branding`, `/auth/totp`) | 5 | 72 |
+| 3 | `webvue_notify` | 19.0.1.0.0 | webvue_api, mail | 3 | 11 | 20 |
+| 3 | `webvue_directory` | 19.0.1.0.0 | webvue_api | 1 (`/people`) | 0 | 7 |
+| 4 | `webvue_pmo` | 19.0.1.4.0 | api, platform, directory, notify, project, mail, bus | **55** | **86** | **362** |
+| 4 | `webvue_hr` | 19.0.1.1.0 | webvue_api, hr, mail | 9 | **0** | 80 |
+| 4 | `webvue_meetings` | 19.0.1.0.0 | api, platform, notify, directory, cyan, calendar, mail | 20 | 25 | 99 |
+| 4 | `webvue_chat` | 19.0.1.1.0 | api, platform, mail | 14 | 3 | 19 |
+| 5 | `webvue_meetings_pmo` | 19.0.1.0.0 (auto_install) | meetings, pmo | 1 | 8 | 37 |
 | معفى | `cyan_meeting_minutes` | 19.0.1.3.1 | base, mail, web, calendar | — | 3 | 55 |
-| معفى | `web_theme_shadcn` / `nasq_registry_probe` | 19.0.1.0.0 | web / platform | — | 0 | 7 / 1 |
+| معفى | `web_theme_shadcn` / `webvue_registry_probe` | 19.0.1.0.0 | web / platform | — | 0 | 7 / 1 |
 
-**الالتزام بالمعمارية:** R1–R4 محققة في المصدر: لا استيراد بين تطبيقات، الجسر الوحيد `nasq_meetings_pmo`، والأساس لا يعرف أي تطبيق. كل `test_*.py` مستورد في `tests/__init__.py`. الإصدارات مطابقة لما توثّقه `AGENTS.md`. مجموع `def test_` في Odoo ≈ **844**.
+**الالتزام بالمعمارية:** R1–R4 محققة في المصدر: لا استيراد بين تطبيقات، الجسر الوحيد `webvue_meetings_pmo`، والأساس لا يعرف أي تطبيق. كل `test_*.py` مستورد في `tests/__init__.py`. الإصدارات مطابقة لما توثّقه `AGENTS.md`. مجموع `def test_` في Odoo ≈ **844**.
 
 **ملاحظات طبقة Odoo:**
-- `nasq_pmo` هو مركز الثقل: 55 مسارًا، أكبر ملفين `project_project.py` (934 سطرًا) و`project_task.py` (924)، و86 `sudo()` تحتاج مطابقة مع الحالات الموثقة (R7).
-- `nasq_chat` بلا `ir.model.access.csv` (قواعد سجل فقط فوق `discuss.channel`) — يستحق تحققًا.
-- `nasq_meetings` بلا `migrations/`؛ HR/meetings/chat بلا `i18n/` (PMO وcyan فقط يشحنان `ar.po`).
-- `nasq_api` يعتمد على `auth_totp`، وهو غير مذكور في قائمة الاعتماديات بـ `AGENTS.md`.
+- `webvue_pmo` هو مركز الثقل: 55 مسارًا، أكبر ملفين `project_project.py` (934 سطرًا) و`project_task.py` (924)، و86 `sudo()` تحتاج مطابقة مع الحالات الموثقة (R7).
+- `webvue_chat` بلا `ir.model.access.csv` (قواعد سجل فقط فوق `discuss.channel`) — يستحق تحققًا.
+- `webvue_meetings` بلا `migrations/`؛ HR/meetings/chat بلا `i18n/` (PMO وcyan فقط يشحنان `ar.po`).
+- `webvue_api` يعتمد على `auth_totp`، وهو غير مذكور في قائمة الاعتماديات بـ `AGENTS.md`.
 - ملفات `__pycache__/*.pyc` موجودة داخل الإضافات (ضوضاء).
 
 ## 4. واجهة العميل `apps/web`
@@ -57,7 +57,7 @@
 | Composables | 61 + مجلد `nav/` |
 | i18n | 14 namespace لكل لغة، **ar/en متطابقتان** |
 | الاختبارات | 142 ملف vitest، **56** Playwright spec، **69** قصة Storybook |
-| وضع الاستئجار | `NASQ_TENANCY_MODE=dedicated\|shared` يغيّر routeRules والبروكسي |
+| وضع الاستئجار | `WEBVUE_TENANCY_MODE=dedicated\|shared` يغيّر routeRules والبروكسي |
 
 **الالتزام بـ DESIGN.md:** `SharedCreatePanel` تستخدمه **26/26** صفحة `/new`؛ `useHydrated` مستخدم 208 مرة؛ **لكن 7 أصناف Tailwind فيزيائية** (`left-`/`right-`) باقية في `.vue` وتخالف سياسة الخصائص المنطقية. أكبر ملف `pages/meetings/[id].vue` (627 سطرًا). TODO/FIXME = 0. R5 محقق: لا استيراد من control-plane (مطابقات نصية فقط في تعليقات).
 
@@ -88,12 +88,12 @@
 
 **أبرز المخاطر والديون**
 1. **R7/R9 (151 مخالفة)**: الاعتماد الواسع على `sudo()` وتمديدات غير عامة، معظمها في PMO — أكبر دين أمني/صيانة.
-2. **تركّز التعقيد في `nasq_pmo`** (ملفات ~930 سطرًا، 55 مسارًا) مقابل بقية التطبيقات الخفيفة.
-3. **فجوات تغليف صغيرة**: `nasq_chat` بلا ACL CSV، `nasq_meetings` بلا migrations، HR/meetings/chat بلا `i18n`، 7 أصناف Tailwind فيزيائية.
+2. **تركّز التعقيد في `webvue_pmo`** (ملفات ~930 سطرًا، 55 مسارًا) مقابل بقية التطبيقات الخفيفة.
+3. **فجوات تغليف صغيرة**: `webvue_chat` بلا ACL CSV، `webvue_meetings` بلا migrations، HR/meetings/chat بلا `i18n`، 7 أصناف Tailwind فيزيائية.
 4. **الجاهزية التجارية**: الاستضافة المشتركة `not ready` — بوابات مفتوحة: تمرين Odoo حقيقي بـ ACL/MFA، TLS عام، مزود دفع فعلي، استعادة Odoo+filestore مع RPO/RTO، قبول non_saas مستقل.
 5. **تضخم توثيقي/تاريخي**: 319 ملف docs وثلاث worktrees قديمة ومجلدات غير متتبعة (`.planning/`, `plans/`, `.agents/`) — خطر الخلط بين نقاط التحقق المؤرخة والحالة الحية.
 6. `postgres:16` في compose الرئيسي بلا digest (بخلاف control-plane)؛ وتبعية `auth_totp` غير موثقة؛ `PGPASSWORD=odoo` نصًا في CI (scratch فقط).
 
 **حدود هذا التحليل:** مصدري فقط؛ لم تُشغَّل اختبارات أو Odoo، فأرقام الاختبارات هي عدّ تعريفات لا نتائج تشغيل.
 
-**خطوات مقترحة:** (أ) تدقيق مصدري على `nasq_pmo` لمطابقة الـ 86 `sudo()` مع الحالات الموثقة؛ (ب) حزمة صغيرة لإصلاح الأصناف الفيزيائية السبعة وتوثيق `auth_totp`؛ (ج) تحديث `docs/WORKSPACE.md` بحالة worktrees الحية.
+**خطوات مقترحة:** (أ) تدقيق مصدري على `webvue_pmo` لمطابقة الـ 86 `sudo()` مع الحالات الموثقة؛ (ب) حزمة صغيرة لإصلاح الأصناف الفيزيائية السبعة وتوثيق `auth_totp`؛ (ج) تحديث `docs/WORKSPACE.md` بحالة worktrees الحية.

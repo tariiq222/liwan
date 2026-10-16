@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { MeetingSeriesListItem } from '@nasq/contracts'
+import type { MeetingSeriesListItem } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
 import { parseOffset } from '@/utils/routeQuery'
 
@@ -34,7 +34,7 @@ const { isCurrentList, liveListQuery, liveReturnTo, replaceListQuery, isPlainCli
   search,
   debouncedSearch,
   offset,
-  onNavigationStart: handler => useNuxtApp().hook('nasq:navigation:start', handler),
+  onNavigationStart: handler => useNuxtApp().hook('webvue:navigation:start', handler),
 })
 function openRecord(event: MouseEvent, record: { id: number }) {
   if (!hydrated.value || !isCurrentList() || !isPlainClick(event)) return

@@ -19,7 +19,7 @@
 3. لا تغيير بيانات؟ ضع `migrations/<version>/README.md` بجملة تشرح السبب. الحارس يقبله.
 4. الترحيل idempotent ولا يخمّن: حالة غامضة ⇒ `raise` برسالة تحدد المطلوب من المشغّل.
 
-5. ترقية `nasq_pmo` إلى 19.0.1.4.0 تُثبّت `nasq_meetings` والجسر `nasq_meetings_pmo` في التشغيل نفسه؛ إن فشل تثبيت `nasq_meetings` بعد وصول `nasq_pmo` إلى 19.0.1.4.0 فالاسترداد بـ `-i nasq_meetings,nasq_meetings_pmo` (`-u` وحده لا يعيد وسمهما).
+5. ترقية `webvue_pmo` إلى 19.0.1.4.0 تُثبّت `webvue_meetings` والجسر `webvue_meetings_pmo` في التشغيل نفسه؛ إن فشل تثبيت `webvue_meetings` بعد وصول `webvue_pmo` إلى 19.0.1.4.0 فالاسترداد بـ `-i webvue_meetings,webvue_meetings_pmo` (`-u` وحده لا يعيد وسمهما).
 
 ## ما لا نفعله
 

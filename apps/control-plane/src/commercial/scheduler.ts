@@ -53,15 +53,15 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const { pool, config, env } = o
   const clock = o.clock ?? Date.now
   const log = o.log ?? ((m: string, e?: unknown) => console.error(`[commercial-scheduler] ${m}`, e instanceof Error ? e.message : e ?? ''))
-  const reconcileEvery = posInt(env.NASQ_COMMERCIAL_RECONCILE_EVERY, 10)
+  const reconcileEvery = posInt(env.WEBVUE_COMMERCIAL_RECONCILE_EVERY, 10)
   // Downgrade checks need a sample younger than 15 minutes (usage.ts): the interval defaults to 5 minutes and is capped at USAGE_MAX_INTERVAL_MS.
-  const usageMs = Math.min(posInt(env.NASQ_COMMERCIAL_USAGE_INTERVAL_SEC, 300) * 1000, USAGE_MAX_INTERVAL_MS)
+  const usageMs = Math.min(posInt(env.WEBVUE_COMMERCIAL_USAGE_INTERVAL_SEC, 300) * 1000, USAGE_MAX_INTERVAL_MS)
   let nextUsage = 0
   let lockSkipLogged = false
   const USAGE_RETRY_MS = 30_000
   let usageRun: Promise<void> | undefined
-  const billingMs = posInt(env.NASQ_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
-  const origin = (env.NASQ_PAYMENT_RETURN_ORIGINS ?? '').split(',')[0]?.trim() ?? ''
+  const billingMs = posInt(env.WEBVUE_COMMERCIAL_BILLING_INTERVAL_SEC, 3600) * 1000
+  const origin = (env.WEBVUE_PAYMENT_RETURN_ORIGINS ?? '').split(',')[0]?.trim() ?? ''
   let ticks = 0
   let lastBilling: number | undefined
   let jobCounts: Record<string, { runs: number; failures: number }> = {}
@@ -88,7 +88,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       })
       if (o.mailAdapter) {
         const mail = o.mailAdapter
-        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, origin, smtpHost: env.NASQ_MAIL_SMTP_HOST }))
+        await job('invitation.send', () => sendInvitationOutbox(pool, { mail, origin, smtpHost: env.WEBVUE_MAIL_SMTP_HOST }))
       }
       if (ticks % reconcileEvery === 0) {
         if (o.paymentAdapter) {

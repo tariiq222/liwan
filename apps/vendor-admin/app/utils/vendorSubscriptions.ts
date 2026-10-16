@@ -1,9 +1,9 @@
-import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
-import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
+import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@webvue/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
-import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
-import { humanizeId } from '@nasq/ui/app/utils/humanizeId'
-import { invoiceLineQuantities, type InvoiceLineView } from '@nasq/commercial-ui/app/utils/invoiceLines'
+import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
+import { invoiceLineQuantities, type InvoiceLineView } from '@webvue/commercial-ui/app/utils/invoiceLines'
 
 export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
@@ -197,11 +197,11 @@ export const SUPPORTED_CURRENCY = CURRENCY
 /** Returns to the customer list, keeping only whitelisted filters. */
 export function customersReturnTo(value: unknown): string {
   if (typeof value !== 'string' || !value.startsWith('/customers')) return '/customers'
-  try { const u = new URL(value, 'http://nasq.local'); return u.pathname.replace(/\/$/, '') === '/customers' ? `${u.pathname}${u.search}` : '/customers' } catch { return '/customers' }
+  try { const u = new URL(value, 'http://webvue.local'); return u.pathname.replace(/\/$/, '') === '/customers' ? `${u.pathname}${u.search}` : '/customers' } catch { return '/customers' }
 }
 export function invoicesReturnTo(value: unknown): string {
   if (typeof value !== 'string' || !value.startsWith('/invoices')) return '/invoices'
-  try { const u = new URL(value, 'http://nasq.local'); return u.pathname.replace(/\/$/, '') === '/invoices' ? `${u.pathname}${u.search}` : '/invoices' } catch { return '/invoices' }
+  try { const u = new URL(value, 'http://webvue.local'); return u.pathname.replace(/\/$/, '') === '/invoices' ? `${u.pathname}${u.search}` : '/invoices' } catch { return '/invoices' }
 }
 
 /** Cancellation errors remain actionable without displaying provider internals. */

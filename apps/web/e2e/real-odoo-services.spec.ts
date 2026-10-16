@@ -18,8 +18,8 @@ async function login(page: Page, reader = false) {
   await body(await page.request.post('/api/auth/login', { data: {
     login: reader ? 'e2e_employee' : 'e2e_admin',
     password: reader
-      ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'nasq-e2e-employee-2026')
-      : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'nasq-e2e-admin-2026'),
+      ? (process.env.E2E_USER_EMPLOYEE_PASSWORD ?? process.env.E2E_EMPLOYEE_PASSWORD ?? 'webvue-e2e-employee-2026')
+      : (process.env.E2E_USER_ADMIN_PASSWORD ?? process.env.E2E_ADMIN_PASSWORD ?? 'webvue-e2e-admin-2026'),
   } }))
 }
 async function open(page: Page, path: string) {
@@ -207,7 +207,7 @@ test('real direct chat selects a user ID, sends and reloads the stored message f
   await page.reload()
   const senderRow = page.getByTestId('chat-thread').locator(`[data-message-id="${sentMessage.id}"]`)
   await expect(senderRow).toBeVisible()
-  await expect(senderRow.locator('.nasq-chat-bubble')).toContainText(message)
+  await expect(senderRow.locator('.webvue-chat-bubble')).toContainText(message)
   const peerContext = await browser.newContext({ baseURL: new URL(page.url()).origin })
   try {
     const peer = await peerContext.newPage()
@@ -216,7 +216,7 @@ test('real direct chat selects a user ID, sends and reloads the stored message f
     await open(peer, new URL(`/chat/${conversation.id}`, page.url()).href)
     const peerRow = peer.getByTestId('chat-thread').locator(`[data-message-id="${sentMessage.id}"]`)
     await expect(peerRow).toBeVisible()
-    await expect(peerRow.locator('.nasq-chat-bubble')).toContainText(message)
+    await expect(peerRow.locator('.webvue-chat-bubble')).toContainText(message)
   } finally { await peerContext.close() }
 })
 

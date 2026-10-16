@@ -10,13 +10,13 @@ uv pip install --python /absolute/new-env/bin/python -r deploy/security/requirem
 uv pip check --python /absolute/new-env/bin/python
 ```
 
-Start Odoo in a fresh process through `odoo_secure.py`. Pass an absolute official Odoo source root and explicit Nasq addons/database/data-dir/ports. Example for an existing isolated scratch database:
+Start Odoo in a fresh process through `odoo_secure.py`. Pass an absolute official Odoo source root and explicit WebVue addons/database/data-dir/ports. Example for an existing isolated scratch database:
 
 ```sh
 /absolute/new-env/bin/python deploy/security/odoo_secure.py \
   --odoo-root /absolute/odoo-source \
-  --addons-path=/absolute/odoo-source/addons,/absolute/nasq/odoo-addons \
-  -d nasq_security_scratch_example --data-dir=/absolute/isolated-data \
+  --addons-path=/absolute/odoo-source/addons,/absolute/webvue/odoo-addons \
+  -d webvue_security_scratch_example --data-dir=/absolute/isolated-data \
   --http-interface=127.0.0.1 --http-port=8966 --max-cron-threads=0
 ```
 
@@ -25,7 +25,7 @@ The launcher preserves pypdf's bounded decompressor after Odoo's import-time pat
 Tests require an installed official Odoo checkout and this environment:
 
 ```sh
-NASQ_ODOO_ROOT=/absolute/odoo-source /absolute/new-env/bin/python \
+WEBVUE_ODOO_ROOT=/absolute/odoo-source /absolute/new-env/bin/python \
   -m unittest discover -s deploy/security -p 'test_odoo_secure.py' -v
 ```
 

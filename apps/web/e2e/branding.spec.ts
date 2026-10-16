@@ -26,7 +26,7 @@ async function loginAsAdmin(page: Page, baseURL: string | undefined) {
     data: { login: ADMIN_LOGIN, password: ADMIN_PASSWORD },
   })
   expect(login.status()).toBe(200)
-  await page.context().addCookies([{ name: 'nasq-appearance', value: LIGHT_SMALL_APPEARANCE, url: baseURL! }])
+  await page.context().addCookies([{ name: 'webvue-appearance', value: LIGHT_SMALL_APPEARANCE, url: baseURL! }])
   await page.goto('/projects/dashboard')
   await expect(page).not.toHaveURL(/\/login/)
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
@@ -188,7 +188,7 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
 
   const colour = page.getByTestId('branding-color')
   const preview = page.getByTestId('branding-preview')
-  const settingsBranding = page.locator('.nasq-settings-branding')
+  const settingsBranding = page.locator('.webvue-settings-branding')
   await expect(colour).toBeVisible()
   await expect(settingsBranding).toHaveCount(1)
   await expect(settingsBranding).toBeVisible()
@@ -208,7 +208,7 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   const savedColour = await colour.inputValue()
   const initialTitle = await page.title()
   const initialPrimary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
-  const shellBrand = page.getByTestId('shell-header').locator('.nasq-shell-brand')
+  const shellBrand = page.getByTestId('shell-header').locator('.webvue-shell-brand')
   await expect(shellBrand).toBeVisible()
   expect(await shellBrand.getAttribute('aria-label')).toContain(savedName)
 
@@ -285,8 +285,8 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   expect(savedResponse.request().postDataJSON()).toEqual({ primary_color: '#123456' })
   await page.reload()
   await expect(page.getByTestId('branding-color')).toHaveValue('#123456')
-  await expect(page.getByTestId('shell-header').locator('.nasq-shell-brand')).toBeVisible()
-  expect(await page.getByTestId('shell-header').locator('.nasq-shell-brand').getAttribute('aria-label')).toContain(savedName)
+  await expect(page.getByTestId('shell-header').locator('.webvue-shell-brand')).toBeVisible()
+  expect(await page.getByTestId('shell-header').locator('.webvue-shell-brand').getAttribute('aria-label')).toContain(savedName)
   await expect(page).toHaveTitle(savedName)
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).toBe('#123456')
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
