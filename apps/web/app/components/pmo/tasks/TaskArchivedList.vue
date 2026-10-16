@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
 import type { Task } from '@nasq/contracts'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 import { ApiError } from '@/composables/useApi'
 import { useArchivedTasks, useRestoreTask } from '@/composables/useArchivedTasks'
 import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'

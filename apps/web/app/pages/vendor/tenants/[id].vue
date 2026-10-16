@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { operationStatusBadge } from '@/utils/commercialBadges'
+import { operationStatusBadge } from '@/utils/vendorBadges'
 import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 import { sharedTenantLoginUrl, type SharedTenantProgress } from '@/composables/useSharedTenantOnboarding'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 type Tenant = { id: string; name: string; commercial_mode: string; hosting_model: string; inventory_target: string; catalog_version: string | null; catalog_tier: string | null; status: string; desired_policy: Record<string, any> | null; observed_policy: Record<string, any> | null; policy_revision: number | null; health_checked_at: string | null; operations_enabled: boolean; available_operations?: unknown; created_at: string }
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'

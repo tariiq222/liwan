@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
 import DocumentCreateForm from '@/components/hr/DocumentCreateForm.vue'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 
 const route = useRoute()

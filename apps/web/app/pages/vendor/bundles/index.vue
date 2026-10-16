@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
-import { appName, commercialReturnTo, formatVendorMoney, cadenceLabel, isStatusFilter, keyLabel, limitLabel, STATUS_FILTERS, type BundleView } from '@/utils/vendorCommercial'
+import { appName, commercialReturnTo, isStatusFilter, keyLabel, limitLabel, STATUS_FILTERS, type BundleView } from '@/utils/vendorCommercial'
+import { formatCommercialMoney, cadenceLabel } from '@nasq/commercial-ui/app/utils/commercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { can } = useVendorContext(); const hydrated = useHydrated(); const api = useVendorCommercial()
@@ -50,7 +51,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   <template #status-cell="{ row: { original: b } }"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(b).tone" :label="lifecycleBadge(b).labelKey ? t(lifecycleBadge(b).labelKey) : b.status" /></template>
   <template #apps-cell="{ row: { original: b } }"><div class="flex flex-wrap gap-1"><UBadge v-for="a in apps(b)" :key="a" color="neutral" variant="subtle">{{ a }}</UBadge></div></template>
   <template #limits-cell="{ row: { original: b } }">{{ limits(b).join(' · ') }}</template>
-  <template #prices-cell="{ row: { original: b } }"><ul><li v-for="p in b.prices" :key="`${p.cadence.unit}${p.cadence.count}`">{{ cadenceLabel(p.cadence,t) }}: <bdi dir="ltr">{{ formatVendorMoney(p.amount,locale) }}</bdi></li></ul></template>
+  <template #prices-cell="{ row: { original: b } }"><ul><li v-for="p in b.prices" :key="`${p.cadence.unit}${p.cadence.count}`">{{ cadenceLabel(p.cadence,t) }}: <bdi dir="ltr">{{ formatCommercialMoney(p.amount,locale) }}</bdi></li></ul></template>
   <template #customers-cell="{ row: { original: b } }">{{ t('vendor.pricing.customers', {count:b.customer_count}, b.customer_count) }}</template>
   <template #mobile-row="{ row: b }"><div class="flex flex-wrap items-start justify-between gap-4">
             <div class="min-w-0"><h2 class="text-lg font-semibold"><NuxtLink data-testid="bundle-row" :to="path(b)">{{ b.name }}</NuxtLink> <SharedRecordNumber :value="`v${b.version}`" /></h2><p class="mt-1 text-sm text-muted">{{ b.description }}</p></div>
@@ -58,7 +59,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
           </div>
           <div class="mt-3 flex flex-wrap gap-2"><UBadge v-for="a in apps(b)" :key="a" color="neutral" variant="subtle">{{ a }}</UBadge><span v-if="!b.selections.length" class="text-sm text-muted">{{ t('vendor.pricing.summary.noApps') }}</span></div>
           <ul v-if="limits(b).length" class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted"><li v-for="l in limits(b)" :key="l">{{ l }}</li></ul>
-          <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums"><li v-for="p in b.prices" :key="`${p.cadence.unit}${p.cadence.count}`">{{ cadenceLabel(p.cadence, t) }}: <span class="font-medium">{{ formatVendorMoney(p.amount, locale) }}</span></li><li v-if="!b.prices.length" class="text-warning">{{ t('vendor.pricing.prices.none') }}</li></ul>
+          <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums"><li v-for="p in b.prices" :key="`${p.cadence.unit}${p.cadence.count}`">{{ cadenceLabel(p.cadence, t) }}: <span class="font-medium">{{ formatCommercialMoney(p.amount, locale) }}</span></li><li v-if="!b.prices.length" class="text-warning">{{ t('vendor.pricing.prices.none') }}</li></ul>
           <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><p class="text-sm text-muted">{{ t('vendor.pricing.customers', { count: b.customer_count }, b.customer_count) }}</p><UButton :to="path(b)" color="neutral" variant="link">{{ t(`vendor.pricing.next.${nextKey(b)}`) }}</UButton></div></template>
 </SharedDataTable>
 </SharedListPage>

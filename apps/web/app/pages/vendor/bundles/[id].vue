@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { lifecycleBadge } from '@/utils/vendorCommercial'
-import { cadenceLabel, commercialReturnTo, formatVendorMoney, summaryLimits, type BundleView, type LifecycleAction } from '@/utils/vendorCommercial'
+import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { commercialReturnTo, summaryLimits, type BundleView, type LifecycleAction } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial()
@@ -31,7 +32,7 @@ const editable = computed(() => view.value?.status === 'draft' && can('vendor.ca
       <SharedRecordSection :title="t('vendor.pricing.sections.included')" class="mt-6"><VendorEntitlementSummary :release="data.release" :selections="view.selections" :limits="view.domain_limits" /></SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.sections.prices')" class="mt-6">
         <p v-if="!view.prices.length" class="text-sm text-warning">{{ t('vendor.pricing.prices.none') }}</p>
-        <ul class="grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="`${p.cadence.unit}${p.cadence.count}`" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatVendorMoney(p.amount, locale) }}</span></li></ul>
+        <ul class="grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="`${p.cadence.unit}${p.cadence.count}`" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
       </SharedRecordSection>
       <VendorLifecyclePanel class="mt-6" kind="bundle" :view="view" @done="done" @reload="refresh" />
       <SharedRecordSection class="mt-6" :title="t('vendor.pricing.history')"><ul class="space-y-2"><li v-for="item in data.versions" :key="item.id"><NuxtLink :to="{ path: `/vendor/bundles/${item.id}`, query: { returnTo: backTo } }" class="text-primary">{{ item.name }} · {{ t('vendor.pricing.version', { count: item.version }) }}</NuxtLink><span class="ms-2"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(item).tone" :label="t(lifecycleBadge(item).labelKey)" /></span></li></ul></SharedRecordSection>

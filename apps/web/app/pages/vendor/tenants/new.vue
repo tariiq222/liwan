@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Cadence } from '@nasq/commercial-contracts'
-import { safeReturnTo } from '@/utils/safeReturnTo'
-import { cadenceKey, cadenceLabel, commercialErrorKey } from '@/utils/vendorCommercial'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { cadenceKey, commercialErrorKey } from '@/utils/vendorCommercial'
+import { cadenceLabel } from '@nasq/commercial-ui/app/utils/commercial'
 import { planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'

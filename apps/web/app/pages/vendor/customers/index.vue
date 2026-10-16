@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { customerDisplayBadge } from '@/utils/commercialBadges'
+import { customerDisplayBadge } from '@/utils/vendorBadges'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { CUSTOMER_STATE_FILTERS, customerDisplayState, customerListQuery, isCustomerStateFilter, isNotAvailable, type VendorCustomer } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { entitledFeaturePrefixes } from '@/utils/entitlementApps'
+import { entitledFeaturePrefixes } from '@nasq/commercial-ui/app/utils/entitlementApps'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const api = useVendorSubscriptions()
 const PAGE = 25

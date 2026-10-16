@@ -1,4 +1,4 @@
-import { badgeLabel, statusBadgeEntry, type StatusBadgeEntry } from './statusBadge'
+import { badgeLabel, statusBadgeEntry, type StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
 
 export type MeetingState = 'draft' | 'confirmed' | 'done' | 'cancelled'

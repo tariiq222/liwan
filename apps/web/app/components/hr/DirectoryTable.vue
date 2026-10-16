@@ -6,7 +6,7 @@ import { avatarProps } from '@/utils/avatarTone'
 import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 import { refDebounced } from '@vueuse/core'
 

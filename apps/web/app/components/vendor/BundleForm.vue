@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import type { CatalogRelease } from '@nasq/commercial-contracts'
-import {
-  appName, bundleLimitKeys, bundleDraftFromView, dependencyHints, emptyBundleDraft, keyLabel, commercialFailure, commercialErrorKey, fieldIssue,
-  limitFromDraft, priceRowErrors, type BundleDraft, type BundleView, type LimitDraft,
-} from '@/utils/vendorCommercial'
+import { appName, bundleLimitKeys, bundleDraftFromView, dependencyHints, emptyBundleDraft, keyLabel, commercialFailure, commercialErrorKey, fieldIssue, limitFromDraft, priceRowErrors, type BundleDraft, type BundleView, type LimitDraft } from '@/utils/vendorCommercial'
 const props = withDefaults(defineProps<{ releases: CatalogRelease[]; initial?: BundleView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean; canPrice?: boolean }>(), { busy: false, resetKey: 0, requireReason: false, canPrice: true })
 const emit = defineEmits<{ save: [draft: BundleDraft, release: CatalogRelease | undefined]; cancel: [] }>()
 const { t, te, locale } = useI18n(); const hydrated = useHydrated()
@@ -70,13 +67,13 @@ const dis = computed(() => !hydrated.value || props.busy)
     <SharedFormSection v-if="release" :title="t('vendor.pricing.sections.apps')" :description="t('vendor.pricing.bundle.appsHint')">
       <p v-if="attempted && errors.apps" class="text-sm text-error">{{ errors.apps }}</p>
       <p v-else-if="serverIssue('selections')" class="text-sm text-error">{{ serverIssue('selections') }}</p>
-      <div v-for="app in coreApps" :key="app.id" class="rounded-lg bg-elevated p-3"><p class="font-medium">{{ appName(app, locale) }}</p><p class="text-sm text-muted">{{ t('vendor.pricing.summary.included') }}</p></div>
+      <div v-for="app in coreApps" :key="app.id" class="rounded-lg bg-elevated p-3"><p class="font-medium">{{ appName(app, locale) }}</p><p class="text-sm text-muted">{{ t('commercial.pricing.summary.included') }}</p></div>
       <div v-for="app in selectableApps" :key="app.id" class="space-y-2 rounded-lg p-3 ring ring-default">
         <UCheckbox :model-value="draft.apps[app.id]?.selected ?? false" :label="appName(app, locale)" :disabled="dis" @update:model-value="toggleApp(app.id, $event === true)" />
         <div v-if="draft.apps[app.id]?.selected" class="ms-6 space-y-1">
           <template v-for="f in app.features.filter(x => x.kind === 'boolean')" :key="f.key">
             <UCheckbox v-if="f.selectable" :model-value="draft.apps[app.id]?.features.includes(f.key)" :label="keyLabel(f.key, t, te)" :disabled="dis" @update:model-value="toggleFeature(app.id, f.key, $event === true)" />
-            <p v-else class="flex items-center gap-2 text-sm text-muted"><UIcon name="i-lucide-lock" />{{ keyLabel(f.key, t, te) }} · {{ t('vendor.pricing.summary.included') }}</p>
+            <p v-else class="flex items-center gap-2 text-sm text-muted"><UIcon name="i-lucide-lock" />{{ keyLabel(f.key, t, te) }} · {{ t('commercial.pricing.summary.included') }}</p>
           </template>
         </div>
       </div>

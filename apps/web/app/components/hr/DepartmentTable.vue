@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { HrDepartment } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { avatarProps } from '@/utils/avatarTone'
 import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
 

@@ -12,7 +12,7 @@ watch(() => props.resetKey, () => { baseline.value = serialized(); attempted.val
 const failure = computed(() => (props.error ? commercialFailure(props.error) : null))
 const serverIssue = (field: string) => { const code = fieldIssue(failure.value, field); return code ? t(commercialErrorKey({ code })) : undefined }
 const dis = computed(() => !hydrated.value || props.busy)
-const unitItems = computed(() => [{ label: t('vendor.pricing.cadence.month.one'), value: 'month' }, { label: t('vendor.pricing.cadence.year.one'), value: 'year' }])
+const unitItems = computed(() => [{ label: t('commercial.pricing.cadence.month.one'), value: 'month' }, { label: t('commercial.pricing.cadence.year.one'), value: 'year' }])
 const limitItems = computed(() => [{ label: t('vendor.pricing.limit.unlimited'), value: 'unlimited' }, { label: t('vendor.pricing.limit.none'), value: 'none' }, { label: t('vendor.pricing.limit.number'), value: 'number' }])
 const limitError = (l: TermsDraft['users']) => { if (!l.mode) return undefined; try { limitFromDraft(l); return undefined } catch { return t('vendor.pricing.limit.invalid') } }
 const errors = computed(() => {

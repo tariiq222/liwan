@@ -161,13 +161,5 @@
     "sidebar": "Collapse or expand the sidebar",
     "escape": "Back or close",
     "help": "Show shortcuts"
-  },
-  "states": {
-    "invoice": {
-      "description": "Description",
-      "amount": "Amount",
-      "lines": "Invoice lines",
-      "totals": "Totals"
-    }
   }
 }

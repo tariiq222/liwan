@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InvoiceLineView } from '@/utils/invoiceLines'
+import type { InvoiceLineView } from '../../../utils/invoiceLines'
 
 // Invoice lines for the customer and the vendor (Tasmim spec §6 merge). The caller
 // translates every label and formats every amount; this draws a table or a list.
@@ -21,12 +21,12 @@ const isolated = (value: string) => /\d/.test(value)
     <p v-if="props.notice" class="border-s-2 border-warning ps-2 text-sm font-medium text-default" data-testid="not-official">{{ props.notice }}</p>
     <div v-if="props.layout === 'table'" class="overflow-x-auto">
       <table class="w-full text-sm">
-        <caption class="sr-only">{{ t('states.invoice.lines') }}</caption>
+        <caption class="sr-only">{{ t('commercial.invoice.lines') }}</caption>
         <thead class="text-muted">
           <tr>
-            <th scope="col" class="py-2 pe-3 text-start font-medium">{{ t('states.invoice.description') }}</th>
+            <th scope="col" class="py-2 pe-3 text-start font-medium">{{ t('commercial.invoice.description') }}</th>
             <th v-for="column in columns" :key="column.key" scope="col" class="px-3 py-2 text-start font-medium">{{ column.label }}</th>
-            <th scope="col" class="ps-3 py-2 text-start font-medium">{{ t('states.invoice.amount') }}</th>
+            <th scope="col" class="ps-3 py-2 text-start font-medium">{{ t('commercial.invoice.amount') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-default">
@@ -38,7 +38,7 @@ const isolated = (value: string) => /\d/.test(value)
         </tbody>
       </table>
     </div>
-    <ul v-else class="divide-y divide-default rounded-lg ring ring-default" :aria-label="t('states.invoice.lines')">
+    <ul v-else class="divide-y divide-default rounded-lg ring ring-default" :aria-label="t('commercial.invoice.lines')">
       <li v-for="line in props.lines" :key="line.id" class="flex items-center justify-between gap-3 p-3" data-testid="invoice-line">
         <span class="min-w-0">
           {{ line.description }}
@@ -50,7 +50,7 @@ const isolated = (value: string) => /\d/.test(value)
         <span class="font-medium tabular-nums"><bdi dir="ltr">{{ line.amount }}</bdi></span>
       </li>
     </ul>
-    <dl v-if="props.totals?.length" class="space-y-2 rounded-lg bg-elevated p-3" :aria-label="t('states.invoice.totals')">
+    <dl v-if="props.totals?.length" class="space-y-2 rounded-lg bg-elevated p-3" :aria-label="t('commercial.invoice.totals')">
       <div v-for="(row, index) in props.totals" :key="row.label" class="flex justify-between gap-3">
         <dt :class="index === props.totals.length - 1 ? 'font-semibold' : 'text-toned'">{{ row.label }}</dt>
         <dd :class="['tabular-nums', index === props.totals.length - 1 && 'font-semibold']"><bdi dir="ltr">{{ row.value }}</bdi></dd>

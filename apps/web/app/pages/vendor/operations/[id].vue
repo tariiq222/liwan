@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
-import { operationStatusBadge } from '@/utils/commercialBadges'
+import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@nasq/commercial-contracts'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
 

@@ -2,7 +2,7 @@
 import type { ProjectSchedule } from '@nasq/contracts'
 import { STATE_TONE, type StateTone } from '@/composables/taskState'
 import { addCalendarDays, buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const BAR_TONE: Record<StateTone | 'primary', string> = {
   primary: 'schedule-gantt-bar-info',

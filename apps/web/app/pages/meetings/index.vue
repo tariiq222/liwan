@@ -9,7 +9,7 @@ import { formatCalendarDate, formatNasqTime } from '@nasq/ui/app/composables/cal
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'

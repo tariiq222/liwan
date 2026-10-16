@@ -6,6 +6,7 @@ const root = resolve(import.meta.dirname, '../../../..')
 const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
 const page = (p: string) => read(`app/pages/vendor/${p}`)
 const comp = (p: string) => read(`app/components/vendor/${p}`)
+const commercial = (lang: string) => JSON.parse(read(`../../packages/commercial-ui/i18n/locales/${lang}/commercial.json`)).commercial
 const json = (lang: string) => JSON.parse(read(`i18n/locales/${lang}/vendor.json`)).vendor
 const flat = (o: unknown, prefix = ''): string[] => (o && typeof o === 'object' ? Object.entries(o).flatMap(([k, v]) => flat(v, `${prefix}${k}.`)) : [prefix.slice(0, -1)])
 
@@ -43,7 +44,7 @@ describe('vendor commercial pages: structure and gating', () => {
   it('uses only logical, themed classes', () => {
     for (const f of ['bundles/index.vue', 'bundles/[id].vue', 'plans/index.vue', 'plans/[id].vue']) expect(page(f)).not.toMatch(/\b(ml|mr|pl|pr|left|right)-\d|text-(left|right)\b/)
     for (const f of ['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue']) expect(comp(f)).not.toMatch(/\b(ml|mr|pl|pr)-\d|text-(left|right)\b|#[0-9a-f]{3,6}\b/i)
-    expect(read('app/components/shared/commerce/PriceBreakdown.vue')).not.toMatch(/\b(ml|mr|pl|pr)-\d|text-(left|right)\b|#[0-9a-f]{3,6}\b/i)
+    expect(read('../../packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue')).not.toMatch(/\b(ml|mr|pl|pr)-\d|text-(left|right)\b|#[0-9a-f]{3,6}\b/i)
   })
 })
 
@@ -83,10 +84,10 @@ describe('locale parity for vendor.bundles/plans/pricing', () => {
   it('storage is labelled as counted attachments, not database', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.plan.storageHint).toContain('قاعدة البيانات') })
   it('every t() key used by the new pages exists', () => {
     const files = ['bundles/index.vue', 'bundles/new.vue', 'bundles/[id].vue', 'bundles/[id]/edit.vue', 'plans/index.vue', 'plans/new.vue', 'plans/[id].vue', 'plans/[id]/edit.vue'].map(page)
-      .concat(['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue'].map(comp)).concat(read('app/components/shared/commerce/PriceBreakdown.vue'))
-    const en = json('en'); const have = new Set(flat({ vendor: en }))
+      .concat(['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue'].map(comp)).concat(read('../../packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue'))
+    const have = new Set(flat({ vendor: json('en'), commercial: commercial('en') }))
     const missing: string[] = []
-    for (const src of files) for (const m of src.matchAll(/\bt\('(vendor\.[a-zA-Z0-9_.]+)'/g)) if (!have.has(m[1]!)) missing.push(m[1]!)
+    for (const src of files) for (const m of src.matchAll(/\bt\('((?:vendor|commercial)\.[a-zA-Z0-9_.]+)'/g)) if (!have.has(m[1]!)) missing.push(m[1]!)
     expect(missing).toEqual([])
   })
 })

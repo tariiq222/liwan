@@ -61,7 +61,7 @@ export const SubscriptionState: Story = {
 }
 export const Lifecycle: Story = {
   name: 'دورة حياة الحزمة',
-  parameters: storyContext('apps/web/app/pages/vendor/bundles/index.vue:50'),
+  parameters: storyContext('apps/web/app/pages/vendor/bundles/index.vue:51'),
   render: row('<StatusBadge v-for="(v, i) in views" :key="i" :tone="lifecycleBadge(v).tone" :label="t(lifecycleBadge(v).labelKey)" />', () => ({ views: [{ status: 'draft' }, { status: 'validated' }, { status: 'published', available: true }, { status: 'published', available: false }], lifecycleBadge })),
 }
 export const OrderState: Story = {

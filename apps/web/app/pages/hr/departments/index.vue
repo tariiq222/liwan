@@ -6,7 +6,7 @@ import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteHrDepartment, useHrDepartments, type HrDepartment } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()

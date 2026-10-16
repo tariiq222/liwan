@@ -8,7 +8,7 @@ import { createHooks } from 'hookable'
 import { expect, it } from 'vitest'
 import * as finance from '../../utils/projectFinance'
 import { parsePositiveId } from '../../utils/routeParams'
-import { returnToQuery } from '../../utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 function gate() {

@@ -2,7 +2,7 @@
 import { subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@nasq/commercial-contracts'
 import { formatSubscriptionMoney } from '@/utils/subscription'
-import { entitledFeaturePrefixes } from '@/utils/entitlementApps'
+import { entitledFeaturePrefixes } from '@nasq/commercial-ui/app/utils/entitlementApps'
 import { humanizeId } from '@/utils/labelFallback'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, te, locale } = useI18n(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()

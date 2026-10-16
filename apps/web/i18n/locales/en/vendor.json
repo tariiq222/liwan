@@ -424,19 +424,14 @@
       },
       "cadence": {
         "month": {
-          "one": "Monthly",
-          "many": "Every {count} months",
           "unit": "Month"
         },
         "year": {
-          "one": "Yearly",
-          "many": "Every {count} years",
           "unit": "Year"
         }
       },
       "choose": "Choose",
       "sar": "SAR",
-      "retry": "Retry",
       "reload": "Reload",
       "required": "This field is required.",
       "reasonRequired": "Enter a reason of at least 3 characters.",
@@ -482,25 +477,13 @@
       },
       "summary": {
         "intro": "What the customer gets:",
-        "noApps": "No apps selected.",
-        "included": "Included"
+        "noApps": "No apps selected."
       },
       "quote": {
         "title": "Server price preview",
         "hint": "All amounts are computed by the server; change inputs to recompute.",
-        "loading": "Calculating…",
-        "empty": "Choose inputs to see a price.",
-        "cadence": "Billing cadence",
         "extraBranches": "Extra branches",
-        "extraInvalid": "Enter a whole number of branches.",
-        "hq": "Headquarters",
-        "branchesFree": "{count} free branch | {count} free branches",
-        "branchesPaid": "{count} paid branch | {count} paid branches",
-        "branches": "{free} · {paid}",
-        "dueNow": "Due now",
-        "nextRenewal": "Next renewal",
-        "vatNote": "Prices exclude tax; 15% VAT is added (Asia/Riyadh).",
-        "renewalLines": "Renewal lines"
+        "extraInvalid": "Enter a whole number of branches."
       },
       "sections": {
         "basics": "Basics",

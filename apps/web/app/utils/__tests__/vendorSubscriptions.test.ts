@@ -4,7 +4,8 @@ import {
   commercialMetrics, customerListQuery, customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, lineQuantities, formatBytes, vendorInvoiceLineViews,
   type VendorCustomer,
 } from '../vendorSubscriptions'
-import { formatVendorMoney, sar } from '../vendorCommercial'
+import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { sar } from '../vendorCommercial'
 
 const now = new Date('2026-10-10T00:00:00Z')
 const order = (o: Partial<Order> = {}) => ({ id: 'o', payment_state: 'paid', fulfillment_state: 'applying', created_at: '2026-10-10T00:00:00Z', ...o }) as Order
@@ -97,10 +98,10 @@ describe('vendorInvoiceLineViews', () => {
     expect(view!.id).toBe('l1')
     expect(view!.kind).toEqual({ label: 't:vendor.invoices.lineKind.branch', tone: 'neutral' })
     expect(view!.cells.map(c => [c.key, c.value])).toEqual([
-      ['free', '1'], ['paid', '3'], ['unit', formatVendorMoney(sar(10000), 'en')], ['period', '2026-10-01 → 2026-10-31'],
+      ['free', '1'], ['paid', '3'], ['unit', formatCommercialMoney(sar(10000), 'en')], ['period', '2026-10-01 → 2026-10-31'],
     ])
     expect(view!.cells.map(c => c.label)).toEqual(['t:vendor.invoices.line.free', 't:vendor.invoices.line.paid', 't:vendor.invoices.line.unit', 't:vendor.invoices.line.period'])
-    expect(view!.amount).toBe(formatVendorMoney(sar(30000), 'en'))
+    expect(view!.amount).toBe(formatCommercialMoney(sar(30000), 'en'))
   })
 
   it('shows not-available, never 0, when a line has no free quantity', () => {

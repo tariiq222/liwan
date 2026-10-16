@@ -11,7 +11,7 @@ const shared = tenancyMode === 'shared'
 const odoo = process.env.NUXT_ODOO_URL ?? (shared ? 'http://guard:8080' : 'http://localhost:8069')
 
 export default defineNuxtConfig({
-  extends: ['@nasq/ui'],
+  extends: ['@nasq/ui', '@nasq/commercial-ui'],
   compatibilityDate: '2025-07-15',
   hooks: {
     ready(nuxt) {

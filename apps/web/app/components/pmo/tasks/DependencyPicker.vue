@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TaskState } from '@nasq/contracts'
 import { taskStateBadge } from '@/composables/taskState'
-import { badgeLabel } from '@/utils/statusBadge'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
 import type { TaskDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useTaskDependencies, useTaskDependencyCandidates, useUpdateTaskDependencies } from '@/composables/useTaskDependencies'

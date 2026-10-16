@@ -1,6 +1,6 @@
 import { canUse, featureForPath, hasFeature, pathIsWrite } from '../modules/registry'
 import { activeManifests, manifestForPath } from '../modules/manifests'
-import { safeReturnTo } from './safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 /** Server capabilities gate navigation; resource authorization remains on the API. */
 export type AccessIdentity = {

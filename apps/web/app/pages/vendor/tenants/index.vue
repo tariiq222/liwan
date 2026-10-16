@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { operationStatusBadge } from '@/utils/commercialBadges'
+import { operationStatusBadge } from '@/utils/vendorBadges'
 import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 type Tenant = { id: string; name: string; commercial_mode: string; hosting_model: string; status: string; inventory_target: string; catalog_version: string | null; operations_enabled: boolean; created_at: string }

@@ -1,5 +1,5 @@
 import type { LocationQuery, LocationQueryRaw, RouteLocationRaw } from 'vue-router'
-import { safeReturnTo } from './safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 export function recordListOrigin(value: unknown, paths: readonly string[]): string | undefined {
   const safe = safeReturnTo(value, '', paths)

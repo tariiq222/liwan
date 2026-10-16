@@ -4,7 +4,7 @@ import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { badgeLabel } from '@/utils/statusBadge'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
 
 // The main column of the project record: progress figures, tasks that need attention, the latest

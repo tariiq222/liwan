@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import {
-  PLATFORM_LIMIT_KEYS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, keyLabel, limitFromDraft, parseCount, planDraftFromView, priceRowErrors,
-  type BundleView, type PlanDraft, type PlanView,
-} from '@/utils/vendorCommercial'
+import { PLATFORM_LIMIT_KEYS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, keyLabel, limitFromDraft, parseCount, planDraftFromView, priceRowErrors, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
 const props = withDefaults(defineProps<{ bundles: BundleView[]; policy?: PricingPolicyView; initial?: PlanView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean }>(), { busy: false, resetKey: 0, requireReason: false })
 const emit = defineEmits<{ save: [draft: PlanDraft]; cancel: [] }>()

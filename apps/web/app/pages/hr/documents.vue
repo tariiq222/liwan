@@ -5,7 +5,7 @@ import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
 import { useHrDocuments, type HrDocument } from '@/composables/useHrDocuments'
 import { useHrDepartments } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 
