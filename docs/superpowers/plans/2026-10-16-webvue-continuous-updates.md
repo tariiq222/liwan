@@ -1,5 +1,7 @@
 # تحديث ويب فيو والإضافات مع استمرار الخدمة — Implementation Plan
 
+**WebVue preparation, 2026-10-17:** candidate `codex/deploy-webvue-updates` starts at main8125ab8c. The 16 October acceptance remains historical; see [current preparation results](../../verification/2026-10-17-webvue-updates-preparation.md). No merge or deployment.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task after owner approval. Steps use checkbox (`- [ ]`) syntax for tracking. Any delegation requires explicit file ownership and the project routing policy.
 
 **Goal:** استمرار القراءة والحفظ في تحديثات الكود المتوافقة، وعزل صيانة ترقيات Odoo في عميل واحد دون قطع بقية العملاء.

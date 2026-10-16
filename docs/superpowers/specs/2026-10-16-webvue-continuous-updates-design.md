@@ -1,5 +1,7 @@
 # تحديث ويب فيو والإضافات مع استمرار خدمة العملاء
 
+**WebVue preparation, 2026-10-17:** candidate `codex/deploy-webvue-updates` starts at main8125ab8c. The 16 October acceptance remains historical; see [current preparation results](../../verification/2026-10-17-webvue-updates-preparation.md). No merge or deployment.
+
 **الحالة:** اعتمد المالك التنفيذ المحلي في 2026-10-16. نُفّذ واختُبر في فرع معزول؛ نتائج القبول في [التقرير](../../verification/2026-10-16-continuous-updates.html). النشر والدمج ينتظران مراجعة المالك؛ لا اعتماد إنتاج أو وعد توافر.
 **طلب المالك:** مراجعة الموجود ووضع خطة تحديث تحدد متى تستمر الخدمة ومتى تتوقف.
 **المصدر المفحوص:** `main` عند `67902a053821ea4895047c804015addcc2e4f15a`، وشجرة العمل نظيفة عند بدء المراجعة.
