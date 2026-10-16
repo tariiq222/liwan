@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
+from odoo.addons.nasq_ai.models.access_service import AI_USE
 from odoo.addons.nasq_ai.models.tool_registry import TOOL_KINDS
 
 AUDIT_KINDS = ('message', *TOOL_KINDS)
@@ -167,6 +168,7 @@ class NasqAiAudit(models.Model):
     def create(self, vals_list):
         # The single choke point: the route and a direct /json/2 create obey the same feature gate.
         self.env['nasq.entitlement.service'].require('ai.enabled')
+        self.env['nasq.access.service']._nasq_require_capability(AI_USE)
         rows = [self._nasq_ai_prepare(values) for values in vals_list]
         messages = sum(row['kind'] == 'message' for row in rows)
         if messages:

@@ -3,6 +3,7 @@ from odoo import http
 from odoo.exceptions import ValidationError
 from odoo.http import request
 
+from odoo.addons.nasq_ai.models.access_service import AI_USE
 from odoo.addons.nasq_ai.serializers.audit import dump_audit_receipt
 from odoo.addons.nasq_ai.serializers.tool import dump_tool
 from odoo.addons.nasq_api.controllers.common import (
@@ -25,6 +26,7 @@ class AiController(http.Controller):
     )
     def list_tools(self, **_):
         request.env['nasq.entitlement.service'].require_read(AI_FEATURE)
+        request.env['nasq.access.service']._nasq_require_capability(AI_USE)
         registry = request.env['nasq.ai.tool.registry']
         items = [dump_tool(item) for item in registry._nasq_ai_tools_for_user()]
         # tool_calls_per_run is enforced by the AI service/executor from this limits block, not by Odoo.
@@ -38,6 +40,7 @@ class AiController(http.Controller):
     )
     def record_audit(self, **payload):
         request.env['nasq.entitlement.service'].require(AI_FEATURE)
+        request.env['nasq.access.service']._nasq_require_capability(AI_USE)
         unknown = set(payload) - AUDIT_FIELDS
         if unknown:
             field = sorted(unknown)[0]

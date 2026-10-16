@@ -2,6 +2,7 @@
 from . import (
     common,
     test_ai_audit,
+    test_ai_capability,
     test_ai_routes,
     test_feature_registry,
     test_tool_registry,

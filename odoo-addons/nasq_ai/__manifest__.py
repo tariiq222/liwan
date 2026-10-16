@@ -11,6 +11,8 @@
     # service and the Nuxt executor live outside Odoo (spec 2026-10-15-nasq-ai-design).
     'depends': ['nasq_api'],
     'data': [
+        'security/ai_capability_groups.xml',
+        'data/ai_access_permissions.xml',
         'security/ir.model.access.csv',
         'security/nasq_ai_rules.xml',
     ],
