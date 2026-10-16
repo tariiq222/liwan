@@ -67,6 +67,21 @@ test('dedicated edge routes legacy Odoo paths and passes raw session cookie unch
   assert.equal((await call(f.url, '/projects')).body, 'web')
 })
 
+test('dedicated Nuxt hop preserves browser CSRF while private and Odoo headers stay isolated', async t => {
+  const f = await fixture(t)
+  const csrf = 'synthetic-browser-csrf-value'
+  const headers = { cookie: `session_id=raw; webvue_csrf=${csrf}`, 'x-webvue-csrf': csrf }
+  assert.equal((await call(f.url, '/api/commercial/subscription', headers, '{}')).status, 200)
+  const forwarded = f.observed.at(-1)
+  assert.equal(forwarded.kind, 'web')
+  assert.equal(forwarded.headers['x-webvue-csrf'], csrf)
+  assert.equal(forwarded.headers.cookie, headers.cookie)
+  assert.equal((await call(f.url, '/api/v1/me', headers)).status, 200)
+  assert.equal(f.observed.at(-1).kind, 'odoo')
+  assert.equal(f.observed.at(-1).headers['x-webvue-csrf'], undefined)
+  assert.equal((await call(f.url, '/', { ...headers, 'x-webvue-release-pool': 'green' })).status, 403)
+})
+
 test('other Host, browser selectors and private release headers cannot choose a pool or DB', async t => {
   const f = await fixture(t)
   for (const [path, headers] of [['/', { host: 'other.test' }], ['/?db=foreign', {}], ['/', { 'x-webvue-release-pool': 'blue' }], ['/', { 'x-forwarded-host': 'other.test' }]]) {

@@ -125,6 +125,8 @@ export function createDedicatedGuard({ bindingPath, releaseRoutesDir, proxyToken
     headers['x-forwarded-host'] = binding.host
     headers['x-forwarded-proto'] = suppliedEdge.length ? req.headers['x-webvue-client-proto'] : publicProto
     if (!odoo) {
+      // CSRF is a browser double-submit header, not a private routing selector.
+      if (req.headers['x-webvue-csrf'] !== undefined) headers['x-webvue-csrf'] = req.headers['x-webvue-csrf']
       headers['x-webvue-client-ip'] = headers['x-forwarded-for']
       headers['x-webvue-client-host'] = binding.host
       headers['x-webvue-client-proto'] = headers['x-forwarded-proto']
