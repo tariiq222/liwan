@@ -44,4 +44,10 @@ else describe('accounts', () => {
     await transaction(pool, (c) => disableAccount(c, issuer, { id: a }, b, 'left'))
     await expect(transaction(pool, (c) => setRoles(c, issuer, { id: a }, a, ['finance'], 'drop owner'))).rejects.toMatchObject({ code: 'last_owner' })
   })
+  it('lets the only owner edit own roles while keeping the owner role', async () => {
+    await transaction(pool, (c) => disableAccount(c, issuer, { id: a }, b, 'left'))
+    await transaction(pool, (c) => setRoles(c, issuer, { id: a }, a, ['owner', 'finance'], 'add finance'))
+    const roles = await pool.query('SELECT role FROM vendor_account_roles WHERE account_id=$1 ORDER BY role', [a])
+    expect(roles.rows.map((r) => r.role)).toEqual(['finance', 'owner'])
+  })
 })

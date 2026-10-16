@@ -11,7 +11,7 @@ export async function mock<T = unknown>(path: string, method: 'GET' | 'POST' = '
 
 export const ageStepUp = () => mock('/__mock/age-step-up')
 export const resetMock = () => mock('/__mock/reset')
-export const mintInvitation = () => mock<{ token: string, email: string }>('/__mock/invitations').then(value => value!)
+export const mintInvitation = (roles?: string[]) => mock<{ token: string, email: string }>('/__mock/invitations', 'POST', { roles }).then(value => value!)
 export const mockStats = () => mock<{ anonymous: number, numeric: number, rejected: number, lastClientIp: string | null, sessions: number }>('/__mock/stats', 'GET').then(value => value!)
 
 /** A CTAP2 platform authenticator with resident keys and user verification, answering every prompt. */
@@ -51,7 +51,7 @@ export async function completeEnrollment(page: Page, label = 'Work laptop'): Pro
 export async function leaveRecoveryCodes(page: Page) {
   await page.getByLabel('حفظت الرموز في مكان آمن').check()
   await page.getByRole('button', { name: 'متابعة إلى لوحة الإدارة' }).click()
-  await expect(page).toHaveURL(/\/$/)
+  await expect(page).toHaveURL(/\/overview$/)
 }
 
 export const signOutRequest = (page: Page) =>

@@ -33,8 +33,9 @@ test('a vendor without the billing grant never reaches the invoice list', async 
  await open(page, '/overview')
  await navigateClient(page, '/invoices')
  await expect(page.locator('[data-slot="data-table"]')).toHaveCount(0)
- await expect(page).toHaveURL(/\/overview$/)
- await expect(page.getByRole('heading',{level:1})).toHaveText('إدارة نسق')
+ // The route gate answers 403 on the address itself; no invoice data is shown.
+ await expect(page.getByText('ليس لديك صلاحية لفتح هذه الصفحة')).toBeVisible()
+ await expect(page.getByTestId('invoice-row')).toHaveCount(0)
 })
 test('on a 390px phone the invoice rows retain periods and keyboard navigation without overflow', async ({ page }) => {
  await page.setViewportSize({width:390,height:844}); await open(page, '/invoices')

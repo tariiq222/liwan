@@ -27,13 +27,14 @@ test.describe('protection of pages', () => {
     await expect(page).toHaveURL(/\/login\?next=/)
     expect(new URL(page.url()).searchParams.get('next')).toBe('/customers?q=a')
     await page.goto('/')
-    await expect(page).toHaveURL(/\/login$/)
+    // The home route redirects to the overview, which asks for the sign-in and returns there.
+    await expect(page).toHaveURL(/\/login\?next=\/overview$/)
   })
 
   test('an unsafe next is ignored after sign-in', async ({ page }) => {
     await openFallback(page, '/login?next=//evil.example/x')
     await submitFallback(page, OWNER_EMAIL, ADMIN_PASSWORD)
-    await expect(page).toHaveURL(/localhost:\d+\/$/)
+    await expect(page).toHaveURL(/localhost:\d+\/overview$/)
   })
 
   test('sign-in returns to the page that was asked for', async ({ page }) => {
@@ -65,7 +66,8 @@ test.describe('enrollment and passkey sign-in', () => {
     for (const code of codes) expect(stored).not.toContain(code)
     await expect(page.getByRole('button', { name: 'متابعة إلى لوحة الإدارة' })).toBeDisabled()
     await leaveRecoveryCodes(page)
-    await expect(page.getByRole('heading', { name: 'نسق' })).toBeVisible()
+    await expect(page).toHaveURL(/\/overview$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'إدارة نسق' })).toBeVisible()
     // The router's own history entries never held the token: not this one, nor the one behind it.
     expect(await page.evaluate(() => JSON.stringify(history.state))).not.toContain(token)
     await page.goBack()
@@ -82,10 +84,11 @@ test.describe('enrollment and passkey sign-in', () => {
     expect(await signOutRequest(page)).toBe(204)
     expect((await context.cookies()).filter(cookie => cookie.name === 'nasq_admin')).toEqual([])
     await page.goto('/')
-    await expect(page).toHaveURL(/\/login$/)
+    // The home route redirects to the overview, which asks for the sign-in and returns there.
+    await expect(page).toHaveURL(/\/login\?next=\/overview$/)
     await page.getByRole('button', { name: 'الدخول بمفتاح المرور' }).click()
-    await expect(page).toHaveURL(/localhost:\d+\/$/)
-    await expect(page.getByRole('heading', { name: 'نسق' })).toBeVisible()
+    await expect(page).toHaveURL(/localhost:\d+\/overview$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'إدارة نسق' })).toBeVisible()
     const cookie = (await context.cookies()).find(item => item.name === 'nasq_admin')
     expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Strict', path: '/' })
     expect(await page.evaluate(() => document.cookie)).not.toContain('nasq_admin')
@@ -107,7 +110,8 @@ test.describe('enrollment and passkey sign-in', () => {
     await page.getByRole('button', { name: 'إضافة مفتاح المرور' }).click()
     await expect(alert(page)).toBeVisible()
     await expect(page.locator('#device-label')).toBeVisible()
-    expect(await context.cookies()).toEqual([])
+    // The page keeps no session (the language preference cookie is not one).
+    expect((await context.cookies()).filter(cookie => cookie.name === 'nasq_admin')).toEqual([])
   })
 })
 
@@ -115,7 +119,7 @@ test.describe('fallback sign-in', () => {
   test('signs in with password and authenticator code', async ({ page, context }) => {
     await openFallback(page)
     await submitFallback(page, OWNER_EMAIL, ADMIN_PASSWORD)
-    await expect(page).toHaveURL(/localhost:\d+\/$/)
+    await expect(page).toHaveURL(/localhost:\d+\/overview$/)
     expect((await context.cookies()).some(cookie => cookie.name === 'nasq_admin')).toBe(true)
     // Every request the BFF made was signed and accepted; none was rejected.
     const stats = await mockStats()
@@ -153,7 +157,7 @@ test.describe('fallback sign-in', () => {
     await page.locator('#password').fill(ADMIN_PASSWORD)
     await page.locator('#recovery-code').fill('abcd-efgh-jkmn')
     await page.getByRole('button', { name: 'دخول', exact: true }).click()
-    await expect(page).toHaveURL(/localhost:\d+\/$/)
+    await expect(page).toHaveURL(/localhost:\d+\/overview$/)
     await signOutRequest(page)
     await page.goto('/login')
     await page.getByRole('button', { name: 'استخدم رمز استرداد' }).click()

@@ -18,7 +18,7 @@ const allFiles = ['pages', 'components', 'composables', 'utils'].flatMap(dir => 
 // Pages that sign people in or enroll them are public: they declare no capability.
 const PUBLIC_PAGES = ['enroll.vue', 'login.vue']
 
-// Every other page needs vendor.read unless it is listed here. team/index.vue belongs to the team page slice.
+// Every other page needs vendor.read unless it is listed here.
 const STRICTER: Record<string, string> = {
   'audit.vue': 'vendor.audit.read',
   'bundles/[id]/edit.vue': 'vendor.catalog.manage',
@@ -30,7 +30,9 @@ const STRICTER: Record<string, string> = {
   'invoices/index.vue': 'vendor.billing.manage',
   'plans/[id]/edit.vue': 'vendor.catalog.manage',
   'plans/new.vue': 'vendor.catalog.manage',
+  'team.vue': 'vendor.accounts.manage',
   'team/index.vue': 'vendor.accounts.manage',
+  'team/new.vue': 'vendor.accounts.manage',
   'tenants/new.vue': 'vendor.tenants.manage',
 }
 
@@ -60,7 +62,7 @@ describe('vendor admin routes', () => {
     }))
     const expected = Object.fromEntries(Object.keys(actual).map(name => [name, PUBLIC_PAGES.includes(name) ? undefined : (STRICTER[name] ?? 'vendor.read')]))
     expect(actual).toEqual(expected)
-    expect(Object.keys(STRICTER).filter(name => !(name in actual) && name !== 'team/index.vue')).toEqual([])
+    expect(Object.keys(STRICTER).filter(name => !(name in actual))).toEqual([])
   })
 
   it('has no leftover vendor middleware meta', () => {

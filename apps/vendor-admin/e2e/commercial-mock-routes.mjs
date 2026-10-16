@@ -16,14 +16,15 @@ function page(collection, url, filter = () => true) {
 const q = (url, name) => url.searchParams.get(name) ?? ''
 const byId = (collection, id) => collection.items.find(item => item.id === id)
 
-export function handleCommercial(req, res, url) {
+/** `capabilities` narrows /v1/context to the signed-in account; without it the fixture context is served whole. */
+export function handleCommercial(req, res, url, { capabilities } = {}) {
   const path = url.pathname
   // Quote preview is a read operation transported as POST; it never creates an order.
   if (req.method === 'POST' && path === '/v1/commercial/quotes') return json(res, 200, fixtures.quote), true
   if (req.method !== 'GET') return json(res, 501, { code: 'not_implemented', message: 'The stub control plane is read-only' }), true
   const send = body => (body === undefined ? notFound(res) : json(res, 200, body))
   let m
-  if (path === '/v1/context') send(fixtures.context)
+  if (path === '/v1/context') send(capabilities ? { ...fixtures.context, capabilities: fixtures.context.capabilities.filter(name => capabilities.includes(name)) } : fixtures.context)
   else if (path === '/v1/overview') send(fixtures.overview)
   else if (path === '/v1/catalog') send(fixtures.catalogVersions)
   else if (path === '/v1/packages') send({ items: fixtures.catalog.items, total: fixtures.catalog.total })
