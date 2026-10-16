@@ -79,6 +79,10 @@ describe('attempt scope of a client address', () => {
     expect(ipScopeKey('::ffff:203.0.113.9')).toBe('203.0.113.9')
     expect(ipScopeKey('unknown')).toBe('unknown')
   })
+  it('maps every spelling of an IPv4-mapped address to the IPv4 scope', () => {
+    for (const ip of ['::ffff:1.2.3.4', '::ffff:102:304', '::FFFF:102:0304', '0:0:0:0:0:ffff:102:304', '0000:0000:0000:0000:0000:ffff:0102:0304', '0:0:0:0:0:ffff:1.2.3.4', '::0:ffff:1.2.3.4']) expect(ipScopeKey(ip)).toBe('1.2.3.4')
+    expect(ipScopeKey('::fffe:102:304')).toBe('0:0:0:0::/64')
+  })
   it('groups IPv6 by /64', () => {
     const scope = '2001:db8:0:1::/64'
     for (const ip of ['2001:db8:0:1::1', '2001:0db8:0000:0001:ffff:ffff:ffff:ffff', '2001:DB8:0:1:abcd::7', '2001:db8:0:1:0:0:0:0']) expect(ipScopeKey(ip)).toBe(scope)

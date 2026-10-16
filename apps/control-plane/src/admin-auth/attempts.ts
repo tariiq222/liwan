@@ -1,23 +1,26 @@
-import { isIPv4, isIPv6 } from 'node:net'
+import { isIPv6 } from 'node:net'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit } from './accounts.js'
 
 const WINDOW_MS = 15 * 60_000
-/** An IPv6 client controls its whole /64, so that prefix is the unit counted; IPv4 (and IPv4-mapped IPv6) is counted as is. */
-export function ipScopeKey(ip: string): string {
-  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip)
-  if (mapped && isIPv4(mapped[1]!)) return mapped[1]!
-  if (!isIPv6(ip)) return ip
+/** The 8 hextets of an IPv6 address, whatever its spelling (compressed, long, hex or dotted IPv4 tail). */
+function hextetsOf(ip: string): number[] {
   const [head = '', tail = ''] = ip.split('::')
-  const hextets = (part: string): number[] => part === '' ? [] : part.split(':').flatMap((group) => {
+  const parts = (part: string): number[] => part === '' ? [] : part.split(':').flatMap((group) => {
     if (!group.includes('.')) return [parseInt(group, 16)]
     const [a, b, c, d] = group.split('.').map(Number) as [number, number, number, number]
     return [a * 256 + b, c * 256 + d]
   })
-  const front = hextets(head)
-  const back = hextets(tail)
-  const all = ip.includes('::') ? [...front, ...Array<number>(8 - front.length - back.length).fill(0), ...back] : front
+  const front = parts(head)
+  const back = parts(tail)
+  return ip.includes('::') ? [...front, ...Array<number>(8 - front.length - back.length).fill(0), ...back] : front
+}
+/** An IPv6 client controls its whole /64, so that prefix is the unit counted; IPv4 and every spelling of IPv4-mapped IPv6 count as the IPv4 address. */
+export function ipScopeKey(ip: string): string {
+  if (!isIPv6(ip)) return ip
+  const all = hextetsOf(ip)
+  if (all.slice(0, 5).every((group) => group === 0) && all[5] === 0xffff) return `${all[6]! >> 8}.${all[6]! & 255}.${all[7]! >> 8}.${all[7]! & 255}`
   return `${all.slice(0, 4).map((group) => group.toString(16)).join(':')}::/64`
 }
 const limitFor = (scope: string) => scope.startsWith('account:') ? 5 : 20
