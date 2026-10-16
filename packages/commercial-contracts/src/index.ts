@@ -5,6 +5,16 @@ export const hostingModelSchema = z.enum(['managed', 'customer_hosted'])
 export const tenantStatusSchema = z.enum(['registered', 'provisioning', 'active', 'needs_intervention'])
 export const operationStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'needs_intervention'])
 
+// The `status` filter of the vendor operation list: one status of either queue, or a group. The groups match the
+// overview counts: `pending` is queued + running, `attention` is failed + needs_intervention.
+const OPERATION_STATUS_GROUPS = { pending: ['queued', 'running'], attention: ['failed', 'needs_intervention'] } as const
+export const operationListStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'needs_intervention', 'verified', 'pending', 'attention'])
+export type OperationListStatus = z.infer<typeof operationListStatusSchema>
+/** The statuses a list filter value stands for. */
+export function operationStatusesOf(filter: OperationListStatus): string[] {
+  return filter === 'pending' || filter === 'attention' ? [...OPERATION_STATUS_GROUPS[filter]] : [filter]
+}
+
 const reason = z.string().trim().min(3).max(1000)
 const inventoryId = z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/)
 const featureValue = z.union([z.boolean(), z.number().int().nonnegative(), z.null()])

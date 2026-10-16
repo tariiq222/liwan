@@ -56,22 +56,25 @@
       "customer": "Customer"
     },
     "overview": {
-      "title": "Nasq management",
+      "title": "Overview",
       "description": "Customer installations and operation status.",
       "tenants": "Customer installations",
       "active": "Active installations",
       "pending": "Pending operations",
       "failed": "Failed operations or needs attention",
       "lastHealth": "Last health check",
+      "attention": "Needs your attention",
+      "status": "Overall status",
       "queueScope": "Counts include shared and dedicated operations, once per operation. Verified execution does not establish workspace readiness; check setup status on the customer page."
     },
     "tenants": {
-      "title": "Customers and installations",
+      "title": "Tenants",
       "new": "Register installation",
       "create": "Register installation",
       "details": "Customer installation",
       "search": "Search customers",
       "empty": "No customer installations found.",
+      "noResults": "No installations match the filter.",
       "noTargets": "No available environments are currently listed.",
       "noPublishedCatalog": "A published catalog version is required before registering an installation.",
       "target": "Installation environment",
@@ -168,7 +171,14 @@
       "enqueue": "Queue operation",
       "details": "Operation details",
       "empty": "No operations found.",
-      "tenantFilter": "Filter by installation ID",
+      "tenantFilter": "Customer installation",
+      "allTenants": "All installations",
+      "noResults": "No operations match the filter.",
+      "filter": {
+        "all": "All",
+        "pending": "Pending",
+        "attention": "Needs attention"
+      },
       "stage": "Stage",
       "target": "Customer installation",
       "type": "Operation",
@@ -633,7 +643,7 @@
       }
     },
     "customers": {
-      "title": "Commercial customers",
+      "title": "Customers",
       "description": "Customer subscriptions, terms, activation state and invoices.",
       "search": "Search by customer name",
       "empty": "No commercial customers yet.",
@@ -878,7 +888,6 @@
       }
     },
     "overviewCommercial": {
-      "title": "Commercial metrics",
       "hint": "Counted from the current customer lists; not collected revenue.",
       "active": "Active subscriptions",
       "pending": "Pending subscriptions",
@@ -887,9 +896,7 @@
       "stalled": "Stalled fulfillments",
       "setup": "Customers needing setup",
       "partial": "Counts only the first {count} customer. | Counts only the first {count} customers.",
-      "unavailable": "Commercial metrics are not available yet.",
-      "customers": "Commercial customers",
-      "invoices": "Invoices"
+      "unavailable": "Commercial metrics are not available yet."
     }
   }
 }

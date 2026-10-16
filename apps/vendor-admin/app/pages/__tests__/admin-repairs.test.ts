@@ -235,11 +235,15 @@ describe('invoice payment attempts', () => {
   })
 })
 
-it('gates the overview invoice shortcut by the billing grant', async () => {
-  const blocked = await page('overview.vue', { grants: ['vendor.read'] })
-  expect((await blocked.rendered()).captured.some(c => c.props.to === '/invoices')).toBe(false)
-  const allowed = await page('overview.vue')
-  expect((await allowed.rendered()).captured.some(c => c.props.to === '/invoices')).toBe(true)
+it('overview has two sections whose tiles open the list they count and no navigation buttons', async () => {
+  const { captured } = await (await page('overview.vue')).rendered()
+  const links = captured.filter(c => c.name === 'NuxtLink').map(c => c.props.to)
+  expect(links).toEqual(['/operations?status=attention', '/customers?state=setup_required', '/tenants', '/tenants', '/operations?status=pending', '/customers?state=active'])
+  expect(captured.filter(c => c.name === 'SharedMetricTile').map(c => c.props.label)).toEqual([
+    'vendor.overview.failed', 'vendor.overviewCommercial.pastDue', 'vendor.overviewCommercial.stalled', 'vendor.overviewCommercial.setup',
+    'vendor.overview.tenants', 'vendor.overview.active', 'vendor.overview.pending', 'vendor.overviewCommercial.active', 'vendor.overviewCommercial.pending', 'vendor.overviewCommercial.renewals',
+  ])
+  expect(captured.some(c => c.name === 'UButton')).toBe(false)
 })
 
 it('finds a tenant customer by tenant filter rather than a bounded newest-customer scan', async () => {

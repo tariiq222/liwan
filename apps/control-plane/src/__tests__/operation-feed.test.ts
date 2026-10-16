@@ -66,6 +66,16 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
     expect(await get(`/v1/operations?source=all&tenant_id=${otherTenant}`)).toMatchObject({ total: 1, items: [{ id: id(26), source: 'shared' }] })
     expect(await get(`/v1/operations?source=all&tenant_id=${randomUUID()}`)).toEqual({ items: [], total: 0 })
   })
+  it('filters both queues by one status or by a group, together with the tenant', async () => {
+    const ids = async (query: string) => (await get(`/v1/operations?${query}`)).items.map((op: any) => `${op.source}:${op.id}`).sort()
+    expect(await ids('source=all&status=attention')).toEqual([`legacy:${id(3)}`, `shared:${id(3)}`].sort())
+    expect(await ids('source=all&status=pending')).toEqual([`legacy:${id(30)}`, `shared:${id(1)}`, `shared:${id(2)}`].sort())
+    expect(await ids('source=all&status=verified&page=2')).toHaveLength(0)
+    expect((await get('/v1/operations?source=all&status=verified')).total).toBe(23)
+    expect(await ids('source=all&status=failed')).toEqual([`legacy:${id(3)}`])
+    expect(await get(`/v1/operations?source=all&status=verified&tenant_id=${otherTenant}`)).toMatchObject({ total: 1, items: [{ id: id(26) }] })
+    expect(await get('/v1/operations?status=attention')).toMatchObject({ total: 1, items: [{ id: id(3), status: 'failed' }] })
+  })
   it('keeps the legacy default and disambiguates the same UUID by source', async () => {
     const legacy = await get(`/v1/operations/${id(3)}`)
     expect(legacy).toMatchObject({ type: 'health', status: 'failed', reason: 'Legacy reason' }); expect(legacy).not.toHaveProperty('source')
@@ -88,7 +98,7 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
   })
   it('requires vendor.read for all new read paths and rejects ambiguous source values', async () => {
     for (const path of ['/v1/overview?source=all', '/v1/operations?source=all', `/v1/operations/${id(3)}?source=shared`]) expect((await call(path, 8)).status).toBe(403)
-    for (const path of ['/v1/overview?source=shared', '/v1/operations?source=bogus', '/v1/operations?source=all&source=legacy', '/v1/operations?source=all&tenant_id=bad-id', `/v1/operations/${id(3)}?source=all`]) expect((await call(path)).status).toBe(422)
+    for (const path of ['/v1/overview?source=shared', '/v1/operations?source=bogus', '/v1/operations?source=all&source=legacy', '/v1/operations?source=all&tenant_id=bad-id', '/v1/operations?source=all&status=bogus', `/v1/operations/${id(3)}?source=all`]) expect((await call(path)).status).toBe(422)
   })
   it('does not route explicit shared retry to a colliding legacy operation', async () => {
     const response = await call(`/v1/operations/${id(3)}/retry?source=shared`, 7, 'POST', JSON.stringify({ request_id: randomUUID(), reason: 'Do not retry shared' }))
