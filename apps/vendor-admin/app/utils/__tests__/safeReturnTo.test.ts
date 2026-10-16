@@ -9,7 +9,7 @@ describe('safeReturnTo', () => {
   it.each([
     '//evil.example', '//evil.example/path', '/\\evil.example', '\\\\evil.example', 'javascript:alert(1)',
     'https://evil.example/', 'http://evil.example', 'data:text/html,x', 'customers', '', ' /customers', '/\tcustom', '/a\nb',
-    '/login', '/login?next=/x', '/enroll', '/enroll#token', `/${'a'.repeat(600)}`,
+    '/login', '/login/', '/Login', '/LOGIN?next=/x', '/enroll/', '/login?next=/x', '/enroll', '/enroll#token', `/${'a'.repeat(600)}`,
   ])('rejects %j', (value) => {
     expect(safeReturnTo(value)).toBeNull()
   })

@@ -23,6 +23,10 @@ describe('decideAccess', () => {
     expect(decideAccess({ isPublic: true, me, fullPath: '/login', path: '/login', next: '//evil.example' })).toEqual({ action: 'redirect', to: '/' })
   })
 
+  it.each(['/login/', '/Login', '/LOGIN/'])('treats %s as the login page', (path) => {
+    expect(decideAccess({ isPublic: true, me, fullPath: path, path, next: '/audit' })).toEqual({ action: 'redirect', to: '/audit' })
+  })
+
   it('lets a signed-in visitor open another public page', () => {
     expect(decideAccess({ isPublic: true, me, fullPath: '/enroll', path: '/enroll' })).toEqual({ action: 'allow' })
   })

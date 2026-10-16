@@ -43,9 +43,11 @@ describe('enrollment page', () => {
     expect(html).toContain('role="alert"')
   })
 
-  it('shows the unavailable message when the control plane is down', async () => {
-    const html = await renderEnroll({ step: 'invalid', errorKey: 'adminAuth.errors.unavailable' })
+  it('shows the unavailable message with a retry, not an invalid link, when the check fails', async () => {
+    const html = await renderEnroll({ step: 'retry', errorKey: 'adminAuth.errors.unavailable' })
     expect(html).toContain('الخدمة غير متاحة الآن')
+    expect(html).toContain('إعادة المحاولة')
+    expect(html).not.toContain('رابط الدعوة غير صالح')
   })
 
   it('step 1 asks for the passkey with an optional device name', async () => {

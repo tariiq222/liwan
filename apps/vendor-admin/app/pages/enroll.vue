@@ -6,7 +6,7 @@ useHead(() => ({ title: `${t('adminAuth.enroll.title')} · ${t('app.productName'
 
 const {
   step, pending, errorKey, email, label, totpUri, totpSecret, form, recoveryCodes, saved,
-  start, loadTotp, registerPasskey, complete, finish,
+  start, checkInvitation, loadTotp, registerPasskey, complete, finish,
 } = useEnrollment()
 const hydrated = useHydrated()
 const STEPS = 3
@@ -40,6 +40,15 @@ onMounted(start)
       <p v-else-if="step === 'invalid'" class="text-center text-sm text-muted">
         {{ t('adminAuth.enroll.invalidHint') }}
       </p>
+
+      <UButton
+        v-else-if="step === 'retry'"
+        type="button"
+        class="w-full justify-center"
+        :loading="pending"
+        :label="t('adminAuth.enroll.retry')"
+        @click="checkInvitation"
+      />
 
       <template v-else-if="step === 'passkey'">
         <div>

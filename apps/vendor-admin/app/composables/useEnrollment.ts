@@ -1,11 +1,12 @@
 import { reactive, ref } from 'vue'
 import { startRegistration, type PublicKeyCredentialCreationOptionsJSON, type RegistrationResponseJSON } from '@simplewebauthn/browser'
-import { authErrorKey } from '../utils/authError'
+import { authErrorKey, statusOf } from '../utils/authError'
 import { authPost, type AuthPost } from '../utils/authPost'
 import { takeInvitationToken } from '../utils/invitationToken'
 import { groupedTotpSecret } from '../utils/totp'
 
-export type EnrollmentStep = 'checking' | 'invalid' | 'passkey' | 'totp' | 'recovery'
+/** `invalid`: the link is refused; `retry`: it could not be checked right now (the link is kept). */
+export type EnrollmentStep = 'checking' | 'invalid' | 'retry' | 'passkey' | 'totp' | 'recovery'
 
 const MIN_PASSWORD_LENGTH = 12
 
@@ -15,7 +16,7 @@ export interface EnrollmentDeps {
   refresh: () => Promise<void>
   go: (path: string) => unknown
   /** Reads the token from the address fragment and removes the fragment. */
-  takeToken: () => string | null
+  takeToken: () => Promise<string | null>
 }
 
 /**
@@ -50,19 +51,28 @@ export function createEnrollment(deps: EnrollmentDeps) {
   }
 
   async function start(): Promise<void> {
-    const found = deps.takeToken()
+    const found = await deps.takeToken()
     if (!found) {
       errorKey.value = 'adminAuth.errors.failed'
       step.value = 'invalid'
       return
     }
     token = found
+    await checkInvitation()
+  }
+
+  /** Asks the server about the link; only a refusal makes it invalid, any other failure can be retried. */
+  async function checkInvitation(): Promise<void> {
     await work(async () => {
-      const invitation = await deps.post<{ email: string }>('/api/auth/enroll/invitation', { token })
-      email.value = invitation.email
-      step.value = 'passkey'
+      try {
+        const invitation = await deps.post<{ email: string }>('/api/auth/enroll/invitation', { token })
+        email.value = invitation.email
+        step.value = 'passkey'
+      } catch (error) {
+        step.value = [401, 422].includes(statusOf(error) ?? 0) ? 'invalid' : 'retry'
+        throw error
+      }
     })
-    if (step.value === 'checking') step.value = 'invalid'
   }
 
   async function loadTotp(): Promise<void> {
@@ -109,21 +119,24 @@ export function createEnrollment(deps: EnrollmentDeps) {
 
   async function finish(): Promise<void> {
     if (!saved.value) return
-    await deps.refresh()
-    await deps.go('/')
-    recoveryCodes.value = []
+    await work(async () => {
+      await deps.refresh()
+      await deps.go('/')
+      recoveryCodes.value = []
+    })
   }
 
-  return { step, pending, errorKey, email, label, totpUri, totpSecret, form, recoveryCodes, saved, start, loadTotp, registerPasskey, complete, finish }
+  return { step, pending, errorKey, email, label, totpUri, totpSecret, form, recoveryCodes, saved, start, checkInvitation, loadTotp, registerPasskey, complete, finish }
 }
 
 export function useEnrollment() {
   const { refresh } = useAdminSession()
+  const router = useRouter()
   return createEnrollment({
     post: authPost,
     register: startRegistration,
     refresh,
     go: path => navigateTo(path),
-    takeToken: () => takeInvitationToken(window.location, window.history),
+    takeToken: () => takeInvitationToken(window.location.hash, () => router.replace({ path: router.currentRoute.value.path, query: router.currentRoute.value.query, hash: '' })),
   })
 }

@@ -21,9 +21,9 @@ function setup(overrides: Partial<EnrollmentDeps> = {}, token: string | null = T
   const register = vi.fn(async () => ({ id: 'attestation' }))
   const refresh = vi.fn(async () => undefined)
   const go = vi.fn()
-  const takeToken = vi.fn(() => { events.push('take-token'); return token })
+  const takeToken = vi.fn(async () => { events.push('take-token'); return token })
   const enrollment = createEnrollment({ post: post as EnrollmentDeps['post'], register: register as unknown as EnrollmentDeps['register'], refresh, go, takeToken, ...overrides })
-  return { enrollment, post, register, refresh, go, events }
+  return { enrollment, post, register, refresh, go, takeToken, events }
 }
 
 afterEach(() => vi.unstubAllGlobals())
@@ -48,13 +48,30 @@ describe('createEnrollment', () => {
 
   it.each([
     [failure(401, 'auth_failed'), 'adminAuth.errors.failed'],
-    [failure(429, 'rate_limited'), 'adminAuth.errors.rateLimited'],
-    [failure(503, 'admin_unavailable'), 'adminAuth.errors.unavailable'],
-  ])('shows the invalid state with the message for a refused invitation %#', async (error, key) => {
+    [failure(422, 'invalid'), 'adminAuth.errors.invalid'],
+  ])('shows the invalid state for a refused invitation %#', async (error, key) => {
     const { enrollment } = setup({ post: vi.fn().mockRejectedValue(error) as unknown as EnrollmentDeps['post'] })
     await enrollment.start()
     expect(enrollment.step.value).toBe('invalid')
     expect(enrollment.errorKey.value).toBe(key)
+  })
+
+  it.each([
+    [failure(429, 'rate_limited'), 'adminAuth.errors.rateLimited'],
+    [failure(503, 'admin_unavailable'), 'adminAuth.errors.unavailable'],
+    [new TypeError('Failed to fetch'), 'adminAuth.errors.generic'],
+  ])('keeps the link and offers a retry when the check itself fails %#', async (error, key) => {
+    const base = setup().post
+    let calls = 0
+    const post = vi.fn(async (path: string) => { if (calls++ === 0) throw error; return base(path) })
+    const { enrollment, takeToken } = setup({ post: post as unknown as EnrollmentDeps['post'] })
+    await enrollment.start()
+    expect(enrollment.step.value).toBe('retry')
+    expect(enrollment.errorKey.value).toBe(key)
+    await enrollment.checkInvitation()
+    expect(enrollment.step.value).toBe('passkey')
+    expect(takeToken).toHaveBeenCalledTimes(1)
+    expect(post).toHaveBeenLastCalledWith('/api/auth/enroll/invitation', { token: TOKEN })
   })
 
   it('registers the passkey with the device label and moves on to the authenticator step', async () => {
@@ -154,6 +171,23 @@ describe('createEnrollment', () => {
     expect(refresh).toHaveBeenCalledTimes(1)
     expect(go).toHaveBeenCalledWith('/')
     expect(enrollment.recoveryCodes.value).toEqual([])
+  })
+
+  it('shows a message and keeps the codes when entering the app fails, then succeeds on a second try', async () => {
+    const refresh = vi.fn().mockRejectedValueOnce(failure(503, 'vendor_unavailable')).mockResolvedValue(undefined)
+    const { enrollment, go } = setup({ refresh })
+    await enrollment.start()
+    await enrollment.registerPasskey()
+    Object.assign(enrollment.form, { password: PASSWORD, confirm: PASSWORD, totpCode: '123456' })
+    await enrollment.complete()
+    enrollment.saved.value = true
+    await enrollment.finish()
+    expect(enrollment.errorKey.value).toBe('adminAuth.errors.unavailable')
+    expect(enrollment.recoveryCodes.value).toEqual(CODES)
+    expect(go).not.toHaveBeenCalled()
+    await enrollment.finish()
+    expect(go).toHaveBeenCalledWith('/')
+    expect(enrollment.pending.value).toBe(false)
   })
 
   it('never writes the token, the password or the recovery codes to browser storage or the address', async () => {

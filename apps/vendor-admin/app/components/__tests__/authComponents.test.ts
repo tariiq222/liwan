@@ -29,6 +29,12 @@ describe('TotpSetup', () => {
     expect(html).toContain('فتح في تطبيق المصادقة')
   })
 
+  it('offers no link for anything but an otpauth link', async () => {
+    const html = await renderSfc('components/TotpSetup.vue', { uri: 'javascript:alert(1)', secret: null })
+    expect(html).not.toContain('javascript:')
+    expect(html).not.toContain('فتح في تطبيق المصادقة')
+  })
+
   it('shows the preparing text, and a retry once loading has failed', async () => {
     const loading = await renderSfc('components/TotpSetup.vue', { uri: null, secret: null, loading: true })
     expect(loading).toContain('جارٍ تجهيز مفتاح الإعداد')

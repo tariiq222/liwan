@@ -21,6 +21,7 @@ const { t } = useI18n()
         </p>
       </div>
       <UButton
+        v-if="uri.startsWith('otpauth://')"
         :href="uri"
         variant="outline"
         color="neutral"
@@ -35,7 +36,7 @@ const { t } = useI18n()
       variant="outline"
       color="neutral"
       class="justify-center"
-      :label="t('adminAuth.enroll.totpRetry')"
+      :label="t('adminAuth.enroll.retry')"
       @click="$emit('retry')"
     />
   </div>
