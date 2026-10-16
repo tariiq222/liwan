@@ -44,7 +44,7 @@ async function mountPanel(s: Scenario) {
   const component = defineComponent({
     setup: () => ({
       t: (key: string, params?: Record<string, string>) => (params ? `${key}:${Object.values(params).join('|')}` : key),
-      charter: { state, return_note: s.return_note ?? '' },
+      charter: { state, return_note: s.return_note ?? '', approved_by: s.approved_by ?? null },
       state,
       canReview,
       canWithdraw: state === 'submitted' && !!s.can_manage && !canReview,
@@ -118,6 +118,11 @@ describe('CharterApprovalPanel', () => {
     expect(w.has('charter-approve')).toBe(false)
     const confirm = await mountPanel({ state: 'submitted', can_manage: true, withdrawing: true })
     expect(confirm.has('charter-withdraw-confirm')).toBe(true)
+  })
+
+  it('does not repeat the approved state without approval history', async () => {
+    const w = await mountPanel({ state: 'approved' })
+    expect(w.has('charter-approved')).toBe(false)
   })
 
   it('names the approver on an approved charter', async () => {

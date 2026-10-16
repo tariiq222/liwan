@@ -32,7 +32,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
     >
       <p v-if="!canManage" class="text-muted">{{ t('projects.forbidden') }}</p>
       <template v-else-if="project">
-        <ProjectSettingsForm :project="project" />
+        <ProjectSettingsForm :key="project.id" :project="project" />
       </template>
     </SharedPageState>
   </SharedSettingsPage>

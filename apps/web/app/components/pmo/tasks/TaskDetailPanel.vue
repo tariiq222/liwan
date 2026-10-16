@@ -145,6 +145,7 @@ const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) 
           </div>
           <TaskCompletionApproval :task="task" />
           <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
+          <slot name="details" :task="task" />
         </div>
       </div>
     </template>

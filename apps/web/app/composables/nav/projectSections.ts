@@ -3,7 +3,7 @@ import { hasCapability, type AccessIdentity } from '../../utils/accessPolicy'
 /** Declared here so nav/shellModules.ts can import it without a cycle; this file is its one auto-import owner. */
 export type NavIcon = `i-lucide-${string}`
 
-export const PROJECT_SECTION_IDS = ['summary', 'tasks', 'schedule', 'milestones', 'governance', 'finance', 'meetings', 'updates'] as const
+export const PROJECT_SECTION_IDS = ['summary', 'tasks', 'planning', 'governance', 'finance', 'meetings', 'updates'] as const
 export type ProjectSectionId = typeof PROJECT_SECTION_IDS[number]
 
 export interface ProjectSection {
@@ -15,13 +15,12 @@ export interface ProjectSection {
 }
 
 /** Sections hidden on an archived project: everything that mutates or plans work. */
-const ARCHIVED_HIDDEN: readonly ProjectSectionId[] = ['tasks', 'milestones', 'governance']
+const ARCHIVED_HIDDEN: readonly ProjectSectionId[] = ['tasks', 'governance']
 
 const DEFINITIONS: Array<Omit<ProjectSection, 'to'> & { segment: string }> = [
   { id: 'summary', labelKey: 'nav.projectSummary', icon: 'i-lucide-layout-dashboard', segment: '', capability: 'pmo.projects.read' },
   { id: 'tasks', labelKey: 'nav.projectTasks', icon: 'i-lucide-clipboard-list', segment: '/tasks', capability: 'pmo.tasks.read' },
-  { id: 'schedule', labelKey: 'projects.planningLinks.schedule', icon: 'i-lucide-calendar-range', segment: '/schedule', capability: 'pmo.tasks.read' },
-  { id: 'milestones', labelKey: 'projects.tabs.milestones', icon: 'i-lucide-flag', segment: '/milestones', capability: 'pmo.tasks.read' },
+  { id: 'planning', labelKey: 'projects.planningLinks.title', icon: 'i-lucide-calendar-range', segment: '/schedule', capability: 'pmo.tasks.read' },
   { id: 'governance', labelKey: 'projects.workspace.groups.governance', icon: 'i-lucide-shield-check', segment: '/charter', capability: 'pmo.projects.read' },
   { id: 'finance', labelKey: 'nav.projectFinance', icon: 'i-lucide-wallet-cards', segment: '/finance', capability: 'pmo.projects.read' },
   { id: 'meetings', labelKey: 'projects.tabs.meetings', icon: 'i-lucide-calendar-days', segment: '/meetings', capability: 'meetings.read' },
@@ -37,4 +36,12 @@ export function projectSections(
     .filter(definition => options.active || !ARCHIVED_HIDDEN.includes(definition.id))
     .filter(definition => hasCapability(identity, definition.capability))
     .map(({ segment, ...rest }) => ({ ...rest, to: `/projects/${projectId}${segment}` }))
+}
+
+/** Planning keeps its two stable URLs under one primary section. */
+export function planningSections(projectId: number, options: { active: boolean }) {
+  return [
+    { id: 'schedule' as const, labelKey: 'projects.planningLinks.schedule', icon: 'i-lucide-calendar-range' as NavIcon, to: `/projects/${projectId}/schedule` },
+    ...(options.active ? [{ id: 'milestones' as const, labelKey: 'projects.tabs.milestones', icon: 'i-lucide-flag' as NavIcon, to: `/projects/${projectId}/milestones` }] : []),
+  ]
 }

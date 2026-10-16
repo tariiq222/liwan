@@ -10,18 +10,6 @@ import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.v
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 
-/** Claim one milestone checklist mutation at a time to prevent lost toggles. */
-function claimMilestoneChecklistUpdate(pending: ReadonlySet<number>, milestoneId: number): Set<number> | null {
-  if (pending.has(milestoneId)) return null
-  return new Set(pending).add(milestoneId)
-}
-
-function releaseMilestoneChecklistUpdate(pending: ReadonlySet<number>, milestoneId: number): Set<number> {
-  const next = new Set(pending)
-  next.delete(milestoneId)
-  return next
-}
-
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
@@ -30,10 +18,13 @@ const projectIdRef = computed(() => props.projectId)
 const { data, isLoading, error, refetch } = useMilestones(projectIdRef)
 const items = computed<Milestone[]>(() => data.value ?? [])
 const route = useRoute()
-const deliverablePending = ref(new Set<number>())
+
+function detailTo(m: Milestone) {
+  return { path: `/projects/${props.projectId}/milestones/${m.id}`, query: returnToQuery(route.fullPath) }
+}
 
 function editTo(m: Milestone) {
-  return { path: `/projects/${props.projectId}/milestones/${m.id}/edit`, query: returnToQuery(route.fullPath) }
+  return { path: `/projects/${props.projectId}/milestones/${m.id}/edit`, query: { listOrigin: route.fullPath } }
 }
 
 // A milestone with linked tasks cannot be deleted; the menu item stays visible,
@@ -92,28 +83,6 @@ async function toggleReached(m: Milestone) {
   }
 }
 
-function isDeliverablePending(milestoneId: number) {
-  return deliverablePending.value.has(milestoneId)
-}
-
-async function toggleDeliverable(m: Milestone, index: number, next: boolean) {
-  const claimed = claimMilestoneChecklistUpdate(deliverablePending.value, m.id)
-  if (!claimed) return
-  deliverablePending.value = claimed
-  const current = m.deliverables ?? []
-  const deliverables = current.map((item, itemIndex) => itemIndex === index ? { ...item, done: next } : { ...item })
-  try {
-    // Checklist completion is independent from is_reached and task progress.
-    // USwitch's display always derives from `item.done`; a failed mutation
-    // leaves that value untouched, so no manual DOM revert is needed here.
-    await updateMutate({ projectId: props.projectId, id: m.id, patch: { deliverables } })
-  } catch (e) {
-    toast.add({ title: e instanceof ApiError ? e.message : t('errors.generic'), color: 'error' })
-  } finally {
-    deliverablePending.value = releaseMilestoneChecklistUpdate(deliverablePending.value, m.id)
-  }
-}
-
 // --- delete ------------------------------------------------------------
 const { mutateAsync: deleteMutate, isPending: deleting } = useDeleteMilestone()
 const deleteId = ref<number | null>(null)
@@ -158,15 +127,10 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
       />
       <SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="isLoading || !hydrated" :caption="t('projects.tabs.milestones')">
         <template #name-cell="{ row }">
-          <div data-testid="milestone-row" class="min-w-0 space-y-2">
-            <p class="font-medium text-highlighted">{{ row.original.name }}</p>
+          <div data-testid="milestone-row" class="grid min-w-0 gap-1">
+            <NuxtLink :to="detailTo(row.original)" class="font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
             <span v-if="row.original.deliverables?.length" class="text-xs text-muted">{{ t('projects.milestones.checklistOf', { done: row.original.deliverables.filter(item => item.done).length, total: row.original.deliverables.length }) }}</span>
-            <div v-if="row.original.deliverables?.length" class="space-y-1.5">
-              <label v-for="(item, index) in row.original.deliverables" :key="`${row.original.id}-${index}`" class="flex items-center gap-2 text-sm">
-                <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(row.original.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(row.original, index, value)" />
-                <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
-              </label>
-            </div>
+
           </div>
         </template>
         <template #state-cell="{ row }">
@@ -187,7 +151,7 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
           <div data-testid="milestone-card" class="space-y-3">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="font-medium text-highlighted">{{ m.name }}</p>
+                <NuxtLink :to="detailTo(m)" class="font-medium text-highlighted hover:underline">{{ m.name }}</NuxtLink>
                 <SharedStatusBadge class="mt-1" :tone="m.is_reached ? 'success' : 'neutral'" :label="t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
               </div>
               <div v-if="canManage" data-testid="milestone-actions-card" class="shrink-0">
@@ -201,12 +165,7 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
               <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
               <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
             </div>
-            <div v-if="m.deliverables?.length" class="space-y-1.5">
-              <label v-for="(item, index) in m.deliverables" :key="`${m.id}-m-${index}`" class="flex items-center gap-2 text-sm">
-                <USwitch :model-value="item.done" :disabled="!hydrated || !canManage || isDeliverablePending(m.id)" :aria-label="item.name" @update:model-value="value => toggleDeliverable(m, index, value)" />
-                <span :class="item.done ? 'text-muted line-through' : ''">{{ item.name }}</span>
-              </label>
-            </div>
+
           </div>
         </template>
       </SharedDataTable>

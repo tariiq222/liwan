@@ -298,8 +298,8 @@ describe('charterWriteFromDraft', () => {
 describe('charter document helpers', () => {
   it('routes a created project to milestones while carrying the originating list URL', () => {
     expect(createdProjectLocation(42, '/projects?status=active')).toEqual({
-      path: '/projects/42',
-      query: { returnTo: '/projects?status=active', tab: 'milestones' },
+      path: '/projects/42/milestones',
+      query: { returnTo: '/projects?status=active', projectListReturnTo: '/projects?status=active' },
     })
   })
 

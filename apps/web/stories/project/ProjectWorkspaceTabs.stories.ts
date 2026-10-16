@@ -8,7 +8,7 @@ const meta = {
   title: 'Project/ProjectWorkspaceTabs',
   component: ProjectWorkspaceTabs,
   args: { projectId: 1, active: true },
-  parameters: storyContext('apps/web/app/pages/projects/[id].vue:114', 'شريط أقسام المشروع: خط سفلي مستقيم للقسم الحالي وزوايا غير منحنية.'),
+  parameters: storyContext('apps/web/app/pages/projects/[id].vue:115', 'شريط أقسام المشروع: خط سفلي مستقيم للقسم الحالي وزوايا غير منحنية.'),
   render: args => ({
     components: { ProjectWorkspaceTabs },
     setup: () => {
@@ -35,5 +35,18 @@ export const Governance: Story = {
       return { args }
     },
     template: '<div class="flex flex-col"><ProjectWorkspaceTabs :project-id="args.projectId" :active="true" /><ProjectWorkspaceTabs :project-id="args.projectId" level="governance" /></div>',
+  }),
+}
+
+export const Planning: Story = {
+  name: 'التخطيط: الجدول الزمني والمعالم',
+  render: args => ({
+    components: { ProjectWorkspaceTabs },
+    setup: () => {
+      const router = useRouter()
+      onMounted(() => router.push('/projects/1/milestones'))
+      return { args }
+    },
+    template: '<div class="flex flex-col"><ProjectWorkspaceTabs :project-id="args.projectId" :active="true" /><ProjectWorkspaceTabs :project-id="args.projectId" :active="true" level="planning" /></div>',
   }),
 }

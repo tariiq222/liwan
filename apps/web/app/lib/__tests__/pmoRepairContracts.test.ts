@@ -179,6 +179,39 @@ describe('PMO repair form contracts', () => {
     expect(state.dirty.value).toBe(false)
   })
 
+  it('keeps a milestone draft during same-record refetch and resets it for another record', () => {
+    const props = Vue.reactive({ projectId: 7, milestone: { id: 42, name: 'Server name', start_date: null, deadline: null, deliverables: [] } })
+    const { state } = loadSetup('apps/web/app/components/pmo/projects/MilestoneForm.vue', props)
+    props.milestone = { ...props.milestone, name: 'Fresh server name' }
+    expect(state.name.value).toBe('Fresh server name')
+    state.name.value = 'Unsaved local name'
+    props.milestone = { ...props.milestone, name: 'Background update' }
+    expect(state.name.value).toBe('Unsaved local name')
+    expect(state.dirty.value).toBe(true)
+    props.milestone = { ...props.milestone, id: 43, name: 'Other record' }
+    expect(state.name.value).toBe('Other record')
+    expect(state.dirty.value).toBe(false)
+  })
+
+  it('blocks an old milestone draft from overwriting a concurrent deadline or checklist', async () => {
+    const original = { id: 42, name: 'Server name', start_date: '2030-01-01', deadline: '2030-02-01', deliverables: [{ name: 'Output', done: false }] }
+    const props = Vue.reactive({ projectId: 7, milestone: original })
+    const mutateAsync = vi.fn(async () => props.milestone)
+    const { state } = loadSetup('apps/web/app/components/pmo/projects/MilestoneForm.vue', props, {
+      useUpdateMilestone: () => ({ mutateAsync, isPending: ref(false) }),
+    })
+    state.name.value = 'Local name'
+    props.milestone = { ...original, deadline: '2030-03-01', deliverables: [{ name: 'Output', done: true }] }
+    await state.submit()
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(state.name.value).toBe('Local name')
+    expect(state.dirty.value).toBe(true)
+    state.loadLatest()
+    expect(state.deadline.value).toBe('2030-03-01')
+    expect(state.deliverables.value[0].done).toBe(true)
+    expect(state.dirty.value).toBe(false)
+  })
+
   it('executes MilestoneForm dirty, failed-save, and success transitions', async () => {
     const pending = ref(false)
     let release!: () => void

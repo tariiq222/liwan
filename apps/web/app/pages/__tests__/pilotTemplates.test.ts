@@ -12,7 +12,7 @@ describe('the pilot pages stay on their templates', () => {
     ['pages/projects/index.vue', ['<SharedListPage', 'create-test-id="project-new"']],
     ['pages/tasks.vue', ['<SharedListPage', ':views="views"']],
     ['pages/projects/[id]/tasks.vue', ['<SharedListPage', 'hide-header', 'create-test-id="project-header-create"']],
-    ['pages/projects/[id]/index.vue', ['<SharedRecordPage', 'hide-header', '<SharedPropertiesPanel']],
+    ['pages/projects/[id]/index.vue', ['<SharedRecordPage', 'hide-header', '<ProjectOverview']],
     ['pages/projects/dashboard.vue', ['<SharedDashboardPage', '#filters']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)

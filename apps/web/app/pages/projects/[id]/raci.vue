@@ -7,8 +7,10 @@ import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreat
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
+const tasksTo = computed(() => projectSectionLocation(`/projects/${id.value}/tasks`, route.path, route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
 const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
@@ -104,7 +106,7 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       :description="t(!visibleTasks.length && !visibleStakeholders.length ? 'projects.refresh.workspace.raciEmptyBoth' : !visibleTasks.length ? 'projects.refresh.workspace.raciEmptyTasks' : 'projects.refresh.workspace.raciEmptyStakeholders')"
     >
       <template #action>
-        <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="{ path: `/projects/${id}`, query: { ...route.query, tab: 'tasks' } }">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
+        <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="tasksTo">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
         <UButton v-if="!visibleStakeholders.length && rows.data.value?.can_manage" color="neutral" variant="outline" icon="i-lucide-plus" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</UButton>
       </template>
     </SharedEmptyState>

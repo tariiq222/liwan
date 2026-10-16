@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
+import ProjectTaskScheduleSection from '@/components/pmo/projects/schedule/ProjectTaskScheduleSection.vue'
 import TaskDetailPage from '@/components/pmo/tasks/TaskDetailPage.vue'
 import { projectTaskParams } from '@/composables/projectTaskParams'
 
@@ -30,5 +31,7 @@ onMounted(() => {
     :base-path="`/projects/${projectId}/tasks`"
     :back-to="backTo"
     :sibling-params="siblingParams"
-  />
+  >
+    <template #details><ProjectTaskScheduleSection :project-id="projectId!" :task-id="taskId!" /></template>
+  </TaskDetailPage>
 </template>

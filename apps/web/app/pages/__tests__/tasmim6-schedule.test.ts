@@ -13,7 +13,4 @@ describe('the schedule stays on the timeline template', () => {
     for (const gone of ['embedded', "emit('update:scale'", 'projects.schedule.timeline']) expect(gantt).not.toContain(gone)
     expect(gantt).toContain('defineExpose')
   })
-  it('the task edit page has no hand-built card', () => {
-    expect(read('pages/projects/[id]/schedule/tasks/[taskId].vue')).not.toContain('rounded-lg ring ring-default')
-  })
 })

@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const BesideFieldLabel: Story = {
   name: 'بجانب عنوان الحقل',
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCharterFields.vue:132', 'اضغط أيقونة ⓘ لفتح التلميح.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCharterFields.vue:133', 'اضغط أيقونة ⓘ لفتح التلميح.'),
   render: args => ({
     components: { ProjectFieldHelp, PageContainer },
     setup() {

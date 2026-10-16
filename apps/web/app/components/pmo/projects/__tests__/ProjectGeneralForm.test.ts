@@ -37,27 +37,18 @@ function loadForm() {
     setup(props) {
       const project = computed(() => props.project as ProjectDetail)
       const t = (key: string) => key
-      const hydrated = true
-      const nameDraft = ref(project.value.name)
-      const displayedMode = computed(() => project.value.completion_approval)
-      const pendingMode = ref<'none' | 'project_manager' | 'specific_user' | null>(
+      const pendingMode = ref<'specific_user' | null>(
         project.value.completion_approval === 'specific_user' && !project.value.completion_approver ? 'specific_user' : null,
       )
-      const approvalLocked = false
-      const approvalError = null
-      const displayedApproverName = computed(() => project.value.completion_approver?.name ?? 'projects.settings.noApprover')
-      const approverItems = computed(() => (project.value.completion_approver ? [project.value.completion_approver] : []))
-      const endLabel = computed(() => project.value.date_end ?? 'projects.settings.noDate')
-      const startLabel = computed(() => project.value.date_start ?? 'projects.settings.noDate')
-      const hasAnyDate = computed(() => !!project.value.date_start || !!project.value.date_end)
       return {
-        project, t, hydrated, nameDraft, displayedMode, pendingMode, approvalLocked, approvalError,
-        displayedApproverName, approverItems, endLabel, startLabel, hasAnyDate,
-        managerOpen: false, managerQ: '', people: [], approverOpen: false, approverQ: '',
-        approverPeople: [], startValue: null, endValue: null,
-        commitName: () => {}, onDescriptionChange: () => {}, selectManager: () => {},
-        onVisibilityChange: () => {}, onStartChange: () => {}, onEndChange: () => {},
-        clearDates: () => {}, onTagsChange: () => {}, onApprovalChange: () => {},
+        project, t, displayedMode: computed(() => project.value.completion_approval),
+        displayedApprover: computed(() => project.value.completion_approver),
+        approverItems: computed(() => project.value.completion_approver ? [project.value.completion_approver] : []),
+        choosingApprover: computed(() => pendingMode.value === 'specific_user'),
+        controlsLocked: false, dirty: false, saveState: 'idle', saveError: '',
+        pendingPatch: null, pendingTags: null, approverQ: '',
+        patch: () => {}, save: () => {}, onVisibilityChange: () => {},
+        onTagsChange: () => {}, onApprovalChange: () => {},
         selectApprover: () => {}, cancelPendingApproval: () => {},
       }
     },
@@ -85,7 +76,7 @@ const project: ProjectDetail = {
 
 async function renderGeneral(value: ProjectDetail) {
   const app = createSSRApp({ render: () => h(loadForm(), { project: value }) })
-  for (const name of ['UButton', 'USelect', 'USelectMenu', 'USwitch', 'USeparator', 'TagPicker', 'DescriptionEditor', 'UFormField']) {
+  for (const name of ['UButton', 'USelect', 'USelectMenu', 'USwitch', 'USeparator', 'TagPicker', 'UFormField', 'UAlert', 'SharedUnsavedChanges']) {
     app.component(name, Passthrough)
   }
   return renderToString(app)

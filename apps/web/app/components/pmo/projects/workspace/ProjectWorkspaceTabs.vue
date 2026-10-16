@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { governanceSections } from '@/composables/nav/governanceSections'
-import { projectSections } from '@/composables/nav/projectSections'
-import { activeGovernanceSection, activeProjectSection } from '@/composables/nav/activeRoute'
+import { planningSections, projectSections } from '@/composables/nav/projectSections'
+import { activeGovernanceSection, activePlanningSection, activeProjectSection } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 
@@ -10,7 +10,7 @@ import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const props = withDefaults(defineProps<{
   projectId: number
   active?: boolean
-  level?: 'sections' | 'governance'
+  level?: 'sections' | 'governance' | 'planning'
 }>(), { level: 'sections' })
 
 const route = useRoute()
@@ -34,14 +34,18 @@ const governanceItems = computed(() => {
     key: `governance-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: current === section.id, icon: section.icon,
   }))
 })
+const planningItems = computed(() => planningSections(props.projectId, { active: activeProject.value }).map(section => ({
+  key: `planning-tab-${section.id}`, label: t(section.labelKey), to: projectSectionLocation(section.to, route.path, route.query), active: activePlanningSection(route.path) === section.id, icon: section.icon,
+})))
+const sublevel = computed(() => props.level !== 'sections')
 const governance = computed(() => props.level === 'governance')
 </script>
 
 <template>
   <SharedRouteTabs
-    :items="governance ? governanceItems : sectionItems"
-    :ariaLabel="t(governance ? 'projects.workspace.subtabsLabel' : 'projects.workspace.tabsLabel')"
-    :class="['[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', governance ? '' : '-mb-px border-b-0!']"
-    :data-testid="governance ? 'project-governance-tabs' : 'project-workspace-tabs'"
+    :items="governance ? governanceItems : props.level === 'planning' ? planningItems : sectionItems"
+    :ariaLabel="t(sublevel ? 'projects.workspace.subtabsLabel' : 'projects.workspace.tabsLabel')"
+    :class="['[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', sublevel ? '' : '-mb-px border-b-0!']"
+    :data-testid="governance ? 'project-governance-tabs' : props.level === 'planning' ? 'project-planning-tabs' : 'project-workspace-tabs'"
   />
 </template>

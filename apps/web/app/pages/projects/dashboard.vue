@@ -162,6 +162,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
 <template>
   <SharedDashboardPage :title="t('projects.dashboard.title')" data-testid="project-dashboard-page">
     <template #filters>
+      <PendingCharterReviews class="mb-5" />
       <div class="w-full min-w-0">
         <FilterBar class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
@@ -211,7 +212,6 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       </SharedEmptyState>
     </div>
     <template v-else>
-      <PendingCharterReviews class="@min-[768px]:col-span-2" />
       <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" :all-rows="rows" />
       <ProjectDashboardCharts :rows="rows" />
     </template>

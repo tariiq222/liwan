@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/PersonPicker',
   component: PersonPicker,
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCharterFields.vue:235', 'يبحث في /api/v1/people. `options` يقصر الاختيار على قائمة ثابتة مثل مشاركي الاجتماع.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCharterFields.vue:238', 'يبحث في /api/v1/people. `options` يقصر الاختيار على قائمة ثابتة مثل مشاركي الاجتماع.'),
   args: { modelValue: null, multiple: false, valueKey: 'user_id', placeholder: 'اختر المدير' },
   render: args => ({
     components: { PersonPicker },
