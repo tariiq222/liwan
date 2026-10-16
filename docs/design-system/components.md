@@ -140,12 +140,14 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/team/InvitationLink.vue` | رابط الدعوة مع تاريخ انتهائه وزر النسخ | `UButton`, `UFormField`, `UInput` |
 | `apps/vendor-admin/app/components/team/RolePicker.vue` | اختيار أدوار الفريق | `UCheckbox` |
 | `apps/vendor-admin/app/components/vendor/BundleForm.vue` | نموذج الحزمة التجارية | `CapacityLimitsEditor`, `PriceListEditor`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UIcon`, `UInput`, `USelect`, `UTextarea` |
-| `apps/vendor-admin/app/components/vendor/CapacityLimitsEditor.vue` | محرر حدود السعة | `UFormField`, `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/CapacityLimitsEditor.vue` | محرر حدود السعة | `UFormField`, `VendorLimitControl` |
 | `apps/vendor-admin/app/components/vendor/CustomerTermsForm.vue` | نموذج شروط العميل | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/EntitlementSummary.vue` | ملخص الاستحقاقات: التطبيقات والميزات المختارة والحدود | `UBadge` |
+| `apps/vendor-admin/app/components/vendor/FormSubsection.vue` | عنوان فرعي ووصف وخط فاصل لكتلة داخل بطاقة قسم النموذج | |
 | `apps/vendor-admin/app/components/vendor/LifecyclePanel.vue` | إجراءات دورة حياة الاشتراك بتأكيد داخلي | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
-| `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة | `CapacityLimitsEditor`, `PriceListEditor`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
-| `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `UButton`, `UFormField`, `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/LimitControl.vue` | قائمة نوع الحد وحقل العدد جنبًا إلى جنب | `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة: أربع بطاقات ثم المراجعة، والإجراءات في تذييل اللوحة | `SharedEmptyState`, `SharedFormActions`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea`, `VendorCapacityLimitsEditor`, `VendorFormSubsection`, `VendorLimitControl`, `VendorPriceListEditor` |
+| `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `SharedEmptyState`, `UButton`, `UFormField`, `UInput`, `USelect` |
 | `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
 | `apps/vendor-admin/app/components/vendor/UsageMeters.vue` | مقاييس الاستهلاك مقابل الحدود | `SharedStatusBadge`, `UProgress` |
 
