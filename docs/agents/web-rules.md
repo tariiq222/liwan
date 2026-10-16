@@ -54,3 +54,10 @@ and contracts are in `AGENTS.md`.
 - The topology is same-origin behind a reverse proxy: Nuxt `/`, Odoo
   `/api/v1`, `/web/content`, and `/websocket`, and vendor console `/odoo`.
   Session cookies are used; no CORS or bearer tokens for browser flows.
+
+- `apps/vendor-admin` is the vendor staff console, a separate Nuxt application served on its own `admin` host. It follows
+  DESIGN.md and uses the same layers as `apps/web` (`@nasq/ui`, plus `@nasq/commercial-ui` for the shared billing
+  presentation); there is no `/vendor` page prefix. Its server routes are a BFF that signs calls to the control plane
+  with `@nasq/commercial-contracts` and overwrites `x-nasq-client-ip`. It imports nothing from `apps/web`, `odoo-addons`,
+  `@nasq/contracts` or the control plane and calls no Odoo route, and `apps/web` never imports it (hard rule `VA1` in
+  `tools/arch_policy.py`, never baselined). See `apps/vendor-admin/README.md`.
