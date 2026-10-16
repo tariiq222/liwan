@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { returnToQuery, safeReturnTo } from '../safeReturnTo'
+import { normalizePath, returnToQuery, safeReturnTo, safeSameAppPath } from '../safeReturnTo'
 
 describe('safeReturnTo', () => {
   const fallback = '/hr'
@@ -43,5 +43,39 @@ describe('safeReturnTo', () => {
 
   it('builds the shared returnTo query contract', () => {
     expect(returnToQuery('/projects?q=one&status=on_track')).toEqual({ returnTo: '/projects?q=one&status=on_track' })
+  })
+})
+
+describe('safeSameAppPath', () => {
+  const blocked = ['/login', '/enroll']
+
+  it.each(['/', '/customers', '/customers?q=a b&page=2', '/tenants/12#top', '/plans/new'])('keeps the same-app path %s', (path) => {
+    expect(safeSameAppPath(path, blocked)).toBe(path)
+  })
+
+  it.each([
+    '//evil.example', '//evil.example/path', '/\\evil.example', '\\\\evil.example', 'javascript:alert(1)',
+    'https://evil.example/', 'http://evil.example', 'data:text/html,x', 'customers', '', ' /customers', '/\tcustom', '/a\nb',
+    '/login', '/login/', '/Login', '/LOGIN?next=/x', '/enroll/', '/login?next=/x', '/enroll', '/enroll#token', `/${'a'.repeat(600)}`,
+  ])('rejects %j', (value) => {
+    expect(safeSameAppPath(value, blocked)).toBeNull()
+  })
+
+  it.each([undefined, null, 5, {}, ['//evil.example']])('rejects the non-string %j', (value) => {
+    expect(safeSameAppPath(value, blocked)).toBeNull()
+  })
+
+  it('reads the first entry of a repeated query parameter', () => {
+    expect(safeSameAppPath(['/audit', '//evil.example'], blocked)).toBe('/audit')
+  })
+
+  it('blocks nothing when no path is blocked', () => {
+    expect(safeSameAppPath('/login', [])).toBe('/login')
+  })
+})
+
+describe('normalizePath', () => {
+  it.each([['/Login/', '/login'], ['/a//', '/a'], ['/', '/'], ['', '/']])('reads %j as %j', (value, expected) => {
+    expect(normalizePath(value)).toBe(expected)
   })
 })
