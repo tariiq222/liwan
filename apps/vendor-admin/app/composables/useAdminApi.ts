@@ -31,13 +31,10 @@ export function createAdminApi({ fetcher, onUnauthorized, onStepUpRequired }: Ad
 }
 
 export function useAdminApi() {
-  const me = useAdminMe()
-  const route = useRoute()
+  const stepUp = useStepUp()
   return createAdminApi({
     fetcher: $fetch as Fetcher,
-    onUnauthorized: () => {
-      me.value = null
-      return navigateTo({ path: '/login', query: { next: route.fullPath } })
-    },
+    onUnauthorized: useSessionEnded(),
+    onStepUpRequired: retry => stepUp.run(retry),
   })
 }
