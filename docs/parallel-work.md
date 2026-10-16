@@ -28,6 +28,14 @@ own institution identity. PMO collaboration preserves record and company guards.
 | Locale namespace | `common.json` | `tasks.json`, `projects.json`, `settings.json` | `hr.json` |
 | Web surface | layout, UI primitives, `useApi`, `useMe`, `useBranding` | task/project pages and `components/pmo/**` | `/hr`, HR composables/components |
 
+Vendor administration and the shared UI layers have their own owners; none of them is an Odoo pillar:
+
+| Surface | Owner | Notes |
+| --- | --- | --- |
+| `apps/vendor-admin` | vendor administration (git area `cp`) | Pages, BFF routes, e2e and `i18n` of the staff console. Imports only the shared UI layers and `@nasq/commercial-contracts` (rule `VA1`). |
+| `packages/ui` | shared design layer | Tokens, theme, shell, presentational components. Shared by `apps/web` and `apps/vendor-admin`; a change needs both apps' checks (rule `UI1`). |
+| `packages/commercial-ui` | shared billing presentation | Price breakdown and invoice components. Extends `@nasq/ui`; used by both apps (rule `UI1`). |
+
 `nasq_directory` owns `/api/v1/people` (the user-id picker; its `id` is a
 `res.users` id) and its feature keys are registered by the applications that
 pick people. HR owns `/api/v1/hr/*`, where employee records use `hr.employee`
@@ -87,10 +95,11 @@ cd /path/to/nasq-worktree
 NUXT_ODOO_URL=http://127.0.0.1:8169 \
 NUXT_ODOO_DB=nasq_scratch \
 NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
-npm -w apps/web run dev -- --port 3100
+npm -w apps/web run dev -- --port 3200
 ```
 
-The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`.
+The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`. Port `3100` is reserved for
+`apps/vendor-admin` (its default, see its README) and `3103` for its live-proof build; give `apps/web` worktrees other ports.
 Use distinct database, Odoo port, Nuxt port, and log paths for concurrent
 worktrees. Temporary integration values are disposable and must not be
 presented as production evidence.

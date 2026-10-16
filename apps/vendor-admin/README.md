@@ -43,6 +43,16 @@ The control plane additionally needs `ADMIN_SECRET_KEY`, `ADMIN_RP_ID` and `ADMI
 `deploy/control-plane/env.example`); `ADMIN_ORIGIN` must equal `NUXT_ADMIN_ORIGIN`. `deploy/vendor-admin/env.example` is
 the template for this app.
 
+## Deployment
+
+The edge block is `deploy/vendor-admin/Caddyfile.snippet`; the environment template is `deploy/vendor-admin/env.example`.
+
+- Publish only the edge (https). **Port 3100 must never be published outside the container network**: with `trustProxy` on,
+  the BFF believes `X-Forwarded-For`, so it must be reachable from the edge alone.
+- With an https `NUXT_ADMIN_ORIGIN`, `NUXT_TRUST_PROXY` must be `true`; the BFF answers `503` otherwise.
+- The Caddy block sets `X-Forwarded-For` to the remote address itself (it overwrites, never appends) and caps request
+  bodies at 64KB. The control plane stays on the private network.
+
 ## Run locally
 
 ```sh

@@ -18,7 +18,7 @@ addresses. A request matches exactly one zone.
 | --- | --- | --- | --- |
 | `nasq_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
 | `nasq_api` | other `/api/v1/*` | 300 | authenticated product API |
-| `nasq_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | vendor console, assets, reports |
+| `nasq_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
 | `nasq_web` | Nuxt responses | 600 | customer UI |
 
 `/websocket*` is not counted. `/web/health` is exempt so a probe cannot consume
