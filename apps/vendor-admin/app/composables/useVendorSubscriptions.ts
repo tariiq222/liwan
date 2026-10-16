@@ -1,7 +1,7 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { BranchSummary, ClientList, Invoice, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@nasq/commercial-contracts'
-import type { VendorCustomer, VendorCustomerList, VendorInvoiceList } from '@/utils/vendorSubscriptions'
+import type { BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@nasq/commercial-contracts'
+import type { VendorCustomer, VendorCustomerList, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
 export function useVendorSubscriptions() {
@@ -21,7 +21,7 @@ export function useVendorSubscriptions() {
     branches: (subscriptionId: string) => request<BranchSummary>(`commercial/subscriptions/${seg(subscriptionId)}/branches`),
     usage: (subscriptionId: string) => request<UsageSnapshot>(`commercial/subscriptions/${seg(subscriptionId)}/usage`),
     listInvoices: (query: Record<string, unknown>) => request<VendorInvoiceList>('commercial/invoices', { query }),
-    invoice: (id: string) => request<Invoice>(`commercial/invoices/${seg(id)}`),
+    invoice: (id: string) => request<VendorInvoice>(`commercial/invoices/${seg(id)}`),
     saveTerms: (body: unknown) => request<CustomerTermsRevision>('commercial/customer-terms', { method: 'POST', body }),
     /** Draft `terms` bodies return a preview only (never persisted, never acceptable). */
     customerQuote: async (body: Record<string, unknown>) => normalizeQuoteResponse<Quote>(await request<unknown>('commercial/customer-quotes', { method: 'POST', body })),

@@ -1,5 +1,5 @@
 import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
-import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
+import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@nasq/ui/app/utils/humanizeId'
@@ -8,7 +8,9 @@ import { invoiceLineQuantities, type InvoiceLineView } from '@nasq/commercial-ui
 export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
-export type VendorInvoiceList = { items: Invoice[]; total: number }
+/** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
+export type VendorInvoice = Invoice & { customer_name: string }
+export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[]; overdue_count: number } }
 
 // ---- Filters (URL-backed) ----
 export const INVOICE_STATUS_FILTERS = ['all', 'draft', 'issued', 'paid', 'void', 'credit_pending'] as const
@@ -224,3 +226,6 @@ export function cancellationErrorKey(cause: unknown): string {
   return ['order_not_cancellable', 'payment_reconciliation_required', 'provider_mismatch', 'reason_required'].includes(code)
     ? `vendor.customers.cancelOrder.errors.${code}` : commercialErrorKey(cause)
 }
+
+/** Issued and past its due date; the server's overdue count uses the same rule. */
+export const isOverdue = (i: Pick<Invoice, 'status' | 'due_at'>, now = Date.now()) => i.status === 'issued' && i.due_at !== null && Date.parse(i.due_at) < now

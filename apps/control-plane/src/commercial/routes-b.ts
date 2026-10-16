@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, type Principal } from '@nasq/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, type Principal } from '@nasq/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { createCustomerTerms } from './customer-terms.js'
@@ -12,7 +12,7 @@ import { getSubscription } from './subscriptions.js'
 import { acceptQuote, cancelOrder } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
 import { listClients } from './clients.js'
-import { listInvoices, getInvoice } from './invoices.js'
+import { listVendorInvoices, getVendorInvoice } from './invoices.js'
 import { analyticsFromQuery } from './analytics.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
@@ -98,10 +98,10 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
     return {status:200,data:await cancelOrder(pool,{order_id:cancel[1]!,principal,reason:body.reason,adapter:runtime?.adapter ?? undefined})}
   }
-  if(m==='GET'&&path==='/invoices'){need(input,'vendor.billing.manage');const customer=url.searchParams.get('customer_id');if(customer&&!z.uuid().safeParse(customer).success)throw new CommercialHttpError('invalid',422,'customer_id');return {status:200,data:await listInvoices(pool,{customer_id:customer??undefined})}}
+  if(m==='GET'&&path==='/invoices'){need(input,'vendor.billing.manage');const customer=url.searchParams.get('customer_id');if(customer&&!z.uuid().safeParse(customer).success)throw new CommercialHttpError('invalid',422,'customer_id');const status=url.searchParams.get('status');if(status&&!invoiceStatusSchema.safeParse(status).success)throw new CommercialHttpError('invalid',422,'status');const page=(f:string,d:number,max:number)=>{const raw=url.searchParams.get(f);if(raw===null)return d;if(!/^\d+$/.test(raw)||Number(raw)>max)throw new CommercialHttpError('invalid',422,f);return Number(raw)};const limit=page('limit',50,200);if(limit<1)throw new CommercialHttpError('invalid',422,'limit');return {status:200,data:await listVendorInvoices(pool,{customer_id:customer??undefined,status:status??undefined,limit,offset:page('offset',0,Number.MAX_SAFE_INTEGER)})}}
   if(m==='GET'&&path==='/analytics'){need(input,'vendor.billing.manage');return {status:200,data:await analyticsFromQuery(pool,url)}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
-  if(m==='GET'&&invoice){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getInvoice(pool,invoice[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
+  if(m==='GET'&&invoice){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getVendorInvoice(pool,invoice[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
   if(payment&&(m==='POST'||m==='GET')){
     need(input,'vendor.billing.manage');if(!z.uuid().safeParse(payment[1]).success)throw new CommercialHttpError('not_found',404)
