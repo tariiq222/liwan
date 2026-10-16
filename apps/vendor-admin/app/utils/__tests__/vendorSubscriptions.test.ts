@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice, Order, SubscriptionView } from '@nasq/commercial-contracts'
 import {
-  commercialMetrics, customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, isOverdue,
+  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isOverdue, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
   type VendorCustomer,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
@@ -20,20 +20,6 @@ describe('queries', () => {
     expect(customersReturnTo('/customers?q=a&page=2')).toBe('/customers?q=a&page=2')
     expect(customersReturnTo('https://evil.test')).toBe('/customers')
     expect(customersReturnTo('/customers/x')).toBe('/customers')
-  })
-})
-describe('commercialMetrics', () => {
-  it('counts states, renewals in window, stalled fulfillments and setup', () => {
-    const m = commercialMetrics([
-      cust(sub()), cust(sub({ state: 'pending', renewal_at: null })), cust(sub({ state: 'past_due', renewal_at: '2027-01-01' })),
-      cust(sub({ pending_order: order({ fulfillment_state: 'failed' }) })), cust(null, true),
-    ], now)
-    expect(m).toMatchObject({ active: 2, pending: 1, pastDue: 1, upcomingRenewals: 2, stalledFulfillments: 1, setupRequired: 1, counted: 5 })
-  })
-  it('treats an old queued order as stalled, a fresh one not', () => {
-    expect(isStalled(order({ fulfillment_state: 'queued', created_at: '2026-10-01T00:00:00Z' }), now)).toBe(true)
-    expect(isStalled(order({ fulfillment_state: 'queued' }), now)).toBe(false)
-    expect(isStalled(null, now)).toBe(false)
   })
 })
 describe('targetStatus', () => {

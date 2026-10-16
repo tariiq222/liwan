@@ -53,38 +53,6 @@ export function orderFulfillmentBadge(order: Pick<Order, 'fulfillment_state'>): 
   return { tone: 'neutral', labelKey: `vendor.customers.fulfillment.${order.fulfillment_state}` }
 }
 
-// ---- Overview metrics: counted from list endpoints, never inferred from price lists ----
-export const RENEWAL_WINDOW_DAYS = 30
-export const STALLED_HOURS = 24
-export type CommercialMetrics = { active: number; pending: number; pastDue: number; upcomingRenewals: number; stalledFulfillments: number; setupRequired: number; counted: number }
-export function daysUntil(isoDate: string, now: Date): number {
-  const [y, m, d] = isoDate.split('-').map(Number)
-  return Math.round((Date.UTC(y!, m! - 1, d!) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000)
-}
-export function isStalled(order: Order | null, now: Date): boolean {
-  if (!order) return false
-  if (order.fulfillment_state === 'failed' || order.fulfillment_state === 'needs_intervention') return true
-  if (order.fulfillment_state === 'queued' || order.fulfillment_state === 'applying') {
-    const created = Date.parse(order.created_at)
-    return Number.isFinite(created) && now.getTime() - created > STALLED_HOURS * 3_600_000
-  }
-  return false
-}
-export function commercialMetrics(customers: VendorCustomer[], now = new Date()): CommercialMetrics {
-  const m: CommercialMetrics = { active: 0, pending: 0, pastDue: 0, upcomingRenewals: 0, stalledFulfillments: 0, setupRequired: 0, counted: customers.length }
-  for (const c of customers) {
-    if (c.commercial_setup_required) m.setupRequired++
-    const s = c.subscription
-    if (!s) continue
-    if (s.state === 'active' || s.state === 'trialing') m.active++
-    else if (s.state === 'pending') m.pending++
-    else if (s.state === 'past_due') m.pastDue++
-    if (s.renewal_at && s.state !== 'cancelled' && s.state !== 'suspended') { const d = daysUntil(s.renewal_at, now); if (d >= 0 && d <= RENEWAL_WINDOW_DAYS) m.upcomingRenewals++ }
-    if (isStalled(s.pending_order, now)) m.stalledFulfillments++
-  }
-  return m
-}
-
 // ---- Branches / usage ----
 export function branchSummaryText(s: { free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null }) {
   return { hq: 1, freeUsed: s.free_extra_used, freeAllowed: s.free_extra_allowed, paid: s.paid, limit: s.limit }

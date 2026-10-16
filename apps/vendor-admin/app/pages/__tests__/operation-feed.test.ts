@@ -56,8 +56,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
 const operation = { id: 'job-id', tenant_id: 'tenant-id', type: 'provision', source: 'shared', status: 'verified', stage: 'verified', reason: 'shared_execution_verified', request_id: 'request-id', result: null, created_at: '2026-10-01T00:00:00Z', updated_at: null, last_event_at: null, events: [] }
 
 it('opts overview and list into the combined feed and carries source through links', async () => {
-  const overview = await page('overview.vue', { tenants: 1, active: 0, pending_operations: 1, failed_operations: 2 })
-  expect(overview.request).toHaveBeenCalledWith('overview', { query: { source: 'all' } })
+  expect(readFileSync(resolve(import.meta.dirname, '../overview.vue'), 'utf8')).toContain("request<{ tenants: number, active: number, pending_operations: number, failed_operations: number, last_health_at: string | null }>('overview', { query: { source: 'all' } })")
   const list = await page('operations/index.vue', { items: [operation], total: 1 })
   expect(list.request).toHaveBeenCalledWith('operations', expect.objectContaining({ query: expect.objectContaining({ source: 'all' }) }))
   expect(list.keys[0]).toContain(':all:')

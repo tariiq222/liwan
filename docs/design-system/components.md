@@ -145,6 +145,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/team/InvitationLink.vue` | رابط الدعوة مع تاريخ انتهائه وزر النسخ | `UButton`, `UFormField`, `UInput` |
 | `apps/vendor-admin/app/components/team/RolePicker.vue` | اختيار أدوار الفريق | `UCheckbox` |
 | `apps/vendor-admin/app/components/vendor/AuditSubject.vue` | موضوع حدث التدقيق: نوع السجل واسمه المحلول من الخادم مع رابط إلى صفحته عند وجودها | `NuxtLink` |
+| `apps/vendor-admin/app/components/vendor/AttentionList.vue` | قائمة «يحتاج تصرّفك» في صفحة اليوم: اسم العميل والإجراء ورابط المكان الدقيق | `NuxtLink`, `UIcon` |
 | `apps/vendor-admin/app/components/vendor/BundleForm.vue` | نموذج الحزمة التجارية | `CapacityLimitsEditor`, `PriceListEditor`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UIcon`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/CatalogFacts.vue` | شريط حقائق سجل الكتالوج تحت العنوان: الحالة ثم السعر والمحتوى والعملاء | |
 | `apps/vendor-admin/app/components/vendor/CatalogTabs.vue` | تبويبات قسم الكتالوج (الباقات والحزم والحزم القديمة) عبر `SharedRouteTabs` | `SharedRouteTabs` |
@@ -158,6 +159,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `SharedEmptyState`, `UButton`, `UFormField`, `UInput`, `USelect` |
 | `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
 | `apps/vendor-admin/app/components/vendor/TenantOperationsPanel.vue` | تبويب عمليات مساحة العميل: صلاحية العمليات وإضافة عملية وآخر العمليات | `SharedForbiddenState`, `SharedInlineConfirm`, `SharedPageState`, `SharedRecordSection`, `SharedStatusBadge`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/StatusStrip.vue` | شريط الحالة المضغوط في صفحة اليوم: أعداد تفتح القوائم التي تعدّها | `NuxtLink` |
 | `apps/vendor-admin/app/components/vendor/TenantProperties.vue` | خصائص مساحة العميل في عمود الصفحة الجانبي | `SharedPageState`, `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UButton` |
 | `apps/vendor-admin/app/components/vendor/UsageMeters.vue` | مقاييس الاستهلاك مقابل الحدود | `SharedStatusBadge`, `UProgress` |
 | `apps/vendor-admin/app/components/vendor/WorkspacePanel.vue` | تبويب مساحة العمل: التجهيز وفتح المساحة والإعدادات المطلوبة والمرصودة | `SharedPageState`, `SharedRecordSection`, `UAlert`, `UButton` |

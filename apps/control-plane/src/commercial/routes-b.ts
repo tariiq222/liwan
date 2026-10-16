@@ -11,6 +11,7 @@ import { createQuoteForCustomer } from './quotes.js'
 import { getSubscription } from './subscriptions.js'
 import { acceptQuote, cancelOrder } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
+import { attention } from './attention.js'
 import { listClients } from './clients.js'
 import { listVendorInvoices, getVendorInvoice } from './invoices.js'
 import { analyticsFromQuery } from './analytics.js'
@@ -52,6 +53,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
       return {status:200,data:existing}
     }
   }
+  if(path==='/attention'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await attention(pool,input.capabilities.includes('vendor.billing.manage'))}}
   if(path==='/clients'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await listClients(pool,url)}}
   const customerDetail=/^\/customers\/([^/]+)$/.exec(path)
   if(m==='GET'&&customerDetail){need(input,'vendor.read');if(!z.uuid().safeParse(customerDetail[1]).success)throw new CommercialHttpError('not_found',404);const customer=(await pool.query('SELECT * FROM customers WHERE id=$1',[customerDetail[1]])).rows[0];if(!customer)throw new CommercialHttpError('not_found',404);return {status:200,data:await customerView(pool,customer)}}

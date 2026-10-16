@@ -54,17 +54,46 @@
       "scratch": "Scratch",
       "customer": "Customer"
     },
-    "overview": {
-      "title": "Overview",
-      "description": "Customer installations and operation status.",
-      "tenants": "Customer installations",
-      "active": "Active installations",
-      "pending": "Pending operations",
-      "failed": "Failed operations or needs attention",
-      "lastHealth": "Last health check",
-      "attention": "Needs your attention",
-      "status": "Overall status",
-      "queueScope": "Counts include shared and dedicated operations, once per operation. Verified execution does not establish workspace readiness; check setup status on the customer page."
+    "today": {
+      "title": "Today",
+      "description": "What needs your action now, then the overall status.",
+      "attentionTitle": "Needs your action",
+      "nothing": "Nothing needs your action right now",
+      "nothingHint": "Everything is on track. Anything that needs follow-up will appear here.",
+      "moreItems": "Showing the first {shown} of {total}, most urgent first.",
+      "attentionUnavailable": "The list of what needs your action could not be loaded. The counts below are still available.",
+      "duration": "less than a day | one day | {count} days",
+      "kinds": {
+        "past_due": "Overdue for {duration}",
+        "stalled_failed": "Activation failed and needs you",
+        "stalled_waiting": "Activation stalled for {duration}",
+        "operation_failed": "Operation failed: {operation}",
+        "setup_required": "Needs commercial setup",
+        "renewal_soon": "Renews within {duration}"
+      },
+      "actions": {
+        "past_due": "Open the invoice",
+        "stalled_activation": "Open the workspace",
+        "operation_failed": "Open the operation",
+        "setup_required": "Open the subscription",
+        "renewal_soon": "Open the subscription"
+      },
+      "statusTitle": "Overall status",
+      "statusLabel": "Overall status counts",
+      "status": {
+        "tenants": "Customer installations",
+        "tenantsActive": "Active installations",
+        "pendingOperations": "Pending operations",
+        "failedOperations": "Failed operations or needs attention",
+        "subscriptionsActive": "Active subscriptions",
+        "subscriptionsPending": "Pending subscriptions",
+        "pastDue": "Past due",
+        "stalled": "Stalled activations",
+        "setupRequired": "Customers needing setup",
+        "renewals": "Renewals in 7 days"
+      },
+      "statusHint": "Counted from customer and subscription records; not collected revenue. Shared and dedicated operations are included, once per operation.",
+      "lastHealth": "Last health check"
     },
     "tenants": {
       "details": "Customer installation",
@@ -1003,17 +1032,6 @@
         "canceled": "Cancelled",
         "unknown": "Unknown"
       }
-    },
-    "overviewCommercial": {
-      "hint": "Counted from the current customer lists; not collected revenue.",
-      "active": "Active subscriptions",
-      "pending": "Pending subscriptions",
-      "pastDue": "Past due",
-      "renewals": "Renewals in 30 days",
-      "stalled": "Stalled fulfillments",
-      "setup": "Customers needing setup",
-      "partial": "Counts only the first {count} customer. | Counts only the first {count} customers.",
-      "unavailable": "Commercial metrics are not available yet."
     },
     "clientTabs": {
       "label": "Client sections",
