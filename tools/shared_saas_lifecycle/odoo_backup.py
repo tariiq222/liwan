@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
+    release_routes_enabled, effect_operation,
 )
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
@@ -305,6 +306,9 @@ print('{}')
             subprocess.run(['docker', 'kill', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
 
     def capture(self):
+        if release_routes_enabled():
+            # Existing capture stops the whole service; only the new quiescent adapter may capture pools.
+            raise EffectError('release_backup_requires_quiescence')
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens
         # DB sessions); the check after the stop below still closes the race with a late starter.
         self.assert_no_effect_containers()
@@ -354,6 +358,10 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
         self.read_artifact()
 
     def restore(self):
+        with effect_operation(self.request, 'restore'):
+            return self._restore_operation()
+
+    def _restore_operation(self):
         manifest=self.read_artifact()  # ALL archive/hash checks precede mutations.
         if self.inspect_service('restore-odoo')['Image']!=manifest['sourceImageId'] or self.inspect_service('restore-db')['Image']!=manifest['postgresImageId']:
             raise EffectError('restore_image_mismatch')
@@ -411,6 +419,10 @@ with tempfile.TemporaryFile() as source:
         emit({'result':{'applied':True}})
 
     def observe(self):
+        with effect_operation(self.request, 'backup_observe'):
+            return self._observe_operation()
+
+    def _observe_operation(self):
         self.preflight()
         if (self.root/'runtime-gate').exists(): return {'state':'unknown'}
         if self.operation=='backup':

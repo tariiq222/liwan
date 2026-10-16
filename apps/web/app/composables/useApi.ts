@@ -21,8 +21,10 @@ export function useApi() {
   const headers = import.meta.server ? useRequestHeaders(['cookie']) : {}
   // Only middleware-validated server events may supply private hop identity.
   // This stays in the SSR closure, never in returned data or the client payload.
-  const trustedHeaders = import.meta.server && useRequestEvent()?.context.tenant
-    ? useRequestHeaders(['host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision'])
+  const trustedHeaders = import.meta.server && (useRequestEvent()?.context.tenant || useRequestEvent()?.context.webvueRelease)
+    ? useRequestHeaders(['host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision',
+      'x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence', 'x-webvue-release-admission',
+      'x-webvue-client-ip', 'x-webvue-client-host', 'x-webvue-client-proto'])
     : {}
 
   async function $api<T>(

@@ -8,7 +8,7 @@ import { WORKER_EFFECT_TIMEOUT_MS, type EffectRequest } from './internal-effect-
 export function buildEffectEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [name, value] of Object.entries(env)) {
-    if (value !== undefined && (name === 'PATH' || name === 'HOME' || name === 'TMPDIR' || name === 'LANG' || /^(LC_|PYTHON|DOCKER_)/.test(name))) out[name] = value
+    if (value !== undefined && (name === 'PATH' || name === 'HOME' || name === 'TMPDIR' || name === 'LANG' || /^(LC_|PYTHON|DOCKER_)/.test(name) || ['WEBVUE_RELEASE_ROUTES_DIR', 'WEBVUE_RELEASE_HELPER_POOL_ID'].includes(name))) out[name] = value
   }
   out.PYTHONUNBUFFERED = '1'
   return out
@@ -27,7 +27,7 @@ export function createAdminPasswordRunner(pool: Pool, config: Config, runtime: u
   return async (input: EffectRequest, signal: AbortSignal): Promise<unknown> => {
     // Accepted invitation identity is still checked against the provisioned
     // onboarding and active route; never resolve a caller-supplied database.
-    const rows = await pool.query(`SELECT b.database_name,b.host FROM shared_registry_bindings b
+    const rows = await pool.query(`SELECT b.database_name,b.host,b.tenant_id AS "tenantId",b.filestore,b.registry_revision::float8 AS "registryRevision" FROM shared_registry_bindings b
       JOIN shared_onboardings o ON o.control_tenant_id=b.control_tenant_id AND o.database_name=b.database_name AND o.host=b.host
       JOIN tenants t ON t.id=b.control_tenant_id
       WHERE b.control_tenant_id=$1 AND b.enabled=true AND o.stage='active' AND o.admin_login=$2
@@ -80,7 +80,7 @@ export function createAdminPasswordRunner(pool: Pool, config: Config, runtime: u
       })
       // Neither spawn argv/environment nor logs contain the caller password.
       child.stdin.end(JSON.stringify({ action: 'set_admin_password', tenant: { database: rows.rows[0].database_name, host: rows.rows[0].host },
-        login: input.admin_login, password: input.password, config: runtime }) + '\n')
+        releaseBinding: { tenantId: rows.rows[0].tenantId, database: rows.rows[0].database_name, filestore: rows.rows[0].filestore, registryRevision: rows.rows[0].registryRevision }, login: input.admin_login, password: input.password, config: runtime }) + '\n')
       if (signal.aborted) fail()
     })
   }

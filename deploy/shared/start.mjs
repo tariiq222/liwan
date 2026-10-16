@@ -7,6 +7,8 @@ if (Buffer.byteLength(process.env.WEBVUE_SHARED_PROXY_TOKEN ?? '') < 32) throw E
 readTenantRegistry(process.env.WEBVUE_TENANT_REGISTRY_PATH)
 const server = createGuard({
   registryPath: process.env.WEBVUE_TENANT_REGISTRY_PATH,
+  releaseRoutesDir: process.env.WEBVUE_RELEASE_ROUTES_DIR,
+  releaseAssetsDir: process.env.WEBVUE_RELEASE_ASSETS_DIR,
   proxyToken: process.env.WEBVUE_SHARED_PROXY_TOKEN,
   keys: JSON.parse(process.env.WEBVUE_SESSION_KEYS ?? '{}'),
   activeKid: process.env.WEBVUE_SESSION_ACTIVE_KID,
@@ -15,3 +17,6 @@ const server = createGuard({
   wsUrl: process.env.WEBVUE_GUARD_WS_URL,
 })
 server.listen(port, '0.0.0.0')
+
+process.once('SIGTERM', () => { server.close() })
+process.once('SIGINT', () => { server.close() })

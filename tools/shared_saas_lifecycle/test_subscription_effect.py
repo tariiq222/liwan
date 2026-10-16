@@ -457,5 +457,53 @@ class SigtermTests(unittest.TestCase):
         self.assertRegex(killed[0][2], r'^webvue-shared-acme-effect-aaaaaaaa-observe-[0-9a-f]{8}$')
 
 
+
+class ReleaseSubscriptionBoundaryTests(Base):
+    def test_wrong_or_missing_helper_pool_refuses_database_process(self):
+        import os
+        import json
+        root = self.dir.parent
+        (root / 'tenant_a.json').write_text(json.dumps({'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 4, 'routeRevision': 2, 'poolId': 'blue', 'releaseId': 'r1', 'fence': 8, 'state': 'serving'}))
+        request = make_request(releaseBinding={'tenantId': 'tenant_a', 'registryRevision': 4, 'database': DB})
+        for pool_id in ('', 'green'):
+            runner = FakeRunner(observation())
+            with mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root), 'WEBVUE_RELEASE_HELPER_POOL_ID': pool_id}):
+                with self.assertRaises(EffectError): self.effect(runner).observe(request)
+            self.assertFalse(runner.scripts)
+
+    def test_observation_and_reconfigure_keep_the_runtime_lease(self):
+        import os
+        import json
+        root = self.dir.parent
+        (root / 'tenant_a.json').write_text(json.dumps({'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 4, 'routeRevision': 2, 'poolId': 'blue', 'releaseId': 'r1', 'fence': 8, 'state': 'serving'}))
+        from deploy.releases.test_helper_runtime import helper_fixture
+        import subprocess
+        config, _, _, rendered = helper_fixture(root)
+        request = make_request(config=config, releaseBinding={'tenantId': 'tenant_a', 'registryRevision': 4, 'database': DB})
+        runner = FakeRunner(observation(), apply_state=applied_state(request))
+        original = runner.run_script
+        seen = []
+        def script(*args, **kwargs):
+            seen.append(len(list((root / 'leases' / 'tenant_a').glob('*.json'))))
+            return original(*args, **kwargs)
+        runner.run_script = script
+        with mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root), 'WEBVUE_RELEASE_HELPER_POOL_ID': 'blue'}), mock.patch('deploy.releases.helper_runtime.subprocess.run', lambda argv, **kwargs: subprocess.CompletedProcess(argv,0,json.dumps(rendered),'')):
+            self.effect(runner).observe(request)
+            self.effect(runner).reconfigure(request)
+        self.assertTrue(seen and all(count == 1 for count in seen))
+        self.assertFalse(list((root / 'leases' / 'tenant_a').glob('*.json')))
+
+    def test_maintenance_blocks_before_subscription_database_observation(self):
+        import os
+        root = self.dir.parent
+        (root / 'tenant_a.maintenance').write_text('{}')
+        request = make_request(releaseBinding={'tenantId': 'tenant_a', 'registryRevision': 4, 'database': DB})
+        runner = FakeRunner(observation())
+        with mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root)}):
+            with self.assertRaises(EffectError): self.effect(runner).reconfigure(request)
+        self.assertFalse(runner.scripts)
+        self.assertFalse(runner.installed)
+
+
 if __name__ == '__main__':
     unittest.main()

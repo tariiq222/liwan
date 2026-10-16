@@ -211,10 +211,14 @@ class TestEntitlements(TransactionCase):
             key: value for key, value in capability_map.items()
             if value['owner'] in self.RELEASE_CAPABILITY_OWNERS
         }
+        # Capabilities may belong to foundations/shared services, not only
+        # application modules in the feature registry's module map.
+        installed_owners = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))
         for key, value in capability_map.items():
             self.assertTrue(value['owner'], key)
             if key not in release_map:
-                self.assertIn(value['owner'], installed_modules, key)
+                self.assertIn(value['owner'], installed_owners, key)
+        self.assertEqual(capability_map['settings.maintenance.manage']['owner'], 'webvue_platform')
         # 9 core capabilities, plus 8 for HR, 8 for PMO and 3 for meetings (28 in all).
         expected = 9 + 8 * ('webvue_hr' in apps) + 8 * ('webvue_pmo' in apps) + 3 * ('webvue_meetings' in apps)
         self.assertEqual(len(release_map), expected)

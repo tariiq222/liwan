@@ -5,7 +5,7 @@ import { tenantRequest, tenantUpstreamHeaders } from './tenantRequest'
 /** Dedicated edge opt-in only. The operator must expose Caddy alone and let
  * it overwrite these private fields from its socket peer on every Nuxt hop. */
 export function authUpstreamHeaders(event: H3Event, clientIpHeader = ''): Record<string, string> {
-  if (tenantRequest(event)) return tenantUpstreamHeaders(event)
+  if (tenantRequest(event) || process.env.WEBVUE_RELEASE_ROUTES_DIR) return tenantUpstreamHeaders(event)
   if (!clientIpHeader) return {}
   if (clientIpHeader !== 'x-webvue-client-ip') {
     throw createError({ statusCode: 503, message: 'auth_proxy_identity_configuration_invalid' })

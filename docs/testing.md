@@ -250,3 +250,38 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
 | `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `webvue_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
 
 Local evidence only; it does not establish deployment readiness.
+
+## Continuous release verification
+
+The existing twelve-stage pipeline remains unchanged in scope. The static stage
+runs canonical release unit discovery after dependency installation (the real H3
+handler probes load jiti), and shared/dedicated guard regressions. Root deployment
+tests run separately to avoid importing the same package as `releases.*` instead
+of `deploy.releases.*`. No default unit test may connect to PostgreSQL or start
+Docker/Odoo. Focused checks from the selected worktree:
+
+```sh
+python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
+node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs
+```
+
+Live release acceptance remains an explicit separate local operator command,
+not a thirteenth pipeline stage or a condition that weakens the local merge gate:
+
+```sh
+python3 -m tools.continuous_updates_acceptance.run --config /absolute/operator/local.json --output /absolute/operator/report.json
+```
+
+The prepared configuration requires scratch database bindings, actual source
+process/config/role identities, existing sessions/attachments and loopback URLs.
+Never use `odoo19`. Reports distinguish source-process, PostgreSQL, Odoo upgrade,
+HTTP/session/attachment and concurrent tenant evidence from Docker/production
+proof. `tools/continuous_updates_acceptance/docker_odoo.py` is a separate scoped
+image experiment, not fresh product Dockerfile acceptance.
+
+Maintenance model/API checks use test tag `webvue_maintenance`: authorization,
+company isolation, operator notices, immutable events, preference/booking CAS,
+overlap serialization, scheduling policy and atomic claim duration. Contracts
+and web tests cover Arabic/English, draft preservation and IANA/DST windows.
+Actual translated-error tests verify PO runtime loading. A local check never
+approves hosting, release, external provider quality or universal zero downtime.

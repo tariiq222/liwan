@@ -24,7 +24,13 @@
         "progress": "Progress",
         "sample": "Sample project",
         "notice": "Status colors stay fixed and do not follow the brand color",
-        "states": { "done": "Done", "active": "In progress", "risk": "At risk", "late": "Overdue", "draft": "Draft" },
+        "states": {
+          "done": "Done",
+          "active": "In progress",
+          "risk": "At risk",
+          "late": "Overdue",
+          "draft": "Draft"
+        },
         "charts": "Data",
         "modes": {
           "light": "Light",
@@ -160,6 +166,61 @@
       "medium": "Medium",
       "large": "Large",
       "savedForYou": "Saved to your account and applied wherever you sign in."
+    },
+    "maintenance": {
+      "title": "Maintenance scheduling",
+      "preference": "Preferred maintenance window",
+      "preferenceHint": "Save your weekly preference, then explicitly book each published release. Saving a preference does not schedule an update.",
+      "timezone": "IANA timezone",
+      "weekday": "Day of week",
+      "startTime": "Local start time",
+      "duration": "Window duration (minutes)",
+      "discard": "Discard draft",
+      "releases": "Published updates",
+      "noReleases": "No maintenance releases have been published.",
+      "noBookings": "No maintenance is booked.",
+      "deadline": "Finish by {date} ({zone})",
+      "estimate": "Measured maintenance estimate: {seconds} seconds",
+      "sharedScope": "This maintenance affects a shared service. Its operator coordinates the window for all affected customers.",
+      "security": "Security update",
+      "newBooking": "Book maintenance",
+      "editBooking": "Change maintenance window",
+      "release": "Published release",
+      "localTime": "Local date and time",
+      "dstHint": "Ambiguous or nonexistent daylight-saving times are rejected. Choose another time.",
+      "usePreference": "Use my saved preferred window",
+      "confirmBooking": "Confirm maintenance window",
+      "bookings": "Your bookings",
+      "cancelBooking": "Cancel booking",
+      "confirmCancel": "Cancel this maintenance booking?",
+      "windowMinutes": "Window: {minutes} minutes",
+      "invalid": "Check the timezone, timing, duration and release selection.",
+      "keepDraft": "Your draft is preserved. Refresh the data, then use Discard draft to load the latest settings before reapplying your changes.",
+      "scope": {
+        "tenant": "This customer",
+        "ai_service": "Shared AI service",
+        "infrastructure": "Shared infrastructure"
+      },
+      "status": {
+        "scheduled": "Scheduled",
+        "cancelled": "Cancelled",
+        "running": "Running",
+        "complete": "Complete",
+        "failed": "Failed"
+      },
+      "releaseStatus": {
+        "supported": "Supported update path",
+        "withdrawn": "Withdrawn"
+      },
+      "weekdays": {
+        "0": "Monday",
+        "1": "Tuesday",
+        "2": "Wednesday",
+        "3": "Thursday",
+        "4": "Friday",
+        "5": "Saturday",
+        "6": "Sunday"
+      }
     }
   }
 }

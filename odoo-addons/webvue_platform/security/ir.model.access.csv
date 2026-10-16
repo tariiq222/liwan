@@ -1,3 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_webvue_tenant_profile_system,webvue.tenant.profile.system,model_webvue_tenant_profile,base.group_system,1,1,1,0
 access_webvue_tenant_branch_user,webvue.tenant.branch.user,model_webvue_tenant_branch,base.group_user,1,0,0,0
+access_maintenance_preference_manager,maintenance.preference.manager,model_webvue_maintenance_preference,webvue_platform.group_maintenance_manager,1,1,1,0
+access_maintenance_release_manager,maintenance.release.manager,model_webvue_maintenance_release,webvue_platform.group_maintenance_manager,1,0,0,0
+access_maintenance_booking_manager,maintenance.booking.manager,model_webvue_maintenance_booking,webvue_platform.group_maintenance_manager,1,1,1,0
+access_maintenance_event_manager,maintenance.event.manager,model_webvue_maintenance_event,webvue_platform.group_maintenance_manager,1,0,1,0
+access_maintenance_authority_manager,maintenance.authority.manager,model_webvue_maintenance_authority,webvue_platform.group_maintenance_manager,1,1,1,0

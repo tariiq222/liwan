@@ -7,6 +7,9 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
 ## Run locally
 
     python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+    # Operator bootstrap, once, against an empty AI database, before starting any runtime:
+    AI_DATABASE_URL=postgresql://localhost/webvue_ai_dev \
+    .venv/bin/python -m webvue_ai_service.store --initialize
     AI_PROVIDER=ollama AI_MODEL=qwen2.5:7b AI_BASE_URL=http://localhost:11434 \
     AI_DATABASE_URL=postgresql://localhost/webvue_ai_dev \
     .venv/bin/uvicorn webvue_ai_service.service:app --port 8600
@@ -25,6 +28,8 @@ stops at every tool with an `interrupt`; the Nuxt server executes tools and resu
 | `AI_OPENROUTER_REFERER` | optional; sent as `HTTP-Referer` to OpenRouter for app attribution (openrouter only; never required, never logged) |
 | `AI_OPENROUTER_TITLE` | optional; sent as `X-Title` to OpenRouter (openrouter only; never required, never logged) |
 | `AI_DATABASE_URL` | Postgres for run state (checkpoints + runs); required unless `AI_ALLOW_MEMORY_STATE=true` |
+| `AI_GENERATION_ID` | stable unique release generation id (`[a-z][a-z0-9_-]{0,62}`); required with a service token for release administration; reuse the same id on restart, never reuse a drained id for a replacement generation |
+| `AI_STATE_VERSION` | default `1`; run schema, graph/checkpoint payload and tool-result compatibility contract; another value refuses startup |
 | `AI_ALLOW_MEMORY_STATE` | `true` (exactly) lets the service start without a database, keeping state in memory (development only) |
 | `AI_RUN_RETENTION_DAYS` | default 30; `python -m webvue_ai_service.cleanup` deletes older runs |
 | `AI_DEFAULT_TIMEOUT_SECONDS` | default 120 |
@@ -60,6 +65,57 @@ For `openrouter`, `AI_MODEL` is the OpenRouter model id (`vendor/model`).
 When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the header `X-WebVue-Service-Token` to equal it
 (constant-time comparison); anything else answers 401 with a fixed body. Without it the service is open (development only).
 The token is never logged or sent in an event. The Nuxt server sends it from `NUXT_AI_SERVICE_TOKEN`.
+Release administration always requires a configured token, including local memory mode.
+
+## State initialization and release continuity
+
+Runtime startup only reads the schema contract and generated `state_id` in `ai_state_schema`, verifies the durable `ai_generations` table exists, and checks the existing LangGraph
+`checkpoint_migrations` version. It never calls either schema setup routine. The expected checkpoint
+migration version comes from the runtime's installed checkpointer; a different package migration
+version refuses startup before any DDL. Compatible processes use the same `ai_runs`, leases, claims and
+checkpoints. There is no second deployment run-state store. Bootstrap generates an immutable `state_<uuidhex>` identity in the database; it is not an environment label. Runtime reports that stored value. Two independently initialized databases/schemas have different state identities even with the same version and generation label.
+
+The operator bootstrap command above takes a PostgreSQL advisory lock and initializes an empty database
+once. Repeating it on already compatible state is read-only. An unversioned existing schema, a partial
+bootstrap or an incompatible version is refused by both bootstrap and runtime; neither silently upgrades
+or stamps old data as compatible. Existing development data needs an explicit reviewed offline migration
+or a separately authorized fresh scratch database. The runtime role only needs the established tables,
+sequences and normal read/write privileges; keep schema ownership and bootstrap credentials with the
+operator. Runtime needs SELECT on `ai_state_schema`, and SELECT/INSERT/UPDATE on `ai_generations`, besides normal run/checkpoint privileges. Do not grant runtime UPDATE on the schema identity. Do not give bootstrap credentials to overlapping runtime generations.
+
+Changing graph payloads, tool-result semantics or `ai_runs` schema requires reviewing and advancing
+`contracts.AI_STATE_VERSION` and the matching BFF expected version. A change incompatible with the shared
+state requires AI-wide `service_maintenance` or blocks release. Odoo tenant isolation does not isolate
+this database. A matching version is a declared contract; local HTTP health alone does not prove semantic
+compatibility. Keep checkpointer dependency artifacts identical for compatible releases.
+
+The internal, service-token-protected endpoints are `POST /internal/release/drain` and
+`GET /internal/release/readiness`. Both require a configured service token and explicit `AI_GENERATION_ID`. Drain is persisted in `ai_generations` for that generation and remains closed after a process restart: it closes starts, claims and metadata changes, while an already claimed result and an automatic pending read can still settle. A replacement generation must have its own stable unique id. There is no timeout, reset endpoint or automatic reclamation of a drained generation. Pending
+user decisions resume on the accepting generation. Evidence includes shared `running`/`executing`/`waiting_tool` counts, local active requests,
+settlement tasks, PostgreSQL pool connection statistics, the actual stored `state_id` and the runtime `generation_id`. Local request admission is counted before awaiting the persisted gate, so a concurrent drain cannot miss that local admission. A stale claimed write or stalled automatic read remains a blocker;
+it is never replayed or aged out merely to make retirement green. Use the existing unknown-result
+recovery after investigating the effect. Memory-mode evidence is explicitly `memory_only` and cannot
+prove cross-process retirement.
+
+The coordinator must close admission and observe every old process, wait for durable tenant effect leases and shared active AI work, then retire the generation. Configure one directly observed HTTP process per generation id; do not hide several independently admitting workers behind one sampled readiness endpoint. Shared counts are deliberately conservative: activity in another generation can delay retirement. Its AI-only durable barrier is separate from Odoo tenant barriers.
+
+In `AiMaintenanceCoordinator` operator configuration, `sharedStateId` must equal the actual `state_id` returned by the service; each `oldServices`/`newServices` entry's `id` must equal that runtime's `AI_GENERATION_ID`. The coordinator checks both on every observation and preflights all old/new endpoints before closing admission or invoking a migration adapter. A candidate attached to a different initialized database with the same state version is rejected. Read actual identity using the token-protected readiness endpoint and record only `state_id`/`generation_id` in the reviewed operator configuration, never connection credentials. Changing labels cannot substitute for an actual state identity.
+
+This pre-release metadata schema has no compatibility branch for earlier unrecognized metadata or a missing generation table. Use a newly authorized empty scratch schema for development proof; existing development state requires a separately reviewed offline migration. Never stamp an old database with a guessed identity or silently initialize it during startup.
+
+When `WEBVUE_RELEASE_ROUTES_DIR` is configured, the BFF requires trusted `event.context.webvueRelease`
+(`releaseId`, `poolId`, `routeRevision`, `fence`, `aiUrl`, `aiStateVersion`, optional `aiMaintenance`).
+Tenant middleware supplies it only after the tenant boundary is verified. The BFF snapshots the AI
+destination for the entire request and sends the expected state version; browser headers never select
+it. Missing/incompatible state metadata and maintenance fail closed. With release routing disabled,
+the configured `NUXT_AI_SERVICE_URL` remains the normal destination.
+
+Every non-GET Odoo tool/audit dispatch also requires trusted
+`event.context.webvueReleaseWritePermit(action)` while release routing is enabled. The coordinator owns
+the durable tenant lease, checks the barrier/authorized route after acquiring it, holds it through the
+response, and releases it on settlement. A shielded claimed write uses the same fence. The BFF permits
+only the matching successful claim's approved result to settle during newly announced maintenance;
+it does not admit another claim or turn a completed effect into a rejection.
 
 ## Conversation history
 
@@ -98,7 +154,14 @@ a `resume` carrying `decision: "rejected"` answers 409; only the claimer's own r
 ## Tests
 
     .venv/bin/pytest -q
-    AI_TEST_DATABASE_URL=postgresql://localhost/webvue_ai_test .venv/bin/pytest -q tests/test_postgres_state.py
+    # Dedicated empty scratch state only, never odoo19 or a shared development AI database:
+    AI_DATABASE_URL=postgresql://localhost/webvue_ai_test .venv/bin/python -m webvue_ai_service.store --initialize
+    AI_TEST_DATABASE_URL=postgresql://localhost/webvue_ai_test .venv/bin/pytest -q tests/test_postgres_release.py tests/test_postgres_state.py
+
+`test_postgres_release.py` starts two Python claim processes and two independent service/checkpointer
+pools, proves one claim and checkpoint continuation, reads shared drain evidence, and temporarily tests
+an incompatible metadata version (restored in `finally`). Run it sequentially against its dedicated
+scratch database. All model calls use local scripted fakes; no paid provider is needed.
 
 ## Notes
 
@@ -107,3 +170,16 @@ and the Dockerfile uses 3.12). All lower bounds in `pyproject.toml` resolved wit
 (langgraph 1.2.15, langgraph-checkpoint-postgres 3.2.0, langchain-core 1.6.11).
 
 A startup failure names the offending variable only (for example `SettingsError: AI_DATABASE_URL`) and never a value, so connection strings and keys cannot leak through the server log. The expected value of each variable is in the table above.
+
+
+### Durable generation restart acceptance
+
+The opt-in test creates two new unique `release_durable_1016_*` schemas in an explicitly selected local `webvue_scratch_*` AI database. It never overwrites or drops schemas and leaves identities/records for inspection. It uses scripted models, fresh Python processes, real PostgreSQL and real loopback HTTP endpoints; no model provider is called.
+
+```sh
+PYTHONPATH=src:.:../.. AI_DURABLE_RELEASE_TEST=1 \
+  AI_TEST_DATABASE_URL=postgresql://scratch_operator@127.0.0.1/webvue_scratch_ai_test \
+  .venv/bin/pytest -q -s tests/test_generation_restart_postgres.py
+```
+
+The first proof drains a generation, exits the process and starts a fresh process with the same id: new work still receives 503, while a new generation accepts on the same stored identity. The second gives the candidate a different actual database identity with the same schema version: coordinator preflight rejects it before a barrier, drain or migration. This does not establish general schema-migration correctness, an infrastructure fence or production deployment.

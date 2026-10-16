@@ -10,6 +10,8 @@ import jsonschema
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ToolKind = Literal["read", "write_light", "draft"]
+# One compatibility contract for ai_runs, graph state and claimed tool-result semantics.
+AI_STATE_VERSION = "1"
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
 PAGE_NAME = r"^[a-z][a-z_-]{0,39}$"
 MAX_TOOLS = 100

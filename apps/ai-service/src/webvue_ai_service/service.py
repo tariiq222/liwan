@@ -15,12 +15,23 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
 
-from webvue_ai_service.contracts import ClaimRequest, PendingCall, ResumeRequest, RunList, RunMessage, RunPatch, RunRequest, RunStatus, RunSummary
+from webvue_ai_service.contracts import (
+    AI_STATE_VERSION,
+    ClaimRequest,
+    PendingCall,
+    ResumeRequest,
+    RunList,
+    RunMessage,
+    RunPatch,
+    RunRequest,
+    RunStatus,
+    RunSummary,
+)
 from webvue_ai_service.errors import client_error, redact
 from webvue_ai_service.graph import build_graph, initial_state, interrupted_replies, request_state, resume_value, run_config, text_of
 from webvue_ai_service.providers import build_chat_model
 from webvue_ai_service.records import records_from_results
-from webvue_ai_service.settings import Settings, SettingsError
+from webvue_ai_service.settings import GENERATION_ID, Settings, SettingsError
 from webvue_ai_service.sse import format_event
 from webvue_ai_service.store import ACTIVE, EXECUTING, RunRecord, RunStore, is_stale, open_state
 from webvue_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
@@ -63,6 +74,8 @@ def owner(x_webvue_tenant: str = Header(...), x_webvue_user: str = Header(...)) 
 
 
 def create_app(model, store: RunStore, checkpointer, settings: Settings) -> FastAPI:
+    if settings.generation_id is not None and not GENERATION_ID.fullmatch(settings.generation_id):
+        raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID is invalid")
     graph = build_graph(model, checkpointer)
     app = FastAPI(title="WebVue AI service", docs_url=None, redoc_url=None)
 
@@ -70,8 +83,74 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
         if settings.service_token is not None and not hmac.compare_digest(x_webvue_service_token.encode(), settings.service_token.encode()):
             raise HTTPException(401, "invalid service token")
 
-    api = APIRouter(dependencies=[Depends(require_service_token)])
+    def require_state_version(x_webvue_ai_state_version: Annotated[str | None, Header()] = None) -> None:
+        if x_webvue_ai_state_version is not None and x_webvue_ai_state_version != AI_STATE_VERSION:
+            raise HTTPException(503, "incompatible AI state contract")
+
+    api = APIRouter(dependencies=[Depends(require_service_token), Depends(require_state_version)])
     in_flight: set[asyncio.Task] = set()
+    admitted = 0
+
+    async def is_draining() -> bool:
+        return bool(settings.generation_id and await store.generation_draining(settings.generation_id))
+
+    async def admitted_work() -> AsyncIterator[None]:
+        nonlocal admitted
+        admitted += 1
+        try:
+            yield
+        finally:
+            admitted -= 1
+
+    async def new_work() -> AsyncIterator[None]:
+        nonlocal admitted
+        # Count admission before the first await: drain cannot miss a request
+        # between its persisted gate read and its first durable run/claim write.
+        admitted += 1
+        try:
+            if await is_draining():
+                raise HTTPException(503, "AI generation is draining")
+            yield
+        finally:
+            admitted -= 1
+
+    def internal_token(x_webvue_service_token: Annotated[str, Header()] = "") -> None:
+        if settings.service_token is None:
+            raise HTTPException(503, "release administration requires a configured service token")
+        require_service_token(x_webvue_service_token)
+        if settings.generation_id is None:
+            raise HTTPException(503, "release administration requires a generation identity")
+
+    async def release_evidence() -> dict[str, Any]:
+        activity = await store.activity()
+        draining = await is_draining()
+        active = sum(activity.values())
+        pool = getattr(store, "pool", None)
+        stats = pool.get_stats() if pool is not None else {}
+        return {
+            "state_version": AI_STATE_VERSION,
+            "state_id": store.state_id,
+            "generation_id": settings.generation_id,
+            "accepting": not draining,
+            "drained": draining and active == 0 and admitted == 0 and not in_flight,
+            "active_runs": active,
+            "running": activity["running"],
+            "claimed_writes": activity["executing"],
+            "pending_reads": activity["waiting_tool"],
+            "local_requests": admitted,
+            "settling": len(in_flight),
+            "connections": stats,
+            "activity_scope": "shared_state" if pool is not None else "memory_only",
+        }
+
+    @app.get("/internal/release/readiness", dependencies=[Depends(internal_token)])
+    async def release_readiness() -> dict[str, Any]:
+        return await release_evidence()
+
+    @app.post("/internal/release/drain", dependencies=[Depends(internal_token)])
+    async def release_drain() -> dict[str, Any]:
+        await store.drain_generation(settings.generation_id)
+        return await release_evidence()
 
     async def owned_run(run_id: str, who: Owner) -> RunRecord:
         record = await store.get(run_id)
@@ -192,7 +271,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
     async def healthz() -> dict[str, bool]:
         return {"ok": True}
 
-    @api.post("/v1/runs")
+    @api.post("/v1/runs", dependencies=[Depends(new_work)])
     async def start_run(request: RunRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
         if request.tenant != who.tenant or request.user_ref != who.user_ref:
             raise HTTPException(422, "tenant/user headers must match the body")
@@ -211,13 +290,15 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
             lease, graph_input = record.lease, initial_state(request)
         return sse(stream(record.run_id, lease, graph_input, request.limits.model_dump()))
 
-    @api.post("/v1/runs/{run_id}/resume")
+    @api.post("/v1/runs/{run_id}/resume", dependencies=[Depends(admitted_work)])
     async def resume_run(run_id: str, body: ResumeRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
         record = await owned_run(run_id, who)
         state = await graph.aget_state(run_config(record.run_id, 1))
         pending = pending_of(state)
         if pending is None or pending.call_id != body.call_id:
             raise HTTPException(409, "no pending call with this call_id")
+        if await is_draining() and record.status not in (EXECUTING, "waiting_tool"):
+            raise HTTPException(503, "AI generation is draining; resume on the accepting generation")
         if record.status == EXECUTING and body.result.decision == "rejected":  # only the claimer resumes a claimed call, never with a decision
             raise HTTPException(409, "call is already claimed")
         # The call id is compared again inside the acquire, atomically: a late resume cannot answer a newer call.
@@ -226,7 +307,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
             raise HTTPException(409, "run is already being resumed")
         return sse(stream(record.run_id, lease, Command(resume=resume_value(body.result)), state.values["limits"]))
 
-    @api.post("/v1/runs/{run_id}/claim")
+    @api.post("/v1/runs/{run_id}/claim", dependencies=[Depends(new_work)])
     async def claim_run(run_id: str, body: ClaimRequest, who: Annotated[Owner, Depends(owner)]) -> dict[str, bool]:
         """Reserve the pending write call before the caller executes it, so exactly one claimant (and one resume) applies it."""
         record = await owned_run(run_id, who)
@@ -251,7 +332,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
         items = [summary_of(record) for record in records]
         return RunList(items=items, total=len(items))
 
-    @api.patch("/v1/runs/{run_id}")
+    @api.patch("/v1/runs/{run_id}", dependencies=[Depends(new_work)])
     async def patch_run(run_id: str, body: RunPatch, who: Annotated[Owner, Depends(owner)]) -> RunSummary:
         record = await owned_run(run_id, who)
         updated = await store.update_meta(record.run_id, title=body.title, archived=body.archived)

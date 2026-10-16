@@ -26,6 +26,7 @@ COPY --from=build /opt/odoo /opt/odoo
 COPY --from=build /opt/venv /opt/venv
 COPY odoo-addons /opt/webvue/addons
 COPY deploy/security/odoo_secure.py /opt/webvue/odoo_secure.py
+COPY deploy/shared/launch_odoo.py deploy/shared/validate_odoo_config.py /opt/webvue/shared/
 COPY deploy/odoo/entrypoint.sh /usr/local/bin/webvue-odoo
 RUN chmod 0755 /usr/local/bin/webvue-odoo \
     && useradd --system --uid 10001 --home-dir /var/lib/odoo --create-home odoo \

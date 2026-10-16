@@ -76,8 +76,6 @@ services:
       test: ["CMD", "/opt/venv/bin/python", "-c", "import socket; s = socket.socket(); s.settimeout(2); s.connect(('127.0.0.1', 8069)); s.close()"]
     volumes:
       - ${WEBVUE_SHARED_ODOO_CONFIG:?set WEBVUE_SHARED_ODOO_CONFIG to validated external secret config}:/etc/odoo/odoo.conf:ro
-      - ./shared/launch_odoo.py:/opt/webvue/shared/launch_odoo.py:ro
-      - ./shared/validate_odoo_config.py:/opt/webvue/shared/validate_odoo_config.py:ro
       - odoo_data:/var/lib/odoo
 
   ai:

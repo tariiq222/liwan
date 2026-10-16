@@ -31,7 +31,8 @@ steps:
       # plugin-git may produce a shallow clone on the local backend; ui_policy needs full history.
       - if git rev-parse --is-shallow-repository | grep -q true; then git fetch --unshallow origin; fi
       - ruff check odoo-addons
-      - python3 -B -m unittest discover -s deploy -p 'test_*.py'
+      # Release packages require their canonical name and installed jiti; run below.
+      - python3 -B -m unittest deploy/test_*.py
       - python3 -B -m unittest deploy/woodpecker/test_stage.py
       - python3 -B -m unittest tools/shared_saas_lifecycle/test_*.py
       - python3 -B tools/catalog_check.py
@@ -40,6 +41,8 @@ steps:
       - python3 -B tools/arch_policy.py --base "${CI_PREV_COMMIT_SHA:-origin/main}"
       - python3 -B tools/semgrep_gate.py --base "${CI_PREV_COMMIT_SHA:-origin/main}"
       - npm ci --ignore-scripts
+      - python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
+      - node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs
       - npm -w apps/web run postinstall
       - npm -w apps/vendor-admin run postinstall
       - npx playwright install chromium

@@ -56,6 +56,7 @@ export default defineNuxtConfig({
     },
   },
   i18n: {
+    experimental: { prerenderMessages: true },
     // One file per pillar namespace, merged by @nuxtjs/i18n into a single
     // message object per locale — key paths are unchanged ($t('tasks.state.done')
     // still resolves). A pillar owns its own namespace file: adding
