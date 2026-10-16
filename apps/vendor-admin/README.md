@@ -59,3 +59,19 @@ Start the control plane with `ADMIN_RP_ID=localhost` and `ADMIN_ORIGIN=http://lo
 
 Checks: `npm -w apps/vendor-admin run lint`, `npm -w apps/vendor-admin run test`, `npm -w apps/vendor-admin run build`.
 Production image: `docker build -f apps/vendor-admin/Dockerfile -t nasq-vendor-admin .` (port 3100).
+
+## Live proof against the real control plane
+
+`apps/vendor-admin/e2e/live-control.spec.ts` (config `playwright.live.config.ts`) signs in, enrolls and manages the team
+against the real control plane with real WebAuthn verification (a virtual authenticator) instead of the mock service. It
+needs the whole stack, so it is not part of `npm run e2e`, `npm test` or CI. One command starts and stops everything,
+prints a pass/fail table and exits non-zero on any failure:
+
+```sh
+PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs
+```
+
+It creates the scratch database `nasq_control_scratch_p3live` on the local Postgres (127.0.0.1:5432), runs the control
+plane on `127.0.0.1:4711` and this app's production build on `localhost:3103` with per-run random keys (never printed),
+writes screenshots to `.superpowers/wave4-live-shots/`, and drops the database on exit. It refuses to run against any
+database not named `nasq_control_scratch_*`.

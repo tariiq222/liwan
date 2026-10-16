@@ -26,7 +26,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   projects: [
-    { name: 'prod', testIgnore: /\.dev\.spec\.ts$/ },
+    { name: 'prod', testIgnore: /(\.dev|live-control)\.spec\.ts$/ },
     { name: 'dev', testMatch: /\.dev\.spec\.ts$/ },
   ].filter(project => project.name === target),
   use: { baseURL: origin, locale: 'ar-SA' },
