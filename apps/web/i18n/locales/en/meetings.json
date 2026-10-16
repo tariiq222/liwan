@@ -1,6 +1,6 @@
 {
   "meetingsUi": {
-    "attachmentsTitle": "Meeting attachments",
+    "attachmentsTitle": "Attachments",
     "uploadAttachment": "Add attachment",
     "attachmentHelp": "Choose a file to attach to this meeting.",
     "emptyAttachments": "This meeting has no attachments.",
@@ -20,7 +20,7 @@
     "emptyAgenda": "This meeting has no agenda.",
     "minutes": "Minutes",
     "emptyMinutes": "Minutes have not been written yet.",
-    "summary": "Meeting summary",
+    "summary": "Overview",
     "edit": "Edit meeting",
     "start": "Start",
     "end": "End",
@@ -157,9 +157,9 @@
       "resolutionName": "Enter a recommendation title.",
       "responsible": "Choose a responsible person."
     },
-    "editMinutes": "Edit agenda and minutes",
+    "editMinutes": "Edit minutes",
     "minutesEditorTitle": "Edit meeting minutes",
-    "minutesEditorContext": "Editing the agenda and minutes for {name}.",
+    "minutesEditorContext": "Editing minutes: {name}",
     "minutesEditorForbidden": "You do not have permission to edit these minutes.",
     "minutesEditorReopen": "This meeting is completed or cancelled. Reopen it from the meeting page before editing its minutes.",
     "historicalMinutesTitle": "Historical minutes captured at completion",
@@ -189,7 +189,41 @@
     "dayCardEmpty": "No meetings on this day.",
     "dayCardCount": "{count} meeting | {count} meetings",
     "dayCardView": "View",
-    "dayCardSelect": "Show meetings on {date}"
+    "dayCardSelect": "Show meetings on {date}",
+    "openTaskNewTab": "Open task — new tab",
+    "listView": "List",
+    "activity": "Activity",
+    "saveChanges": "Save changes",
+    "additionalNotes": "Additional notes",
+    "validationSummary": "Review the highlighted fields ({count}).",
+    "recommendationEditorContext": "Add a recommendation to {name}. Your minutes were saved before opening this form.",
+    "linkedProject": "Linked project",
+    "recommendationReturn": {
+      "linked": "Recommendation created. Save the minutes to keep its topic link.",
+      "already_linked": "This recommendation is already linked to a minutes topic.",
+      "unassigned": "Recommendation created without a topic link. Select it in the right topic and save the minutes.",
+      "unavailable": "The recommendation is not available in this meeting. Topic links were left unchanged."
+    },
+    "createMeeting": "Create meeting",
+    "createSeries": "Create recurring meeting",
+    "createRecommendation": "Create recommendation",
+    "completionReview": "Complete the following before finalizing the meeting:",
+    "completionGaps": {
+      "schedule": "Set start and end times",
+      "minutes": "Write the meeting minutes"
+    },
+    "followupDescription": "Track recommendations and open their meeting or linked task.",
+    "followupSearch": "Search recommendations",
+    "followupAll": "All",
+    "followupMine": "Assigned to me",
+    "attachmentErrors": {
+      "type": "Unsupported file type. Choose PDF, PNG, JPEG, text, DOCX or XLSX.",
+      "empty": "The file is empty.",
+      "tooLarge": "The file exceeds 10 MiB."
+    },
+    "unchangedDraft": "No changes to save.",
+    "recommendationCreated": "The recommendation was created and saved.",
+    "returnAfterRecommendation": "Continue back to the meeting"
   },
   "meetingsFilters": {
     "searchMeetings": "Search title, reference, or location",
@@ -297,7 +331,6 @@
     "topicTitle": "Topic title",
     "discussion": "Discussion",
     "project": "Project",
-    "projectId": "Project #{id}",
     "recommendations": "Recommendations",
     "recommendationsHint": "Select existing recommendations. Each recommendation can be linked to one topic.",
     "noRecommendations": "No unassigned recommendations are available.",

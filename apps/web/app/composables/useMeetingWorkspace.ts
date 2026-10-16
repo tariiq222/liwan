@@ -1,6 +1,6 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { MeetingEventListSchema, MeetingVersionListSchema, MeetingVersionSchema, MeetingSeriesResolutionListSchema } from '@nasq/contracts'
+import { MeetingFollowupListSchema, MeetingEventListSchema, MeetingVersionListSchema, MeetingVersionSchema, MeetingSeriesResolutionListSchema } from '@nasq/contracts'
 import { meetingKeys, meetingSeriesKeys } from './meetingKeys'
 
 type WorkspaceParams = { limit?: number; offset?: number; q?: string; state?: string }
@@ -58,5 +58,16 @@ export function useMeetingVersion(id: MaybeRefOrGetter<number | null>, versionId
     queryFn: () => $api(`/api/v1/meetings/${toValue(id)}/versions/${toValue(versionId)}`, { schema: MeetingVersionSchema }),
   })
   prefetch(query, enabled)
+  return query
+}
+
+export type MeetingFollowupParams = { q?: string; mine?: boolean; state?: 'active' | 'overdue' | 'open' | 'in_progress' | 'done' | 'cancelled'; limit?: number; offset?: number }
+export function useMeetingFollowup(params: MaybeRefOrGetter<MeetingFollowupParams> = {}) {
+  const { $api } = useApi()
+  const query = useQuery({
+    queryKey: computed(() => meetingKeys.followup(paramsOf(params))),
+    queryFn: () => $api('/api/v1/meetings/resolutions', { query: paramsOf(params), schema: MeetingFollowupListSchema }),
+  })
+  prefetch(query, true)
   return query
 }

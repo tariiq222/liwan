@@ -1,3 +1,4 @@
+import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -31,7 +32,7 @@ function page(flags: { can_edit_decision: boolean; can_update_execution: boolean
   const mutateAsync = vi.fn(async () => resolution)
   const navigateTo = vi.fn(async () => {})
   const route = { params: { id: '7', resolutionId: '9' }, query: listOrigin ? { listOrigin } : { returnTo: '/meetings?state=confirmed' }, hash: listOrigin ? '#resolutions' : '' }
-  const scope = { ...recordNavigation,
+  const scope = { useMeetingFormFeedback, ...recordNavigation,
     ref,
     computed,
     watch,

@@ -32,7 +32,7 @@ class TestMeetingFeatureGates(NasqPmoCase):
             self.assertEqual(self.api('GET', path).status_code, 200, path)
         # Closing the owners one at a time leaves each route open until its last owner is off.
         closed = {}
-        remaining = {path: set(keys) for path, keys in owners.items()}
+        remaining = {path: {key for key in keys if profile.features.get(key)} for path, keys in owners.items()}
         for key in sorted(gated):
             closed[key] = False
             operator.write({'features': {**profile.features, **closed}, 'retained_read_features': retained})

@@ -8,6 +8,7 @@ import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
+import { meetingViewRoute, meetingViewOptions } from '@/utils/meetingRoutes'
 import { firstQuery } from '@/utils/routeQuery'
 
 const route = useRoute()
@@ -45,7 +46,7 @@ const stateOptions = computed(() => [
   { value: ALL_STATES, label: t('meetingsUi.allStates') },
   ...validStates.map(code => ({ value: code, label: t(`meetingsUi.state.${code}`) })),
 ])
-const activeFilterCount = computed(() => [selectedState.value, routeFilters.value.mine ? 'mine' : '', projectId.value].filter(Boolean).length)
+const activeFilterCount = computed(() => [routeFilters.value.q, routeFilters.value.organizerId, routeFilters.value.seriesId, selectedState.value, routeFilters.value.mine ? 'mine' : '', projectId.value].filter(Boolean).length)
 function patchFilters(patch: MeetingFilterPatch) {
   void router.replace({ query: patchMeetingListQuery(route.query, patch) })
 }
@@ -56,9 +57,12 @@ function onScopeChange(value: unknown) {
   patchFilters({ mine: value === 'mine' })
 }
 function clearFilters() {
-  patchFilters({ state: undefined, mine: false, project_id: undefined })
+  patchFilters({ q: undefined, organizer_id: undefined, series_id: undefined, state: undefined, mine: false, project_id: undefined })
 }
 const query = useMeetings(computed(() => ({
+  q: routeFilters.value.q || undefined,
+  organizer_id: routeFilters.value.organizerId,
+  series_id: routeFilters.value.seriesId,
   state: selectedState.value || undefined,
   mine: routeFilters.value.mine || undefined,
   project_id: projectId.value,
@@ -68,11 +72,6 @@ const query = useMeetings(computed(() => ({
   offset: 0,
 })))
 const coverage = computed(() => calendarCoverage(query.data.value?.total, CALENDAR_PAGE_LIMIT))
-watch([year, month], ([nextYear, nextMonth]) => {
-  const monthNumber = nextMonth + 1
-  if (Number(route.query.year) === nextYear && Number(route.query.month) === monthNumber) return
-  void router.replace({ query: { ...route.query, year: String(nextYear), month: String(monthNumber) } })
-}, { immediate: true })
 const weekStart = computed(() => (locale.value === 'ar' ? 0 : 1))
 
 function dateKey(date: Date) {
@@ -81,14 +80,21 @@ function dateKey(date: Date) {
 const rawQueryDay = firstQuery(route.query.day)
 const queryDay = isCalendarDate(rawQueryDay) && rawQueryDay.startsWith(monthPrefix.value) ? rawQueryDay : null
 const selectedDay = ref<string | null>(queryDay ?? (dateKey(new Date()).startsWith(monthPrefix.value) ? dateKey(new Date()) : null))
-watch(selectedDay, (day) => {
-  if ((route.query.day ?? null) === day) return
-  const { day: _omit, ...rest } = route.query
-  void router.replace({ query: day ? { ...rest, day } : rest })
+watch([year, month, selectedDay], ([nextYear, nextMonth, day]) => {
+  const monthNumber = nextMonth + 1
+  if (Number(route.query.year) === nextYear && Number(route.query.month) === monthNumber && (firstQuery(route.query.day) ?? null) === day) return
+  void router.replace({ query: { ...route.query, year: String(nextYear), month: String(monthNumber), day: day ?? undefined } })
+}, { immediate: true })
+watch(() => [route.query.year, route.query.month, route.query.day], ([yearQuery, monthQuery, dayQuery]) => {
+  const nextYear = Number(firstQuery(yearQuery))
+  const nextMonth = Number(firstQuery(monthQuery))
+  if (!Number.isInteger(nextYear) || nextYear < MIN_YEAR || nextYear > MAX_YEAR || !Number.isInteger(nextMonth) || nextMonth < 1 || nextMonth > 12) return
+  if (year.value !== nextYear || month.value !== nextMonth - 1) cursor.value = new Date(nextYear, nextMonth - 1, 1)
+  const day = firstQuery(dayQuery)
+  selectedDay.value = isCalendarDate(day) && day.startsWith(monthPrefix.value) ? day : null
 })
-watch([year, month], () => {
-  if (selectedDay.value && !selectedDay.value.startsWith(monthPrefix.value)) selectedDay.value = null
-})
+
+const createTo = computed(() => ({ path: '/meetings/new', query: { ...returnToQuery(route.fullPath), ...(selectedDay.value ? { date: selectedDay.value } : {}), ...(projectId.value ? { project_id: String(projectId.value) } : {}), ...(routeFilters.value.seriesId ? { series_id: String(routeFilters.value.seriesId) } : {}) } }))
 
 const monthLabel = computed(() => new Intl.DateTimeFormat(locale.value, {
   month: 'long',
@@ -183,17 +189,20 @@ const cells = computed(() => {
 function shift(delta: number) {
   const next = new Date(year.value, month.value + delta, 1)
   if (next.getFullYear() < MIN_YEAR || next.getFullYear() > MAX_YEAR) return
+  selectedDay.value = null
   cursor.value = next
 }
 
 function goToday() {
   const today = new Date()
   cursor.value = new Date(today.getFullYear(), today.getMonth(), 1)
+  selectedDay.value = dateKey(today)
 }
 </script>
 
 <template>
-  <SharedTimelineFrame :title="t('nav.meetingCalendar')" :range-label="monthLabel" @prev="shift(-1)" @next="shift(1)" @today="goToday">
+  <SharedTimelineFrame :title="t('nav.meetings')" :range-label="monthLabel" @prev="shift(-1)" @next="shift(1)" @today="goToday">
+    <template #actions><UButton v-if="can('meetings.create')" icon="i-lucide-plus" :to="createTo" :label="t('nav.newMeeting')" data-testid="meeting-calendar-new" /></template>
     <div class="grid min-w-0 gap-4">
       <FilterBar
         :title="t('filterCard.title')"
@@ -202,6 +211,7 @@ function goToday() {
         :disabled="!hydrated"
         @clear="clearFilters"
       >
+        <template #search><UInput :model-value="routeFilters.q" class="w-full" icon="i-lucide-search" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" :disabled="!hydrated" @update:model-value="patchFilters({ q: String($event) || undefined })" /></template>
         <template #default>
           <SharedFilterChoice data-testid="meeting-state" :label="t('meetingsUi.stateLabel')" :items="stateOptions" :model-value="selectedState || ALL_STATES" :disabled="!hydrated" @update:model-value="onStateChange" />
           <SharedFilterField v-if="can('pmo.projects.read')" :label="t('meetingsFilters.project')" for="meeting-project">
@@ -209,6 +219,7 @@ function goToday() {
           </SharedFilterField>
         </template>
         <template #view>
+          <SharedViewSwitch model-value="calendar" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(route.query, value === 'calendar' ? 'calendar' : 'list'))" />
           <UTabs
             data-testid="meeting-scope"
             :model-value="routeFilters.mine ? 'mine' : 'all'"
@@ -219,6 +230,9 @@ function goToday() {
           />
         </template>
         <template v-if="activeFilterCount > 0" #active>
+          <SharedFilterChip v-if="routeFilters.q" :label="t('meetingsUi.searchValue', { value: routeFilters.q })" @remove="patchFilters({ q: undefined })" />
+          <SharedFilterChip v-if="routeFilters.organizerId" :label="t('meetingsFilters.selectedOrganizer')" @remove="patchFilters({ organizer_id: undefined })" />
+          <SharedFilterChip v-if="routeFilters.seriesId" :label="t('meetingsFilters.inheritedSeries')" @remove="patchFilters({ series_id: undefined })" />
           <SharedFilterChip v-if="selectedState" :label="t(`meetingsUi.state.${selectedState}`)" @remove="patchFilters({ state: undefined })" />
           <SharedFilterChip v-if="routeFilters.mine" :label="t('meetingsUi.mine')" @remove="patchFilters({ mine: false })" />
           <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="patchFilters({ project_id: undefined })" />

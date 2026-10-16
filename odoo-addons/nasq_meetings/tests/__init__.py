@@ -2,6 +2,7 @@
 from . import (
     common,
     test_meeting_access,
+    test_meeting_followup,
     test_meeting_history,
     test_meeting_lifecycle,
     test_meeting_notifications,

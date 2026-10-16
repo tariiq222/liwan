@@ -184,6 +184,11 @@ export const MeetingVersionSchema = z.object({
 
 export const MeetingVersionListSchema = z.object({ items: z.array(MeetingVersionSchema), total: z.number().int() }).strip()
 
+export const MeetingFollowupListSchema = z.object({
+  items: z.array(MeetingPreviousResolutionSchema),
+  total: z.number().int(),
+}).strip()
+
 export const MeetingSeriesResolutionListSchema = z.object({
   items: z.array(MeetingPreviousResolutionSchema),
   total: z.number().int(),

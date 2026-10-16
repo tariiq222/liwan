@@ -7172,6 +7172,184 @@
         ],
         "type": "object"
       },
+      "MeetingFollowupListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "allowed_actions": {
+                  "items": {
+                    "enum": [
+                      "start",
+                      "complete",
+                      "cancel",
+                      "reopen",
+                      "edit_result"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "can_edit_decision": {
+                  "type": "boolean"
+                },
+                "can_update_execution": {
+                  "type": "boolean"
+                },
+                "deadline": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "execution_period": {
+                  "type": "string"
+                },
+                "execution_state": {
+                  "enum": [
+                    "open",
+                    "in_progress",
+                    "done",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                "id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "meeting_id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "meeting_name": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "priority": {
+                  "enum": [
+                    "0",
+                    "1",
+                    "2",
+                    "3"
+                  ],
+                  "type": "string"
+                },
+                "project": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "responsible": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "result": {
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "open",
+                    "in_progress",
+                    "done",
+                    "cancelled"
+                  ],
+                  "type": "string"
+                },
+                "task_id": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "task_linked": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "deadline",
+                "priority",
+                "state",
+                "responsible",
+                "task_id",
+                "result",
+                "can_update_execution",
+                "can_edit_decision",
+                "meeting_id",
+                "meeting_name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
       "MeetingListItemSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -24617,6 +24795,46 @@
           "feature_operation": "write",
           "handler": "create_meeting",
           "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/meetings/resolutions": {
+      "get": {
+        "operationId": "nasq_meetings.MeetingWorkspaceController.meeting_followup.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "meeting_followup",
+        "tags": [
+          "nasq_meetings"
+        ],
+        "x-nasq": {
+          "addon": "nasq_meetings",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "pmo",
+          "controller": "MeetingWorkspaceController",
+          "feature_keys": [
+            "meetings.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "meeting_followup",
+          "readonly": true,
           "route_type": "json2"
         }
       }

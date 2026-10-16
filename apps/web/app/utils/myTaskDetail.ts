@@ -1,21 +1,10 @@
 import type { PersonalTask } from '@nasq/contracts'
-import { MAX_ATTACHMENT_BYTES } from './attachmentFile'
 import { deadlineDay } from './myTaskList'
 
 // Pure helpers of the personal task detail page: draft diffing and
-// client-side attachment / comment checks. The server stays the authority for every rule.
+// client-side comment checks. The server stays the authority for every rule.
 
 export const COMMENT_MAX_LENGTH = 5000
-
-const ALLOWED_TYPES: Record<string, readonly string[]> = {
-  pdf: ['application/pdf'],
-  png: ['image/png'],
-  jpg: ['image/jpeg'],
-  jpeg: ['image/jpeg'],
-  txt: ['text/plain'],
-  docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-  xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
-}
 
 export interface DetailDraft {
   name: string
@@ -48,19 +37,6 @@ export function changedFields(task: PersonalTask, draft: DetailDraft): Partial<D
   if (draft.priority !== before.priority) body.priority = draft.priority
   if (!sameIds(draft.assignees, before.assignees)) body.assignees = [...draft.assignees]
   return body
-}
-
-export type AttachmentProblem = 'empty' | 'tooLarge' | 'type'
-
-export function attachmentProblem(file: { name: string; size: number; type: string }): AttachmentProblem | null {
-  const extension = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase() : ''
-  const allowed = ALLOWED_TYPES[extension]
-  if (!allowed) return 'type'
-  // A browser may report no type at all; a reported type must still match the extension.
-  if (file.type && !allowed.includes(file.type.toLowerCase())) return 'type'
-  if (file.size <= 0) return 'empty'
-  if (file.size > MAX_ATTACHMENT_BYTES) return 'tooLarge'
-  return null
 }
 
 export type CommentProblem = 'empty' | 'tooLong'

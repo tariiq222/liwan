@@ -3,6 +3,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { attachmentProblem, fileToBase64, ATTACHMENT_ACCEPT } from '../../../utils/attachmentFile'
 import { ApiError } from '../../../composables/useApi'
 
 const filename = new URL('../MeetingAttachmentsTab.vue', import.meta.url).pathname
@@ -17,7 +18,7 @@ function mountTab(canEdit = true) {
   const toast = { add: vi.fn() }
   const emitted: number[] = []
   const bindings = {
-    _defineComponent: Vue.defineComponent, ref: Vue.ref, watch: Vue.watch, ApiError,
+    _defineComponent: Vue.defineComponent, ref: Vue.ref, watch: Vue.watch, computed: Vue.computed, ApiError, attachmentProblem, fileToBase64, ATTACHMENT_ACCEPT,
     useI18n: () => ({ t: (key: string) => key }), useToast: () => toast, useHydrated: () => Vue.ref(true),
     useMeetingAttachments: () => ({ data: Vue.computed(() => ({ items: items.value })), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
     useUploadMeetingAttachment: () => ({ mutateAsync: upload, isPending: Vue.ref(false) }),
@@ -44,38 +45,39 @@ describe('MeetingAttachmentsTab', () => {
   beforeEach(() => { vi.stubGlobal('FileReader', FakeFileReader) })
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('uploads the chosen file as base64 and resets the field', async () => {
+  it('uploads the chosen file as base64', async () => {
     const { state, upload } = mountTab()
-    const reset = vi.fn()
-    state.fileField.value = { reset }
-    const input = { files: [new File(['ABC'], 'plan.pdf', { type: 'application/pdf' })], value: 'plan.pdf' }
-    await state.onFileChange({ target: input })
+    await state.uploadFile(new File(['ABC'], 'plan.pdf', { type: 'application/pdf' }))
     expect(upload).toHaveBeenCalledWith({ meetingId: 7, name: 'plan.pdf', mimetype: 'application/pdf', data: 'QUJD' })
-    expect(input.value).toBe('')
-    expect(reset).toHaveBeenCalled()
   })
 
-  it('shows a toast when the upload fails', async () => {
-    const { state, upload, toast } = mountTab()
-    upload.mockRejectedValue(new ApiError(413, 'too_large', 'الملف كبير'))
-    await state.onFileChange({ target: { files: [new File(['ABC'], 'plan.pdf')], value: 'plan.pdf' } })
-    expect(toast.add).toHaveBeenCalledWith({ title: 'الملف كبير', color: 'error' })
-  })
-
-  it('ignores a change event without a file', async () => {
+  it('keeps upload failure next to the attachment list', async () => {
     const { state, upload } = mountTab()
-    await state.onFileChange({ target: { files: [], value: '' } })
-    expect(upload).not.toHaveBeenCalled()
+    upload.mockRejectedValue(new ApiError(413, 'too_large', 'الملف كبير'))
+    await state.uploadFile(new File(['ABC'], 'plan.pdf', { type: 'application/pdf' }))
+    expect(state.actionError.value).toBe('الملف كبير')
   })
 
-  it('asks inline before deleting, then removes the attachment and closes the confirmation', async () => {
-    const { state, remove } = mountTab()
-    expect(state.pendingDeleteId.value).toBeNull()
-    state.pendingDeleteId.value = 5
-    expect(remove).not.toHaveBeenCalled()
-    await state.confirmDelete(5)
+  it('blocks invalid files and read-only writes before any request', async () => {
+    const editable = mountTab()
+    await editable.state.uploadFile(new File(['ABC'], 'program.exe'))
+    expect(editable.state.actionError.value).toBe('meetingsUx.attachmentErrors.type')
+    expect(editable.upload).not.toHaveBeenCalled()
+    const readOnly = mountTab(false)
+    await readOnly.state.uploadFile(new File(['ABC'], 'plan.pdf'))
+    await readOnly.state.deleteFile(5)
+    expect(readOnly.upload).not.toHaveBeenCalled()
+    expect(readOnly.remove).not.toHaveBeenCalled()
+  })
+
+  it('reports delete failure without removing the row from its query data', async () => {
+    const { state, remove, items } = mountTab()
+    items.value = [{ id: 5, name: 'plan.pdf', mimetype: 'application/pdf', url: '/file' }]
+    remove.mockRejectedValue(new ApiError(500, 'unavailable', 'Delete failed'))
+    await state.deleteFile(5)
     expect(remove).toHaveBeenCalledWith({ meetingId: 7, attachmentId: 5 })
-    expect(state.pendingDeleteId.value).toBeNull()
+    expect(state.actionError.value).toBe('Delete failed')
+    expect(items.value).toHaveLength(1)
   })
 
   it('keeps the page informed of the attachment count', async () => {

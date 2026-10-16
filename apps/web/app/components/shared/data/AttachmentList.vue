@@ -49,12 +49,13 @@ async function onFileChange(event: Event) {
 }
 
 async function confirmDelete(id: number) {
-  if (pendingDeleteId.value !== id || deleteBusy.value) return
+  if (pendingDeleteId.value !== id || deleteBusy.value || !props.canWrite) return
   deleteBusy.value = true
   try {
     await props.deleteFile(id)
+    await nextTick()
+    if (!props.error) pendingDeleteId.value = null
   } finally {
-    pendingDeleteId.value = null
     deleteBusy.value = false
   }
 }

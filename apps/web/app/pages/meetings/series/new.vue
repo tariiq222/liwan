@@ -82,8 +82,11 @@ const preview = computed(() => buildRecurrencePreview({
   untilDate: untilMode.value === 'date' ? untilDate.value : undefined,
 }))
 
+const formElement = ref<HTMLFormElement | null>(null)
+const { attemptedSubmit, visibleErrors, validate } = useMeetingFormFeedback(formErrors, formElement)
+
 async function save() {
-  if (!hydrated.value || Object.keys(formErrors.value).length) return
+  if (!hydrated.value || isPending.value || !validate()) return
   const termination = recurrence.value === 'none'
     ? { until_count: undefined, until_date: undefined }
     : normalizeRecurrenceEnd({ mode: untilMode.value, count: untilCount.value, date: untilDate.value })
@@ -107,12 +110,13 @@ async function save() {
 
 <template>
   <SharedCreatePanel :title="t('meetingsUi.newSeries')" :back-to="backTo">
-    <form class="space-y-8" @submit.prevent="save">
+    <form ref="formElement" novalidate class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
+      <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <p v-if="context" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">{{ t('meetingsUx.context.project', { name: context }) }}</p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')" class="space-y-4">
-        <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="serverErrors.name || (formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined)">
-          <UInput id="series-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.name" required />
+        <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
+          <UInput id="series-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
         </UFormField>
         <UFormField :label="t('meetingsUi.recurrenceLabel')" name="recurrence" :error="serverErrors.recurrence">
           <USelect
@@ -124,11 +128,11 @@ async function save() {
           />
         </UFormField>
         <template v-if="recurrence !== 'none'">
-          <UFormField :label="t('meetingsUi.start')" name="start" required :error="serverErrors.start || (formErrors.start ? t(`meetingsUx.errors.${formErrors.start}`) : undefined)">
-            <UInput id="series-start" v-model="start" type="datetime-local" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.start" required />
+          <UFormField :label="t('meetingsUi.start')" name="start" required :error="serverErrors.start || (visibleErrors.start ? t(`meetingsUx.errors.${visibleErrors.start}`) : undefined)">
+            <UInput id="series-start" v-model="start" type="datetime-local" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.start" required />
           </UFormField>
-          <UFormField :label="t('meetingsUi.end')" name="end" required :error="serverErrors.end || (formErrors.end ? t(`meetingsUx.errors.${formErrors.end}`) : undefined)">
-            <UInput id="series-end" v-model="end" type="datetime-local" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.end" required />
+          <UFormField :label="t('meetingsUi.end')" name="end" required :error="serverErrors.end || (visibleErrors.end ? t(`meetingsUx.errors.${visibleErrors.end}`) : undefined)">
+            <UInput id="series-end" v-model="end" type="datetime-local" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.end" required />
           </UFormField>
           <UFormField :label="t('meetingsUi.untilMode')" name="untilMode">
             <USelect
@@ -142,10 +146,10 @@ async function save() {
           <UFormField
             :label="untilMode === 'count' ? t('meetingsUi.untilCount') : t('meetingsUi.untilDate')"
             name="until"
-            :error="serverErrors.untilCount || serverErrors.untilDate || (formErrors.untilCount ? t(`meetingsUx.errors.${formErrors.untilCount}`) : '') || (formErrors.untilDate ? t(`meetingsUx.errors.${formErrors.untilDate}`) : undefined)"
+            :error="serverErrors.untilCount || serverErrors.untilDate || (visibleErrors.untilCount ? t(`meetingsUx.errors.${visibleErrors.untilCount}`) : '') || (visibleErrors.untilDate ? t(`meetingsUx.errors.${visibleErrors.untilDate}`) : undefined)"
           >
-            <UInput v-if="untilMode === 'count'" id="series-count" v-model="untilCount" type="number" min="1" max="60" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.untilCount" />
-            <SharedDateField v-else id="series-until-date" v-model="untilDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.untilDate" />
+            <UInput v-if="untilMode === 'count'" id="series-count" v-model="untilCount" type="number" min="1" max="60" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.untilCount" />
+            <SharedDateField v-else id="series-until-date" v-model="untilDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.untilDate" />
           </UFormField>
           <div v-if="preview.length" class="rounded-lg bg-elevated/50 p-3 text-sm ring ring-default">
             <p class="font-medium text-highlighted">{{ t('meetingsUx.previewTitle') }}</p>
@@ -157,8 +161,8 @@ async function save() {
         <UFormField :label="t('meetingsUi.location')" name="location" :error="serverErrors.location">
           <UInput id="series-location" v-model="location" class="w-full" :disabled="!hydrated || isPending" />
         </UFormField>
-        <UFormField :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (formErrors.meetingUrl ? t(`meetingsUx.errors.${formErrors.meetingUrl}`) : undefined)">
-          <UInput id="series-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!formErrors.meetingUrl" />
+        <UFormField :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined)">
+          <UInput id="series-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.meetingUrl" />
         </UFormField>
       </SharedFormSection>
       <SharedFormSection :title="t('meetingsUi.sectionPeople')">
@@ -168,7 +172,7 @@ async function save() {
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
       <SharedFormActions class="justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || isPending || Object.keys(formErrors).length > 0" :label="t('app.create')" />
+        <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('meetingsUx.createSeries')" />
       </SharedFormActions>
     </form>
   </SharedCreatePanel>

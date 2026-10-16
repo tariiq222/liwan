@@ -88,10 +88,7 @@
         }
       ],
       "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UCard"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "Editable",
@@ -234,6 +231,12 @@
           "default": "[]"
         },
         {
+          "name": "compact",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
           "name": "title",
           "type": "string",
           "required": false,
@@ -260,6 +263,11 @@
           "id": "Empty",
           "name": "بلا مواضيع",
           "context": "apps/web/app/pages/meetings/[id].vue:200"
+        },
+        {
+          "id": "Compact",
+          "name": "قراءة المحضر داخل الاجتماع",
+          "context": "apps/web/app/pages/meetings/[id].vue:211"
         }
       ]
     },
@@ -311,13 +319,14 @@
         },
         {
           "name": "save-and-create-resolution",
-          "payload": "[]"
+          "payload": "[topicKey?: string | undefined]"
         }
       ],
       "slots": [],
       "nuxtUi": [
         "UButton",
         "UCheckbox",
+        "UFormField",
         "UInput",
         "UTextarea"
       ],
@@ -2076,7 +2085,7 @@
         {
           "id": "FixedOptions",
           "name": "من قائمة ثابتة",
-          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:77"
+          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:103"
         }
       ]
     },
@@ -3795,7 +3804,7 @@
         {
           "id": "InMeetingAttachments",
           "name": "داخل مرفقات الاجتماع",
-          "context": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83"
+          "context": "apps/web/app/components/shared/data/AttachmentList.vue:99"
         },
         {
           "id": "InDocumentCard",
@@ -3805,7 +3814,7 @@
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83"
+          "context": "apps/web/app/components/shared/data/AttachmentList.vue:99"
         }
       ]
     },

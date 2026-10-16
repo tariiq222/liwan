@@ -99,7 +99,7 @@ function toggleOrderedList() {
   if (props.readonly) return
   editor.value?.chain().focus().toggleOrderedList().run()
 }
-watch(() => props.readonly, value => editor.value?.setEditable(!value))
+watch(() => props.readonly, value => editor.value?.setEditable(!value, false))
 const linkEditorOpen = ref(false)
 const linkDraft = ref('')
 function toggleLink() {

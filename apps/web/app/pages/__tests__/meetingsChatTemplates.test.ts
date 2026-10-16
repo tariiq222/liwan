@@ -12,7 +12,7 @@ describe('the meetings pages stay on their templates', () => {
     ['pages/meetings/index.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-new"']],
     ['pages/meetings/series.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-series-new"']],
     ['pages/meetings/calendar.vue', ['<SharedTimelineFrame']],
-    // The record's seven tabs are a custom overflow-aware strip (MeetingRecordTabs), not SharedRouteTabs.
+    // The record's five tabs are a custom overflow-aware strip (MeetingRecordTabs), not SharedRouteTabs.
     ['pages/meetings/[id].vue', ['<SharedRecordPage', '<MeetingRecordTabs', '<SharedPropertiesPanel', '<SharedRecordSection']],
     ['components/meetings/MeetingRecordTabs.vue', ['data-testid="meeting-tabs"']],
     ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel']],
@@ -26,7 +26,7 @@ describe('the meetings pages stay on their templates', () => {
 
   it('the resolutions and attachments tabs stay mounted behind v-show', () => {
     const source = read('pages/meetings/[id].vue')
-    expect(source).toMatch(/<MeetingResolutionsTab\s+v-show="activeTab === 'resolutions'"/)
+    expect(source).toMatch(/<div\s+v-show="activeTab === 'resolutions'"[\s\S]*?<MeetingResolutionsTab/)
     expect(source).toMatch(/<MeetingAttachmentsTab\s+v-show="activeTab === 'attachments'"/)
   })
 

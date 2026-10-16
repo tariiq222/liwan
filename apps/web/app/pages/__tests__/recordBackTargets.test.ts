@@ -1,3 +1,5 @@
+import * as editorContext from '../../utils/meetingEditorContext'
+import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import * as recordNavigation from './helpers/recordNavigation'
 import * as hrNavigation from '../../utils/hrReturnTo'
 import { readFileSync } from 'node:fs'
@@ -36,7 +38,7 @@ function loadSetupState(rel: string, router: Router) {
   const js = ts.transpileModule(compiled, {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
   }).outputText
-  const bindings: Record<string, unknown> = {
+  const bindings: Record<string, unknown> = { ...editorContext, useMeetingFormFeedback,
     ...recordNavigation,
     ...hrNavigation,
     _defineComponent: Vue.defineComponent,

@@ -13,7 +13,7 @@ type Story = StoryObj<typeof meta>
 
 export const InMeetingAttachments: Story = {
   name: 'داخل مرفقات الاجتماع',
-  parameters: storyContext('apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83', 'الغلاف `.meeting-upload` مُعرَّف scoped في نفس الملف: grid، min-width: 0، gap: 8px، margin-block-start: 16px، padding-block-start: 16px، border-block-start: 1px solid var(--border).'),
+  parameters: storyContext('apps/web/app/components/shared/data/AttachmentList.vue:99'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),

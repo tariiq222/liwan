@@ -77,13 +77,13 @@ describe('useMeetingTransitions', () => {
     expect(meetingAction.mutateAsync).not.toHaveBeenCalled()
   })
 
-  it('shows the API error message in a toast and clears the pending action', async () => {
+  it('keeps a failed transition available for retry with an inline error', async () => {
     meetingAction.mutateAsync.mockRejectedValue(new ApiError(422, 'invalid', 'لا يمكن الإنهاء'))
     const transitions = await setup()
     transitions.requestMeetingAction('complete')
     await transitions.confirmMeetingAction()
-    expect(toastAdd).toHaveBeenCalledWith({ title: 'لا يمكن الإنهاء', color: 'error' })
-    expect(transitions.pendingMeetingAction.value).toBeNull()
+    expect(transitions.actionError.value).toBe('لا يمكن الإنهاء')
+    expect(transitions.pendingMeetingAction.value).toEqual({ action: 'complete' })
   })
 
   it('falls back to the generic message for other errors', async () => {
@@ -91,6 +91,6 @@ describe('useMeetingTransitions', () => {
     const transitions = await setup()
     transitions.requestMeetingAction('complete')
     await transitions.confirmMeetingAction()
-    expect(toastAdd).toHaveBeenCalledWith({ title: 'errors.generic', color: 'error' })
+    expect(transitions.actionError.value).toBe('errors.generic')
   })
 })
