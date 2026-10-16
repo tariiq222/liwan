@@ -83,6 +83,14 @@ active worktree. Install dependencies independently in each worktree with
 share `node_modules` or `.nuxt` through symlinks. Never run tests against the
 production-style `odoo19` database.
 
+After installing dependencies or moving a checkout, regenerate each Nuxt
+app's local files before running the root tests or type checks:
+
+```sh
+npm -w apps/web run postinstall
+npm -w apps/vendor-admin run postinstall
+```
+
 The ordinary local development topology is Odoo `:8069` and Nuxt `:3000`.
 
 The deployment templates are in [`deploy/`](deploy/). They describe a
