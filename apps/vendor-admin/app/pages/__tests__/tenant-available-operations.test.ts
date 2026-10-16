@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const webRoot = resolve(import.meta.dirname, '../../..')
-const page = readFileSync(resolve(webRoot, 'app/pages/tenants/[id].vue'), 'utf8')
+const page = readFileSync(resolve(webRoot, 'app/components/vendor/TenantOperationsPanel.vue'), 'utf8')
 const en = JSON.parse(readFileSync(resolve(webRoot, 'i18n/locales/en/vendor.json'), 'utf8'))
 const ar = JSON.parse(readFileSync(resolve(webRoot, 'i18n/locales/ar/vendor.json'), 'utf8'))
 

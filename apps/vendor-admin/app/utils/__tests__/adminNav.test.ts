@@ -16,7 +16,7 @@ const ROLES: Record<string, string[]> = {
 const caps = (role: string) => ROLES[role]!.map(name => `vendor.${name}`)
 const ids = (capabilities: string[]) => adminNav(capabilities).map(item => item.id)
 
-const BEFORE_INVOICES = ['overview', 'customers', 'tenants', 'plans', 'bundles']
+const BEFORE_INVOICES = ['overview', 'customers', 'plans', 'bundles']
 const READ_SECTIONS = [...BEFORE_INVOICES, 'operations']
 
 describe('adminNav', () => {
@@ -64,6 +64,13 @@ describe('activeNavId', () => {
     expect(activeNavId(items, '/customers/12/change')).toBe('customers')
     expect(activeNavId(items, '/plans/new')).toBe('plans')
     expect(activeNavId(items, '/team/new')).toBe('team')
+  })
+
+  it('keeps a workspace without a customer under customers, which owns the only client section', () => {
+    expect(activeNavId(items, '/tenants/t-1')).toBe('customers')
+    expect(activeNavId(items, '/customers/new')).toBe('customers')
+    expect(activeNavId(items, '/tenantsx')).toBeNull()
+    expect(items.map(item => item.id)).not.toContain('tenants')
   })
 
   it('keeps the retired legacy packages under plans', () => {

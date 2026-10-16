@@ -27,8 +27,8 @@ const sections = computed(() => {
     ...commercialMetric('setup', 'setup', 'i-lucide-wrench', m => m.setupRequired, '/customers?state=setup_required'),
   ]
   const status: Tile[] = [
-    { id: 'tenants', label: t('vendor.overview.tenants'), value: d.tenants, icon: 'i-lucide-building-2', to: '/tenants' },
-    { id: 'active', label: t('vendor.overview.active'), value: d.active, icon: 'i-lucide-circle-check', to: '/tenants' },
+    { id: 'tenants', label: t('vendor.overview.tenants'), value: d.tenants, icon: 'i-lucide-building-2', to: '/customers' },
+    { id: 'active', label: t('vendor.overview.active'), value: d.active, icon: 'i-lucide-circle-check', to: '/customers' },
     { id: 'pending', label: t('vendor.overview.pending'), value: d.pending_operations, icon: 'i-lucide-loader-circle', to: '/operations?status=pending' },
     ...commercialMetric('subscriptionsActive', 'active', 'i-lucide-badge-check', m => m.active, '/customers?state=active'),
     ...commercialMetric('subscriptionsPending', 'pending', 'i-lucide-clock', m => m.pending),

@@ -6,7 +6,7 @@ test.describe('Plan 7: commercial dates hydrate in the interface language', () =
   test.use({ locale: 'ar-SA', viewport: { width: 1440, height: 900 } })
 
   for (const locale of ['ar', 'en']) {
-    for (const path of ['/overview', '/tenants/tenant-1', '/operations']) {
+    for (const path of ['/overview', '/customers/cust-alpha', '/operations']) {
       test(`${path} renders ${locale} dates independently of the browser language`, async ({ page }) => {
         await login(page)
         await open(page, '/overview')
@@ -23,11 +23,11 @@ test.describe('Plan 7: commercial dates hydrate in the interface language', () =
         await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${locale}(?:-|$)`))
         await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
         if (path === '/overview') await expect(page.locator('time[datetime]')).toBeVisible()
-        else if (path.includes('/tenants/')) await expect(page.locator('[data-slot="properties-panel"]')).toBeVisible()
+        else if (path.includes('/customers/')) await expect(page.locator('[data-slot="properties-panel"]')).toBeVisible()
         else await expect(page.locator('tbody tr[data-shortcut-row]').first()).toBeVisible()
         const timestamp = path === '/overview'
           ? page.locator('time[datetime]')
-          : path.includes('/tenants/')
+          : path.includes('/customers/')
             ? page.locator('[data-slot="properties-panel"] [data-slot="property-row"]').last().locator('dd')
             : page.locator('tbody tr[data-shortcut-row]').first().locator('td').last()
         if (locale === 'en') {

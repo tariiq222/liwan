@@ -1,6 +1,6 @@
 # Nasq vendor admin (`apps/vendor-admin`)
 
-The staff console of the Nasq vendor: customers, tenants, plans, bundles, catalog, invoices, operations, audit and the
+The staff console of the Nasq vendor: customers (every client, with its subscription and workspace), plans, bundles, catalog, invoices, operations, audit and the
 team that may use them. It is a separate Nuxt 4 application from the customer app (`apps/web`) and is served on its own
 `admin` host. Arabic is the default locale and the UI is RTL-first. Design rules: [DESIGN.md](../../DESIGN.md).
 
@@ -9,7 +9,7 @@ team that may use them. It is a separate Nuxt 4 application from the customer ap
 - It renders with the shared layers `@nasq/ui` and `@nasq/commercial-ui` and takes types and request signing from
   `@nasq/commercial-contracts`. It never imports `apps/web`, `odoo-addons`, `@nasq/contracts` or the control plane code,
   and never calls an Odoo route (rule `VA1` in `tools/arch_policy.py`). `apps/web` never imports this app.
-- There is no `/vendor` page prefix: pages are `/overview`, `/customers`, `/tenants`, `/operations`, `/plans`, `/bundles`,
+- There is no `/vendor` page prefix: pages are `/overview`, `/customers` (`/customers/new`, `/customers/{id}?tab=` and, for a workspace that has no commercial record, `/tenants/{id}`), `/operations`, `/plans`, `/bundles`,
   `/catalog`, `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the upstream
   control plane surface, not a page.
 
