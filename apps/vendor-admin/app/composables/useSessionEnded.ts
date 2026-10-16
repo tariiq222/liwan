@@ -1,9 +1,12 @@
-/** Forgets the signed-in profile and goes to the login page, which returns here after the next sign-in. */
+import { safeReturnTo } from '../utils/safeReturnTo'
+
+/** Forgets the signed-in profile and goes to the login page, which returns to the page that was open at that moment. */
 export function useSessionEnded() {
   const me = useAdminMe()
-  const route = useRoute()
+  const router = useRouter()
   return () => {
     me.value = null
-    return navigateTo({ path: '/login', query: { next: route.fullPath } })
+    const next = safeReturnTo(router.currentRoute.value.fullPath)
+    return navigateTo({ path: '/login', query: next && next !== '/' ? { next } : {} })
   }
 }

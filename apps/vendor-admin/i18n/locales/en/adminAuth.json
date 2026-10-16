@@ -37,7 +37,6 @@
       "setupKeyHint": "Type it into your authenticator app if you cannot open the link.",
       "openLink": "Open in authenticator app",
       "totpLoading": "Preparing the setup key…",
-      "totpRetry": "Try again",
       "password": "Password",
       "passwordHint": "At least 12 characters.",
       "confirm": "Confirm password",
@@ -52,14 +51,14 @@
       "errors": {
         "passwordShort": "The password must be at least 12 characters.",
         "passwordMismatch": "The two passwords do not match."
-      }
+      },
+      "retry": "Try again"
     },
     "stepUp": {
       "title": "Confirm with your passkey",
       "lead": "This action is sensitive. Confirm it is you in the browser prompt to continue.",
       "retry": "Try again",
-      "cancel": "Cancel",
-      "cancelled": "The action was not carried out because the passkey was not confirmed."
+      "cancel": "Cancel"
     },
     "errors": {
       "failed": "Sign-in failed. Check your details and try again.",

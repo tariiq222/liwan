@@ -34,6 +34,8 @@ export function createSignIn(deps: SignInDeps) {
       await deps.go(safeReturnTo(deps.next()) ?? '/')
     } catch (error) {
       errorKey.value = authErrorKey(error)
+      form.totpCode = ''
+      form.recoveryCode = ''
     } finally {
       pending.value = false
     }

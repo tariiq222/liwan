@@ -36,6 +36,7 @@ describe('global auth middleware', () => {
   it('answers forbidden when the session lacks the page capability', async () => {
     me.value = { capabilities: ['vendor.read'] }
     await expect(middleware(route('/audit', { capability: 'vendor.audit.read' }))).rejects.toMatchObject({ statusCode: 403 })
+    expect(createError).toHaveBeenCalledWith(expect.objectContaining({ fatal: true }))
   })
 
   it('allows a session with the capability', async () => {
@@ -63,6 +64,13 @@ describe('global auth middleware', () => {
     ready = Promise.reject(Object.assign(new Error('x'), { statusCode: 503 }))
     ready.catch(() => undefined)
     await expect(middleware(route('/customers'))).rejects.toMatchObject({ statusCode: 503 })
+    expect(createError).toHaveBeenCalledWith(expect.objectContaining({ fatal: true }))
+  })
+
+  it('treats /login/ as the sign-in page', async () => {
+    ready = Promise.reject(Object.assign(new Error('x'), { statusCode: 503 }))
+    ready.catch(() => undefined)
+    await expect(middleware(route('/login/', { public: true }))).resolves.toBeUndefined()
   })
 
   it('moves a signed-in visitor off the sign-in page', async () => {

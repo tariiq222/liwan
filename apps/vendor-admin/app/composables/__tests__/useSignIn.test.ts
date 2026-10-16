@@ -115,6 +115,14 @@ describe('createSignIn with a password', () => {
     expect(signIn.errorKey.value).toBe('adminAuth.errors.rateLimited')
   })
 
+  it('clears the one-time codes but keeps the email after a failure', async () => {
+    const { signIn } = setup(undefined, { post: vi.fn().mockRejectedValue(failure(401, 'auth_failed')) as unknown as SignInDeps['post'] })
+    signIn.setMode('recovery')
+    Object.assign(signIn.form, { email: 'a@example.test', password: 'correct horse battery', totpCode: '123456', recoveryCode: 'abcd-efgh-jkmn' })
+    await signIn.signInWithPassword()
+    expect(signIn.form).toMatchObject({ email: 'a@example.test', totpCode: '', recoveryCode: '' })
+  })
+
   it('clears the message when the person switches the way to sign in', async () => {
     const { signIn } = setup(undefined, { post: vi.fn().mockRejectedValue(failure(401, 'auth_failed')) as unknown as SignInDeps['post'] })
     signIn.setMode('fallback')

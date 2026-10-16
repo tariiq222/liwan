@@ -27,6 +27,19 @@ const usedKeys = new Set(sources(appDir).flatMap(file =>
   [...readFileSync(file, 'utf8').matchAll(/['"`](adminAuth\.[a-zA-Z.]+)['"`]/g)].map(match => match[1]!)))
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort()
 
+describe('app error messages', () => {
+  it('has the same non-empty keys in both languages, including forbidden and unavailable', () => {
+    const load = (lang: string) => flatten(JSON.parse(readFileSync(join(localesDir, lang, 'app.json'), 'utf8')) as Tree)
+    const ar = load('ar')
+    const en = load('en')
+    expect(Object.keys(ar).sort()).toEqual(Object.keys(en).sort())
+    for (const key of ['app.error.forbidden', 'app.error.unavailable']) {
+      expect(ar[key], key).toBeTruthy()
+      expect(en[key], key).toBeTruthy()
+    }
+  })
+})
+
 describe('adminAuth messages', () => {
   const ar = messages('ar')
   const en = messages('en')
