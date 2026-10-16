@@ -150,7 +150,8 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
                 else:
                     last = next((m for m in reversed(values["messages"]) if isinstance(m, AIMessage)), None)
                     decided = ("done", None)
-                    yield format_event("answer", {"text": text_of(last.content) if last else "", "records": records_from_results(values["results"])})
+                    answer_text = text_of(last.content) if last else ""
+                    yield format_event("answer", {"text": answer_text, "records": records_from_results(values["results"], answer_text)})
         except Exception as error:  # noqa: BLE001 - every failure must reach the client as an event, without its text
             if isinstance(error, TimeoutError) and deadline.expired():  # the run's deadline; a provider's own TimeoutError is a failure
                 decided = ("limit_reached", None)

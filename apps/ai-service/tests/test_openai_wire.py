@@ -67,14 +67,14 @@ async def test_dotted_tool_name_goes_out_legal_and_comes_back_dotted_with_parsed
 
 
 async def test_resume_streams_tokens_and_the_answer_string_and_sends_a_valid_follow_up(serve_fake):
-    fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1"), text_turn("عندك مهمة واحدة")])
+    fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1"), text_turn("عندك مهمة واحدة: تقرير")])
     async with service_client(base_url) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
         events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "call_a1", "result": TASKS}, headers=HEADERS)).text)
     tokens = [data["text"] for name, data in events if name == "token"]
-    assert len(tokens) > 1 and "".join(tokens) == "عندك مهمة واحدة"
+    assert len(tokens) > 1 and "".join(tokens) == "عندك مهمة واحدة: تقرير"
     answer = dict(events)["answer"]
-    assert isinstance(answer["text"], str) and answer["text"] == "عندك مهمة واحدة" and answer["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
+    assert isinstance(answer["text"], str) and answer["text"] == "عندك مهمة واحدة: تقرير" and answer["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
     assert events[-1][1] == {"status": "done"} and fake.state.rejected == []
     follow_up = fake.state.requests[1]["messages"]
     assert [m["role"] for m in follow_up] == ["system", "user", "assistant", "tool"]

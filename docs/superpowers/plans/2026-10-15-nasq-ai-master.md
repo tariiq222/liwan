@@ -140,7 +140,7 @@
 | `run` | `{"run_id": "r_…"}` (أول حدث دائمًا) |
 | `token` | `{"text": "…"}` |
 | `tool_request` | `{"call_id": "c_01", "tool": "pmo.list_my_tasks", "kind": "read", "input": {…}, "summary_ar": "سأقرأ مهامك", "summary_en": "I will read your tasks"}` |
-| `answer` | `{"text": "…", "records": [{"type": "task", "id": 5, "label": "…"}]}` |
+| `answer` | `{"text": "…", "records": [{"type": "task", "id": 5, "label": "…"}]}`؛ الـ`records` هي صفوف نتائج الأدوات التي يشير إليها نص الإجابة فقط (باسمها أو برقمها) |
 | `limit_reached` | `{"limit": "max_tool_calls" \| "max_steps" \| "timeout"}` |
 | `error` | `{"code": "provider_unavailable" \| "internal", "message": "…"}` |
 | `done` | `{"status": "waiting_tool" \| "waiting_user" \| "done" \| "failed" \| "limit_reached"}` (آخر حدث دائمًا) |

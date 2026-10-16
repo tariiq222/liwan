@@ -45,7 +45,7 @@ def client_factory():
 
 
 async def test_run_streams_a_tool_request_then_resumes_to_an_answer(client_factory):
-    async with client_factory([ai_tool_call("pmo__list_my_tasks", {"limit": 5}, "c_1"), ai_text("عندك مهمة")]) as client:
+    async with client_factory([ai_tool_call("pmo__list_my_tasks", {"limit": 5}, "c_1"), ai_text("عندك مهمة: تقرير")]) as client:
         response = await client.post("/v1/runs", json=BODY, headers=HEADERS)
         assert response.status_code == 200 and response.headers["content-type"].startswith("text/event-stream")
         events = parse_sse(response.text)
@@ -65,9 +65,17 @@ async def test_run_streams_a_tool_request_then_resumes_to_an_answer(client_facto
         names = [name for name, _ in events]
         assert "token" in names and names[-2:] == ["answer", "done"]
         answer = dict(events)["answer"]
-        assert answer["text"] == "عندك مهمة" and answer["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
+        assert answer["text"] == "عندك مهمة: تقرير" and answer["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
         assert events[-1][1] == {"status": "done"}
         assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["status"] == "done"
+
+
+async def test_the_answer_lists_only_the_returned_records_it_names(client_factory):
+    rows = {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}, {"id": 6, "name": "ميزانية"}], "total": 2}}
+    async with client_factory([ai_tool_call("pmo__list_my_tasks", {"limit": 5}, "c_1"), ai_text("المتأخرة هي **تقرير** فقط")]) as client:
+        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": rows}, headers=HEADERS)).text)
+        assert dict(events)["answer"]["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
 
 
 async def test_write_and_draft_requests_wait_for_the_user(client_factory):
