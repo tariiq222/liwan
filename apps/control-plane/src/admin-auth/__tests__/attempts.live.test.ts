@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { migrate, transaction } from '../../db.js'
+import { AdminAuthError } from '../accounts.js'
 import { recordSuccess, reserveAttempt } from '../attempts.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
@@ -72,9 +73,11 @@ else describe('attempts', () => {
     expect(scopes).toEqual(['account:fresh@nasq.sa', 'account:new@nasq.sa', 'account:oldlocked@nasq.sa'])
   })
 
-  it('fails closed with auth_failed when the database errors', async () => {
+  it('fails closed when the database errors: no reservation, no verification', async () => {
     const broken = new Pool({ connectionString: url })
     await broken.end()
-    await expect(reserveAttempt(broken, ['account:x@nasq.sa'], t0)).rejects.toMatchObject({ status: 401, code: 'auth_failed' })
+    const error = await reserveAttempt(broken, ['account:x@nasq.sa'], t0).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(AdminAuthError)
   })
 })

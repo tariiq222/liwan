@@ -5,7 +5,7 @@ import { totpAt, totpStep, newTotpSecret } from '../totp.js'
 import { seal, totpBoxAad } from '../crypto.js'
 import { disableAccount } from '../accounts.js'
 import { accountCapabilities } from '../grants.js'
-import { completeEnrollment, inviteAccount, openInvitation } from '../enrollment.js'
+import { completeEnrollment, inviteAccount, issueReset, openInvitation } from '../enrollment.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 const secretKey = Buffer.alloc(32, 3)
@@ -37,6 +37,23 @@ else describe('enrollment', () => {
     expect(done.value.recoveryCodes).toHaveLength(10)
     const account = await pool.query('SELECT status FROM vendor_accounts WHERE email=$1', ['owner@nasq.sa'])
     expect(account.rows[0].status).toBe('active')
+  })
+  it('never deadlocks when a reset races a completion and ends with one consistent outcome', async () => {
+    for (let round = 0; round < 8; round++) {
+      const { token, accountId } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: `race${round}@nasq.sa`, displayName: 'R', roles: ['support'], reason: 'support' }, now))
+      await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES($1,$2,'\\x00')", [`race-${round}`, accountId])
+      const secret = newTotpSecret()
+      const input = { password: 'a long enough password', totpCode: totpAt(secret, totpStep(now.getTime())), totpSecretBox: seal(secretKey, secret, totpBoxAad(accountId)), passkeyRegistered: true }
+      const results = await Promise.allSettled([
+        transaction(pool, (c) => completeEnrollment(c, token, input, secretKey, now)),
+        transaction(pool, (c) => issueReset(c, 'operator', accountId, 'race', now)),
+        transaction(pool, (c) => disableAccount(c, 'operator', accountId, 'race')),
+      ])
+      for (const r of results) if (r.status === 'rejected') expect((r.reason as { code?: string }).code).not.toBe('40P01')
+      const status = (await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])).rows[0].status
+      expect(['enrolling', 'active', 'disabled']).toContain(status)
+      if (status !== 'active') expect((await pool.query("SELECT 1 FROM vendor_invitations WHERE account_id=$1 AND consumed_at IS NULL AND purpose='enroll'", [accountId])).rowCount).toBe(0)
+    }
   })
   it('refuses a duplicate email in another case', async () => {
     await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'x@nasq.sa', displayName: 'X', roles: ['support'], reason: 'support' }, now))

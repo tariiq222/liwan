@@ -156,6 +156,27 @@ else describe('admin auth routes', () => {
     expect(scopes.filter((s) => s.startsWith('ip:') && s !== 'ip:203.0.113.9')).toHaveLength(1)
     expect(scopes.some((s) => s.includes('DROP'))).toBe(false)
   })
+  it('counts an IPv6 client by its /64, so rotating the host part does not reset the limit', async () => {
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-nasq-client-ip': '2001:db8:0:1::1' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-nasq-client-ip': '2001:db8:0:1:ffff::9' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-nasq-client-ip': '2001:db8:0:2::1' })
+    const rows = (await attempts()).filter((r) => String(r.scope).startsWith('ip:'))
+    expect(rows).toEqual([{ scope: 'ip:2001:db8:0:1::/64', failures: 2 }, { scope: 'ip:2001:db8:0:2::/64', failures: 1 }])
+  })
+  it('lets exactly one of two parallel sign-ins with the same TOTP code through', async () => {
+    const code = await freshCode()
+    const results = await Promise.all([0, 1].map(() => post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: code })))
+    expect(results.map((r) => r.status).sort()).toEqual([200, 401])
+  })
+  it('answers 503 admin_unavailable, not a credential verdict, when storage fails', async () => {
+    const broken = new Pool({ connectionString: url })
+    await broken.end()
+    const { s, origin: brokenOrigin } = await listen(createApp(broken, { ...baseConfig, admin }, { webauthn: lib }))
+    try {
+      const res = await post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: '123456' }, {}, brokenOrigin)
+      expect([res.status, res.body]).toEqual([503, { code: 'admin_unavailable' }])
+    } finally { await new Promise<void>((resolve) => s.close(() => resolve())) }
+  })
   it('uses a recovery code once', async () => {
     const first = await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[0] })
     expect(first.status).toBe(200)

@@ -4,6 +4,7 @@ CREATE TABLE vendor_accounts (
   display_name text NOT NULL CHECK (length(btrim(display_name)) BETWEEN 1 AND 120),
   status text NOT NULL DEFAULT 'enrolling' CHECK (status IN ('enrolling','active','disabled')),
   password_hash text,
+  CHECK (status <> 'active' OR password_hash IS NOT NULL),
   created_at timestamptz NOT NULL DEFAULT now(),
   disabled_at timestamptz
 );
@@ -27,7 +28,7 @@ CREATE TABLE vendor_totp (
   account_id bigint PRIMARY KEY REFERENCES vendor_accounts(id) ON DELETE CASCADE,
   secret_box bytea NOT NULL,
   last_step bigint NOT NULL DEFAULT 0,
-  confirmed_at timestamptz
+  confirmed_at timestamptz NOT NULL
 );
 CREATE TABLE vendor_recovery_codes (
   account_id bigint NOT NULL REFERENCES vendor_accounts(id) ON DELETE CASCADE,

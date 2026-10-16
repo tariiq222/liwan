@@ -5,6 +5,7 @@ import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
 import type { Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit } from './accounts.js'
+import { ipScopeKey } from './attempts.js'
 import { CountedFailure, handlers, type AuthContext } from './route-handlers.js'
 import type { WebAuthnLib } from './webauthn.js'
 
@@ -34,10 +35,11 @@ const ROUTES: Record<string, { schema: z.ZodType; handler: (ctx: AuthContext, bo
 type AuthRequest = { method: string; pathname: string; path: string; raw: string | Buffer; headers: IncomingHttpHeaders; remoteAddress?: string }
 
 // Only a request that passed the anonymous service signature (the BFF is the only signer) may name the client address.
+// The result is the attempt-scope key of the address (an IPv6 client is counted per /64).
 function clientIp(headers: IncomingHttpHeaders, remoteAddress: string | undefined): string {
   const forwarded = headers['x-nasq-client-ip']
-  if (typeof forwarded === 'string' && forwarded.length <= 64 && /^[0-9a-fA-F:.]+$/.test(forwarded)) return forwarded
-  return remoteAddress ?? 'unknown'
+  if (typeof forwarded === 'string' && forwarded.length <= 64 && /^[0-9a-fA-F:.]+$/.test(forwarded)) return ipScopeKey(forwarded)
+  return ipScopeKey(remoteAddress ?? 'unknown')
 }
 
 function failure(error: unknown): { status: number; data: { code: string } } {
@@ -46,10 +48,10 @@ function failure(error: unknown): { status: number; data: { code: string } } {
     if (error.code === 'invalid') return { status: 422, data: { code: 'invalid' } }
     return { status: 401, data: { code: 'auth_failed' } }
   }
-  // Never the message: it can carry request material.
+  // Anything else is a fault of ours (storage, encoding), never a credential verdict. Never log the message: it can carry request material.
   const e = error as { name?: unknown; code?: unknown }
   console.error('admin auth failure', typeof e?.name === 'string' ? e.name : 'unknown', typeof e?.code === 'string' && e.code.length <= 8 ? e.code : '')
-  return { status: 401, data: { code: 'auth_failed' } }
+  return { status: 503, data: { code: 'admin_unavailable' } }
 }
 
 // The attempt was already reserved before verification; the failure is audited in its own committed transaction (the handler's has rolled back).

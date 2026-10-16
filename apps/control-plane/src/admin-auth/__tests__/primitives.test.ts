@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ipScopeKey } from '../attempts.js'
 import { hashToken, newRecoveryCodes, newToken, open, seal, totpBoxAad } from '../crypto.js'
 import { checkTotp, totpAt, totpStep } from '../totp.js'
 import { hashPassword, passwordAcceptable, verifyPassword } from '../passwords.js'
@@ -69,5 +70,20 @@ describe('passwords', () => {
     expect(passwordAcceptable('short')).toBe(false)
     expect(passwordAcceptable('a'.repeat(12))).toBe(true)
     expect(passwordAcceptable('a'.repeat(257))).toBe(false)
+  })
+})
+
+describe('attempt scope of a client address', () => {
+  it('leaves IPv4 alone and counts IPv4-mapped IPv6 as IPv4', () => {
+    expect(ipScopeKey('203.0.113.9')).toBe('203.0.113.9')
+    expect(ipScopeKey('::ffff:203.0.113.9')).toBe('203.0.113.9')
+    expect(ipScopeKey('unknown')).toBe('unknown')
+  })
+  it('groups IPv6 by /64', () => {
+    const scope = '2001:db8:0:1::/64'
+    for (const ip of ['2001:db8:0:1::1', '2001:0db8:0000:0001:ffff:ffff:ffff:ffff', '2001:DB8:0:1:abcd::7', '2001:db8:0:1:0:0:0:0']) expect(ipScopeKey(ip)).toBe(scope)
+    expect(ipScopeKey('2001:db8:0:2::1')).toBe('2001:db8:0:2::/64')
+    expect(ipScopeKey('::1')).toBe('0:0:0:0::/64')
+    expect(ipScopeKey('2001:db8::1.2.3.4')).toBe('2001:db8:0:0::/64')
   })
 })
