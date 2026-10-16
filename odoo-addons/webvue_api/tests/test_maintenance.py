@@ -49,6 +49,57 @@ class TestMaintenanceApi(WebVueApiCase):
         self.assertEqual(body['releases']['items'][0]['releaseId'], 'api-release-1')
         self.assertNotIn('company_id', body['releases']['items'][0])
 
+    def test_current_notice_remains_bookable_after_more_than_200_historical_notices(self):
+        Release = self.env['webvue.maintenance.release'].with_context(**{OPERATOR_CONTEXT: True})
+        previous = Release.create({
+            'company_id': self.company.id, 'release_id': 'previous-booked-release',
+            'deadline_at': fields.Datetime.now() + timedelta(days=31),
+            'estimated_seconds': 120, 'policy': 'Previously booked update.',
+        })
+        booking = self.env['webvue.maintenance.booking'].with_user(self.manager)._webvue_schedule({
+            'release_id': previous.id, 'scheduled_at': fields.Datetime.now() + timedelta(days=2),
+            'timezone': 'UTC', 'duration_minutes': 60,
+        })
+        booking._webvue_update({'status': 'cancelled'}, booking.revision)
+        previous.write({'status': 'withdrawn', 'deadline_at': fields.Datetime.now() - timedelta(days=365)})
+        Release.create([{
+            'company_id': self.company.id, 'release_id': 'historical-release-%s' % index,
+            'deadline_at': fields.Datetime.now() - timedelta(days=index + 1),
+            'estimated_seconds': 120, 'status': 'withdrawn' if index % 2 else 'supported',
+            'policy': 'Historical update.',
+        } for index in range(201)])
+
+        self.login_manager()
+        response = self.api('GET', '/api/v1/admin/maintenance')
+        self.assertEqual(response.status_code, 200, response.text)
+        snapshot = response.json()
+        notices = snapshot['releases']['items']
+        self.assertIn(self.release.id, [notice['id'] for notice in notices])
+        self.assertEqual(notices[0]['id'], self.release.id)
+        self.assertIn(previous.id, [notice['id'] for notice in notices])
+        self.assertEqual(len(notices), 200)
+        self.assertEqual(snapshot['releases']['total'], 203)
+        self.assertEqual(snapshot['bookings']['items'][0]['releaseId'], previous.id)
+        response = self.api('POST', '/api/v1/admin/maintenance/bookings', json={
+            'releaseId': notices[0]['id'],
+            'localDateTime': (fields.Datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M'),
+            'timezone': 'UTC', 'durationMinutes': 60,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['releaseId'], self.release.id)
+
+    def test_maintenance_snapshot_rejects_a_manager_outside_the_root_company(self):
+        company = self.env['res.company'].create({'name': 'Another maintenance company'})
+        manager = new_test_user(
+            self.env, login='maintenance_other_company', password='maintenance_other_pass_123',
+            groups='webvue_core.group_customer_admin,webvue_platform.group_maintenance_manager',
+            company_id=company.id,
+        )
+        self.authenticate(manager.login, 'maintenance_other_pass_123')
+        response = self.api('GET', '/api/v1/admin/maintenance')
+        self.assertEqual(response.status_code, 403, response.text)
+        self.assertEqual(response.json()['code'], 'forbidden')
+
     def test_booking_cancel_and_whitelist(self):
         self.login_manager()
         payload = {'releaseId': self.release.id, 'localDateTime': (fields.Datetime.now() + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M'), 'timezone': 'UTC', 'durationMinutes': 60}

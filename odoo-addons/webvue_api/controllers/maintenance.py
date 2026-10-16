@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from .common import api_handler, get_record
@@ -23,8 +23,18 @@ class MaintenanceController(http.Controller):
         preference = request.env['webvue.maintenance.preference'].search(domain, limit=1)
         Release = request.env['webvue.maintenance.release']
         Booking = request.env['webvue.maintenance.booking']
-        releases = Release.search(domain, limit=200)
-        bookings = Booking.search(domain, limit=200)
+        limit = 200
+        bookings = Booking.search(domain, limit=limit)
+        releases = Release.search(domain + [
+            ('status', '=', 'supported'), ('deadline_at', '>', fields.Datetime.now()),
+        ], limit=limit)
+        # Keep actionable notices first, then booking context, then recent history.
+        for extra in [[('id', 'in', bookings.release_id.ids)], []]:
+            if len(releases) < limit:
+                releases |= Release.search(
+                    domain + extra + [('id', 'not in', releases.ids)],
+                    limit=limit - len(releases), order='deadline_at desc, id desc',
+                )
         return {
             'preference': dump_preference(preference),
             'releases': {'items': [dump_release(record) for record in releases], 'total': Release.search_count(domain)},
