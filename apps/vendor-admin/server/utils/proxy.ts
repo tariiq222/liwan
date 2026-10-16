@@ -18,7 +18,7 @@ const ALLOWED = [
   new RegExp(`^/v1/(audit|catalog|context|operations|overview|targets|tenants|shared/tenants)(/${SEGMENT})*$`),
   new RegExp(`^/v1/commercial/(bundles|plans)(/${SEGMENT}(/(validate|publish|withdraw|restore|revisions))?)?$`),
   new RegExp(`^/v1/commercial/(customers|invoices|quotes)(/${SEGMENT})?$`),
-  /^\/v1\/commercial\/(catalog\/releases|clients|policies|customer-terms|customer-quotes|orders)$/,
+  /^\/v1\/commercial\/(attention|catalog\/releases|clients|policies|customer-terms|customer-quotes|orders)$/,
   new RegExp(`^/v1/commercial/orders/${SEGMENT}/(cancel|payment-attempts)$`),
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage))?$`),
   /^\/v1\/admin\/(me|accounts)$/,

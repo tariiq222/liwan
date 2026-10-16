@@ -46,15 +46,15 @@ describe('vendor commercial customers and invoices pages', () => {
     const p = page('invoices/[id].vue')
     expect(p).toContain('notOfficial'); expect(p).toContain('attempts'); expect(p).toContain('adjustments'); expect(p).toContain('SharedInvoiceLines')
   })
-  it('overview computes commercial metrics from list endpoints, not price lists', () => {
+  it('today page takes its items and counts from the server attention endpoint, not price lists', () => {
     const p = page('overview.vue')
-    expect(p).toContain('commercialMetrics'); expect(p).toContain('listCustomers'); expect(p).not.toMatch(/revenue|prices/)
+    expect(p).toContain("'commercial/attention'"); expect(p).not.toContain('listCustomers'); expect(p).not.toMatch(/revenue|prices/)
   })
   it('uses logical properties only', () => {
     for (const p of ['customers/index.vue', 'customers/[id].vue', 'invoices/index.vue', 'invoices/[id].vue']) expect(page(p)).not.toMatch(/\b(ml|mr|pl|pr)-\d|\btext-left\b|\bleft-\d/)
   })
   it('ar and en carry the same new namespaces', () => {
-    for (const ns of ['customers', 'invoices', 'overviewCommercial']) expect(flat(json('ar')[ns]).sort()).toEqual(flat(json('en')[ns]).sort())
+    for (const ns of ['customers', 'invoices', 'today']) expect(flat(json('ar')[ns]).sort()).toEqual(flat(json('en')[ns]).sort())
   })
   it('change page never sends terms and only accepts non-preview quotes; terms page saves without accepting', () => {
     const c = page('customers/[id]/change.vue'); const n = page('customers/[id]/terms/new.vue'); const api = read('app/composables/useVendorSubscriptions.ts')

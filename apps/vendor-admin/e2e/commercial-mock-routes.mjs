@@ -7,6 +7,21 @@ const fixtures = JSON.parse(readFileSync(resolve(import.meta.dirname, 'commercia
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
 const notFound = res => json(res, 404, { code: 'not_found', message: 'Not found' })
 
+// The server-built "today" list: the stub derives it from the fixtures, overdue invoices only for billing callers.
+function attention(canBill) {
+  const [alpha, beta, gamma] = fixtures.customers.items
+  const failed = fixtures.operations.items.find(o => o.status === 'failed')
+  const base = { customer_id: null, tenant_id: null, operation_id: null, invoice_id: null, detail: null }
+  const items = [
+    ...(canBill ? [{ ...base, kind: 'past_due', customer_id: alpha.id, tenant_id: alpha.tenant_id, invoice_id: 'inv-1', name: alpha.name, since: '2026-10-04T00:00:00Z' }] : []),
+    { ...base, kind: 'stalled_activation', customer_id: beta.id, tenant_id: beta.tenant_id, name: beta.name, since: '2026-10-14T00:00:00Z', detail: 'applying' },
+    { ...base, kind: 'operation_failed', tenant_id: failed.tenant_id, operation_id: failed.id, name: alpha.name, since: '2026-10-15T00:00:00Z', detail: failed.type },
+    { ...base, kind: 'setup_required', customer_id: gamma.id, name: gamma.name, since: '2026-10-01T00:00:00Z' },
+    { ...base, kind: 'renewal_soon', customer_id: alpha.id, name: alpha.name, since: '2026-10-20T00:00:00Z' },
+  ]
+  return { items, total: items.length, counts: { subscriptions_active: 2, subscriptions_pending: 1, past_due: 1, stalled: 1, setup_required: 1, renewals: 1 } }
+}
+
 function page(collection, url, filter = () => true) {
   const limit = Number(url.searchParams.get('limit') ?? 25) || 25
   const offset = Number(url.searchParams.get('offset') ?? 0) || 0
@@ -43,6 +58,7 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   let m
   if (path === '/v1/context') send(capabilities ? { ...fixtures.context, capabilities: fixtures.context.capabilities.filter(name => capabilities.includes(name)) } : fixtures.context)
   else if (path === '/v1/overview') send(fixtures.overview)
+  else if (path === '/v1/commercial/attention') send(attention(!capabilities || capabilities.includes('vendor.billing.manage')))
   else if (path === '/v1/catalog') send(fixtures.catalogVersions)
   else if (path === '/v1/packages') send({ items: fixtures.catalog.items, total: fixtures.catalog.total })
   else if ((m = /^\/v1\/packages\/([^/]+)$/.exec(path))) send(byId(fixtures.catalog, decodeURIComponent(m[1])))

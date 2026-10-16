@@ -39,7 +39,6 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     invoice: vi.fn(async () => ({ ...invoice, order_id: options.orderId === undefined ? invoice.order_id : options.orderId })),
     paymentAttempts: vi.fn(async () => { if (options.attemptsError) throw options.attemptsError; return { items: options.attempts ?? [attempt], total: (options.attempts ?? [attempt]).length } }),
     changeQuote: vi.fn(async () => ({ id: 'new-quote' })), placeOrder: vi.fn(async () => order),
-    listCustomers: vi.fn(async () => ({ items: [], total: 0 })),
     cancelOrder: vi.fn(async () => { calls.push('cancel'); current = { ...current, pending_order: null }; return order }),
   }
   const hydrated = Vue.ref(options.hydrated ?? true)
@@ -236,17 +235,6 @@ describe('invoice payment attempts', () => {
     const p = await page('invoices/[id].vue', options)
     expect(p.api.paymentAttempts).not.toHaveBeenCalled()
   })
-})
-
-it('overview has two sections whose tiles open the list they count and no navigation buttons', async () => {
-  const { captured } = await (await page('overview.vue')).rendered()
-  const links = captured.filter(c => c.name === 'NuxtLink').map(c => c.props.to)
-  expect(links).toEqual(['/operations?status=attention', '/customers?state=setup_required', '/customers', '/customers', '/operations?status=pending', '/customers?state=active'])
-  expect(captured.filter(c => c.name === 'SharedMetricTile').map(c => c.props.label)).toEqual([
-    'vendor.overview.failed', 'vendor.overviewCommercial.pastDue', 'vendor.overviewCommercial.stalled', 'vendor.overviewCommercial.setup',
-    'vendor.overview.tenants', 'vendor.overview.active', 'vendor.overview.pending', 'vendor.overviewCommercial.active', 'vendor.overviewCommercial.pending', 'vendor.overviewCommercial.renewals',
-  ])
-  expect(captured.some(c => c.name === 'UButton')).toBe(false)
 })
 
 describe('client record tabs', () => {
