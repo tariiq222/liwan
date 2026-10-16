@@ -10,6 +10,10 @@
 		Strict-Transport-Security "max-age=63072000; includeSubDomains"
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		Content-Security-Policy "frame-ancestors 'none'"
+		# Every response of the admin host, assets included, is private: nothing is cached by a browser or a proxy.
+		Cache-Control "no-store"
 		-Server
 	}
 
@@ -21,12 +25,20 @@
 				window 1m
 				ipv6_prefix 64
 			}
+			# Sign-in, enrollment and step-up: same budget as the customer auth zone in deploy/Caddyfile.
+			zone nasq_admin_auth {
+				match {
+					path /api/auth/* /api/vendor/v1/admin/auth/*
+				}
+				key {remote_host}
+				events 20
+				window 1m
+				ipv6_prefix 64
+			}
 		}
 		reverse_proxy vendor-admin:3100 {
-			# Set after Connection-nominated fields are stripped; never append.
+			# Set after Connection-nominated fields are stripped; never append. The BFF reads only X-Forwarded-For (trustProxy).
 			header_up X-Forwarded-For {remote_host}
-			header_up X-Nasq-Client-Host {hostport}
-			header_up X-Nasq-Client-Proto {scheme}
 		}
 	}
 }
