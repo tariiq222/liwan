@@ -16,6 +16,7 @@
     "@nasq/ui": "0.1.0",
     "@nuxt/ui": "4.11.1",
     "@nuxtjs/i18n": "^10.6.0",
+    "@simplewebauthn/browser": "14.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vueuse/core": "^14.4.0",
     "@vueuse/nuxt": "^14.4.0",
@@ -26,6 +27,7 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.20.1",
     "typescript": "^5.9.3",
     "vitest": "4.1.11",
