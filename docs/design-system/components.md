@@ -150,7 +150,10 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة: أربع بطاقات ثم المراجعة، والإجراءات في تذييل اللوحة | `SharedEmptyState`, `SharedFormActions`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea`, `VendorCapacityLimitsEditor`, `VendorFormSubsection`, `VendorLimitControl`, `VendorPriceListEditor` |
 | `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `SharedEmptyState`, `UButton`, `UFormField`, `UInput`, `USelect` |
 | `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
+| `apps/vendor-admin/app/components/vendor/TenantOperationsPanel.vue` | تبويب عمليات مساحة العميل: صلاحية العمليات وإضافة عملية وآخر العمليات | `SharedForbiddenState`, `SharedInlineConfirm`, `SharedPageState`, `SharedRecordSection`, `SharedStatusBadge`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/TenantProperties.vue` | خصائص مساحة العميل في عمود الصفحة الجانبي | `SharedPageState`, `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UButton` |
 | `apps/vendor-admin/app/components/vendor/UsageMeters.vue` | مقاييس الاستهلاك مقابل الحدود | `SharedStatusBadge`, `UProgress` |
+| `apps/vendor-admin/app/components/vendor/WorkspacePanel.vue` | تبويب مساحة العمل: التجهيز وفتح المساحة والإعدادات المطلوبة والمرصودة | `SharedPageState`, `SharedRecordSection`, `UAlert`, `UButton` |
 
 ## مكونات العمليات
 

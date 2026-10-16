@@ -11,17 +11,10 @@ export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 export type VendorInvoiceList = { items: Invoice[]; total: number }
 
 // ---- Filters (URL-backed) ----
-export const CUSTOMER_STATE_FILTERS = ['all', 'awaiting_payment', 'activating', 'active', 'failed', 'inactive', 'setup_required'] as const
-export type CustomerStateFilter = (typeof CUSTOMER_STATE_FILTERS)[number]
-export const isCustomerStateFilter = (v: unknown): v is CustomerStateFilter => typeof v === 'string' && (CUSTOMER_STATE_FILTERS as readonly string[]).includes(v)
 export const INVOICE_STATUS_FILTERS = ['all', 'draft', 'issued', 'paid', 'void', 'credit_pending'] as const
 export type InvoiceStatusFilter = (typeof INVOICE_STATUS_FILTERS)[number]
 export const isInvoiceStatusFilter = (v: unknown): v is InvoiceStatusFilter => typeof v === 'string' && (INVOICE_STATUS_FILTERS as readonly string[]).includes(v)
 
-/** The server filters customers by commercial state (or setup_required); display states are derived client-side from the view. */
-export function customerListQuery(p: { q?: string; state?: string; page: number; pageSize: number }) {
-  return { q: p.q || undefined, state: p.state && p.state !== 'all' ? p.state : undefined, limit: p.pageSize, offset: (p.page - 1) * p.pageSize }
-}
 export function invoiceListQuery(p: { customerId?: string; status?: string; page: number; pageSize: number }) {
   return { customer_id: p.customerId || undefined, status: p.status && p.status !== 'all' ? p.status : undefined, limit: p.pageSize, offset: (p.page - 1) * p.pageSize }
 }

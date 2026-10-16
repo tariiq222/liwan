@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { createSharedTenantRequest, sharedTenantLoginUrl, type SharedTenantProgress } from '../../composables/useSharedTenantOnboarding'
 
 const webRoot = resolve(import.meta.dirname, '../../..')
-const form = readFileSync(resolve(webRoot, 'app/pages/tenants/new.vue'), 'utf8')
-const detail = readFileSync(resolve(webRoot, 'app/pages/tenants/[id].vue'), 'utf8')
+const form = readFileSync(resolve(webRoot, 'app/pages/customers/new.vue'), 'utf8')
+const detail = ['app/components/vendor/WorkspacePanel.vue', 'app/composables/useWorkspaceProvisioning.ts'].map(file => readFileSync(resolve(webRoot, file), 'utf8')).join('\n')
 const input = { name: 'Company', catalog_version: '1', catalog_tier: 'projects', admin_name: 'Admin', admin_login: 'admin@example.test', reason: 'First tenant' }
 const ready: SharedTenantProgress = { tenant_id: 'tenant', job_id: 'job', status: 'active', host: 'tenant.nasq.test', admin_login: input.admin_login, stage: 'active', error_code: null }
 
@@ -71,9 +71,9 @@ describe('shared tenant onboarding browser contract', () => {
   it('localizes failure and unknown stages without displaying raw errors or private values', () => {
     expect(detail).toContain("vendor.tenants.provisioning.failed")
     expect(detail).toContain("vendor.tenants.provisioning.unavailable")
-    expect(detail).toContain("? stage : 'pending'")
+    expect(detail).toContain("? current : 'pending'")
     expect(detail).not.toContain('{{ provisioning.error_code }}')
-    expect(detail).toContain('provisioningDisposed = true')
+    expect(detail).toContain('disposed = true')
     for (const lang of ['ar', 'en']) {
       const locale = JSON.parse(readFileSync(resolve(webRoot, `i18n/locales/${lang}/vendor.json`), 'utf8')).vendor.tenants.provisioning
       expect(locale.failed).toBeTruthy()

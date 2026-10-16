@@ -16,6 +16,23 @@ function page(collection, url, filter = () => true) {
 const q = (url, name) => url.searchParams.get(name) ?? ''
 const byId = (collection, id) => collection.items.find(item => item.id === id)
 
+/** The unified client list the control plane serves: every customer with its workspace, then workspaces without a customer. */
+function clientRows() {
+  const tenant = id => fixtures.tenants.items.find(t => t.id === id)
+  const display = s => (s ? (s.pending_order ? 'awaiting_payment' : s.state === 'active' ? 'active' : 'activating') : null)
+  const planName = s => fixtures.plans.items.find(p => p.id === s?.applied?.plan_revision_id)?.name ?? null
+  const rows = fixtures.customers.items.map(c => ({
+    customer_id: c.id, tenant_id: c.tenant_id, name: c.name, subscription_state: display(c.subscription), plan_name: planName(c.subscription), pending_plan_name: null,
+    renewal_at: c.subscription?.renewal_at ?? null, setup_required: Boolean(c.commercial_setup_required),
+    tenant_status: tenant(c.tenant_id)?.status ?? null, commercial_mode: tenant(c.tenant_id)?.commercial_mode ?? null, hosting_model: tenant(c.tenant_id)?.hosting_model ?? null,
+  }))
+  const owned = new Set(fixtures.customers.items.map(c => c.tenant_id))
+  for (const t of fixtures.tenants.items) {
+    if (!owned.has(t.id)) rows.push({ customer_id: null, tenant_id: t.id, name: t.name, subscription_state: null, plan_name: null, pending_plan_name: null, renewal_at: null, setup_required: false, tenant_status: t.status, commercial_mode: t.commercial_mode, hosting_model: t.hosting_model })
+  }
+  return rows
+}
+
 /** `capabilities` narrows /v1/context to the signed-in account; without it the fixture context is served whole. */
 export function handleCommercial(req, res, url, { capabilities } = {}) {
   const path = url.pathname
@@ -34,7 +51,13 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   else if ((m = /^\/v1\/tenants\/([^/]+)$/.exec(path))) send(byId(fixtures.tenants, m[1]))
   else if (path === '/v1/operations') send(page(fixtures.operations, url, o => !q(url, 'tenant_id') || o.tenant_id === q(url, 'tenant_id')))
   else if ((m = /^\/v1\/operations\/([^/]+)$/.exec(path))) send(fixtures.operationDetails[m[1]])
-  else if (path === '/v1/commercial/customers') send(page(fixtures.customers, url, c => (!q(url, 'q') || c.name.includes(q(url, 'q'))) && (!q(url, 'tenant_id') || c.tenant_id === q(url, 'tenant_id'))))
+  else if (path === '/v1/commercial/clients') {
+    const state = q(url, 'state')
+    const matches = r => (!q(url, 'q') || r.name.includes(q(url, 'q'))) && (!state || (state === 'setup_required' ? r.setup_required || (r.customer_id && !r.subscription_state) : state === 'no_workspace' ? r.customer_id && !r.tenant_id : state === 'no_commercial' ? !r.customer_id : r.subscription_state === state))
+    const items = clientRows().filter(matches)
+    const from = (Math.max(1, Number(q(url, 'page')) || 1) - 1) * 25
+    send({ items: items.slice(from, from + 25), total: items.length })
+  } else if (path === '/v1/commercial/customers') send(page(fixtures.customers, url, c => (!q(url, 'q') || c.name.includes(q(url, 'q'))) && (!q(url, 'tenant_id') || c.tenant_id === q(url, 'tenant_id'))))
   else if ((m = /^\/v1\/commercial\/customers\/([^/]+)$/.exec(path))) send(byId(fixtures.customers, m[1]))
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)$/.exec(path))) send(fixtures.subscriptions[m[1]])
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)\/(branches|usage)$/.exec(path))) send(fixtures.subscriptionParts[`${m[1]}:${m[2]}`])

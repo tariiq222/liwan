@@ -1,13 +1,12 @@
 import type { ShellRailItem } from '@nasq/ui/app/types/shell'
 
-/** `alsoUnder`: further path prefixes that belong to this section (the retired legacy packages sit under plans). */
+/** `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, the retired legacy packages under plans). */
 interface AdminNavEntry { id: string, icon: string, capability: string, alsoUnder?: readonly string[] }
 
 // Display order. The control plane enforces every capability; hiding an entry here is presentation only.
 const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'overview', icon: 'i-lucide-house', capability: 'vendor.read' },
-  { id: 'customers', icon: 'i-lucide-users', capability: 'vendor.read' },
-  { id: 'tenants', icon: 'i-lucide-building-2', capability: 'vendor.read' },
+  { id: 'customers', icon: 'i-lucide-users', capability: 'vendor.read', alsoUnder: ['/tenants'] },
   { id: 'plans', icon: 'i-lucide-badge-percent', capability: 'vendor.read', alsoUnder: ['/catalog'] },
   { id: 'bundles', icon: 'i-lucide-boxes', capability: 'vendor.read' },
   { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage' },
