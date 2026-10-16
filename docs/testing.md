@@ -109,6 +109,17 @@ Specs live in `apps/web/e2e` and talk to `internal-ui-audit-mock.mjs`. They are
 deterministic and free, and CI runs the list in `ci-mock-specs.txt`. Use them for page
 states, navigation and regressions that need no judgement.
 
+### Nasq AI spec
+
+`e2e/ai-mocked.spec.ts` is in `ci-mock-specs.txt`. Besides the audit mock it needs `e2e/ai-service-mock.mjs`, a
+scripted stand-in for the AI service (no model; port `AI_MOCK_PORT`, 4499 in CI) that Nuxt reaches through
+`NUXT_AI_SERVICE_URL`. Export that variable when starting the server (`nuxt dev` or `node .output/server/index.mjs`): it also switches on
+`/ai` and is read at runtime, so the build needs none (CI builds without it on purpose). The audit mock serves `GET /api/v1/ai/tools` (the catalog: the draft tool is omitted for a
+`mock_caps=reader` user) and records `POST /api/v1/ai/audit` rows, which the spec reads from
+`GET /__mock/ai-audit`. The unavailable state is checked by answering 503 `ai_unavailable` from the browser
+side (`page.route`), not by stopping the service. Set `AI_SHOTS_DIR` to also save Arabic and English
+desktop and mobile screenshots of `/ai`.
+
 ### Running the my-tasks specs
 
 `e2e/my-tasks-*.spec.ts` (list, new, detail) are not in `ci-mock-specs.txt`: the shared mock's `/me` does

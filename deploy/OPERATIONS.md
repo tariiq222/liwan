@@ -55,6 +55,7 @@ Not started by these tools. Named volumes, not bind mounts:
 | `db` | `postgres:16` | volume `db_data` → `/var/lib/postgresql/data` |
 | `odoo` | `nasq-odoo:${NASQ_IMAGE_TAG}` | baked Odoo and Nasq addons; volume `odoo_data` → `/var/lib/odoo` (`data_dir`); filestore inside the volume at `filestore/${DB_NAME}` |
 | `web` | apps/web image | listens on container port `3000` |
+| `ai` (profile `ai`, optional) | apps/ai-service image | Nasq AI service on container port `8600`, no published port; run state in the `nasq_ai` database under the `nasq_ai` role |
 | `proxy` | `nasq-caddy:${NASQ_IMAGE_TAG}` from `deploy/proxy/Dockerfile` | `80`/`443`; official Caddy plus `http.handlers.rate_limit` |
 
 `deploy/odoo.conf` uses `data_dir = /var/lib/odoo`, `db_host = db`, `dbfilter = ^${DB_NAME}$`. Provisioning (`deploy/provision.sh`) validates all three secrets, selects the pinned baked image, then installs and seeds through its guarded entrypoint. The manual backup wrappers do not invoke provisioning.
@@ -63,6 +64,38 @@ To back up a Compose customer, the operator must supply **host paths** for
 `pg_dump` output and for `<data_dir>/filestore/<db_name>` after copying or
 mounting the volume themselves. This tool does not `docker exec`, `docker cp`,
 `docker compose stop`, or read secrets from `deploy/.env`.
+
+## Nasq AI
+
+The `ai` service (`apps/ai-service`, port `8600`, `/healthz`) is optional and off by default: it sits under the Compose profile `ai`, so it does not exist unless `COMPOSE_PROFILES=ai` is set. Only `web` reaches it, through `NUXT_AI_SERVICE_URL=http://ai:8600`; it publishes no port. In the shared overlay it sits on `guard_web` (reachable from `web`) and `database` (reaches `db`) only.
+
+Variables (see `deploy/ai/.env.example`): `AI_PROVIDER` (`anthropic`, `openai` or `ollama`), `AI_MODEL` (required once enabled; the service fails at start with its own error when it is empty), `AI_API_KEY` (required for anthropic/openai), `AI_BASE_URL`, `AI_RUN_RETENTION_DAYS` (default 30), `AI_DB_PASSWORD`, `AI_SERVICE_TOKEN`. None of them is required by Compose interpolation, so deployments that never enable AI need none of them.
+
+Enabling:
+
+1. Generate the secrets: `AI_DB_PASSWORD=$(openssl rand -hex 24)` and `AI_SERVICE_TOKEN=$(openssl rand -hex 32)`. `AI_DB_PASSWORD` must be URL-safe (hex or base64url) because it is placed inside `AI_DATABASE_URL`, which you set to `postgresql://nasq_ai:<AI_DB_PASSWORD>@db:5432/nasq_ai`. `AI_SERVICE_TOKEN` is at least 24 characters; `web` sends it as `X-Nasq-Service-Token` (`NUXT_AI_SERVICE_TOKEN`) and the service rejects any other caller.
+2. In `deploy/.env` set `COMPOSE_PROFILES=ai`, `NUXT_AI_SERVICE_URL=http://ai:8600`, `AI_MODEL`, the provider variables, `AI_DB_PASSWORD`, `AI_DATABASE_URL` and `AI_SERVICE_TOKEN`. `AI_DATABASE_URL` is mandatory: the service refuses to start without it (only `AI_ALLOW_MEMORY_STATE=true` allows in-memory state, for development). A claimed write whose executor crashed is never executed twice: after the stale window the run reports `failed` and only a new user message continues it.
+3. `docker compose up -d`. Without `NUXT_AI_SERVICE_URL` the `/ai` page stays hidden.
+
+Database isolation: the service connects as the dedicated role `nasq_ai`, which owns only the `nasq_ai` database. It is not the `odoo` superuser and has no access to tenant databases. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-nasq-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `nasq_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `nasq_ai` (`postgres`, `template1`). Databases created later (the tenant database, shared-mode tenant databases) inherit the default `PUBLIC` `CONNECT`; revoke it for each: `docker compose exec db psql -U odoo -c 'REVOKE CONNECT ON DATABASE "<tenant_db>" FROM PUBLIC'`. Tenant tables grant nothing to `PUBLIC`, so even a connection could read no table data.
+
+Existing `db_data` volume (init scripts do not rerun): create the role and database once, by hand, with the password passed as a psql variable:
+
+```sh
+docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v ai_password="$AI_DB_PASSWORD" <<'SQL'
+SELECT format('CREATE ROLE nasq_ai LOGIN PASSWORD %L', :'ai_password') \gexec
+CREATE DATABASE nasq_ai OWNER nasq_ai;
+REVOKE CONNECT ON DATABASE nasq_ai FROM PUBLIC;
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', datname) FROM pg_database WHERE datname <> 'nasq_ai' \gexec
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM nasq_ai', datname) FROM pg_database WHERE datname <> 'nasq_ai' \gexec
+SQL
+```
+
+(`docker compose exec` forwards the host shell's `AI_DB_PASSWORD` through the `-v` argument, so export it first; the value never appears in SQL text.)
+
+- Retention cleanup of old runs: `docker compose exec ai python -m nasq_ai_service.cleanup`, scheduled by the host cron.
+- Stopping `ai`, or never enabling the profile, changes nothing else: `web`, `odoo` and `proxy` do not depend on it (works in `saas` and `non_saas`).
+- Threat model: the service holds no Nasq credential (no Odoo session or token, no `odoo` database password), only its own database role and the shared service token; all Nasq data reaches it per request through `web`, under the caller's own permissions.
 
 ## Isolated Odoo / E2E (`deploy/check_isolated.py`)
 

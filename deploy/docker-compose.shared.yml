@@ -80,6 +80,10 @@ services:
       - ./shared/validate_odoo_config.py:/opt/nasq/shared/validate_odoo_config.py:ro
       - odoo_data:/var/lib/odoo
 
+  ai:
+    ports: !reset []
+    networks: [guard_web, database]
+
   db:
     ports: !reset []
     networks: [database]
