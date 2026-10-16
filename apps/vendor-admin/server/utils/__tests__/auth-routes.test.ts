@@ -12,7 +12,7 @@ import recovery from '../../api/auth/recovery.post'
 import session from '../../api/auth/session.get'
 import stepUpOptions from '../../api/auth/step-up-options.post'
 import stepUpVerify from '../../api/auth/step-up-verify.post'
-import { SESSION, TOKEN, cookieHeader, json, send, stubConfig, stubUpstream } from './harness'
+import { SESSION, TOKEN, at, cookieHeader, json, send, stubConfig, stubUpstream } from './harness'
 
 const CHALLENGE = 'c'.repeat(36)
 const signedIn = { session: SESSION, expires_at: '2099-01-01T00:00:00.000Z', idle_expires_at: '2099-01-01T00:00:00.000Z' }
@@ -40,8 +40,8 @@ describe('auth routes', () => {
     const calls = stubUpstream(() => json(200, { ok: true, ...signedIn }))
     const headers = sessionCookie ? cookieHeader() : undefined
     const result = await send(handler, path, { body, headers })
-    expect(calls[0].url.pathname).toBe(upstream)
-    expect(JSON.parse(calls[0].body as string)).toEqual(body)
+    expect(at(calls, 0).url.pathname).toBe(upstream)
+    expect(JSON.parse(at(calls, 0).body as string)).toEqual(body)
     expect(result.status).toBe(200)
   })
 
@@ -64,7 +64,7 @@ describe('auth routes', () => {
     expect(calls).toHaveLength(0)
   })
 
-  it.each(['passkey-options'].map(() => cases[0]))('passes control-plane failure codes through', async ({ handler, path, body }) => {
+  it.each(['passkey-options'].map(() => at(cases, 0)))('passes control-plane failure codes through', async ({ handler, path, body }) => {
     for (const [status, code] of [[401, 'auth_failed'], [429, 'rate_limited'], [422, 'invalid'], [503, 'admin_unavailable'], [404, 'not_found']] as const) {
       stubUpstream(() => json(status, { code }))
       const result = await send(handler, path, { body })
@@ -81,9 +81,9 @@ describe('auth routes', () => {
   })
 
   it.each([
-    ['passkey-verify', passkeyVerify, '/api/auth/passkey-verify', cases[1].body],
-    ['fallback', fallback, '/api/auth/fallback', cases[2].body],
-    ['recovery', recovery, '/api/auth/recovery', cases[3].body],
+    ['passkey-verify', passkeyVerify, '/api/auth/passkey-verify', at(cases, 1).body],
+    ['fallback', fallback, '/api/auth/fallback', at(cases, 2).body],
+    ['recovery', recovery, '/api/auth/recovery', at(cases, 3).body],
   ] as const)('%s sets the cookie and returns only the expiry', async (_name, handler, path, body) => {
     stubUpstream(() => json(200, signedIn))
     const result = await send(handler, path, { body })
@@ -95,23 +95,23 @@ describe('auth routes', () => {
 
   it('enroll-complete also returns the recovery codes once', async () => {
     stubUpstream(() => json(200, { ...signedIn, recovery_codes: ['aaaa-bbbb-cccc'] }))
-    const result = await send(enrollComplete, '/api/auth/enroll/complete', { body: cases[10].body })
+    const result = await send(enrollComplete, '/api/auth/enroll/complete', { body: at(cases, 10).body })
     expect(result.body).toEqual({ expires_at: signedIn.expires_at, idle_expires_at: signedIn.idle_expires_at, recovery_codes: ['aaaa-bbbb-cccc'] })
     expect(result.text).not.toContain(SESSION)
   })
 
   it('a sign-in answer without a valid session string is a vendor outage and sets no cookie', async () => {
     stubUpstream(() => json(200, { ...signedIn, session: 'not-a-session' }))
-    const result = await send(passkeyVerify, '/api/auth/passkey-verify', { body: cases[1].body })
+    const result = await send(passkeyVerify, '/api/auth/passkey-verify', { body: at(cases, 1).body })
     expect(result).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
     expect(result.headers.get('set-cookie')).toBeNull()
     stubUpstream(() => json(200, { expires_at: 'x' }))
-    expect((await send(passkeyVerify, '/api/auth/passkey-verify', { body: cases[1].body })).status).toBe(503)
+    expect((await send(passkeyVerify, '/api/auth/passkey-verify', { body: at(cases, 1).body })).status).toBe(503)
   })
 
   it('a failed sign-in sets no cookie', async () => {
     stubUpstream(() => json(401, { code: 'auth_failed' }))
-    const result = await send(fallback, '/api/auth/fallback', { body: cases[2].body })
+    const result = await send(fallback, '/api/auth/fallback', { body: at(cases, 2).body })
     expect(result).toMatchObject({ status: 401, body: { code: 'auth_failed' } })
     expect(result.headers.get('set-cookie')).toBeNull()
   })
@@ -133,8 +133,8 @@ describe('GET /api/auth/session', () => {
     const calls = stubUpstream(() => json(200, me))
     const result = await send(session, '/api/auth/session', { method: 'GET', headers: cookieHeader() })
     expect(result).toMatchObject({ status: 200, body: me })
-    expect(calls[0].url.pathname).toBe('/v1/admin/me')
-    expect(calls[0].method).toBe('GET')
+    expect(at(calls, 0).url.pathname).toBe('/v1/admin/me')
+    expect(at(calls, 0).method).toBe('GET')
   })
 
   it('is 401 auth_failed and clears the cookie when the control plane rejects the session', async () => {
@@ -159,8 +159,8 @@ describe('POST /api/auth/logout', () => {
     const result = await send(logout, '/api/auth/logout', { body: {}, headers: cookieHeader() })
     expect(result.status).toBe(204)
     expect(result.headers.get('set-cookie')).toMatch(/nasq_admin=;/)
-    expect(calls[0].url.pathname).toBe('/v1/admin/auth/logout')
-    expect(calls[0].headers['x-nasq-session']).toBe(SESSION)
+    expect(at(calls, 0).url.pathname).toBe('/v1/admin/auth/logout')
+    expect(at(calls, 0).headers['x-nasq-session']).toBe(SESSION)
   })
 
   it('still clears the cookie when the session is already invalid or the control plane is down', async () => {

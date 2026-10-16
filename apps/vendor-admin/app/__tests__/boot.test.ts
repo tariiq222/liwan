@@ -1,17 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 
 async function loadConfig(): Promise<Record<string, any>> {
-  vi.stubGlobal('defineNuxtConfig', (config: unknown) => config)
   return (await import('../../nuxt.config') as { default: Record<string, any> }).default
 }
 
 describe('vendor admin scaffold', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   it('extends the shared ui layer and renders on the server', async () => {
     const config = await loadConfig()
     expect(config.extends).toContain('@nasq/ui')

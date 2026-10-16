@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import { createAdminApi, useAdminApi } from '../useAdminApi'
+import { createAdminApi, useAdminApi, type AdminApiDeps } from '../useAdminApi'
 
 const failure = (statusCode: number, data?: unknown) => Object.assign(new Error('fetch failed'), { statusCode, data })
 
@@ -37,10 +37,11 @@ describe('createAdminApi', () => {
     const fetcher = vi.fn()
       .mockRejectedValueOnce(failure(403, { code: 'step_up_required' }))
       .mockResolvedValueOnce({ done: true })
-    const onStepUpRequired = vi.fn(<T>(retry: () => Promise<T>) => retry())
+    let stepUps = 0
+    const onStepUpRequired: NonNullable<AdminApiDeps['onStepUpRequired']> = (retry) => { stepUps += 1; return retry() }
     const api = createAdminApi({ fetcher, onUnauthorized: vi.fn(), onStepUpRequired })
     await expect(api.request('/x', { method: 'POST', body: { a: 1 } })).resolves.toEqual({ done: true })
-    expect(onStepUpRequired).toHaveBeenCalledTimes(1)
+    expect(stepUps).toBe(1)
     expect(fetcher).toHaveBeenCalledTimes(2)
     expect(fetcher).toHaveBeenLastCalledWith('/api/vendor/v1/x', { method: 'POST', body: { a: 1 } })
   })

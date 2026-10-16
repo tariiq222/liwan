@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import proxy from '../../api/vendor/v1/[...path]'
-import { SESSION, cookieHeader, json, send, stubConfig, stubUpstream } from './harness'
+import { at, SESSION, cookieHeader, json, send, stubConfig, stubUpstream } from './harness'
 
 const get = (path: string, headers: Record<string, string> = cookieHeader()) => send(proxy, `/api/vendor/v1${path}`, { method: 'GET', headers })
 const post = (path: string, sent: Parameters<typeof send>[2] = { body: { a: 1 } }) => send(proxy, `/api/vendor/v1${path}`, { headers: cookieHeader(), ...sent, ...(sent.headers ? { headers: { ...cookieHeader(), ...sent.headers } } : {}) })
@@ -25,17 +25,17 @@ describe('vendor API proxy', () => {
     const other = `42.${'B'.repeat(43)}`
     const calls = stubUpstream(() => json(200, { ok: true }))
     expect((await get('/context', cookieHeader(other))).body).toEqual({ ok: true })
-    expect(calls[0].headers['x-nasq-session']).toBe(other)
-    expect(calls[0].headers['x-nasq-actor']).toBe('42')
+    expect(at(calls, 0).headers['x-nasq-session']).toBe(other)
+    expect(at(calls, 0).headers['x-nasq-actor']).toBe('42')
   })
 
   it('passes the body bytes and the query through', async () => {
     const calls = stubUpstream(() => json(201, { id: 1 }))
     const result = await post('/plans?x=1', { body: { b: [1, 2] } })
     expect(result).toMatchObject({ status: 201, body: { id: 1 } })
-    expect(calls[0].body).toBe('{"b":[1,2]}')
-    expect(calls[0].url.search).toBe('?x=1')
-    expect(calls[0].headers['content-type']).toBe('application/json')
+    expect(at(calls, 0).body).toBe('{"b":[1,2]}')
+    expect(at(calls, 0).url.search).toBe('?x=1')
+    expect(at(calls, 0).headers['content-type']).toBe('application/json')
   })
 
   it('passes an upstream 403 step_up_required through unchanged', async () => {

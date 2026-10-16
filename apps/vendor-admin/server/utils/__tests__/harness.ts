@@ -66,3 +66,10 @@ export async function send(handler: EventHandler, path: string, sent: Sent = {})
 }
 
 export const cookieHeader = (value = SESSION, name = 'nasq_admin') => ({ cookie: `${name}=${value}` })
+
+/** The item at `index`, or a failure: keeps tests free of non-null assertions. */
+export function at<T>(items: readonly T[], index: number): T {
+  const item = items[index]
+  if (item === undefined) throw new Error(`expected an item at index ${index}`)
+  return item
+}

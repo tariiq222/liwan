@@ -1,4 +1,7 @@
+// The node project does not pick up the module option types on its own; this generated file adds them.
+/// <reference path="./.nuxt/types/modules.d.ts" />
 import { fileURLToPath } from 'node:url'
+import { defineNuxtConfig } from 'nuxt/config'
 import { discoverLocaleFiles } from './i18n/localeFiles'
 
 const localeFiles = discoverLocaleFiles(fileURLToPath(new URL('./i18n/locales', import.meta.url)))

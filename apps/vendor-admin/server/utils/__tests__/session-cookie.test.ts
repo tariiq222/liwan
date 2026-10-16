@@ -40,7 +40,7 @@ describe('session cookie', () => {
   })
 
   it('refuses a malformed session string or expiry', async () => {
-    for (const [session, expires] of [['bad', '2026-10-16T01:00:00Z'], [SESSION, 'tomorrow'], [`0.${'A'.repeat(43)}`, '2026-10-16T01:00:00Z']]) {
+    for (const [session, expires] of [['bad', '2026-10-16T01:00:00Z'], [SESSION, 'tomorrow'], [`0.${'A'.repeat(43)}`, '2026-10-16T01:00:00Z']] as const) {
       const { body } = await run('http://localhost:3100', event => writeSession(event, session, expires))
       expect(body.result).toBe('threw')
     }
