@@ -71,14 +71,16 @@ export async function seedCustomer(pool: Pool, input: Customer): Promise<Seeded>
 export interface InvoiceInput {
   customer_id: string, subscription_id: string, order_id?: string | null, status: 'issued' | 'paid'
   total_minor: number, issued_at: string, due_at: string, paid_at?: string | null, currency?: string
+  /** VAT inside `total_minor`; the subtotal is the rest. */
+  tax_minor?: number
 }
 
 export async function seedInvoice(pool: Pool, input: InvoiceInput): Promise<string> {
   const id = randomUUID()
   await pool.query(
     `INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,issued_at,due_at,paid_at)
-     VALUES($1,$2,$3,$4,'renewal',$5,$6,2,$7,0,$7,$8,$8,$9,$10,$11)`,
-    [id, input.customer_id, input.subscription_id, input.order_id ?? null, input.status, input.currency ?? 'SAR', input.total_minor, input.issued_at.slice(0, 10), input.issued_at, input.due_at, input.paid_at ?? null])
+     VALUES($1,$2,$3,$4,'renewal',$5,$6,2,$7-$12::bigint,$12,$7,$8,$8,$9,$10,$11)`,
+    [id, input.customer_id, input.subscription_id, input.order_id ?? null, input.status, input.currency ?? 'SAR', input.total_minor, input.issued_at.slice(0, 10), input.issued_at, input.due_at, input.paid_at ?? null, input.tax_minor ?? 0])
   return id
 }
 

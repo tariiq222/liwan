@@ -4,7 +4,7 @@
     "description": "An executive view of revenue, collection, customers and risks.",
     "export": "Export CSV",
     "disclaimer": "These figures are commercial tracking computed from subscriptions and invoices. They are not official accounting or financial statements.",
-    "scope": "Period {from} to {to}, compared with {previousFrom} to {previousTo}. Amounts in {currency}, before tax.",
+    "scope": "Period {from} to {to}, compared with {previousFrom} to {previousTo}. Amounts in {currency}, before tax. MRR and ARR use list prices and ignore discounts.",
     "excluded": "{count} subscription billed in another currency is left out. | {count} subscriptions billed in another currency are left out.",
     "period": {
       "label": "Period",
@@ -27,7 +27,8 @@
     "unavailable": {
       "short": "Not available",
       "no_data": "Not available: nothing to measure in this period.",
-      "no_cancellation_date": "Not available: the system does not store when a subscription ended."
+      "no_cancellation_date": "Not available: the system does not store when a subscription ended.",
+      "history_not_recorded": "Not available: the system does not record when customers who have since left stopped, so this past figure cannot be restated."
     },
     "kpi": {
       "mrr": "Monthly recurring revenue (MRR)",
@@ -62,7 +63,7 @@
     },
     "trend": {
       "title": "MRR, last 12 months",
-      "description": "Recurring revenue of today's billable customers, month by month. It does not drop for customers who left.",
+      "description": "Recurring revenue month by month. A month shows no figure when a customer who has since left was billing then, because the system does not record when they left.",
       "empty": "No recurring revenue yet."
     },
     "aging": {
@@ -106,6 +107,7 @@
       "description": "Using under 20% of every limit: at risk of leaving.",
       "empty": "No customer with low usage."
     },
+    "usageSkipped": "{count} customer's usage could not be read and is not in these lists. | {count} customers' usage could not be read and is not in these lists.",
     "renewals": {
       "title": "Upcoming renewals",
       "description": "Renewal value of billable customers, counted from today.",

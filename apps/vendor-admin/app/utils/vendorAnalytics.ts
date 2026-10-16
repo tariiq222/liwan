@@ -9,7 +9,10 @@ const DAY_MS = 86_400_000
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 const isDay = (value: unknown): value is string => typeof value === 'string' && ISO_DAY.test(value) && !Number.isNaN(Date.parse(value))
 
-/** The range a preset stands for on `today` (UTC): from the start of the month, quarter or year up to today. */
+/** The business day today: the Asia/Riyadh calendar date (the control plane cuts periods on the same clock). */
+export const riyadhToday = (now: Date = new Date()): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(now)
+
+/** The range a preset stands for on `today`: from the start of the month, quarter or year up to today. */
 export function presetRange(preset: Exclude<PeriodPreset, 'custom'>, today: string): { from: string, to: string } {
   const [year, month] = [Number(today.slice(0, 4)), Number(today.slice(5, 7))]
   const firstMonth = preset === 'month' ? month : preset === 'quarter' ? month - ((month - 1) % 3) : 1
