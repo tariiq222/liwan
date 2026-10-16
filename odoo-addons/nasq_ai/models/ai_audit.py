@@ -54,6 +54,7 @@ class NasqAiAudit(models.Model):
     _name = 'nasq.ai.audit'
     _description = 'Nasq AI audit'
     _order = 'id desc'
+    _nasq_scope = 'company'
 
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
                                  default=lambda self: self.env.company)
