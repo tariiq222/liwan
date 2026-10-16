@@ -45,7 +45,7 @@ const color = (taskId: number, stakeholderId: number) => {
         <tr v-for="task in tasks" :key="task.id" class="border-b border-default">
           <td class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-default p-3"><RecordNumber :value="task.id" /></td>
           <th scope="row" class="sticky start-28 z-10 bg-default p-3 text-start font-medium">
-            <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${task.id}` }">{{ task.name }}</NuxtLink>
+            <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${task.id}`, query: { returnTo } }">{{ task.name }}</NuxtLink>
           </th>
           <td v-for="item in stakeholders" :key="item.id" class="p-3" data-testid="raci-cell">
             <USelect

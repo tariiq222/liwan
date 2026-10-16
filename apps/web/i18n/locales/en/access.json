@@ -93,6 +93,7 @@
       "createTitle": "Create custom role",
       "details": "Role details",
       "editTitle": "Edit role",
+      "nameRequired": "Enter the Arabic name.",
       "nameArabic": "Arabic name",
       "nameEnglish": "English name",
       "descriptionLabel": "Role purpose",

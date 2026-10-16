@@ -10,6 +10,8 @@ import { layerFile } from '@nasq/ui/test/helpers/layerFile'
 import { returnToQuery } from '../../utils/safeReturnTo'
 import { fitOrgChart, layoutDepartmentOrgChart, nextOrgScale } from '../../lib/departmentOrgChart'
 import { buildDepartmentTree, filterDepartmentTree } from '../../lib/departmentTree'
+import { FORM_ACTIONS_HOST } from '@nasq/ui/app/utils/formActions'
+import * as recordNavigation from './helpers/recordNavigation'
 import * as navigation from '../../utils/hrReturnTo'
 
 const root = resolve(import.meta.dirname, '../..')
@@ -47,7 +49,7 @@ async function load(file: string, url: RouteLocationRaw, props: Record<string, u
     refDebounced: (value: unknown) => value, hasPendingHrSearch: () => false, hrCommittedListParams: () => ({ q: '', offset: 0 }),
     formatCalendarDate: () => '', ApiError: class extends Error {},
     DocumentList: {}, DocumentReader: {}, DocumentEditor: {}, DocumentCreateForm: {}, DepartmentForm: {}, DepartmentOrgChart: {}, DepartmentTree: {}, DepartmentTable: {}, FilterBar: {}, RecordNumber: {},
-    ...navigation,
+    ...navigation, ...recordNavigation, provide: Vue.provide, useSlots: () => ({}), FORM_ACTIONS_HOST,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
   const scope = Vue.effectScope()

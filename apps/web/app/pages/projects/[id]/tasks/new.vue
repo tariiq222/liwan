@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import TaskCreateForm from '@/components/pmo/tasks/TaskCreateForm.vue'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
@@ -18,17 +19,11 @@ const milestoneId = computed(() => {
 })
 const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
-// The owning section list is fixed by this page's own route, so the return trip
-// is literal and carries only the state that list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/projects/${projectId.value}/tasks`, query: listQuery }
-})
-function created(_id: number) {
+const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/tasks`])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+function created(id: number) {
   toast.add({ title: t('tasks.created'), color: 'success', icon: 'i-lucide-circle-check' })
-  router.push(backTo.value)
+  router.replace({ path: `/projects/${projectId.value}/tasks/${id}`, query: { returnTo: router.resolve(backTo.value).fullPath } })
 }
 </script>
 

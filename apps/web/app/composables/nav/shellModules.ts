@@ -29,6 +29,7 @@ export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut
 
 /** Nav items of the foundation (settings, management, subscription); applications declare theirs in their manifest. */
 const foundationItems: NavItem[] = [
+  { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'nasq.internal' },
   { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'i', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', goKey: 'u', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', goKey: 'r', group: 'settings', module: 'settings', capability: 'access.roles.read' },
@@ -41,7 +42,7 @@ const foundationItems: NavItem[] = [
 ]
 /** The vendor console entry; added for vendors only. */
 const vendorConsoleItem: NavItem = { to: '/odoo', labelKey: 'nav.console', icon: Wrench, shortcut: 's', module: 'vendor', capability: 'vendor' }
-const FOUNDATION_MODULES: ReadonlySet<string> = new Set(['settings', 'management', 'vendor'])
+const FOUNDATION_MODULES: ReadonlySet<string> = new Set(['home', 'settings', 'management', 'vendor'])
 
 /** Application items in manifest (rail) order, then the foundation items. */
 export function allNavItems(): NavItem[] {
@@ -50,7 +51,7 @@ export function allNavItems(): NavItem[] {
     group: manifest.defaultRail ?? manifest.id,
     module: item.module ?? manifest.id,
   })))
-  return [...applications, ...foundationItems, vendorConsoleItem]
+  return [foundationItems[0]!, ...applications, ...foundationItems.slice(1), vendorConsoleItem]
 }
 
 /**
@@ -98,6 +99,7 @@ export interface ShellModuleDefinition {
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
+    { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
     ...applications.map(({ id, labelKey, icon, to }) => ({ id, labelKey, icon, to })),
     // Settings is administration only: account and appearance live in the header.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/users' },

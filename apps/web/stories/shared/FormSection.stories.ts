@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>
 
 export const InForm: Story = {
   name: 'قسم داخل نموذج',
-  parameters: storyContext('apps/web/app/pages/settings/users/new.vue:106'),
+  parameters: storyContext('apps/web/app/pages/settings/users/new.vue:107'),
   render: () => ({
     components: { SettingsPage, FormSection },
     setup: () => ({ t: useI18n().t }),

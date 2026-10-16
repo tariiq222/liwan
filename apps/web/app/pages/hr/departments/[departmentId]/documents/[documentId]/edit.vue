@@ -5,6 +5,7 @@ import { useHrDocument, useUpdateDocument, useUploadDocumentAttachment } from '@
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(['/hr/departments', '/hr/documents'])
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
@@ -12,7 +13,7 @@ const toast = useToast()
 const departmentId = computed(() => Number(route.params.departmentId))
 const documentId = computed(() => Number(route.params.documentId))
 const query = useHrDocument(documentId)
-const backTo = computed(() => ({ path: `/hr/departments/${departmentId.value}/documents/${documentId.value}`, query: hrDocumentContext(route.query, departmentId.value), ...(route.hash ? { hash: route.hash } : {}) }))
+const backTo = computed(() => ({ path: `/hr/departments/${departmentId.value}/documents/${documentId.value}`, query: hrDocumentContext(route.query, departmentId.value, sourcePaths.value), ...(route.hash ? { hash: route.hash } : {}) }))
 const name = ref('')
 const body = ref('')
 const submitted = ref(false)
@@ -95,10 +96,10 @@ async function uploadFile(event: Event) {
             </UFormField>
           </div>
         </SharedFormSection>
-        <footer class="nasq-form-footer justify-end">
+        <SharedFormActions class="justify-end">
           <UButton type="button" color="neutral" variant="outline" :disabled="updating" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" color="primary" :loading="updating" :disabled="!hydrated || updating || uploading" :label="t('app.save')" />
-        </footer>
+        </SharedFormActions>
       </UForm>
     </SharedPageState>
   </SharedPageContainer>

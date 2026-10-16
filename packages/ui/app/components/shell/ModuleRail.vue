@@ -18,7 +18,7 @@ const groups = computed(() => [
 </script>
 
 <template>
-  <aside data-testid="module-rail" class="nasq-module-rail" :aria-label="t('nav.modules')">
+  <aside data-testid="module-rail" data-fresh-navigation class="nasq-module-rail" :aria-label="t('nav.modules')">
     <NuxtLink :to="props.homeTo" class="nasq-module-rail-brand" :aria-label="`${t('brand.name')} — ${t('nav.home')}`">
       <BrandWordmark size="sm" inverted />
     </NuxtLink>

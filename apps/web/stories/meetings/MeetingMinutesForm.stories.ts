@@ -50,27 +50,27 @@ const render: Story['render'] = args => ({
 
 export const Populated: Story = {
   name: 'نموذج معبّأ',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:113'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:119'),
   render,
 }
 
 export const Empty: Story = {
   name: 'نموذج فارغ',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:113'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:119'),
   args: { modelValue: { opening: '', closing: '', chairperson: '', approver_name: '', approver_title: '', topics: [] }, legacyAgenda: '<p>جدول أعمال سابق</p>' },
   render,
 }
 
 export const Pending: Story = {
   name: 'أثناء الحفظ',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:113'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:119'),
   args: { pending: true },
   render,
 }
 
 export const ReadOnly: Story = {
   name: 'للقراءة فقط',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:113'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:119'),
   args: { readonly: true },
   render,
 }

@@ -22,10 +22,10 @@ describe('pmo manifest next to the tasks application', () => {
   })
 
   it('has a deterministic landing for a user holding both task capabilities', () => {
-    // Landings are walked in manifest order (pmo before tasks), not rail order, so the first reachable one wins.
-    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read'] })).toBe('/tasks')
+    // Landings follow application rail order; My tasks precedes projects.
+    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read'] })).toBe('/my-tasks')
     expect(firstAllowedPath({ capabilities: ['tasks.tasks.read'] })).toBe('/my-tasks')
-    // A PMO reader with projects keeps the project dashboard whatever else they hold.
-    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read', 'pmo.projects.read'] })).toBe('/projects/dashboard')
+    // A reader of both applications enters the first visible application.
+    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read', 'pmo.projects.read'] })).toBe('/my-tasks')
   })
 })

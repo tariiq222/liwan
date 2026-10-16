@@ -6,12 +6,19 @@
     "productName": "نَسَق",
     "search": "بحث",
     "save": "حفظ",
+    "saving": "جارٍ الحفظ…",
+    "saved": "تم الحفظ",
+    "saveChanges": "حفظ التغييرات",
     "loadMore": "تحميل المزيد",
     "recordNumber": "الرقم"
   },
+  "home": {
+    "description": "اختر مساحة عمل أو ابدأ إجراءً جديدًا.",
+    "empty": "لا توجد مساحات عمل متاحة لحسابك حاليًا."
+  },
   "nav": {
     "today": "اليوم",
-    "tasks": "مهامي",
+    "tasks": "مهام المشاريع المسندة إليّ",
     "projects": "المشاريع",
     "toggleNavigation": "فتح أو إغلاق التنقل",
     "breadcrumb": "مسار الصفحة",
@@ -52,11 +59,11 @@
     "systemAdministration": "إدارة النظام",
     "toggleSidebar": "فتح القائمة أو طيها",
     "chat": "المحادثات",
-    "myTasks": "مهامي الشخصية",
+    "myTasks": "مهامي",
     "meetings": "الاجتماعات",
     "meetingCalendar": "التقويم",
     "meetingSeries": "الاجتماعات الدورية",
-    "projectDashboard": "نظرة عامة",
+    "projectDashboard": "نظرة عامة على المشاريع",
     "currentProject": "المشروع الحالي",
     "projectsMenu": "قائمة المشاريع",
     "returnToCurrentProject": "العودة إلى مشروع {name}",
@@ -90,6 +97,7 @@
     "totpInvalid": "رمز التحقق غير صحيح"
   },
   "errors": {
+    "saveUncertain": "لم نتأكد من اكتمال الحفظ. تحقق من السجل قبل إعادة المحاولة.",
     "pageNotFoundTitle": "الصفحة غير موجودة",
     "pageNotFound": "قد يكون الرابط غير صحيح أو نُقلت الصفحة إلى مكان آخر.",
     "pageErrorTitle": "تعذّر عرض الصفحة",
@@ -127,6 +135,7 @@
     "disconnected": "غير متصل"
   },
   "search": {
+    "allProviders": "جميع نطاقات البحث",
     "description": "ابحث في الصفحات والمشاريع والمهام…",
     "close": "إغلاق البحث",
     "tasks": "المهام",

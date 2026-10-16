@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { saveErrorMessage } from '@/utils/formFeedback'
 import { ApiError } from '@/composables/useApi'
 import type { HrDepartment } from '@/composables/useHrDepartments'
 import { retryHrManagerQueries, useCreateHrEmployee, useHrEmployee, useHrEmployees, useUpdateHrEmployee, hrManagerOptions, type HrEmployee } from '@/composables/useHrEmployees'
@@ -11,10 +12,12 @@ const hydrated = useHydrated()
 const { can } = useAccess()
 const toast = useToast()
 const formError = ref<unknown>(null)
-const errorMessage = computed(() => formError.value instanceof ApiError ? formError.value.message : undefined)
-function fieldError(field: string) { return formError.value instanceof ApiError && formError.value.field === field ? formError.value.message : undefined }
+const errorMessage = computed(() => formError.value ? saveErrorMessage(formError.value, t('errors.generic'), t('errors.saveUncertain')) : undefined)
+const nameError = ref<string>()
+function fieldError(field: string) { if (field === 'name' && nameError.value) return nameError.value; return formError.value instanceof ApiError && formError.value.field === field ? formError.value.message : undefined }
 const canManage = computed(() => can('hr.employees.manage'))
 const name = ref(''); const email = ref(''); const originalEmail = ref(''); const phone = ref(''); const jobTitle = ref(''); const departmentId = ref<number | null>(null); const managerId = ref<number | null>(null)
+watch(name, () => { nameError.value = undefined })
 const managerSearch = ref('')
 const debouncedManagerSearch = refDebounced(managerSearch, 250)
 const managerQuery = useHrEmployees(computed(() => ({ q: debouncedManagerSearch.value.trim() || undefined })))
@@ -52,8 +55,24 @@ watch(() => props.employee, (employee) => {
   savedState.value = state()
 }, { immediate: true })
 function idOrNull(value: unknown) { return !value || value === 'none' ? null : Number(value) }
+let submitting = false
 async function submit() {
-  if (!canManage.value || !hydrated.value || isPending.value || !name.value.trim()) return
+  if (!canManage.value || !hydrated.value || isPending.value || submitting) return
+  nameError.value = undefined
+  if (!name.value.trim()) {
+    nameError.value = t('hr.employee.nameRequired')
+    await nextTick()
+    document.getElementById('hr-employee-name')?.focus()
+    return
+  }
+  const emailInput = typeof document === 'undefined' ? null : document.getElementById('hr-employee-email') as HTMLInputElement | null
+  if (email.value.trim() && emailInput && !emailInput.validity.valid) {
+    formError.value = new ApiError(422, 'invalid', t('hr.employee.emailInvalid'), 'work_email')
+    await nextTick()
+    emailInput.focus()
+    return
+  }
+  submitting = true
   try {
     const employee = props.employee
       ? await update({ id: props.employee.id, patch: { name: name.value.trim(), work_email: email.value.trim(), work_phone: phone.value, job_title: jobTitle.value, department_id: departmentId.value, parent_id: managerId.value } })
@@ -62,13 +81,13 @@ async function submit() {
     formError.value = null
     emit('saved', employee)
     toast.add({ title: t('hr.employee.saved'), color: 'success' })
-  } catch (error) { formError.value = error }
+  } catch (error) { formError.value = error } finally { submitting = false }
 }
 </script>
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId }" class="nasq-form" method="post" @submit="submit">
+  <UForm :state="{ name, email, phone, jobTitle, departmentId, managerId }" class="nasq-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
     <SharedFormSection :panel="props.panel" :title="t('hr.employee.general')" :description="t('hr.employee.generalHint')">
       <div class="nasq-form-grid mt-4">
@@ -103,10 +122,10 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <footer class="nasq-form-footer flex-wrap justify-end">
+    <SharedFormActions class="flex-wrap justify-end">
       <span class="me-auto text-xs text-muted">{{ t('hr.employee.formHint') }}</span>
       <slot name="actions" />
-      <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || isPending || !name.trim()" :label="t('app.save')" />
-    </footer>
+      <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || isPending" :loading="isPending" :label="t(props.employee ? 'app.saveChanges' : 'app.create')" />
+    </SharedFormActions>
   </UForm>
 </template>

@@ -3,7 +3,7 @@ import type { PersonalTaskState } from '@nasq/contracts'
 import type { MyTaskListParams } from '@/composables/useMyTasks'
 import { firstQuery } from './routeQuery'
 
-export const MY_TASK_TABS = ['open', 'done'] as const
+export const MY_TASK_TABS = ['open', 'closed'] as const
 export const MY_TASK_SCOPES = ['all', 'assigned', 'created'] as const
 export const MY_TASK_SORTS = ['deadline', 'created', 'name'] as const
 export const MY_TASK_PAGE_SIZE = 50
@@ -17,9 +17,10 @@ export interface MyTaskListState {
   scope: MyTaskScope
   sort: MyTaskSort
   q: string
+  offset: number
 }
 
-const DEFAULTS: MyTaskListState = { tab: 'open', scope: 'all', sort: 'deadline', q: '' }
+const DEFAULTS: MyTaskListState = { tab: 'open', scope: 'all', sort: 'deadline', q: '', offset: 0 }
 
 function oneOf<T extends string>(values: readonly T[], value: unknown, fallback: T): T {
   const raw = firstQuery(value)
@@ -33,28 +34,32 @@ export function parseListState(query: LocationQuery | LocationQueryRaw): MyTaskL
     scope: oneOf(MY_TASK_SCOPES, query.scope, DEFAULTS.scope),
     sort: oneOf(MY_TASK_SORTS, query.sort, DEFAULTS.sort),
     q: firstQuery(query.q) ?? '',
+    offset: Number.isInteger(Number(firstQuery(query.offset))) && Number(firstQuery(query.offset)) > 0 ? Math.floor(Number(firstQuery(query.offset)) / MY_TASK_PAGE_SIZE) * MY_TASK_PAGE_SIZE : 0,
   }
 }
 
 /** The data-layer params for a list state ("all" scope and the default sort send nothing). */
 export function toListParams(state: MyTaskListState): MyTaskListParams {
   return {
-    closed: state.tab === 'done',
+    closed: state.tab === 'closed',
     scope: state.scope === 'all' ? undefined : state.scope,
     sort: state.sort === DEFAULTS.sort ? undefined : state.sort,
     q: state.q.trim() || undefined,
+    offset: state.offset,
   }
 }
 
 /** The next URL query: keeps unrelated keys and omits every value equal to its default. */
 export function listPatch(query: LocationQueryRaw, patch: Partial<MyTaskListState>): LocationQueryRaw {
   const next: LocationQueryRaw = { ...query }
-  for (const key of ['tab', 'scope', 'sort', 'q'] as const) {
+  for (const key of ['tab', 'scope', 'sort', 'q', 'offset'] as const) {
     if (!(key in patch)) continue
     const value = patch[key]
     if (value === undefined || value === DEFAULTS[key]) delete next[key]
     else next[key] = value
   }
+  const previous = parseListState(query)
+  if ((['tab', 'scope', 'sort', 'q'] as const).some(key => key in patch && patch[key] !== previous[key])) delete next.offset
   return next
 }
 
@@ -73,24 +78,4 @@ export function localToday(now: Date = new Date()): string {
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   return `${now.getFullYear()}-${month}-${day}`
-}
-
-/**
- * Offset of the next page, or `undefined` at the end. A page may hold fewer rows than `limit` while
- * `total` still counts rows the server dropped, so a short page is not the end: only reaching `total`
- * or receiving an empty page is.
- */
-export function nextOffset({ offset, limit, total, received }: { offset: number; limit: number; total: number; received: number }): number | undefined {
-  if (received === 0) return undefined
-  const next = offset + limit
-  return next < total ? next : undefined
-}
-
-/**
- * Pages are fetched by offset, so a write between two page loads can shift a row onto the next page
- * and list it twice; keep the first occurrence of each id.
- */
-export function dedupeById<T extends { id: number }>(items: readonly T[]): T[] {
-  const seen = new Set<number>()
-  return items.filter(item => !seen.has(item.id) && seen.add(item.id))
 }

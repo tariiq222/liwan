@@ -52,6 +52,7 @@ function moduleWithinApp(manifest: AppManifest, path: string): ShellModule {
 }
 
 export function activeShellModule(path: string): ShellModule | null {
+  if (normalizedPath(path) === '/') return 'home'
   if (path === '/vendor' || path.startsWith('/vendor/')) return 'management'
   const owner = manifestForPath(path)
   if (owner) return moduleWithinApp(owner, path)
@@ -59,7 +60,7 @@ export function activeShellModule(path: string): ShellModule | null {
   if (path === '/subscription' || path.startsWith('/subscription/')) return 'settings'
   // The account is reached from the header menu, not from a rail module.
   if (path === '/account' || path.startsWith('/account/')) return null
-  if (path === '/search' || path.startsWith('/search/')) return 'projects'
+  if (path === '/search' || path.startsWith('/search/')) return null
   if (path === '/notifications' || path.startsWith('/notifications/')) return null
   if (path === '/notification-digests' || path.startsWith('/notification-digests/')) return null
   if (path === '/odoo' || path.startsWith('/odoo/')) return 'vendor'
@@ -68,5 +69,5 @@ export function activeShellModule(path: string): ShellModule | null {
 
 /** The module whose contextual links a rail module shows; `home` shares the projects sidebar. */
 export function contextModuleFor(module: ShellModule | null): ShellModule | null {
-  return module === 'home' ? 'projects' : module
+  return module === 'home' ? null : module
 }

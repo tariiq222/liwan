@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useProjectSchedule } from '@/composables/useProjectSchedule'
 import { useProject } from '@/composables/useProjects'
@@ -17,14 +18,8 @@ const taskMilestone = computed(() => {
   return schedule.value?.milestones.find(item => item.id === milestoneId) ?? null
 })
 const notFound = computed(() => projectId.value === null || taskId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)) || (!!schedule.value && !task.value))
-// The owning section list is fixed by this page's own route, so the return trip
-// is literal and carries only the state that list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: `/projects/${projectId.value}/schedule`, query: listQuery }
-})
+const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/schedule`])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 </script>
 
 <template>

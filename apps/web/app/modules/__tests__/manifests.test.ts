@@ -27,12 +27,12 @@ describe('app manifests', () => {
     expect(inOrder(ids, ['pmo', 'meetings', 'chat', 'hr'])).toEqual(['pmo', 'meetings', 'chat', 'hr'])
     expect(new Set(ids).size).toBe(ids.length)
     const rail = appManifests.flatMap(manifest => manifest.rail.map(entry => entry.id))
-    expect(inOrder(rail, ['home', 'projects', 'meetings', 'chat', 'hr'])).toEqual(['home', 'projects', 'meetings', 'chat', 'hr'])
+    expect(inOrder(rail, [ 'projects', 'meetings', 'chat', 'hr'])).toEqual(['projects', 'meetings', 'chat', 'hr'])
     expect(new Set(rail).size).toBe(rail.length)
   })
   it('keeps the module feature map', () => {
     expect(MODULE_FEATURES).toMatchObject({
-      home: 'pmo.enabled', projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled',
+      home: null, projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled',
       settings: null, vendor: null, management: null,
     })
   })
@@ -116,7 +116,7 @@ describe('app manifests', () => {
         expect(hasFeature(withoutCrm, featureForPath('/crm'))).toBe(false)
         expect(firstAllowedPath(identity)).toBe('/crm')
         expect(postLoginPath(identity, '/crm')).toBe('/crm')
-        expect(postLoginPath(withoutCrm, '/crm')).toBe('/account')
+        expect(postLoginPath(withoutCrm, '/crm')).toBe('/')
         expect(hasCapability(identity, 'nasq.notifications')).toBe(true)
         expect(canUse(identity, 'nasq.notifications')).toBe(true)
         expect(canUse(withoutCrm, 'nasq.notifications')).toBe(false)

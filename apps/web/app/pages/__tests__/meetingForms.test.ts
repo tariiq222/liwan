@@ -1,9 +1,10 @@
-import * as recordNavigation from '../../utils/recordListOrigin'
+import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import { computed, nextTick, ref, watch } from 'vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildMeetingSchedulePayload, fromUtcDateTimeInput, localDateFromUtc, localTimeFromUtc, toUtcDateTime } from '../../utils/meetingDateTime'
 import { buildRecurrencePreview, getMeetingFormErrors, normalizeRecurrenceEnd } from '../../utils/meetingForm'
@@ -22,7 +23,8 @@ function form(file: string, routeQuery: Record<string, string> = {}, seriesIniti
   const seriesLoading = ref(!seriesInitiallyLoaded)
   const mutateAsync = vi.fn(async () => ({ id: 7 }))
   const navigateTo = vi.fn(async () => {})
-  const scope = { ...recordNavigation, computed, ref, watch, nextTick, useRoute: () => ({ params: { id: '7' }, query: routeQuery }),
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: {} }] })
+  const scope = { useRouter: () => router, ...recordNavigation, computed, ref, watch, nextTick, useRoute: () => ({ params: { id: '7' }, query: routeQuery }),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),

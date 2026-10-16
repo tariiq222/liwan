@@ -46,7 +46,7 @@ async function setup(serverSearch: boolean, can: (capability: string) => boolean
   const debounced = ref('')
   const gate = ref(true)
   const sections = withManifests([sales(serverSearch)], () =>
-    useAppSearch({ surface: 'dialog', term, debounced, gate, requireTerm: true, can, api: vi.fn() as never }))
+    useAppSearch({ term, debounced, gate, requireTerm: true, can, api: vi.fn() as never }))
   return { sections, term, debounced, gate, query: fake.queries[0]! }
 }
 
@@ -106,7 +106,7 @@ describe('useAppSearch', () => {
       }],
     }
     withManifests([calling], () => useAppSearch({
-      surface: 'dialog', term: ref('a'), debounced: ref('a'), gate: true, requireTerm: true, can: () => true, api: api as never,
+      term: ref('a'), debounced: ref('a'), gate: true, requireTerm: true, can: () => true, api: api as never,
     }))
     const controller = new AbortController()
     await fake.queries[0]!.options.queryFn({ pageParam: 0, signal: controller.signal })

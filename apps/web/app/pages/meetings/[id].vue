@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { owningListBack, recordChildTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingAttachmentsTab from '@/components/meetings/MeetingAttachmentsTab.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
@@ -18,6 +19,7 @@ import { parsePositiveId } from '@/utils/routeParams'
 import { meetingTabFromRoute, meetingTabQuery, type MeetingTab } from '@/utils/meetingTabs'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => parsePositiveId(route.params.id))
@@ -29,9 +31,9 @@ const pageError = computed(() => query.error.value ?? (id.value === null ? new A
 const { pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning } = useMeetingTransitions({ meetingId: id, meeting: query.data, hydrated })
 const attachmentCount = ref(0)
 const resolutionsBusy = ref(false)
-const backTo = computed(() => owningListBack(route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 function childTo(path: string, query = route.query) {
-  return recordChildTo(path, query, MEETING_LIST_PATHS, route.hash)
+  return recordChildTo(path, query, sourcePaths.value, route.hash)
 }
 const activeTab = computed<MeetingTab>(() => isCreateResolution.value ? 'resolutions' : meetingTabFromRoute(route.query.tab, hydrated.value ? route.hash : undefined))
 const meetingTabs = computed(() => [
@@ -114,7 +116,7 @@ function displayValue(value: string | null | undefined) {
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!query.data.value"
     v-if="isDetail"
     :title="recordTitle"
     :back-to="isCreateResolution ? undefined : backTo"
@@ -276,7 +278,7 @@ function displayValue(value: string | null | undefined) {
       <MeetingAttachmentsTab v-show="activeTab === 'attachments'" :meeting-id="query.data.value.id" :can-edit="query.data.value.can_edit" @count="attachmentCount = $event" />
     </div>
 
-    <template v-if="query.data.value" #aside>
+    <template v-if="query.data.value" #summary>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('meetingsUi.stateLabel')">
           <SharedStatusBadge v-bind="meetingStateBadgeProps(query.data.value.state, t)" data-testid="meeting-state-badge" />

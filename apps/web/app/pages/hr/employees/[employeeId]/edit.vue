@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { recordParentTo, EMPLOYEE_LIST_PATHS } from '@/utils/recordListOrigin'
+import { recordParentTo } from '@/utils/recordListOrigin'
+import { EMPLOYEE_LIST_PATHS } from '@/modules/hr/navigation'
 import EmployeeGeneralForm from '@/components/hr/EmployeeGeneralForm.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployee, useHrEmployees } from '@/composables/useHrEmployees'
-const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.employeeId)); const query = useHrEmployee(id)
+const route = useRoute()
+const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.employeeId)); const query = useHrEmployee(id)
 // Child pages always return to their current record; only normalized list context follows.
 // Directory Manage opens this editor directly with returnTo; it is accepted
 // only as exact directory context, never as this editor's destination.
 const backTo = computed(() => recordParentTo(`/hr/employees/${id.value}`, {
   ...route.query, listOrigin: route.query.listOrigin ?? route.query.returnTo ?? null,
-}, EMPLOYEE_LIST_PATHS, route.hash))
+}, sourcePaths.value, route.hash))
 const departments = useHrDepartments(); const employees = useHrEmployees({})
 const canManage = computed(() => can('hr.employees.manage'))
 const initialDataReady = computed(() => Boolean(query.data.value && departments.data.value && employees.data.value))

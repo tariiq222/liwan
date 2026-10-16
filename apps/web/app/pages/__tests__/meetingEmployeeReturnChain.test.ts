@@ -1,4 +1,4 @@
-import * as recordNavigation from '../../utils/recordListOrigin'
+import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'

@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import type { OperationAction } from '@nasq/contracts'
 import { formatDateTime } from '@nasq/ui/app/utils/formatDate'
 import { operationsStateTone } from '@/composables/operations/state'
 import { useOperationRequest, useOperationRequestMutation } from '@/composables/operations/useOperations'
-import { createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationId, safeOperationReturnTo } from '@/composables/operations/forms'
+import { createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationId } from '@/composables/operations/forms'
 const route = useRoute()
+const router = useRouter()
+const sourcePaths = useRecordListPaths(['/operations', '/operations/pending', '/operations/monitoring', '/operations/processes'])
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => operationId(route.params.id))
@@ -21,7 +24,7 @@ const attempted = ref(false)
 const error = ref<unknown>(null)
 const removal = ref<number | null>(null)
 const fileField = ref<{ reset: () => void } | null>(null)
-const backTo = computed(() => safeOperationReturnTo(route.query.returnTo, '/operations'))
+const backTo = computed(() => router.resolve(owningListBack(route.query, sourcePaths.value, route.hash)).fullPath)
 const actions: OperationAction[] = ['submit', 'approve', 'reject', 'return', 'withdraw']
 const visibleActions = computed(() => actions.filter(action => record.value?.allowed_actions[action]))
 const commentRequired = computed(() => selected.value === 'reject' || selected.value === 'return')
@@ -59,7 +62,7 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
 <template>
   <SharedPageContainer width="detail">
     <SharedPageHeader :title="record?.name ?? t('operations.request')" :back-to="backTo" :back-label="t(`operations.nav.${backTo.startsWith('/operations/pending') ? 'pending' : backTo.startsWith('/operations/monitoring') ? 'monitoring' : backTo.startsWith('/operations/processes') ? 'processes' : 'mine'}`)">
-      <template #actions><UButton v-if="record?.allowed_actions.edit" color="neutral" variant="outline" :disabled="disabled" :to="{ path: `/operations/${record.id}/edit`, query: { returnTo: backTo } }" :label="t('operations.edit')" /><UButton v-for="action in visibleActions" :key="action" :disabled="disabled" :color="action === 'reject' || action === 'withdraw' ? 'error' : action === 'approve' || action === 'submit' ? 'primary' : 'neutral'" :variant="action === 'approve' || action === 'submit' ? 'solid' : 'outline'" :label="t(`operations.actions.${action}`)" @click="choose(action)" /></template>
+      <template #actions><UButton v-if="record?.allowed_actions.edit" color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/operations/${record.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" /><UButton v-for="action in visibleActions" :key="action" :disabled="disabled" :color="action === 'reject' || action === 'withdraw' ? 'error' : action === 'approve' || action === 'submit' ? 'primary' : 'neutral'" :variant="action === 'approve' || action === 'submit' ? 'solid' : 'outline'" :label="t(`operations.actions.${action}`)" @click="choose(action)" /></template>
     </SharedPageHeader>
     <SharedPageState :loading="id !== null && query.isPending.value" :error="id === null ? { status: 404 } : query.error.value" @retry="hydrated && query.refetch()">
       <template v-if="record">

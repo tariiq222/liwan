@@ -48,9 +48,9 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <footer class="nasq-form-footer justify-end">
+    <SharedFormActions class="justify-end">
       <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />
       <UButton type="submit" color="primary" :disabled="!hydrated || isPending" :loading="isPending" :label="t('app.create')" />
-    </footer>
+    </SharedFormActions>
   </UForm>
 </template>

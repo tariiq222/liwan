@@ -35,15 +35,16 @@ const notFound = computed(() =>
 const initialLoading = computed(() => !keepForm.value && access.isLoading.value && !access.data.value)
 const pageError = computed(() => keepForm.value ? null : (notFound.value ? null : access.error.value))
 const refreshError = computed(() => keepForm.value ? access.error.value : null)
-const backTo = computed(() => owningListBack(route.query, [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'], route.hash))
+const sourcePaths = useProjectRecordListPaths(projectId, () => [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const defaultKind = computed(() => {
   const kind = parseFinanceKind(route.query.kind)
   return kind === 'all' ? 'budget' : kind
 })
 
-function saved() {
+function saved(entry: { id: number }) {
   toast.add({ title: t('projects.finance.created'), color: 'success', icon: 'i-lucide-circle-check' })
-  void router.push(backTo.value)
+  void router.replace({ path: `/projects/${projectId.value}/finance/${entry.id}`, query: { returnTo: router.resolve(backTo.value).fullPath } })
 }
 </script>
 

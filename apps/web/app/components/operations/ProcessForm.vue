@@ -90,6 +90,6 @@ async function reload() {
     </SharedFormSection>
     <UAlert v-if="error || kinds.error.value" role="alert" color="error" variant="subtle" :title="t(`operations.errors.${operationErrorKey(error ?? kinds.error.value)}`)"><template v-if="refresh && operationErrorKey(error) === 'conflict'" #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="requestReload" /></template></UAlert>
     <SharedInlineConfirm v-if="reloadRequested" :title="t('operations.reloadDraft')" :description="t('operations.reloadDraftHelp')" :confirm-label="t('operations.refresh')" color="warning" :disabled="disabled" :pending="pending" @confirm="reload" @cancel="reloadRequested = false" />
-    <div class="flex flex-wrap justify-end gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="disabled" :label="t('operations.cancel')" /><UButton type="submit" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" :loading="pending" :label="t(process ? 'operations.save' : 'operations.create')" /></div>
+    <SharedFormActions class="flex flex-wrap justify-end gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="disabled" :label="t('operations.cancel')" /><UButton type="submit" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" :loading="pending" :label="t(process ? 'operations.save' : 'operations.create')" /></SharedFormActions>
   </form>
 </template>

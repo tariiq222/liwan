@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { recordParentTo } from '@/utils/recordListOrigin'
+import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeeting, usePatchResolution } from '@/composables/useMeetings'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t } = useI18n()
 const hydrated = useHydrated()
 const meetingId = computed(() => Number(route.params.id))
@@ -13,7 +15,7 @@ const resolutionId = computed(() => Number(route.params.resolutionId))
 const query = useMeeting(meetingId)
 const { mutateAsync, isPending, error } = usePatchResolution()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/${meetingId.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => recordParentTo(`/meetings/${meetingId.value}`, route.query, sourcePaths.value, route.hash))
 const resolution = computed(() => query.data.value?.resolutions.find(item => item.id === resolutionId.value) ?? null)
 const knownPeople = computed(() => {
   const meeting = query.data.value
@@ -145,10 +147,10 @@ async function save() {
         </SharedFormSection>
         <p v-if="validationMessage" class="text-sm text-muted" aria-live="polite">{{ validationMessage }}</p>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
-        <div class="nasq-form-footer justify-end">
+        <SharedFormActions class="justify-end">
           <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!canSave || isPending || !dirty || Boolean(validationMessage)" :label="t('app.save')" />
-        </div>
+        </SharedFormActions>
       </form>
     </SharedPageState>
   </SharedPageContainer>

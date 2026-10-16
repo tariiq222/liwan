@@ -100,7 +100,7 @@ function clear() {
       <slot name="bulk" :selected="props.selected" :clear="clear" />
       <UButton type="button" color="neutral" variant="ghost" size="sm" class="ms-auto" :disabled="!hydrated" @click="clear">{{ t('states.clearSelection') }}</UButton>
     </div>
-    <PageState :loading="props.loading" :error="props.error" :empty="props.rows.length === 0" :empty-text="props.emptyText" @retry="emit('retry')">
+    <PageState :loading="props.loading && !props.rows.length" :error="props.error" :keep-content="props.rows.length > 0" :empty="props.rows.length === 0" :empty-text="props.emptyText" @retry="emit('retry')">
       <div ref="body" data-slot="data-table-body" class="min-w-0" @click="onClick">
         <div class="overflow-hidden rounded-lg bg-default ring ring-default" :class="{ 'hidden md:block': $slots['mobile-row'] }">
           <div ref="tableHost" class="overflow-x-auto">

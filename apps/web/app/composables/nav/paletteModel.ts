@@ -21,11 +21,11 @@ export const SHORTCUT_HELP: readonly ShortcutHelpEntry[] = [
 ]
 
 /** Rows one search section shows; UCommandPalette cuts every group at `fuse.resultLimit` (default 12). */
-export const PALETTE_SECTION_LIMIT = 50
+export const PALETTE_SECTION_LIMIT = 5
 
 export type PaletteItemAction =
   | { kind: 'shortcuts' }
-  | { kind: 'retry' | 'load-more'; section: string }
+  | { kind: 'retry'; section: string }
   | { kind: 'none' }
 
 /** One palette row before the component adds its `onSelect`. */
@@ -54,7 +54,6 @@ export interface PaletteSearchSection {
   waiting: boolean
   error: boolean
   hasNext: boolean
-  fetchingNext: boolean
   /** The provider's translated `truncatedKey` when it capped its response, else null. */
   notice: string | null
 }
@@ -156,10 +155,10 @@ export function paletteGroups(input: {
     }
     if (section.error) {
       items.push({ id: `search:${section.id}:error`, label: input.labels.error, icon: 'i-lucide-rotate-cw', action: { kind: 'retry', section: section.id } })
-    } else if (section.hasNext) {
+    } else if (section.hasNext || section.rows.length > PALETTE_SECTION_LIMIT) {
       items.push({
         id: `search:${section.id}:more`, label: input.labels.loadMore, icon: 'i-lucide-chevrons-down',
-        loading: section.fetchingNext, action: { kind: 'load-more', section: section.id },
+        to: { path: '/search', query: { q: input.term, provider: section.id, returnTo: input.returnTo } },
       })
     }
     return items.length ? [{ id: `search-${section.id}`, label: section.label, items, ignoreFilter: true }] : []

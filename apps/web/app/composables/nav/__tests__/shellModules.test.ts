@@ -15,7 +15,7 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
+    expect(nav.map(item => item.to)).toEqual(['/', '/projects/dashboard', '/projects', '/tasks', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     // Account and appearance live in the header, so an employee has no settings module.
@@ -23,7 +23,7 @@ describe('capability-based navigation', () => {
     expect(visibleShellModules(employee).map(module => module.id)).not.toContain('settings')
     expect(nav.filter(item => item.group === 'projects').map(item => item.to)).toEqual(['/projects/dashboard', '/projects', '/tasks'])
     expect(nav.map(item => item.to)).not.toContain('/projects/settings')
-    expect(nav.find(item => item.to === '/projects/dashboard')?.module).toBe('home')
+    expect(nav.find(item => item.to === '/projects/dashboard')?.module).toBe('projects')
     expect(nav.find(item => item.to === '/projects')?.module).toBe('projects')
   })
   it('an access administrator does not inherit project settings', () => {
@@ -122,7 +122,7 @@ describe('module rail', () => {
   it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
     expect(today(visibleShellModules(full).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
     expect(today(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'vendor'])
-    expect(visibleShellModules(full).find(item => item.id === 'home')?.to).toBe('/projects/dashboard')
+    expect(visibleShellModules(full).find(item => item.id === 'home')?.to).toBe('/')
     expect(visibleShellModules(full).find(item => item.id === 'projects')?.to).toBe('/projects')
     expect(visibleShellModules(full).find(item => item.id === 'hr')?.labelKey).toBe('nav.organization')
     expect(visibleShellModules(full).map(item => item.id as string)).not.toContain('tasks')
@@ -131,7 +131,7 @@ describe('module rail', () => {
 
   it('selects permitted module destinations without legacy group leakage', () => {
     const taskOnly = visibleShellModules({ capabilities: ['pmo.tasks.read'] })
-    expect(today(taskOnly.map(item => item.id))).toEqual(['projects', 'chat'])
+    expect(today(taskOnly.map(item => item.id))).toEqual(['home', 'projects', 'chat'])
     expect(taskOnly.find(item => item.id === 'projects')?.to).toBe('/tasks')
     const departmentOnly = visibleShellModules({ capabilities: ['hr.departments.read'] })
     expect(departmentOnly.find(item => item.id === 'hr')?.to).toBe('/hr/departments')
@@ -140,17 +140,17 @@ describe('module rail', () => {
 })
 
 describe('projects dashboard navigation', () => {
-  it('opens Home at the dashboard and Projects at the list without a separate Reports module', () => {
+  it('opens foundation Home at the root and Projects at the list without a separate Reports module', () => {
     const modules = visibleShellModules(employee)
-    expect(modules.find(item => item.id === 'home')?.to).toBe('/projects/dashboard')
+    expect(modules.find(item => item.id === 'home')?.to).toBe('/')
     expect(modules.find(item => item.id === 'projects')?.to).toBe('/projects')
     expect(modules.map(item => item.id as string)).not.toContain('reports')
-    expect(activeShellModule('/projects/dashboard')).toBe('home')
+    expect(activeShellModule('/projects/dashboard')).toBe('projects')
   })
   it('orders creation, overview, all projects, and my tasks with real capability gates', () => {
     const creator = { capabilities: ['pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read'] }
     expect(contextLinksForModule('projects', creator).map(link => link.id)).toEqual(['new-project', 'project-dashboard', 'projects', 'tasks'])
-    expect(contextLinksForModule('home', creator)).toEqual(contextLinksForModule('projects', creator))
+    expect(contextLinksForModule('home', creator)).toEqual([])
     expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'tasks'])
     expect(contextLinksForModule('projects', { capabilities: ['pmo.projects.read'] }).map(link => link.id)).toEqual(['project-dashboard', 'projects'])
     expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['nav.projectDashboard', 'nav.allProjects', 'nav.tasks'])
@@ -214,21 +214,21 @@ describe('navigation built from app manifests', () => {
   })
   it('shows a new application in the rail, nav, sidebar and active module with no foundation edit', () => {
     withManifests([...appManifests, crm], () => {
-      expect(useNav(crmIdentity).map(item => [item.to, item.group, item.module])).toEqual([['/crm', 'crm', 'crm'], ['/crm/deals', 'crm', 'crm']])
+      expect(useNav(crmIdentity).map(item => [item.to, item.group, item.module])).toEqual([['/', undefined, 'home'], ['/crm', 'crm', 'crm'], ['/crm/deals', 'crm', 'crm']])
       expect(shellModuleList().map(module => module.id)).toContain('crm')
-      expect(visibleShellModules(crmIdentity).map(module => module.id)).toEqual(['crm'])
+      expect(visibleShellModules(crmIdentity).map(module => module.id)).toEqual(['home', 'crm'])
       expect(activeShellModule('/crm/deals/4')).toBe('crm')
       expect(contextLinksForModule('crm', crmIdentity).map(link => link.id)).toEqual(['new-lead'])
       expect(featureForRailModule('crm')).toBe('crm.enabled')
     })
     expect(activeShellModule('/crm')).toBeNull()
-    expect(useNav(crmIdentity)).toEqual([])
+    expect(useNav(crmIdentity).map(item => item.to)).toEqual(['/'])
     expect(shellModuleList().map(module => module.id)).not.toContain('crm')
   })
   it('hides a new application whose feature is closed and treats unknown rail modules as gated', () => {
     withManifests([...appManifests, crm], () => {
       const closed = { ...crmIdentity, platform: { readable_features: ['hr.enabled'], writable_features: [] } }
-      expect(useNav(closed)).toEqual([])
+      expect(useNav(closed).map(item => item.to)).toEqual(['/'])
       expect(featureForRailModule('nope')).toBeUndefined()
       expect(featureForRailModule('settings')).toBeNull()
     })

@@ -2,14 +2,15 @@
 import { hrDocumentBack, hrDocumentContext } from '@/utils/hrReturnTo'
 import DocumentReader from '@/components/hr/DocumentReader.vue'
 import { useHrDocument } from '@/composables/useHrDocuments'
-const route = useRoute(); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
+const route = useRoute()
+const sourcePaths = useRecordListPaths(['/hr/departments', '/hr/documents']); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.departmentId))
 const documentId = computed(() => Number(route.params.documentId))
 const validId = computed(() => Number.isSafeInteger(id.value) && id.value > 0 && Number.isSafeInteger(documentId.value) && documentId.value > 0)
 const query = useHrDocument(computed(() => validId.value ? documentId.value : null))
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
-const backTo = computed(() => hrDocumentBack(route.query, id.value, route.hash))
-const editTo = computed(() => ({ path: `/hr/departments/${id.value}/documents/${documentId.value}/edit`, query: hrDocumentContext(route.query, id.value), ...(route.hash ? { hash: route.hash } : {}) }))
+const backTo = computed(() => hrDocumentBack(route.query, id.value, route.hash, sourcePaths.value))
+const editTo = computed(() => ({ path: `/hr/departments/${id.value}/documents/${documentId.value}/edit`, query: hrDocumentContext(route.query, id.value, sourcePaths.value), ...(route.hash ? { hash: route.hash } : {}) }))
 const isEdit = computed(() => route.path.endsWith('/edit'))
 </script>
 <template>

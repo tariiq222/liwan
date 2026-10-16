@@ -23,7 +23,7 @@ export const InMeetingAttachments: Story = {
 
 export const InDocumentCard: Story = {
   name: 'داخل بطاقة مرفقات مستند',
-  parameters: storyContext('apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue:94'),
+  parameters: storyContext('apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue:95'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),

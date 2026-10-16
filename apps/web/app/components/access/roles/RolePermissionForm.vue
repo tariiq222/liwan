@@ -127,8 +127,8 @@ async function save() {
     <p v-if="!props.role.active" class="text-sm text-warning">{{ t('access.roles.disabledExistingAssignments') }}</p>
     <p v-if="dirty && props.role.user_count" class="text-sm text-warning">{{ t('access.roles.affectedUsers', { count: props.role.user_count }, props.role.user_count) }}</p>
     <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-    <footer class="nasq-form-footer justify-end">
+    <SharedFormActions class="justify-end">
       <UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value" />
-    </footer>
+    </SharedFormActions>
   </UForm>
 </template>

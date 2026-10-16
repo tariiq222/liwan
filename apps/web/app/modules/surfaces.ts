@@ -1,11 +1,10 @@
 import { activeManifests } from './manifests'
 import type { AppBellKind, AppCommand, AppSearchProvider, AppSidebarPanel } from './types'
 
-/** Search providers of every application, in rail order; `/search` omits the dialog-only ones. */
-export function searchProviders(surface: 'dialog' | 'page' = 'dialog'): AppSearchProvider[] {
+/** The same application search providers for the dialog and the page, in rail order. */
+export function searchProviders(): AppSearchProvider[] {
   return activeManifests()
     .flatMap(manifest => manifest.search ?? [])
-    .filter(provider => surface === 'dialog' || !provider.dialogOnly)
 }
 
 /** The application-declared handling of a bell row kind, or undefined for a kind no manifest knows. */

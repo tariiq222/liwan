@@ -13,8 +13,8 @@ const nav = (locale: string) => ({
 describe.each(['ar', 'en'])('shell navigation labels (%s)', locale => {
   const labels = nav(locale)
 
-  it('names the home / overview once: rail item and sidebar item agree', () => {
-    expect(labels.home).toBe(labels.projectDashboard)
+  it('distinguishes foundation Home from the project overview', () => {
+    expect(labels.home).not.toBe(labels.projectDashboard)
   })
 
   it('does not label two different pages «my tasks»', () => {

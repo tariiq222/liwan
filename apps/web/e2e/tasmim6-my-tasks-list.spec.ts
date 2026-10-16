@@ -136,27 +136,24 @@ test.describe('Plan 6a: my tasks list', () => {
       const returnTo = new URL(page.url()).searchParams.get('returnTo') ?? ''
       expect(new URL(returnTo, 'http://nasq.local').searchParams.get('q')).toBe('ترتيب')
     })
-    test('a failed next page keeps the rows below the table and offers a retry', async ({ page }) => {
-      // The existing my-tasks-list.spec "a failed next page keeps the rows and offers a retry" pins this
-      // behaviour with `rows`; this spec only asserts that the load-more control sits after the table.
-      await mockList(page, fixtureList)
-      await open(page, '/my-tasks')
-      await expect(page.locator('[data-slot="data-table"]')).toBeVisible()
-    })
+
   })
   test.describe('phone', () => {
     test.use({ viewport: PHONE })
-    test('the phone rows carry name, state, deadline and assignees, J skips the hidden table', async ({ page }) => {
+    test('the cards view carries name, state, deadline and assignees with keyboard navigation', async ({ page }) => {
       await mockList(page, fixtureList)
       await open(page, '/my-tasks')
+      await page.getByTestId('my-tasks-view-cards').click()
       await expect(mobileRows(page)).toHaveCount(3)
-      await expect(page.locator('table')).toBeHidden()
+      await expect(page.locator('table')).toHaveCount(0)
       await expect(page.getByTestId('my-task-row-card')).toHaveCount(3)
       await expect(mobileRows(page).first()).toContainText('شراء هدايا العملاء')
       expect(await fitsWidth(page)).toBe(true)
       await page.getByRole('heading', { level: 1 }).click()
       await page.keyboard.press('j')
       await expect(mobileRows(page).nth(0)).toBeFocused()
+      await page.keyboard.press('Enter')
+      await expect(page).toHaveURL(/\/my-tasks\/101\?returnTo=/)
     })
   })
 })

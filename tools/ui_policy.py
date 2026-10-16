@@ -44,7 +44,7 @@ LAYER_COMPONENTS = frozenset(
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'RecordNumber', 'RowActions', 'StatusBadge', 'ViewSwitch')]
-    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
+    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
     + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellFrame')]
 )
 
@@ -80,7 +80,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/DataTable.vue',
     'shared/layout/ListPage.vue', 'shared/data/ViewSwitch.vue',
     'shared/layout/BrandWordmark.vue',
-    'shared/layout/FormSection.vue', 'shared/data/RecordNumber.vue', 'shared/layout/SettingsPage.vue', 'shared/feedback/EmptyState.vue', 'shared/layout/RouteTabs.vue',
+    'shared/layout/FormSection.vue', 'shared/form/FormActions.vue', 'shared/data/RecordNumber.vue', 'shared/layout/SettingsPage.vue', 'shared/feedback/EmptyState.vue', 'shared/layout/RouteTabs.vue',
     'shared/data/FilterBar.vue', 'shared/form/DateField.vue', 'shared/form/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
     'meetings/MeetingPeopleFields.vue', 'meetings/MeetingEventList.vue', 'meetings/MeetingMinutesDocument.vue',
     'meetings/MeetingMinutesForm.vue', 'meetings/MeetingTimeline.vue', 'meetings/MeetingVersionList.vue',

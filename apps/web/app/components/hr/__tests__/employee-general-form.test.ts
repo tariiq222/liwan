@@ -5,6 +5,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
 import ts from 'typescript'
+import { saveErrorMessage } from '../../../utils/formFeedback'
 import { ApiError } from '../../../composables/useApi'
 import { hrManagerOptions, type HrEmployee } from '../../../composables/useHrEmployees'
 
@@ -27,6 +28,7 @@ function loadComponent() {
   })
   const require = (name: string) => {
     if (name === 'vue') return Vue
+    if (name === '@/utils/formFeedback') return { saveErrorMessage }
     if (name === '@/composables/useApi') return { ApiError }
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }
     if (name === '@/composables/useHrEmployees') return {

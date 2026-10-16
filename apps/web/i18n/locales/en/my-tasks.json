@@ -1,12 +1,12 @@
 {
   "myTasks": {
     "title": "My tasks",
-    "new": "New task",
+    "new": "New personal task",
     "created": "Task created",
     "list": {
       "tabs": {
         "open": "Open",
-        "done": "Done"
+        "closed": "Closed"
       },
       "filters": {
         "all": "All",
@@ -14,13 +14,14 @@
         "created": "Created by me"
       },
       "search": "Search my tasks",
-      "project": "Project: {name}",
       "personal": "Personal task",
       "noDeadline": "No deadline",
       "empty": {
         "open": "No open tasks. Start by adding a new task.",
-        "done": "No completed tasks yet.",
-        "search": "No tasks match your search."
+        "search": "No tasks match your search.",
+        "closed": "No closed tasks yet.",
+        "scope": "No tasks in this scope. Try showing all.",
+        "page": "No visible results on this page."
       },
       "total": "{count} task | {count} tasks",
       "scope": "Show",
@@ -30,13 +31,15 @@
         "created": "Newest",
         "name": "Name"
       },
-      "loadMore": "Load more",
       "overdue": "Overdue",
       "assignees": "Assignees",
-      "loadError": "Could not load more tasks. Try again."
+      "loadError": "Could not load the requested tasks. Showing the last loaded results; try again.",
+      "closedHint": "Includes completed and cancelled tasks.",
+      "tableView": "Table view",
+      "cardView": "Card view"
     },
     "form": {
-      "createTitle": "New task",
+      "createTitle": "New personal task",
       "name": "Task title",
       "namePlaceholder": "What needs to get done?",
       "description": "Description",
@@ -48,7 +51,9 @@
       "save": "Save changes",
       "cancel": "Cancel",
       "nameRequired": "The task title is required",
-      "nameTooLong": "The task title must not exceed {max} characters"
+      "nameTooLong": "The task title must not exceed {max} characters",
+      "editTitle": "Edit task",
+      "backToTask": "Back to task"
     },
     "priority": {
       "normal": "Normal",
@@ -68,20 +73,23 @@
       "creator": "Created by",
       "createdAt": "Created",
       "updatedAt": "Last updated",
-      "notFound": "This task does not exist or you cannot view it.",
       "back": "Back to my tasks",
       "noAssignees": "No assignees",
-      "noDeadline": "No deadline"
+      "noDeadline": "No deadline",
+      "info": "Task information",
+      "backToParent": "Back to {name}",
+      "backToSource": "Back to task source"
     },
     "actions": {
       "done": "Mark done",
       "reopen": "Reopen",
       "cancel": "Cancel task",
-      "edit": "Edit"
+      "edit": "Edit",
+      "more": "More"
     },
     "cancelConfirm": {
       "title": "Cancel this task?",
-      "body": "The task moves to the done list as cancelled, and you can reopen it later.",
+      "body": "The task moves to the Closed list as cancelled, and you can reopen it later.",
       "confirm": "Yes, cancel the task",
       "keep": "Keep the task"
     },
@@ -91,7 +99,9 @@
       "add": "Add a sub-task",
       "namePlaceholder": "Sub-task title",
       "label": "Sub-tasks",
-      "parentOf": "Sub-task of"
+      "parentOf": "Sub-task of",
+      "progress": "{done} of {total} completed",
+      "cancelledCount": "{count} cancelled"
     },
     "comments": {
       "title": "Comments",
@@ -130,7 +140,11 @@
       "submit": "Convert task",
       "confirm": "Yes, convert the task",
       "keep": "Keep it as is",
-      "choose": "Choose a project"
+      "choose": "Choose a project",
+      "discardWarning": "Confirming conversion discards unsent text.",
+      "discardConfirm": "Discard draft and convert",
+      "resume": "Continue writing",
+      "chooseHint": "Choose a project to enable conversion."
     },
     "errors": {
       "save": "Could not save the task. Try again.",
@@ -138,6 +152,9 @@
       "comment": "Could not post the comment. Try again.",
       "attachment": "Could not upload the attachment. Check its type and size.",
       "convert": "Could not convert the task. Try again."
-    }
+    },
+    "description": "Your personal tasks and related project tasks.",
+    "pendingWork": "An action is in progress. Wait for its result; leaving does not cancel it on the server.",
+    "draftBeforeState": "Send or clear the draft before changing the task state."
   }
 }

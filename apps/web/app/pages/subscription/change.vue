@@ -62,10 +62,10 @@ definePageMeta({ middleware: 'customer-commercial' })
         <UAlert v-if="notice" role="alert" :color="notice === 'failed' ? 'error' : 'warning'" variant="subtle" :title="t(`subscription.change.${notice}`)"><template v-if="notice !== 'failed'" #actions><UButton size="sm" color="neutral" variant="outline" :disabled="busy" @click="review">{{ t('subscription.change.requote') }}</UButton></template></UAlert>
         <SharedCommercePriceBreakdown :quote="quote" :pending="busy" />
         <p v-if="redirecting" role="status" class="text-sm text-muted">{{ t('subscription.change.redirecting') }}</p>
-        <div class="flex gap-2">
+        <SharedFormActions class="flex gap-2">
           <UButton type="submit" :disabled="!hydrated || busy || !planId" :loading="busy && !quote">{{ t('subscription.change.review') }}</UButton>
           <UButton v-if="quote" type="button" :disabled="busy || redirecting" :loading="busy" @click="accept">{{ t('subscription.change.accept') }}</UButton>
-        </div>
+        </SharedFormActions>
       </form>
       <SharedUnsavedChanges :dirty="dirty" />
     </SharedPageState>

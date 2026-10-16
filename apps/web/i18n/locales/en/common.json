@@ -6,12 +6,19 @@
     "productName": "Nasq",
     "search": "Search",
     "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveChanges": "Save changes",
     "loadMore": "Load more",
     "recordNumber": "No."
   },
+  "home": {
+    "description": "Choose a workspace or start an action.",
+    "empty": "No workspaces are currently available for your account."
+  },
   "nav": {
     "today": "Today",
-    "tasks": "My tasks",
+    "tasks": "Assigned project tasks",
     "projects": "Projects",
     "toggleNavigation": "Toggle navigation",
     "breadcrumb": "Breadcrumb",
@@ -52,11 +59,11 @@
     "systemAdministration": "System administration",
     "toggleSidebar": "Toggle navigation",
     "chat": "Chat",
-    "myTasks": "My to-dos",
+    "myTasks": "My tasks",
     "meetings": "Meetings",
     "meetingCalendar": "Calendar",
     "meetingSeries": "Recurring meetings",
-    "projectDashboard": "Overview",
+    "projectDashboard": "Project overview",
     "currentProject": "Current project",
     "projectsMenu": "Projects menu",
     "returnToCurrentProject": "Return to project {name}",
@@ -90,6 +97,7 @@
     "totpInvalid": "Invalid verification code"
   },
   "errors": {
+    "saveUncertain": "We could not confirm whether the save completed. Check the record before trying again.",
     "pageNotFoundTitle": "Page not found",
     "pageNotFound": "The link may be wrong, or the page has moved.",
     "pageErrorTitle": "This page could not be shown",
@@ -127,6 +135,7 @@
     "disconnected": "Disconnected"
   },
   "search": {
+    "allProviders": "All search scopes",
     "description": "Search pages, projects and tasks…",
     "close": "Close search",
     "tasks": "Tasks",

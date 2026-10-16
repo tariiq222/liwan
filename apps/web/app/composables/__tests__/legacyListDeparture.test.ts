@@ -1,3 +1,4 @@
+import { currentListView, listViewQuery } from '@nasq/ui/app/utils/listView'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
@@ -22,10 +23,10 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
   const hooks = createHooks<{ 'nasq:navigation:start': (to: RouteLocationNormalized) => void }>()
   const nuxt = { hook: hooks.hook, callHook: (to: RouteLocationNormalized) => Promise.resolve().then(() => hooks.callHook('nasq:navigation:start', to)) }
   const bindings = {
-    ...myTaskList, _defineComponent: Vue.defineComponent, h: Vue.h, ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch,
+    ...myTaskList, currentListView, listViewQuery, useRowNavigation: () => {}, _defineComponent: Vue.defineComponent, h: Vue.h, ref: Vue.ref, shallowRef: Vue.shallowRef, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch,
     onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, onScopeDispose: Vue.onScopeDispose, useRoute, useRouter, refDebounced,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useAccess: () => ({ can: () => true }), useNuxtApp: () => nuxt,
-    useMyTaskPages: () => ({ data: Vue.ref({ pages: [{ items: [], total: 0 }] }), isFetchNextPageError: Vue.ref(false), isRefetchError: Vue.ref(false) }),
+    useMyTaskList: () => ({ data: Vue.ref({ items: [], total: 0 }), isFetching: Vue.ref(false), error: Vue.ref(null) }),
     FilterBar: {}, MyTaskRow: {}, sectionTabsUi: {},
   }
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
