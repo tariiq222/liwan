@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import posixpath
 import re
 import subprocess
@@ -37,6 +38,21 @@ UI_LAYER_FORBIDDEN = re.compile(
     r"""(?:[./]*/)?(?:apps/|odoo-addons/|@/|@@/|~/|~~/|@nasq/contracts|[^'"\n]*control-plane)""",
 )
 UI_LAYER_FILES = ('.ts', '.vue', '.css')
+# VA1: a file of the vendor admin app (a) imports an application, an addon, the customer contracts or the control plane, or
+# (b) names an Odoo route as a string. The quoted-specifier form keeps prose in comments from matching.
+VENDOR_ADMIN_IMPORT_FORBIDDEN = re.compile(
+    r"""(?:(?:\bfrom|\bimport|\brequire\(|import\.meta\.glob\()\s*[(\[]?\s*['"]|(?:@import|@source|url\()\s*['"]?)"""
+    r"""(?:[./]*/)?(?:apps/|odoo-addons/|@nasq/contracts(?![\w-])|[^'"\n]*control-plane)""",
+)
+VENDOR_ADMIN_ODOO_ROUTE = re.compile(r"""['"`]/(?:api/v1|web|odoo|jsonrpc|json/2)(?:[/?#'"`]|$)""", re.MULTILINE)
+# VA1 (second clause): a file of the customer app imports the vendor admin app.
+VENDOR_ADMIN_IMPORTED = re.compile(
+    r"""(?:(?:\bfrom|\bimport|\brequire\(|import\.meta\.glob\()\s*[(\[]?\s*['"]|(?:@import|@source|url\()\s*['"]?)"""
+    r"""[^'"\n]*vendor-admin""",
+)
+RELATIVE_SPECIFIER = re.compile(r"""(?:\bfrom|\bimport|\brequire\()\s*\(?\s*['"](\.{1,2}/[^'"\n]*)['"]""")
+VENDOR_ADMIN_FILES = ('.ts', '.vue', '.css', '.mjs')
+VENDOR_ADMIN_SKIPPED_DIRS = {'node_modules', '.nuxt', '.output', 'dist', 'storybook-static'}
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
 SQL_TABLE = re.compile(
@@ -63,6 +79,26 @@ def is_test_path(path: Path) -> bool:
 def ui_layer_violations(text: str) -> int:
     """UI1: imports of an application, addon, alias, the contracts or the control plane in a shared UI layer file."""
     return count(UI_LAYER_FORBIDDEN, text)
+
+
+def vendor_admin_violations(text: str) -> int:
+    """VA1: forbidden imports or Odoo route strings in a vendor admin app file."""
+    return count(VENDOR_ADMIN_IMPORT_FORBIDDEN, text) + count(VENDOR_ADMIN_ODOO_ROUTE, text)
+
+
+def escapes_app(text: str, file: Path, app_dir: Path) -> bool:
+    """VA1: a relative import that resolves outside the application folder."""
+    base = os.path.normpath(app_dir)
+    for specifier in RELATIVE_SPECIFIER.findall(text):
+        target = os.path.normpath(os.path.join(file.parent, specifier))
+        if target != base and not target.startswith(base + os.sep):
+            return True
+    return False
+
+
+def vendor_admin_imported(text: str) -> int:
+    """VA1: imports of the vendor admin app from the customer app."""
+    return count(VENDOR_ADMIN_IMPORTED, text)
 
 
 def count(pattern: re.Pattern[str], text: str) -> int:
@@ -529,6 +565,21 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             continue
         if ui_layer_violations(_read(path)):
             hard.append(f'UI1 {rel} imports from an application, an addon, an app alias, the contracts or the control plane')
+    # The vendor admin app is its own application with its own boundary, a hard rule never baselined (VA1): it reaches no
+    # application, addon, customer contract or Odoo route, and the customer app never imports it.
+    for app_dir, check, message in (
+        (root / 'apps' / 'vendor-admin', vendor_admin_violations, 'imports an application, an addon, the customer contracts or the control plane, or names an Odoo route'),
+        (web, vendor_admin_imported, 'imports the vendor admin app'),
+    ):
+        for path in sorted(app_dir.rglob('*')) if app_dir.is_dir() else []:
+            rel = _rel(path, root)
+            if VENDOR_ADMIN_SKIPPED_DIRS & set(path.parts) or not path.is_file() or path.suffix not in VENDOR_ADMIN_FILES:
+                continue
+            if check is vendor_admin_violations and is_test_path(Path(rel)):
+                continue
+            text = _read(path)
+            if check(text) or (check is vendor_admin_violations and escapes_app(text, path, app_dir)):
+                hard.append(f'VA1 {rel} {message}')
     return v, hard
 
 

@@ -23,6 +23,8 @@ from arch_policy import (
     sql_on_odoo_tables,
     sudo_calls,
     ui_layer_violations,
+    vendor_admin_imported,
+    vendor_admin_violations,
     unregistered_addons,
 )
 
@@ -384,6 +386,46 @@ class TestCollect(unittest.TestCase):
                     "// moved from apps/web/app/x", "/* imported from @/composables by the app */", "see apps/web/app/x for import details",
                     "background: url(./a.png);", "@source '../app';"):
             self.assertEqual(ui_layer_violations(good), 0, good)
+
+    def test_vendor_admin_boundary_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('apps/vendor-admin/app/pages/a.vue', "<script setup>import x from '../../../web/app/x'\nimport y from 'apps/web/app/y'</script>\n")
+        self.write('apps/vendor-admin/server/api/b.ts', "import c from '@nasq/contracts'\n")
+        self.write('apps/vendor-admin/server/api/c.ts', "const r = await $fetch('/api/v1/people')\n")
+        self.write('apps/vendor-admin/app/pages/d.vue', "<script setup>import q from '../../../../packages/x'</script>\n")
+        self.write('apps/vendor-admin/app/good.ts', "import { ref } from 'vue'\nimport z from '@nasq/commercial-contracts'\nfetch('/api/vendor/v1/context')\n")
+        self.write('apps/vendor-admin/app/__tests__/t.test.ts', "import x from 'apps/web/x'\nfetch('/api/v1/x')\n")
+        self.write('apps/vendor-admin/node_modules/d/index.ts', "import x from 'apps/web/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], [
+            'apps/vendor-admin/app/pages/a.vue',
+            'apps/vendor-admin/app/pages/d.vue',
+            'apps/vendor-admin/server/api/b.ts',
+            'apps/vendor-admin/server/api/c.ts',
+        ])
+        self.assertTrue(all(h.startswith('VA1 ') for h in hard))
+
+    def test_customer_app_importing_the_vendor_admin_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('apps/web/app/pages/x.vue', "<script setup>import a from '../../../vendor-admin/app/a'</script>\n")
+        self.write('apps/web/app/ok.ts', "// see apps/vendor-admin for the admin app\nimport b from 'vue'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], ['apps/web/app/pages/x.vue'])
+
+    def test_vendor_admin_patterns(self):
+        for bad in ("import a from 'apps/web/x'", "import '@nasq/contracts'",
+                    "import a from '@nasq/contracts/app/x'", "import a from 'odoo-addons/x'", "import c from '../control-plane/x'",
+                    "require('../../apps/control-plane/x')", "import.meta.glob('../../apps/web/*.ts')",
+                    "$fetch('/api/v1/people')", 'fetch("/web/session")', "const u = `/odoo/action`", "$fetch('/jsonrpc')", "get('/web')"):
+            self.assertGreaterEqual(vendor_admin_violations(bad), 1, bad)
+        for good in ("import a from 'vue'", "import b from '@nasq/ui/app/x'", "import c from '@nasq/commercial-ui/app/x'",
+                    "import d from '@nasq/commercial-contracts/server'", "import e from './web'", "import f from '~/composables/x'",
+                    "// moved from apps/web/app/x", "see /api/v1/people in the old app", "fetch('/api/vendor/v1/context')",
+                    "const p = '/webhooks'", "const q = '/overview'"):
+            self.assertEqual(vendor_admin_violations(good), 0, good)
+        self.assertEqual(vendor_admin_imported("import a from '../../vendor-admin/x'"), 1)
+        self.assertEqual(vendor_admin_imported("import a from '@nasq/vendor-admin/x'"), 1)
+        self.assertEqual(vendor_admin_imported("// see apps/vendor-admin/README"), 0)
 
     def test_clean_tree_has_no_violations(self):
         self.clean_tree()
