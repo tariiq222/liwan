@@ -1,5 +1,9 @@
 # Company workspace and Nasq vendor administration
 
+> Superseded on 2026-10-15 by the [vendor administration separation design](2026-10-15-nasq-vendor-admin-separation-design.md):
+> vendor administration is the separate `apps/vendor-admin` application and no longer a section of a company
+> workspace. The content below is kept as the historical record of the earlier decision.
+
 Status: unified company workspace and separate customer databases approved by user on 2026-09-23.
 The user requested verification and implementation through the vendor console, then proposed
 using the same workspace for the vendor company (CRM, projects, other modules, employees/customers).
