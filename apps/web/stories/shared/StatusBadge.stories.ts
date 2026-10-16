@@ -7,8 +7,6 @@ import { deadlineLabel, deadlineTone, taskStateBadge } from '../../app/composabl
 import { accessStateBadge } from '../../app/utils/accessStateBadge'
 import { hrAccessBadge } from '../../app/utils/hrAccessBadge'
 import { subscriptionStateBadge } from '../../app/utils/subscription'
-import { lifecycleBadge } from '../../app/utils/vendorCommercial'
-import { orderFulfillmentBadge, orderPaymentBadge } from '../../app/utils/vendorSubscriptions'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -58,17 +56,4 @@ export const SubscriptionState: Story = {
   name: 'حالة الاشتراك',
   parameters: storyContext('apps/web/app/pages/subscription/index.vue:37'),
   render: row('<StatusBadge v-for="s in states" :key="s" :tone="subscriptionStateBadge(s).tone" :label="t(subscriptionStateBadge(s).labelKey)" />', () => ({ states: ['awaiting_payment', 'activating', 'active', 'failed', 'inactive'], subscriptionStateBadge })),
-}
-export const Lifecycle: Story = {
-  name: 'دورة حياة الحزمة',
-  parameters: storyContext('apps/web/app/pages/vendor/bundles/index.vue:51'),
-  render: row('<StatusBadge v-for="(v, i) in views" :key="i" :tone="lifecycleBadge(v).tone" :label="t(lifecycleBadge(v).labelKey)" />', () => ({ views: [{ status: 'draft' }, { status: 'validated' }, { status: 'published', available: true }, { status: 'published', available: false }], lifecycleBadge })),
-}
-export const OrderState: Story = {
-  name: 'حالة الطلب',
-  parameters: storyContext('apps/web/app/components/vendor/SubscriptionSummary.vue:29'),
-  render: row('<template v-for="(o, i) in orders" :key="i"><StatusBadge :tone="orderPaymentBadge(o).tone" :label="t(orderPaymentBadge(o).labelKey)" /><StatusBadge variant="outline" :tone="orderFulfillmentBadge(o).tone" :label="t(orderFulfillmentBadge(o).labelKey)" /></template>', () => ({
-    orders: [{ payment_state: 'awaiting_payment', fulfillment_state: 'not_started' }, { payment_state: 'paid', fulfillment_state: 'applied' }, { payment_state: 'paid', fulfillment_state: 'needs_intervention' }],
-    orderPaymentBadge, orderFulfillmentBadge,
-  })),
 }

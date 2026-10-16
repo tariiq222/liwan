@@ -53,7 +53,6 @@ function moduleWithinApp(manifest: AppManifest, path: string): ShellModule {
 
 export function activeShellModule(path: string): ShellModule | null {
   if (normalizedPath(path) === '/') return 'home'
-  if (path === '/vendor' || path.startsWith('/vendor/')) return 'management'
   const owner = manifestForPath(path)
   if (owner) return moduleWithinApp(owner, path)
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings'
@@ -63,7 +62,6 @@ export function activeShellModule(path: string): ShellModule | null {
   if (path === '/search' || path.startsWith('/search/')) return null
   if (path === '/notifications' || path.startsWith('/notifications/')) return null
   if (path === '/notification-digests' || path.startsWith('/notification-digests/')) return null
-  if (path === '/odoo' || path.startsWith('/odoo/')) return 'vendor'
   return null
 }
 

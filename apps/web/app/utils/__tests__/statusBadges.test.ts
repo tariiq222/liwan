@@ -5,8 +5,6 @@ import { accessStateBadge } from '../accessStateBadge'
 import { hrAccessBadge } from '../hrAccessBadge'
 import { badgeLabel, statusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 import { subscriptionStateBadge } from '../subscription'
-import { lifecycleBadge } from '../vendorCommercial'
-import { orderFulfillmentBadge, orderPaymentBadge } from '../vendorSubscriptions'
 
 const t = (key: string) => `t:${key}`
 
@@ -26,11 +24,6 @@ describe('status badge maps keep the colours and labels the old components had',
     [hrAccessBadge({ user_id: 3, login: 'e', role: 'employee', active: true }), 'success', 'hr.directory.access.employee'],
     [subscriptionStateBadge('failed'), 'destructive', 'subscription.state.failed'],
     [subscriptionStateBadge('awaiting_payment'), 'warning', 'subscription.state.awaitingPayment'],
-    [lifecycleBadge({ status: 'published', available: false }), 'warning', 'vendor.pricing.status.withdrawn'],
-    [lifecycleBadge({ status: 'validated' }), 'info', 'vendor.pricing.status.validated'],
-    [orderPaymentBadge({ payment_state: 'paid', fulfillment_state: 'applied' }), 'success', 'vendor.customers.payment.paid'],
-    [orderPaymentBadge({ payment_state: 'paid', fulfillment_state: 'needs_intervention' }), 'destructive', 'vendor.customers.payment.paid'],
-    [orderFulfillmentBadge({ fulfillment_state: 'queued' }), 'neutral', 'vendor.customers.fulfillment.queued'],
   ] as const)('%o', (entry, tone, labelKey) => {
     expect(entry).toEqual({ tone, labelKey })
   })

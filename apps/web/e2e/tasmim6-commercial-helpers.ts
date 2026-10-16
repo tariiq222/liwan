@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test'
 
-// Plan 6e shared helpers. The session comes from the mock login API; vendor and subscription data
+// Plan 6e shared helpers. The session comes from the mock login API; subscription data
 // come from the stub control plane (commercial-mock-routes.mjs), switched on by p6e-e2e.sh.
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'

@@ -22,7 +22,6 @@ const NAMESPACES = [
   'subscription.json',
   'taskLifecycle.json',
   'tasks.json',
-  'vendor.json',
 ]
 
 let scratch: string[] = []

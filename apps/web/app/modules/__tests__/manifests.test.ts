@@ -33,7 +33,7 @@ describe('app manifests', () => {
   it('keeps the module feature map', () => {
     expect(MODULE_FEATURES).toMatchObject({
       home: null, projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled',
-      settings: null, vendor: null, management: null,
+      settings: null,
     })
   })
 
