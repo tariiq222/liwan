@@ -27,6 +27,9 @@ function sources(dir: string): string[] {
 const vendorKeys = { ar: new Set(load(localesRoot, 'ar', 'vendor.json')), en: new Set(load(localesRoot, 'en', 'vendor.json')) }
 const commercialKeys = new Set(load(layerLocales, 'en', 'commercial.json'))
 
+// Keys under these prefixes are chosen by a helper from a value the pages pass in.
+const DECLARED_DYNAMIC_PREFIXES = ['vendor.invoices.status']
+
 describe('vendor locale', () => {
   it('ships the same keys in ar and en', () => {
     expect([...vendorKeys.ar].sort()).toEqual([...vendorKeys.en].sort())
@@ -44,5 +47,19 @@ describe('vendor locale', () => {
       }
     }
     expect([...used].filter(key => !vendorKeys.en.has(key) && !vendorKeys.ar.has(key) && !commercialKeys.has(key)).sort()).toEqual([])
+  })
+
+  it('has no key that nothing references', () => {
+    const literals = new Set<string>()
+    for (const dir of ['pages', 'components', 'composables', 'utils', 'middleware']) {
+      for (const file of sources(join(appRoot, dir))) {
+        for (const match of readFileSync(file, 'utf8').matchAll(/(vendor\.[A-Za-z0-9_.]*)/g)) literals.add(match[1]!)
+      }
+    }
+    // A literal ending in "." is the prefix of a key built at run time (`vendor.x.${value}`); the declared prefixes are
+    // passed to helpers as arguments and extended there.
+    const prefixes = [...literals].filter(literal => literal.endsWith('.')).concat(DECLARED_DYNAMIC_PREFIXES.map(prefix => `${prefix}.`))
+    const unused = [...vendorKeys.en].filter(key => !literals.has(key) && !prefixes.some(prefix => key.startsWith(prefix)))
+    expect(unused.sort()).toEqual([])
   })
 })

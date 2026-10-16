@@ -7,7 +7,6 @@
       "status": "الحالة",
       "enabled": "مفعّل",
       "disabled": "معطّل",
-      "save": "حفظ",
       "refresh": "تحديث",
       "allModes": "كل الأنماط",
       "yes": "نعم",
@@ -89,7 +88,6 @@
       "healthChecked": "آخر فحص للصحة",
       "grantTitle": "صلاحية العمليات",
       "grantHint": "تتحكم هذه الإعدادات بالعمليات فقط ولا تمنح صلاحيات الفوترة.",
-      "grantState": "حالة الصلاحية",
       "policyTitle": "الإعدادات",
       "policyHint": "الإعداد المطلوب والإعداد المرصود حسب تقرير الخدمة.",
       "desiredPolicy": "المطلوب",
@@ -135,23 +133,11 @@
     },
     "catalog": {
       "title": "الحزم القديمة",
-      "description": "مراجعة إصدارات كتالوج الحلول الموثوقة المتاحة لعمليات المستأجرين.",
-      "empty": "لا توجد إصدارات للكتالوج.",
-      "noComposition": "دون تركيبة كتالوج",
-      "reasonNotice": "يُسجّل التحقق والنشر مع السبب، ولا يمكن تعديل الإصدارات المنشورة.",
-      "validate": "التحقق",
-      "publish": "النشر",
-      "solution": "تفاصيل الحل",
       "tiers": {
         "core": "الأساس",
         "projects": "المشاريع",
         "people": "الأفراد",
         "messaging": "المراسلة"
-      },
-      "status": {
-        "draft": "مسودة",
-        "validated": "تم التحقق",
-        "published": "منشور"
       }
     },
     "features": {
@@ -673,7 +659,6 @@
       "branchesFree": "مجانية مستخدمة / مسموحة",
       "branchesPaid": "مدفوعة",
       "branchesLimit": "الحد الأقصى",
-      "allInvoices": "كل الفواتير",
       "openAudit": "فتح سجل التدقيق",
       "technical": "تفاصيل تقنية",
       "techSubscription": "معرّف الاشتراك",
@@ -847,12 +832,10 @@
       "techId": "معرّف الفاتورة",
       "techOrder": "معرّف الطلب",
       "line": {
-        "description": "البند",
         "free": "مجاني",
         "paid": "مدفوع",
         "unit": "سعر الوحدة",
-        "period": "الفترة",
-        "amount": "المبلغ"
+        "period": "الفترة"
       },
       "lineKind": {
         "base": "أساسي",

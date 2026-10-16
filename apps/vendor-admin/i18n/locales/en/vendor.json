@@ -7,7 +7,6 @@
       "status": "Status",
       "enabled": "Enabled",
       "disabled": "Disabled",
-      "save": "Save",
       "refresh": "Refresh",
       "allModes": "All modes",
       "yes": "Yes",
@@ -89,7 +88,6 @@
       "healthChecked": "Last health check",
       "grantTitle": "Operations access",
       "grantHint": "This setting controls operational access only. It does not grant billing authority.",
-      "grantState": "Access state",
       "policyTitle": "Configuration",
       "policyHint": "Desired and observed configuration reported by the service.",
       "desiredPolicy": "Desired",
@@ -135,23 +133,11 @@
     },
     "catalog": {
       "title": "Legacy packages",
-      "description": "Review the trusted solution catalog versions available to tenant operations.",
-      "empty": "No catalog versions are available.",
-      "noComposition": "No catalog composition",
-      "reasonNotice": "Validation and publication are recorded with a reason. Published versions are immutable.",
-      "validate": "Validate",
-      "publish": "Publish",
-      "solution": "Solution details",
       "tiers": {
         "core": "Core",
         "projects": "Projects",
         "people": "People",
         "messaging": "Messaging"
-      },
-      "status": {
-        "draft": "Draft",
-        "validated": "Validated",
-        "published": "Published"
       }
     },
     "features": {
@@ -673,7 +659,6 @@
       "branchesFree": "Free used / allowed",
       "branchesPaid": "Paid",
       "branchesLimit": "Limit",
-      "allInvoices": "All invoices",
       "openAudit": "Open audit log",
       "technical": "Technical details",
       "techSubscription": "Subscription id",
@@ -847,12 +832,10 @@
       "techId": "Invoice id",
       "techOrder": "Order id",
       "line": {
-        "description": "Item",
         "free": "Free",
         "paid": "Paid",
         "unit": "Unit price",
-        "period": "Period",
-        "amount": "Amount"
+        "period": "Period"
       },
       "lineKind": {
         "base": "Base",
