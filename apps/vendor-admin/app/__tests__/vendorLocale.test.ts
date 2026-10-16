@@ -62,4 +62,19 @@ describe('vendor locale', () => {
     const unused = [...vendorKeys.en].filter(key => !literals.has(key) && !prefixes.some(prefix => key.startsWith(prefix)))
     expect(unused.sort()).toEqual([])
   })
+
+  it('names plans and bundles once each, and the legacy page apart', () => {
+    const titles = (lang: string) => (JSON.parse(readFileSync(join(localesRoot, lang, 'vendor.json'), 'utf8')) as {
+      vendor: Record<'plans' | 'bundles' | 'packages' | 'catalog', { title: string }>
+    }).vendor
+    for (const lang of ['ar', 'en']) {
+      const v = titles(lang)
+      expect(new Set([v.plans.title, v.bundles.title, v.packages.title]).size).toBe(3)
+      expect(v.catalog.title).toBe(v.packages.title)
+    }
+    const ar = titles('ar')
+    expect([ar.plans.title, ar.bundles.title, ar.packages.title]).toEqual(['الباقات', 'الحزم', 'الحزم القديمة'])
+    const en = titles('en')
+    expect([en.plans.title, en.bundles.title, en.packages.title]).toEqual(['Plans', 'Bundles', 'Legacy packages'])
+  })
 })
