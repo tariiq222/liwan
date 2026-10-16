@@ -1,8 +1,10 @@
-// Loads the signed-in account's vendor capabilities and feature flags before any page renders, so a
+// Loads the signed-in account's vendor capabilities and feature flags before a page renders, so a
 // page's own data loading (billing sections, shared onboarding) can rely on `can()` at setup time.
-// Runs after 00.auth.global, which has already loaded the session; signed-out pages skip the request.
-export default defineNuxtRouteMiddleware(async () => {
-  const { ready, refresh } = useVendorContext()
-  await ready
-  await refresh()
+// Runs after 00.auth.global. It loads once per account, not on every navigation, and registers no
+// watcher or route hook: a 401 sends the sign-in page the target route as `next`.
+export default defineNuxtRouteMiddleware(async (to) => {
+  const state = useVendorContextState()
+  const fetcher = useRequestFetch()
+  await state.ensure(() => fetcher('/api/vendor/v1/context'))
+  if (state.error.value?.statusCode === 401) return navigateTo({ path: '/login', query: { next: to.fullPath } })
 })
