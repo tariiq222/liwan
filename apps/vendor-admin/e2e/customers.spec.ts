@@ -43,7 +43,7 @@ test.describe('Plan 6e: vendor customers', () => {
 
     test('an unavailable commercial list shows the not-available alert, not an empty table', async ({ page }) => {
       await open(page, '/overview')
-      await page.route('**/api/vendor/v1/commercial/customers**', route => route.fulfill({ status: 501, json: { code: 'not_implemented', message: 'n' } }))
+      await page.route('**/api/vendor/v1/commercial/clients**', route => route.fulfill({ status: 501, json: { code: 'not_implemented', message: 'n' } }))
       await navigateClient(page, '/customers')
       await expect(page.locator('[data-slot="data-table"]')).toHaveCount(0)
       await expect(page.locator('#__nuxt')).toContainText('غير متاح')

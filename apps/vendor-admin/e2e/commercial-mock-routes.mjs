@@ -31,6 +31,43 @@ function page(collection, url, filter = () => true) {
 const q = (url, name) => url.searchParams.get(name) ?? ''
 const byId = (collection, id) => collection.items.find(item => item.id === id)
 
+/** Workspace name and owning customer, resolved for display the way the control plane does. */
+function withTarget(operation) {
+  const tenant = fixtures.tenants.items.find(t => t.id === operation.tenant_id)
+  const customer = fixtures.customers.items.find(c => c.tenant_id === operation.tenant_id)
+  return { ...operation, tenant_name: tenant?.name ?? null, customer_id: customer?.id ?? null }
+}
+
+/** An audit event with its actor and subject resolved; the stub knows only workspaces and customers. */
+function auditEvent(event) {
+  const tenant = fixtures.tenants.items.find(t => t.id === event.subject)
+  const customer = fixtures.customers.items.find(c => c.id === event.subject || c.tenant_id === event.subject)
+  const kind = tenant ? 'tenant' : customer ? 'customer' : 'other'
+  return { ...event, actor_name: null, subject_ref: { kind, name: tenant?.name ?? customer?.name ?? null, customer_id: customer?.id ?? null, tenant_id: tenant?.id ?? null } }
+}
+
+/** The audit filters of GET /v1/audit; `from`/`to` are inclusive UTC days, `action` an exact action or a family prefix. */
+function auditMatches(url) {
+  const [text, action, actor, from, to, customer] = ['q', 'action', 'actor', 'from', 'to', 'customer_id'].map(name => q(url, name))
+  return event => {
+    const resolved = auditEvent(event)
+    const day = event.created_at.slice(0, 10)
+    return (!text || [event.action, event.reason, event.subject, resolved.subject_ref.name ?? ''].some(value => value.includes(text)))
+      && (!action || event.action === action || event.action.startsWith(`${action}.`))
+      && (!actor || event.actor === actor)
+      && (!from || day >= from) && (!to || day <= to)
+      && (!customer || resolved.subject_ref.customer_id === customer)
+  }
+}
+
+/** The invoice list summary: issued totals per currency and overdue count, scoped by customer but not by status. */
+function invoiceSummary(customerId) {
+  const issued = fixtures.invoices.items.filter(i => i.status === 'issued' && (!customerId || i.customer_id === customerId))
+  const totals = new Map()
+  for (const { total } of issued) totals.set(total.currency, { ...total, minor: (totals.get(total.currency)?.minor ?? 0) + total.minor })
+  return { outstanding: [...totals.values()], overdue_count: issued.filter(i => i.due_at && Date.parse(i.due_at) < Date.now()).length }
+}
+
 /** The unified client list the control plane serves: every customer with its workspace, then workspaces without a customer. */
 function clientRows() {
   const tenant = id => fixtures.tenants.items.find(t => t.id === id)
@@ -62,11 +99,18 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   else if (path === '/v1/catalog') send(fixtures.catalogVersions)
   else if (path === '/v1/packages') send({ items: fixtures.catalog.items, total: fixtures.catalog.total })
   else if ((m = /^\/v1\/packages\/([^/]+)$/.exec(path))) send(byId(fixtures.catalog, decodeURIComponent(m[1])))
-  else if (path === '/v1/audit') send({ items: fixtures.audit.items.slice((Math.max(1, Number(q(url, 'page')) || 1) - 1) * 25).slice(0, 25), total: fixtures.audit.total })
+  else if (path === '/v1/audit') {
+    const events = fixtures.audit.items.filter(auditMatches(url))
+    const from = (Math.max(1, Number(q(url, 'page')) || 1) - 1) * 25
+    send({ items: events.slice(from, from + 25).map(auditEvent), total: events.length })
+  }
   else if (path === '/v1/tenants') send(page(fixtures.tenants, url, t => !q(url, 'q') || t.name.includes(q(url, 'q'))))
   else if ((m = /^\/v1\/tenants\/([^/]+)$/.exec(path))) send(byId(fixtures.tenants, m[1]))
-  else if (path === '/v1/operations') send(page(fixtures.operations, url, o => !q(url, 'tenant_id') || o.tenant_id === q(url, 'tenant_id')))
-  else if ((m = /^\/v1\/operations\/([^/]+)$/.exec(path))) send(fixtures.operationDetails[m[1]])
+  else if (path === '/v1/operations') {
+    const feed = page(fixtures.operations, url, o => !q(url, 'tenant_id') || o.tenant_id === q(url, 'tenant_id'))
+    send({ items: feed.items.map(withTarget), total: feed.total })
+  }
+  else if ((m = /^\/v1\/operations\/([^/]+)$/.exec(path))) send(fixtures.operationDetails[m[1]] && withTarget(fixtures.operationDetails[m[1]]))
   else if (path === '/v1/commercial/clients') {
     const state = q(url, 'state')
     const matches = r => (!q(url, 'q') || r.name.includes(q(url, 'q'))) && (!state || (state === 'setup_required' ? r.setup_required || (r.customer_id && !r.subscription_state) : state === 'no_workspace' ? r.customer_id && !r.tenant_id : state === 'no_commercial' ? !r.customer_id : r.subscription_state === state))
@@ -77,7 +121,7 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   else if ((m = /^\/v1\/commercial\/customers\/([^/]+)$/.exec(path))) send(byId(fixtures.customers, m[1]))
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)$/.exec(path))) send(fixtures.subscriptions[m[1]])
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)\/(branches|usage)$/.exec(path))) send(fixtures.subscriptionParts[`${m[1]}:${m[2]}`])
-  else if (path === '/v1/commercial/invoices') send(page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))))
+  else if (path === '/v1/commercial/invoices') send({ ...page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))), summary: invoiceSummary(q(url, 'customer_id')) })
   else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(byId(fixtures.invoices, m[1]))
   else if ((m = /^\/v1\/commercial\/orders\/([^/]+)\/payment-attempts$/.exec(path))) send(fixtures.paymentAttempts[decodeURIComponent(m[1])] ?? { items: [], total: 0 })
   else if (path === '/v1/commercial/plans') send(page(fixtures.plans, url, p => (!q(url, 'status') || p.status === q(url, 'status')) && (!q(url, 'q') || p.name.includes(q(url, 'q')))))

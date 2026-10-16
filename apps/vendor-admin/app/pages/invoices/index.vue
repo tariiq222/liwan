@@ -13,12 +13,13 @@ const status = computed(() => (isInvoiceStatusFilter(route.query.status) ? route
 const page = computed(() => Math.max(1, Number(route.query.page ?? 1) || 1))
 function patch(change: Record<string, unknown>) { void router.replace({ path: '/invoices', query: { ...route.query, page: undefined, ...change } }) }
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:invoices:${customerId.value}:${status.value}:${page.value}`, () => api.listInvoices(invoiceListQuery({ customerId: customerId.value, status: status.value, page: page.value, pageSize: PAGE })), { watch: [customerId, status, page] })
-const { data: customers } = await useAsyncData('vendor:invoices:customers', () => api.listCustomers({ limit: 200 }).catch(() => null))
+// The filter offers the newest page of commercial clients; an invoice's own customer_name labels a filter set from a link.
+const { data: customers } = await useAsyncData('vendor:invoices:customers', () => api.listClients({}))
 const unavailable = computed(() => isNotAvailable(error.value))
 const items = computed(() => data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / PAGE)))
 const statusItems = computed(() => INVOICE_STATUS_FILTERS.map(value => ({ value, label: t(`vendor.invoices.filter.${value}`) })))
-const customerItems = computed(() => [{ value: '', label: t('vendor.invoices.allCustomers') }, ...(customers.value?.items ?? []).map(c => ({ value: c.id, label: c.name }))])
+const customerItems = computed(() => [{ value: '', label: t('vendor.invoices.allCustomers') }, ...(customers.value?.items ?? []).flatMap(c => (c.customer_id ? [{ value: c.customer_id, label: c.name }] : []))])
 const customerLabel = computed(() => customerItems.value.find(c => c.value === customerId.value)?.label ?? items.value[0]?.customer_name ?? t('vendor.invoices.customerFilter'))
 const to = (id: string) => ({ path: `/invoices/${encodeURIComponent(id)}`, query: { returnTo: route.fullPath } })
 const customerTo = (id: string) => ({ path: `/customers/${encodeURIComponent(id)}` })

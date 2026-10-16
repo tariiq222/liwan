@@ -67,14 +67,14 @@ test.describe('enrollment and passkey sign-in', () => {
     await expect(page.getByRole('button', { name: 'متابعة إلى لوحة الإدارة' })).toBeDisabled()
     await leaveRecoveryCodes(page)
     await expect(page).toHaveURL(/\/overview$/)
-    await expect(page.getByRole('heading', { level: 1, name: 'إدارة نسق' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'اليوم' })).toBeVisible()
     // The router's own history entries never held the token: not this one, nor the one behind it.
     expect(await page.evaluate(() => JSON.stringify(history.state))).not.toContain(token)
     await page.goBack()
     expect(page.url()).not.toContain(token)
     expect(await page.evaluate(() => JSON.stringify(history.state))).not.toContain(token)
     await page.goForward()
-    await expect(page.getByRole('heading', { name: 'نسق' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'اليوم' })).toBeVisible()
 
     // The invitation is single use.
     await page.goto(`/enroll#${token}`)
@@ -88,7 +88,7 @@ test.describe('enrollment and passkey sign-in', () => {
     await expect(page).toHaveURL(/\/login\?next=\/overview$/)
     await page.getByRole('button', { name: 'الدخول بمفتاح المرور' }).click()
     await expect(page).toHaveURL(/localhost:\d+\/overview$/)
-    await expect(page.getByRole('heading', { level: 1, name: 'إدارة نسق' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'اليوم' })).toBeVisible()
     const cookie = (await context.cookies()).find(item => item.name === 'nasq_admin')
     expect(cookie).toMatchObject({ httpOnly: true, sameSite: 'Strict', path: '/' })
     expect(await page.evaluate(() => document.cookie)).not.toContain('nasq_admin')

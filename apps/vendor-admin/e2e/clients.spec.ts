@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectNoSecondH1, fitsWidth, login, navigateClient, open, rows } from './commercial-helpers'
+import { expectNoSecondH1, fitsWidth, hydrated, login, navigateClient, open, rows } from './commercial-helpers'
 test.beforeEach(async ({ page }) => { await login(page) })
 
 test('the client list creates a client under customers and carries its return target', async ({ page }) => {
@@ -23,7 +23,7 @@ test('the customer tabs live in the URL and survive a refresh', async ({ page })
  await expect(page.getByTestId('customer-tab-summary')).toHaveAttribute('aria-current', 'page')
  await page.getByTestId('customer-tab-history').click()
  await expect.poll(() => new URL(page.url()).searchParams.get('tab')).toBe('history')
- await page.reload()
+ await page.reload(); await hydrated(page)
  await expect(page.getByTestId('customer-tab-history')).toHaveAttribute('aria-current', 'page')
  await page.goBack()
  await expect(page.getByTestId('customer-tab-summary')).toHaveAttribute('aria-current', 'page')

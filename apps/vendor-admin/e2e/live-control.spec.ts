@@ -135,7 +135,7 @@ test('the owner enrolls from the bootstrap link: passkey, password, authenticato
   expect(new URL(page.url()).hash).toBe('')
   const codes = await enroll(page, ownerApp, OWNER_PASSWORD, 'enroll')
   expect(codes).toHaveLength(10)
-  await expect(page.getByRole('heading', { level: 1, name: 'إدارة نسق' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'اليوم' })).toBeVisible()
   await shot(page, 'overview-after-enroll')
   // The real database holds a confirmed authenticator, a passkey and a password hash for the owner.
   const state = await pool.query(`SELECT a.status, a.password_hash IS NOT NULL AS has_password,

@@ -15,7 +15,7 @@ const PAGES = [
   '/catalog', `/catalog/${PACKAGE}`, '/invoices', '/invoices/inv-1', '/audit',
 ]
 // Entries that only redirect: the destination is what renders.
-const REDIRECTS: Record<string, string> = { '/': '/overview', '/tenants/tenant-1': '/customers/cust-alpha', '/catalog/new': '/catalog', [`/catalog/${PACKAGE}/edit`]: `/catalog/${PACKAGE}` }
+const REDIRECTS: Record<string, string> = { '/': '/overview', '/tenants/tenant-1': '/customers/cust-alpha' }
 const RAW_KEY = /^(vendor|commercial|adminAuth|app|states)\.[A-Za-z0-9_.]+$/
 
 async function expectCleanPage(page: Page, path: string, errors: string[]) {
@@ -52,7 +52,7 @@ test.describe('list states', () => {
 
   test('an empty commercial list shows no table and no raw key', async ({ page }) => {
     await open(page, '/overview')
-    await page.route('**/api/vendor/v1/commercial/customers**', route => route.fulfill({ json: { items: [], total: 0 } }))
+    await page.route('**/api/vendor/v1/commercial/clients**', route => route.fulfill({ json: { items: [], total: 0 } }))
     await navigateClient(page, '/customers')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('العملاء')
     await expect(page.locator('[data-slot="data-table"] tbody tr')).toHaveCount(0)
@@ -61,14 +61,14 @@ test.describe('list states', () => {
 
   test('an upstream failure shows the error state', async ({ page }) => {
     await open(page, '/overview')
-    await page.route('**/api/vendor/v1/commercial/customers**', route => route.fulfill({ status: 503, json: { code: 'vendor_unavailable', message: 'down' } }))
+    await page.route('**/api/vendor/v1/commercial/clients**', route => route.fulfill({ status: 503, json: { code: 'vendor_unavailable', message: 'down' } }))
     await navigateClient(page, '/customers')
     await expect(page.locator('[data-slot="error-state"]')).toBeVisible()
   })
 
   test('a refused list shows the forbidden state', async ({ page }) => {
     await open(page, '/overview')
-    await page.route('**/api/vendor/v1/commercial/customers**', route => route.fulfill({ status: 403, json: { code: 'forbidden', message: 'no' } }))
+    await page.route('**/api/vendor/v1/commercial/clients**', route => route.fulfill({ status: 403, json: { code: 'forbidden', message: 'no' } }))
     await navigateClient(page, '/customers')
     await expect(page.locator('[data-slot="forbidden-state"]')).toBeVisible()
   })

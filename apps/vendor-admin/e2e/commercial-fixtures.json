@@ -610,8 +610,7 @@
         "official_tax_invoice": false
       }
     ],
-    "total": 3,
-    "summary": { "outstanding": [], "overdue_count": 0 }
+    "total": 3
   },
   "paymentAttempts": {
     "order-beta": {
