@@ -37,11 +37,14 @@ export function bffConfig(event: H3Event): BffConfig {
   if (!isSecureOrLoopback(controlBase) || controlBase.username || controlBase.password) unavailable()
   if (!isSecureOrLoopback(adminOrigin) || adminOrigin.origin !== settings.adminOrigin) unavailable()
   if (!settings.serviceKey || Buffer.byteLength(settings.serviceKey) < 32 || !settings.installationId) unavailable()
+  const trustProxy = settings.trustProxy === true || settings.trustProxy === 'true'
+  // Behind the https edge every request reaches Nuxt from the proxy: without x-forwarded-for all clients would share one address.
+  if (adminOrigin.protocol === 'https:' && !trustProxy) unavailable()
   return {
     controlBase,
     serviceKey: settings.serviceKey as string,
     installationId: settings.installationId as string,
     adminOrigin,
-    trustProxy: settings.trustProxy === true || settings.trustProxy === 'true',
+    trustProxy,
   }
 }

@@ -4,7 +4,7 @@ import { clearSession, readSession, writeSession } from '../session-cookie'
 import { SESSION, stubConfig } from './harness'
 
 async function run(adminOrigin: string, action: (event: Parameters<Parameters<typeof defineEventHandler>[0]>[0]) => unknown, cookie?: string) {
-  stubConfig({ adminOrigin })
+  stubConfig({ adminOrigin, trustProxy: true })
   const app = createApp()
   app.use(defineEventHandler(async (event) => {
     try { return { result: await action(event) ?? null } } catch { return { result: 'threw' } }

@@ -56,7 +56,31 @@ describe('BFF to control-plane signing', () => {
     const names = Object.keys(calls[0].headers).map(n => n.toLowerCase())
     expect(names).not.toContain('cookie')
     expect(names).not.toContain('authorization')
-    expect(names).not.toContain('x-nasq-client-ip')
+    expect(calls[0].headers['x-nasq-client-ip']).not.toBe('6.6.6.6')
     expect(calls[0].headers['x-nasq-actor']).toBe('7')
+  })
+
+  it('always sets x-nasq-client-ip to the observed address', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-nasq-client-ip': '6.6.6.6' } })
+    expect(calls[0].headers['x-nasq-client-ip']).toBe('127.0.0.1')
+    stubConfig({ trustProxy: true })
+    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-nasq-client-ip': '6.6.6.6', 'x-forwarded-for': '203.0.113.7' } })
+    expect(calls[1].headers['x-nasq-client-ip']).toBe('203.0.113.7')
+  })
+
+  it('refuses an auth call whose client address is unknown, and a refused address reaches nothing upstream', async () => {
+    stubConfig({ trustProxy: true })
+    const unknown = stubUpstream(() => json(200, {}))
+    expect(await send(passkeyOptions, '/api/auth/passkey-options', { body: {}, headers: { 'x-forwarded-for': 'garbage' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    expect(unknown).toHaveLength(0)
+  })
+
+  it('refuses to run behind an https origin without trustProxy', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    stubConfig({ adminOrigin: 'https://admin.nasq.sa', trustProxy: false })
+    const result = await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: cookieHeader() })
+    expect(result).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    expect(calls).toHaveLength(0)
   })
 })

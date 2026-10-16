@@ -48,6 +48,8 @@ export async function controlCall(event: H3Event, request: ControlRequest): Prom
     key: config.serviceKey,
   })
   const ip = clientIp(event)
+  // The auth routes' attempt limits are scoped by this address: never sign one without it.
+  if (request.anonymous && !ip) unavailable()
   const headers: Record<string, string> = {
     ...signed,
     accept: 'application/json',

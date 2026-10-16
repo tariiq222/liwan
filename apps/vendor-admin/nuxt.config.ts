@@ -46,7 +46,9 @@ export default defineNuxtConfig({
     detectBrowserLanguage: false,
   },
   // Private BFF settings (NUXT_CONTROL_URL, NUXT_SERVICE_KEY, NUXT_INSTALLATION_ID,
-  // NUXT_ADMIN_ORIGIN, NUXT_TRUST_PROXY). Nothing here is public.
+  // NUXT_ADMIN_ORIGIN, NUXT_TRUST_PROXY). Nothing here is public. With an https adminOrigin
+  // trustProxy must be true (the BFF answers 503 otherwise); port 3100 is then internal-only,
+  // reachable from the edge alone, because x-forwarded-for is trusted.
   runtimeConfig: {
     controlUrl: '',
     serviceKey: '',
