@@ -52,8 +52,8 @@ file the tool does not scan).
 
 ## Advisory signal: Jev
 
-Run `npm run review:jev -- --task "<what the change does>"` (`tools/jev_review.mjs`) after a coherent
-slice and again before handoff; save `--json` output and pass it back with `--previous <file>` to see
+Every review runs `npm run review:jev -- --task "<what the change does>"` (`tools/jev_review.mjs`)
+and reports its scores; implementers also run it after a coherent slice and again before handoff; save `--json` output and pass it back with `--previous <file>` to see
 score deltas. It returns scores and confidence per dimension, no prose. The scores are advisory:
 never a merge gate, never a reason to skip or override the checks above, and a finding still needs
 its own `file:line` evidence. The diff leaves the machine, so never send secrets, customer data,
