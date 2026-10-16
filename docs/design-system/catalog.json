@@ -2392,36 +2392,6 @@
       ]
     },
     {
-      "name": "ShellBreadcrumb",
-      "file": "apps/web/app/components/shell/ShellBreadcrumb.vue",
-      "story": "apps/web/stories/shell/ShellBreadcrumb.stories.ts",
-      "title": "Shell/ShellBreadcrumb",
-      "props": [
-        {
-          "name": "items",
-          "type": "ShellCrumb[]",
-          "required": true
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [
-        "UBreadcrumb"
-      ],
-      "stories": [
-        {
-          "id": "Trail",
-          "name": "ثلاثة مستويات",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
-        },
-        {
-          "id": "Single",
-          "name": "مستوى واحد",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
-        }
-      ]
-    },
-    {
       "name": "ShellHeader",
       "file": "apps/web/app/components/shell/ShellHeader.vue",
       "story": "apps/web/stories/shell/ShellHeader.stories.ts",
@@ -4835,6 +4805,36 @@
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
           "context": "apps/web/app/components/shell/AppSidebar.vue:46"
+        }
+      ]
+    },
+    {
+      "name": "ShellBreadcrumb",
+      "file": "packages/ui/app/components/shell/ShellBreadcrumb.vue",
+      "story": "apps/web/stories/shell/ShellBreadcrumb.stories.ts",
+      "title": "Shell/ShellBreadcrumb",
+      "props": [
+        {
+          "name": "items",
+          "type": "ShellCrumb[]",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UBreadcrumb"
+      ],
+      "stories": [
+        {
+          "id": "Trail",
+          "name": "ثلاثة مستويات",
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
+        },
+        {
+          "id": "Single",
+          "name": "مستوى واحد",
+          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
         }
       ]
     },

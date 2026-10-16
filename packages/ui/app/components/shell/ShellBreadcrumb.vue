@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ShellCrumb } from '@/composables/nav/breadcrumb'
+import type { ShellCrumb } from '../../types/shell'
 
 // The one breadcrumb (ui_policy breadcrumb_errors): module › section › page.
 const props = defineProps<{ items: ShellCrumb[] }>()

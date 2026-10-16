@@ -3,7 +3,7 @@ import { activeShellModule, contextModuleFor } from './activeRoute'
 import { moduleContextLinks, shellModuleList } from './shellModules'
 import { isNavPathActive } from '../../utils/accessPolicy'
 
-export interface ShellCrumb { label: string; to?: string }
+import type { ShellCrumb } from '@nasq/ui/app/types/shell'
 
 const normalize = (path: string) => path.replace(/\/+$/, '') || '/'
 const target = (to: unknown): string => (typeof to === 'string' ? to : (to as { path?: string } | null)?.path ?? '')

@@ -27,7 +27,6 @@ const groups = computed(() => [
         v-for="item in group.items"
         :key="item.id"
         :to="item.to"
-        :external="item.external"
         class="nasq-module-rail-link"
         :data-active="item.id === props.activeId"
         :aria-current="item.id === props.activeId ? 'page' : undefined"

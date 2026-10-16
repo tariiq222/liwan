@@ -49,7 +49,6 @@ describe('adminNav', () => {
   it('points every item at a root path without the old /vendor prefix', () => {
     for (const item of adminNav(caps('owner'))) {
       expect(item.to).toBe(`/${item.id}`)
-      expect(item.external).toBe(false)
       expect(item.labelKey).toBe(`app.nav.${item.id}`)
       expect(item.icon).toMatch(/^i-lucide-/)
     }

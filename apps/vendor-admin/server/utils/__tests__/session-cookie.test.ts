@@ -18,7 +18,7 @@ describe('session cookie', () => {
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
   it('uses the __Host- name with Secure on an https origin', async () => {
-    const { setCookie } = await run('https://admin.nasq.sa', event => writeSession(event, SESSION, '2026-10-16T01:00:00Z'))
+    const { setCookie } = await run('https://admin.example.test', event => writeSession(event, SESSION, '2026-10-16T01:00:00Z'))
     expect(setCookie).toContain(`__Host-nasq_admin=${SESSION}`)
     expect(setCookie).toMatch(/Max-Age=3600/)
     for (const attribute of ['Path=/', 'HttpOnly', 'Secure', 'SameSite=Strict']) expect(setCookie).toContain(attribute)
@@ -58,7 +58,7 @@ describe('session cookie', () => {
   })
 
   it('clears with the same attributes', async () => {
-    const { setCookie } = await run('https://admin.nasq.sa', clearSession)
+    const { setCookie } = await run('https://admin.example.test', clearSession)
     expect(setCookie).toContain('__Host-nasq_admin=;')
     expect(setCookie).toMatch(/Max-Age=0/)
     expect(setCookie).toContain('Secure')

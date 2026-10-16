@@ -25,7 +25,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 
 | المسؤولية | المكونات الفعلية | الأساس المستخدم |
 | --- | --- | --- |
-| الغلاف | `packages/ui/app/components/shell/ShellFrame.vue` (قصة: `apps/web/stories/shell/ShellFrame.stories.ts`), `apps/web/app/components/shell/AppSidebar.vue` (قصة: `apps/web/stories/shell/AppSidebar.stories.ts`), `apps/web/app/components/shell/ShellHeader.vue` (قصة: `apps/web/stories/shell/ShellHeader.stories.ts`), `apps/web/app/components/shell/ShellBreadcrumb.vue` (قصة: `apps/web/stories/shell/ShellBreadcrumb.stories.ts`), `apps/web/app/components/shell/MobileNavigation.vue` (قصة: `apps/web/stories/shell/MobileNavigation.stories.ts`), `apps/web/app/components/shell/AppearanceMenu.vue` (قصة: `apps/web/stories/shell/AppearanceMenu.stories.ts`), `apps/web/app/components/shell/AppAccountMenu.vue` (قصة: `apps/web/stories/shell/AppAccountMenu.stories.ts`), `apps/web/app/components/shell/GlobalSearch.vue` (قصة: `apps/web/stories/shell/GlobalSearch.stories.ts`) | إطار ثلاثي الطبقات؛ هيدر 48px بمسار الصفحة ولوحة الأوامر ⌘K (UCommandPalette) والحساب؛ UBreadcrumb/UBadge |
+| الغلاف | `packages/ui/app/components/shell/ShellFrame.vue` (قصة: `apps/web/stories/shell/ShellFrame.stories.ts`), `apps/web/app/components/shell/AppSidebar.vue` (قصة: `apps/web/stories/shell/AppSidebar.stories.ts`), `apps/web/app/components/shell/ShellHeader.vue` (قصة: `apps/web/stories/shell/ShellHeader.stories.ts`), `packages/ui/app/components/shell/ShellBreadcrumb.vue` (قصة: `apps/web/stories/shell/ShellBreadcrumb.stories.ts`), `apps/web/app/components/shell/MobileNavigation.vue` (قصة: `apps/web/stories/shell/MobileNavigation.stories.ts`), `apps/web/app/components/shell/AppearanceMenu.vue` (قصة: `apps/web/stories/shell/AppearanceMenu.stories.ts`), `apps/web/app/components/shell/AppAccountMenu.vue` (قصة: `apps/web/stories/shell/AppAccountMenu.stories.ts`), `apps/web/app/components/shell/GlobalSearch.vue` (قصة: `apps/web/stories/shell/GlobalSearch.stories.ts`) | إطار ثلاثي الطبقات؛ هيدر 48px بمسار الصفحة ولوحة الأوامر ⌘K (UCommandPalette) والحساب؛ UBreadcrumb/UBadge |
 | التنقل | `packages/ui/app/components/shell/ModuleRail.vue` (قصة: `apps/web/stories/shell/ModuleRail.stories.ts`), `apps/web/app/components/shell/ContextSidebar.vue` (قصة: `apps/web/stories/shell/ContextSidebar.stories.ts`), `apps/web/app/components/shell/SidebarCreateAction.vue` (قصة: `apps/web/stories/shell/SidebarCreateAction.stories.ts`), `apps/web/app/components/shell/MobileNavigation.vue` | شريط 64px ثابت، قائمة 232px بأقسام وعدّادات و`[`، درج جوال واحد؛ USlideover/UButton/UTooltip |
 | لوحة الأوامر والاختصارات | `apps/web/app/components/shell/GlobalSearch.vue` (قصة: `apps/web/stories/shell/GlobalSearch.stories.ts`), `packages/ui/app/composables/shortcuts/keymap.ts`, `apps/web/app/composables/useShellShortcuts.ts`, `apps/web/app/composables/usePalette.ts`, `packages/ui/app/composables/useRowNavigation.ts` (قصة: `apps/web/stories/shell/RowNavigation.stories.ts`) | UCommandPalette داخل UModal؛ طبقة اختصارات واحدة؛ UKbd/UTooltip |
 | مساحة المشروع | `apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue` (قصة: `apps/web/stories/project/ProjectWorkspaceTabs.stories.ts`) | تبويبات المشروع والحوكمة عبر `level="sections"` أو `level="governance"`، ومكوّن `packages/ui/app/components/shared/layout/RouteTabs.vue` |
@@ -40,7 +40,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | --- | --- | --- |
 | `packages/ui/app/components/shared/feedback/LoadingSkeleton.vue` | `apps/web/stories/shared/LoadingSkeleton.stories.ts` | `USkeleton`؛ صفوف، سجل، بطاقات |
 | `packages/ui/app/components/shared/feedback/ErrorState.vue` | `apps/web/stories/shared/ErrorState.stories.ts` | `UAlert`، `UButton` (إعادة المحاولة بعد الترطيب) |
-| `packages/commercial-ui/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`subscriptionInvoiceView`، `vendorInvoiceLineViews`) |
+| `packages/commercial-ui/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`subscriptionInvoiceView`) |
 | `packages/ui/app/components/shared/feedback/ForbiddenState.vue` | `apps/web/stories/shared/ForbiddenState.stories.ts` | `UIcon`؛ 403 بلا إعادة محاولة |
 | `packages/ui/app/components/shared/feedback/NotFoundState.vue` | `apps/web/stories/shared/NotFoundState.stories.ts` | `UIcon`، `UButton` رابط رجوع اختياري؛ 404 |
 | `packages/ui/app/components/shared/layout/StandalonePage.vue` | `apps/web/stories/shared/StandalonePage.stories.ts` | `UCard`؛ `card` هي `<main>` الصفحة وتأخذ `title` أو شريحة `#header` (تستبدل العنوان ويرسم صاحبها `<h1>`)، و`print` وثيقة `.nasq-print` تُطبع أسود على أبيض بلا إطار التطبيق (`packages/ui/app/assets/css/components.css`) |
@@ -118,19 +118,36 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 
 | المكوّن | القصة | مكونات الأساس المستخدمة فعليًا |
 | --- | --- | --- |
-| `apps/web/app/components/vendor/BundleForm.vue` | `apps/web/stories/vendor/BundleForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UIcon`, `UInput`, `USelect`, `UTextarea` |
-| `apps/web/app/components/vendor/CapacityLimitsEditor.vue` | `apps/web/stories/vendor/CapacityLimitsEditor.stories.ts` | `UFormField`, `UInput`, `USelect` |
-| `apps/web/app/components/vendor/CustomerTermsForm.vue` | `apps/web/stories/vendor/CustomerTermsForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
-| `apps/web/app/components/vendor/EntitlementSummary.vue` | `apps/web/stories/vendor/EntitlementSummary.stories.ts` | `UBadge` |
-| `apps/web/app/components/vendor/LifecyclePanel.vue` | `apps/web/stories/vendor/LifecyclePanel.stories.ts` | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
-| `apps/web/app/components/vendor/PlanForm.vue` | `apps/web/stories/vendor/PlanForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue` | `apps/web/stories/shared/CommercePriceBreakdown.stories.ts` | `UAlert`, `UButton` |
-| `apps/web/app/components/vendor/PriceListEditor.vue` | `apps/web/stories/vendor/PriceListEditor.stories.ts` | `UButton`, `UFormField`, `UInput`, `USelect` |
-| `apps/web/app/components/vendor/SubscriptionSummary.vue` | `apps/web/stories/vendor/SubscriptionSummary.stories.ts` | `UAlert`, `UBadge` |
-| `apps/web/app/components/vendor/UsageMeters.vue` | `apps/web/stories/vendor/UsageMeters.stories.ts` | `UBadge`, `UProgress` |
 | `apps/web/app/components/subscription/AutoRenewControl.vue` | `apps/web/stories/subscription/AutoRenewControl.stories.ts` | `UBadge`, `UButton`, `UCheckbox` |
 | `apps/web/app/components/subscription/BranchSummary.vue` | `apps/web/stories/subscription/BranchSummary.stories.ts` | `UBadge` |
 | `apps/web/app/components/subscription/UsagePanel.vue` | `apps/web/stories/subscription/UsagePanel.stories.ts` | `UBadge` |
+
+## مكونات لوحة إدارة المورّد — apps/vendor-admin
+
+تطبيق مستقل يمتد من `packages/ui` ولا يستورد من `apps/web`. لا مكان له في Storybook (القصص في `apps/web` وحدها)، فيُثبت سلوكه باختبارات الوحدة في `apps/vendor-admin/app/components/__tests__`.
+
+| المكوّن | الوظيفة | مكونات الأساس المستخدمة فعليًا |
+| --- | --- | --- |
+| `apps/vendor-admin/app/components/AdminHeader.vue` | هيدر 48px: قائمة الجوال ومسار الصفحة (ShellBreadcrumb) وشارة الكونسول وقائمة الحساب | `AdminMobileNav`, `ShellBreadcrumb`, `UAvatar`, `UBadge`, `UButton`, `UDropdownMenu`, `UIcon` |
+| `apps/vendor-admin/app/components/AdminMobileNav.vue` | أقسام الشريط نفسها في درج تحت 768px | `UButton`, `UIcon`, `USlideover` |
+| `apps/vendor-admin/app/components/PasskeyButton.vue` | زر الدخول الرئيسي بمفتاح المرور؛ يعمل بعد الترطيب | `UButton` |
+| `apps/vendor-admin/app/components/RecoveryCodes.vue` | رموز الاسترداد تُعرض مرة واحدة بعد التسجيل مع إقرار الحفظ | `UAlert`, `UButton`, `UCheckbox` |
+| `apps/vendor-admin/app/components/StepUpPanel.vue` | لوحة تأكيد مرتفع الأمان مضمّنة أعلى النافذة، لا حوار | `UButton`, `UIcon` |
+| `apps/vendor-admin/app/components/TotpSetup.vue` | إعداد تطبيق المصادقة: المفتاح ورابط otpauth | `UButton` |
+| `apps/vendor-admin/app/components/team/AccountAction.vue` | لوحة إجراء على حساب فريق (سبب وأدوار وتأكيد داخلي) | `SharedInlineConfirm`, `UAlert`, `UButton`, `UFormField`, `UInput` |
+| `apps/vendor-admin/app/components/team/AccountForm.vue` | نموذج دعوة حساب فريق مع حماية المسودة | `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput` |
+| `apps/vendor-admin/app/components/team/InvitationLink.vue` | رابط الدعوة مع تاريخ انتهائه وزر النسخ | `UButton`, `UFormField`, `UInput` |
+| `apps/vendor-admin/app/components/team/RolePicker.vue` | اختيار أدوار الفريق | `UCheckbox` |
+| `apps/vendor-admin/app/components/vendor/BundleForm.vue` | نموذج الحزمة التجارية | `CapacityLimitsEditor`, `PriceListEditor`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UIcon`, `UInput`, `USelect`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/CapacityLimitsEditor.vue` | محرر حدود السعة | `UFormField`, `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/CustomerTermsForm.vue` | نموذج شروط العميل | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/EntitlementSummary.vue` | ملخص الاستحقاقات: التطبيقات والميزات المختارة والحدود | `UBadge` |
+| `apps/vendor-admin/app/components/vendor/LifecyclePanel.vue` | إجراءات دورة حياة الاشتراك بتأكيد داخلي | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة | `CapacityLimitsEditor`, `PriceListEditor`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `UButton`, `UFormField`, `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
+| `apps/vendor-admin/app/components/vendor/UsageMeters.vue` | مقاييس الاستهلاك مقابل الحدود | `SharedStatusBadge`, `UProgress` |
 
 ## مكونات العمليات
 

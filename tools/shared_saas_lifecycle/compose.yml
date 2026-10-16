@@ -106,12 +106,6 @@ services:
       NUXT_ODOO_URL: http://vendor-odoo:8069
       NUXT_ODOO_DB: nasq_vendor_scratch
       NUXT_PUBLIC_WS_URL: ""
-      NUXT_VENDOR_WORKSPACE_ENABLED: "true"
-      NUXT_PUBLIC_VENDOR_WORKSPACE_ENABLED: "true"
-      NUXT_VENDOR_CONTROL_URL: https://control-api:4187
-      NUXT_VENDOR_SERVICE_KEY: ${CONTROL_SERVICE_KEY:?}
-      NUXT_VENDOR_INSTALLATION_ID: saas-lifecycle-vendor
-      NUXT_VENDOR_PUBLIC_ORIGIN: https://vendor.saas.accept.nasq.test
       NODE_EXTRA_CA_CERTS: /run/control-ca.pem
     volumes: ["${NASQ_LIFECYCLE_STATE:?}/control-cert.pem:/run/control-ca.pem:ro"]
     networks: [vendor, control]

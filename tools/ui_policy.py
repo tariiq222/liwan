@@ -52,7 +52,7 @@ LAYER_COMPONENTS = frozenset(
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'RecordNumber', 'RowActions', 'StatusBadge', 'ViewSwitch')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
-    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellFrame')]
+    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellFrame')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@nasq/commercial-ui).
 COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
@@ -645,8 +645,8 @@ def secret_render_errors(current: dict[str, str]) -> list[str]:
 # a page or another component never builds its own trail. Only the owner renders
 # the raw UBreadcrumb; the header that mounts it may use <ShellBreadcrumb> only
 # (any case, kebab or Pascal).
-BREADCRUMB_OWNER = COMPONENTS + 'shell/ShellBreadcrumb.vue'
-BREADCRUMB_HEADER = COMPONENTS + 'shell/ShellHeader.vue'
+BREADCRUMB_OWNER = UI_COMPONENTS + 'shell/ShellBreadcrumb.vue'
+BREADCRUMB_HEADERS = (COMPONENTS + 'shell/ShellHeader.vue', VENDOR_ADMIN_COMPONENTS + 'AdminHeader.vue')
 BREADCRUMB_TAG = re.compile(r'<(?:u|shell)-?breadcrumb\b', re.I)
 RAW_BREADCRUMB_TAG = re.compile(r'<u-?breadcrumb\b', re.I)
 
@@ -656,7 +656,7 @@ def breadcrumb_errors(current: dict[str, str]) -> list[str]:
     for path, source in sorted(current.items()):
         if not (path.startswith((PAGES, LAYOUTS, *COMPONENT_ROOTS)) and path.endswith('.vue')) or path == BREADCRUMB_OWNER:
             continue
-        pattern = RAW_BREADCRUMB_TAG if path == BREADCRUMB_HEADER else BREADCRUMB_TAG
+        pattern = RAW_BREADCRUMB_TAG if path in BREADCRUMB_HEADERS else BREADCRUMB_TAG
         if pattern.search(COMMENTS.sub('', source)):
             errors.append(path + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)')
     return errors

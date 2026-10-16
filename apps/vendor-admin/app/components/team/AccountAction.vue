@@ -16,7 +16,7 @@ const reasonError = computed(() => (attempted.value && !reasonValid(reason.value
 const rolesError = computed(() => (attempted.value && !roles.value.length ? t('team.form.rolesInvalid') : undefined))
 const name = computed(() => props.account.display_name)
 
-function confirm() {
+function submit() {
   attempted.value = true
   if (!hydrated.value || props.busy || !reasonValid(reason.value) || (props.kind === 'roles' && !roles.value.length)) return
   emit('confirm', reason.value.trim(), roles.value)
@@ -24,7 +24,7 @@ function confirm() {
 </script>
 
 <template>
-  <form v-if="props.kind === 'roles'" class="grid gap-4" novalidate data-slot="account-action" :aria-label="t('team.roleEdit.title', { name })" @submit.prevent="confirm">
+  <form v-if="props.kind === 'roles'" class="grid gap-4" novalidate data-slot="account-action" :aria-label="t('team.roleEdit.title', { name })" @submit.prevent="submit">
     <h2 class="text-base font-semibold text-highlighted">
       {{ t('team.roleEdit.title', { name }) }}
     </h2>
@@ -47,7 +47,7 @@ function confirm() {
       :confirm-label="t(`team.${props.kind}.confirm`)"
       :pending="props.busy"
       :color="props.kind === 'disable' ? 'error' : 'warning'"
-      @confirm="confirm"
+      @confirm="submit"
       @cancel="emit('cancel')"
     >
       <UFormField class="mt-3" :label="t('team.reason.label')" :hint="t('team.reason.hint')" :error="reasonError" required>

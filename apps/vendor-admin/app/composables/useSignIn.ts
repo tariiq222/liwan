@@ -2,7 +2,8 @@ import { reactive, ref } from 'vue'
 import { startAuthentication, type AuthenticationResponseJSON, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import { authErrorKey } from '../utils/authError'
 import { authPost, type AuthPost } from '../utils/authPost'
-import { safeReturnTo } from '../utils/safeReturnTo'
+import { safeSameAppPath } from '@nasq/ui/app/utils/safeReturnTo'
+import { AUTH_PATHS } from '../utils/authPaths'
 
 export type SignInMode = 'passkey' | 'fallback' | 'recovery'
 
@@ -31,7 +32,7 @@ export function createSignIn(deps: SignInDeps) {
       form.totpCode = ''
       form.recoveryCode = ''
       await deps.refresh()
-      await deps.go(safeReturnTo(deps.next()) ?? '/')
+      await deps.go(safeSameAppPath(deps.next(), AUTH_PATHS) ?? '/')
     } catch (error) {
       errorKey.value = authErrorKey(error)
       form.totpCode = ''

@@ -37,7 +37,8 @@
     "home": "Home",
     "modules": "Modules",
     "railApps": "Applications",
-    "railAdmin": "Administration"
+    "railAdmin": "Administration",
+    "breadcrumb": "Breadcrumb"
   },
   "states": {
     "bulkActions": "Actions on selected rows",
