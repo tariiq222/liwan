@@ -9,7 +9,8 @@ from pathlib import Path
 
 ROOTS = ('apps/web/app', 'apps/web/public', 'apps/web/nuxt.config.ts', 'apps/web/server',
          'packages/ui/app', 'packages/ui/public', 'packages/ui/nuxt.config.ts',
-         'packages/commercial-ui/app', 'packages/commercial-ui/nuxt.config.ts')
+         'packages/commercial-ui/app', 'packages/commercial-ui/nuxt.config.ts',
+         'apps/vendor-admin/app', 'apps/vendor-admin/public', 'apps/vendor-admin/nuxt.config.ts', 'apps/vendor-admin/server')
 SUFFIXES = ('.vue', '.ts', '.js', '.mjs', '.css', '.scss', '.html')
 URL_RE = re.compile(r'(?:https?:)?//([a-z0-9.-]+\.[a-z]{2,})', re.IGNORECASE)
 # Existing fixture, local-base, and documentation references are intentional.
