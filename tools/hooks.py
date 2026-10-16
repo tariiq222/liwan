@@ -22,6 +22,9 @@ from pathlib import Path
 
 from git_policy import check_subject
 
+# Customer-facing UI sources that ui_policy and no_external_refs scan.
+UI_SOURCE_ROOTS = ('apps/web/', 'apps/vendor-admin/', 'packages/ui/', 'packages/commercial-ui/')
+
 REPO = Path(__file__).resolve().parents[1]
 MARKER = '# nasq-hook'
 HOOKS = ('pre-commit', 'commit-msg')
@@ -41,7 +44,7 @@ def plan_pre_commit(staged):
         ('docs_policy', ['python3', '-B', 'tools/docs_policy.py']),
         ('arch_policy', ['python3', '-B', 'tools/arch_policy.py']),
     ]
-    if any(path.startswith('apps/web/') for path in staged):
+    if any(path.startswith(UI_SOURCE_ROOTS) for path in staged):
         steps.append(('ui_policy', ['python3', '-B', 'tools/ui_policy.py']))
         steps.append(('no_external_refs', ['python3', '-B', 'tools/no_external_refs.py']))
     addon_files = [p for p in staged if p.endswith('.py') and p.startswith('odoo-addons/')]

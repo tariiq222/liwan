@@ -11,6 +11,7 @@ def names(changed):
 
 
 WEB_EXTRA = {'ui_inventory', 'ui_catalog', 'ui_templates', 'web_test_changed', 'web_typecheck'}
+VENDOR_EXTRA = {'ui_templates', 'vendor_admin_test', 'vendor_admin_typecheck'}
 
 
 def extra(changed):
@@ -35,14 +36,22 @@ class TestCheckFast(unittest.TestCase):
         self.assertEqual(extra, WEB_EXTRA)
 
     def test_ui_layer_change_adds_layer_tests_and_web_checks(self):
-        self.assertEqual(extra(['packages/ui/app/a.vue']), {'ui_layer_test'} | WEB_EXTRA)
+        self.assertEqual(extra(['packages/ui/app/a.vue']), {'ui_layer_test'} | WEB_EXTRA | VENDOR_EXTRA)
         self.assertEqual(dict(plan(['packages/ui/app/a.vue'], 'main'))['ui_layer_test'], ['npm', '-w', 'packages/ui', 'run', 'test'])
         self.assertNotIn('ui_layer_test', extra(['apps/web/app/a.vue']))
 
     def test_commercial_ui_layer_change_adds_its_tests_and_web_checks(self):
-        self.assertEqual(extra(['packages/commercial-ui/app/a.vue']), {'commercial_ui_layer_test'} | WEB_EXTRA)
+        self.assertEqual(extra(['packages/commercial-ui/app/a.vue']), {'commercial_ui_layer_test'} | WEB_EXTRA | VENDOR_EXTRA)
         self.assertEqual(dict(plan(['packages/commercial-ui/app/a.vue'], 'main'))['commercial_ui_layer_test'], ['npm', '-w', 'packages/commercial-ui', 'run', 'test'])
         self.assertNotIn('commercial_ui_layer_test', extra(['packages/ui/app/a.vue']))
+
+    def test_vendor_admin_change_runs_its_tests_typecheck_and_template_check_only(self):
+        self.assertEqual(extra(['apps/vendor-admin/app/a.vue']), VENDOR_EXTRA)
+        steps = dict(plan(['apps/vendor-admin/app/a.vue'], 'main'))
+        self.assertEqual(steps['vendor_admin_test'], ['npm', '-w', 'apps/vendor-admin', 'run', 'test'])
+        self.assertEqual(steps['vendor_admin_typecheck'], ['npm', '-w', 'apps/vendor-admin', 'run', 'lint'])
+        self.assertEqual(steps['ui_templates'], ['node', 'tools/ui_templates.mjs'])
+        self.assertFalse({'vendor_admin_test', 'vendor_admin_typecheck'} & extra(['apps/web/app/a.vue']))
 
     def test_contracts_change_adds_contracts_and_web(self):
         extra = set(names(['packages/contracts/src/hr/a.ts'])) - set(names([]))
@@ -70,7 +79,7 @@ class TestCheckFast(unittest.TestCase):
         self.assertEqual(steps['deploy_unittest'][-4:], ['-s', 'deploy', '-p', 'test_*.py'])
 
     def test_commercial_contracts_change_runs_its_tests(self):
-        self.assertEqual(extra(['packages/commercial-contracts/src/a.ts']), {'commercial_contracts_test'})
+        self.assertEqual(extra(['packages/commercial-contracts/src/a.ts']), {'commercial_contracts_test'} | VENDOR_EXTRA)
 
     def test_root_manifests_and_ci_run_the_full_test(self):
         for path in ('package.json', 'package-lock.json', '.woodpecker.yml'):
