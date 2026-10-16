@@ -6,12 +6,7 @@
   "R4": {},
   "R5": {
     "commercial import apps/web/app/composables/useSubscription.ts": 1,
-    "commercial import apps/web/app/composables/useVendorCommercial.ts": 1,
-    "commercial import apps/web/app/composables/useVendorSubscriptions.ts": 1,
-    "commercial import apps/web/app/utils/subscription.ts": 1,
-    "commercial import apps/web/app/utils/vendorCommercial.ts": 2,
-    "commercial import apps/web/app/utils/vendorPackages.ts": 1,
-    "commercial import apps/web/app/utils/vendorSubscriptions.ts": 1
+    "commercial import apps/web/app/utils/subscription.ts": 1
   },
   "R6": {},
   "R7": {

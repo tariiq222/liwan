@@ -3,7 +3,7 @@ import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import { onScopeDispose } from 'vue'
 import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import ProjectTable from '@/components/pmo/projects/ProjectTable.vue'
 import ProjectCards from '@/components/pmo/projects/ProjectCards.vue'
 import {
@@ -16,7 +16,7 @@ import {
   useProjectList,
   type ProjectListRouteState,
 } from '@/composables/useProjects'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const router = useRouter()
 const route = useRoute()

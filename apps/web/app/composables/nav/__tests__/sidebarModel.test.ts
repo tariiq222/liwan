@@ -6,17 +6,15 @@ const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLi
   ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, capability: 'x.y.read', ...extra })
 
 describe('rail model', () => {
-  it('keeps rail order and puts settings and the console in the utility slot', () => {
+  it('keeps rail order and puts settings in the utility slot', () => {
     const rail = railModel([
       { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard' },
       { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/users' },
-      { id: 'management', labelKey: 'nav.management', icon: 'i-lucide-building-2', to: '/vendor/overview' },
-      { id: 'vendor', labelKey: 'nav.console', icon: 'i-lucide-wrench', to: '/odoo' },
+      { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
     ])
-    expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'management', 'vendor'])
-    expect(rail.primary.map(item => item.id)).toEqual(['home', 'management'])
-    expect(rail.utility.map(item => item.id)).toEqual(['settings', 'vendor'])
-    expect(rail.all.filter(item => item.external).map(item => item.id)).toEqual(['vendor'])
+    expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'projects'])
+    expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])
+    expect(rail.utility.map(item => item.id)).toEqual(['settings'])
   })
 })
 

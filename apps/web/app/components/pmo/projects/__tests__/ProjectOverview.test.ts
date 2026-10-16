@@ -1,16 +1,17 @@
+import { resolve } from 'node:path'
 import { ref, defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from '../../../shared/__tests__/helpers/renderShared'
+import { renderShared } from '@nasq/ui/test/helpers/renderShared'
 
 async function overview(state: { data?: unknown[]; loading?: boolean; error?: Error }) {
-  return renderShared('../pmo/projects/ProjectOverview', { project: { id: 7, progress: 40, task_count: 3, closed_task_count: 1, milestone_count: 1 } }, {}, {
+  return renderShared(resolve(import.meta.dirname, '../ProjectOverview.vue'), { project: { id: 7, progress: 40, task_count: 3, closed_task_count: 1, milestone_count: 1 } }, {}, {
     globals: { useRoute: () => ({ fullPath: '/projects/7' }) },
     modules: {
       '@/composables/useMilestones': { useMilestones: () => ({ data: ref(state.data), isLoading: ref(!!state.loading), error: ref(state.error), refetch: () => {} }) },
       '@/composables/useProjectUpdates': { useProjectUpdates: () => ({ data: ref([]), isLoading: ref(false), error: ref(null) }) },
-      '@/composables/calendarDate': { formatCalendarDate: (value: string) => value },
+      '@nasq/ui/app/composables/calendarDate': { formatCalendarDate: (value: string) => value },
       '@/composables/projectStatus': { projectStatusBadge: () => ({ tone: 'neutral' }) },
-      '@/utils/statusBadge': { badgeLabel: () => '' },
+      '@nasq/ui/app/utils/statusBadge': { badgeLabel: () => '' },
       './ProjectOverviewTasks.vue': { default: defineComponent({ setup: () => () => h('section', { 'data-testid': 'attention' }) }) },
     },
     stubs: { SharedMetricTile: defineComponent({ props: ['label','value','hint'], setup: props => () => h('div', `${props.label} ${props.value ?? ''} ${props.hint ?? ''}`) }) },

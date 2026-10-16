@@ -2,19 +2,20 @@ import { randomUUID, createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Pool } from 'pg'
-import { vendorCapabilitySchema } from '@nasq/commercial-contracts'
 import { getConfig } from './config.js'
 import { migrate, transaction } from './db.js'
 import { writeFile } from 'node:fs/promises'
 import { readKnownSource } from './shared/catalog-source.js'
 import { migrateLegacyToSaas } from './commercial/legacy-mapping.js'
+import { lockOwners, normalizeEmail } from './admin-auth/accounts.js'
+import { inviteAccount, issueReset } from './admin-auth/enrollment.js'
 
 const config = getConfig()
 const pool = new Pool({ connectionString: config.databaseUrl })
 const [command, ...args] = process.argv.slice(2)
-function positiveUid(text: string | undefined): number {
-  if (!text || !/^[1-9][0-9]*$/.test(text) || !Number.isSafeInteger(Number(text))) throw new Error('positive Odoo user ID required')
-  return Number(text)
+function adminOrThrow() {
+  if (!config.admin) throw new Error('ADMIN_SECRET_KEY, ADMIN_RP_ID and ADMIN_ORIGIN are required')
+  return config.admin
 }
 function reason(text: string | undefined): string {
   if (!text || text.trim().length < 3 || text.length > 1000) throw new Error('reason of 3-1000 characters required')
@@ -26,23 +27,26 @@ function uuid(text: string | undefined): string {
 }
 try {
   await migrate(pool)
-  if (command === 'grant') {
-    const [uidText, capabilityText, why] = args
-    const uid = positiveUid(uidText)
-    const capabilities = capabilityText?.split(',').map((capability) => vendorCapabilitySchema.parse(capability))
-    if (!capabilities?.length || new Set(capabilities).size !== capabilities.length) throw new Error('unique capability list required')
-    await transaction(pool, async (client) => {
-      await client.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities,revoked_at) VALUES($1,$2,$3,NULL) ON CONFLICT(issuer,actor_uid) DO UPDATE SET capabilities=EXCLUDED.capabilities,revoked_at=NULL', [config.installationId, uid, capabilities])
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),'operator','membership.granted',String(uid),reason(why)])
+  if (command === 'bootstrap-owner') {
+    const [email, displayName, why] = args
+    const admin = adminOrThrow()
+    const { token } = await transaction(pool, async (client) => {
+      // lockOwners takes the owners advisory lock; the check below also counts enrolling owners.
+      await lockOwners(client)
+      const existing = await client.query("SELECT 1 FROM vendor_account_roles r JOIN vendor_accounts a ON a.id=r.account_id WHERE r.role='owner' AND a.status<>'disabled'")
+      if (existing.rowCount) throw new Error('owner already exists')
+      return inviteAccount(client, 'operator', { email: email ?? '', displayName: displayName ?? '', roles: ['owner'], reason: reason(why) }, new Date())
     })
-  } else if (command === 'revoke') {
-    const [uidText, why] = args
-    const uid = positiveUid(uidText)
-    await transaction(pool, async (client) => {
-      const row = await client.query('UPDATE vendor_memberships SET revoked_at=now() WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL RETURNING actor_uid', [config.installationId, uid])
-      if (!row.rowCount) throw new Error('active membership not found')
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),'operator','membership.revoked',String(uid),reason(why)])
+    process.stdout.write(`${admin.origin}/enroll#${token}\n`)
+  } else if (command === 'reset-account') {
+    const [email, why] = args
+    const admin = adminOrThrow()
+    const { token } = await transaction(pool, async (client) => {
+      const found = await client.query("SELECT id FROM vendor_accounts WHERE email=$1 AND status<>'disabled'", [normalizeEmail(email ?? '')])
+      if (!found.rowCount) throw new Error('active account not found')
+      return issueReset(client, 'operator', Number(found.rows[0].id), reason(why), new Date())
     })
+    process.stdout.write(`${admin.origin}/enroll#${token}\n`)
   } else if (command === 'catalog-import') {
     const [version, why] = args
     if (!version || !/^[a-zA-Z0-9._-]{1,100}$/.test(version)) throw new Error('valid catalog version required')
@@ -78,7 +82,7 @@ try {
     if (at >= 0) { if (!args[at + 1]) throw new Error('--report path required'); await writeFile(args[at + 1]!, `${text}\n`) }
     process.stdout.write(`${text}\n`)
     if (report.counts.errors) process.exitCode = 2
-  } else throw new Error('commands: grant, revoke, catalog-import, approve-restore, migrate-saas-commercial')
+  } else throw new Error('commands: bootstrap-owner, reset-account (the recovery path for a lost or last owner), catalog-import, approve-restore, migrate-saas-commercial')
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : 'admin command failed'}\n`)
   process.exitCode = 1

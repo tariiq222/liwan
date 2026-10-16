@@ -13,8 +13,8 @@ and contracts are in `AGENTS.md`.
   unchanged user-id people picker.
 - RTL styling uses logical Tailwind properties only (`ms-`, `me-`, `ps-`,
   `pe-`, `start-`, `end-`, `text-start`), never physical `ml-`, `pl-`, or
-  `left-` classes. Keep the shared tokens owned by `apps/web/app/assets/css/`
-  and configure Nuxt UI primitives through `apps/web/app/app.config.ts`.
+  `left-` classes. Keep the shared tokens owned by `packages/ui/app/assets/css/`
+  and configure Nuxt UI primitives through `packages/ui/app/app.config.ts`.
 - Authenticated interactive controls whose first click must not be lost during
   SSR hydration use the shared `useHydrated()` composable and stay disabled
   until hydrated. Do not replace this with per-component `mounted` flags or
@@ -26,7 +26,9 @@ and contracts are in `AGENTS.md`.
   (`tools/ui_policy.py`) before a second page uses it. No local copy of a
   component that has a story.
 - Component folders: `components/pmo/projects` and `components/pmo/tasks` (PMO),
-  `components/personal-tasks`, and `components/shared/{layout,data,form,feedback}`.
+  `components/personal-tasks`. Presentational building blocks live in the `packages/ui`
+  layer (`app/components/shared/{layout,data,form,feedback}` and `shell`); `apps/web`
+  keeps only `components/shared/{data,form,commerce}` pieces that need app data.
   `nuxt.config.ts` registers them with an explicit `prefix`, so their names stay
   `Project*`, `Task*`, `MyTasks*` and `Shared*`; a new prefixed folder is added there
   and to `COMPONENT_PREFIXES` in `tools/ui_policy.py`.
@@ -52,3 +54,10 @@ and contracts are in `AGENTS.md`.
 - The topology is same-origin behind a reverse proxy: Nuxt `/`, Odoo
   `/api/v1`, `/web/content`, and `/websocket`, and vendor console `/odoo`.
   Session cookies are used; no CORS or bearer tokens for browser flows.
+
+- `apps/vendor-admin` is the vendor staff console, a separate Nuxt application served on its own `admin` host. It follows
+  DESIGN.md and uses the same layers as `apps/web` (`@nasq/ui`, plus `@nasq/commercial-ui` for the shared billing
+  presentation); there is no `/vendor` page prefix. Its server routes are a BFF that signs calls to the control plane
+  with `@nasq/commercial-contracts` and overwrites `x-nasq-client-ip`. It imports nothing from `apps/web`, `odoo-addons`,
+  `@nasq/contracts` or the control plane and calls no Odoo route, and `apps/web` never imports it (hard rule `VA1` in
+  `tools/arch_policy.py`, never baselined). See `apps/vendor-admin/README.md`.

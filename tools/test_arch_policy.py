@@ -22,6 +22,9 @@ from arch_policy import (
     rule_totals,
     sql_on_odoo_tables,
     sudo_calls,
+    ui_layer_violations,
+    vendor_admin_imported,
+    vendor_admin_violations,
     unregistered_addons,
 )
 
@@ -337,6 +340,142 @@ class TestCollect(unittest.TestCase):
                    "<template><LazyChatSidebarPanel /><meetings-card /></template>\n")
         violations, _ = collect(self.root, self.layers)
         self.assertEqual(violations['R3'], {'web apps/web/app/components/shell/ShellHeader.vue': 3})
+
+    def test_shell_of_the_ui_layer_names_no_application(self):
+        self.clean_tree()
+        self.write('packages/ui/app/components/shell/ShellHeader.vue', '<template><TaskRow /></template>\n')
+        violations, _ = collect(self.root, self.layers)
+        self.assertEqual(violations['R3'], {'web packages/ui/app/components/shell/ShellHeader.vue': 1})
+
+    def test_ui_layer_importing_an_app_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('packages/ui/app/components/Bad.vue', "<script setup>import x from 'apps/web/app/x'</script>\n")
+        self.write('packages/ui/app/composables/useBad.ts', "import { y } from '@/composables/y'\n")
+        self.write('packages/ui/app/assets/css/bad.css', "@import '~/assets/x.css';\n")
+        self.write('packages/ui/app/components/Good.vue', "<script setup>import z from './Good2.vue'</script>\n")
+        self.write('packages/ui/app/components/__tests__/Bad.test.ts', "import x from 'apps/web/app/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], [
+            'packages/ui/app/assets/css/bad.css',
+            'packages/ui/app/components/Bad.vue',
+            'packages/ui/app/composables/useBad.ts',
+        ])
+
+    def test_commercial_ui_layer_importing_an_app_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('packages/commercial-ui/app/components/Bad.vue', "<script setup>import x from 'apps/vendor-admin/app/x'</script>\n")
+        self.write('packages/commercial-ui/app/composables/useBad.ts', "import { y } from '@/composables/y'\n")
+        self.write('packages/commercial-ui/app/composables/useGood.ts', "import { z } from '@nasq/commercial-contracts'\n")
+        self.write('packages/commercial-ui/app/components/__tests__/Bad.test.ts', "import x from 'apps/web/app/x'\n")
+        self.write('packages/commercial-ui/node_modules/dep/index.ts', "import x from 'apps/web/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], [
+            'packages/commercial-ui/app/components/Bad.vue',
+            'packages/commercial-ui/app/composables/useBad.ts',
+        ])
+
+    def test_ui_layer_css_and_node_modules(self):
+        self.clean_tree()
+        self.write('packages/ui/app/assets/css/a.css', "a { background: url(../../../../apps/web/a.png) }\n")
+        self.write('packages/ui/app/assets/css/b.css', "@source '../../../../../apps/web/app';\n")
+        self.write('packages/ui/node_modules/dep/index.ts', "import x from 'apps/web/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], ['packages/ui/app/assets/css/a.css', 'packages/ui/app/assets/css/b.css'])
+
+    def test_clean_ui_layer_passes(self):
+        self.clean_tree()
+        self.write('packages/ui/app/components/Good.vue', "<script setup>import { ref } from 'vue'</script>\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual(hard, [])
+
+    def test_ui_layer_patterns(self):
+        for bad in ("import a from 'odoo-addons/x'", "import '@nasq/contracts'", "from '~/x'", "require('../../apps/web/x')",
+                    "import c from '../../../control-plane/x'",
+                    "import d from '~~/x'", "export * from '@@/x'", "const m = import('@/x')", "import.meta.glob('../../apps/web/*.ts')",
+                    "import.meta.glob(['/apps/web/a.ts'])", "@source '../../apps/web/app';", "background: url(../../apps/web/a.png);",
+                    "@import url('~/x.css');"):
+            self.assertEqual(ui_layer_violations(bad), 1, bad)
+        for good in ("import a from 'vue'", "import b from '@nasq/ui/app/x'", "import c from './apps-list'",
+                    "// moved from apps/web/app/x", "/* imported from @/composables by the app */", "see apps/web/app/x for import details",
+                    "background: url(./a.png);", "@source '../app';"):
+            self.assertEqual(ui_layer_violations(good), 0, good)
+
+    def test_vendor_admin_boundary_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('apps/vendor-admin/app/pages/a.vue', "<script setup>import x from '../../../web/app/x'\nimport y from 'apps/web/app/y'</script>\n")
+        self.write('apps/vendor-admin/server/api/b.ts', "import c from '@nasq/contracts'\n")
+        self.write('apps/vendor-admin/server/api/c.ts', "const r = await $fetch('/api/v1/people')\n")
+        self.write('apps/vendor-admin/app/pages/d.vue', "<script setup>import q from '../../../../packages/x'</script>\n")
+        self.write('apps/vendor-admin/server/utils/e.js', "const m = await import(`~~/../web/x`)\n")
+        self.write('apps/vendor-admin/nuxt.config.ts', "export default { extends: ['../../packages/ui'], alias: { w: '../web/app' } }\n")
+        self.write('apps/vendor-admin/app/assets/css/f.css', "@source '../../../../web/app';\n")
+        self.write('apps/vendor-admin/app/good.ts', "import { ref } from 'vue'\nimport z from '@nasq/commercial-contracts'\nimport c from '~/components/control-plane-status'\nfetch('/api/vendor/v1/context')\n")
+        self.write('apps/vendor-admin/app/good.test.ts', "import x from 'apps/web/x'\nfetch('/api/v1/x')\n")
+        self.write('apps/vendor-admin/tests/t.ts', "import x from 'apps/web/x'\n")
+        self.write('apps/vendor-admin/e2e/t.ts', "fetch('/web/session')\n")
+        self.write('apps/vendor-admin/node_modules/d/index.ts', "import x from 'apps/web/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], [
+            'apps/vendor-admin/app/assets/css/f.css',
+            'apps/vendor-admin/app/pages/a.vue',
+            'apps/vendor-admin/app/pages/d.vue',
+            'apps/vendor-admin/nuxt.config.ts',
+            'apps/vendor-admin/server/api/b.ts',
+            'apps/vendor-admin/server/api/c.ts',
+            'apps/vendor-admin/server/utils/e.js',
+        ])
+        self.assertTrue(all(h.startswith('VA1 ') for h in hard))
+
+    def test_vendor_admin_test_exemption_is_tight(self):
+        self.clean_tree()
+        self.write('apps/vendor-admin/app/__tests__/t.ts', "import x from 'apps/web/x'\n")
+        self.write('apps/vendor-admin/app/tests/t.ts', "import x from 'apps/web/x'\n")
+        self.write('apps/vendor-admin/server/e2e/t.ts', "import x from 'apps/web/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual(len(hard), 3)
+
+    def test_customer_app_importing_the_vendor_admin_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('apps/web/app/pages/x.vue', "<script setup>import a from '../../../vendor-admin/app/a'</script>\n")
+        self.write('apps/web/app/ok.ts', "// see apps/vendor-admin for the admin app\nimport b from 'vue'\nimport c from './not-vendor-admin-list'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], ['apps/web/app/pages/x.vue'])
+
+    def test_vendor_admin_patterns(self):
+        app = Path('/r/apps/vendor-admin')
+        page = app / 'app' / 'pages' / 'a.vue'
+        css = app / 'app' / 'assets' / 'a.css'
+        config = app / 'nuxt.config.ts'
+        bad_cases = (
+            (page, "import a from 'apps/web/x'"), (page, "import a from `apps/web/x`"), (page, "import '@nasq/contracts'"),
+            (page, "import a from '@nasq/contracts/app/x'"), (page, "import a from 'odoo-addons/x'"),
+            (page, "import c from '../../../control-plane/x'"), (page, "require('../../../apps/control-plane/x')"),
+            (page, "import.meta.glob('../../../web/*.ts')"), (page, "import a from '../../../web/app/x'"),
+            (page, "import a from '~~/../web/x'"), (page, "import a from '@@/../web/x'"), (page, "import a from '~/../../web/x'"),
+            (page, "$fetch('/api/v1/people')"), (page, 'fetch("/web/session")'), (page, "const u = `/odoo/action`"),
+            (page, "$fetch('/jsonrpc')"), (page, "get('/web')"), (page, "new WebSocket('/websocket')"),
+            (page, "$fetch('/mail/x')"), (page, "$fetch('/longpolling/poll')"),
+            (css, "@source '../../../../web/app';"), (css, "background: url(../../../../web/a.png);"),
+            (config, "extends: ['../web']"), (config, "alias: { w: '../../packages/ui' }"),
+        )
+        for file, bad in bad_cases:
+            self.assertGreaterEqual(vendor_admin_violations(bad, file, app), 1, bad)
+        good_cases = (
+            (page, "import a from 'vue'"), (page, "import b from '@nasq/ui/app/x'"), (page, "import c from '@nasq/commercial-ui/app/x'"),
+            (page, "import d from '@nasq/commercial-contracts/server'"), (page, "import e from './web'"), (page, "import f from '~/composables/x'"),
+            (page, "import g from '~/components/control-plane-status'"), (page, "import h from '../../utils/x'"),
+            (page, "import i from '~~/server/utils/x'"), (page, "import j from '@/utils/x'"),
+            (page, "// moved from apps/web/app/x"), (page, "see /api/v1/people in the old app"), (page, "fetch('/api/vendor/v1/context')"),
+            (page, "const p = '/webhooks'"), (page, "const q = '/overview'"), (page, "const r = '/mailbox'"),
+            (css, "@source '../../app';"), (css, "background: url(./a.png);"), (config, "extends: ['@nasq/ui']"),
+        )
+        for file, good in good_cases:
+            self.assertEqual(vendor_admin_violations(good, file, app), 0, good)
+        web = Path('/r/apps/web/app/a.ts')
+        for bad in ("import a from '../../../vendor-admin/x'", "import a from '@nasq/vendor-admin/x'", "import a from `apps/vendor-admin/x`"):
+            self.assertEqual(vendor_admin_imported(bad, web), 1, bad)
+        for good in ("// see apps/vendor-admin/README", "import a from './vendor-admin-list'", "import a from '~/not-vendor-admin/x'"):
+            self.assertEqual(vendor_admin_imported(good, web), 0, good)
 
     def test_clean_tree_has_no_violations(self):
         self.clean_tree()

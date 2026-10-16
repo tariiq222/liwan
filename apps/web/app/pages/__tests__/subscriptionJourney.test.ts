@@ -43,7 +43,7 @@ describe('permission gating', () => {
     expect(read('app/components/subscription/AutoRenewControl.vue')).toContain('consent')
     expect(deriveCustomerCapabilities(['access.users.read'])).not.toContain('subscription.manage')
   })
-  it('uses shared structure: page state, create panel, unsaved changes, reused vendor components', () => {
+  it('uses shared structure: page state, create panel, unsaved changes, the shared price breakdown', () => {
     expect(page('index.vue')).toContain('SharedPageState'); expect(page('branches/new.vue')).toContain('SharedCreatePanel')
     expect(page('change.vue')).toContain('SharedUnsavedChanges'); expect(page('change.vue')).toContain('SharedCommercePriceBreakdown')
   })

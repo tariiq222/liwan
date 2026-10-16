@@ -2,7 +2,7 @@
 import { ChatMessageListSchema, type ChatMessage } from '@nasq/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
-import { formatDate, formatTime } from '@/utils/formatDate'
+import { formatDate, formatTime } from '@nasq/ui/app/utils/formatDate'
 import {
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,

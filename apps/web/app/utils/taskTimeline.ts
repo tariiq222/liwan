@@ -1,4 +1,4 @@
-import { formatDate } from './formatDate'
+import { formatDate } from '@nasq/ui/app/utils/formatDate'
 
 type TimelineTranslate = (key: string, params?: Record<string, unknown>) => string
 

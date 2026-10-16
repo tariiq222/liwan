@@ -35,7 +35,6 @@ describe('capability-based navigation', () => {
     expect(paths).toContain('/settings/branding')
     expect(visibleShellModules(admin).find(module => module.id === 'settings')?.to).toBe('/settings/users')
     expect(paths).not.toContain('/projects/settings')
-    expect(paths).not.toContain('/odoo')
     // The subscription page is the approved in-workspace commercial surface; the flag is off in tests, and /settings/billing stays absent.
     expect(paths).not.toContain('/subscription')
     expect(paths).not.toContain('/settings/billing')
@@ -52,8 +51,7 @@ describe('capability-based navigation', () => {
     expect(nav.filter(item => item.group === 'settings').map(item => item.to)).not.toContain('/projects/settings')
   })
   it('combines capabilities without duplicate paths or shortcuts', () => {
-    const nav = useNav({ ...admin, role: 'vendor', capabilities: [...admin.capabilities, 'pmo.settings.manage'] })
-    expect(nav.at(-1)?.to).toBe('/odoo')
+    const nav = useNav({ ...admin, capabilities: [...admin.capabilities, 'pmo.settings.manage'] })
     expect(new Set(nav.map(item => item.to)).size).toBe(nav.length)
     expect(new Set(nav.map(item => item.shortcut)).size).toBe(nav.length)
     for (const item of nav) expect(item.shortcut).toMatch(/^[a-z0-9]$/)
@@ -106,7 +104,7 @@ describe('contextual module links', () => {
 })
 
 // Additional applications may join the rail without editing these tests: compare only today's module ids.
-const TODAY = ['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'management', 'vendor']
+const TODAY = ['home', 'projects', 'meetings', 'chat', 'hr', 'settings']
 const today = (ids: string[]) => ids.filter(id => TODAY.includes(id))
 
 describe('tasks app navigation', () => {
@@ -121,7 +119,6 @@ describe('tasks app navigation', () => {
 describe('module rail', () => {
   it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
     expect(today(visibleShellModules(full).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
-    expect(today(visibleShellModules({ ...full, role: 'vendor' }).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings', 'vendor'])
     expect(visibleShellModules(full).find(item => item.id === 'home')?.to).toBe('/')
     expect(visibleShellModules(full).find(item => item.id === 'projects')?.to).toBe('/projects')
     expect(visibleShellModules(full).find(item => item.id === 'hr')?.labelKey).toBe('nav.organization')

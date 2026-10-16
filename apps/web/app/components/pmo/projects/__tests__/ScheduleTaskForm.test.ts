@@ -7,11 +7,11 @@ import * as VueRouter from 'vue-router'
 import * as Vue from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ScheduleTaskPatchSchema, type ScheduleTask } from '@nasq/contracts'
-import { DEFAULT_STUBS, loadShared, renderShared } from '../../../shared/__tests__/helpers/renderShared'
+import { DEFAULT_STUBS, loadShared, renderShared, sharedFile } from '@nasq/ui/test/helpers/renderShared'
 import { ApiError } from '../../../../composables/useApi'
 import { validateTaskDates } from '../../../../utils/projectDateBounds'
-import { errorStateKind } from '../../../../utils/errorState'
-import { formatCalendarDate } from '../../../../composables/calendarDate'
+import { errorStateKind } from '@nasq/ui/app/utils/errorState'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 
 interface HostNode {
   type: string
@@ -76,7 +76,7 @@ const taskFixture = (id = 3): ScheduleTask => ({ id, name: `Task ${id}`, start: 
 // Run the production route guard with the real memory router. Only browser
 // unload/focus hooks are omitted because this renderer has no DOM/window.
 function loadUnsavedChanges(router: VueRouter.Router): Vue.Component {
-  const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../../../shared/form/UnsavedChanges.vue')
+  const filename = sharedFile('UnsavedChanges')
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const compiled = compileScript(descriptor, { id: 'schedule-unsaved-changes', inlineTemplate: true }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
@@ -110,13 +110,14 @@ function harness(section = false, routing = false) {
     '@/composables/useProjects': { useProject: () => project },
     '@/composables/useApi': { ApiError },
     '@/utils/projectDateBounds': { validateTaskDates },
-    '@/utils/errorState': { errorStateKind },
-    '@/composables/calendarDate': { formatCalendarDate },
+    '@nasq/ui/app/utils/errorState': { errorStateKind },
+    '../../../utils/errorState': { errorStateKind },
+    '@nasq/ui/app/composables/calendarDate': { formatCalendarDate },
   }
   const options = { modules, globals: { useToast: () => ({ add: toast }) } }
-  const form = loadShared('../pmo/projects/schedule/ScheduleTaskForm', options)
+  const form = loadShared(resolve(import.meta.dirname, '../schedule/ScheduleTaskForm.vue'), options)
   modules['./ScheduleTaskForm.vue'] = { __esModule: true, default: form }
-  const component = section ? loadShared('../pmo/projects/schedule/ProjectTaskScheduleSection', options) : form
+  const component = section ? loadShared(resolve(import.meta.dirname, '../schedule/ProjectTaskScheduleSection.vue'), options) : form
   const routeComponent = Vue.defineComponent({
     setup() {
       const route = VueRouter.useRoute()
@@ -156,7 +157,7 @@ function harness(section = false, routing = false) {
 }
 
 it('a pristine schedule cannot reset the time of an existing deadline', async () => {
-  const html = await renderShared('../pmo/projects/schedule/ScheduleTaskForm', {
+  const html = await renderShared(resolve(import.meta.dirname, '../schedule/ScheduleTaskForm.vue'), {
     projectId: 7, task: taskFixture(),
   }, {}, {
     globals: { useRouter: () => ({}), useToast: () => ({ add: () => {} }) },

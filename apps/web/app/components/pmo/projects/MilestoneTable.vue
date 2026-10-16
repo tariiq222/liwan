@@ -2,11 +2,11 @@
 import type { Milestone } from '@nasq/contracts'
 import { getLocalTimeZone, today } from '@internationalized/date'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate, toCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate, toCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
-import { returnToQuery } from '@/utils/safeReturnTo'
-import type { RowAction } from '@/components/shared/data/RowActions.vue'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 

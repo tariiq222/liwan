@@ -6,7 +6,7 @@ import type { AppManifest } from '../types'
 import { allNavItems } from '../../composables/nav/shellModules'
 import { goKeyProblems } from '../../composables/nav/paletteModel'
 import { appCommands } from '../surfaces'
-import { SHELL_RESERVED_KEYS } from '../../composables/shortcuts/keymap'
+import { SHELL_RESERVED_KEYS } from '@nasq/ui/app/composables/shortcuts/keymap'
 
 const crm: AppManifest = {
   id: 'crm',
@@ -33,7 +33,7 @@ describe('app manifests', () => {
   it('keeps the module feature map', () => {
     expect(MODULE_FEATURES).toMatchObject({
       home: null, projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled',
-      settings: null, vendor: null, management: null,
+      settings: null,
     })
   })
 

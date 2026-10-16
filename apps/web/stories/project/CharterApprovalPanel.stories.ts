@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { ProjectDetail } from '@nasq/contracts'
 import CharterApprovalPanel from '../../app/components/pmo/projects/CharterApprovalPanel.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { projectDetail } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 

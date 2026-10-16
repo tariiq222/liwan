@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { ProjectCharterCatalogResource } from '@nasq/contracts'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useCharterCatalogSearch } from '@/composables/useProjectCharterCatalogs'
 import type { CharterDraft, CharterFieldKey } from '@/utils/projectCharter'
 import { CHARTER_FIELD_KEYS, PROJECT_PRIORITIES } from '@/utils/projectCharter'
 import { charterStepsForType } from '@/utils/charterSteps'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import ProjectCharterRows from '@/components/pmo/projects/ProjectCharterRows.vue'
 import ProjectFieldHelp from '@/components/pmo/projects/ProjectFieldHelp.vue'
 

@@ -7,11 +7,12 @@ const job=bindJob({schemaVersion:1,operation:'provision',requestId:id,binding:{t
 function fixture(enabled:boolean){
   const flags={quarantined:false,lostCas:false,badEvidence:false}
   const writes:Array<{sql:string;params:unknown[]}>=[]
-  const row={payload:job,issuer:'vendor',actor_uid:7,job_digest:payloadDigest(job),request_id:id,control_tenant_id:id,job_id:id}
+  const row={payload:job,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(job),request_id:id,control_tenant_id:id,job_id:id}
   const client={release(){},async query(sql:string,params:unknown[]=[]){
     const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
     if(['BEGIN','COMMIT','ROLLBACK'].includes(sql))return result()
-    if(sql.includes('FROM vendor_memberships'))return result([{}])
+    if(sql.includes('FROM vendor_accounts WHERE id'))return result([{}])
+    if(sql.includes('FROM vendor_account_roles'))return result([{role:'customer_success'},{role:'operations'}])
     if(sql.includes('FROM tenants'))return result(enabled?[{id}]:[])
     if(sql.includes('FROM shared_onboardings') && sql.includes('FOR UPDATE'))return result([{...row,stage:flags.quarantined?'needs_intervention':'activating'}])
     if(sql.includes('FROM shared_jobs'))return result(flags.badEvidence && sql.includes('JOIN shared_registry_bindings')?[]:[{}])
@@ -44,7 +45,7 @@ it('quarantines a full failed batch so the healthy eleventh tenant activates nex
     const uuid=`ba91699b-c25b-4a01-8c84-${String(index).padStart(12,'0')}`
     const binding={...job.binding,tenantId:`tenant${index}`,database:`nasq_scratch_${String(index).padStart(32,'0')}`,filestore:`nasq_scratch_${String(index).padStart(32,'0')}`}
     const payload=bindJob({...job,requestId:uuid,binding})
-    return {payload,issuer:'vendor',actor_uid:7,job_digest:payloadDigest(payload),request_id:uuid,control_tenant_id:uuid,job_id:uuid,stage:'verifying'}
+    return {payload,issuer:'vendor:vendor-account',actor_uid:7,job_digest:payloadDigest(payload),request_id:uuid,control_tenant_id:uuid,job_id:uuid,stage:'verifying'}
   })
   const observed:string[]=[]
   const client={release(){},async query(sql:string,params:unknown[]=[]){
@@ -56,6 +57,7 @@ it('quarantines a full failed batch so the healthy eleventh tenant activates nex
       const row=rows.find(item=>item.request_id===params[0])!
       row.stage=sql.includes("stage='needs_intervention'")?'needs_intervention':sql.includes("SET stage='active'")?'active':'activating'
     }
+    if(sql.includes('FROM vendor_account_roles'))return {rowCount:2,rows:[{role:'customer_success'},{role:'operations'}]}
     return {rowCount:1,rows:[{}]}
   }}
   const pool={connect:async()=>client,async query(sql:string){

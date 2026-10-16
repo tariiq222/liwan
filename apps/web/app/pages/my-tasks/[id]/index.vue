@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { StatusTone } from '@/utils/statusTone'
+import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
 import type { PersonalTask } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate, formatNasqDateTime } from '@/composables/calendarDate'
+import { formatCalendarDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 import { useMyTask, useMyTaskTransition, type MyTaskTransition } from '@/composables/useMyTasks'
 import ConvertToProject from '@/components/personal-tasks/ConvertToProject.vue'
 import MyTaskAttachments from '@/components/personal-tasks/MyTaskAttachments.vue'

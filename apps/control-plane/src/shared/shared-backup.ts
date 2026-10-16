@@ -18,6 +18,7 @@ import type { TenantStorage } from './fenced-adapter.js'
 import { ensureTenantStorageSchema } from './fenced-adapter.js'
 import { ensureAdminBindingSchema } from './provision-readiness.js'
 import { REGISTRY_ADVISORY_LOCK } from './registry-store.js'
+import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 export type CommercialRestoreRunner = import('./subscription-reconcile.js').ObserveRunner
 export type CommercialRestoreObservation = Awaited<ReturnType<CommercialRestoreRunner>>
@@ -124,7 +125,7 @@ export async function finalizeVerifiedRestore(client: PoolClient, job: SharedJob
   const consumed = await client.query('UPDATE shared_restore_approvals SET consumed_at=clock_timestamp() WHERE id=$1 AND consumed_at IS NULL RETURNING id,target_database', [job.approvalId])
   if (!consumed.rowCount) return
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-    [randomUUID(), `${actor.issuer}:${actor.actorUid}`, 'shared_restore.completed', job.approvalId,
+    [randomUUID(), actorLabel(actor), 'shared_restore.completed', job.approvalId,
       'Verified restore finalized from the job receipt after the effect stage lost its control transaction',
       { targetDatabase: consumed.rows[0].target_database, jobBinding: job.binding.database }])
 }
@@ -210,8 +211,7 @@ export async function approveSharedRestore(pool: Pool, input: { backupId: string
   if (!Number.isSafeInteger(input.ttlSeconds) || input.ttlSeconds < 60 || input.ttlSeconds > 86400) throw new Error('approval_ttl_invalid')
   const approvalId = randomUUID()
   await transaction(pool, async client => {
-    const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.operations.run'=ANY(capabilities) FOR SHARE", [input.actor.issuer, input.actor.actorUid])
-    if (!grant.rowCount) throw new Error('shared_restore_forbidden')
+    if (!await actorHolds(client, input.actor, ['vendor.operations.run'], true)) throw new Error('shared_restore_forbidden')
     const backup = await client.query("SELECT control_tenant_id FROM shared_backups WHERE id=$1 AND consistency='verified'", [input.backupId])
     if (!backup.rowCount || backup.rows[0].control_tenant_id !== input.controlTenantId) throw new Error('backup_unavailable')
     // The target must not be a live tenant database: registry bindings and
@@ -220,7 +220,7 @@ export async function approveSharedRestore(pool: Pool, input: { backupId: string
     await client.query('INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()+($6||\' seconds\')::interval)',
       [approvalId, input.backupId, input.controlTenantId, input.targetDatabase, 'Approved restore to a new isolated target', input.ttlSeconds])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(), `${input.actor.issuer}:${input.actor.actorUid}`, 'shared_restore.approved', approvalId, 'Restore approval granted for a new target', { backupId: input.backupId, targetDatabase: input.targetDatabase }])
+      [randomUUID(), actorLabel(input.actor), 'shared_restore.approved', approvalId, 'Restore approval granted for a new target', { backupId: input.backupId, targetDatabase: input.targetDatabase }])
   })
   return { approvalId }
 }
@@ -320,7 +320,7 @@ export async function restoreBackupToNewTarget(pool: Pool, connect: (database: s
     const consumed = await client.query('UPDATE shared_restore_approvals SET consumed_at=clock_timestamp() WHERE id=$1 AND consumed_at IS NULL RETURNING id', [input.approvalId])
     if (!consumed.rowCount) throw new Error('restore_approval_unavailable')
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(), `${input.actor.issuer}:${input.actor.actorUid}`, 'shared_restore.completed', input.approvalId, 'Verified restore applied to a new target', { targetDatabase: approval.target_database, databaseSha256 }])
+      [randomUUID(), actorLabel(input.actor), 'shared_restore.completed', input.approvalId, 'Verified restore applied to a new target', { targetDatabase: approval.target_database, databaseSha256 }])
     await client.query('COMMIT')
     controlHeld = false
     return { databaseSha256, applied: true }

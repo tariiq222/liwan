@@ -1,0 +1,49 @@
+const API_PREFIX = '/api/vendor/v1'
+
+type Fetcher = (url: string, options?: Record<string, unknown>) => Promise<unknown>
+
+export interface AdminApiDeps {
+  fetcher: Fetcher
+  onUnauthorized: () => unknown
+  /** Hook point for the step-up flow: receives a retry of the failed request. Default: rethrow. */
+  onStepUpRequired?: <T>(retry: () => Promise<T>, cause: unknown) => Promise<T>
+}
+
+function failureOf(error: unknown): { status?: number, code?: string } {
+  const e = error as { statusCode?: number, response?: { status?: number }, data?: { code?: string } } | null
+  return { status: e?.statusCode ?? e?.response?.status, code: e?.data?.code }
+}
+
+export function createAdminApi({ fetcher, onUnauthorized, onStepUpRequired }: AdminApiDeps) {
+  async function request<T>(path: string, options?: Record<string, unknown>): Promise<T> {
+    if (!path.startsWith('/')) throw new Error('invalid_path')
+    const send = () => fetcher(`${API_PREFIX}${path}`, options) as Promise<T>
+    // The one repeat after a step-up: a 401 there is still a lost session.
+    const sendOnce = async (): Promise<T> => {
+      try {
+        return await send()
+      } catch (error) {
+        if (failureOf(error).status === 401) await onUnauthorized()
+        throw error
+      }
+    }
+    try {
+      return await send()
+    } catch (error) {
+      const { status, code } = failureOf(error)
+      if (status === 401) await onUnauthorized()
+      else if (status === 403 && code === 'step_up_required' && onStepUpRequired) return onStepUpRequired(sendOnce, error)
+      throw error
+    }
+  }
+  return { request }
+}
+
+export function useAdminApi() {
+  const stepUp = useStepUp()
+  return createAdminApi({
+    fetcher: $fetch as Fetcher,
+    onUnauthorized: useSessionEnded(),
+    onStepUpRequired: retry => stepUp.run(retry),
+  })
+}

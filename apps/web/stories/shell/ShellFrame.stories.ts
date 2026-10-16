@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
-import ShellFrame from '../../app/components/shell/ShellFrame.vue'
+import ShellFrame from '@nasq/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
 import { createBrandTheme } from '../../app/utils/brandTheme'
 import { __getRouter, useCookie } from '../../.storybook/nuxt-shims'
-import { shellHandlers, vendorShellHandlers } from '../handlers/shell'
+import { shellHandlers } from '../handlers/shell'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -49,13 +49,6 @@ export const Collapsed: Story = {
   parameters: storyContext('apps/web/app/layouts/default.vue:46', 'القائمة السياقية بعرض 48px: يبقى زر الطي والأيقونات فقط.'),
   loaders: [at('/tasks')],
   render: () => frame('closed'),
-}
-
-export const Console: Story = {
-  name: 'الكونسول',
-  parameters: { ...storyContext('apps/web/app/layouts/default.vue:46'), msw: { handlers: { api: vendorShellHandlers } } },
-  loaders: [at('/vendor/overview')],
-  render: () => frame(),
 }
 
 export const BrightTenant: Story = {

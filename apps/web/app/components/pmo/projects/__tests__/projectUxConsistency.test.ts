@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization } from '../../../../utils/projectFinance'
 import { projectSectionLocation } from '../../../../utils/projectWorkspaceMemory'
-import { returnToQuery } from '../../../../utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { isDirtySnapshot } from '../../../../lib/formDirty'
 import { ApiError } from '../../../../composables/useApi'
 

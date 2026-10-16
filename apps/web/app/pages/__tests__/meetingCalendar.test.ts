@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { calendarCoverage } from '../../utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '../../utils/meetingStatus'
 import { parseMeetingListFilters, patchMeetingListQuery } from '../../utils/meetingListFilters'
-import { isCalendarDate } from '../../composables/calendarDate'
+import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { firstQuery } from '../../utils/routeQuery'
 
 type CalendarMeeting = {

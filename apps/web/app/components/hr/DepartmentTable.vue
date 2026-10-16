@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { HrDepartment } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { avatarProps } from '@/utils/avatarTone'
-import type { RowAction } from '@/components/shared/data/RowActions.vue'
+import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
 
 // The list view of /hr/departments on SharedDataTable. A row opens its department through `rowTo`
 // (the same `departmentTo` target the tree uses); delete is handed to the page, which owns the inline

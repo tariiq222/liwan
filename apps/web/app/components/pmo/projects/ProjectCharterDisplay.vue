@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CharterDraft, CharterMilestone } from '@/utils/projectCharter'
 import { aggregateMilestoneOutputs } from '@/utils/projectCharter'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 
 const props = defineProps<{
   draft: CharterDraft

@@ -42,12 +42,23 @@ def plan(changed, base):
         steps.append(('tools_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'tools', '-p', 'test_*.py']))
     if touched('packages/contracts/'):
         steps.append(('contracts_test', ['npm', '-w', 'packages/contracts', 'run', 'test']))
-    if touched('apps/web/', 'packages/contracts/'):
+    if touched('packages/ui/'):
+        steps.append(('ui_layer_test', ['npm', '-w', 'packages/ui', 'run', 'test']))
+    if touched('packages/commercial-ui/'):
+        steps.append(('commercial_ui_layer_test', ['npm', '-w', 'packages/commercial-ui', 'run', 'test']))
+    web = touched('apps/web/', 'packages/contracts/', 'packages/ui/', 'packages/commercial-ui/')
+    vendor_admin = touched('apps/vendor-admin/', 'packages/ui/', 'packages/commercial-ui/', 'packages/commercial-contracts/')
+    if web:
         steps.append(('ui_inventory', [PY, '-B', 'tools/ui_inventory.py', '--check']))
         steps.append(('ui_catalog', ['node', 'tools/ui_catalog.mjs', '--check']))
+    if web or vendor_admin:
         steps.append(('ui_templates', ['node', 'tools/ui_templates.mjs']))
+    if web:
         steps.append(('web_test_changed', ['npm', '-w', 'apps/web', 'run', 'test', '--', '--changed', base]))
         steps.append(('web_typecheck', ['npm', '-w', 'apps/web', 'run', 'lint']))
+    if vendor_admin:
+        steps.append(('vendor_admin_test', ['npm', '-w', 'apps/vendor-admin', 'run', 'test']))
+        steps.append(('vendor_admin_typecheck', ['npm', '-w', 'apps/vendor-admin', 'run', 'lint']))
     if any(path.startswith('tools/') and path.endswith('.mjs') for path in changed):
         steps.append(('e2e_isolated_test', ['node', '--test', 'tools/test_e2e_isolated.mjs']))
     if touched('deploy/'):

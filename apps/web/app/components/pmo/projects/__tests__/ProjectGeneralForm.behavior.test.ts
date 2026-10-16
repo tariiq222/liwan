@@ -7,6 +7,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import * as VueRouter from 'vue-router'
 import { afterEach, describe, expect, it } from 'vitest'
+import { sharedFile } from '@nasq/ui/test/helpers/renderShared'
 import { saveErrorMessage } from '../../../../utils/formFeedback'
 
 interface HostNode {
@@ -79,7 +80,7 @@ async function mountForm() {
   const isPending = Vue.ref(false)
   const isError = Vue.ref(false)
   const isSuccess = Vue.ref(false)
-  const UnsavedChanges = loadComponent(resolve(dirname(filename), '../../shared/form/UnsavedChanges.vue'), {
+  const UnsavedChanges = loadComponent(sharedFile('UnsavedChanges'), {
     onBeforeRouteLeave: VueRouter.onBeforeRouteLeave, onBeforeRouteUpdate: VueRouter.onBeforeRouteUpdate,
     onMounted: () => {}, onBeforeUnmount: () => {}, navigateTo: (path: string) => router.push(path),
   })

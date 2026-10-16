@@ -11,17 +11,19 @@ import {enqueueSharedJob} from './job-store.js'
 import {businessKey,payloadDigest} from './provisioning.js'
 import type {SharedRuntimeConfig} from './runtime-config.js'
 import type {SharedJob} from '@nasq/commercial-contracts/shared'
+import { vendorAccount } from '../__tests__/helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 const url=process.env.CONTROL_TEST_DATABASE_URL
 if(url){const u=new URL(url);if(!['localhost','127.0.0.1','::1'].includes(u.hostname)||!/^nasq_control_scratch_[a-z0-9]+$/.test(u.pathname.slice(1)))throw Error('isolated control test database required')}
 describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=>{
- const pool=new Pool({connectionString:url,max:4}),tenant=randomUUID(),backupId=randomUUID(),jobId=randomUUID(),issuer='odoo-backup-'+randomUUID(),actor={issuer,actorUid:7}
+ const pool=new Pool({connectionString:url,max:4}),tenant=randomUUID(),backupId=randomUUID(),jobId=randomUUID(),issuer=vendorActorIssuer('odoo-backup-'+randomUUID()),actor={issuer,actorUid:7}
  const db='nasq_scratch_'+randomUUID().replaceAll('-',''),binding={tenantId:'t'+tenant.replaceAll('-',''),database:db,filestore:db,registryRevision:1}
  const job:SharedJob={schemaVersion:1,operation:'backup',requestId:backupId,binding}
  let root='',runtime:SharedRuntimeConfig
  beforeAll(async()=>{
   await migrate(pool);root=await realpath(await mkdtemp(join(tmpdir(),'nasq-real-backup-')))
   runtime={schemaVersion:1,projectName:'nasq-saas-test-backup',composeFile:join(root,'compose.yml'),envFile:join(root,'compose.env'),stateDir:root,domainSuffix:'saas.accept.nasq.test'}
-  await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,ARRAY['vendor.operations.run'])",[issuer])
+  await vendorAccount(pool,['operations'],7)
   await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Real authority fixture','saas','managed',$2,true)",[tenant,'fixture-'+tenant])
   await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)',[tenant,binding.tenantId,binding.tenantId+'.invalid',db])
   const receipt={schemaVersion:1,operation:'backup',binding,businessKey:businessKey(job),payloadDigest:payloadDigest(job),attemptId:randomUUID(),sequence:3,status:'verified'}
@@ -71,7 +73,7 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
   await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state,receipt) VALUES($1,$2,$3,$4,$5,$6,7,'Historical verified effect','verified',$7)",[restoredJobId,tenant,businessKey(restored),restored,payloadDigest(restored),issuer,receipt])
   const input={schemaVersion:1,operation:'restore',requestId,approvalId:approval}
   expect(await enqueueSharedJob(pool,tenant,actor,input,'Authenticated replay')).toEqual({id:restoredJobId,state:'verified',replay:true})
-  await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,8,ARRAY['vendor.operations.run']) ON CONFLICT DO NOTHING",[issuer])
+  await vendorAccount(pool,['operations'],8)
   await expect(enqueueSharedJob(pool,tenant,{issuer,actorUid:8},input,'Other operator')).rejects.toThrow('shared_replay_forbidden')
   await expect(enqueueSharedJob(pool,tenant,actor,{...input,requestId:randomUUID()},'Different request')).rejects.toThrow('shared_restore_approval_unavailable')
   await expect(enqueueSharedJob(pool,tenant,actor,{...input,approvalId:randomUUID()},'Different approval')).rejects.toThrow('shared_restore_approval_unavailable')
@@ -79,7 +81,7 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
  })
  it('rejects foreign tenant and revoked operator approvals without reserving targets',async()=>{
   await expect(approveOdooRestore(pool,runtime,actor,randomUUID(),{backup_id:backupId,reason:'Foreign approval'})).rejects.toThrow('tenant_operations_unavailable')
-  await pool.query('UPDATE vendor_memberships SET revoked_at=clock_timestamp() WHERE issuer=$1',[issuer])
+  await pool.query("UPDATE vendor_accounts SET status='disabled' WHERE id=7")
   await expect(approveOdooRestore(pool,runtime,actor,tenant,{backup_id:backupId,reason:'Revoked approval'})).rejects.toThrow('shared_job_forbidden')
  })
 })

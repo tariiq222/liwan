@@ -1,6 +1,7 @@
+import { resolve } from 'node:path'
 import { defineComponent, h, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { renderShared } from '../../components/shared/__tests__/helpers/renderShared'
+import { renderShared } from '@nasq/ui/test/helpers/renderShared'
 import { ApiError } from '../../composables/useApi'
 import { parsePositiveId } from '../../utils/routeParams'
 import { owningListBack, recordChildTo } from '../../utils/recordListOrigin'
@@ -8,7 +9,7 @@ import { owningListBack, recordChildTo } from '../../utils/recordListOrigin'
 async function renderRecord(status?: number, source: 'project' | 'milestones' = 'milestones') {
   const denied = status ? new ApiError(status, 'forbidden', 'Read access withdrawn') : null
   const milestone = { id: 8, name: 'Private cached milestone', task_count: 0, done_task_count: 0, deliverables: [], is_reached: false }
-  return renderShared('../../pages/projects/[id]/milestones/[milestoneId]', {}, {}, {
+  return renderShared(resolve(import.meta.dirname, '../projects/[id]/milestones/[milestoneId].vue'), {}, {}, {
     globals: {
       useRoute: () => ({ path: '/projects/7/milestones/8', params: { id: '7', milestoneId: '8' }, query: {}, hash: '' }),
       useRouter: () => ({}), useProjectRecordListPaths: () => ref(['/projects/7/milestones']),
@@ -22,7 +23,7 @@ async function renderRecord(status?: number, source: 'project' | 'milestones' = 
       },
       '@/utils/recordListOrigin': { owningListBack, recordChildTo },
       '@/utils/routeParams': { parsePositiveId },
-      '@/composables/calendarDate': { formatCalendarDate: () => '' },
+      '@nasq/ui/app/composables/calendarDate': { formatCalendarDate: () => '' },
     },
     stubs: {
       SharedRecordPage: defineComponent({ props: ['title'], setup: props => () => h('section', [h('h2', props.title)]) }),

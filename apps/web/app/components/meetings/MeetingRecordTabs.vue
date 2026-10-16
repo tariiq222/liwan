@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { routeTabClass, routeTabsStripClass } from '@/utils/sectionTabs'
+import { routeTabClass, routeTabsStripClass } from '@nasq/ui/app/utils/sectionTabs'
 
 const props = defineProps<{
   tabs: { key: string; label: string; to: RouteLocationRaw; active: boolean }[]

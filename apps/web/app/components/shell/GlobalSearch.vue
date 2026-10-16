@@ -5,10 +5,10 @@ import { useNav, type NavItem } from '@/composables/nav/shellModules'
 import {
   commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
-import { isApplePlatform } from '@/composables/shortcuts/keymap'
+import { isApplePlatform } from '@nasq/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
 import { paletteNavigationBlocked, shouldRestoreTriggerFocus, usePalette } from '@/composables/usePalette'
-import { clearNavigationFocus, offerNavigationFocus } from '@/composables/useNavigationFocus'
+import { clearNavigationFocus, offerNavigationFocus } from '@nasq/ui/app/composables/useNavigationFocus'
 
 // The command palette (Tasmim spec §5) and still the one approved search overlay
 // (DESIGN.md §5; tools/ui_policy.py OVERLAY_OWNERS): Go to (the nav the user can reach),
@@ -80,7 +80,7 @@ function toItem(item: PaletteItem): CommandPaletteItem {
     ...rest,
     onSelect(event: Event) {
       if (!action) {
-        leavingFor = item.external ? null : pathOf(item.to)
+        leavingFor = pathOf(item.to)
         leavingFrom = route.path
         closedWithoutRestore = false
         if (leavingFor !== null) {

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { operationFeedSchema, sharedOperationFeedSchema } from '@nasq/commercial-contracts'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { vendorSession } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 import { migrate } from '../db.js'
 
@@ -18,11 +18,13 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
   const id = (n: number) => `10000000-0000-4000-8000-${String(n).padStart(12, '0')}`
   const server = createApp(pool, config)
   let origin: string
+  const sessions = {} as Record<number, Awaited<ReturnType<typeof vendorSession>>>
   beforeAll(async () => {
     await migrate(pool)
     await pool.query('TRUNCATE tenants CASCADE')
-    await pool.query('DELETE FROM vendor_memberships')
-    await pool.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,$2),($1,8,$3)', [config.installationId, ['vendor.read','vendor.operations.run'], ['vendor.operations.run']])
+    await pool.query('TRUNCATE vendor_accounts CASCADE')
+    sessions[7] = await vendorSession(pool, config.installationId, ['operations'], { key: config.key })
+    sessions[8] = await vendorSession(pool, config.installationId, [], { key: config.key })
     for (const [tid, slug] of [[tenant, 'feed_a'], [otherTenant, 'feed_b']]) {
       await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,status,operations_enabled) VALUES($1,$2,'saas','managed',$2,'needs_intervention',true)", [tid, slug])
       await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$2,$2,$2,false,1)', [tid, slug])
@@ -46,7 +48,7 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
   })
   afterAll(async () => { await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings CASCADE'); await new Promise<void>(resolve => server.close(() => resolve())); await pool.end() })
   async function call(path: string, actor = 7, method = 'GET', body = '') {
-    return fetch(origin + path, { method, headers: signServiceRequest({ method, path, body, actor, issuer: config.installationId, key: config.key }), body: body || undefined })
+    return fetch(origin + path, { method, headers: sessions[actor]!.headers(method, path, body), body: body || undefined })
   }
   async function get(path: string) { const response = await call(path); expect(response.status).toBe(200); return response.json() }
   it('counts both queues once without treating onboarding readiness as queue failure', async () => {

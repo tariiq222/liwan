@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import posixpath
 import re
 import subprocess
@@ -29,6 +30,28 @@ FOUNDATION_MAX_RANK = 2
 STATIC_APP_TOKENS = ('project', 'cyan_meeting_minutes')
 ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
+# UI1: a file of a shared UI layer (packages/ui, packages/commercial-ui) reaches into an application, an addon, an app alias, the contracts or the control plane.
+UI_LAYER_FORBIDDEN = re.compile(
+    # A JS specifier needs its opening quote, so prose such as "moved from apps/web/app/x" in a comment is not an import;
+    # CSS at-rules and url() may be unquoted.
+    r"""(?:(?:\bfrom|\bimport|\brequire\(|import\.meta\.glob\()\s*[(\[]?\s*['"]|(?:@import|@source|url\()\s*['"]?)"""
+    r"""(?:[./]*/)?(?:apps/|odoo-addons/|@/|@@/|~/|~~/|@nasq/contracts|[^'"\n]*control-plane)""",
+)
+UI_LAYER_FILES = ('.ts', '.vue', '.css')
+# VA1: a file of the vendor admin app (a) imports an application, an addon, the customer contracts or the control plane, or
+# leaves its own folder through a relative path or an alias, or (b) names an Odoo route as a string. Specifiers are read from
+# quoted import forms (JS) and at-rules / url() (CSS) only, so prose in comments never matches; they are judged by path
+# segment, so `~/components/control-plane-status` is fine while `../control-plane/x` is not.
+JS_SPECIFIER = re.compile(r"""(?:\bfrom|\bimport|\brequire\(|import\.meta\.glob\()\s*[(\[]?\s*(['"`])([^'"`\n]+)\1""")
+CSS_SPECIFIER = re.compile(r"""(?:@import|@source)\s*(?:url\()?\s*['"`]?([^'"`);\s]+)|\burl\(\s*['"`]?([^'"`)\s]+)""")
+# nuxt.config / vitest.config strings that are paths: `extends`, `alias`, `srcDir`, layer entries.
+CONFIG_PATH_STRING = re.compile(r"""['"`]((?:\.{1,2}|~~?|@@?)/[^'"`\n]*)['"`]""")
+VENDOR_ADMIN_ODOO_ROUTE = re.compile(
+    r"""['"`]/(?:api/v1|web|odoo|jsonrpc|json/2|websocket|mail|longpolling)(?:[/?#'"`]|$)""", re.MULTILINE)
+VENDOR_ADMIN_FILES = ('.ts', '.vue', '.css', '.js', '.mjs', '.mts', '.cjs', '.tsx')
+VENDOR_ADMIN_SKIPPED_DIRS = {'node_modules', '.nuxt', '.output', 'dist', 'storybook-static'}
+VENDOR_ADMIN_TEST_DIRS = {'test', 'tests', 'e2e'}
+FORBIDDEN_SEGMENTS = {'apps', 'odoo-addons', 'control-plane'}
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
 SQL_TABLE = re.compile(
@@ -50,6 +73,59 @@ Violations = dict[str, dict[str, int]]
 def is_test_path(path: Path) -> bool:
     parts = set(path.parts)
     return bool(parts & {'tests', '__tests__', 'e2e'}) or '.test.' in path.name or '.spec.' in path.name
+
+
+def ui_layer_violations(text: str) -> int:
+    """UI1: imports of an application, addon, alias, the contracts or the control plane in a shared UI layer file."""
+    return count(UI_LAYER_FORBIDDEN, text)
+
+
+def specifiers(text: str, file: Path) -> list[str]:
+    """Import-like specifiers of one file: JS imports, CSS at-rules and url(), config path strings."""
+    found = [m[1] for m in JS_SPECIFIER.findall(text)]
+    if file.suffix == '.css' or file.suffix == '.vue':
+        found += [first or second for first, second in CSS_SPECIFIER.findall(text)]
+    if '.config.' in file.name:
+        found += CONFIG_PATH_STRING.findall(text)
+    return [item for item in found if ':' not in item and not item.startswith('data')]
+
+
+def escapes_app(specifier: str, file: Path, app_dir: Path) -> bool:
+    """A relative path or alias that resolves outside the application folder (`~/` and `@/` mean its `app/`, `~~/` and `@@/` its root)."""
+    if specifier.startswith(('~~/', '@@/')):
+        target = os.path.join(app_dir, specifier[3:])
+    elif specifier.startswith(('~/', '@/')):
+        target = os.path.join(app_dir, 'app', specifier[2:])
+    elif specifier.startswith('.'):
+        target = os.path.join(file.parent, specifier)
+    else:
+        return False
+    base = os.path.normpath(app_dir)
+    target = os.path.normpath(target)
+    return target != base and not target.startswith(base + os.sep)
+
+
+def vendor_admin_violations(text: str, file: Path, app_dir: Path) -> int:
+    """VA1: forbidden imports, folder escapes or Odoo route strings in a vendor admin app file."""
+    found = count(VENDOR_ADMIN_ODOO_ROUTE, text)
+    for specifier in specifiers(text, file):
+        segments = specifier.split('/')
+        bare = not specifier.startswith(('.', '~', '@/', '@@'))
+        if escapes_app(specifier, file, app_dir) or (
+                bare and (FORBIDDEN_SEGMENTS & set(segments) or segments[:2] == ['@nasq', 'contracts'])):
+            found += 1
+    return found
+
+
+def vendor_admin_imported(text: str, file: Path) -> int:
+    """VA1: imports of the vendor admin app from the customer app (a `vendor-admin` path segment)."""
+    return sum('vendor-admin' in specifier.split('/') for specifier in specifiers(text, file))
+
+
+def is_vendor_admin_test(rel: Path) -> bool:
+    """Tight exemption: *.test.* / *.spec.* files and the top-level test, tests or e2e folder of the app."""
+    parts = rel.parts[2:]
+    return '.test.' in rel.name or '.spec.' in rel.name or (len(parts) > 1 and parts[0] in VENDOR_ADMIN_TEST_DIRS)
 
 
 def count(pattern: re.Pattern[str], text: str) -> int:
@@ -502,11 +578,37 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
                 if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                     _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps, rel))
     # The foundation shell (layout and shell components) names no application (R3).
-    for folder in (web / 'app' / 'components' / 'shell', web / 'app' / 'layouts'):
+    ui = root / 'packages' / 'ui'
+    for folder in (web / 'app' / 'components' / 'shell', web / 'app' / 'layouts', ui / 'app' / 'components' / 'shell'):
         for path in sorted(folder.rglob('*')) if folder.is_dir() else []:
             rel = _rel(path, root)
             if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                 _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), '', web_apps, rel))
+    # The shared UI layers (packages/ui and packages/commercial-ui) are a hard rule, never baselined: they import nothing
+    # from an application (UI1). Tests under them are exempt (is_test_path): they may read application files to prove the
+    # layer stays independent.
+    for layer in (ui, root / 'packages' / 'commercial-ui'):
+        for path in sorted(layer.rglob('*')) if layer.is_dir() else []:
+            rel = _rel(path, root)
+            if 'node_modules' in path.parts or not path.is_file() or path.suffix not in UI_LAYER_FILES or is_test_path(Path(rel)):
+                continue
+            if ui_layer_violations(_read(path)):
+                hard.append(f'UI1 {rel} imports from an application, an addon, an app alias, the contracts or the control plane')
+    # The vendor admin app is its own application with its own boundary, a hard rule never baselined (VA1): it reaches no
+    # application, addon, customer contract or Odoo route, and the customer app never imports it.
+    for app_dir, is_admin, message in (
+        (root / 'apps' / 'vendor-admin', True, 'imports an application, an addon, the customer contracts or the control plane, leaves its folder, or names an Odoo route'),
+        (web, False, 'imports the vendor admin app'),
+    ):
+        for path in sorted(app_dir.rglob('*')) if app_dir.is_dir() else []:
+            rel = _rel(path, root)
+            if VENDOR_ADMIN_SKIPPED_DIRS & set(path.parts) or not path.is_file() or path.suffix not in VENDOR_ADMIN_FILES:
+                continue
+            if is_admin and is_vendor_admin_test(Path(rel)):
+                continue
+            text = _read(path)
+            if (vendor_admin_violations(text, path, app_dir) if is_admin else vendor_admin_imported(text, path)):
+                hard.append(f'VA1 {rel} {message}')
     return v, hard
 
 

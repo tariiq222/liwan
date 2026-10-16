@@ -1,7 +1,6 @@
 # T19 fixed-upstream transport
 
-Shared API, login, TOTP, logout and vendor actor `/me` now use Node HTTP/HTTPS,
-not fetch. Dedicated branches retain previous fetch/proxy semantics. Socket
+Shared API, login, TOTP and logout now use Node HTTP/HTTPS, not fetch. Dedicated branches retain previous fetch/proxy semantics. Socket
 address comes only from server runtime odooUrl; Host/token/revision come from
 fresh tenantRequest validation. No redirects are followed; 3xx except304 reject.
 No guard trust contract changed, no upstream authority registered as a tenant.

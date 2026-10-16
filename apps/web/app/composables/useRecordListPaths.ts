@@ -2,7 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useNav } from './nav/shellModules'
 import { canReach, canReachPath, type AccessIdentity } from '../utils/accessPolicy'
 import { activeManifests, manifestForPath } from '../modules/manifests'
-import { safeReturnTo } from '../utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 function registeredListSources(identity: AccessIdentity, candidates: unknown[]): string[] {
   return candidates.flatMap(candidate => {

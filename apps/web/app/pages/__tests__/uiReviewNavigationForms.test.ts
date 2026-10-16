@@ -9,7 +9,7 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { createMemoryHistory, createRouter, type RouteLocationRaw } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
-import { safeReturnTo } from '../../utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 import { activeProjectSection, activeGovernanceSection, projectIdFromPath } from '../../composables/nav/activeRoute'
 
 const projectTasks = 'projects/[id]/tasks.vue'
@@ -43,7 +43,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useAccess: () => ({ can: () => true }), useHydrated: () => Vue.ref(true),
     useToast: () => ({ add: vi.fn() }), usePageHeader: () => undefined,
     projectRecordBack, safeReturnTo, projectIdFromPath, activeProjectSection, activeGovernanceSection,
-    provideProjectFrameHeading: () => undefined,
+    provideFrameOwnsHeading: () => undefined,
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
     useProject: () => ({ data: Vue.ref({ active: true, name: 'Example project', can_manage: true, status: 'active' }), error: Vue.ref(null) }),

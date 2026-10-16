@@ -99,7 +99,7 @@ export async function createBundle(pool: Pool, actor: CommercialActor, value: un
   })
 }
 type Action = 'edit' | 'delete' | 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions'
-export async function mutateBundle(pool: Pool, actor: CommercialActor, id: string, action: Action, value: unknown, opts: { pricingGranted: boolean }) {
+export async function mutateBundle(pool: Pool, actor: CommercialActor, id: string, action: Action, value: unknown, opts: { pricingGranted: boolean; pricingStepUp: boolean }) {
   const input: Record<string, any> = action === 'edit' ? bundleEditSchema.parse(value) : lifecycleActionSchema.parse(value)
   return transaction(pool, async client => {
     const row = await lockRevision(client, BUNDLE_KIND, id, input.edit_revision)
@@ -123,7 +123,10 @@ export async function mutateBundle(pool: Pool, actor: CommercialActor, id: strin
     }
     if (action === 'edit') {
       requireStatus(row, ['draft', 'validated'])
-      if (JSON.stringify(input.prices) !== JSON.stringify(row.prices) && !opts.pricingGranted) throw new CommercialHttpError('forbidden', 403)
+      if (digestOf(input.prices) !== digestOf(row.prices)) {
+        if (!opts.pricingGranted) throw new CommercialHttpError('forbidden', 403)
+        if (!opts.pricingStepUp) throw new CommercialHttpError('step_up_required', 403)
+      }
       await ensureRelease(client, input.catalog_release_id)
       const next = { ...row, name: input.name, description: input.description, audience: input.audience, catalog_release_id: input.catalog_release_id, selections: input.selections, domain_limits: input.domain_limits, prices: input.prices }
       await client.query(`UPDATE bundle_revisions SET name=$2,description=$3,audience=$4,audience_customer_id=$5,catalog_release_id=$6,selections=$7,domain_limits=$8,prices=$9,content_digest=$10,validated_digest=NULL,status='draft',edit_revision=edit_revision+1 WHERE id=$1`,

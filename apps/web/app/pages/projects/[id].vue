@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { ProjectStatus } from '@nasq/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@/utils/statusBadge'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
 import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
 import { projectRecordBack } from '@/utils/projectNavigation'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 
 const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
 const route = useRoute()
@@ -61,7 +61,7 @@ useEscapeBack(backTo)
 // project has no governance tab, so it gets no sub-strip either.
 const showPlanningTabs = computed(() => activeProjectSection(route.path) === 'planning')
 const showGovernanceTabs = computed(() => Boolean(project.value?.active) && activeGovernanceSection(route.path) !== null)
-provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.value)))
+provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)))
 </script>
 
 <template>

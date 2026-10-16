@@ -1,4 +1,4 @@
-import { currentListView, listViewQuery } from '../../utils/listView'
+import { currentListView, listViewQuery } from '@nasq/ui/app/utils/listView'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'

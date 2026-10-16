@@ -1,0 +1,39 @@
+{
+  "commercial": {
+    "pricing": {
+      "cadence": {
+        "month": {
+          "one": "Monthly",
+          "many": "Every {count} months"
+        },
+        "year": {
+          "one": "Yearly",
+          "many": "Every {count} years"
+        }
+      },
+      "quote": {
+        "hq": "Headquarters",
+        "dueNow": "Due now",
+        "nextRenewal": "Next renewal",
+        "loading": "Calculating…",
+        "empty": "Choose inputs to see a price.",
+        "cadence": "Billing cadence",
+        "branches": "{free} · {paid}",
+        "branchesFree": "{count} free branch | {count} free branches",
+        "branchesPaid": "{count} paid branch | {count} paid branches",
+        "vatNote": "Prices exclude tax; 15% VAT is added (Asia/Riyadh).",
+        "renewalLines": "Renewal lines"
+      },
+      "summary": {
+        "included": "Included"
+      },
+      "retry": "Retry"
+    },
+    "invoice": {
+      "description": "Description",
+      "amount": "Amount",
+      "lines": "Invoice lines",
+      "totals": "Totals"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ProjectSettingsForm from '@/components/settings/ProjectSettingsForm.vue'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()

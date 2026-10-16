@@ -1,6 +1,6 @@
 import { useEventListener } from '@vueuse/core'
-import { IDLE_SHORTCUTS, matchShortcut, type ShortcutAction, type ShortcutState } from './shortcuts/keymap'
-import { overlayOwnsEscape } from './useEscapeBack'
+import { IDLE_SHORTCUTS, matchShortcut, type ShortcutAction, type ShortcutState } from '@nasq/ui/app/composables/shortcuts/keymap'
+import { overlayOwnsEscape } from '@nasq/ui/app/composables/useEscapeBack'
 import { usePalette } from './usePalette'
 
 /** A handler runs one action and returns true when it used the key; the listener then prevents its default. */

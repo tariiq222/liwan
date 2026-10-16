@@ -67,7 +67,6 @@ Environment:
   control-worker: `INTERNAL_EFFECT_HOST`, `INTERNAL_EFFECT_PORT` (default 4188),
   `INTERNAL_EFFECT_TLS_KEY`, `INTERNAL_EFFECT_TLS_CERT` (absolute paths); the certificate SAN must
   match the URL host. Put the channel on an internal-only network that only these two join.
-  Reference wiring: `tools/shared_saas_lifecycle/compose.yml`.
 
 ## Health and startup packaging (t8)
 

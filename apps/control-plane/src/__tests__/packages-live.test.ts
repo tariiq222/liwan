@@ -9,13 +9,15 @@ import {seedPublishedPackage} from './package-fixtures.js'
 import {packageHttp} from '../package-http.js'
 import {createSharedOrder} from '../shared/shared-order.js'
 import {bindJob,payloadDigest,businessKey} from '../shared/provisioning.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 const sourceOptions={repositoryRoot:fileURLToPath(new URL('../../../..',import.meta.url))}
 const url=process.env.CONTROL_TEST_DATABASE_URL
 if(url){const p=new URL(url);if(!['127.0.0.1','localhost','::1'].includes(p.hostname)||!/^nasq_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1)))throw Error('scratch control DB required')}
 const suite=url?describe:describe.skip
 suite('package immutable lifecycle and enrollment authority SQL',()=>{
  const pool=new Pool({connectionString:url,max:5})
- const actor={issuer:`packages-${randomUUID()}`,actorUid:7}
+ const actor={issuer:vendorActorIssuer(`packages-${randomUUID()}`),actorUid:7}
  const input={name:'Projects limited',description:'A governed project workspace',catalog_version:`packages-${randomUUID()}`,catalog_tier:'projects',limits:{'users.limit':3,'storage.limit_mb':2,'projects.max_projects':1}}
  const reason='Review immutable package policy'
  let published:{id:string;package_id:string;revision:number}
@@ -23,7 +25,7 @@ suite('package immutable lifecycle and enrollment authority SQL',()=>{
   await migrate(pool)
   const raw=await readFile(new URL('../../../../deploy/catalog/solutions/platform.json',import.meta.url))
   await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)",[randomUUID(),input.catalog_version,JSON.parse(raw.toString()),createHash('sha256').update(raw).digest('hex')])
-  await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,ARRAY['vendor.read','vendor.catalog.manage','vendor.tenants.manage','vendor.operations.run'])",[actor.issuer])
+  await vendorAccount(pool,['product','customer_success','operations'],7)
   published=await seedPublishedPackage(pool,input)
  })
  afterAll(async()=>pool.end())
@@ -76,7 +78,7 @@ suite('package immutable lifecycle and enrollment authority SQL',()=>{
   await expect(transaction(pool,c=>resolvePackageAuthority(c,stale.id,true,sourceOptions))).rejects.toMatchObject({code:'package_source_mismatch',status:422,field:'catalog_version'})
  })
  it('keeps reads and refuses every HTTP write once Track A is retired',async()=>{
-  const request={repositoryRoot:sourceOptions.repositoryRoot,method:'POST',pathname:'/v1/packages',raw:JSON.stringify(input),issuer:actor.issuer,actor:7,capabilities:['vendor.read'] as ('vendor.read')[]}
+  const request={repositoryRoot:sourceOptions.repositoryRoot,method:'POST',pathname:'/v1/packages',raw:JSON.stringify(input),issuer:actor.issuer,actor:7,stepUpFresh:true,capabilities:['vendor.read'] as ('vendor.read')[]}
   await expect(packageHttp(pool,request)).rejects.toMatchObject({status:403})
   await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage']})).rejects.toMatchObject({status:410,code:'packages_retired'})
   await expect(packageHttp(pool,{...request,capabilities:['vendor.catalog.manage'],pathname:`/v1/packages/${published.id}/restore`,raw:JSON.stringify({revision:published.revision,reason:'Retired'})})).rejects.toMatchObject({status:410})

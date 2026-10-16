@@ -1,19 +1,20 @@
+import { resolve } from 'node:path'
 import { defineComponent, h, ref } from 'vue'
 import { expect, it } from 'vitest'
 import * as dates from '@internationalized/date'
-import * as calendar from '../../../../composables/calendarDate'
+import * as calendar from '@nasq/ui/app/composables/calendarDate'
 import { ApiError } from '../../../../composables/useApi'
-import { returnToQuery } from '../../../../utils/safeReturnTo'
-import { renderShared } from '../../../shared/__tests__/helpers/renderShared'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { renderShared } from '@nasq/ui/test/helpers/renderShared'
 
 it('links to the milestone record and keeps an explained disabled delete for linked tasks', async () => {
-  const html = await renderShared('../pmo/projects/MilestoneTable', { projectId: 1, canManage: true }, {}, {
+  const html = await renderShared(resolve(import.meta.dirname, '../MilestoneTable.vue'), { projectId: 1, canManage: true }, {}, {
     globals: {
       useRoute: () => ({ fullPath: '/projects/1/milestones' }), useToast: () => ({ add: () => {} }),
       useI18n: () => ({ locale: ref('en'), t: (key: string, args?: {count:number}) => args?.count ? `${key}:${args.count}` : key }),
     },
     modules: {
-      '@internationalized/date': dates, '@/composables/calendarDate': calendar, '@/composables/useApi': { ApiError }, '@/utils/safeReturnTo': { returnToQuery },
+      '@internationalized/date': dates, '@nasq/ui/app/composables/calendarDate': calendar, '@/composables/useApi': { ApiError }, '@nasq/ui/app/utils/safeReturnTo': { returnToQuery },
       '@/composables/useMilestones': {
         useMilestones: () => ({ data: ref([{ id: 1, name: 'In use', start_date: null, deadline: null, deliverables: [{name:'output',done:false}], is_reached: false, task_count: 2, done_task_count: 1 }]), isLoading: ref(false), error: ref(null), refetch: () => {} }),
         useUpdateMilestone: () => ({ mutateAsync: () => {} }), useDeleteMilestone: () => ({ mutateAsync: () => {}, isPending: ref(false) }),

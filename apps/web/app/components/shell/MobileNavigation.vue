@@ -4,7 +4,8 @@ import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import type { ShellContextLink } from '@/composables/nav/shellModules'
-import type { ShellContextSection, ShellRailItem } from '@/composables/nav/sidebarModel'
+import type { ShellRailItem } from '@nasq/ui/app/types/shell'
+import type { ShellContextSection } from '@/composables/nav/sidebarModel'
 
 // The one mobile drawer (< 768px): modules, then the current module's create
 // actions and sections. Props only; ShellHeader derives them from useShellModel().
@@ -33,7 +34,7 @@ function closeIfCurrent(to: RouteLocationRaw) {
 }
 
 function onModuleActivate(item: ShellRailItem) {
-  if (item.external || router.resolve(item.to).fullPath === route.fullPath) open.value = false
+  if (router.resolve(item.to).fullPath === route.fullPath) open.value = false
 }
 </script>
 
@@ -68,10 +69,7 @@ function onModuleActivate(item: ShellRailItem) {
         <UButton
           v-for="item in props.modules"
           :key="item.id"
-          :to="item.external ? undefined : item.to"
-          :href="item.external ? item.to : undefined"
-          :target="item.external ? '_blank' : undefined"
-          :rel="item.external ? 'noopener' : undefined"
+          :to="item.to"
           color="neutral"
           variant="ghost"
           class="nasq-context-link"

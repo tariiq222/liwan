@@ -113,7 +113,7 @@ suite('commercial B1 atomic orders', () => {
     const id = await customer(), quote = await createQuoteForCustomer(pool, {customer_id:id,request:request()})
     const first = await acceptQuote(pool, accept(quote), vendor)
     const pathname = `/v1/commercial/orders/${first.order.id}/cancel`
-    const response = await routesB(pool, { method:'POST',pathname,raw:JSON.stringify({reason:'Customer changed selection'}),issuer:'commercial-test',actor:7,capabilities:vendor.capabilities }, new URL(pathname, 'http://localhost'))
+    const response = await routesB(pool, { method:'POST',pathname,raw:JSON.stringify({reason:'Customer changed selection'}),issuer:'commercial-test',actor:7,capabilities:vendor.capabilities,stepUpFresh:true }, new URL(pathname, 'http://localhost'))
     expect(response).toMatchObject({status:200,data:{id:first.order.id}})
     const view = await getSubscription(pool, id)
     expect(view).toMatchObject({applied:null,target:null,pending_order:null,revision:2})
@@ -174,7 +174,7 @@ suite('commercial B1 atomic orders', () => {
   })
   it('draft terms produce an ephemeral preview that cannot be accepted', async () => {
     const id=await customer(), pathname='/v1/commercial/customer-quotes'
-    const input={method:'POST',pathname,search:'',issuer:'commercial-test',actor:7,capabilities:vendor.capabilities}
+    const input={method:'POST',pathname,search:'',issuer:'commercial-test',actor:7,capabilities:vendor.capabilities,stepUpFresh:true}
     const result=await routesB(pool,{...input,raw:JSON.stringify({...request(),customer_id:id,terms:{base_price:{cadence:monthly,amount:money(2000)}}})},new URL(pathname,'http://localhost'))
     expect(result).toMatchObject({status:200,data:{preview:true,due_now:{minor:2300}}})
     const preview=result!.data as any

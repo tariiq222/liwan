@@ -1,3 +1,4 @@
+import { actorHoldsSql } from '../admin-auth/grants.js'
 import type { Pool } from 'pg'
 import { commercialProvisionAuthoritySql } from './commercial-enrollment-authority.js'
 import { expireSharedLeases, runSharedJob, type SharedFencedAdapter } from './job-worker.js'
@@ -27,12 +28,7 @@ export async function dispatchSharedOnce(pool: Pool, adapter?: SharedFencedAdapt
       'tenantId',binding.tenant_id,'database',binding.database_name,
       'filestore',binding.filestore,'registryRevision',binding.registry_revision
     )
-    AND (EXISTS (
-      SELECT 1 FROM vendor_memberships membership
-      WHERE membership.issuer=queued.issuer AND membership.actor_uid=queued.actor_uid
-      AND membership.revoked_at IS NULL
-      AND 'vendor.operations.run'=ANY(membership.capabilities)
-    ) OR (${commercialProvisionAuthoritySql()}))) OR (queued.payload->>'operation'='reconfigure' AND (queued.payload->'binding'=jsonb_build_object(
+    AND (${actorHoldsSql('queued.issuer','queued.actor_uid',['vendor.operations.run'])} OR (${commercialProvisionAuthoritySql()}))) OR (queued.payload->>'operation'='reconfigure' AND (queued.payload->'binding'=jsonb_build_object(
       'tenantId',binding.tenant_id,'database',binding.database_name,
       'filestore',binding.filestore,'registryRevision',binding.registry_revision
     ) OR queued.payload->>'restore'='true'))) AND NOT EXISTS (

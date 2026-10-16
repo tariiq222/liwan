@@ -1,6 +1,6 @@
 import { owningListBack, recordEntryOrigin } from './recordListOrigin'
 import type { LocationQuery } from 'vue-router'
-import { safeReturnTo } from './safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 /** Recover the list origin even after opening a nested project form. */
 export function projectListReturnTo(query: Record<string, unknown>): string {

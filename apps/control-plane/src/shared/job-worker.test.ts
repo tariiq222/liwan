@@ -6,7 +6,7 @@ const id = 'ad03d956-efef-4f80-baf3-9c23ea46e945'
 function fixture() {
   const binding = { tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1 }
   const job = { schemaVersion: 1, requestId: id, binding, operation: 'backup' }
-  const row: Record<string, any> = { id, control_tenant_id: id, payload: job, business_key: businessKey(job), payload_digest: payloadDigest(job), issuer: 'vendor', actor_uid: 7, fence: 0, journal: null, state: 'queued' }
+  const row: Record<string, any> = { id, control_tenant_id: id, payload: job, business_key: businessKey(job), payload_digest: payloadDigest(job), issuer: 'vendor:vendor-account', actor_uid: 7, fence: 0, journal: null, state: 'queued' }
   const flags = { owned: true, enabled: true, authorized: true, rejectCompletion: false, unresolved: false, registryRevision: 1, revokeAfterClaim: false, loseVerifiedCommitAck: false, approvalConsumed: false, retries: 0 }
   const events: string[] = []
   const actions: string[] = []
@@ -33,7 +33,8 @@ function fixture() {
     if (sql.includes('FROM shared_onboardings')) return result()
     if (sql.includes("state IN ('running','needs_intervention')")) return result(flags.unresolved ? [{id:'another-job'}] : [])
     if (sql.startsWith('SELECT * FROM shared_jobs')) return result((sql.includes("state='queued'") ? row.state === 'queued' && !(sql.includes('lease_until IS NULL') && row.lease_until && row.lease_until > Date.now()) : sql.includes("state='needs_intervention'") ? row.state === 'needs_intervention' : flags.owned && row.state === 'running') ? [{ ...row }] : [])
-    if (sql.includes('FROM vendor_memberships')) return result(flags.authorized ? [{}] : [])
+    if (sql.includes('FROM vendor_accounts WHERE id')) return result(flags.authorized ? [{}] : [])
+    if (sql.includes('FROM vendor_account_roles')) return result([{role:'customer_success'},{role:'operations'}])
     if (sql.includes('FROM tenants')) return result([{}])
     if (sql.includes('FROM shared_registry_bindings')) return result([{ ...binding, registryRevision:flags.registryRevision, host:'a.invalid', enabled:flags.enabled }])
     if (sql.startsWith('UPDATE shared_restore_approvals SET consumed_at=')) {
@@ -162,19 +163,19 @@ it('requires fresh matching readback inside completion instead of reusing an ear
 it('recovers expired started work by readback only, without invoking an effect', async () => {
   const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:2,stage:'started'};f.row.attempt_id=id;f.row.fence=2
   const applyFenced=vi.fn()
-  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Inspect crashed worker',{observe:async()=>f.present,applyFenced})).state).toBe('verified')
+  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Inspect crashed worker',{observe:async()=>f.present,applyFenced})).state).toBe('verified')
   expect(applyFenced).not.toHaveBeenCalled();expect(f.row.receipt.binding).toEqual(f.job.binding)
 })
 it('keeps absent recovery quarantined without another creation', async () => {
   const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:2,stage:'started'}
   const applyFenced=vi.fn()
-  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Inspect absent effect',{observe:async()=>({state:'absent'}),applyFenced})).state).toBe('needs_intervention')
+  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Inspect absent effect',{observe:async()=>({state:'absent'}),applyFenced})).state).toBe('needs_intervention')
   expect(applyFenced).not.toHaveBeenCalled();expect(f.row.receipt).toBeUndefined()
 })
 it('keeps explicit intervention sticky even if a later readback looks verified', async () => {
   const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:3,stage:'needs_intervention'}
   const applyFenced=vi.fn()
-  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Inspect sticky intervention',{observe:async()=>f.present,applyFenced})).state).toBe('needs_intervention')
+  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Inspect sticky intervention',{observe:async()=>f.present,applyFenced})).state).toBe('needs_intervention')
   expect(applyFenced).not.toHaveBeenCalled();expect(f.row.receipt).toBeUndefined()
 })
 it('rolls back verified event when completion CAS loses ownership', async () => {
@@ -191,7 +192,7 @@ it('rolls back verified event when completion CAS loses ownership', async () => 
 it('checks current recovery authority before reading any external effect', async () => {
   const f = fixture(); f.row.state = 'needs_intervention'; f.flags.authorized = false
   const observe = vi.fn(), applyFenced = vi.fn()
-  await expect(recoverSharedJob(f.pool, id, { issuer: 'vendor', actorUid: 7 }, 'Revoked operator', { observe, applyFenced })).rejects.toThrow('shared_job_forbidden')
+  await expect(recoverSharedJob(f.pool, id, { issuer: 'vendor:vendor-account', actorUid: 7 }, 'Revoked operator', { observe, applyFenced })).rejects.toThrow('shared_job_forbidden')
   expect(observe).not.toHaveBeenCalled()
   expect(applyFenced).not.toHaveBeenCalled()
   expect(f.row.state).toBe('needs_intervention')
@@ -199,7 +200,7 @@ it('checks current recovery authority before reading any external effect', async
 it('rejects disabled recovery binding before external observation', async () => {
   const f = fixture(); f.row.state = 'needs_intervention'; f.flags.enabled = false
   const observe = vi.fn(async () => f.present), applyFenced = vi.fn()
-  await expect(recoverSharedJob(f.pool, id, { issuer: 'vendor', actorUid: 7 }, 'Disabled tenant recovery', { observe, applyFenced })).rejects.toThrow('tenant_unavailable')
+  await expect(recoverSharedJob(f.pool, id, { issuer: 'vendor:vendor-account', actorUid: 7 }, 'Disabled tenant recovery', { observe, applyFenced })).rejects.toThrow('tenant_unavailable')
   expect(observe).not.toHaveBeenCalled()
   expect(applyFenced).not.toHaveBeenCalled()
 })
@@ -219,7 +220,7 @@ it('refuses recovery journal belonging to a different attempt before observation
   const f=fixture(); f.row.state='needs_intervention'; f.row.attempt_id='687674dc-5789-4a99-b151-12d69f010cc3'
   f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:2,stage:'started'}
   const observe=vi.fn(async()=>f.present), applyFenced=vi.fn()
-  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Inspect corrupt attempt',{observe,applyFenced})).rejects.toThrow('shared_job_identity_corrupt')
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Inspect corrupt attempt',{observe,applyFenced})).rejects.toThrow('shared_job_identity_corrupt')
   expect(observe).not.toHaveBeenCalled()
 })
 it('validates queued journal identity before claiming or observing', async () => {
@@ -241,13 +242,13 @@ it.each([String(Number.MAX_SAFE_INTEGER), '9007199254740993', '-1', 'not-a-fence
 it.each(['9007199254740993','-1','invalid'])('rejects unsafe recovery fence %s before observation', async fence => {
   const f=fixture(); f.row.state='needs_intervention'; f.row.fence=fence
   const observe=vi.fn(async()=>f.present),applyFenced=vi.fn()
-  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Check recovery fence',{observe,applyFenced})).rejects.toThrow('shared_fence_invalid')
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Check recovery fence',{observe,applyFenced})).rejects.toThrow('shared_fence_invalid')
   expect(observe).not.toHaveBeenCalled()
 })
 it.each(['absent','unknown','present'])('keeps claim-before-intent crash quarantined for %s readback', async state => {
   const f=fixture(); f.row.state='needs_intervention'; f.row.attempt_id=id; f.row.journal=null
   const applyFenced=vi.fn()
-  const result=await recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Crash before prepared intent',{
+  const result=await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Crash before prepared intent',{
     observe:async()=>state==='present'?f.present:{state},applyFenced,
   })
   expect(result.state).toBe('needs_intervention')
@@ -258,7 +259,7 @@ it('rejects malformed journal before external recovery observation', async () =>
   const f=fixture(); f.row.state='needs_intervention'; f.row.attempt_id=id
   f.row.journal={attemptId:id,sequence:'invalid'}
   const observe=vi.fn(),applyFenced=vi.fn()
-  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Inspect malformed journal',{observe,applyFenced})).rejects.toThrow()
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Inspect malformed journal',{observe,applyFenced})).rejects.toThrow()
   expect(observe).not.toHaveBeenCalled();expect(applyFenced).not.toHaveBeenCalled()
   expect(f.row.receipt).toBeUndefined()
 })
@@ -321,7 +322,7 @@ it.each([
   const present={state:'present',binding:f.job.binding,businessKey:businessKey(job),payloadDigest:payloadDigest(job),verified:true}
   const applyFenced=vi.fn()
   const observation = verified ? present : { state:'absent' }
-  const result=await recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Recover restore',{observe:async()=>observation,applyFenced})
+  const result=await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Recover restore',{observe:async()=>observation,applyFenced})
   expect(result.state).toBe(verified?'verified':'needs_intervention')
   expect(applyFenced).not.toHaveBeenCalled()
   // Recovery consumes the approval from the receipt only when the verified
@@ -333,7 +334,7 @@ it('rolls back recovery verified event when completion CAS fails', async () => {
   const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.flags.rejectCompletion=true
   f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:2,stage:'started'}
   const applyFenced=vi.fn()
-  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Recovery CAS failure',{observe:async()=>f.present,applyFenced})).rejects.toThrow('shared_lease_lost')
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Recovery CAS failure',{observe:async()=>f.present,applyFenced})).rejects.toThrow('shared_lease_lost')
   expect(f.row.state).toBe('needs_intervention')
   expect(f.row.journal.sequence).toBe(2)
   expect(f.row.journal.stage).toBe('started')
@@ -363,7 +364,7 @@ it('observes recovery outside transactions and rechecks fencing after readback',
   const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id
   f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:2,stage:'started'}
   let reads=0
-  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Recovery fencing race',{
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Recovery fencing race',{
     observe:async()=>{expect(f.inTransaction()).toBe(false);if(++reads===2)f.row.fence++;return f.present},applyFenced:vi.fn(),
   })).rejects.toThrow('shared_lease_lost')
   expect(f.events).toEqual([]);expect(f.row.receipt).toBeUndefined()
@@ -373,7 +374,7 @@ it.each(['authority','binding','journal','attempt'])('rejects recovery %s change
   f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:2,stage:'started'}
   let reads=0
   const applyFenced=vi.fn()
-  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Concurrent recovery change',{
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Concurrent recovery change',{
     observe:async()=>{
       expect(f.inTransaction()).toBe(false)
       if(++reads===2){
@@ -393,7 +394,7 @@ it.each(['absent','unknown','partial','foreign'])('refuses recovery success when
   f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:2,stage:'started'}
   let reads=0
   const applyFenced=vi.fn()
-  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor',actorUid:7},'Readback changed',{
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Readback changed',{
     observe:async()=>++reads===1?f.present:state==='foreign'?{...f.present,binding:{...f.job.binding,tenantId:'foreign'}}:{state},applyFenced,
   })).rejects.toThrow()
   expect(reads).toBe(2);expect(f.events).toEqual([]);expect(f.row.receipt).toBeUndefined()

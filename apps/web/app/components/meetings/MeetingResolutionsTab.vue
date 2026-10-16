@@ -2,7 +2,7 @@
 import type { MeetingDetail } from '@nasq/contracts'
 import { recordChildTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import { ApiError } from '@/composables/useApi'
 import { useConvertResolution, useResolutionAction } from '@/composables/useMeetings'
 import { useProjects } from '@/composables/useProjects'

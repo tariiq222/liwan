@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import MeetingEventList from '../../app/components/meetings/MeetingEventList.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const events = [
