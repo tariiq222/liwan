@@ -280,6 +280,15 @@ Custom vendor roles; email delivery; SSO; an external customer portal; changes t
 `vendor_support` role or a time-limited support grant; production deployment, DNS and
 certificates; any change to customer commercial traffic.
 
+## Decisions 2026-10-16
+
+- Lost-device recovery is CLI-only (`npm -w apps/control-plane run admin -- reset-account`) or an owner-issued reset. There is
+  deliberately no route that adds a passkey from a password+TOTP session: a phished password and TOTP code would otherwise
+  let an attacker register their own passkey and then step up.
+- An owner who issues a reset sees the enrollment link and could enroll as that account. Owners are mutually trusted; the
+  exposure is bounded by audit (`account.reset_issued`, `account.reset_completed`). Launch with two owners when possible.
+- The last active owner cannot reset itself (`409 last_owner`): its recovery is the CLI `reset-account`.
+
 ## Addendum 2026-10-16
 
 - D1: the shared billing presentation (price breakdown, invoice lines and their helpers) moves to `packages/commercial-ui`, a Nuxt layer extending `@nasq/ui`, used by both apps.

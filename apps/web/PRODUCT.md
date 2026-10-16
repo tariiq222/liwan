@@ -98,7 +98,7 @@ Name: نَسَق (Nasq). Binding UI constitution: [DESIGN.md](../../DESIGN.md). 
 ## Product Principles
 
 1. Customer data stays isolated even when application services are shared.
-2. Employees work in Nasq; the vendor console is not the product.
+2. Employees work in Nasq; the Nasq vendor administration (`apps/vendor-admin`) is a separate staff application, not part of this product.
 3. Business applications share a coherent platform; PMO and HR are initial
    domains, with their own contracts, within the broader product vision.
 4. Capability and record/company context gate every action.

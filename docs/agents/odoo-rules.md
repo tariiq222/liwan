@@ -37,7 +37,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   04_waiting_normal | 1_done | 1_canceled`. Write and approve capabilities
   and record-specific allowed actions decide transitions; do not infer them
   from a legacy role label.
-- Plans («باقة») are what customers buy; bundles («حزمة», vendor console only) are
+- Plans («باقة») are what customers buy; bundles («حزمة», managed only in the Nasq vendor administration, `apps/vendor-admin`) are
   the app groups inside them; Track A packages are read-only history. Every
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application

@@ -42,7 +42,7 @@ features, no API or contract changes, no route changes.
 | Navigation | Keep the three layers (header, module rail, context sidebar), restyled |
 | Module rail | Always Nasq midnight in both modes, independent of the tenant colour |
 | Delivery | Everything on `codex/web-tasmim`, one final `--no-ff` merge to `main` |
-| Vendor (`/vendor/*`) and subscription pages | Same identity and templates; vendor header shows a console badge |
+| Vendor (`/vendor/*`) and subscription pages | Same identity and templates; vendor header shows a console badge. Update 2026-10-16: the vendor pages and badge moved to `apps/vendor-admin` (no `/vendor` prefix); this row now applies to the subscription pages only |
 | Logo | Temporary text wordmark «نَسَق» with a lime dot until a real SVG exists |
 | Odoo PDF reports | Out of scope for this branch |
 

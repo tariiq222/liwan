@@ -69,7 +69,11 @@ run serially by design: its `test` script sets `--no-file-parallelism` and a
 60s hook timeout because the suites share one scratch control database and
 TRUNCATE the same tables.
 
-## Vendor workspace local integration — 2026-09-23
+## Vendor workspace local integration — 2026-09-23 (historical, superseded)
+
+Superseded on 2026-10-15 by the [vendor administration separation](superpowers/specs/2026-10-15-nasq-vendor-admin-separation-design.md):
+the `/vendor` pages no longer exist in `apps/web`, and the flags below were removed with them. The paragraph records its own
+checkpoint only.
 
 The CP2 operator, independent control service, and company-only `/vendor` pages
 are integrated locally from baseline `abc2400e`. Vendor flags remain disabled
@@ -257,8 +261,14 @@ PITR، لا موقع ثانٍ) في [تقرير التمرين](verification/202
 بيانات صغير لكل مستأجر) في [تقرير التمرين](verification/2026-10-09-real-odoo-isolation-matrix.md).
 لا commit أو push ضمن هذا التمرين.
 
-2026-10-16: أُضيفت أدوات تطبيق لوحة المزوّد `apps/vendor-admin` (قاعدة `VA1` وخطوة CI وصورة Docker وقوالب البيئة وكتلة الحافة)؛ لم تُشغَّل مواصفات القبول بعد تحديثها، وتحتاج مالكًا مُهيّأً ومصادقًا افتراضيًا لـ WebAuthn.
+2026-10-16: أُضيفت أدوات تطبيق لوحة المزوّد `apps/vendor-admin` (قاعدة `VA1` وخطوة CI وصورة Docker وقوالب البيئة وكتلة الحافة)؛ حُذفت لاحقًا حزم القبول القديمة (انظر «فصل لوحة تحكم نسق» أدناه).
 
 ## تحسين تجربة المشاريع — 2026-10-16
 
 حزمة تجربة المشاريع واختصار قائمتها محفوظة في `codex/pmo-projects-ux` بالكومتين `1ac2b4b0` و`37025d22`. أُعدت نسخة دمج مستقلة من main عند `0733a750` واجتازت 2334 اختبار واجهة و202 اختبار عقود وفحوص الأنواع والسياسات. وجهة التكامل المصرح بها هي main المحلي فقط. [سجل تحقق الدمج وحفظ الأعمال الأخرى](verification/2026-10-16-projects-ux-integration.md) و[قبول الرحلات وحدوده](verification/2026-10-16-projects-ux.md). النسخة التجريبية على 4410 تبقى معزولة؛ لا push أو نشر أو تنظيف للنسخ ضمن هذا التفويض.
+
+## فصل لوحة تحكم نسق — 2026-10-16
+
+المراحل 1 إلى 3 (طبقتا `packages/ui` و`packages/commercial-ui`، وهوية المزوّد في خدمة التحكم، وتطبيق `apps/vendor-admin` مع إزالة لوحة المزوّد من `apps/web`) مدموجة في main المحلي عند `d2d1894a`. لا push ولا نشر ولا DNS. [المواصفة](superpowers/specs/2026-10-15-nasq-vendor-admin-separation-design.md) و[خطة المرحلة 3](superpowers/plans/2026-10-16-vendor-admin-p3-app.md)، و[مقترح تعديل طبقات المعمارية](superpowers/plans/2026-10-16-vendor-admin-p4-arch-layers-proposal.md) ينتظر المالك.
+
+حُذفت حزم القبول المكسورة لأنها كانت تخدم `apps/web` مضيفًا للمزوّد وتستعمل أمر `admin -- grant` المحذوف: `tools/saas_commercial_acceptance` (الكومت `b6325908`) ومشروع compose والمواصفات في `tools/shared_saas_lifecycle` (الكومت `c44107a7`؛ بقيت وحدات الأثر واختباراتها لأن عامل خدمة التحكم يشغّلها). التغطية المفقودة حاليًا: تجهيز Odoo الفعلي بعامل من المتصفح، ونسخ واستعادة قاعدة البيانات وfilestore لمستأجرين مع عزل المضيف المستعاد، وعزل المضيفات الأربعة، واختبارات الأعطال (قتل العامل وإيقاف قاعدة التحكم)، والرحلة التجارية الكاملة E04-E12، وعزل العميل E13، والصفحات E15، ومشغّل المصفوفة E01-E16. الوصفات محفوظة في تاريخ Git قبل هذين الكومتين. الدليل الحي الوحيد الباقي للوحة المزوّد هو `node tools/vendor_admin_local_check.mjs` (الدخول والتسجيل وإدارة الفريق فقط).
