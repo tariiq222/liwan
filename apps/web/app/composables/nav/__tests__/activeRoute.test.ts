@@ -19,8 +19,8 @@ describe('activeProjectSection', () => {
   })
   it('maps each section root to itself', () => {
     expect(activeProjectSection('/projects/12/tasks')).toBe('tasks')
-    expect(activeProjectSection('/projects/12/schedule')).toBe('schedule')
-    expect(activeProjectSection('/projects/12/milestones')).toBe('milestones')
+    expect(activeProjectSection('/projects/12/schedule')).toBe('planning')
+    expect(activeProjectSection('/projects/12/milestones')).toBe('planning')
     expect(activeProjectSection('/projects/12/governance')).toBe('governance')
     expect(activeProjectSection('/projects/12/finance')).toBe('finance')
     expect(activeProjectSection('/projects/12/updates')).toBe('updates')
@@ -29,7 +29,8 @@ describe('activeProjectSection', () => {
   it('keeps a record page on its owning section', () => {
     expect(activeProjectSection('/projects/12/tasks/99')).toBe('tasks')
     expect(activeProjectSection('/projects/12/finance/5/edit')).toBe('finance')
-    expect(activeProjectSection('/projects/12/schedule/tasks/99')).toBe('schedule')
+    expect(activeProjectSection('/projects/12/schedule/tasks/99')).toBe('planning')
+    expect(activeProjectSection('/projects/12/milestones/4/edit')).toBe('planning')
   })
   it('maps the four governance children to governance', () => {
     expect(activeProjectSection('/projects/12/charter')).toBe('governance')

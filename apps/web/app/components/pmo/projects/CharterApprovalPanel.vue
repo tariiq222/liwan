@@ -85,6 +85,6 @@ async function run(action: ProjectCharterAction, body?: string) {
       </template>
     </UAlert>
 
-    <UAlert v-else color="success" variant="subtle" icon="i-lucide-badge-check" data-testid="charter-approved" :title="approvedLabel" />
+    <UAlert v-else-if="charter.approved_by" color="success" variant="subtle" icon="i-lucide-badge-check" data-testid="charter-approved" :title="approvedLabel" />
   </div>
 </template>

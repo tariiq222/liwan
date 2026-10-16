@@ -35,5 +35,7 @@ function close() {
     :back-to="backTo"
     :back-label="props.backLabel ?? t('tasks.detail.back')"
     @close="close"
-  />
+  >
+    <template v-if="$slots.details" #details="context"><slot name="details" v-bind="context" /></template>
+  </TaskDetailPanel>
 </template>

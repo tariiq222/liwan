@@ -14,6 +14,7 @@ const items = computed(() => data.value?.items ?? [])
     <template #header>
       <h2 class="text-lg font-semibold text-highlighted">{{ t('projects.dashboard.pendingCharters') }}</h2>
     </template>
+    <p class="mb-3 text-sm text-muted">{{ t('projects.dashboard.pendingChartersHint') }}</p>
     <ul class="divide-y divide-default">
       <li v-for="item in items" :key="item.id" class="py-2 first:pt-0 last:pb-0">
         <NuxtLink :to="`/projects/${item.id}/charter`" class="font-medium text-highlighted hover:underline" data-testid="pending-charter-link">{{ item.name }}</NuxtLink>

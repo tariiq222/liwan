@@ -29,6 +29,14 @@ const submitted = ref(false)
 const attempted = ref(false)
 const requiredError = computed(() => attempted.value && !name.value.trim() ? t('projects.milestones.nameRequired') : undefined)
 const baseline = ref('')
+const serverBaseline = ref('')
+const confirmReload = ref(false)
+
+function serverState(milestone?: Milestone) {
+  return JSON.stringify([milestone?.name ?? '', milestone?.start_date ?? null, milestone?.deadline ?? null, milestone?.deliverables ?? []])
+}
+
+const serverChanged = computed(() => !!props.milestone && serverState(props.milestone) !== serverBaseline.value)
 
 function state() {
   return JSON.stringify([name.value, startDate.value, deadline.value, deliverables.value])
@@ -36,15 +44,30 @@ function state() {
 
 const dirty = computed(() => isDirtySnapshot(baseline.value, state(), submitted.value))
 
-watch(() => props.milestone, (milestone) => {
+function applyMilestone(milestone?: Milestone) {
   name.value = milestone?.name ?? ''
   startDate.value = milestone?.start_date ?? null
   deadline.value = milestone?.deadline ?? null
   deliverables.value = (milestone?.deliverables ?? []).map(item => ({ name: item.name, done: item.done }))
   submitted.value = false
   attempted.value = false
+  error.value = null
+  projectScheduleMissing.value = false
+  confirmReload.value = false
   baseline.value = state()
+  serverBaseline.value = serverState(milestone)
+}
+
+watch(() => [props.projectId, props.milestone] as const, ([projectId, milestone], previous) => {
+  const sameRecord = previous && previous[0] === projectId && previous[1]?.id === milestone?.id
+  if (sameRecord && (dirty.value || isPending.value)) return
+  applyMilestone(milestone)
 }, { immediate: true, flush: 'sync' })
+
+function loadLatest() {
+  if (!hydrated.value || isPending.value) return
+  applyMilestone(props.milestone)
+}
 
 function addDeliverable() { deliverables.value.push({ name: '', done: false }) }
 function removeDeliverable(index: number) { deliverables.value.splice(index, 1) }
@@ -57,7 +80,7 @@ const dateError = computed(() => validateMilestoneDates({
 }))
 
 async function submit() {
-  if (!hydrated.value || isPending.value) return
+  if (!hydrated.value || isPending.value || serverChanged.value || confirmReload.value) return
   attempted.value = true
   error.value = null
   projectScheduleMissing.value = false
@@ -95,6 +118,10 @@ async function submit() {
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
   <form novalidate data-testid="milestone-form" class="grid gap-5" @submit.prevent="submit">
+    <UAlert v-if="serverChanged" color="warning" variant="subtle" :title="t('projects.milestones.changed')">
+      <template #actions><UButton type="button" color="neutral" variant="outline" :disabled="isPending" :label="t('projects.milestones.reload')" @click="confirmReload = true" /></template>
+    </UAlert>
+    <SharedInlineConfirm v-if="confirmReload" :title="t('app.unsavedChangesTitle')" :description="t('app.unsavedChanges')" :confirm-label="t('projects.milestones.reload')" :pending="isPending" @confirm="loadLatest" @cancel="confirmReload = false" />
     <div v-if="error" class="text-sm text-error sm:col-span-2">
       <UAlert role="alert" color="error" variant="subtle" :title="error" />
       <NuxtLink v-if="projectScheduleMissing" class="mt-1 inline-block underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>
@@ -125,7 +152,7 @@ async function submit() {
     </UFormField>
     <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
-      <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="isEdit ? t('app.save') : t('app.create')" />
+      <UButton type="submit" :disabled="!hydrated || isPending || serverChanged || confirmReload" :loading="isPending" :label="isEdit ? t('app.save') : t('app.create')" />
     </SharedFormActions>
   </form>
 </template>

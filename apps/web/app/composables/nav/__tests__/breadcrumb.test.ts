@@ -15,6 +15,7 @@ describe('shell breadcrumb', () => {
     ['/vendor/overview', null, [{ label: 'nav.management' }]],
     ['/notifications', 'الإشعارات', []],
     ['/tasks', 'nav.tasks', [{ label: 'nav.projects', to: '/projects' }]],
+    ['/projects/settings', 'settings.projects.title', [{ label: 'nav.projects', to: '/projects' }]],
     ['/projects', 'nav.projects', []],
     ['/notifications', null, []],
   ] as const)('%s (page title %s)', (path, pageTitle, expected) => {

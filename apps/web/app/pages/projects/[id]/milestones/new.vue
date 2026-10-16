@@ -15,7 +15,7 @@ const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/milestones`])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
-function saved() { router.replace(backTo.value) }
+function saved(id?: number) { router.replace(id ? { path: `/projects/${projectId.value}/milestones/${id}`, query: { returnTo: router.resolve(backTo.value).fullPath } } : backTo.value) }
 </script>
 
 <template>

@@ -148,3 +148,5 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | RACI matrix | `apps/web/app/components/pmo/projects/governance/RaciMatrix.vue` (Story: `apps/web/stories/project/RaciMatrix.stories.ts`) | `SharedDataTable`, `SharedRowActions`, `USelect` |
 
 Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. ChatWorkspace uses SharedConversationLayout and ChatInfoPanel.
+
+| جدولة مهمة المشروع داخل سجلها | `apps/web/app/components/pmo/projects/schedule/ProjectTaskScheduleSection.vue` | SharedRecordSection وSharedPageState وScheduleTaskForm، مع UButton؛ نفس توكنات السجل والنموذج، قراءة الجدولة وإظهار محررها للمدير فقط، دون واجهة مستقلة |

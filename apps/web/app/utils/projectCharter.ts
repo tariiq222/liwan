@@ -454,9 +454,9 @@ export function hasCharterWriteContent(write: ProjectCharterWrite): boolean {
 
 export function createdProjectLocation(id: number, returnTo: string): {
   path: string
-  query: { returnTo: string; tab: 'milestones' }
+  query: { returnTo: string; projectListReturnTo: string }
 } {
-  return { path: `/projects/${id}`, query: { returnTo, tab: 'milestones' } }
+  return { path: `/projects/${id}/milestones`, query: { returnTo, projectListReturnTo: returnTo } }
 }
 
 export function draftedProjectLocation(id: number, step: string, returnTo: string): {
