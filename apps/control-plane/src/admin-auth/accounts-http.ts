@@ -38,7 +38,7 @@ export async function accountsHttp(pool: Pool, input: Input): Promise<Result | n
         const rows = (await pool.query(`SELECT a.id, a.email, a.display_name, a.status,
           COALESCE((SELECT array_agg(role ORDER BY role) FROM vendor_account_roles WHERE account_id=a.id), '{}') AS roles,
           (SELECT count(*) FROM vendor_passkeys WHERE account_id=a.id) AS passkeys,
-          (SELECT max(last_seen_at) FROM vendor_sessions WHERE account_id=a.id) AS last_seen_at
+          (SELECT max(created_at) FROM audit_events WHERE action='auth.signed_in' AND subject='account:' || a.id) AS last_seen_at
           FROM vendor_accounts a ORDER BY a.id`)).rows
         const items = rows.map((r) => ({ id: Number(r.id), email: r.email, display_name: r.display_name, status: r.status, roles: r.roles, passkeys: Number(r.passkeys), last_seen_at: r.last_seen_at ? new Date(r.last_seen_at).toISOString() : null }))
         return { status: 200, data: adminAccountListSchema.parse({ items, total: items.length }) }

@@ -106,6 +106,18 @@ else describe('account management routes', () => {
       expect(adminErrorBodySchema.parse(failed.body)).toEqual(failed.body)
     }
   })
+  it('keeps last_seen_at from the sign-in audit trail after the sessions are signed out and pruned', async () => {
+    const reader = await ownerSession({ stepUp: true })
+    const gone = await ownerSession({ stepUp: true })
+    const at = new Date('2026-11-01T10:00:00.000Z')
+    await pool.query("INSERT INTO audit_events(id,actor,action,subject,reason,created_at) VALUES(gen_random_uuid(),$1,'auth.signed_in',$1,'passkey',$2)", [`account:${gone.accountId}`, at])
+    await pool.query('UPDATE vendor_sessions SET revoked_at=now() WHERE account_id=$1', [gone.accountId])
+    await transaction(pool, (c) => createSession(c, reader.accountId, new Date(), true))
+    expect((await pool.query('SELECT 1 FROM vendor_sessions WHERE account_id=$1', [gone.accountId])).rowCount).toBe(0)
+    const listed = (await get('/v1/admin/accounts', reader)).body.items as Array<{ id: number; last_seen_at: string | null }>
+    expect(listed.find((item) => item.id === gone.accountId)?.last_seen_at).toBe(at.toISOString())
+    expect(listed.find((item) => item.id === reader.accountId)?.last_seen_at).toBeNull()
+  })
   it('lists accounts with stale step-up', async () => {
     const owner = await ownerSession({ stepUp: false })
     await pool.query("UPDATE vendor_sessions SET step_up_at=now()-interval '1 hour'")
@@ -113,7 +125,7 @@ else describe('account management routes', () => {
     expect(r.status).toBe(200)
     expect(r.body.total).toBe(1)
     expect(r.body.items[0]).toMatchObject({ id: owner.accountId, status: 'active', roles: ['owner'], passkeys: 0 })
-    expect(r.body.items[0].last_seen_at).toEqual(expect.any(String))
+    expect(r.body.items[0]).toHaveProperty('last_seen_at')
     const plain = await vendorSession(pool, issuer, ['support'])
     expect((await get('/v1/admin/accounts', plain)).status).toBe(403)
   })
