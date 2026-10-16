@@ -5,6 +5,7 @@
     "nasq_api": 2,
     "nasq_directory": 3,
     "nasq_notify": 3,
+    "nasq_ai": 3,
     "nasq_pmo": 4,
     "nasq_meetings": 4,
     "nasq_hr": 4,
@@ -13,6 +14,7 @@
     "nasq_operations": 4,
     "nasq_meetings_pmo": 5,
     "nasq_tasks_pmo": 5,
+    "nasq_pmo_ai": 5,
     "base_tier_validation": 3,
     "nasq_operations_pmo": 5
   },
@@ -22,6 +24,14 @@
     "nasq_registry_probe"
   ],
   "web_apps": {
+    "ai": {
+      "components": [
+        "ai"
+      ],
+      "pages": [
+        "ai"
+      ]
+    },
     "pmo": {
       "components": [
         "pmo"

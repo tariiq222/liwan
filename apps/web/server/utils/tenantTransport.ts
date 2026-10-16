@@ -9,8 +9,10 @@ const failure = () => createError({ statusCode: 502, message: 'tenant_upstream_u
 
 /** Server-only, fixed operator configuration. No request-controlled destination or redirects.
  * Bounded buffering deliberately replaces streaming: max16MiB request/32MiB response,
- * 15s total deadline. This supports current JSON attachments, not unbounded exports. */
-export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string> } = {}): Promise<Response> {
+ * 15s total deadline. This supports current JSON attachments, not unbounded exports.
+ * By default the call is destroyed when the browser disconnects; `ignoreClientClose` is only for a step that must finish
+ * once begun (a claimed AI write) and keeps just the deadline and the optional `signal`. */
+export async function tenantTransport(event: H3Event, configuredUpstream: string, path: string, options: { method?: string; body?: string | Buffer; headers?: Record<string, string>; signal?: AbortSignal; ignoreClientClose?: boolean } = {}): Promise<Response> {
   const binding = tenantUpstreamHeaders(event)
   if (!binding.host) throw failure()
   let base: URL
@@ -35,6 +37,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
       settled = true; clearTimeout(timer)
       event.node.req.removeListener('aborted', abort)
       event.node.res.removeListener('close', disconnected)
+      options.signal?.removeEventListener('abort', abort)
       if (error) reject(error); else resolve(result!)
     }
     const request = (base.protocol === 'https:' ? https : http).request({ protocol: base.protocol, hostname: base.hostname, port: base.port, method: options.method ?? 'GET', path, headers, agent: false }, reply => {
@@ -61,7 +64,8 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
     const abort = () => { request.destroy(); finish(failure()) }
     const disconnected = () => { if (!event.node.res.writableEnded) abort() }
     const timer = setTimeout(abort, 15000)
-    event.node.req.once('aborted', abort); event.node.res.once('close', disconnected)
+    if (!options.ignoreClientClose) { event.node.req.once('aborted', abort); event.node.res.once('close', disconnected) }
+    if (options.signal?.aborted) abort(); else options.signal?.addEventListener('abort', abort, { once: true })
     request.on('error', () => finish(failure()))
     request.end(body)
   })

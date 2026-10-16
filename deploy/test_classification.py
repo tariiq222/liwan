@@ -101,6 +101,8 @@ if 'docker-compose.classification.yml' in args:
     path = pathlib.Path(os.environ['NASQ_CLASSIFICATION_FILE'])
     record['snapshot'] = json.loads(path.read_text())
     record['path'] = str(path)
+if 'psql' in args:
+    record['stdin'] = sys.stdin.read()
 with open(os.environ['DOCKER_LOG'], 'a') as f:
     f.write(json.dumps(record) + '\\n')
 ''')
@@ -125,6 +127,29 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn('-i', classified[0]['args'])
         self.assertFalse(Path(classified[0]['path']).exists())
         self.assertEqual(records[-1]['args'], ['compose', 'up', '-d'])
+
+    def psql_records(self):
+        records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
+        return [record for record in records if 'psql' in record['args']]
+
+    def test_provision_closes_tenant_database_to_ai_role_before_serving(self):
+        deploy, env = self.provision_fixture()
+        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
+                                env=env, text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
+        revokes = [index for index, record in enumerate(records) if 'psql' in record['args']]
+        self.assertEqual(len(revokes), 1)
+        self.assertLess(max(i for i, r in enumerate(records) if 'snapshot' in r), revokes[0])
+        self.assertLess(revokes[0], len(records) - 1)
+        record = records[revokes[0]]
+        self.assertIn(f'tenant_db={self.data["database"]}', record['args'])
+        self.assertIn('ON_ERROR_STOP=1', record['args'])
+        sql = record['stdin']
+        self.assertIn("rolname = 'nasq_ai'", sql)
+        self.assertIn('FROM PUBLIC', sql)
+        self.assertIn('FROM nasq_ai', sql)
+        self.assertNotIn(self.data['database'], sql)
 
     def test_invalid_provision_never_calls_docker(self):
         deploy, env = self.provision_fixture()

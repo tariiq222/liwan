@@ -31,6 +31,13 @@ limits describe implementation stages, not permanent product exclusions.
   where applications register their notification kinds, delivery
   (`nasq.notify.service._nasq_deliver`) and `/api/v1/notifications`. It names no
   application.
+- `odoo-addons/nasq_ai` (shared service, rank 3) owns the Nasq AI tool registry
+  (`nasq.ai.tool.registry`, composed through `super()` by each application), the
+  per-user audit log `nasq.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
+  routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
+  holds no language-model code. PMO's tools are declared by the bridge `nasq_pmo_ai`
+  (rank 5, `auto_install`), not by `nasq_pmo`, which does not depend on `nasq_ai`. The AI service and the Nuxt executor live
+  outside Odoo (`docs/superpowers/specs/2026-10-15-nasq-ai-design.md`).
 - `odoo-addons/nasq_directory` (shared service, rank 3) owns `/api/v1/people`
   (the user-id picker, whose ids are `res.users` ids) and its population of
   active internal users of the current company; applications that pick people
