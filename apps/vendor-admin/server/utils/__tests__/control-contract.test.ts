@@ -78,7 +78,7 @@ describe('BFF to control-plane signing', () => {
 
   it('refuses to run behind an https origin without trustProxy', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    stubConfig({ adminOrigin: 'https://admin.nasq.sa', trustProxy: false })
+    stubConfig({ adminOrigin: 'https://admin.example.test', trustProxy: false })
     const result = await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: cookieHeader() })
     expect(result).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
     expect(calls).toHaveLength(0)
