@@ -35,6 +35,12 @@ function sessionHeader(ctx: AuthContext): string {
   return value
 }
 
+// Only reached through routes the dispatcher exposes when ADMIN_DEV_LOGIN_EMAIL is set.
+function devLoginEmail(ctx: AuthContext): string {
+  if (!ctx.admin.devLoginEmail) throw authFailed()
+  return ctx.admin.devLoginEmail
+}
+
 async function passwordLogin(ctx: AuthContext, client: PoolClient, scopes: string[], emailRaw: string, passwordText: string, route: string): Promise<{ id: number; scopes: string[] }> {
   const email = normalizeEmail(emailRaw)
   // Find the account, take its lock (shared) before any credential or session row, then read it again under the lock.
@@ -163,6 +169,29 @@ export const handlers = {
       }
       throw error
     }
+  },
+  async devLogin(ctx: AuthContext): Promise<Result> {
+    const email = devLoginEmail(ctx)
+    return tx(ctx, async (c) => {
+      const row = (await c.query("SELECT id FROM vendor_accounts WHERE email=$1 AND status='active' FOR SHARE", [email])).rows[0]
+      if (!row) throw authFailed()
+      const accountId = Number(row.id)
+      const session = await createSession(c, accountId, ctx.now, true)
+      await audit(c, `account:${accountId}`, 'auth.signed_in', `account:${accountId}`, 'dev-login')
+      return { status: 200, data: sessionBody(session) }
+    })
+  },
+  async devStepUp(ctx: AuthContext): Promise<Result> {
+    const email = devLoginEmail(ctx)
+    const value = sessionHeader(ctx)
+    return tx(ctx, async (c) => {
+      const session = await resolveSession(c, value, ctx.now)
+      const account = (await c.query('SELECT email FROM vendor_accounts WHERE id=$1', [session.accountId])).rows[0]
+      if (account?.email !== email) throw authFailed()
+      await markStepUp(c, session.tokenHash, ctx.now)
+      await audit(c, `account:${session.accountId}`, 'auth.step_up', `account:${session.accountId}`, 'dev-login')
+      return { status: 204 }
+    })
   },
   async logout(ctx: AuthContext): Promise<Result> {
     const value = sessionHeader(ctx)

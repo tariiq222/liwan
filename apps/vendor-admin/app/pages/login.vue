@@ -4,7 +4,7 @@ definePageMeta({ layout: false, public: true })
 const { t } = useI18n()
 useHead(() => ({ title: `${t('adminAuth.login.title')} · ${t('app.productName')}` }))
 
-const { mode, pending, errorKey, form, signInWithPasskey, signInWithPassword, setMode } = useSignIn()
+const { mode, pending, errorKey, form, devEnabled, signInWithPasskey, signInWithPassword, signInWithDev, setMode } = useSignIn()
 // A native form submit before hydration would put the password in the address.
 const hydrated = useHydrated()
 </script>
@@ -61,6 +61,13 @@ const hydrated = useHydrated()
         <UButton type="submit" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="t('adminAuth.login.submit')" />
         <UButton type="button" variant="link" color="neutral" class="justify-center" :label="t('adminAuth.login.backToPasskey')" @click="setMode('passkey')" />
       </UForm>
+
+      <div v-if="devEnabled" data-slot="dev-login" class="grid gap-2 rounded-lg border border-dashed border-warning p-3">
+        <UButton type="button" color="warning" variant="soft" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="t('adminAuth.login.devSignIn')" @click="signInWithDev" />
+        <p class="text-center text-xs text-muted">
+          {{ t('adminAuth.login.devHint') }}
+        </p>
+      </div>
     </div>
   </SharedStandalonePage>
 </template>

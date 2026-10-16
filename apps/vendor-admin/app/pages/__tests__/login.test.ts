@@ -2,9 +2,9 @@ import { reactive, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { renderSfc } from '../../../test/helpers/renderSfc'
 
-interface State { mode?: 'passkey' | 'fallback' | 'recovery', pending?: boolean, errorKey?: string | null, hydrated?: boolean, lang?: 'ar' | 'en' }
+interface State { mode?: 'passkey' | 'fallback' | 'recovery', pending?: boolean, errorKey?: string | null, hydrated?: boolean, lang?: 'ar' | 'en', devEnabled?: boolean }
 
-function renderLogin({ mode = 'passkey', pending = false, errorKey = null, hydrated = true, lang = 'ar' }: State = {}) {
+function renderLogin({ mode = 'passkey', pending = false, errorKey = null, hydrated = true, lang = 'ar', devEnabled = false }: State = {}) {
   const setMode = vi.fn()
   const html = renderSfc('pages/login.vue', {}, {}, {
     lang,
@@ -14,7 +14,7 @@ function renderLogin({ mode = 'passkey', pending = false, errorKey = null, hydra
       useSignIn: () => ({
         mode: ref(mode), pending: ref(pending), errorKey: ref(errorKey),
         form: reactive({ email: '', password: '', totpCode: '', recoveryCode: '' }),
-        signInWithPasskey: vi.fn(), signInWithPassword: vi.fn(), setMode,
+        devEnabled, signInWithPasskey: vi.fn(), signInWithPassword: vi.fn(), signInWithDev: vi.fn(), setMode,
       }),
     },
   })
@@ -31,6 +31,22 @@ describe('login page', () => {
     expect(html).toContain('استخدم رمز استرداد')
     expect(html).not.toContain('<form')
     expect(html).not.toContain('role="alert"')
+  })
+
+  it('hides the developer sign-in unless the development flag is on', async () => {
+    for (const mode of ['passkey', 'fallback'] as const) {
+      const html = await renderLogin({ mode })
+      expect(html).not.toContain('دخول التطوير')
+      expect(html).not.toContain('data-slot="dev-login"')
+    }
+  })
+
+  it('shows a labelled developer sign-in with its local-only warning when the flag is on', async () => {
+    const html = await renderLogin({ devEnabled: true })
+    expect(html).toContain('data-slot="dev-login"')
+    expect(html).toContain('دخول التطوير')
+    expect(html).toContain('بيئة التطوير المحلية فقط')
+    expect(await renderLogin({ devEnabled: true, lang: 'en' })).toContain('Developer sign-in')
   })
 
   it('shows the password and authenticator code form after "Lost your device?"', async () => {

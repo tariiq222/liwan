@@ -1,7 +1,6 @@
-import type { H3Event } from 'h3'
+import { getRequestIP, type H3Event } from 'h3'
 import { bffFail } from './errors'
-
-const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+import { devLoginAllowed, LOOPBACK_HOSTS, LOOPBACK_PEERS } from './loopback'
 
 type RuntimeSettings = {
   controlUrl?: string
@@ -9,6 +8,7 @@ type RuntimeSettings = {
   installationId?: string
   adminOrigin?: string
   trustProxy?: boolean | string
+  public?: { devLogin?: boolean }
 }
 
 export type BffConfig = {
@@ -28,6 +28,16 @@ function parseUrl(value: string | undefined): URL {
 /** https, or http on loopback (local development only). */
 const isSecureOrLoopback = (url: URL): boolean =>
   url.protocol === 'https:' || (url.protocol === 'http:' && LOOPBACK_HOSTS.includes(url.hostname))
+
+/**
+ * Whether the developer sign-in routes exist: the public setting is on, the admin origin is loopback http and the caller is on
+ * this machine. The peer is the socket address only, never x-forwarded-for, so a forged Origin or proxy header from the network opens nothing.
+ */
+export function devLoginEnabled(event: H3Event): boolean {
+  const settings = useRuntimeConfig(event) as RuntimeSettings
+  const peer = getRequestIP(event, { xForwardedFor: false }) ?? ''
+  return LOOPBACK_PEERS.includes(peer) && devLoginAllowed({ devLogin: settings.public?.devLogin, adminOrigin: settings.adminOrigin })
+}
 
 /** Validated BFF settings; any missing or unsafe value answers 503 for every route. */
 export function bffConfig(event: H3Event): BffConfig {

@@ -14,7 +14,7 @@ function setup(overrides: Partial<StepUpDeps> = {}) {
   const authenticate = vi.fn(async () => { order.push('authenticate'); return { id: 'assertion' } })
   const onSessionEnded = vi.fn()
   const abortPrompt = vi.fn()
-  const stepUp = createStepUp({ post: post as StepUpDeps['post'], authenticate: authenticate as unknown as StepUpDeps['authenticate'], onSessionEnded, abortPrompt, ...overrides })
+  const stepUp = createStepUp({ post: post as StepUpDeps['post'], authenticate: authenticate as unknown as StepUpDeps['authenticate'], onSessionEnded, abortPrompt, devLogin: false, ...overrides })
   return { stepUp, post, authenticate, onSessionEnded, abortPrompt, order }
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -118,6 +118,53 @@ describe('createStepUp', () => {
     expect(onSessionEnded).toHaveBeenCalledTimes(1)
     expect(retry).not.toHaveBeenCalled()
     expect(stepUp.pending.value).toBe(false)
+  })
+
+  it('is offered only when the development flag is on', () => {
+    expect(setup().stepUp.devEnabled).toBe(false)
+    expect(setup({ devLogin: true }).stepUp.devEnabled).toBe(true)
+  })
+
+  it('ends the open passkey prompt when the developer confirmation succeeds, without verifying a passkey', async () => {
+    const { stepUp, post, abortPrompt } = setup({ devLogin: true, authenticate: (() => new Promise(() => undefined)) as unknown as StepUpDeps['authenticate'] })
+    const retry = vi.fn().mockResolvedValue('saved')
+    const running = stepUp.run(retry)
+    await tick()
+    await stepUp.confirmWithDev()
+    await expect(running).resolves.toBe('saved')
+    expect(post).toHaveBeenCalledWith('/api/auth/dev-step-up', {})
+    expect(post).not.toHaveBeenCalledWith('/api/auth/step-up-verify', expect.anything())
+    expect(abortPrompt).toHaveBeenCalledTimes(1)
+    expect(retry).toHaveBeenCalledTimes(1)
+    expect(stepUp.pending.value).toBe(false)
+  })
+
+  it('also completes from the Retry state after a cancelled prompt', async () => {
+    const authenticate = vi.fn().mockRejectedValue(abort())
+    const { stepUp } = setup({ devLogin: true, authenticate: authenticate as unknown as StepUpDeps['authenticate'] })
+    const running = stepUp.run(async () => 'saved')
+    await tick()
+    expect(stepUp.waiting.value).toBe(true)
+    await stepUp.confirmWithDev()
+    await expect(running).resolves.toBe('saved')
+    expect(authenticate).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the panel open and shows the failure when the developer confirmation is refused', async () => {
+    const post = vi.fn(async (path: string) => {
+      if (path === '/api/auth/dev-step-up') throw failure(404, 'not_found')
+      return path.endsWith('options') ? { challenge_id: 'c'.repeat(36), options: OPTIONS } : undefined
+    })
+    const { stepUp } = setup({ devLogin: true, post: post as unknown as StepUpDeps['post'], authenticate: (() => new Promise(() => undefined)) as unknown as StepUpDeps['authenticate'] })
+    const retry = vi.fn()
+    const running = stepUp.run(retry)
+    await tick()
+    await stepUp.confirmWithDev()
+    expect(stepUp.pending.value).toBe(true)
+    expect(stepUp.error.value).toBe('adminAuth.errors.generic')
+    stepUp.cancel()
+    await expect(running).rejects.toBeInstanceOf(StepUpCancelled)
+    expect(retry).not.toHaveBeenCalled()
   })
 
   it('shares one ceremony between requests that need a step-up at the same time', async () => {

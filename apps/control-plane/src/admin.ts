@@ -8,6 +8,7 @@ import { writeFile } from 'node:fs/promises'
 import { readKnownSource } from './shared/catalog-source.js'
 import { migrateLegacyToSaas } from './commercial/legacy-mapping.js'
 import { lockOwners, normalizeEmail } from './admin-auth/accounts.js'
+import { assertLoopbackDatabase, ensureDevOwner } from './admin-auth/dev-owner.js'
 import { inviteAccount, issueReset } from './admin-auth/enrollment.js'
 
 const config = getConfig()
@@ -38,6 +39,15 @@ try {
       return inviteAccount(client, 'operator', { email: email ?? '', displayName: displayName ?? '', roles: ['owner'], reason: reason(why) }, new Date())
     })
     process.stdout.write(`${admin.origin}/enroll#${token}\n`)
+  } else if (command === 'dev-owner') {
+    const [email, displayName] = args
+    assertLoopbackDatabase(config.databaseUrl)
+    const normalized = normalizeEmail(email ?? '')
+    // The same gate as the sign-in routes: a configured dev email on a loopback http setup, and that very email.
+    if (adminOrThrow().devLoginEmail !== normalized) throw new Error('dev-owner requires ADMIN_DEV_LOGIN_EMAIL to equal the given email')
+    if (!displayName?.trim() || displayName.length > 120) throw new Error('display name of 1-120 characters required')
+    const { id, created } = await transaction(pool, (client) => ensureDevOwner(client, normalized, displayName.trim()))
+    process.stdout.write(`${created ? 'created' : 'already exists, ensured owner role'}: account ${id}\n`)
   } else if (command === 'reset-account') {
     const [email, why] = args
     const admin = adminOrThrow()
@@ -82,7 +92,7 @@ try {
     if (at >= 0) { if (!args[at + 1]) throw new Error('--report path required'); await writeFile(args[at + 1]!, `${text}\n`) }
     process.stdout.write(`${text}\n`)
     if (report.counts.errors) process.exitCode = 2
-  } else throw new Error('commands: bootstrap-owner, reset-account (the recovery path for a lost or last owner), catalog-import, approve-restore, migrate-saas-commercial')
+  } else throw new Error('commands: bootstrap-owner, dev-owner (local development only), reset-account (the recovery path for a lost or last owner), catalog-import, approve-restore, migrate-saas-commercial')
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : 'admin command failed'}\n`)
   process.exitCode = 1
