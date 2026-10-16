@@ -17,14 +17,14 @@ fi
 # --- rule 1: mutating git in the Odoo checkout ------------------------------------------
 if printf '%s' "$cmd" | grep -qE '(^|[;&|]\s*|\s)git\s+(-C\s+\S+\s+)?(add|commit|checkout|switch|reset|stash|rebase|merge|pull|push|clean|tag|restore|cherry-pick|am|apply|rm|mv|branch\s+-[dDm])\b'; then
   # explicit -C to another repo is fine
-  if printf '%s' "$cmd" | grep -qE 'git\s+-C\s+/Users/tariq/code/nasq'; then exit 0; fi
+  if printf '%s' "$cmd" | grep -qE 'git\s+-C\s+/Users/tariq/code/webvue'; then exit 0; fi
   target_is_odoo=0
   case "$cwd" in "$ODOO"|"$ODOO"/*) target_is_odoo=1;; esac
   printf '%s' "$cmd" | grep -qE "cd\s+(~|/Users/tariq)/code/odoo(\s|;|&|$)" && target_is_odoo=1
   printf '%s' "$cmd" | grep -qE "git\s+-C\s+(~|/Users/tariq)/code/odoo(\s|/)" && target_is_odoo=1
   printf '%s' "$cmd" | grep -qE "cd\s+(~|/Users/tariq)/code/webvue" && target_is_odoo=0
   if [ "$target_is_odoo" = 1 ]; then
-    echo "BLOCKED: ~/code/odoo is the upstream Odoo checkout and must stay untouched. Product work lives in /Users/tariq/code/nasq — run git there (cd /Users/tariq/code/nasq && git ... or git -C /Users/tariq/code/nasq ...)." >&2
+    echo "BLOCKED: ~/code/odoo is the upstream Odoo checkout and must stay untouched. Product work lives in /Users/tariq/code/webvue — run git there (cd /Users/tariq/code/webvue && git ... or git -C /Users/tariq/code/webvue ...)." >&2
     exit 2
   fi
 fi
