@@ -1,0 +1,32 @@
+# Edge block for the vendor admin host. Add it next to the customer block of deploy/Caddyfile (or import it); it changes no
+# existing block. The BFF in apps/vendor-admin signs every call to the control plane and overwrites x-nasq-client-ip itself.
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+
+	# No request logging here: cookies and query strings of the admin console must never reach a log. Caddy logs nothing
+	# unless a `log` directive is added, so none is declared on purpose.
+
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	route {
+		rate_limit {
+			zone nasq_admin {
+				key {remote_host}
+				events 120
+				window 1m
+				ipv6_prefix 64
+			}
+		}
+		reverse_proxy vendor-admin:3100 {
+			# Set after Connection-nominated fields are stripped; never append.
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Nasq-Client-Host {hostport}
+			header_up X-Nasq-Client-Proto {scheme}
+		}
+	}
+}
