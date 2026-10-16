@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DashboardChart as DashboardChartModel } from '@/utils/projectChartData'
-import ChartPanel from '@/components/shared/data/ChartPanel.vue'
+import ChartPanel from '@nasq/ui/app/components/shared/data/ChartPanel.vue'
 import DashboardChart from '@/components/shared/data/DashboardChart.client.vue'
 
 // One project chart: the shared panel (title, loading, the chart's own empty sentence) around the Unovis chart.

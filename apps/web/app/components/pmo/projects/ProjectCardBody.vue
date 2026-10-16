@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { Project, ProjectStatus } from '@nasq/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { badgeLabel } from '@/utils/statusBadge'
-import RecordNumber from '@/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
 import ProjectMenu from './ProjectMenu.vue'
 
 // One project as a body: number, name, status, progress, manager, end date and the actions menu.
@@ -19,9 +19,9 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
 <template>
   <div class="flex flex-col gap-4">
     <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <RecordNumber :value="project.id" />
-        <h2 :id="`project-card-${project.id}`" class="mt-1 truncate text-base font-semibold text-highlighted">
+      <div class="flex min-w-0 items-baseline gap-2">
+        <RecordNumber :value="project.id" class="shrink-0" />
+        <h2 :id="`project-card-${project.id}`" class="min-w-0 truncate text-base font-semibold text-highlighted">
           <NuxtLink :to="toFor(project)" class="rounded hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ project.name }}</NuxtLink>
         </h2>
       </div>
@@ -34,7 +34,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
       </div>
       <UProgress :model-value="project.progress" size="sm" :aria-label="t('projects.columns.progress')" />
     </div>
-    <div class="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
+    <div class="mt-auto box-content flex min-h-(--nasq-control-h) flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3 text-xs text-muted">
       <span class="inline-flex min-w-0 flex-1 items-center gap-1.5">
         <UIcon name="i-lucide-user-round" class="size-4 shrink-0" aria-hidden="true" />
         <span class="sr-only">{{ t('projects.columns.manager') }}: </span>
@@ -45,7 +45,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
         <span class="sr-only">{{ t('projects.columns.dateEnd') }}: </span>
         <span>{{ project.date_end ? formatCalendarDate(project.date_end, locale) : '—' }}</span>
       </span>
-      <ProjectMenu :project="project" :to="toFor(project)" hide-settings />
+      <ProjectMenu v-if="project.can_manage" :project="project" hide-settings />
     </div>
   </div>
 </template>

@@ -18,17 +18,40 @@ from pathlib import Path
 
 BASELINE = 'fce4561330200947e4db88b508285fecf9bb05a5'
 APP = 'apps/web/app/'
+UI = 'packages/ui/app/'
+APP_SOURCES = (APP, UI)
 PREVIEW = 'apps/web/design-preview/app/'
-SOURCE_ROOTS = (APP, PREVIEW)
+SOURCE_ROOTS = (*APP_SOURCES, PREVIEW)
 LEGACY = APP + 'components/ui/'
 CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
-MANIFESTS = ('package.json', 'apps/web/package.json')
+MANIFESTS = ('package.json', 'apps/web/package.json', 'packages/ui/package.json')
 STORIES = 'apps/web/stories/'
 STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
 STORY_SUFFIXES = {'.vue', '.ts', '.mjs', '.mdx'}
 COMPONENTS = APP + 'components/'
+UI_COMPONENTS = UI + 'components/'
+COMPONENT_ROOTS = (COMPONENTS, UI_COMPONENTS)
+# Presentational components that live in the @nasq/ui layer (relative to components/); every other
+# component listed below stays in apps/web.
+LAYER_COMPONENTS = frozenset(
+    ['shared/feedback/' + name + '.vue' for name in ('EmptyState', 'ErrorState', 'ForbiddenState', 'LoadingSkeleton', 'NotFoundState', 'PageState')]
+    + ['shared/layout/' + name + '.vue' for name in (
+        'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'ListPage', 'PageContainer',
+        'PageHeader', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RouteTabs', 'SettingsPage',
+        'StandalonePage', 'TimelineFrame')]
+    + ['shared/data/' + name + '.vue' for name in (
+        'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
+        'RecordNumber', 'RowActions', 'StatusBadge', 'ViewSwitch')]
+    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
+    + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellFrame')]
+)
+
+
+def component_file(relative: str) -> str:
+    """Repository path of a component given its path under components/."""
+    return (UI_COMPONENTS if relative in LAYER_COMPONENTS else COMPONENTS) + relative
 # Component folders registered in apps/web/nuxt.config.ts with an explicit `prefix`:
 # their auto-import names start with the prefix instead of the folder path.
 COMPONENT_PREFIXES = {
@@ -45,7 +68,7 @@ LAYOUTS = APP + 'layouts/'
 LOCALES = 'apps/web/i18n/locales/'
 # Reused building blocks that must each have a story (spec §1). Add a path here when a
 # component starts being reused across pages, together with its story.
-STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
+STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
     'operations/ProcessForm.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
@@ -59,7 +82,10 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(COMPONENTS + path for path in (
     'shared/layout/BrandWordmark.vue',
     'shared/layout/FormSection.vue', 'shared/data/RecordNumber.vue', 'shared/layout/SettingsPage.vue', 'shared/feedback/EmptyState.vue', 'shared/layout/RouteTabs.vue',
     'shared/data/FilterBar.vue', 'shared/form/DateField.vue', 'shared/form/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
-    'meetings/MeetingPeopleFields.vue', 'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
+    'meetings/MeetingPeopleFields.vue', 'meetings/MeetingEventList.vue', 'meetings/MeetingMinutesDocument.vue',
+    'meetings/MeetingMinutesForm.vue', 'meetings/MeetingTimeline.vue', 'meetings/MeetingVersionList.vue',
+    'meetings/MeetingResolutionsTab.vue', 'meetings/MeetingAttachmentsTab.vue', 'meetings/MeetingRecordTabs.vue',
+    'shared/form/FileField.vue', 'pmo/projects/ProjectFieldHelp.vue',
     'pmo/tasks/PrioritySelect.vue', 'pmo/tasks/StateMenu.vue', 'shared/form/TagPicker.vue',
     'pmo/projects/ProjectMenu.vue', 'shell/SidebarCreateAction.vue', 'shell/ShellFrame.vue', 'shell/ModuleRail.vue', 'shell/AppSidebar.vue', 'shell/ContextSidebar.vue', 'shell/ShellHeader.vue', 'shell/ShellBreadcrumb.vue', 'shell/MobileNavigation.vue', 'shell/AppearanceMenu.vue', 'shell/AppAccountMenu.vue', 'shell/GlobalSearch.vue', 'chat/ChatAttachment.vue', 'pmo/tasks/TaskCard.vue',
     'pmo/projects/dashboard/DashboardChartPanel.vue', 'shared/data/DashboardChart.client.vue', 'charts/ChartContainer.vue',
@@ -83,18 +109,17 @@ DEFAULT_VUE_IMPORT = re.compile(r'''^\s*import\s+(\w+)\s+from\s+(['"])([^'"]+\.v
 SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for root in STORY_ROOTS),
          LOCALES.rstrip('/'), *MANIFESTS, CATALOG)
 THEME_OWNERS = {
-    APP + 'assets/css/main.css',
-    APP + 'assets/css/tokens.css',
-    APP + 'assets/css/components.css',
-    APP + 'assets/css/shell.css',
+    UI + 'assets/css/main.css',
+    UI + 'assets/css/tokens.css',
+    UI + 'assets/css/components.css',
+    UI + 'assets/css/shell.css',
     APP + 'utils/brandTheme.ts',
-    APP + 'app.config.ts',
+    UI + 'app.config.ts',
 }
 RETIRED_CSS = {
-    APP + 'assets/css/approved-shell.css',
-    APP + 'assets/css/project-theme.css',
-    APP + 'assets/css/nuxt-theme.css',
-    APP + 'assets/css/nuxt-shell.css',
+    root + 'assets/css/' + name
+    for root in APP_SOURCES
+    for name in ('approved-shell.css', 'project-theme.css', 'nuxt-theme.css', 'nuxt-shell.css')
 }
 # Match actual import/export statements, side-effect imports, and dynamic
 # imports. Anchoring static imports to the start of a line prevents words such
@@ -120,6 +145,9 @@ REVIEWED_E2E_TOOLING = {
     '@ai-sdk/openai', '@ai-sdk/openai-compatible', '@e2e-dev/web', 'ai', 'e2e', 'playwright',
 }
 
+# Test-only SFC compilation and server rendering used by the layer's unit tests (no runtime import).
+REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescript'}
+
 
 def source_file(path: str) -> bool:
     return (path.startswith(SOURCE_ROOTS) and Path(path).suffix in {'.vue', '.ts', '.js', '.mjs', '.css', '.scss'}
@@ -138,6 +166,8 @@ def story_file(path: str) -> bool:
 def resolve_specifier(path: str, specifier: str) -> str | None:
     if specifier.startswith(('@/', '~/')):
         return APP + specifier[2:]
+    if specifier.startswith('@nasq/ui/'):
+        return 'packages/ui/' + specifier[len('@nasq/ui/'):]
     if specifier.startswith('.'):
         return posixpath.normpath(posixpath.join(posixpath.dirname(path), specifier))
     return None
@@ -152,7 +182,8 @@ def nuxt_relative(relative: str) -> str:
 
 
 def component_names(component: str) -> set[str]:
-    relative = nuxt_relative(component[len(COMPONENTS):])
+    root = next(root for root in COMPONENT_ROOTS if component.startswith(root))
+    relative = nuxt_relative(component[len(root):])
     stem = relative.rsplit('/', 1)[-1].removesuffix('.vue').removesuffix('.client')
     prefix = ''.join(part[:1].upper() + part[1:] for part in relative.split('/')[:-1])
     return {stem, prefix + stem}
@@ -281,7 +312,7 @@ def story_errors(current: dict[str, str]) -> list[str]:
     errors = []
     covered = set()
     for path, source in sorted(current.items()):
-        if source_file(path) and path.startswith(APP):
+        if source_file(path) and path.startswith(APP_SOURCES):
             for match in IMPORTS.finditer(COMMENTS.sub('', source)):
                 target = resolve_specifier(path, match.group(2))
                 if target and target.startswith(('apps/web/stories', 'apps/web/.storybook')):
@@ -296,11 +327,11 @@ def story_errors(current: dict[str, str]) -> list[str]:
         story_source = COMMENTS.sub('', source)
         for match in IMPORTS.finditer(story_source):
             target = resolve_specifier(path, match.group(2))
-            if target and target.endswith('.vue') and not target.startswith(COMPONENTS):
-                errors.append(path + ': stories import components only from apps/web/app/components')
+            if target and target.endswith('.vue') and not target.startswith(COMPONENT_ROOTS):
+                errors.append(path + ': stories import components only from apps/web/app/components or packages/ui/app/components')
                 break
         component = story_component(path, story_source)
-        if not component or not component.startswith(COMPONENTS):
+        if not component or not component.startswith(COMPONENT_ROOTS):
             continue
         covered.add(component)
         refs = [match.group(2) for match in STORY_CONTEXT.finditer(story_source)]
@@ -328,7 +359,7 @@ def story_warnings(current: dict[str, str]) -> list[str]:
         # Strip comments from story source before checking for context and component
         story_source = COMMENTS.sub('', source)
         component = story_component(path, story_source)
-        if not component or not component.startswith(COMPONENTS):
+        if not component or not component.startswith(COMPONENT_ROOTS):
             continue
         for match in STORY_CONTEXT.finditer(story_source):
             file, _, line = match.group(2).rpartition(':')
@@ -359,13 +390,13 @@ RETIRED_PATTERNS = (
     (re.compile(r'(?<![\w-])nasq-(?:input|toolbar|panel)(?![\w-])'),
      'retired pre-unification class; use the Nuxt UI primitive'),
 )
-RETIRED_PATTERN_OWNERS = {APP + 'components/shared/form/RichText.vue'}
+RETIRED_PATTERN_OWNERS = {component_file('shared/form/RichText.vue')}
 
 
 def retired_pattern_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or '/__tests__/' in path or path in RETIRED_PATTERN_OWNERS:
+        if not path.startswith(APP_SOURCES) or '/__tests__/' in path or path in RETIRED_PATTERN_OWNERS:
             continue
         if not path.endswith(('.vue', '.ts')):
             continue
@@ -386,7 +417,7 @@ DECLARATION = re.compile(
     re.M)
 NAMED_BLOCK = re.compile(r'^export\s+(?:type\s+)?\{([^}]*)\}', re.M)
 IDENTIFIER = re.compile(r'^[A-Za-z_$][\w$]*$')
-AUTO_IMPORT_ROOTS = (APP + 'composables/', APP + 'utils/')
+AUTO_IMPORT_ROOTS = tuple(root + folder for root in APP_SOURCES for folder in ('composables/', 'utils/'))
 
 
 def exported_names(source: str) -> list[str]:
@@ -411,9 +442,10 @@ def auto_import_errors(current: dict[str, str]) -> list[str]:
               for name, files in sorted(owners.items()) if len(files) > 1]
     components: dict[str, list[str]] = {}
     for path in sorted(current):
-        if path.startswith(COMPONENTS) and path.endswith(('.vue', '.ts')):
+        if path.startswith(COMPONENT_ROOTS) and path.endswith(('.vue', '.ts')):
             # Nuxt joins the directory segments and the basename, ignoring case.
-            stem = nuxt_relative(path[len(COMPONENTS):]).rsplit('.', 1)[0]
+            root = next(root for root in COMPONENT_ROOTS if path.startswith(root))
+            stem = nuxt_relative(path[len(root):]).rsplit('.', 1)[0]
             components.setdefault(stem.replace('/', '-').lower(), []).append(path)
     errors.extend(f'{name}: component name is claimed by {" + ".join(sorted(files))}; '
                   'a non-component helper belongs in app/utils'
@@ -428,7 +460,7 @@ OVERLAY_IMPORT = re.compile(r'components/ui/(?:dialog|alert-dialog|sheet|drawer)
                             r'|components/ui/command/CommandDialog(?:\.vue)?["\']')
 NATIVE_POPUP = re.compile(r'(?:\bwindow\s*\.\s*)?\b(?:alert|confirm|prompt)\s*\(')
 OVERLAY_OWNERS = {COMPONENTS + 'shell/GlobalSearch.vue'}
-OVERLAY_ROOTS = (PAGES, LAYOUTS, COMPONENTS)
+OVERLAY_ROOTS = (PAGES, LAYOUTS, *COMPONENT_ROOTS)
 
 
 def overlay_errors(current: dict[str, str]) -> list[str]:
@@ -448,7 +480,7 @@ def overlay_errors(current: dict[str, str]) -> list[str]:
 
 
 # Tasmim Plan 3: UCommandPalette (and Nuxt UI's two palette wrappers, UDashboardSearch and UContentSearch) render only in the approved search overlay, and no component
-# registers Nuxt UI defineShortcuts beside the shell keymap (apps/web/app/composables/shortcuts/keymap.ts).
+# registers Nuxt UI defineShortcuts beside the shell keymap (packages/ui/app/composables/shortcuts/keymap.ts).
 COMMAND_PALETTE_TAG = re.compile(r'<(?:Lazy|lazy-)?(?:UCommandPalette|u-command-palette|UDashboardSearch|u-dashboard-search|UContentSearch|u-content-search)[\s>/]')
 DEFINE_SHORTCUTS = re.compile(r'\bdefineShortcuts\s*\(')
 
@@ -456,7 +488,7 @@ DEFINE_SHORTCUTS = re.compile(r'\bdefineShortcuts\s*\(')
 def keyboard_layer_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')) or '/__tests__/' in path:
+        if not path.startswith(APP_SOURCES) or not path.endswith(('.vue', '.ts')) or '/__tests__/' in path:
             continue
         text = COMMENTS.sub('', source)
         if path not in OVERLAY_OWNERS and COMMAND_PALETTE_TAG.search(text):
@@ -474,7 +506,7 @@ CUSTOM_RECIPE = re.compile(r'nasq-ui-(?!z-)[a-z-]+|nasq-elevation-\d|data-nasq-r
 def recipe_errors(current: dict[str, str]) -> list[str]:
     return [path + ': custom component recipe; use the Nuxt UI primitive and its utilities'
             for path, source in sorted(current.items())
-            if path.startswith((APP, STORIES)) and path.endswith(('.vue', '.ts'))
+            if path.startswith((*APP_SOURCES, STORIES)) and path.endswith(('.vue', '.ts'))
             and CUSTOM_RECIPE.search(COMMENTS.sub('', source))]
 
 
@@ -502,30 +534,30 @@ RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radiu
 
 def theme_errors(current: dict[str, str]) -> list[str]:
     errors = []
-    config = current.get(APP + 'app.config.ts', '')
-    tokens = current.get(APP + 'assets/css/tokens.css', '')
-    components = current.get(APP + 'assets/css/components.css', '')
-    shell = current.get(APP + 'assets/css/shell.css', '')
+    config = current.get(UI + 'app.config.ts', '')
+    tokens = current.get(UI + 'assets/css/tokens.css', '')
+    components = current.get(UI + 'assets/css/components.css', '')
+    shell = current.get(UI + 'assets/css/shell.css', '')
     complete = whole_tree(current)
     if complete:
         if not BRAND_COLORS.search(config):
-            errors.append(APP + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
+            errors.append(UI + "app.config.ts: theme colors must stay { primary: 'brand', neutral: 'slate' }")
         for key in re.findall(r'^\s{4}([a-zA-Z]+):', config, re.M):
             if key not in ALLOWED_RECIPE_KEYS:
-                errors.append(f'{APP}app.config.ts: undocumented theme recipe key {key}')
+                errors.append(f'{UI}app.config.ts: undocumented theme recipe key {key}')
     if complete:
         for token in REQUIRED_TOKENS:
             if token not in tokens:
-                errors.append(f'{APP}assets/css/tokens.css: missing theme input {token}')
+                errors.append(f'{UI}assets/css/tokens.css: missing theme input {token}')
         if not re.search(r'--ui-radius:\s*0\.285714rem', tokens):
-            errors.append(f'{APP}assets/css/tokens.css: --ui-radius is the one official radius token (4px base: md 6px, lg 8px)')
+            errors.append(f'{UI}assets/css/tokens.css: --ui-radius is the one official radius token (4px base: md 6px, lg 8px)')
     for token in RETIRED_TOKENS:
         if token in tokens:
-            errors.append(f'{APP}assets/css/tokens.css: retired token {token}')
+            errors.append(f'{UI}assets/css/tokens.css: retired token {token}')
     if re.search(r'\.nasq-ui-|\.nasq-elevation-|data-nasq-reference-detail', components):
-        errors.append(f'{APP}assets/css/components.css: component recipes belong to Nuxt UI, not this sheet')
+        errors.append(f'{UI}assets/css/components.css: component recipes belong to Nuxt UI, not this sheet')
     if 'content-shadow' in shell:
-        errors.append(f'{APP}assets/css/shell.css: retired content-shadow')
+        errors.append(f'{UI}assets/css/shell.css: retired content-shadow')
     return errors
 
 
@@ -563,15 +595,15 @@ def page_shell_errors(current: dict[str, str]) -> list[str]:
         if AD_HOC_WIDTH.search(source):
             errors.append(path + ': ad-hoc page max-width; use the SharedPageContainer width vocabulary')
     if complete:
-        shell = current.get(APP + 'assets/css/shell.css', '')
+        shell = current.get(UI + 'assets/css/shell.css', '')
         for width in PAGE_WIDTHS:
             if not width.search(shell):
-                errors.append(f'{APP}assets/css/shell.css: missing page width rule {width.pattern}')
+                errors.append(f'{UI}assets/css/shell.css: missing page width rule {width.pattern}')
     if complete:
-        status = current.get(APP + 'assets/css/components.css', '') + current.get(APP + 'assets/css/tokens.css', '')
+        status = current.get(UI + 'assets/css/components.css', '') + current.get(UI + 'assets/css/tokens.css', '')
         for token in STATUS_TOKENS:
             if token not in status:
-                errors.append(f'{APP}assets/css: missing theme-aware status token {token}')
+                errors.append(f'{UI}assets/css: missing theme-aware status token {token}')
     return errors
 
 
@@ -585,7 +617,7 @@ SECRET_IN_URL = re.compile(r'/api/v1/[^"\'`]*password=|query:\s*\{[^}]*password'
 def secret_render_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')):
+        if not path.startswith(APP_SOURCES) or not path.endswith(('.vue', '.ts')):
             continue
         text = COMMENTS.sub('', source)
         if SECRET_RENDER.search(text) or SECRET_DIFF.search(text):
@@ -608,7 +640,7 @@ RAW_BREADCRUMB_TAG = re.compile(r'<u-?breadcrumb\b', re.I)
 def breadcrumb_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not (path.startswith((PAGES, LAYOUTS, COMPONENTS)) and path.endswith('.vue')) or path == BREADCRUMB_OWNER:
+        if not (path.startswith((PAGES, LAYOUTS, *COMPONENT_ROOTS)) and path.endswith('.vue')) or path == BREADCRUMB_OWNER:
             continue
         pattern = RAW_BREADCRUMB_TAG if path == BREADCRUMB_HEADER else BREADCRUMB_TAG
         if pattern.search(COMMENTS.sub('', source)):
@@ -624,7 +656,7 @@ STYLE_OWNERS: frozenset[str] = frozenset()
 def scoped_style_errors(current: dict[str, str]) -> list[str]:
     return [path + ': new scoped <style> block; use the shared sheets and Tailwind utilities'
             for path, source in sorted(current.items())
-            if path.endswith('.vue') and path.startswith((COMPONENTS, PAGES, LAYOUTS))
+            if path.endswith('.vue') and path.startswith((*COMPONENT_ROOTS, PAGES, LAYOUTS))
             and path not in STYLE_OWNERS and '<style' in source]
 
 
@@ -642,7 +674,7 @@ BUTTON_RANK_OWNERS = {COMPONENTS + 'settings/BrandingPreview.vue'}
 def button_rank_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or not path.endswith('.vue') or path in BUTTON_RANK_OWNERS:
+        if not path.startswith(APP_SOURCES) or not path.endswith('.vue') or path in BUTTON_RANK_OWNERS:
             continue
         for match in BUTTON_TAG.finditer(source):
             if SECONDARY_COLOR.search(match.group()) and not QUIET_VARIANT.search(match.group()):
@@ -711,7 +743,7 @@ def retired_artifact_errors(current: dict[str, str]) -> list[str]:
               for path in RETIRED_FILES if path in current]
     errors.extend(path + ': retired route-sheet artifact; a record is an ordinary page'
                   for path, source in sorted(current.items())
-                  if path.startswith(APP) and path.endswith(('.vue', '.ts', '.css'))
+                  if path.startswith(APP_SOURCES) and path.endswith(('.vue', '.ts', '.css'))
                   and RETIRED_ARTIFACT.search(COMMENTS.sub('', source)))
     return errors
 
@@ -727,7 +759,7 @@ LEGACY_HR_ACCESS = re.compile(r'\buse(?:Grant|Update|Revoke)HrAccess\b')
 def hr_boundary_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP) or not path.endswith(('.vue', '.ts')):
+        if not path.startswith(APP_SOURCES) or not path.endswith(('.vue', '.ts')):
             continue
         text = COMMENTS.sub('', source)
         if LEGACY_HR_ACCESS.search(text):
@@ -757,12 +789,12 @@ def toolbar_errors(current: dict[str, str]) -> list[str]:
 # Tasmim Plan 4 (spec §6): one StatusBadge driven by application tone maps, FilterCard
 # folded into FilterBar, and every contract template and state kept in Storybook.
 # Every *Badge.vue is rejected except the shared one; list a legitimate one here with a reason.
-STATUS_BADGE_OWNER = COMPONENTS + 'shared/data/StatusBadge.vue'
+STATUS_BADGE_OWNER = component_file('shared/data/StatusBadge.vue')
 BADGE_FILE = re.compile(r'Badge\.vue$')
 BADGE_ALLOWED = frozenset((STATUS_BADGE_OWNER,))
-FILTER_CARD_FILE = COMPONENTS + 'shared/FilterCard.vue'
+FILTER_CARD_FILES = tuple(root + 'shared/FilterCard.vue' for root in COMPONENT_ROOTS)
 FILTER_CARD_TAG = re.compile(r'<(?:Lazy)?(?:Shared)?FilterCard\b|<(?:lazy-)?(?:shared-)?filter-card\b')
-CONTRACT_TEMPLATES: tuple[str, ...] = tuple(COMPONENTS + 'shared/' + name + '.vue' for name in (
+CONTRACT_TEMPLATES: tuple[str, ...] = tuple(component_file('shared/' + name + '.vue') for name in (
     'feedback/LoadingSkeleton', 'feedback/ErrorState', 'feedback/ForbiddenState', 'feedback/NotFoundState', 'feedback/EmptyState', 'feedback/PageState',
     'data/StatusBadge', 'data/FilterBar', 'data/InvoiceLines', 'layout/RouteTabs', 'layout/SettingsPage',
     'data/DataTable', 'data/ViewSwitch', 'layout/ListPage', 'layout/RecordPage', 'layout/PropertiesPanel', 'layout/PropertyRow', 'layout/RecordSection',
@@ -774,12 +806,11 @@ CONTRACT_TEMPLATES: tuple[str, ...] = tuple(COMPONENTS + 'shared/' + name + '.vu
 def template_errors(current: dict[str, str]) -> list[str]:
     errors = [path + ': one StatusBadge (shared/data/StatusBadge.vue) with an application tone map; no per-app badge'
               for path in sorted(current)
-              if path.startswith(COMPONENTS) and BADGE_FILE.search(path) and path not in BADGE_ALLOWED]
-    if FILTER_CARD_FILE in current:
-        errors.append(FILTER_CARD_FILE + ': FilterCard is folded into FilterBar')
+              if path.startswith(COMPONENT_ROOTS) and BADGE_FILE.search(path) and path not in BADGE_ALLOWED]
+    errors.extend(path + ': FilterCard is folded into FilterBar' for path in FILTER_CARD_FILES if path in current)
     errors.extend(path + ': FilterCard is folded into FilterBar; use SharedFilterBar'
                   for path, source in sorted(current.items())
-                  if path.startswith(APP) and path.endswith('.vue') and FILTER_CARD_TAG.search(COMMENTS.sub('', source)))
+                  if path.startswith(APP_SOURCES) and path.endswith('.vue') and FILTER_CARD_TAG.search(COMMENTS.sub('', source)))
     if whole_tree(current):
         listed = set(STORYBOOK_COMPONENTS)
         errors.extend(path + ': contract template must be listed in STORYBOOK_COMPONENTS'
@@ -805,7 +836,7 @@ def refreshed_story_context(current: dict[str, str]) -> dict[str, str]:
             continue
         story_source = COMMENTS.sub('', source)
         component = story_component(path, story_source)
-        if not component or not component.startswith(COMPONENTS):
+        if not component or not component.startswith(COMPONENT_ROOTS):
             continue
         names = component_names(component)
         updated = source
@@ -829,6 +860,11 @@ def refreshed_story_context(current: dict[str, str]) -> dict[str, str]:
     return updates
 
 
+def baseline_path(path: str) -> str:
+    """The path a file had in the baseline snapshot, from before the layer owned it."""
+    return APP + path[len(UI):] if path.startswith(UI) else path
+
+
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
     # @nuxt/schema ships inside nuxt itself and is where Nuxt's own docs put
@@ -839,11 +875,13 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
         # Internal schemas and server-only signing; no visual components or UI library.
         '@nasq/commercial-contracts',
+        # Nasq's own Nuxt layer that owns the @nuxt/ui theme (the same library, not a second one).
+        '@nasq/ui',
     }
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source
     # below), since Storybook is a viewer, not a second UI library.
-    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING | REVIEWED_E2E_TOOLING
+    allowed_manifest = allowed_source | REVIEWED_STORYBOOK_TOOLING | REVIEWED_E2E_TOOLING | REVIEWED_TEST_TOOLING
     names = legacy_names(baseline)
     has_ui = '@nuxt/ui' in json.loads(current.get('apps/web/package.json', '{}')).get('dependencies', {})
     baseline_versions = dependency_versions(baseline)
@@ -864,7 +902,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
             errors.append(path + ': retired legacy component tree')
         if path in RETIRED_CSS:
             errors.append(path + ': retired stylesheet')
-        if path.startswith(APP + 'components/') and path.endswith('.vue') and path not in baseline:
+        if path.startswith(COMPONENT_ROOTS) and path.endswith('.vue') and baseline_path(path) not in baseline:
             if f'`{path}`' not in current.get(CATALOG, ''):
                 errors.append(path + ': register exact path, recipe and primitives in the catalog')
         errors.extend(f'{path}: {reason} (+{count})' for reason, count in sorted(findings(path, source, names, allowed_source, has_ui).items()))

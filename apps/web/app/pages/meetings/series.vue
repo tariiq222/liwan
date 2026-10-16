@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingSeriesListItem } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
 import { returnToQuery } from '@/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
@@ -25,89 +25,17 @@ const search = ref(routeFilters.value.q)
 const debouncedSearch = refDebounced(search, 250)
 
 const listPath = '/meetings/series'
-let pendingNavigation: RouteLocationNormalized | null = null
-let ownWrites = 0
-let disposed = false
-let writeId = 0
-let pendingQuery: { id: number; query: LocationQueryRaw; fullPath: string; navigation: RouteLocationNormalized | null } | null = null
-const isCurrentList = () => router.currentRoute.value.path.replace(/\/+$/, '') === listPath
-function currentListQuery() {
-  return pendingQuery?.query ?? router.currentRoute.value.query
-}
-function liveListQuery() {
-  const query = currentListQuery()
-  return search.value.trim() === parseMeetingListFilters(query).q
-    ? query
-    : patchMeetingListQuery(query, { q: search.value.trim() || undefined })
-}
-function liveReturnTo() {
-  return router.resolve({ path: listPath, query: liveListQuery(), hash: router.currentRoute.value.hash }).fullPath
-}
-function writeSearch() {
-  if (disposed || pendingNavigation || ownWrites || !isCurrentList()) return
-  if (search.value.trim() === parseMeetingListFilters(router.currentRoute.value.query).q) return
-  void replaceListQuery(liveListQuery())
-}
-function syncListState(to: RouteLocationNormalized) {
-  const next = parseMeetingListFilters(to.query)
-  search.value = next.q
-  offset.value = parseOffset(to.query.offset)
-}
-const stopNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => {
-  pendingNavigation = to
-  // Capture the first actual router target for this writer before auth awaits.
-  // A later human navigation may resolve to the same URL with another identity.
-  if (pendingQuery && !pendingQuery.navigation && to.fullPath === pendingQuery.fullPath) pendingQuery.navigation = to
+const limit = 25
+const offset = ref(parseOffset(route.query.offset))
+const { isCurrentList, liveListQuery, liveReturnTo, replaceListQuery, isPlainClick } = useMeetingListQuerySync({
+  router,
+  route,
+  listPath,
+  search,
+  debouncedSearch,
+  offset,
+  onNavigationStart: handler => useNuxtApp().hook('nasq:navigation:start', handler),
 })
-const stopAfterEach = router.afterEach((to, _from, failure) => {
-  if (to !== pendingNavigation) return
-  pendingNavigation = null
-  // A refused own query finishes its promise without requeueing itself.
-  if (ownWrites) {
-    // A newer external list owns its query even before the old writer settles.
-    // Drop that writer's draft before route-driven date watchers can reuse it.
-    if (!failure && isCurrentList() && to !== pendingQuery?.navigation) {
-      pendingQuery = null
-      syncListState(to)
-    }
-    return
-  }
-  if (failure) writeSearch()
-  else if (isCurrentList()) syncListState(to)
-})
-const stopOnError = router.onError((_error, to) => {
-  if (to !== pendingNavigation) return
-  pendingNavigation = null
-  if (!ownWrites) writeSearch()
-})
-onScopeDispose(() => { disposed = true; stopNavigationStart(); stopAfterEach(); stopOnError() })
-async function replaceListQuery(query: LocationQueryRaw) {
-  if (disposed || !isCurrentList()) return
-  const id = ++writeId
-  const searchAtStart = search.value
-  const routeAtStart = router.currentRoute.value
-  pendingQuery = { id, query, fullPath: router.resolve({ path: listPath, query, hash: routeAtStart.hash }).fullPath, navigation: null }
-  ownWrites++
-  let succeeded = false
-  try {
-    succeeded = !(await router.replace({ path: listPath, query, hash: routeAtStart.hash }))
-  } catch {
-    // Router errors leave the draft available for a later human edit.
-  } finally {
-    ownWrites--
-    const ownsDraft = pendingQuery?.id === id
-    if (ownsDraft) pendingQuery = null
-    if (disposed) return
-    if (!ownWrites && ownsDraft && id === writeId && !succeeded && router.currentRoute.value !== routeAtStart && isCurrentList()) {
-      syncListState(router.currentRoute.value)
-    } else if (!ownWrites && search.value !== searchAtStart && debouncedSearch.value === search.value) {
-      writeSearch()
-    }
-  }
-}
-function isPlainClick(event: MouseEvent) {
-  return event.button === 0 && !event.defaultPrevented && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
-}
 function openRecord(event: MouseEvent, record: { id: number }) {
   if (!hydrated.value || !isCurrentList() || !isPlainClick(event)) return
   event.preventDefault()
@@ -120,8 +48,6 @@ function openCreate(event: MouseEvent) {
   void router.push({ path: `${listPath}/new`, query: returnToQuery(liveReturnTo()) }).catch(() => undefined)
 }
 
-const limit = 25
-const offset = ref(parseOffset(route.query.offset))
 const projectId = computed(() => routeFilters.value.projectId)
 const projectName = ref('')
 const params = computed(() => ({
@@ -156,16 +82,6 @@ const createTo = computed(() => ({ path: '/meetings/series/new', query: returnTo
 const activeFilterCount = computed(() => [search.value.trim(), projectId.value].filter(Boolean).length)
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
-watch(() => route.query.q, value => {
-  if (ownWrites || !isCurrentList() || value !== router.currentRoute.value.query.q) return
-  const next = typeof value === 'string' ? value : ''
-  if (next !== search.value) search.value = next
-})
-watch(() => route.query.offset, value => {
-  const next = parseOffset(value)
-  if (next !== offset.value) offset.value = next
-})
-watch(debouncedSearch, () => { writeSearch() })
 function setProject(value: number | undefined) {
   if (!isCurrentList()) return
   void replaceListQuery(patchMeetingListQuery(liveListQuery(), { project_id: value }))

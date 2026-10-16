@@ -6,7 +6,7 @@ import ProjectCopyForm from '@/components/pmo/projects/ProjectCopyForm.vue'
 import { parsePositiveId } from '@/utils/routeParams'
 import type { CharterWizardStep } from '@/utils/charterSteps'
 
-const emit = defineEmits<{ created: [id: number]; copied: [id: number]; drafted: [id: number, step: CharterWizardStep]; cancel: [] }>()
+const emit = defineEmits<{ created: [id: number]; copied: [id: number]; drafted: [id: number, step: CharterWizardStep, reason?: string]; cancel: [] }>()
 const { t } = useI18n()
 const route = useRoute()
 const hydrated = useHydrated()
@@ -65,7 +65,7 @@ async function retryDefaults() {
         :default-manager-name="defaultManagerName"
         :disabled="!defaults || forbidden"
         @created="emit('created', $event)"
-        @drafted="(id, step) => emit('drafted', id, step)"
+        @drafted="(id, step, reason) => emit('drafted', id, step, reason)"
         @cancel="emit('cancel')"
       />
     </div>

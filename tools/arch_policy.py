@@ -29,6 +29,14 @@ FOUNDATION_MAX_RANK = 2
 STATIC_APP_TOKENS = ('project', 'cyan_meeting_minutes')
 ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
+# UI1: a file of the shared UI layer reaches into an application, an addon, an app alias, the contracts or the control plane.
+UI_LAYER_FORBIDDEN = re.compile(
+    # A JS specifier needs its opening quote, so prose such as "moved from apps/web/app/x" in a comment is not an import;
+    # CSS at-rules and url() may be unquoted.
+    r"""(?:(?:\bfrom|\bimport|\brequire\(|import\.meta\.glob\()\s*[(\[]?\s*['"]|(?:@import|@source|url\()\s*['"]?)"""
+    r"""(?:[./]*/)?(?:apps/|odoo-addons/|@/|@@/|~/|~~/|@nasq/contracts|[^'"\n]*control-plane)""",
+)
+UI_LAYER_FILES = ('.ts', '.vue', '.css')
 COMMERCIAL_IMPORT = re.compile(r"""(?:from|import)\s*\(?['"]@nasq/commercial-contracts""")
 CUSTOMER_KIND = re.compile(r'\b(?:government|is_gov|gov_)', re.IGNORECASE)
 SQL_TABLE = re.compile(
@@ -50,6 +58,11 @@ Violations = dict[str, dict[str, int]]
 def is_test_path(path: Path) -> bool:
     parts = set(path.parts)
     return bool(parts & {'tests', '__tests__', 'e2e'}) or '.test.' in path.name or '.spec.' in path.name
+
+
+def ui_layer_violations(text: str) -> int:
+    """UI1: imports of an application, addon, alias, the contracts or the control plane in a shared UI layer file."""
+    return count(UI_LAYER_FORBIDDEN, text)
 
 
 def count(pattern: re.Pattern[str], text: str) -> int:
@@ -502,11 +515,20 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
                 if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                     _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), app, web_apps, rel))
     # The foundation shell (layout and shell components) names no application (R3).
-    for folder in (web / 'app' / 'components' / 'shell', web / 'app' / 'layouts'):
+    ui = root / 'packages' / 'ui'
+    for folder in (web / 'app' / 'components' / 'shell', web / 'app' / 'layouts', ui / 'app' / 'components' / 'shell'):
         for path in sorted(folder.rglob('*')) if folder.is_dir() else []:
             rel = _rel(path, root)
             if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                 _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), '', web_apps, rel))
+    # The shared UI layer is a hard rule, never baselined: it imports nothing from an application (UI1). Tests under
+    # packages/ui are exempt (is_test_path): they may read application files to prove the layer stays independent.
+    for path in sorted(ui.rglob('*')) if ui.is_dir() else []:
+        rel = _rel(path, root)
+        if 'node_modules' in path.parts or not path.is_file() or path.suffix not in UI_LAYER_FILES or is_test_path(Path(rel)):
+            continue
+        if ui_layer_violations(_read(path)):
+            hard.append(f'UI1 {rel} imports from an application, an addon, an app alias, the contracts or the control plane')
     return v, hard
 
 

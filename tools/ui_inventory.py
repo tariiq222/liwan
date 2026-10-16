@@ -13,6 +13,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / 'apps/web/app'
+LAYER = ROOT / 'packages/ui/app'
+SOURCES = (APP, LAYER)
 UI = APP / 'components/ui'
 CHARTS = APP / 'components/charts'
 CHART_OWNER = 'apps/web/app/components/shared/data/DashboardChart.client.vue'
@@ -25,7 +27,7 @@ def inventory():
     for p in UI.rglob('index.ts'):
         names.update(re.findall(r'default\s+as\s+(\w+)', p.read_text()))
     rows = []
-    for p in sorted(APP.rglob('*.vue')):
+    for p in sorted(vue for root in SOURCES for vue in root.rglob('*.vue')):
         if '__tests__' in p.parts:
             continue
         source = COMMENT.sub('', p.read_text())
@@ -43,7 +45,7 @@ def inventory():
             imports = [s for s in imports if not s.endswith('components/charts')]
         rows.append({
             'path': path,
-            'kind': 'specialist-adapter' if specialist else 'retired-component' if retired else 'route' if p.is_relative_to(APP / 'pages') else 'component' if p.is_relative_to(APP / 'components') else 'app-layout',
+            'kind': 'specialist-adapter' if specialist else 'retired-component' if retired else 'route' if p.is_relative_to(APP / 'pages') else 'component' if p.is_relative_to(APP / 'components') or p.is_relative_to(LAYER / 'components') else 'app-layout',
             'retired_component_tree': retired,
             'legacy_components': legacy if not retired else [],
             'legacy_imports': imports if not retired else [],

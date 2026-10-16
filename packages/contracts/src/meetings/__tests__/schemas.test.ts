@@ -34,6 +34,15 @@ describe('meeting contracts', () => {
     })
   })
 
+  it('detaches from a series with a null series_id and carries the write_date of the edited copy', () => {
+    expect(MeetingPatchSchema.parse({ series_id: null, write_date: '2026-09-07T10:00:00Z' })).toEqual({
+      series_id: null,
+      write_date: '2026-09-07T10:00:00Z',
+    })
+    expect(MeetingPatchSchema.safeParse({ write_date: 42 }).success).toBe(false)
+    expect(MeetingDetailSchema.safeParse({ ...ITEM, agenda: '', minutes: '', location: '', meeting_url: '', can_edit: true, can_manage: false, secretary: null, attendees: [], resolutions: [], series: null, project: null, previous_resolutions: [] }).success).toBe(false)
+  })
+
   it('accepts additive resolution execution fields from the server', () => {
     expect(MeetingResolutionSchema.parse({
       id: 4,
@@ -55,6 +64,7 @@ describe('meeting contracts', () => {
     expect(MeetingListSchema.parse({ items: [ITEM], total: 1 }).total).toBe(1)
     expect(MeetingDetailSchema.parse({
       ...ITEM,
+      write_date: '2026-09-07T10:00:00Z',
       agenda: '<p>أ</p>',
       minutes: '',
       location: 'قاعة 1',
@@ -71,6 +81,12 @@ describe('meeting contracts', () => {
     }).attendees).toHaveLength(1)
   })
 
+  it('strips unknown response keys but still rejects unknown request keys', () => {
+    expect(MeetingListSchema.parse({ items: [{ ...ITEM, server_only: 1 }], total: 1 }).items[0]).not.toHaveProperty('server_only')
+    expect(MeetingCreateSchema.safeParse({ name: 'Strict', server_only: 1 }).success).toBe(false)
+    expect(MeetingPatchSchema.safeParse({ name: 'Strict', server_only: 1 }).success).toBe(false)
+  })
+
   it('keeps minutes_snapshot additive for legacy detail payloads', () => {
     const legacy = {
       id: 1,
@@ -84,6 +100,7 @@ describe('meeting contracts', () => {
       open_resolution_count: 0,
       series_id: null,
       project_id: null,
+      write_date: '2026-09-07T10:00:00Z',
       agenda: '', minutes: '', location: '', meeting_url: '',
       can_edit: false, can_manage: false, secretary: null,
       attendees: [], resolutions: [], series: null, project: null,

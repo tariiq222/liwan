@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from odoo import http
 from odoo.http import request
 
-from .meetings import _parse_url
+from .meetings import _parse_url, _validate_internal_user, _validate_internal_users
 from odoo.addons.nasq_api.controllers.common import (
     ApiError,
     api_handler,
@@ -13,7 +13,11 @@ from odoo.addons.nasq_api.controllers.common import (
     parse_positive_int,
     requires_feature,
 )
-from odoo.addons.nasq_meetings.serializers.meeting import dump_meeting, dump_series
+from odoo.addons.nasq_meetings.serializers.meeting import (
+    dump_meeting,
+    dump_series,
+    projected_resolution_counts,
+)
 
 MAX_SERIES = 200
 RECURRENCE = {'none', 'weekly', 'biweekly', 'monthly'}
@@ -41,25 +45,6 @@ def _parse_series_date(value, field):
         raise ApiError(422, 'invalid', '%s must be a valid ISO date' % field, field=field) from None
 
 
-def _validate_internal_user(user_id, field):
-    parsed = parse_positive_int(user_id, field)
-    if not request.env['nasq.directory']._nasq_people([parsed]):
-        raise ApiError(422, 'invalid', '%s must be an active internal user in the current company' % field, field=field)
-    return parsed
-
-
-def _validate_internal_users(user_ids, field):
-    if not isinstance(user_ids, list):
-        raise ApiError(422, 'invalid', '%s must be a list' % field, field=field)
-    parsed = [parse_positive_int(item, field) for item in user_ids]
-    if not parsed:
-        return []
-    users = request.env['nasq.directory']._nasq_people(parsed)
-    if set(users.ids) != set(parsed):
-        raise ApiError(422, 'invalid', '%s must contain only active internal users in the current company' % field, field=field)
-    return parsed
-
-
 class MeetingSeriesController(http.Controller):
 
     @http.route('/api/v1/meeting-series', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -80,8 +65,9 @@ class MeetingSeriesController(http.Controller):
             )
         Series = request.env['nasq.meeting.series']
         records = Series.search(domain, order='name, id', limit=limit, offset=offset)
+        counts = projected_resolution_counts(records.meeting_ids)
         return {
-            'items': [dump_series(series) for series in records],
+            'items': [dump_series(series, counts=counts) for series in records],
             'total': Series.search_count(domain),
         }
 
@@ -148,17 +134,17 @@ class MeetingSeriesController(http.Controller):
                 parse_positive_int(project_id, 'project_id'),
             ))
         if secretary_id:
-            vals['secretary_id'] = parse_positive_int(secretary_id, 'secretary_id')
-        if isinstance(attendee_ids, list):
-            vals['attendee_ids'] = [(6, 0, [parse_positive_int(item, 'attendee_ids') for item in attendee_ids])]
+            vals['secretary_id'] = _validate_internal_user(secretary_id, 'secretary_id')
+        if attendee_ids is not None:
+            vals['attendee_ids'] = [(6, 0, _validate_internal_users(attendee_ids, 'attendee_ids'))]
         if isinstance(until_date, str) and until_date.strip():
             vals['until_date'] = _parse_series_date(until_date, 'until_date')
         if until_count:
             vals['until_count'] = parse_positive_int(until_count, 'until_count')
         if isinstance(location, str) and location.strip():
             vals['location'] = location.strip()
-        if isinstance(meeting_url, str) and meeting_url.strip():
-            vals['meeting_url'] = meeting_url.strip()
+        if meeting_url is not None:
+            vals['meeting_url'] = _parse_url(meeting_url)
         series = request.env['nasq.meeting.series'].create(vals)
         if recurrence != 'none':
             if not start_datetime or not end_datetime:

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { OperationAction } from '@nasq/contracts'
-import { formatDateTime } from '@/utils/formatDate'
+import { formatDateTime } from '@nasq/ui/app/utils/formatDate'
 import { operationsStateTone } from '@/composables/operations/state'
 import { useOperationRequest, useOperationRequestMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationAttachmentBody, operationErrorKey, operationId, safeOperationReturnTo } from '@/composables/operations/forms'

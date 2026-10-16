@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { formatDateTime } from '@/utils/formatDate'
+import { formatDateTime } from '@nasq/ui/app/utils/formatDate'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.audit.read' })
 type Audit = { id: string; actor: string; action: string; subject: string; reason: string; created_at: string }
 const { t } = useI18n(); const route = useRoute(); const { request } = useVendorApi()

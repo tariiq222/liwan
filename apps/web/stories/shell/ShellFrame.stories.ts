@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
-import ShellFrame from '../../app/components/shell/ShellFrame.vue'
+import ShellFrame from '@nasq/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
 import { createBrandTheme } from '../../app/utils/brandTheme'
 import { __getRouter, useCookie } from '../../.storybook/nuxt-shims'

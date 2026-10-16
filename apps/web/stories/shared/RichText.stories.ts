@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import RichText from '../../app/components/shared/form/RichText.vue'
+import RichText from '@nasq/ui/app/components/shared/form/RichText.vue'
 import { storyContext } from '../support/context'
 
 const sample = '<h2>اعتماد نطاق المرحلة الأولى</h2><p>اكتملت مراجعة النطاق مع <a href="https://example.test">فريق العمل</a>، وتقرر:</p><ul><li>تحديد موعد اعتماد الخطة.</li><li>تجميد المتطلبات الجديدة حتى نهاية الشهر.</li></ul><blockquote>ملاحظة: يلزم توقيع الراعي.</blockquote><script>alert(1)</script>'
@@ -7,7 +7,7 @@ const sample = '<h2>اعتماد نطاق المرحلة الأولى</h2><p>ا�
 const meta = {
   title: 'Shared/RichText',
   component: RichText,
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectUpdateList.vue:64', 'العارض الوحيد لـ HTML مخزّن. ينقّي المحتوى دائمًا (الوسم script في المثال يُحذف) ويطبّق تنسيقًا واحدًا.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectUpdateList.vue:88', 'العارض الوحيد لـ HTML مخزّن. ينقّي المحتوى دائمًا (الوسم script في المثال يُحذف) ويطبّق تنسيقًا واحدًا.'),
   args: { html: sample, size: 'md' },
   render: args => ({
     components: { RichText },

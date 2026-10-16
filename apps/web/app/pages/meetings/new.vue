@@ -23,7 +23,7 @@ const meetingUrl = ref('')
 const agenda = ref('')
 const attendeeIds = ref<number[]>([])
 const secretaryId = ref<number | null>(null)
-const { mutateAsync, isPending, error } = useCreateMeeting()
+const { mutateAsync, isPending, error, reset } = useCreateMeeting()
 // The owning list is fixed by this page's own route, so the return trip is
 // literal and carries only the state the list was showing. A referrer's
 // returnTo is dropped rather than forwarded: on the list URL it would nest one
@@ -89,6 +89,21 @@ function applySeriesDefaults(series: typeof seriesQuery.data.value) {
 watch(seriesQuery.data, applySeriesDefaults, { immediate: true })
 useSsrQuerySeed(seriesQuery, applySeriesDefaults)
 const dirty = computed(() => snapshot() !== baseline.value)
+const { fieldErrors: serverErrors, submitError } = useMeetingSubmitError({
+  error,
+  reset,
+  edits: snapshot,
+  fields: {
+    name: 'name',
+    meeting_date: 'date',
+    start_datetime: 'start',
+    end_datetime: 'end',
+    location: 'location',
+    meeting_url: 'meetingUrl',
+    secretary_id: 'secretary',
+    attendee_ids: 'attendees',
+  },
+})
 const context = computed(() => ({
   series: seriesId.value ? String(route.query.series_name || seriesId.value) : '',
   project: projectId.value ? String(route.query.project_name || projectId.value) : '',
@@ -146,31 +161,31 @@ async function save() {
       </p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
         <div class="nasq-form-grid">
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined">
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="meeting-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>
-          <UFormField :label="t('meetingsUi.date')" name="date" required :error="visibleErrors.date ? t(`meetingsUx.errors.${visibleErrors.date}`) : undefined">
+          <UFormField :label="t('meetingsUi.date')" name="date" required :error="serverErrors.date || (visibleErrors.date ? t(`meetingsUx.errors.${visibleErrors.date}`) : undefined)">
             <SharedDateField id="meeting-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.date" aria-required="true" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.start')" name="start" :error="visibleErrors.start ? t(`meetingsUx.errors.${visibleErrors.start}`) : undefined">
+          <UFormField :label="t('meetingsUi.start')" name="start" :error="serverErrors.start || (visibleErrors.start ? t(`meetingsUx.errors.${visibleErrors.start}`) : undefined)">
             <UInput id="meeting-start" v-model="start" type="time" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.start" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.end')" name="end" :error="visibleErrors.end ? t(`meetingsUx.errors.${visibleErrors.end}`) : undefined">
+          <UFormField :label="t('meetingsUi.end')" name="end" :error="serverErrors.end || (visibleErrors.end ? t(`meetingsUx.errors.${visibleErrors.end}`) : undefined)">
             <UInput id="meeting-end" v-model="end" type="time" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.end" />
           </UFormField>
           <UFormField v-if="end" :label="t('meetingsUx.endDate')" name="endDate" :error="visibleErrors.endDate ? t(`meetingsUx.errors.${visibleErrors.endDate}`) : undefined">
             <SharedDateField id="meeting-end-date" v-model="endDateField" :min-value="meetingDate || null" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.endDate" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.location')" name="location">
+          <UFormField :label="t('meetingsUi.location')" name="location" :error="serverErrors.location">
             <UInput id="meeting-location" v-model="location" class="w-full" :disabled="!hydrated || isPending" />
           </UFormField>
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined">
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined)">
             <UInput id="meeting-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.meetingUrl" />
           </UFormField>
         </div>
       </SharedFormSection>
       <SharedFormSection :title="t('meetingsUi.sectionPeople')">
-        <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="seriesPeople" :disabled="!hydrated || isPending || seriesDefaultsLoading" />
+        <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="seriesPeople" :attendees-error="serverErrors.attendees" :secretary-error="serverErrors.secretary" :disabled="!hydrated || isPending || seriesDefaultsLoading" />
       </SharedFormSection>
       <SharedFormSection :title="t('meetingsUi.agenda')">
         <ClientOnly>
@@ -178,7 +193,7 @@ async function save() {
         </ClientOnly>
       </SharedFormSection>
       <UAlert v-if="seriesDefaultsError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUi.seriesDefaultsError')" />
-      <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
+      <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
       <div class="nasq-form-footer justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError" :label="t('app.create')" />

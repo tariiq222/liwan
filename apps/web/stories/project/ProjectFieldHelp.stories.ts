@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import ProjectFieldHelp from '../../app/components/pmo/projects/ProjectFieldHelp.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

@@ -10,6 +10,7 @@ import { createChecker } from 'vue-component-meta'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const OUTPUT = 'docs/design-system/catalog.json'
 const STORIES = 'apps/web/stories'
+const LAYER_PREFIX = '@nasq/ui/'
 const TSCONFIG = 'apps/web/.nuxt/tsconfig.app.json'
 const AUTO_IMPORTS = 'apps/web/.nuxt/components.d.ts'
 
@@ -22,7 +23,9 @@ function walk(dir) {
 function readStory(file) {
   const source = readFileSync(path.join(root, file), 'utf8')
   const imports = new Map([...source.matchAll(/^\s*import\s+(\w+)\s+from\s+['"]([^'"]+\.vue)['"]/gm)]
-    .map(match => [match[1], path.posix.normalize(path.posix.join(path.posix.dirname(file), match[2]))]))
+    .map(match => [match[1], match[2].startsWith(LAYER_PREFIX)
+      ? `packages/ui/${match[2].slice(LAYER_PREFIX.length)}`
+      : path.posix.normalize(path.posix.join(path.posix.dirname(file), match[2]))]))
   // Each story runs to the next export; the text before the first one is the meta,
   // whose storyContext covers stories that do not cite their own.
   const [head, ...parts] = source.split(/^export const (?=\w+: Story(?:Obj)?\b)/m)
@@ -47,7 +50,8 @@ function readStory(file) {
   }
 }
 
-const optional = type => type.replace(/ \| undefined$/, '')
+// Imported type aliases print through the global scope (`globalThis.ShellRailItem`); the alias name is the documented type.
+const optional = type => type.replace(/ \| undefined$/, '').replaceAll('globalThis.', '')
 // Bundled library types print as minified names (`it | et`); the declared text is clearer.
 const declared = (source, prop, type) => /(^|[ |])[a-z]{1,2}($|[ |])/.test(type)
   ? source.match(new RegExp(`^\\s*${prop}\\??:\\s*([^\\n,]+)`, 'm'))?.[1].trim() ?? type
@@ -66,8 +70,8 @@ function build() {
   const components = listed.map((file) => {
     const story = storyFiles.find(candidate => candidate.component === file)
     const meta = checker.getComponentMeta(path.join(root, file))
-    const relative = file.slice('apps/web/'.length)
-    const name = autoImports.match(new RegExp(`^export const (\\w+): typeof import\\("\\.\\./${relative.replaceAll('.', '\\.')}"\\)`, 'm'))?.[1]
+    const importPath = path.posix.relative('apps/web/.nuxt', file)
+    const name = autoImports.match(new RegExp(`^export const (\\w+): typeof import\\("${importPath.replaceAll('.', '\\.')}"\\)`, 'm'))?.[1]
     const source = readFileSync(path.join(root, file), 'utf8')
     const template = source.match(/<template>[\s\S]*<\/template>/)?.[0] ?? ''
     return {
@@ -82,7 +86,7 @@ function build() {
         ...(prop.default === undefined ? {} : { default: prop.default }),
         ...(prop.description ? { description: prop.description } : {}),
       })),
-      events: meta.events.map(event => ({ name: event.name, payload: event.type })),
+      events: meta.events.map(event => ({ name: event.name, payload: event.type.replaceAll('globalThis.', '') })),
       slots: meta.slots.map(slot => slot.name),
       nuxtUi: [...new Set([...template.matchAll(/<(U[A-Z]\w*)/g)].map(match => match[1]))].sort(),
       stories: story?.stories ?? [],

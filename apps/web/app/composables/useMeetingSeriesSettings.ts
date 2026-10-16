@@ -18,5 +18,3 @@ export function usePatchMeetingSeriesSettings() {
     onSuccess: () => invalidateMeetingCaches(qc),
   })
 }
-
-export const useMeetingSeriesSettings = usePatchMeetingSeriesSettings

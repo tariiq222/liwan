@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TaskDetail } from '@nasq/contracts'
-import { formatNasqDateTime } from '@/composables/calendarDate'
-import { sectionTabsUi } from '@/utils/sectionTabs'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { sectionTabsUi } from '@nasq/ui/app/utils/sectionTabs'
 import DependencyPicker from './DependencyPicker.vue'
 import TaskActivity from './TaskActivity.vue'
 import TaskAttachments from './TaskAttachments.vue'

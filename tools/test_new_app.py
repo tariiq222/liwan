@@ -287,7 +287,7 @@ class TestNewApp(unittest.TestCase):
         self.assertEqual(new_app.web_slots(self.root)[1], letters[-1])
 
     def test_hard_wired_keys_match_the_shell_keymap(self):
-        keymap = (Path(new_app.__file__).resolve().parents[1] / 'apps/web/app/composables/shortcuts/keymap.ts').read_text(encoding='utf-8')
+        keymap = (Path(new_app.__file__).resolve().parents[1] / 'packages/ui/app/composables/shortcuts/keymap.ts').read_text(encoding='utf-8')
         declared = re.search(r'SHELL_RESERVED_KEYS[^=]*=\s*\[([^\]]*)\]', keymap).group(1)
         keys = set(re.findall(r"'([^']+)'", declared))
         self.assertEqual({key for key in keys if re.fullmatch('[a-z0-9]', key)}, set(new_app.HARD_WIRED_SHORTCUTS))

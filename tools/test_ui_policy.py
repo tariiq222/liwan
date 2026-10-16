@@ -10,12 +10,13 @@ import ui_policy as policy
 from ui_policy import check, main, story_errors, story_warnings
 
 APP = "apps/web/app/"
+UI = "packages/ui/app/"
 PAGE = APP + "pages/tasks.vue"
 COMPONENT = APP + "components/shared/Example.vue"
 MANIFEST = "apps/web/package.json"
 CATALOG = "docs/design-system/components.md"
-MAIN_CSS = APP + "assets/css/main.css"
-LEGACY_CSS = APP + "assets/css/approved-shell.css"
+MAIN_CSS = UI + "assets/css/main.css"
+LEGACY_CSS = UI + "assets/css/approved-shell.css"
 LEGACY_CHART = APP + "components/ui/chart/ChartContainer.vue"
 MIGRATED_CHART = APP + "components/charts/ChartContainer.vue"
 PREVIEW_PAGE = "apps/web/design-preview/app/components/Example.vue"
@@ -96,7 +97,7 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_retired_pattern_lookalikes_and_owners_pass(self):
         self.assertEqual(self.errors({PAGE: '<template><p class="max-w-prose text-muted size-4.5 text-xs" /><!-- v-html="x" --></template>'}), [])
-        rich_text = APP + "components/shared/form/RichText.vue"
+        rich_text = UI + "components/shared/form/RichText.vue"
         self.assertNotIn(
             rich_text + ': raw v-html; render stored HTML with SharedRichText (+1)',
             self.errors({rich_text: '<template><div v-html="rendered" /></template>', CATALOG: '`' + rich_text + '`'}),
@@ -191,15 +192,16 @@ class UiPolicyTest(unittest.TestCase):
     def test_retired_css_owner_and_import_are_rejected(self):
         self.assertTrue(self.errors({LEGACY_CSS: '<style>.legacy { color: var(--foreground); }</style>'}))
         self.assertTrue(self.errors({MAIN_CSS: '@import "./approved-shell.css";'}))
+        self.assertTrue(self.errors({APP + "assets/css/approved-shell.css": "/* retired */"}))
 
     def test_current_theme_owners_can_define_theme_values(self):
         for path, source in (
             (MAIN_CSS, ':root { --brand: #123456; }'),
-            (APP + 'assets/css/tokens.css', ':root { --brand: #123456; }'),
-            (APP + 'assets/css/components.css', '.card { color: #123456; }'),
-            (APP + 'assets/css/shell.css', '@font-face { font-family: Nasq; }'),
+            (UI + 'assets/css/tokens.css', ':root { --brand: #123456; }'),
+            (UI + 'assets/css/components.css', '.card { color: #123456; }'),
+            (UI + 'assets/css/shell.css', '@font-face { font-family: Nasq; }'),
             (APP + 'utils/brandTheme.ts', 'export const brand = "#123456"'),
-            (APP + 'app.config.ts', 'export default { ui: { colors: { primary: "#123456" } } }'),
+            (UI + 'app.config.ts', 'export default { ui: { colors: { primary: "#123456" } } }'),
         ):
             with self.subTest(path=path):
                 self.assertEqual(self.errors({path: source}), [])
@@ -300,7 +302,7 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_story_importing_component_outside_components_fails(self):
         errors = story_errors(self.story_snapshot(**{STORY: self.story(target="../../app/pages/example.vue")}))
-        self.assertIn(STORY + ": stories import components only from apps/web/app/components", errors)
+        self.assertIn(STORY + ": stories import components only from apps/web/app/components or packages/ui/app/components", errors)
 
     def test_app_importing_story_fails(self):
         errors = story_errors(self.story_snapshot(**{PAGE: "<script setup>\nimport x from '../../stories/support/context'\n</script>"}))
@@ -392,18 +394,18 @@ class StaticGateTest(unittest.TestCase):
         """A snapshot the completeness rules accept, with the required content."""
         snapshot = {
             APP + "app.vue": "<template><NuxtPage /></template>",
-            APP + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
+            UI + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
                                    "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
-            APP + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.285714rem;\n"
+            UI + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.285714rem;\n"
                                            "  --nasq-midnight: #13234a; --nasq-lime: #c8f031;\n"
                                            "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
                                            "  --status-danger: red; --status-danger-foreground: white;\n"
                                            "  --unread-count-foreground: white;\n"
                                            "  font-family: 'IBM Plex Sans Arabic'; }\n"
                                            "\n.dark { color: #fff; }",
-            APP + "assets/css/components.css": ".nasq-status-text-warning { color: var(--status-warning); }\n"
+            UI + "assets/css/components.css": ".nasq-status-text-warning { color: var(--status-warning); }\n"
                                                ".nasq-unread-count { color: var(--unread-count-foreground); }",
-            APP + "assets/css/shell.css": ".nasq-page-width-list { max-width: none; }\n"
+            UI + "assets/css/shell.css": ".nasq-page-width-list { max-width: none; }\n"
                                           ".nasq-page-width-detail { max-width: 68rem; }\n"
                                           ".nasq-page-width-form { max-width: 58rem; }",
         }
@@ -411,8 +413,8 @@ class StaticGateTest(unittest.TestCase):
         return snapshot
 
     def test_cream_mode_is_retired(self):
-        snapshot = self.whole(**{APP + "assets/css/tokens.css": self.whole()[APP + "assets/css/tokens.css"] + "\n:root.cream { color: #000; }"})
-        self.assertIn(APP + "assets/css/tokens.css: retired token :root.cream", policy.theme_errors(snapshot))
+        snapshot = self.whole(**{UI + "assets/css/tokens.css": self.whole()[UI + "assets/css/tokens.css"] + "\n:root.cream { color: #000; }"})
+        self.assertIn(UI + "assets/css/tokens.css: retired token :root.cream", policy.theme_errors(snapshot))
 
     # --- auto-import namespace -------------------------------------------------
 
@@ -484,20 +486,20 @@ class StaticGateTest(unittest.TestCase):
         self.assertEqual(policy.recipe_errors({self.COMPONENTS + "x.vue": '<div class="nasq-ui-z-40" />'}), [])
 
     def test_theme_colors_and_undocumented_recipe_key_are_reported(self):
-        config = APP + "app.config.ts"
+        config = UI + "app.config.ts"
         moved = self.whole(**{config: "  ui: {\n    colors: { primary: 'sky', neutral: 'slate' },\n  }"})
         self.assertTrue(any("theme colors" in error for error in policy.theme_errors(moved)))
         added = self.whole(**{config: self.whole()[config].replace("  },", "    carousel: {},\n  },")})
         self.assertTrue(any("carousel" in error for error in policy.theme_errors(added)))
 
     def test_theme_probes_tolerate_reformatting(self):
-        spaced = self.whole(**{APP + "app.config.ts":
+        spaced = self.whole(**{UI + "app.config.ts":
                                "  ui: {\n    colors: {   primary: 'brand',\n      neutral: 'slate' },\n  }"})
         self.assertEqual([e for e in policy.theme_errors(spaced) if "theme colors" in e], [])
 
     def test_retired_theme_token_is_reported(self):
         snapshot = self.whole()
-        snapshot[APP + "assets/css/tokens.css"] += "\n--elevation-1: 0 1px 2px #0001;"
+        snapshot[UI + "assets/css/tokens.css"] += "\n--elevation-1: 0 1px 2px #0001;"
         self.assertTrue(any("--elevation-1" in error for error in policy.theme_errors(snapshot)))
 
     # --- page shell ------------------------------------------------------------
@@ -524,7 +526,7 @@ class StaticGateTest(unittest.TestCase):
 
     def test_page_width_probe_tolerates_minified_css(self):
         minified = self.whole()
-        minified[APP + "assets/css/shell.css"] = (".nasq-page-width-list{max-width:none}"
+        minified[UI + "assets/css/shell.css"] = (".nasq-page-width-list{max-width:none}"
                                                   ".nasq-page-width-detail{max-width:68rem}"
                                                   ".nasq-page-width-form{max-width:58rem}")
         self.assertEqual([e for e in policy.page_shell_errors(minified) if "page width" in e], [])
@@ -576,6 +578,14 @@ class StaticGateTest(unittest.TestCase):
         owner = self.COMPONENTS + "shared/form/RichText.vue"
         self.assertEqual(policy.STYLE_OWNERS, frozenset())
         self.assertTrue(policy.scoped_style_errors({owner: "<style scoped>.a{}</style>"}))
+        self.assertTrue(policy.scoped_style_errors({policy.UI_COMPONENTS + "shared/form/RichText.vue": "<style scoped>.a{}</style>"}))
+
+    def test_layer_components_are_scanned_by_the_app_wide_rules(self):
+        layer = policy.UI_COMPONENTS + "shared/data/X.vue"
+        self.assertTrue(policy.button_rank_errors({layer: '<UButton color="secondary">Go</UButton>'}))
+        self.assertTrue(policy.recipe_errors({layer: "<template><div class=\"nasq-ui-card\" /></template>"}))
+        self.assertTrue(policy.template_errors({policy.UI_COMPONENTS + "shared/data/OtherBadge.vue": "<template />"}))
+        self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@nasq/ui/app/utils/sectionTabs"), UI + "utils/sectionTabs")
 
     def test_filled_secondary_button_is_reported_and_quiet_variants_are_not(self):
         self.assertTrue(policy.button_rank_errors({
@@ -587,7 +597,7 @@ class StaticGateTest(unittest.TestCase):
     def test_retired_route_sheet_file_and_artifact_are_reported(self):
         self.assertTrue(policy.retired_artifact_errors({policy.RETIRED_FILES[0]: "<template><div /></template>"}))
         self.assertTrue(policy.retired_artifact_errors({
-            APP + "assets/css/components.css": ".nasq-sheet-in { opacity: 0; }"}))
+            UI + "assets/css/components.css": ".nasq-sheet-in { opacity: 0; }"}))
 
     # --- HR boundary -----------------------------------------------------------
 
@@ -662,7 +672,8 @@ class StaticGateTest(unittest.TestCase):
         }), [])
 
     def test_filter_card_file_and_tag_are_reported(self):
-        self.assertTrue(policy.template_errors({policy.FILTER_CARD_FILE: "<template><div /></template>"}))
+        for file in policy.FILTER_CARD_FILES:
+            self.assertTrue(policy.template_errors({file: "<template><div /></template>"}), file)
         for markup in ("<FilterCard />", "<SharedFilterCard :active-count='1' />", "<shared-filter-card />",
                        "<LazySharedFilterCard />"):
             self.assertTrue(policy.template_errors({self.PAGES + "x.vue": f"<template>{markup}</template>"}), markup)

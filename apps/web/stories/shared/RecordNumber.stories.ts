@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import RecordNumber from '../../app/components/shared/data/RecordNumber.vue'
+import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
 import { storyContext } from '../support/context'
 
 const rows = [{ id: 1042, name: 'وزارة التخطيط' }, { id: 7, name: 'فريق الجودة' }]

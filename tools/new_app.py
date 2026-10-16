@@ -27,7 +27,7 @@ FORBIDDEN_PREFIXES = ('nasq_', 'customer')
 # interpolation (`{}`, `$`) or message syntax (`|`, `@`, `%`).
 SAFE_NAME = re.compile(r"^[^'\"\\<>&{}|@%$\r\n]+$")
 HEADER = '# Part of Odoo. See LICENSE file for full copyright and licensing details.'
-# Keys the shell keymap (apps/web/app/composables/shortcuts/keymap.ts) and list navigation own:
+# Keys the shell keymap (packages/ui/app/composables/shortcuts/keymap.ts) and list navigation own:
 # c (create), g (go-to chord) and j/k (rows); `/`, `?` and `[` are outside the charset. This is the
 # letter/digit part of SHELL_RESERVED_KEYS there (tools/test_new_app.py keeps them equal).
 # A /search one-key nav shortcut must not take them.

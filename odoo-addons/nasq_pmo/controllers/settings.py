@@ -18,6 +18,7 @@ ALLOWED = {
     'deadline_reminders_enabled',
     'deadline_reminders_days_before',
     'overdue_digest_enabled',
+    'require_charter_approval',
 }
 
 

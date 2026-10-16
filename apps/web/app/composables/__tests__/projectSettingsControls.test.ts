@@ -30,6 +30,7 @@ describe('project settings controls client contracts', () => {
       deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1,
       overdue_digest_enabled: true,
+      require_charter_approval: false,
     }).require_manager_on_create).toBe(true)
   })
 })

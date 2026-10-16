@@ -1,5 +1,5 @@
 import type { ScheduleMilestone, ScheduleTask } from '@nasq/contracts'
-import { isCalendarDate } from '../composables/calendarDate'
+import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 
 export type ScheduleScale = 'week' | 'month'
 export type ScheduleAxis = {

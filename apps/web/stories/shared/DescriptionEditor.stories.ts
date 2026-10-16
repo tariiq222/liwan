@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
 import DescriptionEditor from '../../app/components/shared/form/DescriptionEditor.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { ClientOnly } from '../../.storybook/nuxt-shims'
 import { storyContext } from '../support/context'
 
@@ -29,6 +29,6 @@ export const WithContent: Story = {
 }
 export const Readonly: Story = {
   name: 'للقراءة فقط',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:116'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:125'),
   args: { readonly: true, modelValue: '<p>محضر معتمد لا يمكن تعديله.</p>' },
 }

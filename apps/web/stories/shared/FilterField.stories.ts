@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import DateField from '../../app/components/shared/form/DateField.vue'
-import FilterField from '../../app/components/shared/data/FilterField.vue'
+import DateField from '@nasq/ui/app/components/shared/form/DateField.vue'
+import FilterField from '@nasq/ui/app/components/shared/data/FilterField.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/FilterField',
   component: FilterField,
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:335', 'تسمية حقل داخل نافذة الفلاتر. مع `for` تسمّي عنصرًا واحدًا، وبدونه تصبح مجموعة.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:257', 'تسمية حقل داخل نافذة الفلاتر. مع `for` تسمّي عنصرًا واحدًا، وبدونه تصبح مجموعة.'),
   args: { label: 'المنظّم', for: 'story-organizer' },
   render: args => ({
     components: { DateField, FilterField },

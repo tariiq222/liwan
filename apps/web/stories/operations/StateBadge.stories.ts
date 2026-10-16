@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import StatusBadge from '../../app/components/shared/data/StatusBadge.vue'
+import StatusBadge from '@nasq/ui/app/components/shared/data/StatusBadge.vue'
 import { operationsStateTone } from '../../app/composables/operations/state'
 import { storyContext } from '../support/context'
 const meta = { title: 'Operations/StateBadge', component: StatusBadge, parameters: { a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/operations/[id]/index.vue:67') }, args: { tone: 'info', label: '' } } satisfies Meta<typeof StatusBadge>

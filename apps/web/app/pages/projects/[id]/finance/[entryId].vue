@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useDeleteFinanceEntry, useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
 import {
   financeWriteAllowed,
@@ -103,9 +103,9 @@ async function confirmRemoval() {
       >
         <p v-if="deleteError" class="text-error">{{ deleteError }}</p>
       </SharedInlineConfirm>
-      <SharedRecordSection id="finance-entry-amount" :title="t('projects.finance.fields.amount')">
+      <SharedRecordSection panel id="finance-entry-amount" :title="t('projects.finance.fields.amount')">
         <p dir="ltr" class="text-2xl font-semibold tabular-nums">{{ formatMoney(entry.amount, currency) }}</p>
-        <p v-if="entry.notes" class="whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
+        <p v-if="entry.notes" class="mt-2 whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
       </SharedRecordSection>
     </template>
     <template v-if="entry && currency" #aside>

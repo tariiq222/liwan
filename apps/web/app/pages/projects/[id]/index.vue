@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject, useProjectList } from '@/composables/useProjects'

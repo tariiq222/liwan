@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import SettingsPage from '../../app/components/shared/layout/SettingsPage.vue'
-import PageHeader from '../../app/components/shared/layout/PageHeader.vue'
-import PageState from '../../app/components/shared/feedback/PageState.vue'
+import SettingsPage from '@nasq/ui/app/components/shared/layout/SettingsPage.vue'
+import PageHeader from '@nasq/ui/app/components/shared/layout/PageHeader.vue'
+import PageState from '@nasq/ui/app/components/shared/feedback/PageState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

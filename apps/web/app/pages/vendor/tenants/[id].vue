@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { operationStatusBadge } from '@/utils/commercialBadges'
-import { formatNasqDateTime } from '@/composables/calendarDate'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 import { sharedTenantLoginUrl, type SharedTenantProgress } from '@/composables/useSharedTenantOnboarding'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'

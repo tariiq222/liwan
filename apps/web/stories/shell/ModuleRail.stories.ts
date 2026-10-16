@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ModuleRail from '../../app/components/shell/ModuleRail.vue'
+import ModuleRail from '@nasq/ui/app/components/shell/ModuleRail.vue'
 import { shellRail } from '../fixtures/shell'
 import { storyContext } from '../support/context'
 

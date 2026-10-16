@@ -1,4 +1,4 @@
-import type { StatusTone } from './statusTone'
+import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
 
 /** One invoice line as SharedInvoiceLines draws it: every label translated and every amount formatted by the caller. */
 export interface InvoiceLineView {

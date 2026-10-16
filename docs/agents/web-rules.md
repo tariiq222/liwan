@@ -13,8 +13,8 @@ and contracts are in `AGENTS.md`.
   unchanged user-id people picker.
 - RTL styling uses logical Tailwind properties only (`ms-`, `me-`, `ps-`,
   `pe-`, `start-`, `end-`, `text-start`), never physical `ml-`, `pl-`, or
-  `left-` classes. Keep the shared tokens owned by `apps/web/app/assets/css/`
-  and configure Nuxt UI primitives through `apps/web/app/app.config.ts`.
+  `left-` classes. Keep the shared tokens owned by `packages/ui/app/assets/css/`
+  and configure Nuxt UI primitives through `packages/ui/app/app.config.ts`.
 - Authenticated interactive controls whose first click must not be lost during
   SSR hydration use the shared `useHydrated()` composable and stay disabled
   until hydrated. Do not replace this with per-component `mounted` flags or
@@ -26,7 +26,9 @@ and contracts are in `AGENTS.md`.
   (`tools/ui_policy.py`) before a second page uses it. No local copy of a
   component that has a story.
 - Component folders: `components/pmo/projects` and `components/pmo/tasks` (PMO),
-  `components/personal-tasks`, and `components/shared/{layout,data,form,feedback}`.
+  `components/personal-tasks`. Presentational building blocks live in the `packages/ui`
+  layer (`app/components/shared/{layout,data,form,feedback}` and `shell`); `apps/web`
+  keeps only `components/shared/{data,form,commerce}` pieces that need app data.
   `nuxt.config.ts` registers them with an explicit `prefix`, so their names stay
   `Project*`, `Task*`, `MyTasks*` and `Shared*`; a new prefixed folder is added there
   and to `COMPONENT_PREFIXES` in `tools/ui_policy.py`.

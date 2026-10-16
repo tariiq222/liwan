@@ -11,18 +11,23 @@ from odoo.addons.nasq_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.nasq_core.models.access_service import NasqAccessRule
-from odoo.addons.nasq_pmo.models.project_project import STATUS_VALUES, NasqStaleWrite
+from odoo.addons.nasq_pmo.models.project_project import (
+    STATUS_VALUES,
+    NasqCharterState,
+    NasqStaleWrite,
+)
 from odoo.addons.nasq_pmo.serializers.project import (
     dump_project,
     dump_project_detail,
     parse_project_copy,
     parse_project_create,
     parse_project_vals,
+    parse_write_token,
 )
 from odoo.addons.nasq_pmo.serializers.project_charter import parse_charter_vals
 
 MAX_PROJECTS = 200
-LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status', 'sort', 'mine'}
+LIST_QUERY = {'minimal', 'archived', 'limit', 'offset', 'q', 'status', 'sort', 'mine', 'charter_review'}
 _ABSENT = object()
 
 
@@ -45,6 +50,9 @@ class ProjectController(http.Controller):
         mine_param = args.get('mine')
         if mine_param is not None and mine_param not in ('1', 'true', '0', 'false'):
             raise ApiError(422, 'invalid', "mine must be '1', 'true', '0' or 'false'", field='mine')
+        review_param = args.get('charter_review')
+        if review_param is not None and review_param not in ('1', 'true', '0', 'false'):
+            raise ApiError(422, 'invalid', "charter_review must be '1', 'true', '0' or 'false'", field='charter_review')
         # Odoo search(limit=0) means unlimited; treat an explicit 0 as the cap.
         limit = parse_nonneg_int(args.get('limit', MAX_PROJECTS), 'limit') or MAX_PROJECTS
         limit = min(limit, MAX_PROJECTS)
@@ -66,6 +74,8 @@ class ProjectController(http.Controller):
         domain = [('active', '=', False)] if archived else []
         if mine_param in ('1', 'true'):
             domain.append(('user_id', '=', request.env.uid))
+        if review_param in ('1', 'true'):
+            domain += [('nasq_sponsor_id', '=', request.env.uid), ('nasq_charter_state', '=', 'submitted')]
         q = (args.get('q') or '').strip()
         if q:
             domain.append(('name', 'ilike', q))
@@ -149,8 +159,7 @@ class ProjectController(http.Controller):
         if charter is not _ABSENT and expected is _ABSENT:
             raise ApiError(422, 'invalid', "expected_updated_at is required when charter is present", field='expected_updated_at')
         if expected is not _ABSENT:
-            if not isinstance(expected, str) or not expected.startswith('v') or not expected[1:].isdigit():
-                raise ApiError(422, 'invalid', "expected_updated_at is not a valid write token", field='expected_updated_at')
+            parse_write_token(expected)
             try:
                 project._nasq_lock_for_write(expected)
             except NasqStaleWrite as e:
@@ -162,7 +171,10 @@ class ProjectController(http.Controller):
             vals.update(parse_charter_vals(charter, project))
         if not vals:
             return dump_project_detail(project)
-        project._nasq_write_as_manager(vals)
+        try:
+            project._nasq_write_as_manager(vals)
+        except NasqCharterState as e:
+            raise ApiError(409, 'charter_state', str(e)) from e
         return dump_project_detail(project)
 
     @http.route('/api/v1/projects/<int:project_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)

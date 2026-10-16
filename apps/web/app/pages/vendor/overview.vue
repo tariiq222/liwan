@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { commercialMetrics } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { formatNasqDateTime } from '@/composables/calendarDate'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, locale } = useI18n()
 const { can } = useVendorContext()

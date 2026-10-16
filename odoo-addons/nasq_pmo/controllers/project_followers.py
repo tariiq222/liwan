@@ -8,6 +8,7 @@ from odoo.addons.nasq_api.controllers.common import (
     get_record,
     requires_feature,
 )
+from odoo.addons.nasq_pmo.models.project_project import NasqCharterState
 
 
 def _dump_users(users):
@@ -42,4 +43,7 @@ class ProjectFollowerController(http.Controller):
     @requires_feature('pmo.enabled', operation='write')
     def remove_follower(self, project_id, user_id, **_):
         project = get_record('project.project', project_id)
-        return _dump_users(project._nasq_remove_follower(_user(user_id)))
+        try:
+            return _dump_users(project._nasq_remove_follower(_user(user_id)))
+        except NasqCharterState as e:
+            raise ApiError(409, 'charter_state', str(e)) from e

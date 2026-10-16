@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChartPanel from '../../app/components/shared/data/ChartPanel.vue'
+import ChartPanel from '@nasq/ui/app/components/shared/data/ChartPanel.vue'
 import DashboardChart from '../../app/components/shared/data/DashboardChart.client.vue'
-import DashboardPage from '../../app/components/shared/layout/DashboardPage.vue'
-import MetricTile from '../../app/components/shared/data/MetricTile.vue'
+import DashboardPage from '@nasq/ui/app/components/shared/layout/DashboardPage.vue'
+import MetricTile from '@nasq/ui/app/components/shared/data/MetricTile.vue'
 import { dashboardCharts } from '../fixtures/projectReports'
 import { storyContext } from '../support/context'
 

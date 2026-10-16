@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DateField from '../../app/components/shared/form/DateField.vue'
-import FilterBar from '../../app/components/shared/data/FilterBar.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import DateField from '@nasq/ui/app/components/shared/form/DateField.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -34,7 +34,7 @@ export const Disabled: Story = { name: 'معطّل', parameters: formContext, ar
 
 export const InFilterPopover: Story = {
   name: 'داخل نافذة الفلاتر',
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:355', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:277', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
   render: () => ({
     components: { DateField, FilterBar, PageContainer },
     setup: () => ({ t: useI18n().t, from: ref<string | null>(null) }),

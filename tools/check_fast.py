@@ -42,7 +42,9 @@ def plan(changed, base):
         steps.append(('tools_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'tools', '-p', 'test_*.py']))
     if touched('packages/contracts/'):
         steps.append(('contracts_test', ['npm', '-w', 'packages/contracts', 'run', 'test']))
-    if touched('apps/web/', 'packages/contracts/'):
+    if touched('packages/ui/'):
+        steps.append(('ui_layer_test', ['npm', '-w', 'packages/ui', 'run', 'test']))
+    if touched('apps/web/', 'packages/contracts/', 'packages/ui/'):
         steps.append(('ui_inventory', [PY, '-B', 'tools/ui_inventory.py', '--check']))
         steps.append(('ui_catalog', ['node', 'tools/ui_catalog.mjs', '--check']))
         steps.append(('ui_templates', ['node', 'tools/ui_templates.mjs']))

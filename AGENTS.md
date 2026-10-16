@@ -75,6 +75,48 @@ for the target and its pending gates; the older
 historical scope. Government packaging from one release line is preferred for
 assessment; a permanent fork is not approved by default.
 
+## Clean pre-release codebase: no accumulation — 2026-10-15
+
+Nasq has not been released and has no live tenants, so there is nothing to stay
+backward compatible with. The product must ship sound and clean: clean code, correct data
+structures, and a file architecture where every file has one owner and one reason to exist.
+Accumulation in code or in the database schema is a defect, not technical debt to schedule.
+
+- **Replace, do not layer.** When behavior changes, change the code in place. No parallel
+  `v2`/`_new`/`_old` copies, no dead branches kept "just in case", no compatibility wrappers,
+  no feature flags whose only purpose is to keep an old path alive, no commented-out code.
+  Removed code lives in Git history, never in `legacy/`, `.bak` or archived copies inside the
+  source tree (`docs/archive/` holds documents only, never code).
+- **One schema, no remnants.** A model change edits the field or table directly. No unused
+  or renamed-and-kept columns, no "temporary" fields, no compatibility tables, no duplicate
+  store of the same fact. Migrations follow [docs/migrations.md](docs/migrations.md) only to
+  carry existing development data forward to the clean schema; they never preserve the old
+  structure next to the new one, and the simplest correct schema wins over a migration-friendly
+  one.
+- **Clean code.** Small functions with one purpose, names that state what a thing is, no magic
+  values, no duplication (extract one helper in the owning layer per R4), explicit errors (no
+  silent `except`/`catch`), no unused parameters, imports or locale keys, and the existing
+  conventions of the layer (`docs/agents/odoo-rules.md`, `docs/agents/web-rules.md`).
+- **Sound data structures.** One source of truth per fact; derived values are computed, not
+  stored twice; Odoo field types, serializers and the zod contracts in `packages/contracts`
+  match exactly; relations and selections instead of free-text or JSON blobs when the data has
+  a shape; list envelopes stay `{items, total}`.
+- **Files where they belong.** Every file sits in the folder its application and layer own
+  (R2–R4, [repository layout](docs/agents/repository-layout.md), the `apps/web` folder
+  conventions in DESIGN.md). One module per responsibility; no `misc`/`utils2`/`helpers_new`
+  dumping grounds. When a file's last use goes, the file goes, together with its tests,
+  stories, fixtures and locale keys.
+- **Suppressions only shrink.** Like `tools/arch_baseline.json`, the set of test skips,
+  `# noqa`, `eslint-disable`, `@ts-ignore`/`@ts-expect-error` and lint ignores never grows
+  without a reason on the same line, and each is removed with its cause.
+- **Touch it, clean it.** A task that meets accumulation inside its own file ownership removes
+  it in the same task. Accumulation outside that ownership is reported in the task's result so
+  the orchestrator schedules it; it is never extended. Cleaning is not a licence to widen scope,
+  reverse an approved decision, or merge without the authorizations above.
+- **Done means clean.** Work is not complete while it leaves a parallel path, an unused
+  artifact, or a schema remnant behind. Reviewers (`REVIEW.md`, `odoo-reviewer`) report
+  accumulation as a blocking finding, in the same class as a failing test.
+
 ## Architecture rules (R1–R10)
 
 Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md).
@@ -182,7 +224,7 @@ cross-addon links.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
 - `nasq_hr`, `nasq_tasks`, `nasq_operations` and their bridges have no `sudo()` path. In PMO, only the documented manager-write,
-  policy/config, display-lookup, integer-count, completion-status and notification
+  charter-approval (approval fields only, through `_nasq_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
   cron/candidate cases use `sudo()` after the caller's authorization check;
   `nasq_notify` uses it only for bell delivery and recipient-owned bell reads.
   `nasq_meetings` uses it only for its server-controlled minutes, snapshot,

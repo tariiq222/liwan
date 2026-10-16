@@ -8,15 +8,18 @@ import { buildNuxtImports } from './nuxt-imports.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const webRoot = resolve(here, '..')
+const uiRoot = resolve(here, '../../../packages/ui')
 
 // nuxt.config.ts and app.config.ts are read as-is; their define* helpers are identity functions.
 const configGlobals = globalThis as { defineNuxtConfig?: (c: unknown) => unknown; defineAppConfig?: (c: unknown) => unknown }
 configGlobals.defineNuxtConfig ??= c => c
 configGlobals.defineAppConfig ??= c => c
 
+type LayerLocale = { code: string; files: string[] }
 type LocaleConfig = { code: string; language: string; dir: 'rtl' | 'ltr'; files: string[] }
 
-function i18nMessages(locales: LocaleConfig[]): Plugin {
+// Layer messages merge first so the app's own files win, as @nuxtjs/i18n merges extended layers.
+function i18nMessages(layerLocales: LayerLocale[], locales: LocaleConfig[]): Plugin {
   const id = 'virtual:nasq-i18n'
   return {
     name: 'nasq:i18n-messages',
@@ -26,9 +29,14 @@ function i18nMessages(locales: LocaleConfig[]): Plugin {
       const imports: string[] = []
       const table: string[] = []
       locales.forEach((locale, li) => {
-        const parts = locale.files.map((file, fi) => {
+        const layerFiles = layerLocales.filter(layer => layer.code === locale.code).flatMap(layer => layer.files)
+        const paths = [
+          ...layerFiles.map(file => join(uiRoot, 'i18n/locales', file)),
+          ...locale.files.map(file => join(webRoot, 'i18n/locales', file)),
+        ]
+        const parts = paths.map((path, fi) => {
           const name = `m${li}_${fi}`
-          imports.push(`import ${name} from ${JSON.stringify(join(webRoot, 'i18n/locales', file))}`)
+          imports.push(`import ${name} from ${JSON.stringify(path)}`)
           return name
         })
         table.push(`${JSON.stringify(locale.code)}: merge(${parts.join(', ')})`)
@@ -96,11 +104,12 @@ const config: StorybookConfig = {
   stories: ['../stories/**/*.mdx', '../stories/**/*.stories.ts'],
   addons: ['@storybook/addon-docs', '@storybook/addon-a11y', 'msw-storybook-addon'],
   framework: { name: '@storybook/vue3-vite', options: {} },
-  staticDirs: ['../public', './public'],
+  staticDirs: ['../public', '../../../packages/ui/public', './public'],
   async viteFinal(viteConfig, { configType }) {
     const { mergeConfig } = await import('vite')
-    const { default: nuxtConfig } = await import('../nuxt.config.ts') as { default: { ui: object; icon?: { clientBundle?: object }; i18n: { locales: LocaleConfig[] } } }
-    const { default: appConfig } = await import('../app/app.config.ts') as { default: { ui: object } }
+    const { default: nuxtConfig } = await import('../nuxt.config.ts') as { default: { icon?: { clientBundle?: object }; i18n: { locales: LocaleConfig[] } } }
+    const { default: layerConfig } = await import('../../../packages/ui/nuxt.config.ts') as { default: { ui: object; i18n: { locales: LayerLocale[] } } }
+    const { default: appConfig } = await import('../../../packages/ui/app/app.config.ts') as { default: { ui: object } }
     const ui = (await import('@nuxt/ui/vite')).default
     const vue = (await import('@vitejs/plugin-vue')).default
     const { imports, components, report } = await buildNuxtImports()
@@ -127,11 +136,11 @@ const config: StorybookConfig = {
       define: { 'import.meta.server': 'false', 'import.meta.client': 'true', 'import.meta.dev': 'true' },
       plugins: [
         vue(),
-        i18nMessages(nuxtConfig.i18n.locales),
+        i18nMessages(layerConfig.i18n.locales, nuxtConfig.i18n.locales),
         nuxtUiComponents(),
         importMetaEnvShim(),
         ui({
-          ...nuxtConfig.ui,
+          ...layerConfig.ui,
           ui: appConfig.ui,
           // The real @nuxt/icon Nuxt module normally derives `cssSelectorPrefix`
           // ('i-', its own default) and `collections` (from installed

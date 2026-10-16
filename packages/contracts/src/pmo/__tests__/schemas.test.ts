@@ -96,8 +96,10 @@ const EMPTY_CHARTER = {
   deliverables: [], success: '', budget_state: 'unknown', amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft',
+  approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
+  approved_by: null, approved_at: null, return_note: '',
 }
-const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false }
+const PROJECT_JSON = { id: 3, name: 'Erada Portal', status: null, progress: 33, task_count: 3, closed_task_count: 1, active: true, can_manage: false, charter_state: 'draft' }
 
 describe('ProjectSchema', () => {
   it('carries existing manager and end date in list rows without exposing other user fields', () => {
@@ -156,7 +158,7 @@ describe('TaskPatchSchema stage_id', () => {
 })
 
 const STAGE = { id: 1, name: 'A', sequence: 10, fold: false, task_count: 2 }
-const PROJECT = { id: 3, name: 'P', status: null, progress: 0, task_count: 0, closed_task_count: 0, active: true, can_manage: true }
+const PROJECT = { id: 3, name: 'P', status: null, progress: 0, task_count: 0, closed_task_count: 0, active: true, can_manage: true, charter_state: 'draft' }
 
 describe('ProjectListSchema', () => {
   it('is an object with items, can_create and can_list_archived, not the phase-2 bare array', () => {
@@ -212,6 +214,7 @@ describe('Milestone / ProjectUpdate / Settings', () => {
       require_manager_on_create: true, require_end_date_on_create: true,
       default_completion_approval: 'none', deadline_reminders_enabled: true,
       deadline_reminders_days_before: 1, overdue_digest_enabled: true,
+      require_charter_approval: false,
     }).default_stages).toHaveLength(1)
     expect(() => ProjectSettingsSchema.parse({ project_creators: 'anyone', default_stages: [] })).toThrow()
     expect(StageOrderBodySchema.parse({ ids: [2, 1] }).ids).toEqual([2, 1])

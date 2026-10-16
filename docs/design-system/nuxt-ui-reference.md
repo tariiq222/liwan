@@ -9,9 +9,9 @@
 | الجزء | المصدر الحالي |
 | --- | --- |
 | مكتبة الواجهة | `@nuxt/ui` بالإصدار المثبت في `apps/web/package.json` و`package-lock.json` |
-| وصفات Nuxt UI | `apps/web/app/app.config.ts` |
-| مدخل CSS والخط | `apps/web/app/assets/css/main.css`؛ يستورد `tokens.css` و`components.css` و`shell.css` وخط IBM Plex Sans Arabic المحلي |
-| توكنات الأسطح والتحكم | `apps/web/app/assets/css/tokens.css`, `apps/web/app/assets/css/components.css`, `apps/web/app/assets/css/shell.css` |
+| وصفات Nuxt UI | `packages/ui/app/app.config.ts` |
+| مدخل CSS والخط | `packages/ui/app/assets/css/main.css`؛ يستورد `tokens.css` و`components.css` و`shell.css` وخط IBM Plex Sans Arabic المحلي |
+| توكنات الأسطح والتحكم | `packages/ui/app/assets/css/tokens.css`, `packages/ui/app/assets/css/components.css`, `packages/ui/app/assets/css/shell.css` |
 | لون الهوية | `apps/web/app/utils/brandTheme.ts`؛ الإدخال هو `primary_color` وتُشتق منه حالات التفاعل والروابط والاختيار والرسوم |
 | حالة المظهر والخط | `apps/web/app/composables/useAppearance.ts` و`apps/web/app/utils/appearance.ts`؛ الحالة وcookie هنا |
 | الرسوم | `apps/web/app/components/shared/data/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
@@ -27,7 +27,7 @@
 المحايدات وأساليب الحالة منفصلة عن لون الهوية؛ `brandTheme.ts` يشتق عائلة
 `--primary*` و`--chart-*` من اللون الأساسي لكل مظهر، مع إبقاء توكنات النجاح
 والتحذير والخطأ والمعلومة دلالية. الشعار المؤقت في
-`apps/web/app/components/shared/layout/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
+`packages/ui/app/components/shared/layout/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
 أو بياناته أو مساراته التجريبية إلى التشغيل.
 
 ## حدود الاستخدام

@@ -13,6 +13,13 @@ class TestNoExternalRefs(unittest.TestCase):
         text = '<svg xmlns="http://www.w3.org/2000/svg">\nconst u = "https://example.invalid/docs"\n'
         self.assertEqual(find_external_refs('a.vue', text), [])
 
+    def test_scans_the_ui_layer(self):
+        import no_external_refs
+        for root in ('packages/ui/app', 'packages/ui/public', 'packages/ui/nuxt.config.ts'):
+            self.assertIn(root, no_external_refs.ROOTS)
+        self.assertEqual(find_external_refs('packages/ui/app/assets/css/main.css', "@import url('https://fonts.googleapis.com/x.css');"),
+                         [('packages/ui/app/assets/css/main.css', 1)])
+
 
 if __name__ == '__main__':
     unittest.main()

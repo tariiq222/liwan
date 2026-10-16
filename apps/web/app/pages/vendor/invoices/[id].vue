@@ -3,7 +3,7 @@ import { invoiceStatusBadge, paymentAttemptBadge } from '@/utils/commercialBadge
 import { formatVendorMoney } from '@/utils/vendorCommercial'
 import { invoicesReturnTo, isCreditRelated, isNotAvailable, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { formatNasqDate, formatNasqDateTime } from '@/composables/calendarDate'
+import { formatNasqDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
 const { can } = useVendorContext()

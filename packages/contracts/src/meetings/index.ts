@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const MeetingPersonSchema = z.object({
   id: z.number().int(),
   name: z.string(),
-}).strict()
+}).strip()
 
 export const MeetingListItemSchema = z.object({
   id: z.number().int(),
@@ -17,12 +17,12 @@ export const MeetingListItemSchema = z.object({
   open_resolution_count: z.number().int(),
   series_id: z.number().int().nullable(),
   project_id: z.number().int().nullable(),
-}).strict()
+}).strip()
 
 export const MeetingListSchema = z.object({
   items: z.array(MeetingListItemSchema),
   total: z.number().int(),
-}).strict()
+}).strip()
 
 export const MeetingResolutionSchema = z.object({
   id: z.number().int(),
@@ -40,12 +40,12 @@ export const MeetingResolutionSchema = z.object({
   allowed_actions: z.array(z.enum(['start', 'complete', 'cancel', 'reopen', 'edit_result'])).optional(),
   execution_period: z.string().optional(),
   project: MeetingPersonSchema.nullable().optional(),
-}).strict()
+}).strip()
 
 export const MeetingPreviousResolutionSchema = MeetingResolutionSchema.extend({
   meeting_id: z.number().int(),
   meeting_name: z.string(),
-}).strict()
+}).strip()
 
 export const MeetingSnapshotResolutionSchema = z.object({
   id: z.number().int(),
@@ -58,7 +58,7 @@ export const MeetingSnapshotResolutionSchema = z.object({
   meeting_name: z.string().optional(),
   execution_period: z.string().optional(),
   project: MeetingPersonSchema.nullable().optional(),
-}).strict()
+}).strip()
 
 export const MeetingMinutesTopicSchema = z.object({
   key: z.string().trim().min(1).max(200),
@@ -78,7 +78,7 @@ export const MeetingMinutesFormSchema = z.object({
 }).strict()
 
 export const MeetingMinutesSnapshotSchema = z.object({
-  captured_at: z.string(),
+  captured_at: z.string().nullish(),
   name: z.string(),
   meeting_date: z.string().nullable(),
   start_datetime: z.string().nullable(),
@@ -91,9 +91,10 @@ export const MeetingMinutesSnapshotSchema = z.object({
   minutes: z.string(),
   resolutions: z.array(MeetingSnapshotResolutionSchema),
   minutes_form: MeetingMinutesFormSchema.optional(),
-}).strict()
+}).strip()
 
 export const MeetingDetailSchema = MeetingListItemSchema.extend({
+  write_date: z.string(),
   agenda: z.string(),
   minutes: z.string(),
   location: z.string(),
@@ -108,7 +109,7 @@ export const MeetingDetailSchema = MeetingListItemSchema.extend({
   previous_resolutions: z.array(MeetingPreviousResolutionSchema),
   minutes_snapshot: MeetingMinutesSnapshotSchema.nullable().optional(),
   minutes_form: MeetingMinutesFormSchema.optional(),
-}).strict()
+}).strip()
 
 export const MeetingCreateSchema = z.object({
   name: z.string().trim().min(1),
@@ -131,9 +132,11 @@ export const MeetingPatchSchema = MeetingCreateSchema.partial().extend({
   start_datetime: z.string().nullable().optional(),
   end_datetime: z.string().nullable().optional(),
   secretary_id: z.number().int().nullable().optional(),
+  series_id: z.number().int().nullable().optional(),
   project_id: z.number().int().nullable().optional(),
   minutes_form: MeetingMinutesFormSchema.optional(),
   scope: z.enum(['this', 'this_and_following']).optional(),
+  write_date: z.string().optional(),
 }).strict()
 
 export const MeetingResolutionCreateSchema = z.object({
@@ -167,24 +170,24 @@ export const MeetingEventSchema = z.object({
   actor: MeetingPersonSchema.nullable(),
   kind: z.string(),
   summary: z.string(),
-}).strict()
+}).strip()
 
-export const MeetingEventListSchema = z.object({ items: z.array(MeetingEventSchema), total: z.number().int() }).strict()
+export const MeetingEventListSchema = z.object({ items: z.array(MeetingEventSchema), total: z.number().int() }).strip()
 
 export const MeetingVersionSchema = z.object({
   id: z.number().int(),
   number: z.number().int(),
   captured_at: z.string(),
   actor: MeetingPersonSchema.nullable(),
-  snapshot: MeetingMinutesSnapshotSchema,
-}).strict()
+  snapshot: MeetingMinutesSnapshotSchema.nullable(),
+}).strip()
 
-export const MeetingVersionListSchema = z.object({ items: z.array(MeetingVersionSchema), total: z.number().int() }).strict()
+export const MeetingVersionListSchema = z.object({ items: z.array(MeetingVersionSchema), total: z.number().int() }).strip()
 
 export const MeetingSeriesResolutionListSchema = z.object({
   items: z.array(MeetingPreviousResolutionSchema),
   total: z.number().int(),
-}).strict()
+}).strip()
 
 export const MeetingSeriesListItemSchema = z.object({
   id: z.number().int(),
@@ -196,12 +199,12 @@ export const MeetingSeriesListItemSchema = z.object({
   project: MeetingPersonSchema.nullable(),
   open_resolution_count: z.number().int(),
   overdue_resolution_count: z.number().int(),
-}).strict()
+}).strip()
 
 export const MeetingSeriesListSchema = z.object({
   items: z.array(MeetingSeriesListItemSchema),
   total: z.number().int(),
-}).strict()
+}).strip()
 
 export const MeetingSeriesDetailSchema = MeetingSeriesListItemSchema.extend({
   location: z.string(),
@@ -210,7 +213,7 @@ export const MeetingSeriesDetailSchema = MeetingSeriesListItemSchema.extend({
   attendees: z.array(MeetingPersonSchema),
   meetings: z.array(MeetingListItemSchema),
   can_edit: z.boolean().optional(),
-}).strict()
+}).strip()
 
 export const MeetingSeriesCreateSchema = z.object({
   name: z.string().trim().min(1),

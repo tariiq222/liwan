@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import LoadingSkeleton from '../../app/components/shared/feedback/LoadingSkeleton.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import LoadingSkeleton from '@nasq/ui/app/components/shared/feedback/LoadingSkeleton.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/LoadingSkeleton',
   component: LoadingSkeleton,
-  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/shared/feedback/PageState.vue:18', 'حالة التحميل الوحيدة: صفوف للقوائم، وسجل بعمود خصائص، وبطاقات للوحات.') },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/feedback/PageState.vue:18', 'حالة التحميل الوحيدة: صفوف للقوائم، وسجل بعمود خصائص، وبطاقات للوحات.') },
   args: { variant: 'rows', count: 3 },
   render: args => ({
     components: { LoadingSkeleton, PageContainer },

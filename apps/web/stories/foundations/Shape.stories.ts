@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import componentsCss from '../../app/assets/css/components.css?raw'
-import tokensCss from '../../app/assets/css/tokens.css?raw'
+import componentsCss from '../../../../packages/ui/app/assets/css/components.css?raw'
+import tokensCss from '../../../../packages/ui/app/assets/css/tokens.css?raw'
 import { TokenTable } from './TokenTable'
 import { parseTokenNames } from './tokens'
 

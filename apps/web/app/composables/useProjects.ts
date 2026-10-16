@@ -1,7 +1,7 @@
 import { toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { z } from 'zod'
-import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES, ProjectDetailSchema, ProjectListSchema, ProjectRefSchema, type ProjectCharterAction, type ProjectCopyInput, type ProjectCreate, type ProjectDetail, type ProjectPatch, type ProjectStatus } from '@nasq/contracts'
 import { ApiError } from './useApi'
 import { invalidateProjectCaches, projectKeys } from './projectKeys'
 import { parseOffset } from '../utils/routeQuery'
@@ -16,6 +16,7 @@ export type ProjectListFilters = {
   mine?: boolean
   sort?: 'default' | 'name' | 'progress'
   status?: 'unset' | ProjectStatus
+  charterReview?: boolean
   limit?: number
   offset?: number
 }
@@ -112,6 +113,7 @@ export function projectListQuery(archived: boolean, filters: ProjectListFilters 
     ...(filters.mine ? { mine: 1 } : {}),
     q: filters.q?.trim() || undefined,
     status: filters.status,
+    ...(filters.charterReview ? { charter_review: 1 } : {}),
     ...(filters.sort && filters.sort !== 'default' ? { sort: filters.sort } : {}),
     limit,
     offset,
@@ -225,6 +227,23 @@ export function useUpdateProject() {
       if (ctx?.prev) qc.setQueryData(projectKeys.detail(id), ctx.prev)
     },
     onSuccess: (detail, { id }) => {
+      qc.setQueryData(projectKeys.detail(id), detail)
+      invalidateProjectCaches(qc)
+    },
+  })
+}
+
+export function useCharterTransition() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: ({ id, action, expected, note }: { id: number; action: ProjectCharterAction; expected: string; note?: string }) =>
+      $api(`/api/v1/projects/${id}/charter/${action}`, {
+        method: 'POST',
+        body: action === 'return' ? { expected_updated_at: expected, note } : { expected_updated_at: expected },
+        schema: ProjectDetailSchema,
+      }),
+    onSuccess: (detail: ProjectDetail, { id }) => {
       qc.setQueryData(projectKeys.detail(id), detail)
       invalidateProjectCaches(qc)
     },

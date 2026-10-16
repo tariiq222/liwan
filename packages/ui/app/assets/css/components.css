@@ -1,0 +1,348 @@
+/* Shell interaction states and browser surfaces. Components use Nuxt UI's
+   stock recipes; there are deliberately no component classes here. */
+
+.nasq-mobile-menu-trigger { display: none; }
+/* The one mobile drawer (Tasmim spec §5): px geometry, 320px at a 390px phone at any text size, from the inline-start side. */
+.nasq-mobile-menu { width: min(320px, calc(100vw - 48px)); max-width: none; z-index: 70; }
+.nasq-mobile-menu-overlay { z-index: 65; }
+.nasq-mobile-section { display: grid; gap: 2px; }
+.nasq-mobile-title { margin-block: 0 8px; font-size: .875rem; font-weight: 600; }
+.nasq-mobile-menu .nasq-context-link { width: 100%; min-height: 44px; }
+.nasq-mobile-menu .nasq-context-section-title { margin-block-start: 8px; }
+.nasq-search-overlay { z-index: 79; }
+.nasq-search-dialog { z-index: 80; }
+.approved-account-menu { z-index: 80; }
+
+/* The pinned create action keeps its primary fill even when its route is active. */
+.nasq-context-create[data-active="true"],
+.nasq-context-create[data-active="true"]:hover {
+  background: var(--primary-fill);
+  color: var(--primary-fill-foreground);
+}
+
+/* The create action also carries the generic context-link class. Keep its
+   primary treatment ahead of the shared link hover state in shell.css. */
+.nasq-context-link.nasq-context-create,
+.nasq-context-link.nasq-context-create:hover,
+.nasq-context-link.nasq-context-create:focus-visible,
+.nasq-context-link.nasq-context-create[data-active="true"],
+.nasq-context-link.nasq-context-create[data-active="true"]:hover {
+  background: var(--primary-fill);
+  color: var(--primary-fill-foreground);
+  border-color: transparent;
+}
+.nasq-context-link.nasq-context-create:active {
+  background: var(--primary-fill-active);
+  color: var(--primary-fill-active-foreground);
+}
+
+@media (max-width: 767px) {
+  .nasq-mobile-menu [data-slot="body"] { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nasq-mobile-menu,
+  .nasq-search-dialog {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@layer base {
+  * { border-color: var(--ui-border); outline-color: var(--brand-link); }
+  body { @apply bg-default text-default font-sans antialiased; }
+}
+
+/* The approved icon system uses one fixed Lucide geometry everywhere. */
+.iconify,
+.nasq-shell-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  stroke-width: 2;
+}
+
+/* Nuxt UI owns control size and focus recipes. Semantic links and editors
+   retain a keyboard outline without overriding the library's field rings. */
+@layer base {
+  :where(a, button, [contenteditable="true"]):focus-visible {
+    outline: 2px solid var(--ui-primary);
+    outline-offset: 2px;
+  }
+}
+@media (forced-colors: active) {
+  :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+}
+
+/* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */
+.nasq-status-text-warning { color: var(--status-warning-foreground); }
+
+.nasq-status-callout-danger {
+  border: 1px solid color-mix(in srgb, var(--destructive) 40%, var(--border));
+  background: color-mix(in srgb, var(--destructive) 8%, var(--card));
+  color: var(--foreground);
+  border-radius: var(--ui-radius);
+}
+
+.nasq-status-dot-success { background: var(--status-success); }
+.nasq-status-dot-warning { background: var(--status-warning); }
+.nasq-unread-count {
+  background: var(--destructive);
+  color: var(--unread-count-foreground);
+}
+
+/* Browser surfaces carry the palette: selection, caret and scrollbars. */
+::selection { background: color-mix(in srgb, var(--primary-fill) 32%, transparent); color: var(--foreground); }
+html { caret-color: var(--brand-link); }
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--foreground) 26%, transparent) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: color-mix(in srgb, var(--foreground) 26%, transparent);
+}
+*::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--foreground) 38%, transparent); }
+
+/* Print (Tasmim Plan 4). Paper never carries the app chrome: the header, the module
+   rail, the context sidebar, the mobile trigger and anything marked .nasq-print-hide are
+   dropped, and the workspace loses their offsets. A print page (SharedStandalonePage
+   variant="print", .nasq-print) is black on white in either appearance: it resets the
+   Nuxt UI tokens and the tokens.css aliases (resolved once on :root), so every utility
+   inside follows. */
+@media print {
+  .nasq-shell-header,
+  .nasq-module-rail,
+  .nasq-context-sidebar,
+  .nasq-mobile-menu-trigger,
+  .nasq-print-hide { display: none !important; }
+  .nasq-shell-workspace { min-height: 0 !important; margin-inline-start: 0 !important; padding-block-start: 0 !important; }
+  .nasq-shell-main { min-height: 0 !important; padding: 0 !important; overflow: visible !important; }
+  :root:has(.nasq-print),
+  :root:has(.nasq-print) :is(body, .nasq-shell, .nasq-shell-workspace, .nasq-shell-main) {
+    background: #fff !important;
+    color-scheme: light;
+  }
+  .nasq-print {
+    --ui-bg: #fff;
+    --ui-bg-muted: #fff;
+    --ui-bg-elevated: #fff;
+    --ui-bg-accented: #fff;
+    --ui-text: #000;
+    --ui-text-highlighted: #000;
+    --ui-text-muted: #000;
+    --ui-text-toned: #000;
+    --ui-text-dimmed: #000;
+    --ui-border: #000;
+    --ui-border-muted: #000;
+    --ui-border-accented: #000;
+    --background: #fff;
+    --card: #fff;
+    --muted: #fff;
+    --foreground: #000;
+    --muted-foreground: #000;
+    --border: #000;
+    max-width: none !important;
+    background: #fff;
+    color: #000;
+  }
+  .nasq-print * { box-shadow: none !important; }
+  /* SharedRecordSection panel: a card on screen, flat on paper. */
+  .nasq-print .nasq-record-panel { background: transparent; border-radius: 0; break-inside: avoid; }
+  .nasq-print .nasq-record-panel > header { border-color: #000; }
+  /* A wide document (the minutes' topic table) asks for landscape: the named page below is chosen by .nasq-print-landscape. */
+  @page nasq-landscape { size: A4 landscape; margin: 12mm; }
+  .nasq-print-landscape { page: nasq-landscape; }
+}
+
+/* Phase7: component typography/layout belongs to the shared sheet. */
+/* shared/DashboardChart.client.vue */
+.chart-donut-container {
+  height: auto !important;
+}
+
+.chart-donut-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-donut-svg {
+  min-height: 0;
+  animation: nasq-chart-in 220ms ease-out;
+}
+
+@keyframes nasq-chart-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.chart-donut-svg path[class*="-segment"],
+.chart-bar-plot path[class*="-bar"] {
+  transition: fill var(--chart-motion-duration, 0ms) ease, filter 160ms ease !important;
+}
+
+.chart-donut-svg path[class*="-segment"]:hover,
+.chart-bar-plot path[class*="-bar"]:hover {
+  filter: brightness(1.12);
+}
+
+.chart-donut-legend {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: center;
+  gap: 0.4rem 1rem;
+  padding: 0 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.chart-donut-legend-item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chart-donut-legend-swatch {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+}
+
+.chart-bar-stack {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.chart-bar-plot {
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.chart-bar-legend {
+  min-height: 2rem;
+  flex: 0 0 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-donut-svg { animation: none; }
+  .chart-donut-svg path[class*="-segment"],
+  .chart-bar-plot path[class*="-bar"] {
+    transition: none !important;
+  }
+
+  .chart-donut-svg path[class*="-segment"]:hover,
+  .chart-bar-plot path[class*="-bar"]:hover {
+    filter: none !important;
+  }
+}
+
+/* task/Timeline.vue */
+/* The connector between avatars is a pseudo-element; utilities cannot draw it
+   without a stack of arbitrary `after:` values. */
+.task-activity-item:not(:last-child)::after {
+  position: absolute;
+  inset-block: 1.75rem 0;
+  inset-inline-start: 0.8125rem;
+  width: 1px;
+  background: var(--ui-border);
+  content: '';
+}
+
+/* hr/DepartmentOrgChart.vue */
+.hr-org-chart-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  background: var(--background);
+}
+
+/* hr/DepartmentTree.vue */
+.dept-tree-row {
+  --dept-indent: 1.25rem;
+  padding-inline-start: calc(0.75rem + (var(--dept-depth, 0) * var(--dept-indent)));
+}
+@media (max-width: 640px) {
+  .dept-tree-row { --dept-indent: 0.7rem; }
+}
+.dept-tree-guide {
+  position: absolute;
+  inset-inline-start: calc(0.75rem + ((var(--dept-depth) - 1) * var(--dept-indent)) + 0.95rem);
+  inset-block-start: 0;
+  height: 50%;
+  width: 1px;
+  background: var(--ui-border);
+  pointer-events: none;
+}
+.dept-tree-guide::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-end: 0;
+  width: calc(var(--dept-indent) - 0.3rem);
+  height: 1px;
+  background: var(--ui-border);
+}
+.dept-tree-chevron { transition: transform 150ms ease-out; }
+.dept-tree-chevron-collapsed { transform: rotate(-90deg); }
+.dept-tree-chevron-collapsed:dir(rtl) { transform: rotate(90deg); }
+
+/* meetings/MeetingMinutesDocument.vue */
+.meeting-minutes-topic-table { border-collapse: collapse; }
+.meeting-minutes-topic-table th,
+.meeting-minutes-topic-table td { padding: 9px 10px; border-block-end: 1px solid var(--ui-border); text-align: start; vertical-align: top; overflow-wrap: anywhere; }
+.meeting-minutes-topic-table th { background: var(--ui-bg-elevated); font-size: .75rem; font-weight: 600; white-space: nowrap; }
+/* The document is what prints, so it owns how its dense table prints. */
+@media print {
+  .meeting-minutes-topic-table { min-width: 0 !important; width: 100%; table-layout: fixed; }
+  .meeting-minutes-topic-table th { white-space: normal; }
+  .meeting-minutes-topic-table tr { break-inside: avoid; page-break-inside: avoid; }
+}
+
+/* Shared ProseMirror typography, limited to the two editor roots. */
+:is([data-editor="description"], [data-editor="document"]) .tiptap p {
+  margin: 0 0 0.5em;
+}
+:is([data-editor="description"], [data-editor="document"]) .tiptap ul {
+  list-style: disc;
+  padding-inline-start: 1.5em;
+}
+:is([data-editor="description"], [data-editor="document"]) .tiptap ol {
+  list-style: decimal;
+  padding-inline-start: 1.5em;
+}
+:is([data-editor="description"], [data-editor="document"]) .tiptap a {
+  color: var(--brand-link);
+  text-decoration: underline;
+}
+
+/* Sanitised rich-text content. */
+.rich-text-content { min-width: 0; overflow-wrap: anywhere; line-height: 1.75; color: var(--ui-text); }
+.rich-text-content :where(p, ul, ol, blockquote, pre) { margin-block: 0 0.75em; }
+.rich-text-content :where(p, ul, ol, blockquote, pre):last-child { margin-block-end: 0; }
+.rich-text-content ul { list-style: disc; padding-inline-start: 1.5em; }
+.rich-text-content ol { list-style: decimal; padding-inline-start: 1.5em; }
+.rich-text-content li + li { margin-block-start: 0.25em; }
+.rich-text-content :where(h1, h2, h3, h4, h5, h6) { margin-block: 0.75em 0.35em; font-weight: 600; line-height: 1.5; color: var(--ui-text-highlighted); }
+.rich-text-content :where(h1, h2, h3, h4, h5, h6):first-child { margin-block-start: 0; }
+.rich-text-content h1 { font-size: 1.25em; }
+.rich-text-content h2 { font-size: 1.125em; }
+.rich-text-content :where(h3, h4, h5, h6) { font-size: 1em; }
+.rich-text-content blockquote { border-inline-start: 3px solid var(--ui-border); padding-inline-start: 0.75em; color: var(--ui-text-muted); }
+.rich-text-content pre { overflow-x: auto; border-radius: var(--ui-radius); background: var(--ui-bg-muted); padding: 0.625em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875em; }
+.rich-text-content code { border-radius: calc(var(--ui-radius) / 2); background: var(--ui-bg-muted); padding-inline: 0.25em; }
+.rich-text-content a { color: var(--brand-link); text-decoration: underline; text-underline-offset: 2px; }
+.rich-text-content img { max-width: 100%; height: auto; }
