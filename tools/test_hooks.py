@@ -18,6 +18,11 @@ class TestHooks(unittest.TestCase):
     def test_web_files_add_ui_checks(self):
         self.assertEqual(names(['apps/web/app/a.vue'])[3:], ['ui_policy', 'no_external_refs'])
 
+    def test_every_ui_source_root_adds_ui_checks(self):
+        for path in ('apps/vendor-admin/app/a.vue', 'packages/ui/app/a.vue', 'packages/commercial-ui/app/a.vue'):
+            with self.subTest(path=path):
+                self.assertEqual(names([path])[3:], ['ui_policy', 'no_external_refs'])
+
     def test_addon_python_adds_ruff_on_those_files_only(self):
         steps = dict(plan_pre_commit(['odoo-addons/nasq_hr/a.py', 'tools/x.py', 'docs/a.md']))
         self.assertEqual(steps['ruff'], ['ruff', 'check', 'odoo-addons/nasq_hr/a.py'])
