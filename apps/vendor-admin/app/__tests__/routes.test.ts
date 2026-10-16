@@ -26,6 +26,7 @@ const STRICTER: Record<string, string> = {
   'customers/[id]/change.vue': 'vendor.subscriptions.manage',
   'customers/new.vue': 'vendor.tenants.manage',
   'customers/[id]/terms/new.vue': 'vendor.pricing.manage',
+  'analytics.vue': 'vendor.billing.manage',
   'invoices.vue': 'vendor.billing.manage',
   'invoices/[id].vue': 'vendor.billing.manage',
   'invoices/index.vue': 'vendor.billing.manage',

@@ -13,6 +13,7 @@ import { acceptQuote, cancelOrder } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
 import { listClients } from './clients.js'
 import { listInvoices, getInvoice } from './invoices.js'
+import { analyticsFromQuery } from './analytics.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
 import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-http.js'
@@ -98,6 +99,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     return {status:200,data:await cancelOrder(pool,{order_id:cancel[1]!,principal,reason:body.reason,adapter:runtime?.adapter ?? undefined})}
   }
   if(m==='GET'&&path==='/invoices'){need(input,'vendor.billing.manage');const customer=url.searchParams.get('customer_id');if(customer&&!z.uuid().safeParse(customer).success)throw new CommercialHttpError('invalid',422,'customer_id');return {status:200,data:await listInvoices(pool,{customer_id:customer??undefined})}}
+  if(m==='GET'&&path==='/analytics'){need(input,'vendor.billing.manage');return {status:200,data:await analyticsFromQuery(pool,url)}}
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
   if(m==='GET'&&invoice){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getInvoice(pool,invoice[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   const payment=/^\/orders\/([^/]+)\/payment-attempts$/.exec(path)
