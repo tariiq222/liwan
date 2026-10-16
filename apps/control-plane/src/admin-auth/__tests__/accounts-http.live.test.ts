@@ -156,6 +156,16 @@ else describe('account management routes', () => {
     expect((await post('/v1/admin/accounts', { ...invite, roles: ['god'] }, owner)).status).toBe(422)
     expect((await post('/v1/admin/accounts', { ...invite, reason: 'no' }, owner)).status).toBe(422)
   })
+  it('refuses a self-reset by the last active owner, but not when another owner exists', async () => {
+    const only = await ownerSession({ stepUp: true })
+    const refused = await post(`/v1/admin/accounts/${only.accountId}/reset`, { reason: 'lost my phone' }, only)
+    expect(refused.status).toBe(409)
+    expect(refused.body).toMatchObject({ code: 'last_owner' })
+    expect((await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [only.accountId])).rows[0].status).toBe('active')
+    const second = await ownerSession({ stepUp: true })
+    expect((await post(`/v1/admin/accounts/${only.accountId}/reset`, { reason: 'other owner resets' }, second)).status).toBe(200)
+    expect((await post(`/v1/admin/accounts/${second.accountId}/reset`, { reason: 'self with another owner' }, second)).status).toBe(409)
+  })
   it('issues a reset invitation token', async () => {
     const owner = await ownerSession({ stepUp: true })
     const target = await vendorSession(pool, issuer, ['support'])

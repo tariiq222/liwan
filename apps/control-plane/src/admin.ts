@@ -82,7 +82,7 @@ try {
     if (at >= 0) { if (!args[at + 1]) throw new Error('--report path required'); await writeFile(args[at + 1]!, `${text}\n`) }
     process.stdout.write(`${text}\n`)
     if (report.counts.errors) process.exitCode = 2
-  } else throw new Error('commands: bootstrap-owner, reset-account, catalog-import, approve-restore, migrate-saas-commercial')
+  } else throw new Error('commands: bootstrap-owner, reset-account (the recovery path for a lost or last owner), catalog-import, approve-restore, migrate-saas-commercial')
 } catch (error) {
   process.stderr.write(`${error instanceof Error ? error.message : 'admin command failed'}\n`)
   process.exitCode = 1
