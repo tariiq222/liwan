@@ -24,9 +24,8 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.packages.title')" :description="t('vendor.packages.description')">
-<template #actions><UButton to="/plans" color="neutral" variant="outline" icon="i-lucide-badge-percent">{{ t('vendor.plans.title') }}</UButton></template>
-<template #filters><SharedFilterBar :active-count="Number(Boolean(search)) + Number(Boolean(status))" @clear="router.replace('/catalog')">
+<SharedListPage :title="t('vendor.catalog.title')" :description="t('vendor.packages.description')">
+<template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(search)) + Number(Boolean(status))" @clear="router.replace('/catalog')">
       <template #search><UInput :model-value="search" :aria-label="t('vendor.packages.search')" :placeholder="t('vendor.packages.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="filter('q', $event)" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusOptions" :disabled="!hydrated" @update:model-value="filter('status', $event)" />
       <template #active><SharedFilterChip v-if="search" :label="search" @remove="filter('q', '')" /><SharedFilterChip v-if="status" :label="t(`vendor.packages.status.${status}`)" @remove="filter('status', '')" /></template>

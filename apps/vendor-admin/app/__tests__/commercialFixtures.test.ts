@@ -11,7 +11,8 @@ const fixtures = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../e2e
 
 describe('commercial e2e fixtures', () => {
   it('invoices, plans, bundles, orders and attempts parse with the contract schemas', () => {
-    for (const invoice of fixtures.invoices.items) expect(() => invoiceSchema.parse(invoice), invoice.id).not.toThrow()
+    // The vendor list adds the customer's name next to the exact customer-facing invoice.
+    for (const { customer_name: name, ...invoice } of fixtures.invoices.items) expect(() => invoiceSchema.parse(invoice), invoice.id).not.toThrow()
     for (const plan of fixtures.plans.items) expect(() => planViewSchema.parse(plan), plan.id).not.toThrow()
     for (const bundle of fixtures.bundles.items) expect(() => bundleViewSchema.parse(bundle), bundle.id).not.toThrow()
     for (const pkg of fixtures.catalog.items) expect(() => packageRevisionSchema.parse(pkg), pkg.id).not.toThrow()

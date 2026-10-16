@@ -1,65 +1,63 @@
 <script setup lang="ts">
-import { commercialMetrics, type CommercialMetrics } from '@/utils/vendorSubscriptions'
-import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
+import { ATTENTION_LIMIT, type Attention } from '@nasq/commercial-contracts'
 import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import type { StatusStat } from '@/utils/vendorAttention'
+import { isNotAvailable } from '@/utils/vendorSubscriptions'
 definePageMeta({ capability: 'vendor.read' })
 const { t, locale } = useI18n()
 const { request } = useVendorApi()
-const { data, error, pending, refresh } = await useAsyncData('vendor:overview:all', () => request<{ tenants: number; active: number; pending_operations: number; failed_operations: number; last_health_at: string | null }>('overview', { query: { source: 'all' } }))
-const { data: commercial, pending: commercialPending } = await useAsyncData('vendor:overview:commercial', async () => {
-  try {
-    const page = await useVendorSubscriptions().listCustomers({ limit: 200, offset: 0 })
-    return { metrics: commercialMetrics(page.items), total: page.total }
-  } catch { return null }
-})
+const { data, error, pending, refresh } = await useAsyncData('vendor:overview:all', () => request<{ tenants: number, active: number, pending_operations: number, failed_operations: number, last_health_at: string | null }>('overview', { query: { source: 'all' } }))
+const { data: attention, error: attentionError, pending: attentionPending, refresh: refreshAttention } = await useAsyncData('vendor:overview:attention', () => request<Attention>('commercial/attention'))
+// A route that is not deployed yet is expected; any other failure is shown with a retry.
+const attentionNotAvailable = computed(() => isNotAvailable(attentionError.value))
+const now = new Date()
 
-type Tile = { id: string, label: string, value: number, icon: `i-lucide-${string}`, to?: string }
-const commercialMetric = (id: string, label: string, icon: Tile['icon'], pick: (metrics: CommercialMetrics) => number, to?: string): Tile[] =>
-  commercial.value ? [{ id, label: t(`vendor.overviewCommercial.${label}`), value: pick(commercial.value.metrics), icon, to }] : []
-// Each tile opens the list it counts, filtered to that subset where the list has the filter (past due, stalled, pending and renewals have none; the failed-state filter misses stalled orders still waiting).
-const sections = computed(() => {
+// Each count opens the list it counts, filtered where the list has the filter (active subscriptions, past due, stalled, pending and renewals have none).
+const stats = computed<StatusStat[]>(() => {
   const d = data.value
   if (!d) return []
-  const attention: Tile[] = [
-    { id: 'failed', label: t('vendor.overview.failed'), value: d.failed_operations, icon: 'i-lucide-circle-alert', to: '/operations?status=attention' },
-    ...commercialMetric('pastDue', 'pastDue', 'i-lucide-alarm-clock', m => m.pastDue),
-    ...commercialMetric('stalled', 'stalled', 'i-lucide-hourglass', m => m.stalledFulfillments),
-    ...commercialMetric('setup', 'setup', 'i-lucide-wrench', m => m.setupRequired, '/customers?state=setup_required'),
+  const c = attention.value?.counts
+  const s = (id: string, value: number, to?: string): StatusStat => ({ id, label: t(`vendor.today.status.${id}`), value, to })
+  return [
+    s('failedOperations', d.failed_operations, '/operations?status=attention'),
+    s('pendingOperations', d.pending_operations, '/operations?status=pending'),
+    s('tenants', d.tenants, '/customers'),
+    s('tenantsActive', d.active, '/customers'),
+    ...(c ? [
+      s('subscriptionsActive', c.subscriptions_active),
+      s('subscriptionsPending', c.subscriptions_pending),
+      ...(c.past_due === null ? [] : [s('pastDue', c.past_due)]),
+      s('stalled', c.stalled),
+      s('setupRequired', c.setup_required, '/customers?state=setup_required'),
+      s('renewals', c.renewals),
+    ] : []),
   ]
-  const status: Tile[] = [
-    { id: 'tenants', label: t('vendor.overview.tenants'), value: d.tenants, icon: 'i-lucide-building-2', to: '/customers' },
-    { id: 'active', label: t('vendor.overview.active'), value: d.active, icon: 'i-lucide-circle-check', to: '/customers' },
-    { id: 'pending', label: t('vendor.overview.pending'), value: d.pending_operations, icon: 'i-lucide-loader-circle', to: '/operations?status=pending' },
-    ...commercialMetric('subscriptionsActive', 'active', 'i-lucide-badge-check', m => m.active, '/customers?state=active'),
-    ...commercialMetric('subscriptionsPending', 'pending', 'i-lucide-clock', m => m.pending),
-    ...commercialMetric('renewals', 'renewals', 'i-lucide-calendar-clock', m => m.upcomingRenewals),
-  ]
-  return [{ id: 'attention', title: t('vendor.overview.attention'), tiles: attention }, { id: 'status', title: t('vendor.overview.status'), tiles: status }]
 })
 </script>
 <template>
-  <SharedDashboardPage :title="t('vendor.overview.title')" :description="t('vendor.overview.description')">
-    <div class="@min-[768px]:col-span-2">
-    <SharedPageState :loading="pending" :error="error" @retry="refresh">
-      <section v-for="section in sections" :key="section.id" class="mb-8" :data-testid="`overview-${section.id}`" :aria-labelledby="`overview-${section.id}-title`">
-        <h2 :id="`overview-${section.id}-title`" class="text-lg font-semibold">{{ section.title }}</h2>
-        <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <template v-for="tile in section.tiles" :key="tile.id">
-            <NuxtLink v-if="tile.to" :to="tile.to" class="block rounded-lg focus-visible:outline-2 focus-visible:outline-primary" :data-testid="`overview-tile-${tile.id}`">
-              <SharedMetricTile :label="tile.label" :value="tile.value" :icon="tile.icon" />
-            </NuxtLink>
-            <SharedMetricTile v-else :label="tile.label" :value="tile.value" :icon="tile.icon" :data-testid="`overview-tile-${tile.id}`" />
-          </template>
-        </div>
-      </section>
-      <p v-if="data" class="text-sm text-muted">{{ t('vendor.overview.queueScope') }}</p>
-      <p v-if="data?.last_health_at" class="mt-2 text-sm text-muted">{{ t('vendor.overview.lastHealth') }}: <time :datetime="data.last_health_at">{{ formatNasqDateTime(data.last_health_at, locale) }}</time></p>
-      <p v-if="!commercialPending && !commercial" class="mt-2 text-sm text-muted">{{ t('vendor.overviewCommercial.unavailable') }}</p>
-      <template v-else-if="commercial">
-        <p class="mt-2 text-sm text-muted">{{ t('vendor.overviewCommercial.hint') }}</p>
-        <p v-if="commercial.total > commercial.metrics.counted" class="mt-2 text-sm text-warning">{{ t('vendor.overviewCommercial.partial', { count: commercial.metrics.counted }, commercial.metrics.counted) }}</p>
-      </template>
-    </SharedPageState>
+  <SharedDashboardPage :title="t('vendor.today.title')" :description="t('vendor.today.description')">
+    <div class="space-y-8 @min-[768px]:col-span-2">
+      <SharedPageState :loading="pending || attentionPending" :error="error" @retry="refresh">
+        <section data-testid="today-attention" aria-labelledby="today-attention-title" class="space-y-3">
+          <h2 id="today-attention-title" class="text-lg font-semibold">{{ t('vendor.today.attentionTitle') }}</h2>
+          <p v-if="attentionNotAvailable" class="text-sm text-warning">{{ t('vendor.today.attentionUnavailable') }}</p>
+          <SharedPageState v-else :loading="false" :error="attentionError" @retry="refreshAttention">
+            <SharedEmptyState v-if="!attention?.items.length" :title="t('vendor.today.nothing')" :description="t('vendor.today.nothingHint')" data-testid="today-empty">
+              <template #icon><UIcon name="i-lucide-circle-check" class="size-8" /></template>
+            </SharedEmptyState>
+            <template v-else-if="attention">
+              <VendorAttentionList :items="attention.items" :now="now" />
+              <p v-if="attention.total > attention.items.length" class="text-sm text-muted">{{ t('vendor.today.moreItems', { shown: ATTENTION_LIMIT, total: attention.total }) }}</p>
+            </template>
+          </SharedPageState>
+        </section>
+        <section data-testid="today-status" aria-labelledby="today-status-title" class="space-y-3">
+          <h2 id="today-status-title" class="text-lg font-semibold">{{ t('vendor.today.statusTitle') }}</h2>
+          <VendorStatusStrip :stats="stats" :label="t('vendor.today.statusLabel')" />
+          <p class="text-sm text-muted">{{ t('vendor.today.statusHint') }}</p>
+          <p v-if="data?.last_health_at" class="text-sm text-muted">{{ t('vendor.today.lastHealth') }}: <time :datetime="data.last_health_at">{{ formatNasqDateTime(data.last_health_at, locale) }}</time></p>
+        </section>
+      </SharedPageState>
     </div>
   </SharedDashboardPage>
 </template>

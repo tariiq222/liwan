@@ -43,7 +43,7 @@ test.describe('Plan 6e: vendor customers', () => {
 
     test('an unavailable commercial list shows the not-available alert, not an empty table', async ({ page }) => {
       await open(page, '/overview')
-      await page.route('**/api/vendor/v1/commercial/customers**', route => route.fulfill({ status: 501, json: { code: 'not_implemented', message: 'n' } }))
+      await page.route('**/api/vendor/v1/commercial/clients**', route => route.fulfill({ status: 501, json: { code: 'not_implemented', message: 'n' } }))
       await navigateClient(page, '/customers')
       await expect(page.locator('[data-slot="data-table"]')).toHaveCount(0)
       await expect(page.locator('#__nuxt')).toContainText('غير متاح')
@@ -54,9 +54,10 @@ test.describe('Plan 6e: vendor customers', () => {
       await expectNoSecondH1(page)
       await expect(page.getByRole('heading', { level: 1 })).toContainText('شركة ألفا')
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
+      await expect(page.locator('[data-slot="customer-glance"]')).toBeVisible()
+      await open(page, '/customers/cust-alpha?tab=subscription')
       await expect(page.locator('[data-slot="record-section"]').first()).toBeVisible()
       await expect(page.locator('[data-slot="properties-panel"]').first()).toBeVisible()
-      await open(page, '/customers/cust-alpha?tab=subscription')
       await expect(page.getByTestId('branch-summary')).toBeVisible()
       await expect(page.getByTestId('usage-meter').first()).toBeVisible()
       await open(page, '/customers/cust-alpha?tab=invoices')

@@ -1,5 +1,5 @@
 import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
-import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
+import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@nasq/ui/app/utils/humanizeId'
@@ -8,7 +8,9 @@ import { invoiceLineQuantities, type InvoiceLineView } from '@nasq/commercial-ui
 export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
-export type VendorInvoiceList = { items: Invoice[]; total: number }
+/** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
+export type VendorInvoice = Invoice & { customer_name: string }
+export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
 export const INVOICE_STATUS_FILTERS = ['all', 'draft', 'issued', 'paid', 'void', 'credit_pending'] as const
@@ -51,11 +53,10 @@ export function orderFulfillmentBadge(order: Pick<Order, 'fulfillment_state'>): 
   return { tone: 'neutral', labelKey: `vendor.customers.fulfillment.${order.fulfillment_state}` }
 }
 
-// ---- Overview metrics: counted from list endpoints, never inferred from price lists ----
-export const RENEWAL_WINDOW_DAYS = 30
+// ---- Branches / usage ----
+// ---- Customer glance: renewal countdown and stalled activation, matching the control plane's 24-hour threshold ----
 export const STALLED_HOURS = 24
-export type CommercialMetrics = { active: number; pending: number; pastDue: number; upcomingRenewals: number; stalledFulfillments: number; setupRequired: number; counted: number }
-export function daysUntil(isoDate: string, now: Date): number {
+export function daysUntilDate(isoDate: string, now: Date): number {
   const [y, m, d] = isoDate.split('-').map(Number)
   return Math.round((Date.UTC(y!, m! - 1, d!) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000)
 }
@@ -68,22 +69,7 @@ export function isStalled(order: Order | null, now: Date): boolean {
   }
   return false
 }
-export function commercialMetrics(customers: VendorCustomer[], now = new Date()): CommercialMetrics {
-  const m: CommercialMetrics = { active: 0, pending: 0, pastDue: 0, upcomingRenewals: 0, stalledFulfillments: 0, setupRequired: 0, counted: customers.length }
-  for (const c of customers) {
-    if (c.commercial_setup_required) m.setupRequired++
-    const s = c.subscription
-    if (!s) continue
-    if (s.state === 'active' || s.state === 'trialing') m.active++
-    else if (s.state === 'pending') m.pending++
-    else if (s.state === 'past_due') m.pastDue++
-    if (s.renewal_at && s.state !== 'cancelled' && s.state !== 'suspended') { const d = daysUntil(s.renewal_at, now); if (d >= 0 && d <= RENEWAL_WINDOW_DAYS) m.upcomingRenewals++ }
-    if (isStalled(s.pending_order, now)) m.stalledFulfillments++
-  }
-  return m
-}
 
-// ---- Branches / usage ----
 export function branchSummaryText(s: { free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null }) {
   return { hq: 1, freeUsed: s.free_extra_used, freeAllowed: s.free_extra_allowed, paid: s.paid, limit: s.limit }
 }

@@ -25,7 +25,7 @@ describe('vendor commercial pages: structure and gating', () => {
   it('keeps filters in the URL and preserves them on return', () => {
     const list = page('bundles/index.vue')
     expect(list).toContain('route.query'); expect(list).toContain('returnTo'); expect(list).toMatch(/router\.replace\(\{ path: '\/bundles'/)
-    expect(page('bundles/[id].vue')).toContain('commercialReturnTo(route.query.returnTo')
+    expect(page('bundles/[id].vue')).toContain("catalogReturn(route.query.returnTo, 'bundles')")
   })
   it('edit is a page with reason and draft protection; forms guard unsaved changes', () => {
     expect(page('bundles/[id]/edit.vue')).toContain('require-reason'); expect(page('plans/[id]/edit.vue')).toContain('require-reason')
@@ -34,6 +34,35 @@ describe('vendor commercial pages: structure and gating', () => {
   it('create release flow asks for a reason when no release exists', () => {
     const p = page('bundles/new.vue')
     expect(p).toContain('releases.length'); expect(p).toContain('createRelease'); expect(p).toMatch(/relReason\.value\.trim\(\)\.length < 3/)
+  })
+  it('create release guide explains the missing release in two steps and replaces the bundle form until one exists', () => {
+    const p = page('bundles/new.vue')
+    expect(p.indexOf('v-else-if="!releases.length"')).toBeGreaterThan(p.indexOf("v-if=\"!can('vendor.catalog.manage')\""))
+    expect(p.indexOf('<VendorBundleForm v-else')).toBeGreaterThan(p.indexOf('v-else-if="!releases.length"'))
+    for (const key of ['title', 'why', 'steps', 'step1', 'step2']) expect(p).toContain(`vendor.bundles.guide.${key}`)
+    expect(p).toContain('aria-current="step"'); expect(p).toContain('data-testid="release-create"'); expect(p).toContain('vendor.bundles.createRelease')
+    for (const lang of ['en', 'ar']) {
+      const guide = json(lang).bundles.guide
+      for (const key of ['title', 'why', 'steps', 'step1', 'step2']) expect(guide[key], `${lang}.${key}`).toBeTruthy()
+    }
+  })
+  it('bundle detail lists every plan version using it, with its version and state, and says when plans could not load', () => {
+    const p = page('bundles/[id].vue')
+    expect(p).toContain('plansUsingBundle(page => api.listPlans(page), view.id)'); expect(p).not.toContain('limit: 200')
+    const section = p.slice(p.indexOf('data-testid="bundle-plans"'), p.indexOf('<VendorLifecyclePanel'))
+    expect(section).toContain('v-if="!data.usedBy"'); expect(section).toContain('vendor.bundles.usedByUnavailable')
+    expect(section).toContain('vendor.bundles.usedByNone'); expect(section).toContain("vendor.pricing.version', { count: p.version }"); expect(section).toContain('lifecycleBadge(p)')
+    for (const lang of ['en', 'ar']) expect(json(lang).bundles.usedByUnavailable, lang).toBeTruthy()
+  })
+  it('bundle detail states the status and the customer count once, and all prices through the fact', () => {
+    const p = page('bundles/[id].vue')
+    expect(p.match(/lifecycleBadge\(view\)\.tone/g)).toHaveLength(1)
+    expect(p.match(/vendor\.pricing\.customers'/g)).toHaveLength(1); expect(p).not.toContain('view.customer_count')
+    expect(p).toContain('priceFact(v.prices'); expect(p).not.toContain('v.prices[0]')
+  })
+  it('plan and bundle pages return to the catalog tab they were opened from', () => {
+    for (const f of ['plans/[id].vue', 'bundles/[id].vue']) expect(page(f)).toContain(':back-label="t(back.labelKey)"')
+    for (const f of ['plans/[id]/edit.vue', 'bundles/[id]/edit.vue']) expect(page(f)).toContain('catalogReturn(route.query.returnTo')
   })
   it('detail shows technical digests only under a details section and recomputes quote via server only', () => {
     expect(page('bundles/[id].vue')).toMatch(/<details[\s\S]*content_digest/); expect(page('bundles/[id].vue').indexOf('content_digest')).toBeGreaterThan(page('bundles/[id].vue').indexOf('<details'))

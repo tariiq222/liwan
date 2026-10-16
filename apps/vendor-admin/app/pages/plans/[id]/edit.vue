@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { commercialFailure, commercialReturnTo, planEditPayload, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { catalogReturn } from '@/utils/vendorCatalog'
+import { commercialFailure, planEditPayload, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.catalog.manage' })
 const { t } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial()
-const id = computed(() => String(route.params.id)); const backTo = computed(() => commercialReturnTo(route.query.returnTo, '/plans'))
+const id = computed(() => String(route.params.id)); const backTo = computed(() => catalogReturn(route.query.returnTo, 'plans').to)
 const allowed = computed(() => can('vendor.catalog.manage') && can('vendor.pricing.manage'))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:plan-edit:${id.value}`, async () => {
   const view = await api.get<PlanView>('plan', id.value)

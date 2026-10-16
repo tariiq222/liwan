@@ -8,7 +8,7 @@ import { ADMIN_PASSWORD, DEV_PORT, OWNER_EMAIL, PROD_PORT, SUPPORT_EMAIL, TOTP_C
 export const RESTRICTED_EMAIL = SUPPORT_EMAIL
 const BASE_ORIGIN = `http://localhost:${process.env.E2E_TARGET === 'dev' ? DEV_PORT : PROD_PORT}`
 
-type NuxtAppHandle = { $router: { push: (to: string) => Promise<unknown> }, $i18n: { setLocale: (locale: string) => Promise<void> } }
+type NuxtAppHandle = { isHydrating: boolean, $router: { push: (to: string) => Promise<unknown> }, $i18n: { setLocale: (locale: string) => Promise<void> } }
 
 /** Signs in through the BFF on a freshly reset mock (an earlier spec may have left it locked or unavailable). */
 export async function login(page: Page, email = OWNER_EMAIL) {
@@ -24,6 +24,9 @@ export async function open(page: Page, path: string) {
   await page.goto(path).catch(() => page.goto(path))
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible({ timeout: 30_000 })
 }
+/** Waits until the client has taken over the server render, so history navigation reaches the router. */
+export const hydrated = (page: Page) =>
+  page.waitForFunction(() => (window as unknown as { useNuxtApp?: () => NuxtAppHandle }).useNuxtApp?.().isHydrating === false)
 /**
  * A client-side navigation, so the browser (not the server render) fetches the page's data and route
  * interception applies. A navigation the route gate aborts resolves too; specs assert the outcome.

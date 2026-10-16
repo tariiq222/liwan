@@ -36,7 +36,12 @@
       "nameInvalid": "Enter the name.",
       "rolesInvalid": "Choose at least one role.",
       "submit": "Create invitation",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "personTitle": "Person",
+      "personHint": "The email and name as they will appear in the team.",
+      "accessTitle": "Access",
+      "accessHint": "Roles decide what they can see and do in the admin console; the reason is kept in the audit log.",
+      "nextStep": "After the invitation is created the activation link shows once only; send it to its owner over a secure channel."
     },
     "actions": {
       "roles": "Change roles",

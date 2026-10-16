@@ -13,12 +13,22 @@ test('the operations list keeps source, keyboard navigation and the return targe
  await page.locator('[data-slot="page-header"] a').first().click(); await expect(page).toHaveURL(/source=all/)
  await open(page,'/operations/op-2?source=legacy'); await expect(page.locator('form')).toHaveCount(1)
 })
-test('a tenant filter keeps page and audit pagination reaches the third page', async ({ page }) => {
- await open(page,'/operations?page=2'); await page.locator('[data-shortcut-search] input').fill('tenant-1')
- await expect.poll(()=>new URL(page.url()).searchParams.get('tenant_id')).toBe('tenant-1'); expect(new URL(page.url()).searchParams.get('page')).toBe('2')
+test('the workspace filter is URL-backed and restarts at the first page; rows name the workspace', async ({ page }) => {
+ await open(page,'/operations?page=2'); await expect(page.getByTestId('operation-target').first()).toContainText('نسخة')
+ await page.getByRole('button',{name:'البحث والفلاتر'}).click(); await page.getByRole('combobox',{name:'نسخة العميل'}).click(); await page.getByRole('option',{name:'نسخة بيتا'}).click()
+ await expect.poll(()=>new URL(page.url()).searchParams.get('tenant_id')).toBe('tenant-2'); expect(new URL(page.url()).searchParams.has('page')).toBe(false)
+ await expect(rows(page)).toHaveCount(1); await expect(page.getByTestId('operations-result-count')).toBeVisible()
+})
+test('the audit log pages through to the third page and keeps unknown actions readable', async ({ page }) => {
  await open(page,'/audit'); await expect(rows(page)).toHaveCount(25)
  await page.getByRole('button',{name:'Next Page'}).click(); await expect(page).toHaveURL(/page=2/); await expect(rows(page)).toHaveCount(25); await page.getByRole('button',{name:'Next Page'}).click(); await expect(rows(page)).toHaveCount(10)
  await expect(page).toHaveURL(/page=3/); await expect(page.locator('#__nuxt')).toContainText('custom.unknown_action')
+})
+test('audit filters are applied by the server and live in the URL; subjects show names', async ({ page }) => {
+ await open(page,'/audit?q=unknown'); await expect(rows(page)).toHaveCount(1); await expect(page.getByTestId('audit-result-count')).toBeVisible()
+ await expect(rows(page).first()).toContainText('نسخة ألفا')
+ await page.reload(); await expect(rows(page)).toHaveCount(1)
+ await open(page,'/audit?action=operation'); await expect(rows(page)).toHaveCount(25)
 })
 test('on a 390px phone operations and audit fit without losing mobile rows', async ({ page }) => {
  await page.setViewportSize({width:390,height:844})

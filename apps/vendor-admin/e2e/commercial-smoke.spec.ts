@@ -17,7 +17,7 @@ test.describe('Plan 6e: the vendor admin stack', () => {
   test('the vendor overview loads behind its gate', async ({ page }) => {
     await open(page, '/overview')
     await expectNoSecondH1(page)
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('إدارة نسق')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('اليوم')
   })
 
   test('a mutation from another origin is still refused by the vendor BFF', async ({ page }) => {

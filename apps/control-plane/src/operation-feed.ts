@@ -15,6 +15,14 @@ const SHARED_FROM = `shared_jobs j LEFT JOIN LATERAL (
   SELECT stage,created_at FROM shared_job_events WHERE job_id=j.id ORDER BY sequence DESC LIMIT 1
 ) e ON true`
 
+/** Adds the workspace name and its owning customer (null when none) to operation rows for display. */
+export async function withTenantLabels<T extends { tenant_id: string }>(pool: Pool, rows: T[]): Promise<(T & { tenant_name: string | null; customer_id: string | null })[]> {
+  if (!rows.length) return []
+  const labels = await pool.query('SELECT t.id,t.name,c.id AS customer_id FROM tenants t LEFT JOIN customers c ON c.tenant_id=t.id WHERE t.id=ANY($1::uuid[])', [[...new Set(rows.map(row => row.tenant_id))]])
+  const byTenant = new Map(labels.rows.map(row => [row.id, row]))
+  return rows.map(row => ({ ...row, tenant_name: byTenant.get(row.tenant_id)?.name ?? null, customer_id: byTenant.get(row.tenant_id)?.customer_id ?? null }))
+}
+
 export async function allOperationCounts(pool: Pool) {
   const result = await pool.query(`SELECT
     (SELECT count(*)::int FROM tenants) AS tenants,
@@ -40,7 +48,8 @@ export async function allOperations(pool: Pool, tenantId: string, page: number, 
     SELECT * FROM feed ORDER BY created_at DESC,source ASC,id DESC LIMIT 25 OFFSET $2
   ) SELECT totals.total,page.* FROM (SELECT count(*)::int AS total FROM feed) totals
     LEFT JOIN page ON true ORDER BY page.created_at DESC,page.source ASC,page.id DESC`, [tenantId || null, (page - 1) * 25, statuses])
-  return { items: result.rows.filter(row => row.id !== null).map(({ total: _total, ...row }) => row), total: result.rows[0].total }
+  const items = result.rows.filter(row => row.id !== null).map(({ total: _total, ...row }) => row)
+  return { items: await withTenantLabels(pool, items), total: result.rows[0].total }
 }
 
 export async function sharedOperationDetail(pool: Pool, id: string) {
@@ -49,5 +58,5 @@ export async function sharedOperationDetail(pool: Pool, id: string) {
   const events = await pool.query(`SELECT stage,
     CASE stage WHEN 'prepared' THEN 'running' WHEN 'started' THEN 'running' ELSE stage END AS status,
     created_at AS at FROM shared_job_events WHERE job_id=$1 ORDER BY sequence`, [id])
-  return { ...result.rows[0], events: events.rows }
+  return { ...(await withTenantLabels(pool, [result.rows[0]]))[0], events: events.rows }
 }

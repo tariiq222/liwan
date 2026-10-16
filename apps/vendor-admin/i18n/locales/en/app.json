@@ -9,11 +9,11 @@
       "unavailable": "The service is unavailable right now. Try again shortly"
     },
     "nav": {
-      "overview": "Overview",
+      "overview": "Today",
+      "analytics": "Analytics",
       "customers": "Customers",
+      "catalog": "Catalog",
       "operations": "Operations",
-      "plans": "Plans",
-      "bundles": "Bundles",
       "invoices": "Invoices",
       "audit": "Audit",
       "team": "Team"

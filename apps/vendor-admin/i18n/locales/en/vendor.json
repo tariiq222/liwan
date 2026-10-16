@@ -54,17 +54,48 @@
       "scratch": "Scratch",
       "customer": "Customer"
     },
-    "overview": {
-      "title": "Overview",
-      "description": "Customer installations and operation status.",
-      "tenants": "Customer installations",
-      "active": "Active installations",
-      "pending": "Pending operations",
-      "failed": "Failed operations or needs attention",
-      "lastHealth": "Last health check",
-      "attention": "Needs your attention",
-      "status": "Overall status",
-      "queueScope": "Counts include shared and dedicated operations, once per operation. Verified execution does not establish workspace readiness; check setup status on the customer page."
+    "today": {
+      "title": "Today",
+      "description": "What needs your action now, then the overall status.",
+      "attentionTitle": "Needs your action",
+      "nothing": "Nothing needs your action right now",
+      "nothingHint": "Everything is on track. Anything that needs follow-up will appear here.",
+      "moreItems": "Showing the first {shown} of {total}, most urgent first.",
+      "attentionUnavailable": "The list of what needs your action could not be loaded. The counts below are still available.",
+      "duration": "less than a day | one day | {count} days",
+      "kinds": {
+        "past_due": "Overdue for {duration}",
+        "stalled_failed": "Activation failed and needs you",
+        "stalled_waiting": "Activation stalled for {duration}",
+        "operation_failed": "Operation failed: {operation}",
+        "setup_required": "Needs commercial setup",
+        "renewal_missed": "Renewal date passed {duration} ago and not renewed",
+        "renewal_soon": "Renews within {duration}"
+      },
+      "actions": {
+        "past_due": "Open the invoice",
+        "stalled_activation": "Open the workspace",
+        "operation_failed": "Open the operation",
+        "setup_required": "Open the subscription",
+        "renewal_missed": "Open the subscription",
+        "renewal_soon": "Open the subscription"
+      },
+      "statusTitle": "Overall status",
+      "statusLabel": "Overall status counts",
+      "status": {
+        "tenants": "Customer installations",
+        "tenantsActive": "Active installations",
+        "pendingOperations": "Pending operations",
+        "failedOperations": "Failed operations or needs attention",
+        "subscriptionsActive": "Active subscriptions",
+        "subscriptionsPending": "Pending subscriptions",
+        "pastDue": "Past due",
+        "stalled": "Stalled activations",
+        "setupRequired": "Customers needing setup",
+        "renewals": "Renewals due in 7 days or missed"
+      },
+      "statusHint": "Counted from customer and subscription records; not collected revenue. Shared and dedicated operations are included, once per operation.",
+      "lastHealth": "Last health check"
     },
     "tenants": {
       "details": "Customer installation",
@@ -82,7 +113,6 @@
       "confirmDisable": "Disable operations for this installation?",
       "viewOperations": "View operations",
       "healthChecked": "Last health check",
-      "grantTitle": "Operations access",
       "grantHint": "This setting controls operational access only. It does not grant billing authority.",
       "policyTitle": "Configuration",
       "policyHint": "Desired and observed configuration reported by the service.",
@@ -117,6 +147,15 @@
           "active": "Workspace ready",
           "needs_intervention": "Needs attention",
           "pending": "Setup is in progress"
+        },
+        "progress": "Workspace provisioning stages",
+        "none": "No provisioning in progress",
+        "noneHint": "Provisioning stages show here when a new shared workspace is created.",
+        "state": {
+          "done": "Done",
+          "current": "Current stage",
+          "failed": "Needs attention",
+          "pending": "Not started"
         }
       },
       "plan": {
@@ -126,16 +165,29 @@
         "none": "No published plans. Publish a plan first.",
         "forbidden": "Creating a tenant from a plan requires subscription management access."
       },
-      "recentOperations": "Latest operations"
+      "recentOperations": "Latest operations",
+      "policyEmpty": "No settings recorded yet.",
+      "policyDiffers": "{count} settings are not applied to the workspace yet.",
+      "policyMatches": "The observed settings match the requested ones.",
+      "policyFeature": "Setting",
+      "policySame": "Matches",
+      "policyNotApplied": "Not applied yet",
+      "operationsOn": "Operations enabled",
+      "operationsOff": "Operations disabled",
+      "dangerTitle": "Sensitive area: operations permission",
+      "confirmEnqueue": "Queue \"{type}\"?",
+      "confirmEnqueueHint": "The service runs the operation on this customer's workspace after checking it, and records it under your name with the reason.",
+      "workspaceDetails": "Workspace details"
     },
     "catalog": {
-      "title": "Legacy packages",
+      "title": "Catalog",
       "tiers": {
         "core": "Core",
         "projects": "Projects",
         "people": "People",
         "messaging": "Messaging"
-      }
+      },
+      "tabs": "Catalog sections"
     },
     "features": {
       "users": {
@@ -230,7 +282,10 @@
         "shared_execution_pending": "The operation is queued or running.",
         "shared_execution_verified": "The operation execution was verified.",
         "shared_execution_needs_attention": "An operator must review this operation before continuing changes."
-      }
+      },
+      "operationId": "Operation ID",
+      "workspaceId": "Workspace ID",
+      "customerId": "Customer ID"
     },
     "audit": {
       "title": "Audit log",
@@ -238,6 +293,7 @@
       "empty": "No audit entries found.",
       "actor": "Actor",
       "subject": "Subject",
+      "action": "Action",
       "actions": {
         "membership": {
           "granted": "Vendor access granted",
@@ -275,14 +331,112 @@
         },
         "shared_onboarding": {
           "reserved": "Shared customer workspace reserved"
+        },
+        "auth": {
+          "signed_in": "Signed in",
+          "failed": "Failed sign-in attempt",
+          "locked": "Temporarily locked after failed attempts",
+          "step_up": "Extra identity check",
+          "signed_out": "Signed out",
+          "passkey_registered": "Passkey registered"
+        },
+        "account": {
+          "roles_set": "Account roles changed",
+          "disabled": "Account disabled",
+          "dev_owner": "Developer owner account created",
+          "invited": "Account invited",
+          "reset_issued": "Reset link issued",
+          "reset_completed": "Reset completed",
+          "enrolled": "Account enrollment completed"
+        },
+        "plan": {
+          "created": "Plan created",
+          "revision_created": "New plan revision created",
+          "deleted": "Plan draft deleted",
+          "edit": "Plan edited",
+          "validate": "Plan validated",
+          "publish": "Plan published",
+          "withdraw": "Plan withdrawn from sale",
+          "restore": "Plan restored"
+        },
+        "bundle": {
+          "created": "Bundle created",
+          "revision_created": "New bundle revision created",
+          "deleted": "Bundle draft deleted",
+          "edit": "Bundle edited",
+          "validate": "Bundle validated",
+          "publish": "Bundle published",
+          "withdraw": "Bundle withdrawn",
+          "restore": "Bundle restored"
+        },
+        "order": {
+          "accepted": "Order accepted",
+          "cancelled": "Order cancelled"
+        },
+        "invoice": {
+          "credit_pending": "Invoice credit pending"
+        },
+        "payment": {
+          "intervention": "Payment needs intervention"
+        },
+        "customer_terms": {
+          "created": "Customer terms saved"
+        },
+        "catalog_release": {
+          "created": "Catalog release created"
+        },
+        "registry": {
+          "recovery_requested": "Workspace registry recovery requested"
         }
+      },
+      "when": "When",
+      "search": "Search the audit log",
+      "noResults": "No audit entries match the filters. Clear the filters or change the search.",
+      "category": "Action type",
+      "allCategories": "All types",
+      "actorFilter": "Actor",
+      "actorPlaceholder": "Actor name or email",
+      "from": "From date",
+      "to": "To date",
+      "customerFilter": "Customer log: {name}",
+      "customerFilterUnknown": "One customer’s log",
+      "categories": {
+        "auth": "Sign-in and authentication",
+        "account": "Team accounts",
+        "tenant": "Customer workspaces",
+        "operation": "Operations",
+        "catalog": "Catalog",
+        "catalog_release": "Catalog releases",
+        "plan": "Plans",
+        "bundle": "Bundles",
+        "order": "Orders",
+        "invoice": "Invoices",
+        "payment": "Payments",
+        "customer_terms": "Customer terms"
+      },
+      "kinds": {
+        "account": "Account",
+        "customer": "Customer",
+        "tenant": "Workspace",
+        "order": "Order",
+        "plan": "Plan",
+        "bundle": "Bundle",
+        "catalog": "Catalog",
+        "other": "Record"
+      },
+      "actors": {
+        "operator": "System operator",
+        "anonymous": "Unauthenticated visitor",
+        "system": "System",
+        "shared-worker": "Shared platform worker",
+        "legacy": "Former account"
       }
     },
     "packages": {
       "title": "Legacy packages",
       "description": "Define what each customer can use, review its limits, then make a version available for new customers.",
       "create": "Create package",
-      "empty": "No packages yet. Create your first package from an available application composition.",
+      "empty": "There are no legacy packages.",
       "noResults": "No packages match these filters. Clear the filters or try another name.",
       "search": "Search packages",
       "name": "Package name",
@@ -381,9 +535,18 @@
       "empty": "No bundles yet.",
       "details": "Bundle details",
       "edit": "Edit bundle draft",
-      "noRelease": "There is no catalog release to build bundles on.",
-      "noReleaseHint": "Create a release from the latest published catalog version, with a reason.",
-      "createRelease": "Create release"
+      "createRelease": "Create release and continue",
+      "guide": {
+        "title": "Create a catalog release first",
+        "why": "A bundle is built on a catalog release: a fixed snapshot of the available apps and features, so a published bundle never changes underneath. There is none yet. Create one from the latest published catalog version with a reason, then continue building the bundle.",
+        "steps": "Steps to create the bundle",
+        "step1": "Create a catalog release",
+        "step2": "Build the bundle"
+      },
+      "usedBy": "Plans that include this bundle",
+      "usedByHint": "Plans that reference this exact version of the bundle.",
+      "usedByNone": "No plan includes this bundle yet.",
+      "usedByUnavailable": "Plans could not be loaded."
     },
     "plans": {
       "title": "Plans",
@@ -394,9 +557,10 @@
       "empty": "No plans yet.",
       "details": "Plan details",
       "edit": "Edit plan draft",
-      "summary": "Plan summary",
       "termMonths": "{count}-month term | {count}-month term",
-      "bundlesCount": "{included} included · {optional} optional bundles"
+      "bundlesCount": "{included} included · {optional} optional bundles",
+      "sold": "What the plan includes",
+      "soldHint": "The bundles sold with the plan and its platform limits. Open a bundle to see its apps."
     },
     "pricing": {
       "status": {
@@ -446,6 +610,7 @@
       "prices": {
         "empty": "No prices added.",
         "none": "No price",
+        "more": "+{count} more",
         "unit": "Unit",
         "count": "Count",
         "amount": "Amount",
@@ -714,7 +879,8 @@
         "autoRenew": "Auto-renew",
         "trialEnds": "Trial ends",
         "graceEnds": "Grace ends",
-        "pendingOrder": "Order in progress"
+        "pendingOrder": "Order in progress",
+        "periodRange": "{from} to {to}"
       },
       "target": {
         "target_pending": "Requested change not applied yet",
@@ -806,9 +972,74 @@
       "workspace": "Workspace",
       "modeHosting": "Mode and hosting",
       "noWorkspace": "No workspace",
+      "workspaceUnknown": "Unknown",
       "noCommercial": "No commercial record",
       "noWorkspaceYet": "No workspace has been set up yet",
-      "pendingPlan": "{plan} · awaiting activation"
+      "pendingPlan": "{plan} · awaiting activation",
+      "openWorkspace": "Open workspace",
+      "noWorkspaceHint": "The workspace is created once the subscription is activated. Provisioning and operations show here then.",
+      "changeBlocked": "The subscription cannot be changed while an order is pending. Finish or cancel the order first.",
+      "allInvoices": "All invoices of this customer",
+      "glance": {
+        "issuesTitle": "Needs attention: {count}",
+        "noIssues": "No open issues",
+        "unreadable": "Workspace state could not be read",
+        "unreadableHint": "Open issues may be missing. Retry to check again.",
+        "view": "View",
+        "renewal": "Next renewal",
+        "renewalIn": "In {days} days",
+        "renewalToday": "Today",
+        "renewalLate": "{days} days overdue",
+        "autoRenewOn": "Auto-renews",
+        "autoRenewOff": "Manual renewal",
+        "noRenewal": "No renewal scheduled",
+        "lastInvoice": "Last invoice",
+        "noInvoices": "No invoices yet",
+        "issues": {
+          "setup": "This customer has no commercial plan yet.",
+          "orderFailed": "The pending order failed and needs review.",
+          "stalled": "Order activation has been stalled for more than 24 hours.",
+          "pastDue": "The subscription is past due.",
+          "provisioning": "Workspace provisioning needs attention.",
+          "operation": "A recent operation on the workspace failed."
+        }
+      },
+      "order": {
+        "kind": {
+          "new": "New subscription",
+          "change": "Change",
+          "renewal": "Renewal",
+          "branch_add": "Branch added",
+          "branch_archive": "Branch archived"
+        },
+        "due": "Due now",
+        "created": "Ordered on"
+      },
+      "history": {
+        "title": "Subscription stages",
+        "hint": "Newest first, as recorded by the control plane.",
+        "whoHint": "Who made each change, and why, is in the audit log.",
+        "empty": "No stages recorded yet.",
+        "applied": "Applied subscription (revision {revision})",
+        "target": "Requested change not applied (revision {revision})",
+        "order": "{kind} order",
+        "termsCustom": "With custom customer terms",
+        "termsPlan": "With plan terms"
+      },
+      "newPage": {
+        "legacyDescription": "Register a customer instance from a published catalog.",
+        "customerTitle": "Customer and administrator",
+        "customerHint": "The customer name and its first administrator in the workspace.",
+        "planTitle": "Plan and billing",
+        "price": "Price per cycle by plan",
+        "legacyTitle": "Legacy catalog path",
+        "legacyHint": "This deployment has no shared workspaces, so the customer is registered as a standalone instance of a published catalog instead of a plan.",
+        "hostingTitle": "Environment and hosting",
+        "catalogTitle": "Catalog",
+        "nameTitle": "Customer",
+        "planHint": "Choose the plan the customer subscribes to and its billing cycle."
+      },
+      "pendingActivation": "Awaiting activation"
     },
     "invoices": {
       "title": "Invoices and collection",
@@ -821,13 +1052,19 @@
       "notAvailableHint": "The invoices service is not enabled in the control plane yet.",
       "details": "Invoice",
       "draftNumber": "Draft (no number)",
+      "allCustomers": "All customers",
+      "customerSearch": "Search customers",
+      "customersRetry": "Retry",
+      "customersLoadFailed": "Could not load customers",
+      "summary": {
+        "outstanding": "Outstanding balance"
+      },
       "customerFilter": "Selected customer",
       "period": "Period",
       "vat": "VAT",
       "total": "Total",
       "subtotal": "Subtotal",
       "customer": "Customer",
-      "openCustomer": "Open customer profile",
       "issuedAt": "Issued",
       "dueAt": "Due",
       "paidAt": "Paid",
@@ -885,17 +1122,6 @@
         "canceled": "Cancelled",
         "unknown": "Unknown"
       }
-    },
-    "overviewCommercial": {
-      "hint": "Counted from the current customer lists; not collected revenue.",
-      "active": "Active subscriptions",
-      "pending": "Pending subscriptions",
-      "pastDue": "Past due",
-      "renewals": "Renewals in 30 days",
-      "stalled": "Stalled fulfillments",
-      "setup": "Customers needing setup",
-      "partial": "Counts only the first {count} customer. | Counts only the first {count} customers.",
-      "unavailable": "Commercial metrics are not available yet."
     },
     "clientTabs": {
       "label": "Client sections",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { activeNavId, adminNav, splitRail } from '../adminNav'
+import { CATALOG_TABS } from '../vendorCatalog'
 
 // The role table of the vendor admin separation spec (capabilities listed without the `vendor.` prefix).
 // Mirrors ROLE_CAPABILITIES in apps/control-plane/src/admin-auth/roles.ts, which no shared contract exports;
@@ -16,8 +17,8 @@ const ROLES: Record<string, string[]> = {
 const caps = (role: string) => ROLES[role]!.map(name => `vendor.${name}`)
 const ids = (capabilities: string[]) => adminNav(capabilities).map(item => item.id)
 
-const BEFORE_INVOICES = ['overview', 'customers', 'plans', 'bundles']
-const READ_SECTIONS = [...BEFORE_INVOICES, 'operations']
+const READ_SECTIONS = ['overview', 'customers', 'catalog', 'operations']
+const BEFORE_INVOICES = ['overview', 'analytics', 'customers', 'catalog']
 
 describe('adminNav', () => {
   it('shows the owner every section in the fixed order', () => {
@@ -39,17 +40,17 @@ describe('adminNav', () => {
   })
 
   it('leaks no section when its own capability is missing', () => {
-    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', audit: 'vendor.audit.read', team: 'vendor.accounts.manage' }
+    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', analytics: 'vendor.billing.manage', audit: 'vendor.audit.read', team: 'vendor.accounts.manage' }
     for (const [section, capability] of Object.entries(gated)) {
       const withoutIt = caps('owner').filter(name => name !== capability)
       expect(ids(withoutIt)).not.toContain(section)
     }
-    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['invoices', 'audit', 'team'])
+    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['analytics', 'invoices', 'audit', 'team'])
   })
 
   it('points every item at a root path without the old /vendor prefix', () => {
     for (const item of adminNav(caps('owner'))) {
-      expect(item.to).toBe(`/${item.id}`)
+      expect(item.to).toBe(item.id === 'catalog' ? '/plans' : `/${item.id}`)
       expect(item.labelKey).toBe(`app.nav.${item.id}`)
       expect(item.icon).toMatch(/^i-lucide-/)
     }
@@ -61,8 +62,9 @@ describe('activeNavId', () => {
 
   it('matches the section of a list or record path', () => {
     expect(activeNavId(items, '/customers')).toBe('customers')
+    expect(activeNavId(items, '/analytics?period=year')).toBe('analytics')
     expect(activeNavId(items, '/customers/12/change')).toBe('customers')
-    expect(activeNavId(items, '/plans/new')).toBe('plans')
+    expect(activeNavId(items, '/plans/new')).toBe('catalog')
     expect(activeNavId(items, '/team/new')).toBe('team')
   })
 
@@ -73,14 +75,21 @@ describe('activeNavId', () => {
     expect(items.map(item => item.id)).not.toContain('tenants')
   })
 
-  it('keeps the retired legacy packages under plans', () => {
-    expect(activeNavId(items, '/catalog')).toBe('plans')
-    expect(activeNavId(items, '/catalog/pkg-1')).toBe('plans')
+  it('keeps plans, bundles and the retired legacy packages under the catalog', () => {
+    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/pkg-1']) expect(activeNavId(items, path), path).toBe('catalog')
+    expect(items.map(item => item.id)).not.toContain('plans')
+    expect(items.map(item => item.id)).not.toContain('bundles')
     expect(activeNavId(items, '/catalogx')).toBeNull()
+  })
+
+  it('derives the catalog section from the catalog tabs', () => {
+    expect(items.find(item => item.id === 'catalog')?.to).toBe(CATALOG_TABS[0].to)
+    for (const tab of CATALOG_TABS) expect(activeNavId(items, `${tab.to}/x`), tab.to).toBe('catalog')
   })
 
   it('does not match a path that only shares a prefix', () => {
     expect(activeNavId(items, '/plansx')).toBeNull()
+    expect(activeNavId(items, '/bundlesx')).toBeNull()
   })
 
   it('treats the root as the overview and ignores query and trailing slash', () => {

@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { invoiceSchema, TAX_LABEL, type Invoice, type Quote } from '@nasq/commercial-contracts'
+import { invoiceSchema, TAX_LABEL, type Invoice, type Money, type Quote } from '@nasq/commercial-contracts'
 
 export type InvoiceView = Invoice
+/** Vendor-console view: the customer-facing invoice plus the customer's name (never sent to customers). */
+export type VendorInvoiceView = InvoiceView & { customer_name: string }
+export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
 const d = (v: unknown): string => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10))
@@ -75,20 +78,27 @@ async function hydrate(pool: Q, rows: any[]): Promise<InvoiceView[]> {
   return rows.map(r => invoiceView(r, ls.filter(l => l.invoice_id === r.id), as.filter(a => a.invoice_id === r.id)))
 }
 
-export async function listInvoices(
-  pool: Q,
-  { customer_id, status, limit = 50, offset = 0 }: { customer_id?: string; status?: string; limit?: number; offset?: number } = {},
-): Promise<{ items: InvoiceView[]; total: number }> {
+type InvoiceFilter = { customer_id?: string; status?: string; limit?: number; offset?: number }
+
+/** The one invoice query: filtered, newest first, paged in SQL. Rows carry the customer name for the vendor view only. */
+async function selectInvoices(pool: Q, { customer_id, status, limit = 50, offset = 0 }: InvoiceFilter): Promise<{ rows: any[]; total: number }> {
   const where: string[] = []
   const args: unknown[] = []
-  if (customer_id) { args.push(customer_id); where.push(`customer_id = $${args.length}`) }
-  if (status) { args.push(status); where.push(`status = $${args.length}`) }
+  if (customer_id) { args.push(customer_id); where.push(`i.customer_id = $${args.length}`) }
+  if (status) { args.push(status); where.push(`i.status = $${args.length}`) }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : ''
-  const total = num((await pool.query(`SELECT count(*)::int AS n FROM invoices ${w}`, args)).rows[0].n)
+  const total = num((await pool.query(`SELECT count(*)::int AS n FROM invoices i ${w}`, args)).rows[0].n)
   const rows = (await pool.query(
-    `SELECT * FROM invoices ${w} ORDER BY created_at DESC, id LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
+    `SELECT i.*, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id ${w}
+     ORDER BY i.created_at DESC, i.id LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
     [...args, limit, offset],
   )).rows
+  return { rows, total }
+}
+
+/** A customer's own invoices; the customer name is never part of this view. */
+export async function listInvoices(pool: Q, { customer_id }: { customer_id: string }): Promise<{ items: InvoiceView[]; total: number }> {
+  const { rows, total } = await selectInvoices(pool, { customer_id })
   return { items: await hydrate(pool, rows), total }
 }
 
@@ -98,4 +108,32 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
   if (customer_id) { args.push(customer_id); w += ' AND customer_id = $2' }
   const rows = (await pool.query(`SELECT * FROM invoices WHERE ${w}`, args)).rows
   return (await hydrate(pool, rows))[0] ?? null
+}
+
+async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]> {
+  const views = await hydrate(pool, rows)
+  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string }))
+}
+
+export async function getVendorInvoice(pool: Q, id: string): Promise<VendorInvoiceView | null> {
+  const rows = (await pool.query('SELECT i.*, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.id = $1', [id])).rows
+  return (await hydrateVendor(pool, rows))[0] ?? null
+}
+
+/** Vendor list: a filtered page plus the outstanding balance (issued invoices) for the same customer scope, ignoring the status filter. */
+export async function listVendorInvoices(
+  pool: Q,
+  filter: InvoiceFilter = {},
+): Promise<{ items: VendorInvoiceView[]; total: number; summary: VendorInvoiceSummary }> {
+  const { rows, total } = await selectInvoices(pool, filter)
+  const args = filter.customer_id ? [filter.customer_id] : []
+  const sums = (await pool.query(
+    `SELECT currency, exponent, sum(total_minor)::bigint AS minor FROM invoices WHERE status = 'issued'${args.length ? ' AND customer_id = $1' : ''}
+     GROUP BY currency, exponent ORDER BY currency`,
+    args,
+  )).rows
+  return {
+    items: await hydrateVendor(pool, rows), total,
+    summary: { outstanding: sums.map(r => ({ currency: r.currency, exponent: num(r.exponent), minor: num(r.minor) })) },
+  }
 }

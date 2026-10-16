@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { bundleEditPayload, commercialFailure, commercialReturnTo, type BundleDraft, type BundleView } from '@/utils/vendorCommercial'
+import { catalogReturn } from '@/utils/vendorCatalog'
+import { bundleEditPayload, commercialFailure, type BundleDraft, type BundleView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import type { CatalogRelease } from '@nasq/commercial-contracts'
 definePageMeta({ capability: 'vendor.catalog.manage' })
 const { t } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial()
-const id = computed(() => String(route.params.id)); const backTo = computed(() => commercialReturnTo(route.query.returnTo, '/bundles'))
+const id = computed(() => String(route.params.id)); const backTo = computed(() => catalogReturn(route.query.returnTo, 'bundles').to)
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:bundle-edit:${id.value}`, async () => ({ view: await api.get<BundleView>('bundle', id.value), releases: (await api.releases()) as CatalogRelease[] }))
 const busy = ref(false); const saveError = ref<unknown>(null); const resetKey = ref(0)
 const readOnly = computed(() => Boolean(data.value && data.value.view.status !== 'draft'))
