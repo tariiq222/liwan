@@ -3,7 +3,7 @@ import MilestoneTable from '@/components/pmo/projects/MilestoneTable.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,7 +22,7 @@ const isListRoute = computed(() => {
   return rest === '' || rest === '/new'
 })
 
-const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestones/new` }))
+const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestones/new`, query: returnToQuery(route.fullPath) }))
 </script>
 
 <template>

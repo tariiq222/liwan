@@ -1,17 +1,19 @@
 <script setup lang="ts">
+import { recordParentTo } from '@/utils/recordListOrigin'
 import ProcessForm from '@/components/operations/ProcessForm.vue'
 import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
-import { operationId, safeOperationReturnTo } from '@/composables/operations/forms'
+import { operationId } from '@/composables/operations/forms'
 import type { OperationProcessBody } from '@nasq/contracts'
 const route = useRoute()
+const router = useRouter()
+const sourcePaths = useRecordListPaths(['/operations/processes', '/operations/pending', '/operations/monitoring', '/operations/processes'])
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const id = computed(() => operationId(route.params.id))
 const process = useOperationProcess(id)
 const mutation = useOperationProcessMutation()
-const returnTo = computed(() => safeOperationReturnTo(route.query.returnTo, '/operations/processes'))
-const backTo = computed(() => `/operations/processes/${id.value}?returnTo=${encodeURIComponent(returnTo.value)}`)
+const backTo = computed(() => router.resolve(recordParentTo(`/operations/processes/${id.value}`, route.query, sourcePaths.value, route.hash)).fullPath)
 function save(body: OperationProcessBody) { return mutation.mutateAsync({ action: 'edit', id: id.value!, body }) }
 async function refresh() { const response = await process.refetch(); if (response.error) throw response.error; return response.data! }
 

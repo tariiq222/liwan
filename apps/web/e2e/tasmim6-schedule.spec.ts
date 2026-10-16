@@ -32,9 +32,9 @@ test.describe('Plan 6a: schedule', () => {
       await page.getByTestId('timeline-today').click()
       await expect(page).toHaveURL(/\/projects\/2\/schedule/)
     })
-    test('a task bar link opens the schedule edit page for a manager and the task for a viewer', async ({ page }) => {
+    test('a task bar link opens the same project task record for a manager and a viewer', async ({ page }) => {
       await open(page, '/projects/2/schedule')
-      await expect(page.locator('.schedule-gantt-task').first()).toHaveAttribute('href', /\/projects\/2\/schedule\/tasks\/\d+/)
+      await expect(page.locator('.schedule-gantt-task').first()).toHaveAttribute('href', /\/projects\/2\/tasks\/\d+\?.*#schedule$/)
       // Management and task creation are independent capabilities: refresh actual client auth as a viewer.
       let authIntercepted = false
       await page.route('**/api/v1/me', async route => {
@@ -45,7 +45,7 @@ test.describe('Plan 6a: schedule', () => {
       })
       await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (path: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/projects/3/schedule'))
       expect(authIntercepted).toBe(true)
-      await expect(page.locator('.schedule-gantt-task').first()).toHaveAttribute('href', /^\/tasks\/\d+/)
+      await expect(page.locator('.schedule-gantt-task').first()).toHaveAttribute('href', /^\/projects\/3\/tasks\/\d+\?.*#schedule$/)
       await expect(page.getByTestId('project-header-create')).toHaveCount(0)
     })
   })

@@ -1,19 +1,25 @@
 <script setup lang="ts">
-import { recordParentTo, SERIES_LIST_PATHS } from '@/utils/recordListOrigin'
+import { owningListBack, recordParentTo } from '@/utils/recordListOrigin'
+import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { usePatchMeetingSeriesSettings } from '@/composables/useMeetingSeriesSettings'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
+import { parsePositiveId } from '@/utils/routeParams'
+import { ApiError } from '@/composables/useApi'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(SERIES_LIST_PATHS)
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
-const id = computed(() => Number(route.params.id))
+const id = computed(() => parsePositiveId(route.params.id))
 const query = useMeetingSeries(id)
+// An id that is not a canonical positive integer has no record to load and shows the same not-found state as an unknown id.
+const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const { mutateAsync, isPending, error } = usePatchMeetingSeriesSettings()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/series/${id.value}`, route.query, SERIES_LIST_PATHS, route.hash))
+const backTo = computed(() => id.value === null ? owningListBack(route.query, sourcePaths.value, route.hash) : recordParentTo(`/meetings/series/${id.value}`, route.query, sourcePaths.value, route.hash))
 const name = ref('')
 const location = ref('')
 const meetingUrl = ref('')
@@ -68,7 +74,7 @@ const termination = computed(() => {
 })
 
 async function save() {
-  if (!hydrated.value || isPending.value || !canEdit.value || !dirty.value || Object.values(formErrors.value).some(Boolean)) return
+  if (id.value === null || !hydrated.value || isPending.value || !canEdit.value || !dirty.value || Object.values(formErrors.value).some(Boolean)) return
   await mutateAsync({
     id: id.value,
     body: {
@@ -88,7 +94,7 @@ async function save() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
+    <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsForbidden')" />
@@ -114,10 +120,10 @@ async function save() {
           <p class="text-sm text-muted">{{ t('meetingsUx.seriesSettingsScope') }}</p>
         </SharedFormSection>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsSaveError')" />
-        <div class="nasq-form-footer justify-end">
+        <SharedFormActions class="justify-end">
           <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
           <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty || Object.values(formErrors).some(Boolean)" :label="t('app.save')" />
-        </div>
+        </SharedFormActions>
       </form>
     </SharedPageState>
   </SharedPageContainer>

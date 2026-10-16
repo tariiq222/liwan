@@ -1,4 +1,4 @@
-import { formatDateTime } from './formatDate'
+import { formatDateTime } from '@nasq/ui/app/utils/formatDate'
 
 /** Convert a datetime-local input (in the browser's local timezone) to the UTC wire format. */
 export function toUtcDateTime(value: string | null | undefined): string | undefined {

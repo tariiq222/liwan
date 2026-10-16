@@ -78,3 +78,14 @@ describe('structured package quota presentation', () => {
     await expect(useApi().$api('/api/v1/projects')).rejects.toBe(error)
   })
 })
+
+describe('interrupted writes', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it('states an unknown write outcome and explicitly disables transport retries', async () => {
+    vi.stubGlobal('useI18n', () => ({ t: (key: string) => key }))
+    const fetch = vi.fn().mockRejectedValue(new Error('connection failed'))
+    vi.stubGlobal('$fetch', fetch)
+    await expect(useApi().$api('/api/v1/tasks', { method: 'POST', body: { name: 'draft' } })).rejects.toMatchObject({ status: 0, message: 'errors.saveUncertain' })
+    expect(fetch.mock.calls[0]?.[1]).toMatchObject({ retry: 0 })
+  })
+})

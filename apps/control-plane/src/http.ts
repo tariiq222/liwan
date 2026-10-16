@@ -1,3 +1,4 @@
+import { accountCapabilities, vendorActorIssuer } from './admin-auth/grants.js'
 import { packageHttp } from './package-http.js'
 import { PackageError } from './packages.js'
 import { commercialHttp } from './commercial/http.js'
@@ -15,6 +16,12 @@ import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
 import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
 import { onboardSharedTenant, sharedProvisioningProgress, sharedOnboardingEnabled } from './shared/onboarding.js'
 import { z } from 'zod'
+import { actorName, AdminAuthError } from './admin-auth/accounts.js'
+import { resolveSession } from './admin-auth/sessions.js'
+import { STEP_UP_CAPABILITIES } from './admin-auth/roles.js'
+import { adminAuthHttp } from './admin-auth/routes.js'
+import { accountsHttp } from './admin-auth/accounts-http.js'
+import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { resolveCatalogSource } from './shared/catalog-source.js'
@@ -179,21 +186,31 @@ export async function resolveTargetLane(config: Config, targetId: string, commer
   return { kind: 'compose-local', target: { kind: 'customer', commercial_mode: 'saas' }, inventoryPath: config.managedInventoryPath, stateDir: config.stateDir, descriptorDigest: digest, descriptorBytes, catalogVersion: release.catalog_version as string, catalogSha256: release.catalog_sha256 as string, allowedOperations: entry.allowed_operations as string[] }
 }
 
-async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: Config): Promise<{ actor: number; capabilities: VendorCapability[] }> {
+async function authorize(pool: Pool, req: IncomingMessage, raw: string, config: Config): Promise<{ actor: number; capabilities: VendorCapability[]; stepUpFresh: boolean; method: string }> {
   const signed = verifyServiceRequest({ method: req.method ?? '', path: req.url ?? '', body: raw, key: config.key, headers: req.headers })
-  if (!signed || signed.issuer !== config.installationId) throw new ApiError(401, 'unauthorized', 'Invalid service assertion')
+  if (!signed || typeof signed.actor !== 'number' || signed.issuer !== config.installationId) throw new ApiError(401, 'unauthorized', 'Invalid service assertion')
+  const actor = signed.actor
   return transaction(pool, async (client) => {
     await client.query('DELETE FROM service_nonces WHERE expires_at < now()')
     const nonce = await client.query('INSERT INTO service_nonces(issuer,nonce,expires_at) VALUES($1,$2,now()+interval \'60 seconds\') ON CONFLICT DO NOTHING RETURNING nonce', [signed.issuer, signed.nonce])
     if (!nonce.rowCount) throw new ApiError(401, 'unauthorized', 'Replayed service assertion')
-    const membership = await client.query('SELECT capabilities FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL', [signed.issuer, signed.actor])
-    if (!membership.rowCount) throw new ApiError(403, 'forbidden', 'Vendor membership is not active')
-    return { actor: signed.actor, capabilities: membership.rows[0].capabilities as VendorCapability[] }
+    let session
+    try { session = await resolveSession(client, req.headers['x-nasq-session'], new Date()) } catch (error) { if (error instanceof AdminAuthError) throw new ApiError(401, 'unauthorized', 'Session is not valid'); throw error }
+    if (session.accountId !== actor) throw new ApiError(401, 'unauthorized', 'Session is not valid')
+    const capabilities = await accountCapabilities(client, actor)
+    if (!capabilities?.length) throw new ApiError(403, 'forbidden', 'Vendor account holds no role')
+    return { actor, capabilities, stepUpFresh: session.stepUpFresh, method: (req.method ?? '').toUpperCase() }
   })
 }
 
-function requireCapability(auth: { capabilities: VendorCapability[] }, capability: VendorCapability): void {
+function requireCapability(auth: { capabilities: VendorCapability[]; stepUpFresh?: boolean; method?: string }, capability: VendorCapability): void {
   if (!auth.capabilities.includes(capability)) throw new ApiError(403, 'forbidden', 'Vendor capability is required')
+  if (auth.method !== 'GET' && STEP_UP_CAPABILITIES.includes(capability) && !auth.stepUpFresh) throw new ApiError(403, 'step_up_required', 'Confirm with your passkey')
+}
+
+/** Catalog publication always needs a fresh passkey confirmation. */
+export function requireStepUp(auth: { stepUpFresh?: boolean }): void {
+  if (!auth.stepUpFresh) throw new ApiError(403, 'step_up_required', 'Confirm with your passkey')
 }
 
 function pageFrom(url: URL): number {
@@ -218,8 +235,8 @@ async function availableTenantOperations(pool: Pool, config: Config, tenant: Rec
   return ['tenant.inspect', 'health', 'backup', ...(tenant.commercial_mode === 'saas' && tenant.catalog_version && tenant.catalog_tier ? ['tenant.entitle'] : [])]
 }
 
-async function audit(client: PoolClient, actor: number | string, action: string, subject: string, reason: string): Promise<void> {
-  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), String(actor), action, subject, reason])
+async function audit(client: PoolClient, actor: number, action: string, subject: string, reason: string): Promise<void> {
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(), actorName({ id: actor }), action, subject, reason])
 }
 
 function digest(value: unknown): string { return createHash('sha256').update(JSON.stringify(value)).digest('hex') }
@@ -243,7 +260,7 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
     const original = await client.query(`SELECT ${OP_FIELDS},payload_digest,actor_uid,issuer FROM operations WHERE request_id=$1`, [requestId])
     const payloadDigest = digest(input)
     if (original.rowCount) {
-      if (String(original.rows[0].actor_uid) !== String(auth.actor) || original.rows[0].issuer !== config.installationId || original.rows[0].tenant_id !== tenantId || original.rows[0].payload_digest !== payloadDigest) throw new ApiError(409, 'conflict', 'Request ID is already in use')
+      if (String(original.rows[0].actor_uid) !== String(auth.actor) || original.rows[0].issuer !== vendorActorIssuer(config.installationId) || original.rows[0].tenant_id !== tenantId || original.rows[0].payload_digest !== payloadDigest) throw new ApiError(409, 'conflict', 'Request ID is already in use')
       const { payload_digest: _digest, actor_uid: _actor, issuer: _issuer, ...data } = original.rows[0]
       if (data.type === 'status') data.payload = { request_id: (data.payload as Record<string, unknown>).receipt_request_id, operation: (data.payload as Record<string, unknown>).operation, operation_id: (data.payload as Record<string, unknown>).operation_id }
       return { status: 200, data }
@@ -276,7 +293,7 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
     // Shared enqueue is refused above; its future store must persist a bound job
     // and business_key atomically rather than adding a key to a legacy payload.
     let inserted
-    try { inserted = await client.query(`INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${OP_FIELDS}`, [id, tenantId, auth.actor, config.installationId, kind, requestId, input.reason, input, payloadDigest]) }
+    try { inserted = await client.query(`INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${OP_FIELDS}`, [id, tenantId, auth.actor, vendorActorIssuer(config.installationId), kind, requestId, input.reason, input, payloadDigest]) }
     catch (error) {
       if ((error as { code?: string }).code === '23505') {
         if ((error as { constraint?: string }).constraint === 'operations_business_key_unique') throw new ApiError(409, 'conflict', 'Installation has already entered provisioning')
@@ -292,7 +309,7 @@ async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tena
   })
 }
 
-export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }) {
+export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib }) {
   const paymentRuntime: PaymentRuntime = {adapter:null,allowedOrigin:(process.env.NASQ_PAYMENT_RETURN_ORIGINS??'').split(',').map(s=>s.trim()).filter(Boolean)[0]??''}
   try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch { /* Fail payment routes closed; non-payment routes remain available. */ }
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
@@ -342,14 +359,26 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         } finally { invitationsInFlight-- }
       }
       const raw = await bodyBytes(req)
+      const adminResponse = await adminAuthHttp(pool, config, { webauthn: deps?.webauthn ?? defaultWebAuthn }, { method, pathname, path, raw, headers: req.headers, remoteAddress: req.socket.remoteAddress })
+      if (adminResponse) {
+        if (adminResponse.data !== undefined) return respond(res, adminResponse.status, adminResponse.data)
+        res.writeHead(adminResponse.status, { 'cache-control': 'no-store' })
+        return res.end()
+      }
       const customerResponse=await customerHttp(pool,config,{method,path,raw,headers:req.headers},paymentRuntime)
       if(customerResponse)return respond(res,customerResponse.status,customerResponse.data)
       const eventResponse=await paymentEventsHttp(pool,{method,pathname,raw,headers:req.headers},paymentRuntime)
       if(eventResponse)return respond(res,eventResponse.status,eventResponse.data)
       const auth = await authorize(pool, req, raw, config)
-      const packageResponse = await packageHttp(pool,{method,pathname,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities,repositoryRoot:config.repositoryRoot})
+      const accountsResponse = await accountsHttp(pool, { method, pathname, raw, auth, requireCapability, fail: (status, code) => new ApiError(status, code, code) })
+      if (accountsResponse) {
+        if (accountsResponse.data !== undefined) return respond(res, accountsResponse.status, accountsResponse.data)
+        res.writeHead(accountsResponse.status, { 'cache-control': 'no-store' })
+        return res.end()
+      }
+      const packageResponse = await packageHttp(pool,{method,pathname,raw,actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh,repositoryRoot:config.repositoryRoot})
       if(packageResponse)return respond(res,packageResponse.status,packageResponse.data)
-      const commercialInput={method,pathname,search:url.search,raw,issuer:config.installationId,actor:auth.actor,capabilities:auth.capabilities}
+      const commercialInput={method,pathname,search:url.search,raw,issuer:vendorActorIssuer(config.installationId),actor:auth.actor,capabilities:auth.capabilities,stepUpFresh:auth.stepUpFresh}
       const invitationResponse = await invitationVendorHttp(pool, commercialInput)
       if (invitationResponse) return respond(res, invitationResponse.status, invitationResponse.data)
       let commercialResponse
@@ -359,7 +388,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (method === 'POST' && pathname === '/v1/shared/tenants') {
         requireCapability(auth, 'vendor.tenants.manage')
         requireCapability(auth, 'vendor.operations.run')
-        const result = await onboardSharedTenant(pool, config, {issuer:config.installationId,actorUid:auth.actor}, parseJson(raw, sharedOnboardingRequestSchema))
+        const result = await onboardSharedTenant(pool, config, {issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor}, parseJson(raw, sharedOnboardingRequestSchema))
         return respond(res, result.replay ? 200 : 202, result)
       }
       const sharedProgress = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/provisioning$`))
@@ -374,7 +403,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
         if(realProgress){requireCapability(auth,'vendor.read');return respond(res,200,await odooJobProgress(pool,realProgress[1]!,realProgress[2]!))}
         requireCapability(auth,'vendor.operations.run')
-        return respond(res,201,await approveOdooRestore(pool,runtime,{issuer:config.installationId,actorUid:auth.actor},realApproval![1]!,parseJson(raw,z.strictObject({backup_id:z.uuid(),reason:z.string().trim().min(3).max(1000)}))))
+        return respond(res,201,await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,z.strictObject({backup_id:z.uuid(),reason:z.string().trim().min(3).max(1000)}))))
       }
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
       if (method === 'POST' && sharedQueue) {
@@ -390,13 +419,14 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
           : parseJson(JSON.stringify(rawJob), z.strictObject({
               schemaVersion: z.literal(1), requestId: z.uuid(), operation: z.enum(['provision','backup']),
             }))
-        const result = await enqueueSharedJob(pool, sharedQueue[1]!, { issuer: config.installationId, actorUid: auth.actor }, job, input.reason)
+        const result = await enqueueSharedJob(pool, sharedQueue[1]!, { issuer: vendorActorIssuer(config.installationId), actorUid: auth.actor }, job, input.reason)
         return respond(res, result.replay ? 200 : 202, result)
       }
       if (method === 'POST' && ['/v1/registry/mutations', '/v1/registry/recover'].includes(pathname)) {
         requireCapability(auth, 'vendor.tenants.manage')
+        requireStepUp(auth)
         if (!config.tenantRegistryPath) throw new ApiError(503, 'registry_unavailable', 'Registry publication is not configured')
-        const actor = { issuer: config.installationId, actorUid: auth.actor }
+        const actor = { issuer: vendorActorIssuer(config.installationId), actorUid: auth.actor }
         const result = pathname === '/v1/registry/mutations'
           ? await publishRegistryMutation(pool, config.tenantRegistryPath, actor, parseJson(raw, registryMutationSchema))
           : await recoverRegistry(pool, config.tenantRegistryPath, actor, parseJson(raw, reasonRequestSchema).reason)
@@ -535,6 +565,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const input = parseJson(raw, reasonRequestSchema)
         const id = catalogMatch[1]
         const action = catalogMatch[2]
+        if (action === 'publish') requireStepUp(auth)
         const current = await pool.query('SELECT status,source_sha256,solution FROM catalog_entries WHERE id=$1', [id])
         if (!current.rowCount) throw new ApiError(404, 'not_found', 'Catalog entry not found')
         if (current.rows[0].status !== (action === 'validate' ? 'draft' : 'validated')) throw new ApiError(409, 'conflict', 'Catalog transition is unavailable')

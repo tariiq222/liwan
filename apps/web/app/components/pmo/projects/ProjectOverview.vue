@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { ProjectDetail, ProjectStatus } from '@nasq/contracts'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { badgeLabel } from '@/utils/statusBadge'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
 
 // The main column of the project record: progress figures, tasks that need attention, the latest
@@ -35,6 +35,8 @@ function dateLabel(value: string | null) {
 
 <template>
   <div data-testid="project-overview" class="@container min-w-0 space-y-6">
+    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
+
     <!-- Two columns from the narrowest width, compact tiles on phones; the odd one out spans the row. -->
     <section :class="metricGridClass">
       <SharedMetricTile
@@ -51,25 +53,27 @@ function dateLabel(value: string | null) {
         icon="i-lucide-list-checks"
         :label="t('projects.overview.openTasks')"
         :value="openTaskCount"
-        :hint="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })"
       />
+      <SharedRecordSection v-if="milestones.error.value" panel data-testid="project-overview-milestone-error" :title="t('projects.overview.nextMilestone')">
+        <SharedPageState :error="milestones.error.value" @retry="milestones.refetch()" />
+      </SharedRecordSection>
+      <SharedLoadingSkeleton v-else-if="milestones.isLoading.value" :count="1" />
       <!-- Localized Arabic dates contain bidi marks; preserve the locale direction. -->
       <SharedMetricTile
+        v-else
         :label="t('projects.overview.nextMilestone')"
         :value="nearestMilestone ? dateLabel(nearestMilestone.deadline) : null"
         :hint="nearestMilestone?.name ?? t(project.milestone_count === 0 ? 'projects.overview.noMilestones' : 'projects.overview.noUpcomingMilestone')"
       />
     </section>
 
-    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
-
-    <SharedRecordSection data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
+    <SharedRecordSection panel data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
       <template #actions>
         <NuxtLink :to="`/projects/${project.id}/updates`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
           {{ t('projects.refresh.workspace.viewAllUpdates') }}
         </NuxtLink>
       </template>
-      <div class="rounded-lg bg-default p-4 ring ring-default">
+      <div>
         <SharedLoadingSkeleton v-if="updates.isLoading.value" :count="1" />
         <SharedPageState v-else-if="updates.error.value" :error="updates.error.value" @retry="updates.refetch()" />
         <div v-else-if="latestUpdate" class="grid min-w-0 gap-2">
@@ -85,6 +89,12 @@ function dateLabel(value: string | null) {
         </div>
         <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
       </div>
+    </SharedRecordSection>
+    <SharedRecordSection panel :title="t('projects.overview.metadata')">
+      <dl class="grid grid-cols-2 gap-4">
+        <div><dt class="text-sm text-muted">{{ t('projects.overview.milestones') }}</dt><dd class="mt-1 font-medium tabular-nums">{{ project.milestone_count }}</dd></div>
+        <div><dt class="text-sm text-muted">{{ t('projects.overview.followers') }}</dt><dd class="mt-1 font-medium tabular-nums">{{ project.followers_count }}</dd></div>
+      </dl>
     </SharedRecordSection>
   </div>
 </template>

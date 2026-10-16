@@ -20,7 +20,7 @@ export function projectIdFromPath(path: string): number | null {
 /** The four governance children keep their own top-level paths. */
 const GOVERNANCE_SEGMENTS = new Set<string>(GOVERNANCE_SECTION_IDS)
 
-const SECTION_SEGMENTS = new Set<ProjectSectionId>(['tasks', 'schedule', 'milestones', 'governance', 'finance', 'meetings', 'updates'])
+const SECTION_SEGMENTS = new Set<ProjectSectionId>(['tasks', 'governance', 'finance', 'meetings', 'updates'])
 
 export function activeProjectSection(path: string): ProjectSectionId | null {
   const id = projectIdFromPath(path)
@@ -28,8 +28,15 @@ export function activeProjectSection(path: string): ProjectSectionId | null {
   const rest = normalizedPath(path).replace(`/projects/${id}`, '').replace(/^\//, '')
   if (!rest) return 'summary'
   const head = rest.split('/', 1)[0]!
+  if (head === 'schedule' || head === 'milestones') return 'planning'
   if (GOVERNANCE_SEGMENTS.has(head)) return 'governance'
   return SECTION_SEGMENTS.has(head as ProjectSectionId) ? head as ProjectSectionId : null
+}
+
+/** Both planning views retain their own route, including records and forms. */
+export function activePlanningSection(path: string): 'schedule' | 'milestones' | null {
+  if (activeProjectSection(path) !== 'planning') return null
+  return normalizedPath(path).split('/')[3] === 'milestones' ? 'milestones' : 'schedule'
 }
 
 /** The governance sub-tab that owns a path, including its record and form pages. */
@@ -52,21 +59,20 @@ function moduleWithinApp(manifest: AppManifest, path: string): ShellModule {
 }
 
 export function activeShellModule(path: string): ShellModule | null {
-  if (path === '/vendor' || path.startsWith('/vendor/')) return 'management'
+  if (normalizedPath(path) === '/') return 'home'
   const owner = manifestForPath(path)
   if (owner) return moduleWithinApp(owner, path)
   if (path === '/settings' || path.startsWith('/settings/')) return 'settings'
   if (path === '/subscription' || path.startsWith('/subscription/')) return 'settings'
   // The account is reached from the header menu, not from a rail module.
   if (path === '/account' || path.startsWith('/account/')) return null
-  if (path === '/search' || path.startsWith('/search/')) return 'projects'
+  if (path === '/search' || path.startsWith('/search/')) return null
   if (path === '/notifications' || path.startsWith('/notifications/')) return null
   if (path === '/notification-digests' || path.startsWith('/notification-digests/')) return null
-  if (path === '/odoo' || path.startsWith('/odoo/')) return 'vendor'
   return null
 }
 
 /** The module whose contextual links a rail module shows; `home` shares the projects sidebar. */
 export function contextModuleFor(module: ShellModule | null): ShellModule | null {
-  return module === 'home' ? 'projects' : module
+  return module === 'home' ? null : module
 }

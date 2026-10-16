@@ -1,42 +1,27 @@
 {
   "app": {
-    "pagination": "Pagination",
-    "pageOf": "Page {page} of {pages}",
-    "notAvailable": "—",
     "selectPerson": "Select a person",
     "actions": "Actions",
     "edit": "Edit",
     "productName": "Nasq",
     "search": "Search",
-    "cancel": "Cancel",
     "save": "Save",
-    "create": "Create",
-    "noResults": "No results.",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "saveChanges": "Save changes",
     "loadMore": "Load more",
-    "loading": "Loading",
-    "back": "Back",
-    "close": "Close",
-    "retry": "Try again",
-    "unsavedChangesTitle": "Unsaved changes",
-    "unsavedChanges": "If you leave now, your changes will not be saved.",
-    "stay": "Stay on this page",
-    "discardAndLeave": "Leave without saving",
-    "recordNumber": "No.",
-    "selectDate": "Choose date",
-    "clearDate": "Clear date",
-    "chooseFile": "Choose file",
-    "noFileChosen": "No file chosen"
+    "recordNumber": "No."
+  },
+  "home": {
+    "description": "Choose a workspace or start an action.",
+    "empty": "No workspaces are currently available for your account."
   },
   "nav": {
     "today": "Today",
-    "tasks": "My tasks",
+    "tasks": "Assigned project tasks",
     "projects": "Projects",
     "toggleNavigation": "Toggle navigation",
-    "modules": "Modules",
-    "breadcrumb": "Breadcrumb",
-    "consoleBadge": "Console",
     "header": "Application header",
-    "home": "Overview",
     "collapseContext": "Collapse sidebar",
     "expandContext": "Expand sidebar",
     "context": "Context navigation",
@@ -51,7 +36,6 @@
     "projectCharter": "Project file",
     "people": "People",
     "reports": "Project reports",
-    "console": "Console",
     "goTo": "Go to",
     "typeToNavigate": "Type to navigate…",
     "searchDescription": "Find a page or project and open it directly.",
@@ -72,12 +56,12 @@
     "systemAdministration": "System administration",
     "toggleSidebar": "Toggle navigation",
     "chat": "Chat",
-    "myTasks": "My to-dos",
+    "myTasks": "My tasks",
     "meetings": "Meetings",
     "ai": "Nasq AI",
     "meetingCalendar": "Calendar",
     "meetingSeries": "Recurring meetings",
-    "projectDashboard": "Overview",
+    "projectDashboard": "Project overview",
     "currentProject": "Current project",
     "projectsMenu": "Projects menu",
     "returnToCurrentProject": "Return to project {name}",
@@ -89,9 +73,6 @@
     "projectTasks": "Tasks",
     "openMenu": "Open menu",
     "navigation": "Navigation",
-    "management": "Nasq administration",
-    "railApps": "Applications",
-    "railAdmin": "Administration",
     "language": "Language",
     "goToShowAll": "Show all pages ({count})",
     "goToShowLess": "Show fewer",
@@ -113,6 +94,7 @@
     "totpInvalid": "Invalid verification code"
   },
   "errors": {
+    "saveUncertain": "We could not confirm whether the save completed. Check the record before trying again.",
     "pageNotFoundTitle": "Page not found",
     "pageNotFound": "The link may be wrong, or the page has moved.",
     "pageErrorTitle": "This page could not be shown",
@@ -124,10 +106,6 @@
     "goHome": "Back to home",
     "serverUnreachable": "Unable to reach the server",
     "badPayload": "Invalid response from the server",
-    "generic": "An unexpected error occurred",
-    "forbidden": "You do not have permission to view this page.",
-    "notFound": "This record is unavailable or no longer exists.",
-    "conflict": "The data changed since you opened this page. Reload it and try again.",
     "packageQuota": {
       "users": "You have reached the user limit for your plan.",
       "projects": "You have reached the project limit for your plan.",
@@ -154,6 +132,7 @@
     "disconnected": "Disconnected"
   },
   "search": {
+    "allProviders": "All search scopes",
     "description": "Search pages, projects and tasks…",
     "close": "Close search",
     "tasks": "Tasks",
@@ -179,40 +158,5 @@
     "sidebar": "Collapse or expand the sidebar",
     "escape": "Back or close",
     "help": "Show shortcuts"
-  },
-  "filterCard": {
-    "title": "Search and filters",
-    "clear": "Clear filters",
-    "remove": "Remove filter"
-  },
-  "brand": {
-    "name": "Nasq"
-  },
-  "states": {
-    "view": "View",
-    "forbiddenHint": "Ask your system administrator for access if you need this page.",
-    "notFoundHint": "The record may have been deleted, or its link changed.",
-    "metrics": "Key figures",
-    "chartEmpty": "There is not enough data to draw this chart.",
-    "noValue": "No value",
-    "untitled": "Untitled",
-    "properties": "Properties",
-    "previous": "Previous",
-    "next": "Next",
-    "today": "Today",
-    "period": "Move between periods",
-    "scale": "Scale",
-    "details": "Details",
-    "invoice": {
-      "description": "Description",
-      "amount": "Amount",
-      "lines": "Invoice lines",
-      "totals": "Totals"
-    },
-    "selectAll": "Select all rows",
-    "selectRow": "Select row",
-    "selectedCount": "Selected: {count}",
-    "clearSelection": "Clear selection",
-    "bulkActions": "Actions on selected rows"
   }
 }

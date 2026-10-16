@@ -12,6 +12,7 @@ import { transaction } from '../db.js'
 import { businessKey, payloadDigest, bindJob } from './provisioning.js'
 import type { TenantStorage } from './fenced-adapter.js'
 import { ensureTenantStorageSchema } from './fenced-adapter.js'
+import { actorLabel } from '../admin-auth/grants.js'
 
 export type ReadinessCheck = { name: string; passed: boolean; detail?: string }
 export type ReadinessReport = { ready: boolean; checks: ReadinessCheck[] }
@@ -119,12 +120,12 @@ export async function activateSharedTenant(pool: Pool, controlTenantId: string, 
     if (!durableVerified || !report.ready) {
       await client.query("UPDATE tenants SET status='needs_intervention' WHERE id=$1 AND status<>'active'", [controlTenantId])
       await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-        [randomUUID(), `${actor.issuer}:${actor.actorUid}`, 'tenant.activation_refused', controlTenantId, 'Readiness or durable verification missing', { failed, durableVerified }])
+        [randomUUID(), actorLabel(actor), 'tenant.activation_refused', controlTenantId, 'Readiness or durable verification missing', { failed, durableVerified }])
       return { activated: false }
     }
     await client.query("UPDATE tenants SET status='active',health_checked_at=now() WHERE id=$1 AND status<>'active'", [controlTenantId])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(), `${actor.issuer}:${actor.actorUid}`, 'tenant.activated', controlTenantId, 'All readiness checks passed with a verified provision job', { checks: report.checks.map(c => c.name) }])
+      [randomUUID(), actorLabel(actor), 'tenant.activated', controlTenantId, 'All readiness checks passed with a verified provision job', { checks: report.checks.map(c => c.name) }])
     return { activated: true }
   })
 }

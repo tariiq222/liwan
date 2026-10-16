@@ -37,3 +37,10 @@ describe('legacyProjectTabTarget', () => {
     expect(legacyProjectTabTarget('/tasks', { view: 'board' })).toBeNull()
   })
 })
+
+it('redirects the former schedule editor to the task and preserves a safe source', () => {
+  expect(legacyProjectTabTarget('/projects/7/schedule/tasks/9', { returnTo: '/projects/7/schedule?scale=month#planning' })).toEqual({
+    path: '/projects/7/tasks/9', query: { returnTo: '/projects/7/schedule?scale=month#planning' }, hash: '#schedule',
+  })
+  expect(legacyProjectTabTarget('/projects/7/schedule/tasks/9', { returnTo: 'https://evil.test' })?.query.returnTo).toBe('/projects/7/schedule')
+})

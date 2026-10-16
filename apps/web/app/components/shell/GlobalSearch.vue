@@ -5,10 +5,10 @@ import { useNav, type NavItem } from '@/composables/nav/shellModules'
 import {
   commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
-import { isApplePlatform } from '@/composables/shortcuts/keymap'
+import { isApplePlatform } from '@nasq/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
 import { paletteNavigationBlocked, shouldRestoreTriggerFocus, usePalette } from '@/composables/usePalette'
-import { clearNavigationFocus, offerNavigationFocus } from '@/composables/useNavigationFocus'
+import { clearNavigationFocus, offerNavigationFocus } from '@nasq/ui/app/composables/useNavigationFocus'
 
 // The command palette (Tasmim spec §5) and still the one approved search overlay
 // (DESIGN.md §5; tools/ui_policy.py OVERLAY_OWNERS): Go to (the nav the user can reach),
@@ -23,7 +23,7 @@ const hydrated = useHydrated()
 const { open, view, term, close, reset } = usePalette()
 const trimmed = computed(() => term.value.trim())
 const debounced = refDebounced(trimmed, 200)
-const sections = useAppSearch({ surface: 'dialog', term: trimmed, debounced, gate: open, requireTerm: true, can, api: $api })
+const sections = useAppSearch({ term: trimmed, debounced, gate: open, requireTerm: true, can, api: $api })
 // ⌘ on Apple platforms, Ctrl elsewhere; SSR and the first client render agree on ⌘.
 const metaKey = ref('⌘')
 onMounted(() => { if (!isApplePlatform(navigator)) metaKey.value = 'Ctrl ' })
@@ -80,7 +80,7 @@ function toItem(item: PaletteItem): CommandPaletteItem {
     ...rest,
     onSelect(event: Event) {
       if (!action) {
-        leavingFor = item.external ? null : pathOf(item.to)
+        leavingFor = pathOf(item.to)
         leavingFrom = route.path
         closedWithoutRestore = false
         if (leavingFor !== null) {
@@ -93,7 +93,6 @@ function toItem(item: PaletteItem): CommandPaletteItem {
       event.preventDefault()
       if (action.kind === 'shortcuts') view.value = 'shortcuts'
       else if (action.kind === 'retry') sectionFor(action.section)?.refetch()
-      else if (action.kind === 'load-more') sectionFor(action.section)?.fetchNext()
     },
   }
 }
@@ -135,7 +134,6 @@ const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
       waiting: section.waiting.value,
       error: !!section.error.value,
       hasNext: section.hasNext.value,
-      fetchingNext: section.fetchingNext.value,
       notice: section.truncated.value && section.provider.truncatedKey ? t(section.provider.truncatedKey) : null,
     })),
     actions: [...commandItems(visibleCommands(me.value), key => t(key), route.fullPath), shortcutsEntry],

@@ -12,8 +12,9 @@ describe('the meetings pages stay on their templates', () => {
     ['pages/meetings/index.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-new"']],
     ['pages/meetings/series.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-series-new"']],
     ['pages/meetings/calendar.vue', ['<SharedTimelineFrame']],
-    // The record's seven tabs are a custom overflow-aware strip (data-testid="meeting-tabs"), not SharedRouteTabs.
-    ['pages/meetings/[id].vue', ['<SharedRecordPage', 'data-testid="meeting-tabs"', '<SharedPropertiesPanel', '<SharedRecordSection']],
+    // The record's seven tabs are a custom overflow-aware strip (MeetingRecordTabs), not SharedRouteTabs.
+    ['pages/meetings/[id].vue', ['<SharedRecordPage', '<MeetingRecordTabs', '<SharedPropertiesPanel', '<SharedRecordSection']],
+    ['components/meetings/MeetingRecordTabs.vue', ['data-testid="meeting-tabs"']],
     ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel']],
     ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'nasq-print-landscape']],
   ])('%s uses its template', (file, needles) => {
@@ -21,6 +22,12 @@ describe('the meetings pages stay on their templates', () => {
     for (const needle of needles) expect(source, needle).toContain(needle)
     expect(source, 'no hand-made page header').not.toContain('<SharedPageHeader')
     expect(source, 'no hand-made page container').not.toContain('<SharedPageContainer')
+  })
+
+  it('the resolutions and attachments tabs stay mounted behind v-show', () => {
+    const source = read('pages/meetings/[id].vue')
+    expect(source).toMatch(/<MeetingResolutionsTab\s+v-show="activeTab === 'resolutions'"/)
+    expect(source).toMatch(/<MeetingAttachmentsTab\s+v-show="activeTab === 'attachments'"/)
   })
 
   it('the print page has no scoped style and no UTabs, UTable or UCard-only tabs remain on the record pages', () => {

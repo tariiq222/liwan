@@ -1,0 +1,46 @@
+{
+  "app": {
+    "productName": "نسق",
+    "error": {
+      "notFound": "الصفحة غير موجودة",
+      "generic": "حدث خطأ غير متوقع",
+      "home": "العودة إلى الرئيسية",
+      "forbidden": "ليس لديك صلاحية لفتح هذه الصفحة",
+      "unavailable": "الخدمة غير متاحة الآن. حاول بعد قليل"
+    },
+    "nav": {
+      "overview": "نظرة عامة",
+      "customers": "العملاء",
+      "tenants": "النسخ",
+      "operations": "العمليات",
+      "plans": "الباقات",
+      "bundles": "الحزم",
+      "catalog": "الحزم القديمة",
+      "invoices": "الفواتير",
+      "audit": "التدقيق",
+      "team": "الفريق"
+    },
+    "shell": {
+      "header": "رأس لوحة التحكم",
+      "consoleBadge": "لوحة تحكم نسق",
+      "navigation": "التنقل",
+      "openMenu": "فتح القائمة",
+      "account": "الحساب",
+      "signOut": "تسجيل الخروج",
+      "language": "اللغة",
+      "appearance": "المظهر",
+      "light": "فاتح",
+      "dark": "داكن",
+      "roles": {
+        "owner": "مالك المنصة",
+        "customer_success": "نجاح العملاء",
+        "finance": "المالية",
+        "product": "المنتج",
+        "operations": "التشغيل التقني",
+        "support": "الدعم الفني"
+      },
+      "signOutFailed": "تعذر تسجيل الخروج. حاول مرة أخرى.",
+      "content": "المحتوى"
+    }
+  }
+}

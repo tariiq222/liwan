@@ -8,12 +8,14 @@ import {fileURLToPath} from 'node:url'
 import {migrate} from '../db.js'
 import {onboardSharedTenant,sharedProvisioningProgress} from '../shared/onboarding.js'
 import {publishRegistryMutation} from '../shared/registry-store.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 const url=process.env.CONTROL_TEST_DATABASE_URL
 if(url){const parsed=new URL(url);if(!['127.0.0.1','localhost','::1'].includes(parsed.hostname)||!/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1)))throw Error('scratch control DB required')}
 const suite=url?describe:describe.skip
 suite('real shared onboarding SQL identity and fail-closed publication',()=>{
   const pool=new Pool({connectionString:url})
-  const actor={issuer:`onboarding-${randomUUID()}`,actorUid:7}
+  const actor={issuer:vendorActorIssuer(`onboarding-${randomUUID()}`),actorUid:7}
   const input={request_id:randomUUID(),name:'First tenant',catalog_version:`onboarding-${randomUUID()}`,catalog_tier:'projects',admin_name:'First administrator',admin_login:'first@example.test',reason:'First scratch tenant'}
   let config:any
   beforeAll(async()=>{
@@ -26,7 +28,7 @@ suite('real shared onboarding SQL identity and fail-closed publication',()=>{
     config={installationId:actor.issuer,key:'test-key'.repeat(8),inventoryPath:'/unused',stateDir:root,repositoryRoot:fileURLToPath(new URL('../../../..',import.meta.url)),python:'python3',sharedRuntimeConfigPath:join(root,'runtime.json'),tenantRegistryPath:join(root,'registry.json')}
     const source=await readFile(join(config.repositoryRoot,'deploy/catalog/solutions/platform.json'))
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)",[randomUUID(),input.catalog_version,JSON.parse(source.toString()),createHash('sha256').update(source).digest('hex')])
-    await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,ARRAY['vendor.read','vendor.tenants.manage','vendor.operations.run']),($1,8,ARRAY['vendor.read','vendor.tenants.manage','vendor.operations.run'])",[actor.issuer])
+    await vendorAccount(pool,['customer_success','operations'],7);await vendorAccount(pool,['customer_success','operations'],8)
   })
   afterAll(async()=>{vi.unstubAllEnvs();await pool.end()})
   it('identical replay has one tenant, one job and server-derived catalog policy',async()=>{

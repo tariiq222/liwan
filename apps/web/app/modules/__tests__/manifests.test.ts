@@ -6,7 +6,7 @@ import type { AppManifest } from '../types'
 import { allNavItems } from '../../composables/nav/shellModules'
 import { goKeyProblems } from '../../composables/nav/paletteModel'
 import { appCommands } from '../surfaces'
-import { SHELL_RESERVED_KEYS } from '../../composables/shortcuts/keymap'
+import { SHELL_RESERVED_KEYS } from '@nasq/ui/app/composables/shortcuts/keymap'
 
 const crm: AppManifest = {
   id: 'crm',
@@ -27,7 +27,7 @@ describe('app manifests', () => {
     expect(inOrder(ids, ['pmo', 'meetings', 'chat', 'hr', 'ai'])).toEqual(['pmo', 'meetings', 'chat', 'hr', 'ai'])
     expect(new Set(ids).size).toBe(ids.length)
     const rail = appManifests.flatMap(manifest => manifest.rail.map(entry => entry.id))
-    expect(inOrder(rail, ['home', 'projects', 'meetings', 'chat', 'hr', 'ai'])).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'ai'])
+    expect(inOrder(rail, ['projects', 'meetings', 'chat', 'hr', 'ai'])).toEqual(['projects', 'meetings', 'chat', 'hr', 'ai'])
     expect(new Set(rail).size).toBe(rail.length)
   })
   it('opens /ai by the real ai.use capability and the ai.enabled feature, with no alias', () => {
@@ -41,8 +41,8 @@ describe('app manifests', () => {
   })
   it('keeps the module feature map', () => {
     expect(MODULE_FEATURES).toMatchObject({
-      home: 'pmo.enabled', projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled', ai: 'ai.enabled',
-      settings: null, vendor: null, management: null,
+      home: null, projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled', ai: 'ai.enabled',
+      settings: null,
     })
   })
 
@@ -125,7 +125,7 @@ describe('app manifests', () => {
         expect(hasFeature(withoutCrm, featureForPath('/crm'))).toBe(false)
         expect(firstAllowedPath(identity)).toBe('/crm')
         expect(postLoginPath(identity, '/crm')).toBe('/crm')
-        expect(postLoginPath(withoutCrm, '/crm')).toBe('/account')
+        expect(postLoginPath(withoutCrm, '/crm')).toBe('/')
         expect(hasCapability(identity, 'nasq.notifications')).toBe(true)
         expect(canUse(identity, 'nasq.notifications')).toBe(true)
         expect(canUse(withoutCrm, 'nasq.notifications')).toBe(false)

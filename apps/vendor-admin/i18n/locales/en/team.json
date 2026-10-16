@@ -1,0 +1,92 @@
+{
+  "team": {
+    "title": "Team",
+    "description": "The accounts that sign in to the Nasq admin, their roles, and invitations for people joining.",
+    "invite": "Invite a person",
+    "empty": "No accounts yet.",
+    "you": "You",
+    "neverSeen": "Never signed in",
+    "columns": {
+      "person": "Person",
+      "roles": "Roles",
+      "status": "Status",
+      "lastSeen": "Last sign-in",
+      "actions": "Actions"
+    },
+    "status": {
+      "enrolling": "Invitation pending",
+      "active": "Active",
+      "disabled": "Disabled"
+    },
+    "roles": {
+      "legend": "Roles",
+      "hint": "Choose at least one role.",
+      "owner": "Owner",
+      "customer_success": "Customer success",
+      "finance": "Finance",
+      "product": "Product",
+      "operations": "Operations",
+      "support": "Support"
+    },
+    "form": {
+      "title": "Invite a new person",
+      "email": "Email",
+      "name": "Name",
+      "emailInvalid": "Enter a valid email address.",
+      "nameInvalid": "Enter the name.",
+      "rolesInvalid": "Choose at least one role.",
+      "submit": "Create invitation",
+      "cancel": "Cancel"
+    },
+    "actions": {
+      "roles": "Change roles",
+      "disable": "Disable",
+      "reset": "Re-enroll",
+      "selfHint": "You cannot disable or re-enroll your own account here.",
+      "label": "Actions for {name}"
+    },
+    "roleEdit": {
+      "title": "Roles of {name}",
+      "save": "Save roles",
+      "cancel": "Cancel",
+      "saved": "Roles of {name} saved."
+    },
+    "disable": {
+      "title": "Disable the account of {name}?",
+      "description": "Their sign-in ends at once and their open invitations are cancelled.",
+      "confirm": "Disable account",
+      "done": "The account of {name} is disabled."
+    },
+    "reset": {
+      "title": "Re-enroll the account of {name}?",
+      "description": "Their current sessions end, and they get a new link to add a passkey and a password again.",
+      "confirm": "Create a new link"
+    },
+    "link": {
+      "title": "Invitation link for {name}",
+      "hint": "This link is shown once and is not kept anywhere. Send it to its owner through a secure channel before closing.",
+      "label": "Enrollment link",
+      "expires": "Expires {date}",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "copyFailed": "Could not copy. Select the link and copy it by hand.",
+      "dismiss": "Done, hide the link"
+    },
+    "errors": {
+      "lastOwner": "At least one active owner is required. Add another owner before this change.",
+      "conflict": "An account with this email already exists.",
+      "invalid": "The data was not accepted. Check the fields and try again.",
+      "forbidden": "You are not allowed to do this. You must be an active owner.",
+      "rateLimited": "Too many attempts. Wait a moment and try again.",
+      "unavailable": "The control service is unavailable. Try again shortly.",
+      "stepUpRequired": "The passkey confirmation did not complete. Try again and confirm when asked.",
+      "stepUpCancelled": "The passkey confirmation was cancelled; nothing was changed.",
+      "generic": "The action failed. Try again."
+    },
+    "reason": {
+      "label": "Reason",
+      "hint": "3 to 1000 characters. Recorded in the audit log.",
+      "invalid": "Write a reason of at least 3 characters."
+    }
+  }
+}

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { ProjectCharterCatalogResource } from '@nasq/contracts'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useCharterCatalogSearch } from '@/composables/useProjectCharterCatalogs'
 import type { CharterDraft, CharterFieldKey } from '@/utils/projectCharter'
 import { CHARTER_FIELD_KEYS, PROJECT_PRIORITIES } from '@/utils/projectCharter'
 import { charterStepsForType } from '@/utils/charterSteps'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import ProjectCharterRows from '@/components/pmo/projects/ProjectCharterRows.vue'
 import ProjectFieldHelp from '@/components/pmo/projects/ProjectFieldHelp.vue'
 
@@ -128,7 +128,8 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
 
 <template>
   <div class="grid gap-6">
-    <UFormField v-if="show('name')" :label="t('projects.charter.fields.name')" required :error="fieldErrors?.name" data-testid="charter-field-name">
+    <div v-if="show('name') || show('code')" class="grid gap-4 sm:grid-cols-3">
+    <UFormField v-if="show('name')" class="sm:col-span-2" :label="t('projects.charter.fields.name')" required :error="fieldErrors?.name" data-testid="charter-field-name">
       <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.name'))" :text="t('projects.charter.help.name')" /></template>
       <template #error="{ error }"><span role="alert">{{ error }}</span></template>
       <UInput id="charter-name" v-model="draft.name" class="w-full" data-testid="project-create-name" required :readonly="readonly" :disabled="controlsDisabled" />
@@ -139,12 +140,14 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
       <UInput id="charter-code" :model-value="draft.code ?? t('projects.charter.codePending')" class="w-full" readonly disabled dir="ltr" />
     </UFormField>
 
+    </div>
+
     <UFormField v-if="show('description')" :label="t('projects.charter.fields.description')" data-testid="charter-field-description">
       <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.description'))" :text="t('projects.charter.help.description')" /></template>
       <div v-if="readonly && descriptionLooksHtml" class="rounded-md bg-elevated/50 p-3">
         <SharedRichText size="sm" :html="draft.description" />
       </div>
-      <UTextarea v-else id="charter-description" v-model="draft.description" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="4" />
+      <UTextarea v-else id="charter-description" v-model="draft.description" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
     </UFormField>
 
     <div v-if="show('type') || show('owning_unit')" class="grid gap-4 md:grid-cols-2">

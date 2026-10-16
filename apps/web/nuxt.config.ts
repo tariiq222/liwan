@@ -11,6 +11,7 @@ const shared = tenancyMode === 'shared'
 const odoo = process.env.NUXT_ODOO_URL ?? (shared ? 'http://guard:8080' : 'http://localhost:8069')
 
 export default defineNuxtConfig({
+  extends: ['@nasq/ui', '@nasq/commercial-ui'],
   compatibilityDate: '2025-07-15',
   hooks: {
     ready(nuxt) {
@@ -22,8 +23,6 @@ export default defineNuxtConfig({
   },
   devtools: { enabled: true },
   modules: ['@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/i18n'],
-  css: ['~/assets/css/main.css'],
-  ui: { fonts: false, colorMode: false },
   icon: {
     provider: 'none',
     fallbackToApi: false,
@@ -39,16 +38,15 @@ export default defineNuxtConfig({
   // Discover runtime components; specialist chart adapters also use explicit imports.
   // Application folders keep their historical auto-import names through `prefix`
   // (components/pmo/projects/ProjectTable.vue stays ProjectTable); the shared groups
-  // drop their group folder (components/shared/data/DataTable.vue is SharedDataTable). Specific folders
+  // drop their group folder (components/shared/data/CommentThread.vue is SharedCommentThread). The presentational
+  // groups (layout, feedback, and most of data and form) come from the @nasq/ui layer. Specific folders
   // come first: a file belongs to the first entry whose path contains it.
   components: [
     { path: '~/components/pmo/projects', prefix: 'Project', ignore: ['**/__tests__/**'] },
     { path: '~/components/pmo/tasks', prefix: 'Task', ignore: ['**/__tests__/**'] },
     { path: '~/components/personal-tasks', prefix: 'MyTasks', ignore: ['**/__tests__/**'] },
-    { path: '~/components/shared/layout', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
     { path: '~/components/shared/data', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
     { path: '~/components/shared/form', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
-    { path: '~/components/shared/feedback', prefix: 'Shared', pathPrefix: false, ignore: ['**/__tests__/**'] },
     { path: '~/components', ignore: ['**/__tests__/**'] },
   ],
   app: {
@@ -81,12 +79,7 @@ export default defineNuxtConfig({
     } }),
   },
   runtimeConfig: {
-    vendorWorkspaceEnabled: false,
-    vendorControlUrl: '',
-    vendorServiceKey: '',
-    vendorInstallationId: '',
-    vendorPublicOrigin: '',
-    // Customer-scoped commercial BFF (disabled by default; separate service identity from the vendor keys).
+    // Customer-scoped commercial BFF (disabled by default; own service identity).
     customerCommercialEnabled: false,
     customerCommercialControlUrl: '',
     customerCommercialServiceKey: '',
@@ -102,7 +95,6 @@ export default defineNuxtConfig({
     // Shared secret the AI service requires in X-Nasq-Service-Token (empty = none sent).
     aiServiceToken: process.env.NUXT_AI_SERVICE_TOKEN ?? '',
     public: {
-      vendorWorkspaceEnabled: false,
       customerCommercialEnabled: false,
       // Filled at server start from the runtime `aiServiceUrl` (server/plugins/ai-enabled.ts), never from the build environment.
       aiEnabled: false,

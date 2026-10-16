@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { saveErrorMessage } from '@/utils/formFeedback'
 import { ApiError } from '@/composables/useApi'
 import { useCreateDepartment, useUpdateDepartment, type HrDepartment } from '@/composables/useHrDepartments'
 import { useHrEmployees, useHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
@@ -19,11 +20,13 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const formError = ref<unknown>(null)
-const errorMessage = computed(() => formError.value instanceof ApiError ? formError.value.message : undefined)
-function fieldError(field: string) { return formError.value instanceof ApiError && formError.value.field === field ? formError.value.message : undefined }
+const errorMessage = computed(() => formError.value ? saveErrorMessage(formError.value, t('errors.generic'), t('errors.saveUncertain')) : undefined)
+const nameError = ref<string>()
+function fieldError(field: string) { if (field === 'name' && nameError.value) return nameError.value; return formError.value instanceof ApiError && formError.value.field === field ? formError.value.message : undefined }
 const canManage = computed(() => can('hr.departments.manage'))
 const parentOptions = computed(() => { const allowed = new Set(getAllowedParentIds(props.departments, props.department?.id ?? null)); return props.departments.filter(d => allowed.has(d.id)) })
 const name = ref('')
+watch(name, () => { nameError.value = undefined })
 const parentId = ref<number | null>(null)
 const managerId = ref<number | null>(null)
 const managerSearch = ref('')
@@ -56,9 +59,17 @@ watch(() => props.department, (department) => {
 
 function idOrNull(value: unknown) { return !value || value === 'none' ? null : Number(value) }
 
+let submitting = false
 async function submit() {
+  if (!canManage.value || !hydrated.value || pending.value || submitting) return
   const trimmed = name.value.trim()
-  if (!trimmed || !canManage.value || !hydrated.value || pending.value) return
+  if (!trimmed) {
+    nameError.value = t('hr.depts.nameRequired')
+    await nextTick()
+    document.getElementById('hr-dept-name')?.focus()
+    return
+  }
+  submitting = true
   try {
     const department = props.department
       ? await update({ id: props.department.id, patch: { name: trimmed, parent_id: parentId.value, manager_id: managerId.value } })
@@ -68,13 +79,13 @@ async function submit() {
     emit('saved', department)
   } catch (error) {
     formError.value = error
-  }
+  } finally { submitting = false }
 }
 </script>
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm :state="{ name, parentId, managerId }" class="nasq-form" method="post" @submit="submit">
+  <UForm :state="{ name, parentId, managerId }" class="nasq-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
     <SharedFormSection :panel="props.panel" :title="t('hr.depts.formDescription')">
       <div class="nasq-form-grid mt-4">
@@ -96,9 +107,9 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <footer class="nasq-form-footer justify-end">
+    <SharedFormActions class="justify-end">
       <UButton type="button" color="neutral" variant="outline" :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')" :label="t('app.cancel')" />
-      <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || pending || !name.trim()" :label="t('app.save')" />
-    </footer>
+      <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || pending" :loading="pending" :label="t(props.department ? 'app.saveChanges' : 'app.create')" />
+    </SharedFormActions>
   </UForm>
 </template>

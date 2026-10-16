@@ -1,3 +1,4 @@
+import * as recordNavigation from '../../../pages/__tests__/helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
@@ -6,7 +7,7 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { returnToQuery } from '../../../utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import * as hrNavigation from '../../../utils/hrReturnTo'
 
 const shared = 'components/hr/DocumentCreateForm.vue'
@@ -29,7 +30,7 @@ async function load(file = shared, allowed = true, selected = true) {
     useRoute: () => router.currentRoute.value, useRouter: () => router, returnToQuery,
     useCreateDocument: () => ({ mutateAsync: mutate, isPending: pending }),
     useHrDepartments: () => ({ data: Vue.ref({ items: [{ id: 4, name: 'Department' }] }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() }),
-    navigateTo: navigate, ApiError: class extends Error {}, DocumentEditor: {}, DocumentCreateForm: {}, ...hrNavigation,
+    navigateTo: navigate, ApiError: class extends Error {}, DocumentEditor: {}, DocumentCreateForm: {}, ...hrNavigation, ...recordNavigation,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
   const state = component.setup(props, { expose: () => {}, emit })

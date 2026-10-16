@@ -88,8 +88,9 @@ limits describe implementation stages, not permanent product exclusions.
 - `apps/web` holds Nuxt pages, components, composables, and per-pillar locale
   files. `/hr` is the shipped HR directory; `/people` is not the HR route.
   PMO components live in `app/components/pmo/{projects,tasks}`, personal-task
-  components in `app/components/personal-tasks`, and the shared building blocks in
-  `app/components/shared/{layout,data,form,feedback,commerce}`.
+  components in `app/components/personal-tasks`. Presentational building blocks live in
+  the `packages/ui` Nuxt layer (`@nasq/ui`, shared by every Nuxt app);
+  `app/components/shared/{data,form,commerce}` keeps only those that need app data.
 - `odoo-addons/web_theme_shadcn` holds the vendor-console theme.
 - `deploy` holds per-customer Docker, Caddy, provisioning, and branding
   templates.

@@ -4,7 +4,7 @@ import { taskDaysRemaining } from './taskDeadline'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { useTaskFilters } from '@/composables/useTaskFilters'
-import { shortcutKey } from '@/composables/shortcuts/keymap'
+import { shortcutKey } from '@nasq/ui/app/composables/shortcuts/keymap'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useArchiveTask, useTask, useTaskSiblings } from '@/composables/useTasks'
 import StateMenu from './StateMenu.vue'
@@ -101,7 +101,8 @@ const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) 
     :back-to="archiveConfirmOpen ? undefined : backTo"
     :back-label="props.backLabel ?? t('tasks.detail.back')"
     :loading="!task && !error"
-    :error="task ? null : error"
+    :error="error"
+    :keep-content="!!task"
     @retry="refetch"
   >
     <template #back>
@@ -144,10 +145,11 @@ const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) 
           </div>
           <TaskCompletionApproval :task="task" />
           <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />
+          <slot name="details" :task="task" />
         </div>
       </div>
     </template>
-    <template v-if="task" #aside>
+    <template v-if="task" #summary>
       <TaskProperties :key="task.id" :task="task" />
     </template>
   </SharedRecordPage>

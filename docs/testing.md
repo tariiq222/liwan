@@ -54,10 +54,10 @@ local policy runs in AGENTS.md stay the binding gate.
 
 CI is Woodpecker (`.woodpecker.yml`, with the image gate in
 `deploy/woodpecker/image.yml`); GitHub
-Actions is not used. The main pipeline has eleven steps—`static`, `ai-service`,
-`control-plane`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`,
+Actions is not used. The main pipeline has twelve steps—`static`, `ai-service`,
+`control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`,
 `e2e-mock`, and `rtl-stories`—and each is
-runnable locally with the same command block in that file: static checks, the
+runnable locally with the same command block in that file (`vendor-admin` type-checks, tests and builds `apps/vendor-admin`): static checks, the
 control-plane PostgreSQL contracts, explicit scratch Odoo install/upgrade
 commands, the backup and restore drill, and the mock Playwright run. `odoo` installs the whole release;
 `odoo-tasks-standalone` (`-i nasq_tasks` only, then asserts `nasq_pmo` and `nasq_tasks_pmo` are not installed)

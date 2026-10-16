@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import FilterChip from '../../app/components/shared/data/FilterChip.vue'
+import FilterChip from '@nasq/ui/app/components/shared/data/FilterChip.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/FilterChip',
   component: FilterChip,
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:373', 'شريحة فلتر نشط تحت شريط الفلاتر؛ الضغط عليها يزيل الفلتر.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:295', 'شريحة فلتر نشط تحت شريط الفلاتر؛ الضغط عليها يزيل الفلتر.'),
   args: { label: 'بحث: عقد', disabled: false, onRemove: fn() },
   render: args => ({
     components: { FilterChip },

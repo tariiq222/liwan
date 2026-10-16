@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ProjectCharterReferenceForm from '@/components/pmo/projects/settings/ProjectCharterReferenceForm.vue'
 import { isCharterCatalogResource } from '@/composables/useProjectCharterCatalogs'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,7 +20,7 @@ const title = computed(() => resource.value === 'owning-units'
 
 function onSaved() {
   toast.add({ title: t('settings.projects.catalogs.created'), color: 'success', icon: 'i-lucide-circle-check' })
-  router.push(returnTo.value)
+  router.replace(returnTo.value)
 }
 </script>
 

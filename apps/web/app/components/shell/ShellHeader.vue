@@ -3,20 +3,20 @@ import { useMediaQuery } from '@vueuse/core'
 import AppAccountMenu from '@/components/shell/AppAccountMenu.vue'
 import GlobalSearch from '@/components/shell/GlobalSearch.vue'
 import MobileNavigation from '@/components/shell/MobileNavigation.vue'
-import ShellBreadcrumb from '@/components/shell/ShellBreadcrumb.vue'
+import ShellBreadcrumb from '@nasq/ui/app/components/shell/ShellBreadcrumb.vue'
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { goKeyTargets } from '@/composables/nav/paletteModel'
 import { useNav, type ShellContextLink } from '@/composables/nav/shellModules'
 import { sidebarModel } from '@/composables/nav/sidebarModel'
 import { clickPageCreate, createShortcutTarget, focusListSearch } from '@/composables/shortcuts/targets'
-import { usePageHeaderTitle } from '@/composables/usePageHeader'
+import { usePageHeaderTitle } from '@nasq/ui/app/composables/usePageHeader'
 import { useShellModel } from '@/composables/useShellModel'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
 // The 48px neutral header (spec §5): tenant mark, breadcrumb, the ⌘K command palette,
-// bell, account (which also holds language and appearance); a console badge on /vendor/*.
+// bell, account (which also holds language and appearance).
 // It also hosts the shell's one keyboard listener (useShellShortcuts).
 const { t } = useI18n()
 const route = useRoute()
@@ -34,7 +34,6 @@ const tenantInitials = computed(() => tenantName.value.split(/\s+/).filter(Boole
 const showTenantMark = computed(() => !!branding.value?.logo_url || !!tenantName.value)
 // The page registers its title after the header rendered on the server; show it only once hydrated so both renders match.
 const crumbs = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hydrated.value ? pageTitle.value : null, t, rail: rail.value.all }))
-const isConsole = computed(() => activeModule.value === 'management')
 const mobileOpen = ref(false)
 const mobile = computed(() => sidebarModel({ links: contextLinks.value, moduleLabelKey: contextLabelKey.value, path: route.path, panel: null, surface: 'mobile' }))
 const mobileCreateLinks = computed(() => mobile.value.createLinks.map(link => ({ ...link, to: createTo(link) })))
@@ -82,7 +81,6 @@ useShellShortcuts({
       </NuxtLink>
       <span v-if="showTenantMark && crumbs.length" class="nasq-shell-header-divider" aria-hidden="true" />
       <ShellBreadcrumb :items="crumbs" />
-      <UBadge v-if="isConsole" color="neutral" variant="subtle" size="sm" class="nasq-shell-console-badge" data-testid="vendor-console-badge">{{ t('nav.consoleBadge') }}</UBadge>
     </div>
     <div class="nasq-shell-header-actions">
       <GlobalSearch />

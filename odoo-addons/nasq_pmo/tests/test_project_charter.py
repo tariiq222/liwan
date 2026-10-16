@@ -9,7 +9,8 @@ CHARTER_KEYS = {
     'code', 'type', 'owning_unit', 'sponsor', 'authority', 'rationale', 'objectives',
     'benefits', 'scope', 'exclusions', 'high_level_requirements', 'deliverables',
     'success', 'budget_state', 'amount', 'currency', 'priority', 'assumptions',
-    'constraints', 'closure', 'state',
+    'constraints', 'closure', 'state', 'approval_required', 'can_review',
+    'submitted_by', 'submitted_at', 'approved_by', 'approved_at', 'return_note',
 }
 
 
@@ -75,7 +76,6 @@ class TestProjectCharterApi(NasqPmoCase):
                 'assumptions': 'A',
                 'constraints': 'C',
                 'closure': 'Close when signed',
-                'state': 'final',
             },
         })
         self.assertEqual(res.status_code, 201, res.text)
@@ -84,7 +84,7 @@ class TestProjectCharterApi(NasqPmoCase):
         self.assertEqual(set(charter['type']), {'id', 'name', 'charter_steps'})
         self.assertEqual(charter['type']['charter_steps'], ['justification', 'scope', 'schedule', 'budget', 'risks'])
         self.assertEqual(set(charter['owning_unit']), {'id', 'name'})
-        self.assertEqual(charter['state'], 'final')
+        self.assertEqual(charter['state'], 'draft')
         self.assertEqual(charter['owning_unit']['id'], self.unit.id)
         self.assertEqual(charter['sponsor']['id'], self.employee.id)
         self.assertEqual(charter['amount'], 0)
@@ -99,38 +99,29 @@ class TestProjectCharterApi(NasqPmoCase):
         self.assertEqual(patched.status_code, 200)
         self.assertEqual(patched.json()['charter']['authority'], 'Board note')
         self.assertEqual(patched.json()['charter']['rationale'], 'Updated')
-        self.assertEqual(patched.json()['charter']['state'], 'final')
+        self.assertEqual(patched.json()['charter']['state'], 'draft')
         self.assertNotEqual(patched.json()['updated_at'], token)
 
-    def test_charter_state_draft_then_final(self):
+    def test_charter_state_is_not_writable(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         created = self.api('POST', '/api/v1/projects', {
             'name': 'Draft charter',
             'charter': {'rationale': 'Partial', 'state': 'draft'},
         })
+        self.assertEqual((created.status_code, created.json()['field']), (422, 'state'))
+        created = self.api('POST', '/api/v1/projects', {
+            'name': 'Draft charter', 'charter': {'rationale': 'Partial'},
+        })
         self.assertEqual(created.status_code, 201, created.text)
         body = created.json()
         self.assertEqual(body['charter']['state'], 'draft')
         path = f"/api/v1/projects/{body['id']}"
-        bad = self.api('PATCH', path, {
-            'expected_updated_at': body['updated_at'],
-            'charter': {'state': 'approved'},
-        })
-        self.assertEqual((bad.status_code, bad.json()['field']), (422, 'state'))
-        final = self.api('PATCH', path, {
-            'expected_updated_at': body['updated_at'],
-            'charter': {'scope': 'In', 'state': 'final'},
-        })
-        self.assertEqual(final.status_code, 200, final.text)
-        self.assertEqual(final.json()['charter']['state'], 'final')
-        self.assertEqual(final.json()['charter']['rationale'], 'Partial')
-        self.assertNotEqual(final.json()['updated_at'], body['updated_at'])
-        reopened = self.api('PATCH', path, {
-            'expected_updated_at': final.json()['updated_at'],
-            'charter': {'state': 'draft'},
-        })
-        self.assertEqual(reopened.status_code, 200, reopened.text)
-        self.assertEqual(reopened.json()['charter']['state'], 'draft')
+        for state in ('approved', 'draft'):
+            res = self.api('PATCH', path, {
+                'expected_updated_at': body['updated_at'],
+                'charter': {'state': state},
+            })
+            self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'unknown_field', 'state'))
 
     def test_bad_nested_and_readonly_charter_fields(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')

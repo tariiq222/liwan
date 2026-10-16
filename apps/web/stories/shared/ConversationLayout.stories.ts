@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import ConversationLayout from '../../app/components/shared/layout/ConversationLayout.vue'
-import EmptyState from '../../app/components/shared/feedback/EmptyState.vue'
+import ConversationLayout from '@nasq/ui/app/components/shared/layout/ConversationLayout.vue'
+import EmptyState from '@nasq/ui/app/components/shared/feedback/EmptyState.vue'
 import { storyContext } from '../support/context'
 
 const PEOPLE = ['سارة القحطاني', 'فريق المشاريع', 'خالد العتيبي']
@@ -12,7 +12,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     a11y: { test: 'error' },
-    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue:15', 'قالب المحادثة: من 768px تكون القائمة لوحة الشريط السياقي ويعرض القالب المحادثة فقط؛ تحتها تملأ القائمة الصفحة حتى تُختار محادثة. من 1280px تكون المعلومات جانبية؛ دون ذلك تستخدم المنطقة المتاحة وتحل محل المحادثة مع حفظ المسودة.'),
+    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue:90', 'قالب المحادثة: من 768px تكون القائمة لوحة الشريط السياقي ويعرض القالب المحادثة فقط؛ تحتها تملأ القائمة الصفحة حتى تُختار محادثة. من 1280px تكون المعلومات جانبية؛ دون ذلك تستخدم المنطقة المتاحة وتحل محل المحادثة مع حفظ المسودة.'),
   },
   args: { hasSelection: true, infoOpen: false },
   render: args => ({

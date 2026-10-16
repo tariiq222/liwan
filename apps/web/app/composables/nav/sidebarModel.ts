@@ -1,17 +1,16 @@
 // Relative imports: this module is unit-tested directly under plain vitest.
+import type { ShellRailItem } from '@nasq/ui/app/types/shell'
 import { hidePinnedNewProject, type ShellContextLink, type ShellModuleDefinition } from './shellModules'
 
-/** One rail entry as the rail and the mobile drawer render it. */
-export interface ShellRailItem { id: string; labelKey: string; icon: string; to: string; external: boolean }
 /** A run of context links under one optional section heading (a locale key). */
 export interface ShellContextSection { id: string; titleKey: string | null; links: ShellContextLink[] }
 export interface ShellSidebarModel { createLinks: ShellContextLink[]; sections: ShellContextSection[]; showNav: boolean }
 
-const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings', 'vendor'])
+const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings'])
 
-/** Rail entries in rail order; settings and the vendor console sit in the utility slot at the bottom. */
+/** Rail entries in rail order; settings sits in the utility slot at the bottom. */
 export function railModel(modules: readonly ShellModuleDefinition[]): { all: ShellRailItem[]; primary: ShellRailItem[]; utility: ShellRailItem[] } {
-  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, external: module.id === 'vendor' }))
+  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to }))
   return { all, primary: all.filter(item => !UTILITY_MODULES.has(item.id)), utility: all.filter(item => UTILITY_MODULES.has(item.id)) }
 }
 

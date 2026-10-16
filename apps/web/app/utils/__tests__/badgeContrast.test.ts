@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { layerFile } from '@nasq/ui/test/helpers/layerFile'
 import { contrastRatio, DARK_SURFACES } from '../nasqPalette'
 
 // Tailwind v4 default palette steps behind the Nuxt UI semantic colours
@@ -25,7 +25,7 @@ function tint(colour: string, surface: string, alpha = 0.1) {
   return `#${mixed.join('')}`
 }
 
-const config = readFileSync(resolve(__dirname, '../../app.config.ts'), 'utf8')
+const config = readFileSync(layerFile('app/app.config.ts'), 'utf8')
 const badge = config.match(/^\s*badge:.*$/m)?.[0] ?? ''
 
 // The text step the badge recipe sets for a tone and mode; the Nuxt UI default otherwise.

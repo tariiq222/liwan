@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AiAuditRequestSchema } from '@nasq/contracts'
 import { aiApprovalAudit, charterDraftFromAi, clearAiDraft, clearAiSessionState, forgetCreatedId, mayFinalizeCreate, parseCreatedId, readAiDraft, readCreatedId, rememberCreatedId, withCreatedProject, withoutCreated } from '../aiDraft'
 import { emptyCharterDraft } from '../projectCharter'
-import { safeReturnTo } from '../safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 const handoff = { run_id: 'r_1', call_id: 'c_2', tool: 'projects.draft_project', payload: { name: 'بوابة' } }
 

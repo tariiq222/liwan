@@ -2,14 +2,14 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MeetingPeopleFields from '../../app/components/meetings/MeetingPeopleFields.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Meetings/MeetingPeopleFields',
   component: MeetingPeopleFields,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/meetings/new.vue:173') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/meetings/new.vue:185') },
   args: { attendeeIds: [7], secretaryId: null, disabled: false },
   render: args => ({
     components: { FormSection, MeetingPeopleFields, PageContainer },

@@ -1,30 +1,37 @@
 <script setup lang="ts">
-import { owningListBack, recordChildTo, SERIES_LIST_PATHS } from '@/utils/recordListOrigin'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
 import MeetingTimeline from '@/components/meetings/MeetingTimeline.vue'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingSeriesResolutions } from '@/composables/useMeetingWorkspace'
-import { formatCalendarDate, formatNasqTime } from '@/composables/calendarDate'
-import { isCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate, formatNasqTime } from '@nasq/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { meetingTimestamp, prioritizeTimelinePage, selectNextMeeting, selectPreviousMeeting } from '@/utils/meetingWorkspace'
 import { resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
 import { firstQuery } from '@/utils/routeQuery'
+import { parsePositiveId } from '@/utils/routeParams'
+import { ApiError } from '@/composables/useApi'
 
 type SeriesTab = 'sessions' | 'followup' | 'history' | 'details'
 const tabs: SeriesTab[] = ['sessions', 'followup', 'history', 'details']
 
 const hydrated = useHydrated()
 const route = useRoute()
+const sourcePaths = useRecordListPaths(SERIES_LIST_PATHS)
 const router = useRouter()
 const { t, locale } = useI18n()
 const { can } = useAccess()
 const { me } = useMe()
-const id = computed(() => Number(route.params.id))
-const isDetail = computed(() => route.path === `/meetings/series/${id.value}`)
+const id = computed(() => parsePositiveId(route.params.id))
+// This page is also the parent of `[id]/edit`: only the bare record path is the detail view.
+const isDetail = computed(() => route.path === `/meetings/series/${route.params.id}`)
 const query = useMeetingSeries(computed(() => isDetail.value ? id.value : null))
-const backTo = computed(() => owningListBack(route.query, SERIES_LIST_PATHS, route.hash))
+// An id that is not a canonical positive integer has no record to load and shows the same not-found state as an unknown id.
+const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const now = ref(new Date())
 const headerDescription = computed(() => query.data.value ? `${query.data.value.organizer?.name || t('meetingTimeline.noOrganizer')} · ${t(`meetingsUi.recurrence.${query.data.value.recurrence}`)}` : undefined)
 
@@ -113,11 +120,12 @@ function loadMoreMeetings() {
 function localTime(value: string | null) {
   if (!value) return '—'
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? '—' : formatNasqTime(parsed, locale.value)
+  return Number.isNaN(parsed.getTime()) ? '—' : hydrated.value ? formatNasqTime(parsed, locale.value) : ''
 }
 function occurrenceLabel(meeting: { meeting_date: string | null; start_datetime: string | null }) {
   const date = meeting.meeting_date ? formatCalendarDate(meeting.meeting_date, locale.value) : t('meetingTimeline.unknownDate')
-  return meeting.start_datetime ? `${date} · ${localTime(meeting.start_datetime)}` : date
+  const time = meeting.start_datetime ? localTime(meeting.start_datetime) : ''
+  return time ? `${date} · ${time}` : date
 }
 const canAddOccurrence = computed(() => {
   const series = query.data.value
@@ -177,17 +185,17 @@ function setHistoryPage(page: number) {
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!query.data.value"
     v-if="isDetail"
-    :title="query.data.value?.name ?? (query.error.value ? t('nav.meetingSeries') : '')"
+    :title="query.data.value?.name ?? (pageError ? t('nav.meetingSeries') : '')"
     :description="headerDescription"
     :back-to="backTo"
     :loading="query.isLoading.value"
-    :error="query.error.value"
+    :error="pageError"
     @retry="query.refetch()"
   >
     <template #actions>
-      <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, SERIES_LIST_PATHS, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
+      <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
       <UButton v-if="canAddOccurrence" :disabled="!hydrated" :to="{ path: '/meetings/new', query: { series_id: String(id) } }" :label="t('meetingsUi.addOccurrence')" />
     </template>
     <template #tabs>
@@ -323,7 +331,7 @@ function setHistoryPage(page: number) {
 
     </div>
 
-    <template v-if="query.data.value" #aside>
+    <template v-if="query.data.value" #summary>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('meetingsUi.project')" :value="query.data.value.project?.name" />
         <SharedPropertyRow :label="t('meetingsUi.secretary')" :value="query.data.value.secretary?.name" />

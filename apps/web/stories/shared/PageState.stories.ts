@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import SettingsPage from '../../app/components/shared/layout/SettingsPage.vue'
-import PageState from '../../app/components/shared/feedback/PageState.vue'
+import SettingsPage from '@nasq/ui/app/components/shared/layout/SettingsPage.vue'
+import PageState from '@nasq/ui/app/components/shared/feedback/PageState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
   title: 'Shared/PageState',
   component: PageState,
-  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/users/[userId]/security.vue:29') },
+  parameters: { layout: 'fullscreen', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/users/[userId]/security.vue:30') },
   args: { loading: false, empty: false, error: undefined, emptyText: undefined },
   render: args => ({
     components: { SettingsPage, PageState },
@@ -23,3 +23,6 @@ export const Forbidden: Story = { name: 'غير مصرح', args: { error: { stat
 export const NotFound: Story = { name: 'غير موجود', args: { error: { status: 404 } } }
 export const Empty: Story = { name: 'فارغ', args: { empty: true } }
 export const Content: Story = { name: 'المحتوى' }
+
+export const RefreshFailed: Story = { name: 'تعذر تحديث بيانات ظاهرة', args: { error: { status: 500 }, keepContent: true } }
+export const FirstUse: Story = { name: 'فراغ مع الخطوة التالية', args: { empty: true, emptyText: 'لا توجد سجلات بعد', emptyDescription: 'ابدأ بإنشاء أول سجل.' }, render: args => ({ components: { PageState }, setup: () => ({ args }), template: `<PageState v-bind="args"><template #emptyAction><UButton to="/projects/new">{{ $t('app.create') }}</UButton></template></PageState>` }) }

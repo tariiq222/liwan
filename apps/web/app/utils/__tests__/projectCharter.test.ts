@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ApiError } from '../../composables/useApi'
 import type { ProjectDetail } from '@nasq/contracts'
 import {
   CHARTER_FIELD_KEYS,
@@ -9,6 +10,9 @@ import {
   createdProjectLocation,
   draftFromProject,
   draftedProjectLocation,
+  charterAfterSave,
+  submitFailureReason,
+  sponsorMissingForSubmit,
   emptyCharterDraft,
   hasCharterWriteContent,
   isCharterDraftDirty,
@@ -28,6 +32,8 @@ const EMPTY_CHARTER = {
   deliverables: [], success: '', budget_state: 'unknown' as const, amount: null,
   currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
   priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
+    approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
+    approved_by: null, approved_at: null, return_note: '',
 }
 
 function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
@@ -41,6 +47,7 @@ function project(overrides: Partial<ProjectDetail> = {}): ProjectDetail {
     active: true,
     can_manage: true,
     allowed_actions: ['read', 'write', 'archive'],
+    charter_state: 'draft',
     stages: [],
     description_html: '<p>desc</p>',
     manager: { id: 2, name: 'Sara' },
@@ -291,8 +298,8 @@ describe('charterWriteFromDraft', () => {
 describe('charter document helpers', () => {
   it('routes a created project to milestones while carrying the originating list URL', () => {
     expect(createdProjectLocation(42, '/projects?status=active')).toEqual({
-      path: '/projects/42',
-      query: { returnTo: '/projects?status=active', tab: 'milestones' },
+      path: '/projects/42/milestones',
+      query: { returnTo: '/projects?status=active', projectListReturnTo: '/projects?status=active' },
     })
   })
 
@@ -308,34 +315,39 @@ describe('charter document helpers', () => {
 })
 
 describe('charter state on the wire', () => {
-  it('sends state only when a create finalizes, and always on a patch', () => {
+  it('never writes the charter state', () => {
+    const draft = emptyCharterDraft()
+    draft.name = 'P'
+    draft.charterState = 'approved'
+    expect(charterCreateBody(draft)).not.toHaveProperty('state')
+    expect(charterPatchBody(draft, 'v3', { dateStart: null, dateEnd: null }).charter).not.toHaveProperty('state')
+  })
+
+  it('never sends the state; the server owns it', () => {
     const draft = emptyCharterDraft()
     draft.name = 'Portal'
     expect(charterCreateBody(draft)).not.toHaveProperty('charter')
-    draft.charterState = 'final'
-    expect(charterCreateBody(draft).charter).toEqual({ state: 'final' })
-    draft.charterState = 'draft'
-    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter?.state).toBe('draft')
-    draft.charterState = 'final'
-    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter?.state).toBe('final')
+    draft.charterState = 'approved'
+    expect(charterCreateBody(draft)).not.toHaveProperty('charter')
+    expect(charterPatchBody(draft, 'v1', { dateStart: null, dateEnd: null }).charter).not.toHaveProperty('state')
   })
 
   it('loads the charter state and the type steps from the project detail', () => {
     const loaded = draftFromProject(project({
       charter: {
         ...EMPTY_CHARTER,
-        state: 'final',
+        state: 'approved',
         type: { id: 4, name: 'تقني', charter_steps: ['justification', 'scope'] },
       },
     }))
-    expect(loaded.charterState).toBe('final')
+    expect(loaded.charterState).toBe('approved')
     expect(loaded.typeSteps).toEqual(['justification', 'scope'])
     expect(draftFromProject(project()).typeSteps).toBeNull()
   })
 
   it('does not count a state change as an unsaved edit', () => {
     const base = emptyCharterDraft()
-    const changed = { ...emptyCharterDraft(), charterState: 'final' as const }
+    const changed = { ...emptyCharterDraft(), charterState: 'approved' as const }
     expect(isCharterDraftDirty(changed, base)).toBe(false)
   })
 
@@ -346,5 +358,30 @@ describe('charter state on the wire', () => {
       path: '/projects/9/charter',
       query: { returnTo: '/projects?q=x', edit: '1', step: 'scope' },
     })
+  })
+})
+
+describe('charter submit decisions', () => {
+  it('never resubmits an approved charter the server reopened', () => {
+    expect(charterAfterSave(true, 'draft')).toBe('reopened')
+    expect(charterAfterSave(true, 'approved')).toBe('saved')
+    expect(charterAfterSave(false, 'draft')).toBe('submit')
+    expect(charterAfterSave(false, 'submitted')).toBe('saved')
+  })
+
+  it('explains why a submit failed', () => {
+    const t = (key: string) => key
+    expect(submitFailureReason(new ApiError(422, 'invalid', 'Sponsor needed', 'name'), t)).toBe('Sponsor needed')
+    expect(submitFailureReason(new ApiError(422, 'invalid', 'Choose a sponsor', 'sponsor_id'), t)).toBe('projects.charter.sponsorRequired')
+    expect(submitFailureReason(new ApiError(422, 'invalid', 'Other', 'note'), t)).toBe('Other')
+    expect(submitFailureReason(new ApiError(409, 'charter_state', 'x'), t)).toBe('projects.charter.lockedWhileSubmitted')
+    expect(submitFailureReason(new Error('boom'), t)).toBe('errors.generic')
+  })
+
+  it('blocks a submit without a sponsor only under the approval policy', () => {
+    expect(sponsorMissingForSubmit(true, false, null)).toBe(true)
+    expect(sponsorMissingForSubmit(true, false, 7)).toBe(false)
+    expect(sponsorMissingForSubmit(false, false, null)).toBe(false)
+    expect(sponsorMissingForSubmit(true, true, null)).toBe(false)
   })
 })

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import FileField from '../../app/components/shared/form/FileField.vue'
+import FileField from '@nasq/ui/app/components/shared/form/FileField.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -13,7 +13,7 @@ type Story = StoryObj<typeof meta>
 
 export const InMeetingAttachments: Story = {
   name: 'داخل مرفقات الاجتماع',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:621', 'الغلاف `.meeting-upload` مُعرَّف scoped في نفس الملف: grid، min-width: 0، gap: 8px، margin-block-start: 16px، padding-block-start: 16px، border-block-start: 1px solid var(--border).'),
+  parameters: storyContext('apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83', 'الغلاف `.meeting-upload` مُعرَّف scoped في نفس الملف: grid، min-width: 0، gap: 8px، margin-block-start: 16px، padding-block-start: 16px، border-block-start: 1px solid var(--border).'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),
@@ -23,7 +23,7 @@ export const InMeetingAttachments: Story = {
 
 export const InDocumentCard: Story = {
   name: 'داخل بطاقة مرفقات مستند',
-  parameters: storyContext('apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue:94'),
+  parameters: storyContext('apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue:95'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),

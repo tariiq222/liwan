@@ -1,21 +1,27 @@
 <script setup lang="ts">
-import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { owningListBack, recordParentTo } from '@/utils/recordListOrigin'
+import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import type { MeetingPatch } from '@nasq/contracts'
 import { useMeeting, usePatchMeeting } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload, localDateFromUtc, localTimeFromUtc } from '@/utils/meetingDateTime'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
+import { parsePositiveId } from '@/utils/routeParams'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
+import { ApiError } from '@/composables/useApi'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t } = useI18n()
 const hydrated = useHydrated()
-const id = computed(() => Number(route.params.id))
+const id = computed(() => parsePositiveId(route.params.id))
 const query = useMeeting(id)
-const { mutateAsync, isPending, error } = usePatchMeeting()
+// An id that is not a canonical positive integer has no record to load and shows the same not-found state as an unknown id.
+const pageError = computed(() => query.error.value ?? (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
+const { mutateAsync, isPending, error, reset } = usePatchMeeting()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => id.value === null ? owningListBack(route.query, sourcePaths.value, route.hash) : recordParentTo(`/meetings/${id.value}`, route.query, sourcePaths.value, route.hash))
 const name = ref('')
 const meetingDate = ref('')
 const start = ref('')
@@ -31,6 +37,8 @@ const secretaryId = ref<number | null>(null)
 const scope = ref<'this' | 'this_and_following'>('this')
 const loaded = ref(false)
 const baseline = ref('')
+// The server revision the form opened on; a background refetch must not replace it, or a concurrent save would go unnoticed.
+const openedWriteDate = ref<string | null>(null)
 const initialSchedule = ref('')
 function snapshot() {
   return JSON.stringify([name.value, meetingDate.value, start.value, end.value, endDate.value, location.value,
@@ -54,12 +62,28 @@ function seedMeeting(meeting: typeof query.data.value) {
   secretaryId.value = meeting.secretary?.id ?? null
   baseline.value = snapshot()
   initialSchedule.value = scheduleSnapshot()
+  openedWriteDate.value = meeting.write_date
   loaded.value = true
 }
 watch(query.data, seedMeeting, { immediate: true })
 useSsrQuerySeed(query, seedMeeting)
 
 const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
+const { fieldErrors: serverErrors, submitError } = useMeetingSubmitError({
+  error,
+  reset,
+  edits: snapshot,
+  fields: {
+    name: 'name',
+    meeting_date: 'date',
+    start_datetime: 'start',
+    end_datetime: 'end',
+    location: 'location',
+    meeting_url: 'meetingUrl',
+    secretary_id: 'secretary',
+    attendee_ids: 'attendees',
+  },
+})
 const scheduleDirty = computed(() => loaded.value && scheduleSnapshot() !== initialSchedule.value)
 const canEdit = computed(() => query.data.value?.can_edit === true)
 const browserTimeZone = computed(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
@@ -86,7 +110,7 @@ const known = computed(() => {
 })
 
 async function save() {
-  if (!hydrated.value || isPending.value || !canEdit.value || Object.keys(formErrors.value).length) return
+  if (id.value === null || !hydrated.value || isPending.value || !canEdit.value || Object.keys(formErrors.value).length) return
   const body: MeetingPatch = {
     name: name.value.trim(),
     location: location.value,
@@ -94,6 +118,7 @@ async function save() {
     agenda: agenda.value,
     attendee_ids: attendeeIds.value,
     secretary_id: secretaryId.value,
+    write_date: openedWriteDate.value ?? undefined,
     scope: query.data.value?.series_id ? scope.value : undefined,
   }
   if (scheduleDirty.value) Object.assign(body, buildMeetingSchedulePayload({ date: scheduleDate.value, start: startTime.value, end: endTime.value, endDate: scheduleEndDate.value, mode: 'patch' }))
@@ -110,7 +135,7 @@ async function save() {
 <template>
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
+    <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.editForbidden')" />
@@ -122,25 +147,25 @@ async function save() {
       <p class="text-xs text-muted">{{ t('meetingsUx.browserTimeZone', { zone: browserTimeZone }) }}</p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
         <div class="nasq-form-grid">
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined">
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined)">
             <UInput id="edit-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.name" required />
           </UFormField>
-          <UFormField :label="t('meetingsUi.date')" name="date" required :error="formErrors.date ? t(`meetingsUx.errors.${formErrors.date}`) : undefined">
+          <UFormField :label="t('meetingsUi.date')" name="date" required :error="serverErrors.date || (formErrors.date ? t(`meetingsUx.errors.${formErrors.date}`) : undefined)">
             <SharedDateField id="edit-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.date" aria-required="true" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.start')" name="start" :error="formErrors.start ? t(`meetingsUx.errors.${formErrors.start}`) : undefined">
+          <UFormField :label="t('meetingsUi.start')" name="start" :error="serverErrors.start || (formErrors.start ? t(`meetingsUx.errors.${formErrors.start}`) : undefined)">
             <UInput id="edit-start" v-model="start" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.start" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.end')" name="end" :error="formErrors.end ? t(`meetingsUx.errors.${formErrors.end}`) : undefined">
+          <UFormField :label="t('meetingsUi.end')" name="end" :error="serverErrors.end || (formErrors.end ? t(`meetingsUx.errors.${formErrors.end}`) : undefined)">
             <UInput id="edit-end" v-model="end" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.end" />
           </UFormField>
           <UFormField v-if="end" :label="t('meetingsUx.endDate')" name="endDate" :error="formErrors.endDate ? t(`meetingsUx.errors.${formErrors.endDate}`) : undefined">
             <SharedDateField id="edit-end-date" v-model="endDateField" :min-value="meetingDate || null" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.endDate" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.location')" name="location">
+          <UFormField :label="t('meetingsUi.location')" name="location" :error="serverErrors.location">
             <UInput id="edit-location" v-model="location" class="w-full" :disabled="!hydrated || isPending || !canEdit" />
           </UFormField>
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="formErrors.meetingUrl ? t(`meetingsUx.errors.${formErrors.meetingUrl}`) : undefined">
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (formErrors.meetingUrl ? t(`meetingsUx.errors.${formErrors.meetingUrl}`) : undefined)">
             <UInput id="edit-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.meetingUrl" />
           </UFormField>
           <UFormField v-if="query.data.value.series_id" :label="t('meetingsUi.scope')" name="scope">
@@ -155,18 +180,18 @@ async function save() {
         </div>
       </SharedFormSection>
       <SharedFormSection :title="t('meetingsUi.sectionPeople')">
-        <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="known" :disabled="!hydrated || isPending || !canEdit" />
+        <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="known" :attendees-error="serverErrors.attendees" :secretary-error="serverErrors.secretary" :disabled="!hydrated || isPending || !canEdit" />
       </SharedFormSection>
       <SharedFormSection :title="t('meetingsUi.agenda')">
         <ClientOnly>
-          <DescriptionEditor :model-value="agenda" :task-id="id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending || !canEdit" @draft="agenda = $event.html" />
+          <DescriptionEditor :model-value="agenda" :task-id="query.data.value.id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending || !canEdit" @draft="agenda = $event.html" />
         </ClientOnly>
       </SharedFormSection>
-      <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.errors.save')" />
-      <div class="nasq-form-footer justify-end">
+      <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
+      <SharedFormActions class="justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || Object.keys(formErrors).length > 0" :label="t('app.save')" />
-      </div>
+      </SharedFormActions>
     </form>
     </SharedPageState>
   </SharedPageContainer>

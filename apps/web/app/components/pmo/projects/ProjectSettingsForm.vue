@@ -34,7 +34,7 @@ function onDeleteStage(id: number | string) {
 
 <template>
   <div data-testid="project-settings-page" class="grid gap-4">
-    <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-default px-4 py-3 text-sm ring ring-default">
       <p class="text-sm text-muted">{{ t('projects.refresh.settings.individualScope') }}</p>
       <NuxtLink :to="{ path: `/projects/${project.id}/charter`, query: { ...route.query, returnTo: route.fullPath } }" class="text-sm underline underline-offset-4">
         {{ t('projects.refresh.settings.openCharter') }}

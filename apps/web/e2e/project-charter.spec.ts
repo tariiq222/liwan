@@ -86,7 +86,7 @@ test('create page shows every charter field and allows a name-only save', async 
     await expect(page.getByRole('heading', { name })).toBeVisible()
     const projectId = Number(new URL(page.url()).pathname.split('/')[2])
     const created = await (await page.request.get(`/api/v1/projects/${projectId}`)).json()
-    expect(created.charter.state).toBe('final')
+    expect(created.charter.state).toBe('approved')
     await page.goto(`/projects/${projectId}/charter`)
     await expect(page).not.toHaveURL(/edit=1/)
     await expect(page.getByTestId('project-charter-form')).toBeVisible()
@@ -181,7 +181,7 @@ test('saving a draft mid-way creates the project and reopens its charter at the 
   await expect(page).not.toHaveURL(/edit=1/)
   await expect(page.getByTestId('charter-state-badge')).toHaveText('معتمد')
   const finalized = await (await page.request.get(`/api/v1/projects/${projectId}`)).json()
-  expect(finalized.charter.state).toBe('final')
+  expect(finalized.charter.state).toBe('approved')
 })
 
 test('the classification decides which steps the charter walks', async ({ page }) => {
@@ -430,7 +430,7 @@ test('charter create/edit round-trip persists every field through the UI and API
   expect(created.charter.assumptions).toBe('البيانات جاهزة')
   expect(created.charter.constraints).toBe('بلا توقف نهاراً')
   expect(created.charter.closure).toBe('تقرير نهائي')
-  expect(created.charter.state).toBe('final')
+  expect(created.charter.state).toBe('approved')
   expect(created.charter.type.charter_steps).toEqual(['justification', 'scope', 'schedule', 'budget', 'risks'])
 
   const inUse = await page.request.delete(`/api/v1/project-charter/catalogs/owning-units/${unit.id}`)

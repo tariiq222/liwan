@@ -170,7 +170,7 @@ test.describe('commercial quote recomputation', () => {
   test.beforeAll(async () => { ({ base, close } = await startStorybookServer()) })
   test.afterAll(async () => { await close() })
   test('retains the quote amounts while visibly announcing recalculation', async ({ page }) => {
-    await open(page, 'vendor-pricebreakdown--recomputing', 'locale:en;appearance:light')
+    await open(page, 'shared-commerce-pricebreakdown--recomputing', 'locale:en;appearance:light')
     const quote = page.locator('[data-slot="price-breakdown"]')
     await expect(quote).toHaveAttribute('aria-busy', 'true')
     await expect(quote.getByRole('status')).toHaveText('Calculating…')

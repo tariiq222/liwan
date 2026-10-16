@@ -1,4 +1,6 @@
 import { projectIdFromPath } from '../composables/nav/activeRoute'
+import { recordListOrigin } from './recordListOrigin'
+import { parsePositiveId } from './routeParams'
 import { firstQuery } from './routeQuery'
 
 /** Query keys the old workspace carried that the section path now expresses. */
@@ -17,7 +19,7 @@ function keptQuery(query: Record<string, unknown>): Record<string, string> {
 export function legacyProjectTabTarget(
   path: string,
   query: Record<string, unknown>,
-): { path: string; query: Record<string, string> } | null {
+): { path: string; query: Record<string, string>; hash?: string } | null {
   const bare = path.replace(/\/+$/, '') || '/'
   // Standalone /tasks used ?tab=board before DESIGN settled on ?view=board.
   if (bare === '/tasks' && firstQuery(query.tab) === 'board') {
@@ -25,6 +27,12 @@ export function legacyProjectTabTarget(
   }
   const id = projectIdFromPath(path)
   if (id === null) return null
+  const scheduleTask = bare.match(/^\/projects\/[1-9]\d*\/schedule\/tasks\/([1-9]\d*)$/)
+  const taskId = parsePositiveId(scheduleTask?.[1])
+  if (taskId) {
+    const source = recordListOrigin(query.returnTo, [`/projects/${id}/schedule`, `/projects/${id}/milestones`, `/projects/${id}/tasks`, '/tasks', '/my-tasks']) ?? `/projects/${id}/schedule`
+    return { path: `/projects/${id}/tasks/${taskId}`, query: { returnTo: source }, hash: '#schedule' }
+  }
   // Governance lost its card index to sub-tabs; old links open the first one.
   if (bare === `/projects/${id}/governance`) return { path: `/projects/${id}/charter`, query: keptQuery(query) }
   if (bare !== `/projects/${id}`) return null

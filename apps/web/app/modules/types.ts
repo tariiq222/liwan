@@ -64,8 +64,6 @@ export interface AppSearchProvider {
   search: (api: AppSearchApi, q: string, offset: number) => Promise<AppSearchPage>
   /** Locale key of the notice shown when a page reports `truncated`. */
   truncatedKey?: string
-  /** Rendered on the dialog only (default: dialog and /search page). */
-  dialogOnly?: boolean
 }
 export interface AppBellKind {
   kind: string
@@ -105,6 +103,12 @@ export interface AppManifest {
   defaultRail?: string
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
   routeCapabilities?: Array<{ pattern: RegExp; capability: string }>
+  /**
+   * Dynamic list sources this application owns. A recognized pathname may return a record
+   * to that list, after both its normal route access and this additional capability pass.
+   * Patterns match complete list paths only; never records, forms or broad prefixes.
+   */
+  recordListSources?: Array<{ pattern: RegExp; capability: string }>
   landing?: AppLandingEntry[]                                     // firstAllowedPath order within the app
   capabilityAliases?: Record<string, string>                      // chat: { 'nasq.internal': 'chat.enabled' }
   bell?: { capabilities: string[]; kinds?: AppBellKind[] }

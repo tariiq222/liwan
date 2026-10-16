@@ -2,8 +2,9 @@
 import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import type { RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import ProjectDashboardCharts from '@/components/pmo/projects/dashboard/ProjectDashboardCharts.vue'
+import PendingCharterReviews from '@/components/pmo/projects/dashboard/PendingCharterReviews.vue'
 import ProjectDashboardMetrics from '@/components/pmo/projects/dashboard/ProjectDashboardMetrics.vue'
 import ProjectDashboardRecentProjects from '@/components/pmo/projects/dashboard/ProjectDashboardRecentProjects.vue'
 import { useProjectDashboardAnalytics } from '@/composables/useProjectDashboardAnalytics'
@@ -161,6 +162,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
 <template>
   <SharedDashboardPage :title="t('projects.dashboard.title')" data-testid="project-dashboard-page">
     <template #filters>
+      <PendingCharterReviews class="mb-5" />
       <div class="w-full min-w-0">
         <FilterBar class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
           <template #search>

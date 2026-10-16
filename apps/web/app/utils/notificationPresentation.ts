@@ -1,5 +1,5 @@
 import { MeetingNotificationSchema, NotificationKindSchema, TaskNotificationKindSchema, type NotificationKind } from '@nasq/contracts'
-import { formatDateTime } from './formatDate'
+import { formatDateTime } from '@nasq/ui/app/utils/formatDate'
 
 /** Today's kinds keep their literal type; a newer application's kind is any other string. */
 export type NotificationPreviewKind = NotificationKind | (string & {})

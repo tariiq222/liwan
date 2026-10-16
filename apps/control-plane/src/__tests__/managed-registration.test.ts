@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signMock as signServiceRequest, mockSessionQuery } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 
 type Tenant = Record<string, unknown>
@@ -43,10 +43,13 @@ describe('managed registration HTTP slice', () => {
   const client = {
     async query(sql: string, params: unknown[] = []) {
       queries.push(sql)
+      const session = mockSessionQuery(sql, params)
+      if (session) return session
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql)) return { rowCount: 0, rows: [] }
       if (sql.startsWith('DELETE FROM service_nonces')) return { rowCount: 0, rows: [] }
       if (sql.startsWith('INSERT INTO service_nonces')) return { rowCount: 1, rows: [{ nonce: 'fresh' }] }
-      if (sql.startsWith('SELECT capabilities FROM vendor_memberships')) return { rowCount: 1, rows: [{ capabilities: ['vendor.read', 'vendor.tenants.manage', 'vendor.operations.run'] }] }
+      if (sql.startsWith('SELECT 1 FROM vendor_accounts WHERE id')) return { rowCount: 1, rows: [{}] }
+      if (sql.startsWith('SELECT role FROM vendor_account_roles')) return { rowCount: 2, rows: [{ role: 'customer_success' }, { role: 'operations' }] }
       if (sql.startsWith('SELECT solution,source_sha256 FROM catalog_entries')) {
         const catalog = catalogs.find((item) => item.version === params[0])
         return catalog ? { rowCount: 1, rows: [{ source_sha256: catalog.sha, solution: { tiers: catalog.tiers.map((id) => ({ id })) } }] } : { rowCount: 0, rows: [] }

@@ -5,6 +5,7 @@ import { renderToString } from '@vue/server-renderer'
 import * as Vue from 'vue'
 import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
+import { saveErrorMessage } from '../../../utils/formFeedback'
 import { ApiError } from '../../../composables/useApi'
 import { getAllowedParentIds } from '../../../lib/departmentTree'
 import { hrManagerOptions } from '../../../composables/useHrEmployees'
@@ -34,7 +35,7 @@ async function load(file: string) {
     refDebounced: (value: unknown) => value,
     useCreateHrEmployee: mutationHook, useUpdateHrEmployee: mutationHook, useCreateDepartment: mutationHook, useUpdateDepartment: mutationHook,
     useHrEmployees: list, useHrEmployee: () => ({ data: Vue.ref(null), error: Vue.ref(null), refetch: vi.fn() }),
-    hrManagerOptions, retryHrManagerQueries: vi.fn(), getAllowedParentIds, ApiError,
+    saveErrorMessage, nextTick: Vue.nextTick, hrManagerOptions, retryHrManagerQueries: vi.fn(), getAllowedParentIds, ApiError,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
   const state = component.setup(props, { expose: () => {}, emit })

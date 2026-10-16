@@ -8,6 +8,8 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 _CALENDAR_IMPORT = ContextVar('nasq_calendar_import', default=False)
 _CALENDAR_OUTBOUND = ContextVar('nasq_calendar_outbound', default=frozenset())
 _SCOPE_SCHEDULE_WRITE = ContextVar('nasq_scope_schedule_write', default=False)
+# Set by a series while it creates its occurrences: the series sends one invite per participant.
+_SERIES_GENERATION = ContextVar('nasq_series_generation', default=False)
 
 
 class CyanMeetingMinute(models.Model):
@@ -44,6 +46,8 @@ class CyanMeetingMinute(models.Model):
         for meeting in records:
             if not _CALENDAR_IMPORT.get():
                 meeting._nasq_sync_calendar()
+            if _SERIES_GENERATION.get():
+                continue
             partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
             meeting._nasq_notify_partners(partners, 'meeting_invite', meeting.name, key=f'meeting-invite:{meeting.id}')
         return records
@@ -136,11 +140,23 @@ class CyanMeetingMinute(models.Model):
             for meeting in self:
                 if previous_state[meeting.id] == 'cancelled':
                     continue
+                meeting._nasq_set_calendar_event_active(False)
                 partners = meeting._cyan_participant_users().mapped('partner_id') - meeting.env.user.partner_id
                 meeting._nasq_notify_partners(
                     partners, 'meeting_cancelled', meeting.name,
                 )
+        if vals.get('state') == 'draft':
+            for meeting in self:
+                if previous_state[meeting.id] == 'cancelled':
+                    meeting._nasq_set_calendar_event_active(True)
         return result
+
+    def _nasq_set_calendar_event_active(self, active):
+        """A cancelled meeting leaves its attendees' calendars; a reopened one returns to them."""
+        self.ensure_one()
+        event = self.calendar_event_id
+        if event and event.active != active:
+            event.write({'active': active})
 
     @api.model
     def _nasq_run_meeting_reminders(self):
@@ -160,6 +176,7 @@ class CyanMeetingMinute(models.Model):
         Resolution = self.env['cyan.meeting.resolution']
         resolutions = Resolution.search([
             ('state', 'not in', ('done', 'cancelled')),
+            ('meeting_id.state', '!=', 'cancelled'),
             ('deadline', '<', today),
         ])
         # A recommendation followed on a linked record (a converted task) gets no overdue reminder.
@@ -372,6 +389,8 @@ class CyanMeetingMinute(models.Model):
 
     def action_cancel_scope(self, scope='this'):
         self.ensure_one()
+        if self.state == 'done':
+            raise UserError(self.env._("Reopen the completed meeting before cancelling it."))
         targets = self._nasq_scope_meetings(scope).filtered(lambda meeting: meeting.state not in ('done', 'cancelled'))
         targets.action_cancel()
         return targets

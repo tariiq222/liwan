@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useDeleteFinanceEntry, useProjectFinanceEntry, useProjectFinanceList } from '@/composables/useProjectFinance'
 import {
   financeWriteAllowed,
@@ -44,8 +44,9 @@ const notFound = computed(() =>
   || (query.error.value instanceof ApiError && [403, 404].includes(query.error.value.status))
   || (access.error.value instanceof ApiError && [403, 404].includes(access.error.value.status)),
 )
-const backTo = computed(() => owningListBack(route.query, [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'], route.hash))
-const editTo = computed(() => recordChildTo(`/projects/${projectId.value}/finance/${entryId.value}/edit`, route.query, [`/projects/${projectId.value}/finance`], route.hash))
+const sourcePaths = useProjectRecordListPaths(projectId, () => [projectId.value ? `/projects/${projectId.value}/finance` : '/projects'])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+const editTo = computed(() => recordChildTo(`/projects/${projectId.value}/finance/${entryId.value}/edit`, route.query, sourcePaths.value, route.hash))
 const confirmDelete = ref(false)
 const deleteError = ref<string | null>(null)
 const { mutateAsync: remove, isPending: deleting } = useDeleteFinanceEntry()
@@ -74,7 +75,7 @@ async function confirmRemoval() {
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!entry"
     v-if="isDetailRoute"
     data-testid="finance-entry-detail"
     :title="entry?.title || t('projects.finance.detailTitle')"
@@ -103,12 +104,12 @@ async function confirmRemoval() {
       >
         <p v-if="deleteError" class="text-error">{{ deleteError }}</p>
       </SharedInlineConfirm>
-      <SharedRecordSection id="finance-entry-amount" :title="t('projects.finance.fields.amount')">
+      <SharedRecordSection panel id="finance-entry-amount" :title="t('projects.finance.fields.amount')">
         <p dir="ltr" class="text-2xl font-semibold tabular-nums">{{ formatMoney(entry.amount, currency) }}</p>
-        <p v-if="entry.notes" class="whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
+        <p v-if="entry.notes" class="mt-2 whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
       </SharedRecordSection>
     </template>
-    <template v-if="entry && currency" #aside>
+    <template v-if="entry && currency" #summary>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('projects.finance.fields.kind')" :value="t(`projects.finance.kind.${entry.kind}`)" />
         <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.expense_date')" :value="entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : null" />

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { formatNasqDateTime } from '@/composables/calendarDate'
+import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
 type MeetingVersion = {
   id: number
   number: number
   captured_at: string
   actor: { id: number; name: string } | null
-  snapshot: Record<string, unknown>
+  snapshot: Record<string, unknown> | null
 }
 
 const props = withDefaults(defineProps<{

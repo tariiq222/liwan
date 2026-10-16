@@ -16,7 +16,7 @@ suite('vendor customer listing and cancellation HTTP boundary', () => {
   const caps: any[] = ['vendor.read', 'vendor.subscriptions.manage', 'vendor.billing.manage']
   async function call(method: string, path: string, body?: unknown, capabilities = caps, runtime?: any) {
     const target = new URL(`/v1/commercial${path}`, 'http://nasq.test')
-    return routesB(pool, { method, pathname: target.pathname, raw: body === undefined ? '' : JSON.stringify(body), actor: 7, issuer: 'admin-test', capabilities }, target, runtime) as Promise<any>
+    return routesB(pool, { method, pathname: target.pathname, raw: body === undefined ? '' : JSON.stringify(body), actor: 7, issuer: 'admin-test', capabilities, stepUpFresh: true }, target, runtime) as Promise<any>
   }
   beforeAll(async () => {
     await migrate(pool)

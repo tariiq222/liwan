@@ -3,7 +3,7 @@ import type { TaskDetail } from '@nasq/contracts'
 import { useUpdateTask } from '@/composables/useTasks'
 import { isDirtySnapshot } from '@/lib/formDirty'
 import { richTextHasContent } from '@/utils/richText'
-import { sanitizeHtml } from '@/utils/sanitize'
+import { sanitizeHtml } from '@nasq/ui/app/utils/sanitize'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 
 const props = defineProps<{ task: TaskDetail }>()
@@ -127,10 +127,10 @@ watch(() => props.task.can_write, (canWrite) => {
         @draft="onDescriptionDraft"
       />
       <p v-if="error" role="alert" data-testid="task-description-error" class="text-sm text-error">{{ error }}</p>
-      <div class="flex flex-wrap justify-end gap-2">
+      <SharedFormActions class="flex flex-wrap justify-end gap-2">
         <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || isPending" @click="cancelEdit">{{ t('tasks.descriptionField.cancel') }}</UButton>
         <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending">{{ t('tasks.descriptionField.save') }}</UButton>
-      </div>
+      </SharedFormActions>
     </form>
   </div>
 </template>

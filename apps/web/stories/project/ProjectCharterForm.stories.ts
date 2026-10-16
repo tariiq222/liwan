@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import ProjectCharterForm from '../../app/components/pmo/projects/ProjectCharterForm.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { projectCreateDefaults } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 

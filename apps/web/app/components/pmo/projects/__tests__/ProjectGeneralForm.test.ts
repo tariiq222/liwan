@@ -37,27 +37,18 @@ function loadForm() {
     setup(props) {
       const project = computed(() => props.project as ProjectDetail)
       const t = (key: string) => key
-      const hydrated = true
-      const nameDraft = ref(project.value.name)
-      const displayedMode = computed(() => project.value.completion_approval)
-      const pendingMode = ref<'none' | 'project_manager' | 'specific_user' | null>(
+      const pendingMode = ref<'specific_user' | null>(
         project.value.completion_approval === 'specific_user' && !project.value.completion_approver ? 'specific_user' : null,
       )
-      const approvalLocked = false
-      const approvalError = null
-      const displayedApproverName = computed(() => project.value.completion_approver?.name ?? 'projects.settings.noApprover')
-      const approverItems = computed(() => (project.value.completion_approver ? [project.value.completion_approver] : []))
-      const endLabel = computed(() => project.value.date_end ?? 'projects.settings.noDate')
-      const startLabel = computed(() => project.value.date_start ?? 'projects.settings.noDate')
-      const hasAnyDate = computed(() => !!project.value.date_start || !!project.value.date_end)
       return {
-        project, t, hydrated, nameDraft, displayedMode, pendingMode, approvalLocked, approvalError,
-        displayedApproverName, approverItems, endLabel, startLabel, hasAnyDate,
-        managerOpen: false, managerQ: '', people: [], approverOpen: false, approverQ: '',
-        approverPeople: [], startValue: null, endValue: null,
-        commitName: () => {}, onDescriptionChange: () => {}, selectManager: () => {},
-        onVisibilityChange: () => {}, onStartChange: () => {}, onEndChange: () => {},
-        clearDates: () => {}, onTagsChange: () => {}, onApprovalChange: () => {},
+        project, t, displayedMode: computed(() => project.value.completion_approval),
+        displayedApprover: computed(() => project.value.completion_approver),
+        approverItems: computed(() => project.value.completion_approver ? [project.value.completion_approver] : []),
+        choosingApprover: computed(() => pendingMode.value === 'specific_user'),
+        controlsLocked: false, dirty: false, saveState: 'idle', saveError: '',
+        pendingPatch: null, pendingTags: null, approverQ: '',
+        patch: () => {}, save: () => {}, onVisibilityChange: () => {},
+        onTagsChange: () => {}, onApprovalChange: () => {},
         selectApprover: () => {}, cancelPendingApproval: () => {},
       }
     },
@@ -67,7 +58,7 @@ function loadForm() {
 
 const project: ProjectDetail = {
   id: 4, name: 'Portal', status: null, progress: 0, task_count: 0, closed_task_count: 0,
-  active: true, can_manage: true, allowed_actions: ['read', 'write'], stages: [],
+  active: true, can_manage: true, allowed_actions: ['read', 'write'], stages: [], charter_state: 'draft',
   description_html: '', manager: { id: 2, name: 'Mona' }, privacy_visibility: 'employees',
   date_start: null, date_end: '2031-06-30', tags: [], followers_count: 0, milestone_count: 0,
   allow_task_dependencies: false, completion_approval: 'none', completion_approver: null,
@@ -78,12 +69,14 @@ const project: ProjectDetail = {
     high_level_requirements: '', deliverables: [], success: '', budget_state: 'unknown',
     amount: null, currency: { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 },
     priority: null, assumptions: '', constraints: '', closure: '', state: 'draft' as const,
+    approval_required: false, can_review: false, submitted_by: null, submitted_at: null,
+    approved_by: null, approved_at: null, return_note: '',
   },
 }
 
 async function renderGeneral(value: ProjectDetail) {
   const app = createSSRApp({ render: () => h(loadForm(), { project: value }) })
-  for (const name of ['UButton', 'USelect', 'USelectMenu', 'USwitch', 'USeparator', 'TagPicker', 'DescriptionEditor', 'UFormField']) {
+  for (const name of ['UButton', 'USelect', 'USelectMenu', 'USwitch', 'USeparator', 'TagPicker', 'UFormField', 'UAlert', 'SharedUnsavedChanges']) {
     app.component(name, Passthrough)
   }
   return renderToString(app)

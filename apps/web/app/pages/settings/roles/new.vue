@@ -1,28 +1,32 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import type { Capability, PermissionDefinition } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminPermissionCatalog, useAdminRole, useCreateAdminRole } from '@/composables/useAdminRoles'
-import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { adminListQuery } from '@/composables/adminSettingsPaths'
 import { permissionDomainLabel, builtinRoleDescription } from '@/utils/labelFallback'
+import { saveErrorMessage } from '@/utils/formFeedback'
 
 const { t, te, locale } = useI18n()
 const domainLabel = (domain: string) => permissionDomainLabel(domain, t, te)
 const route = useRoute()
+const router = useRouter()
 const { can } = useAccess()
 const hydrated = useHydrated()
 const forbidden = computed(() => !can('access.roles.manage'))
 const create = useCreateAdminRole()
 const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
 const cloneId = computed(() => route.query.clone ? Number(route.query.clone) : null)
-const backTo = computed(() => {
-  return adminPathWithQuery('/settings/roles', adminListQuery(route.query, ['q', 'type', 'status', 'offset']))
-})
+const sourcePaths = useRecordListPaths(['/settings/roles'])
+const backTo = computed(() => router.resolve(owningListBack({ ...adminListQuery(route.query, ['q', 'type', 'status', 'offset']), returnTo: route.query.returnTo ?? null }, sourcePaths.value, route.hash)).fullPath)
 const clone = useAdminRole(cloneId, computed(() => can('access.roles.manage') && cloneId.value !== null))
 const nameAr = ref('')
 const nameEn = ref('')
 const description = ref('')
 const selected = ref<Capability[]>([])
 const errorKey = ref('')
+const nameError = ref<string>()
+watch(nameAr, () => { nameError.value = undefined })
 const saved = ref(false)
 const dirty = computed(() => !saved.value && Boolean(nameAr.value.trim() || nameEn.value.trim() || description.value.trim() || selected.value.length))
 const permissionByKey = computed(() => new Map((catalog.data.value?.items ?? []).map((permission) => [permission.key, permission])))
@@ -69,21 +73,37 @@ function togglePermission(key: Capability, checked: boolean) {
 }
 
 function showError(error: unknown) {
+  if (error instanceof ApiError && error.status === 0) return saveErrorMessage(error, t('errors.generic'), t('errors.saveUncertain'))
   if (!(error instanceof ApiError)) return t('errors.generic')
   if (error.status === 409 || error.code === 'conflict') return t('access.errors.conflict')
   const translated = `access.errors.${error.code}`
   return error.code && t(translated) !== translated ? t(translated) : (error.message || t('errors.generic'))
 }
 
+let submitting = false
 async function submit() {
+  if (!hydrated.value || submitting) return
   errorKey.value = ''
-  if (!hydrated.value) return
+  nameError.value = undefined
+  if (!nameAr.value.trim()) {
+    nameError.value = t('access.roles.nameRequired')
+    await nextTick()
+    document.getElementById('name-ar')?.focus()
+    return
+  }
+  submitting = true
   try {
     const role = await create.mutateAsync({ name: { ar: nameAr.value, en: nameEn.value || null }, description: description.value, permissions: selected.value })
     saved.value = true
-    await navigateTo(adminPathWithQuery(`/settings/roles/${role.id}`, adminListQuery(route.query, ['q', 'type', 'status', 'offset'])))
+    await navigateTo({ path: `/settings/roles/${role.id}`, query: { returnTo: backTo.value } }, { replace: true })
   } catch (error) {
-    errorKey.value = showError(error)
+    if (error instanceof ApiError && ['name', 'name.ar', 'name_ar'].includes(error.field ?? '')) {
+      nameError.value = error.message
+      await nextTick()
+      document.getElementById('name-ar')?.focus()
+    } else errorKey.value = showError(error)
+  } finally {
+    submitting = false
   }
 }
 </script>
@@ -91,12 +111,12 @@ async function submit() {
 <template>
   <SharedCreatePanel :title="t('access.roles.createTitle')" :back-to="backTo">
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <UForm v-else :state="{ nameAr, nameEn, description }" class="nasq-form" method="post" @submit="submit">
+    <UForm v-else :state="{ nameAr, nameEn, description }" class="nasq-form" method="post" :loading-auto="false" novalidate @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection panel :title="t('access.roles.details')">
         <div class="space-y-4">
           <div class="nasq-form-grid">
-            <UFormField :label="t('access.roles.nameArabic')" name="name-ar"><UInput id="name-ar" v-model="nameAr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
+            <UFormField :label="t('access.roles.nameArabic')" name="name-ar" required :error="nameError"><UInput id="name-ar" v-model="nameAr" class="w-full" required :disabled="!hydrated || create.isPending.value" /></UFormField>
             <UFormField :label="t('access.roles.nameEnglish')" name="name-en"><UInput id="name-en" v-model="nameEn" dir="ltr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
           </div>
           <UFormField :label="t('access.roles.descriptionLabel')" name="description"><UTextarea id="description" v-model="description" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
@@ -126,7 +146,10 @@ async function submit() {
         </fieldset>
       </SharedFormSection>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
-      <footer class="nasq-form-footer justify-end"><UButton type="submit" color="primary" :disabled="!hydrated || create.isPending.value || !nameAr.trim()" :label="t('access.roles.create')" /></footer>
+      <SharedFormActions>
+        <UButton :to="backTo" color="neutral" variant="outline" :disabled="create.isPending.value" :label="t('app.cancel')" />
+        <UButton type="submit" :disabled="!hydrated || create.isPending.value" :loading="create.isPending.value" :label="t('access.roles.create')" />
+      </SharedFormActions>
     </UForm>
   </SharedCreatePanel>
 </template>

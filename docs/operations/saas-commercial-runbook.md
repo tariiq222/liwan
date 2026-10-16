@@ -47,19 +47,48 @@
 
 غير متوفر حاليًا: مفاتيح Moyasar للاختبار وإعدادات SMTP **[محجوب]**. مفاتيح الإنتاج لا تُستخدم في اختبار محلي أبدًا.
 
-## 3. منح صلاحيات المورّد (vendor capabilities)
+## 3. حسابات لوحة تحكم نسق
 
-القدرات المعرّفة (`vendorCapabilitySchema`): `vendor.read`، `vendor.tenants.manage`، `vendor.catalog.manage`، `vendor.operations.run`، `vendor.audit.read`، `vendor.pricing.manage`، `vendor.subscriptions.manage`، `vendor.billing.manage`.
+الصلاحيات مشتقة من أدوار الحساب (`owner` وغيره)؛ لم يعد هناك منح أو إلغاء يدوي بمعرّف Odoo (أُزيل الأمران `grant` و`revoke`). الأوامر أدناه تتطلب ضبط `ADMIN_SECRET_KEY` و`ADMIN_RP_ID` و`ADMIN_ORIGIN`؛ وبدونها ترفض التنفيذ.
 
-الأمر (من `apps/control-plane`، يشغّل `migrate` أولًا ويكتب `audit_events`):
+أول مالك للوحة (من خادم التشغيل، من `apps/control-plane`؛ يشغّل `migrate` أولًا ويكتب `audit_events` بالفاعل `operator`):
 
 ```sh
-npm -w apps/control-plane run admin -- grant <odoo_uid> vendor.read,vendor.pricing.manage,vendor.billing.manage "<سبب 3-1000 حرف>"
-npm -w apps/control-plane run admin -- revoke <odoo_uid> "<سبب>"
+npm -w apps/control-plane run admin -- bootstrap-owner <email> "<الاسم الظاهر>" "<سبب 3-1000 حرف>"
 ```
 
-- `<odoo_uid>` رقم صحيح موجب؛ القائمة بلا تكرار؛ يستبدل `grant` القائمة كاملة للعضو (ليس إضافة) ويعيد تفعيل عضو ملغى. الاتصال بقاعدة التحكم عبر إعداد `getConfig()` (لا تضع كلمة مرور في سطر الأوامر).
-- قدّم أقل صلاحيات لازمة؛ `vendor.pricing.manage` و`vendor.billing.manage` ماليتان. **[محلي]** السلوك مقروء من `src/admin.ts`؛ لم يُشغَّل أمام قاعدة staging.
+يطبع سطرًا واحدًا فقط: `<ADMIN_ORIGIN>/enroll#<token>`، وهو رابط يفتح في تطبيق `apps/vendor-admin` على مضيف `admin` (الرمز بعد `#` لا يصل إلى الخادم ولا إلى السجلات). يرفض الأمر مع الرسالة `owner already exists` إذا وُجد أي حساب غير معطّل (نشط أو قيد التسجيل) يحمل دور المالك.
+
+إعادة تعيين مالك مقفل خارج حسابه (أو أي حساب غير معطّل):
+
+```sh
+npm -w apps/control-plane run admin -- reset-account <email> "<سبب 3-1000 حرف>"
+```
+
+يطبع رابط إعادة تعيين بالصيغة نفسها؛ بريد غير معروف أو حساب معطّل يعيد خطأً عامًا بلا تفصيل.
+
+- الرابط يُرسل يدويًا إلى صاحب الحساب عبر قناة موثوقة، وينتهي بعد 24 ساعة، ويُستعمل مرة واحدة.
+- الرابط يظهر مرة واحدة فقط في الطرفية: لا تلصقه في أدوات الدردشة أو التذاكر أو السجلات. إن ضاع فأصدر رابطًا جديدًا (الإصدار الجديد يلغي القديم).
+- لا تضع كلمة مرور أو مفتاحًا في سطر الأوامر. **[محلي]** السلوك مختبر على قاعدة scratch فقط؛ لم يُشغَّل أمام staging.
+
+### تشغيل لوحة التحكم محليًا (`apps/vendor-admin`)
+
+1. جهّز لوحة التحكم (`apps/control-plane`) بقاعدة scratch ومنفذ حر، وأضف إلى بيئتها: `ADMIN_SECRET_KEY` (32 بايت على الأقل، ومختلف عن كل مفتاح خدمة) و`ADMIN_RP_ID=localhost` و`ADMIN_ORIGIN=http://localhost:3100`.
+2. أنشئ المالك الأول بالأمر `bootstrap-owner` أعلاه، واحتفظ بالرابط المطبوع (يظهر مرة واحدة).
+3. شغّل التطبيق من جذر المستودع (Node 22):
+
+```sh
+export NUXT_CONTROL_URL=http://127.0.0.1:<منفذ لوحة التحكم>
+export NUXT_SERVICE_KEY=<قيمة CONTROL_SERVICE_KEY نفسها>
+export NUXT_INSTALLATION_ID=<قيمة CONTROL_INSTALLATION_ID نفسها>
+export NUXT_ADMIN_ORIGIN=http://localhost:3100
+npm -w apps/vendor-admin run dev -- --port 3100
+```
+
+4. افتح الرابط المطبوع (`http://localhost:3100/enroll#...`) في المتصفح، وأكمل تسجيل مفتاح المرور (passkey) وكلمة المرور ورمز TOTP، واحفظ رموز الاسترداد.
+5. على خادم الإنتاج يُخدَّم التطبيق من مضيف `admin` المستقل (قالب البيئة `deploy/vendor-admin/env.example` وكتلة الحافة `deploy/vendor-admin/Caddyfile.snippet`)، و`ADMIN_ORIGIN` في لوحة التحكم يساوي `NUXT_ADMIN_ORIGIN` حرفيًا. **[محلي]** لم يُجرَّب أمام staging.
+
+شرح المتغيرات وحدود التطبيق في `apps/vendor-admin/README.md`.
 
 أوامر admin أخرى: `catalog-import <version> <reason>`، `approve-restore <tenant_uuid> <op_backup_id> <reason>` (موافقة ساعة واحدة)، `migrate-saas-commercial --dry-run|--run [--report path]`.
 

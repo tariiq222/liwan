@@ -7,6 +7,10 @@ import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const webRoot = resolve(here, '..')
+const uiRoot = resolve(here, '../../../packages/ui')
+const commercialRoot = resolve(here, '../../../packages/commercial-ui')
+// The app and the @nasq/ui and @nasq/commercial-ui layers all contribute components, composables and utils.
+const appRoots = [join(webRoot, 'app'), join(uiRoot, 'app'), join(commercialRoot, 'app')]
 const nuxtDir = join(webRoot, '.nuxt')
 export const shimPath = join(here, 'nuxt-shims.ts')
 
@@ -54,7 +58,7 @@ export async function buildNuxtImports() {
     passthrough.push({ from: abs, imports: names })
   }
   // Report which Nuxt runtime APIs the component tree (components + composables + utils) really uses.
-  const src = walk(join(webRoot, 'app'), ['.vue', '.ts']).filter(f => /\/app\/(components|composables|utils|lib)\//.test(f))
+  const src = appRoots.flatMap(root => walk(root, ['.vue', '.ts'])).filter(f => /\/app\/(components|composables|utils|lib)\//.test(f))
   // Comments mention APIs without calling them; scan code only.
   const stripComments = text => text.replace(/<!--[\s\S]*?-->|\/\*[\s\S]*?\*\/|(^|[^:\\])\/\/[^\n]*/g, '$1')
   const texts = src.map(f => stripComments(readFileSync(f, 'utf8')))
@@ -70,7 +74,7 @@ export async function buildNuxtImports() {
   for (const m of readFileSync(join(nuxtDir, 'components.d.ts'), 'utf8').matchAll(/^export const (\w+): typeof import\("([^"]+)"\)\['default'\]/gm)) {
     const file = resolve(nuxtDir, m[2])
     // App components only: Nuxt UI registers its own Vue-mode U* components (UIcon/ULink differ from the Nuxt ones).
-    if (file.startsWith(join(webRoot, 'app'))) components[m[1]] = { name: 'default', from: file }
+    if (appRoots.some(root => file.startsWith(root))) components[m[1]] = { name: 'default', from: file }
   }
   // Nuxt built-in components the app uses are served from the shim module too.
   for (const name of ['NuxtLink', 'ClientOnly', 'NuxtPage']) if (shimExports.has(name)) components[name] = { name, from: shimPath }

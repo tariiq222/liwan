@@ -8,7 +8,7 @@ import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
 import { useProject } from '@/composables/useProjects'
 import type { TaskListParams } from '@/composables/useTasks'
-import { safeReturnTo } from '@/utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -38,17 +38,43 @@ const canCreate = computed(() => can('pmo.tasks.create') && project.value?.activ
 // survives the round trip. A referrer's returnTo is dropped instead of
 // forwarded — the section path already names where the record returns to, and
 // a stale returnTo on the list URL would redirect this page's own controls.
+const liveSearch = ref(typeof route.query.q === 'string' ? route.query.q : '')
+const openingTask = ref(false)
+watch(() => route.query.q, value => { liveSearch.value = typeof value === 'string' ? value : '' })
 const filterQuery = computed<LocationQueryRaw>(() => {
   const { returnTo: _referrer, ...listState } = route.query
-  return listState as LocationQueryRaw
+  return { ...listState, q: liveSearch.value.trim() || undefined } as LocationQueryRaw
 })
 
 function onParams(value: TaskListParams) {
+  if (openingTask.value || normalizedPath.value !== `/projects/${projectId.value}/tasks`) return
   router.replace({ query: { ...route.query, ...projectTaskQuery(value) } })
 }
 
 function taskTo(taskId: number) {
   return { path: `/projects/${projectId.value}/tasks/${taskId}`, query: filterQuery.value }
+}
+
+async function openTask(path: string) {
+  if (openingTask.value) return
+  openingTask.value = true
+  try {
+    await router.push({ path, query: filterQuery.value })
+  } finally {
+    openingTask.value = false
+  }
+}
+
+// Resolve plain clicks from the live input before Vue has rendered a new href.
+// Modified clicks keep the native anchor behavior.
+function openLiveLink(event: MouseEvent) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  const anchor = (event.target as Element).closest<HTMLAnchorElement>('a[href]')
+  if (!anchor) return
+  const target = new URL(anchor.href)
+  if (!new RegExp(`^/projects/${projectId.value}/tasks/(new|[1-9]\\d*)$`).test(target.pathname)) return
+  event.preventDefault()
+  void openTask(target.pathname)
 }
 
 // Table is the first option, so it is the bare URL; the switch writes ?view=board for the board.
@@ -59,7 +85,7 @@ const views = computed(() => [
 const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new`, query: filterQuery.value }))
 
 function openCreate() {
-  router.push({ path: `/projects/${projectId.value}/tasks/new`, query: filterQuery.value })
+  void openTask(`/projects/${projectId.value}/tasks/new`)
 }
 </script>
 
@@ -76,6 +102,7 @@ function openCreate() {
     <SharedListPage
       v-else
       hide-header
+      @click.capture="openLiveLink"
       :title="t('nav.projectTasks')"
       :create-to="canCreate ? createTo : undefined"
       :create-label="t('tasks.new')"
@@ -83,12 +110,12 @@ function openCreate() {
       :views="views"
     >
       <template #filters>
-        <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams" />
+        <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" />
       </template>
       <section class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
         <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate" />
         <div v-else class="overflow-hidden rounded-lg bg-default ring ring-default">
-          <TaskBoard :params="params" :stage-source="stageSource" embedded @open="(id: number) => router.push(taskTo(id))" />
+          <TaskBoard :params="params" :stage-source="stageSource" embedded @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
         </div>
         <div class="flex justify-end">
           <NuxtLink :to="{ path: '/tasks', query: { scope: 'archived', project_id: projectId, returnTo: route.fullPath } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>

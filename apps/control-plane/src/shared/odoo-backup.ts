@@ -11,6 +11,7 @@ import {assertSameBinding,businessKey,payloadDigest} from './provisioning.js'
 import {assertNoSymlink,type SharedRuntimeConfig} from './runtime-config.js'
 import {prepareCommercialRestorePublication,revalidateCommercialRestorePublication,type CommercialRestoreRunner} from './shared-backup.js'
 import {RegistryError} from './registry-store.js'
+import { actorLabel } from '../admin-auth/grants.js'
 
 const hash=z.string().regex(/^[a-f0-9]{64}$/)
 export const manifestSchema=z.strictObject({
@@ -48,9 +49,9 @@ export async function recordOdooBackup(pool:Pool,runtime:SharedRuntimeConfig,job
   const manifest=validateRealBackupManifest(stored.value,{backupId:job.requestId,binding:job.binding,controlTenantId:row.control_tenant_id})
   if(manifest.payloadDigest!==payloadDigest(job) || manifest.businessKey!==businessKey(job))throw Error('shared_artifact_mismatch')
   await client.query(`INSERT INTO shared_backups(id,control_tenant_id,tenant_id,database_name,filestore,snapshot,database_sha256,filestore_sha256,artifact_path,consistency,created_by)
-   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'verified',$10)`,[job.requestId,row.control_tenant_id,job.binding.tenantId,job.binding.database,job.binding.filestore,manifest,manifest.databaseSha256,manifest.filestoreSha256,stored.directory,`${row.issuer}:${row.actor_uid}`])
+   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'verified',$10)`,[job.requestId,row.control_tenant_id,job.binding.tenantId,job.binding.database,job.binding.filestore,manifest,manifest.databaseSha256,manifest.filestoreSha256,stored.directory,actorLabel({issuer:row.issuer,actorUid:Number(row.actor_uid)})])
   await client.query("INSERT INTO shared_odoo_backups(backup_id,job_id,format,manifest_sha256,source_registry_revision) VALUES($1,$2,'odoo-pg-filestore-v1',$3,$4)",[job.requestId,row.id,stored.sha256,job.binding.registryRevision])
-  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),`${row.issuer}:${row.actor_uid}`,'shared_odoo_backup.verified',job.requestId,'Quiesced database and filestore capture verified',{databaseSha256:manifest.databaseSha256,filestoreSha256:manifest.filestoreSha256}])
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',[randomUUID(),actorLabel({issuer:row.issuer,actorUid:Number(row.actor_uid)}),'shared_odoo_backup.verified',job.requestId,'Quiesced database and filestore capture verified',{databaseSha256:manifest.databaseSha256,filestoreSha256:manifest.filestoreSha256}])
  })
 }
 export async function resolveOdooBackupAuthority(pool:Pool,runtime:SharedRuntimeConfig,job:SharedJob,options:{starting?:boolean}={}){
@@ -94,7 +95,7 @@ export async function approveOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
   const result=await client.query(`INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at)
    VALUES($1,$2,$3,$4,$5,clock_timestamp()+interval '1 hour') RETURNING expires_at`,[approvalId,request.backup_id,controlTenantId,target,request.reason])
   await client.query('INSERT INTO shared_odoo_restore_targets(approval_id,backup_id,control_tenant_id,target_database,source_binding,runtime_scope) VALUES($1,$2,$3,$4,$5,$6)',[approvalId,request.backup_id,controlTenantId,target,binding,runtime.projectName])
-  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),`${actor.issuer}:${actor.actorUid}`,'shared_odoo_restore.approved',approvalId,request.reason])
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_odoo_restore.approved',approvalId,request.reason])
   return {approval_id:approvalId,expires_at:new Date(result.rows[0].expires_at).toISOString()}
  })
 }
@@ -150,7 +151,7 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
   const old=existing.targets.find(t=>t.host===host)
   if(old && JSON.stringify(old)!==JSON.stringify(target))throw Error('shared_restore_route_conflict')
   if(!old){existing.targets.push(target);existing.snapshotRevision++;const temp=path+'.'+randomUUID();await writeFile(temp,JSON.stringify(existing),{mode:0o644,flag:'wx'});await rename(temp,path)}
-  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),`${actor.issuer}:${actor.actorUid}`,'shared_odoo_restore.route_published',approvalId,'Verified isolated restore route'])
+  await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_odoo_restore.route_published',approvalId,'Verified isolated restore route'])
  })
  return {approvalId,host,database:row.target_database}
 }

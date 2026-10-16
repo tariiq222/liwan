@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import UserSecurityForm from '@/components/access/users/UserSecurityForm.vue'
 import { nextAdminUserSecuritySuccess } from '@/composables/useAdminUsers'
-import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { recordParentTo } from '@/utils/recordListOrigin'
 
 const route = useRoute()
 const { t } = useI18n()
 const { can } = useAccess()
 const id = computed(() => Number(route.params.userId))
-const backTo = computed(() => adminPathWithQuery(`/settings/users/${id.value}`, adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset'])))
+const sourcePaths = useRecordListPaths(['/settings/users'])
+const backTo = computed(() => recordParentTo(`/settings/users/${id.value}`, route.query, sourcePaths.value, route.hash))
 const forbidden = computed(() => !can('access.users.read'))
 const user = useAdminUser(id, computed(() => !forbidden.value))
 const successKey = ref('')

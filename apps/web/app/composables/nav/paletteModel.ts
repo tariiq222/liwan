@@ -3,15 +3,29 @@ import type { RouteLocationRaw } from 'vue-router'
 import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessPolicy'
 import { appCommands } from '../../modules/surfaces'
 import type { AppCommand, AppSearchRow } from '../../modules/types'
-import { CHORD_START_KEY, SHORTCUT_HELP } from '../shortcuts/keymap'
+import { CHORD_START_KEY } from '@nasq/ui/app/composables/shortcuts/keymap'
 import type { NavItem } from './shellModules'
 
+interface ShortcutHelpEntry { id: string; labelKey: string; kbds: readonly string[] }
+/** The fixed rows of the `?` help view in reading order; a `G` row per visible go key follows (paletteModel.helpItems). */
+export const SHORTCUT_HELP: readonly ShortcutHelpEntry[] = [
+  { id: 'palette', labelKey: 'shortcuts.palette', kbds: ['meta', 'K'] },
+  { id: 'search', labelKey: 'shortcuts.search', kbds: ['/'] },
+  { id: 'create', labelKey: 'shortcuts.create', kbds: ['C'] },
+  { id: 'go', labelKey: 'shortcuts.go', kbds: ['G'] },
+  { id: 'rows', labelKey: 'shortcuts.rows', kbds: ['J', 'K'] },
+  { id: 'open', labelKey: 'shortcuts.open', kbds: ['enter'] },
+  { id: 'sidebar', labelKey: 'shortcuts.sidebar', kbds: ['['] },
+  { id: 'escape', labelKey: 'shortcuts.escape', kbds: ['escape'] },
+  { id: 'help', labelKey: 'shortcuts.help', kbds: ['?'] },
+]
+
 /** Rows one search section shows; UCommandPalette cuts every group at `fuse.resultLimit` (default 12). */
-export const PALETTE_SECTION_LIMIT = 50
+export const PALETTE_SECTION_LIMIT = 5
 
 export type PaletteItemAction =
   | { kind: 'shortcuts' }
-  | { kind: 'retry' | 'load-more'; section: string }
+  | { kind: 'retry'; section: string }
   | { kind: 'none' }
 
 /** One palette row before the component adds its `onSelect`. */
@@ -20,8 +34,6 @@ export interface PaletteItem {
   label: string
   icon?: string
   to?: RouteLocationRaw
-  external?: boolean
-  target?: '_blank'
   kbds?: string[]
   /** The key hint is decoration: hidden from assistive tech so the option's name stays its label. */
   kbdsHidden?: boolean
@@ -40,7 +52,6 @@ export interface PaletteSearchSection {
   waiting: boolean
   error: boolean
   hasNext: boolean
-  fetchingNext: boolean
   /** The provider's translated `truncatedKey` when it capped its response, else null. */
   notice: string | null
 }
@@ -87,7 +98,6 @@ export function goToItems(visible: readonly NavItem[], label: (item: NavItem) =>
     label: label(item),
     icon: item.icon,
     to: item.to,
-    ...(item.to === '/odoo' ? { external: true, target: '_blank' as const } : {}),
     ...(item.goKey ? { kbds: goKbds(item.goKey), kbdsHidden: true } : {}),
   }))
 }
@@ -142,10 +152,10 @@ export function paletteGroups(input: {
     }
     if (section.error) {
       items.push({ id: `search:${section.id}:error`, label: input.labels.error, icon: 'i-lucide-rotate-cw', action: { kind: 'retry', section: section.id } })
-    } else if (section.hasNext) {
+    } else if (section.hasNext || section.rows.length > PALETTE_SECTION_LIMIT) {
       items.push({
         id: `search:${section.id}:more`, label: input.labels.loadMore, icon: 'i-lucide-chevrons-down',
-        loading: section.fetchingNext, action: { kind: 'load-more', section: section.id },
+        to: { path: '/search', query: { q: input.term, provider: section.id, returnTo: input.returnTo } },
       })
     }
     return items.length ? [{ id: `search-${section.id}`, label: section.label, items, ignoreFilter: true }] : []

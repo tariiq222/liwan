@@ -45,6 +45,7 @@ const PROJECT_SETTINGS = {
   deadline_reminders_enabled: false,
   deadline_reminders_days_before: 1,
   overdue_digest_enabled: false,
+  require_charter_approval: false,
 }
 const USERS = {
   items: [{

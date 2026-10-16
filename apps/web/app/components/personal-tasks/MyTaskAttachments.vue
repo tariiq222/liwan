@@ -8,6 +8,9 @@ import { attachmentProblem } from '@/utils/myTaskDetail'
 // the list itself is its own read.
 const props = defineProps<{ taskId: number; count: number; canWrite: boolean }>()
 
+const emit = defineEmits<{ 'pending-change': [pending: boolean] }>()
+let activeOperations = 0
+onBeforeUnmount(() => emit('pending-change', false))
 const { t } = useI18n()
 const { data, isLoading, error: loadError, refetch } = useMyTaskAttachments(() => props.taskId)
 const { mutateAsync: upload } = useUploadMyTaskAttachment()
@@ -26,6 +29,7 @@ const labels = computed(() => ({
 }))
 
 async function uploadFile(file: File) {
+  emit('pending-change', ++activeOperations > 0)
   error.value = ''
   try {
     const problem = attachmentProblem(file)
@@ -36,17 +40,18 @@ async function uploadFile(file: File) {
     await upload({ id: props.taskId, name: file.name, mimetype: file.type || undefined, data: await fileToBase64(file) })
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('myTasks.errors.attachment')
-  }
+  } finally { emit('pending-change', --activeOperations > 0) }
 }
 
 async function deleteFile(attachmentId: number) {
+  emit('pending-change', ++activeOperations > 0)
   error.value = ''
   try {
     await remove({ id: props.taskId, attachmentId })
   } catch (e) {
     // A structured server message wins; a bare transport failure gets the delete-specific text.
     error.value = e instanceof ApiError && e.code !== 'http_error' ? e.message : t('myTasks.attachments.deleteError')
-  }
+  } finally { emit('pending-change', --activeOperations > 0) }
 }
 </script>
 

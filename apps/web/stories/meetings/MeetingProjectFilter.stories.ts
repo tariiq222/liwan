@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MeetingProjectFilter from '../../app/components/meetings/MeetingProjectFilter.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -17,7 +17,7 @@ type Story = StoryObj<typeof meta>
 
 export const InFormField: Story = {
   name: 'داخل حقل نموذج',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:92'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/resolutions/new.vue:94'),
   render: args => ({
     components: { FormSection, MeetingProjectFilter, PageContainer },
     setup: () => ({ args, t: useI18n().t, projectId: ref(args.modelValue) }),
@@ -27,7 +27,7 @@ export const InFormField: Story = {
 
 export const WithLabel: Story = {
   name: 'بعنوان ظاهر في الفلاتر',
-  parameters: storyContext('apps/web/app/pages/meetings/series.vue:214'),
+  parameters: storyContext('apps/web/app/pages/meetings/series.vue:130'),
   args: { modelValue: 2 },
   render: args => ({
     components: { MeetingProjectFilter, PageContainer },

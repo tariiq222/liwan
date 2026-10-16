@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { recordParentTo } from '@/utils/recordListOrigin'
+import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useCreateResolution, useMeeting } from '@/composables/useMeetings'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = useCreateResolution()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, sourcePaths.value, route.hash))
 const canCreate = computed(() => query.data.value?.can_edit === true && !['done', 'cancelled'].includes(query.data.value.state))
 const knownPeople = computed(() => {
   const meeting = query.data.value
@@ -104,10 +106,10 @@ async function save() {
       </SharedFormSection>
       <p v-if="validationMessage" class="text-sm text-muted" aria-live="polite">{{ validationMessage }}</p>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
-      <div class="nasq-form-footer justify-end">
+      <SharedFormActions class="justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
         <UButton type="submit" :disabled="!hydrated || !canCreate || isPending || Boolean(validationMessage)" :label="t('app.create')" />
-      </div>
+      </SharedFormActions>
     </form>
     </SharedPageState>
   </SharedCreatePanel>

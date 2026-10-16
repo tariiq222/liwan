@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { ProjectStatus } from '@nasq/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@/utils/statusBadge'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
 import type { ProjectUpdate } from '@nasq/contracts'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 

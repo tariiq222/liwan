@@ -131,17 +131,9 @@ test.describe('Tasmim shell (desktop)', () => {
       await expect(trail).toHaveAccessibleName(locale === 'ar' ? 'مسار الصفحة' : 'Breadcrumb')
       await expect(trail.getByRole('link', { name: module, exact: true })).toHaveAttribute('href', '/projects')
       await expect(trail.locator('[aria-current="page"]')).toHaveText(current)
-      await expect(page.getByTestId('vendor-console-badge')).toHaveCount(0)
       await expect(page.getByTestId('shell-header').locator('h1')).toHaveCount(0)
     })
   }
-
-  test('the vendor console shows its badge', async ({ page }) => {
-    await open(page, 'shell-shellframe--console', 'locale:ar;appearance:light')
-    await expect(page.getByTestId('vendor-console-badge')).toHaveText('الكونسول')
-    await open(page, 'shell-shellframe--console', 'locale:en;appearance:light')
-    await expect(page.getByTestId('vendor-console-badge')).toHaveText('Console')
-  })
 
   test('header controls wait for nothing in Storybook and keep the 32px control height', async ({ page }) => {
     await open(page, 'shell-shellframe--default', 'locale:ar;appearance:light')

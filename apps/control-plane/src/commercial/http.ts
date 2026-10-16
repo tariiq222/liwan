@@ -7,10 +7,11 @@ import { CommercialHttpError } from './lifecycle.js'
 import { listPolicies } from './policies.js'
 import { getQuote, previewQuote } from './quotes.js'
 import { quotePreviewRequestSchema } from '@nasq/commercial-contracts'
+import { STEP_UP_CAPABILITIES } from '../admin-auth/roles.js'
 import { createPlan, getPlan, listPlans, mutatePlan } from './plans.js'
 
 type Act = 'edit' | 'delete' | 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions'
-export type CommercialInput = { method: string; pathname: string; search?: string; raw: string; issuer: string; actor: number; capabilities: VendorCapability[] }
+export type CommercialInput = { method: string; pathname: string; search?: string; raw: string; issuer: string; actor: number; capabilities: VendorCapability[]; stepUpFresh?: boolean }
 type Extra = (pool: Pool, input: CommercialInput, url: URL) => Promise<{ status: number; data: unknown } | null>
 const extras: Extra[] = []
 /** Later stages (plans, policies, quotes) register route handlers here. */
@@ -25,6 +26,13 @@ export function parseBody<T>(raw: string, schema: z.ZodType<T>): T {
 }
 export function need(input: CommercialInput, ...caps: VendorCapability[]) {
   for (const c of caps) if (!input.capabilities.includes(c)) throw new CommercialHttpError('forbidden', 403)
+  // Reads never need a fresh passkey confirmation; sensitive mutations do.
+  if (input.method !== 'GET' && !input.stepUpFresh && caps.some((c) => STEP_UP_CAPABILITIES.includes(c))) throw new CommercialHttpError('step_up_required', 403)
+}
+
+/** Explicit step-up for actions whose capability is not itself a step-up capability (catalog publication). */
+export function needStepUp(input: CommercialInput) {
+  if (input.method !== 'GET' && !input.stepUpFresh) throw new CommercialHttpError('step_up_required', 403)
 }
 
 /** Returns null only when this route is outside /v1/commercial. */
@@ -39,6 +47,7 @@ export async function commercialHttp(pool: Pool, input: CommercialInput) {
     if (m === 'GET') { need(input, 'vendor.read'); return { status: 200, data: await listReleases(pool) } }
     if (m === 'POST') {
       need(input, 'vendor.catalog.manage')
+      needStepUp(input)
       const body = parseBody(input.raw, catalogReleaseCreateSchema)
       const r = await createRelease(pool, actor, body)
       return { status: r.created ? 201 : 200, data: r.release }
@@ -70,7 +79,7 @@ export async function commercialHttp(pool: Pool, input: CommercialInput) {
         need(input, 'vendor.catalog.manage')
         // Edit may change prices; the store enforces pricing for that case.
         if (['publish', 'withdraw', 'restore'].includes(act)) need(input, 'vendor.pricing.manage')
-        const data = await mutateBundle(pool, actor, id, act, parseBody(input.raw, z.unknown()), { pricingGranted: input.capabilities.includes('vendor.pricing.manage') })
+        const data = await mutateBundle(pool, actor, id, act, parseBody(input.raw, z.unknown()), { pricingGranted: input.capabilities.includes('vendor.pricing.manage'), pricingStepUp: input.stepUpFresh === true })
         return { status: act === 'revisions' ? 201 : 200, data }
       }
     }

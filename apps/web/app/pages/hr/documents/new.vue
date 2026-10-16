@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import DocumentCreateForm from '@/components/hr/DocumentCreateForm.vue'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 
 const route = useRoute()
@@ -13,14 +14,8 @@ const canManage = computed(() => can('hr.documents.manage'))
 const departmentId = ref(typeof route.query.department_id === 'string' ? Number(route.query.department_id) : 0)
 const departmentOptions = computed(() => (departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name })))
 const selectedDepartment = computed(() => departments.data.value?.items.find(d => d.id === departmentId.value))
-// The owning list is fixed by this page's own route, so the return trip is
-// literal and carries only the state the list was showing. A referrer's
-// returnTo is dropped rather than forwarded: on the list URL it would nest one
-// level deeper on every round trip and redirect that page's own controls.
-const backTo = computed(() => {
-  const { returnTo: _referrer, ...listQuery } = route.query
-  return { path: '/hr/documents', query: listQuery, ...(route.hash ? { hash: route.hash } : {}) }
-})
+const sourcePaths = useRecordListPaths(['/hr/documents'])
+const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 
 function selectDepartment(value: unknown) {
   departmentId.value = value ? Number(value) : 0
@@ -38,8 +33,11 @@ function saved(id: number) {
       :loading="departments.isLoading.value"
       :error="departments.error.value"
       :empty="!departments.data.value?.items.length"
+      :empty-text="t('hr.docs.noDepartments')"
+      :empty-description="t('hr.docs.noDepartmentsHint')"
       @retry="departments.refetch"
     >
+      <template v-if="can('hr.departments.manage')" #emptyAction><UButton :to="{ path: '/hr/departments/new', query: { returnTo: route.fullPath } }" :label="t('hr.depts.new')" /></template>
       <div class="space-y-6">
         <SharedFormSection :title="t('hr.docs.department')">
           <UFormField class="mt-4" :label="t('hr.docs.department')" name="new-document-department">

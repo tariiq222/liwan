@@ -12,7 +12,7 @@ type Story = StoryObj<typeof meta>
 
 export const InContextSidebar: Story = {
   name: 'في الشريط الجانبي',
-  parameters: storyContext('unused', 'لم يعد مستخدمًا بعد تحديث الشريط الجانبي؛ الغلاف بعرض `--context-sidebar-width: 232px` من `apps/web/app/assets/css/shell.css`.'),
+  parameters: storyContext('unused', 'لم يعد مستخدمًا بعد تحديث الشريط الجانبي؛ الغلاف بعرض `--context-sidebar-width: 232px` من `packages/ui/app/assets/css/shell.css`.'),
   render: args => ({
     components: { SidebarCreateAction },
     setup: () => ({ args }),

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { Project, ProjectStatus } from '@nasq/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@/utils/statusBadge'
-import RecordNumber from '@/components/shared/data/RecordNumber.vue'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
+import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
 import ProjectMenu from './ProjectMenu.vue'
 
 // One project as a body: number, name, status, progress, manager, end date and the actions menu.

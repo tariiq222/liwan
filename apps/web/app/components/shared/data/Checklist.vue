@@ -30,7 +30,7 @@ const props = withDefaults(defineProps<{
 }>(), { canAdd: false })
 
 const hydrated = useHydrated()
-const name = ref('')
+const name = defineModel<string>('draft', { default: '' })
 const adding = ref(false)
 const busyId = ref<number | null>(null)
 

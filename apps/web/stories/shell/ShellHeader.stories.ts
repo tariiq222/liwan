@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
 import { __getRouter } from '../../.storybook/nuxt-shims'
-import { shellHandlers, vendorShellHandlers } from '../handlers/shell'
+import { shellHandlers } from '../handlers/shell'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -16,4 +16,3 @@ const at = (path: string) => async () => { await __getRouter()!.replace(path); r
 const render = () => ({ components: { ShellHeader }, template: '<div class="nasq-shell" style="min-height: 64px"><ShellHeader /></div>' })
 
 export const Default: Story = { name: 'مهامي', parameters: storyContext('apps/web/app/layouts/default.vue:47'), loaders: [at('/tasks')], render }
-export const Console: Story = { name: 'الكونسول', parameters: { ...storyContext('apps/web/app/layouts/default.vue:47'), msw: { handlers: { api: vendorShellHandlers } } }, loaders: [at('/vendor/overview')], render }

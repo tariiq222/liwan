@@ -6,9 +6,11 @@ import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
+const tasksTo = computed(() => projectSectionLocation(`/projects/${id.value}/tasks`, route.path, route.query))
 function replaceFilter(key: string, value: string | undefined, pageKey: string) { router.replace({ query: { ...route.query, [key]: value, [pageKey]: undefined } }) }
 const taskSearch = computed({ get: () => viewport.value.taskQ, set: value => replaceFilter('task_q', value || undefined, 'task_page') })
 const stakeholderSearch = computed({ get: () => viewport.value.stakeholderQ, set: value => replaceFilter('stakeholder_q', value || undefined, 'stakeholder_page') })
@@ -81,15 +83,6 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       </FilterBar>
     </template>
 
-    <SharedRecordSection :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
-      <dl class="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-        <div><dt class="font-semibold">R — {{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
-        <div><dt class="font-semibold">A — {{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
-        <div><dt class="font-semibold">C — {{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
-        <div><dt class="font-semibold">I — {{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-muted">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
-      </dl>
-    </SharedRecordSection>
-
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <!-- role="group" keeps the confirmation addressable by its question while the matrix stays locked. -->
     <SharedInlineConfirm
@@ -113,7 +106,7 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       :description="t(!visibleTasks.length && !visibleStakeholders.length ? 'projects.refresh.workspace.raciEmptyBoth' : !visibleTasks.length ? 'projects.refresh.workspace.raciEmptyTasks' : 'projects.refresh.workspace.raciEmptyStakeholders')"
     >
       <template #action>
-        <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="{ path: `/projects/${id}`, query: { ...route.query, tab: 'tasks' } }">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
+        <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="tasksTo">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
         <UButton v-if="!visibleStakeholders.length && rows.data.value?.can_manage" color="neutral" variant="outline" icon="i-lucide-plus" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</UButton>
       </template>
     </SharedEmptyState>
@@ -133,5 +126,25 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       <div role="group" :aria-label="t('projects.governance.raci.task')"><SharedPagination :page="taskPageNumber" :pages="taskPages" :disabled="loading || pending" @update:page="taskPage = $event - 1" /></div>
       <div role="group" :aria-label="t('projects.governance.raci.stakeholder')"><SharedPagination :page="stakeholderPageNumber" :pages="stakeholderPages" :disabled="loading || pending" @update:page="stakeholderPage = $event - 1" /></div>
     </div>
+    <SharedRecordSection panel :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
+      <dl class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">R</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">A</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">C</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">I</span>
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
+        </div>
+      </dl>
+    </SharedRecordSection>
   </SharedListPage>
 </template>

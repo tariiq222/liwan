@@ -7,7 +7,7 @@ import { mergeMeetingPeople, type MeetingPerson } from '@/utils/meetingPeople'
 // people keep their labels after a new search replaces the results.
 const attendeeIds = defineModel<number[]>('attendeeIds', { required: true })
 const secretaryId = defineModel<number | null>('secretaryId')
-const props = defineProps<{ known?: MeetingPerson[]; disabled?: boolean }>()
+const props = defineProps<{ known?: MeetingPerson[]; disabled?: boolean; attendeesError?: string; secretaryError?: string }>()
 
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -42,7 +42,7 @@ function remove(id: number) {
 <template>
   <fieldset class="grid gap-4">
     <legend class="sr-only">{{ t('meetingsUi.attendees') }}</legend>
-    <UFormField :label="t('meetingsUi.attendees')" name="attendees">
+    <UFormField :label="t('meetingsUi.attendees')" name="attendees" :error="attendeesError">
       <SharedPersonPicker
         :model-value="attendeeIds"
         multiple
@@ -63,7 +63,7 @@ function remove(id: number) {
       </li>
     </ul>
     <p v-else class="text-sm text-muted" aria-live="polite">{{ t('meetingsUi.emptyAttendees') }}</p>
-    <UFormField :label="t('meetingsUi.secretary')" name="secretary">
+    <UFormField :label="t('meetingsUi.secretary')" name="secretary" :error="secretaryError">
       <SharedPersonPicker
         :model-value="secretaryId ?? null"
         value-key="user_id"

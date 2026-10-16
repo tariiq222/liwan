@@ -1,0 +1,64 @@
+{
+  "app": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "chooseFile": "Choose file",
+    "clearDate": "Clear date",
+    "close": "Close",
+    "create": "Create",
+    "discardAndLeave": "Leave without saving",
+    "loading": "Loading",
+    "noFileChosen": "No file chosen",
+    "noResults": "No results.",
+    "notAvailable": "—",
+    "pageOf": "Page {page} of {pages}",
+    "pagination": "Pagination",
+    "retry": "Try again",
+    "selectDate": "Choose date",
+    "stay": "Stay on this page",
+    "unsavedChanges": "If you leave now, your changes will not be saved.",
+    "unsavedChangesTitle": "Unsaved changes"
+  },
+  "brand": {
+    "name": "Nasq"
+  },
+  "errors": {
+    "conflict": "The data changed since you opened this page. Reload it and try again.",
+    "forbidden": "You do not have permission to view this page.",
+    "generic": "An unexpected error occurred",
+    "notFound": "This record is unavailable or no longer exists."
+  },
+  "filterCard": {
+    "clear": "Clear filters",
+    "remove": "Remove filter",
+    "title": "Search and filters"
+  },
+  "nav": {
+    "home": "Home",
+    "modules": "Modules",
+    "railApps": "Applications",
+    "railAdmin": "Administration",
+    "breadcrumb": "Breadcrumb"
+  },
+  "states": {
+    "bulkActions": "Actions on selected rows",
+    "chartEmpty": "There is not enough data to draw this chart.",
+    "clearSelection": "Clear selection",
+    "details": "Details",
+    "forbiddenHint": "Ask your system administrator for access if you need this page.",
+    "metrics": "Key figures",
+    "next": "Next",
+    "noValue": "No value",
+    "notFoundHint": "The record may have been deleted, or its link changed.",
+    "period": "Move between periods",
+    "previous": "Previous",
+    "properties": "Properties",
+    "scale": "Scale",
+    "selectAll": "Select all rows",
+    "selectRow": "Select row",
+    "selectedCount": "Selected: {count}",
+    "today": "Today",
+    "untitled": "Untitled",
+    "view": "View"
+  }
+}

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
-import FilterChoice from '../../app/components/shared/data/FilterChoice.vue'
+import FilterChoice from '@nasq/ui/app/components/shared/data/FilterChoice.vue'
 import { storyContext } from '../support/context'
 
 const items = [
@@ -13,7 +13,7 @@ const items = [
 const meta = {
   title: 'Shared/FilterChoice',
   component: FilterChoice,
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:334', 'اختيار داخل نافذة الفلاتر: شرائح لاختيار واحد أو أكثر، أو شريط مقسّم لخيارات قليلة.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:256', 'اختيار داخل نافذة الفلاتر: شرائح لاختيار واحد أو أكثر، أو شريط مقسّم لخيارات قليلة.'),
   args: { label: 'الحالة', items, modelValue: '__all__', layout: 'chips', disabled: false },
   render: args => ({
     components: { FilterChoice },

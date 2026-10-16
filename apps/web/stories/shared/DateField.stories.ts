@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DateField from '../../app/components/shared/form/DateField.vue'
-import FilterBar from '../../app/components/shared/data/FilterBar.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import DateField from '@nasq/ui/app/components/shared/form/DateField.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -25,7 +25,7 @@ const inForm = (error?: string): Story['render'] => args => ({
   template: `<main class="nasq-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionSchedule')"><div class="nasq-form-grid"><UFormField :label="t('meetingsUi.date')" name="date" required :error="error"><DateField id="meeting-date" v-model="value" class="w-full" :disabled="args.disabled" :min-value="args.minValue" :max-value="args.maxValue" :aria-invalid="!!error" aria-required="true" /></UFormField></div></FormSection></form></PageContainer></main>`,
 })
 
-const formContext = storyContext('apps/web/app/pages/meetings/new.vue:153')
+const formContext = storyContext('apps/web/app/pages/meetings/new.vue:165')
 
 export const InFormField: Story = { name: 'داخل حقل نموذج', parameters: formContext, render: inForm() }
 export const WithValue: Story = { name: 'بقيمة', parameters: formContext, args: { modelValue: '2026-09-13' }, render: inForm() }
@@ -34,7 +34,7 @@ export const Disabled: Story = { name: 'معطّل', parameters: formContext, ar
 
 export const InFilterPopover: Story = {
   name: 'داخل نافذة الفلاتر',
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:355', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:277', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
   render: () => ({
     components: { DateField, FilterBar, PageContainer },
     setup: () => ({ t: useI18n().t, from: ref<string | null>(null) }),

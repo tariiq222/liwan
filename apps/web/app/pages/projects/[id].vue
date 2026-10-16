@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import type { ProjectStatus } from '@nasq/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@/utils/statusBadge'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
 import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
-import { safeReturnTo } from '@/utils/safeReturnTo'
-import { formatCalendarDate } from '@/composables/calendarDate'
+import { projectRecordBack } from '@/utils/projectNavigation'
+import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 
+const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
 const route = useRoute()
+const router = useRouter()
 const { t, locale } = useI18n()
 const projectBadge = (status: ProjectStatus | null) => { const entry = projectStatusBadge(status); return { tone: entry.tone, label: badgeLabel(entry, status, t) } }
 const hydrated = useHydrated()
@@ -21,13 +23,13 @@ const { data: projectData, isLoading, error } = useProject(projectId)
 const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && (error.value.status === 404 || error.value.status === 403)))
 const settingsTo = computed(() => `/projects/${projectId.value}/settings`)
-// Settings is deliberately not one of the eight sections (activeProjectSection
-// returns null for it, and the tab strip must not grow a ninth tab), but it
+// Settings is deliberately not one of the project sections (activeProjectSection
+// returns null for it, and the tab strip must not grow an extra tab), but it
 // is still a page of this workspace: without the frame it would lose the
 // project identity and every route back to the project.
 const isProjectSettings = computed(() => projectId.value !== null
   && (route.path.replace(/\/+$/, '') || '/') === settingsTo.value)
-// The frame belongs to the eight sections and their records, plus settings. A
+// The frame belongs to the project sections and their records, plus settings. A
 // failed load with nothing cached has no identity to show, so the child page's
 // error state stands alone. `projectData` rather than `project` here: gating on
 // the hydration-delayed value would make the first client render drop a frame
@@ -39,12 +41,12 @@ const showFrame = computed(() => !notFound.value
 // keep their own header and Escape target. Keep the same safe origins as the
 // summary's not-found route.
 const backTo = computed(() => showFrame.value && activeProjectSection(route.path) === 'summary'
-  ? safeReturnTo(route.query.returnTo, '/projects', ['/projects', '/tasks', '/hr', '/settings', '/account', '/search', '/notifications', '/reports'])
+  ? router.resolve(projectRecordBack(route.query, projectId.value, sourcePaths.value, route.hash)).fullPath
   : undefined)
 const backLabel = computed(() => {
   const section = backTo.value?.split(/[/?#]/)[1] ?? 'projects'
   const labels: Record<string, string> = {
-    projects: 'nav.projects', tasks: 'nav.tasks', hr: 'nav.organization',
+    '': 'nav.home', 'my-tasks': 'nav.myTasks', projects: 'nav.projects', tasks: 'nav.tasks', hr: 'nav.organization',
     settings: 'nav.settings', account: 'nav.account', search: 'app.search',
     notifications: 'notifications.title', reports: 'nav.reports',
   }
@@ -57,8 +59,9 @@ useEscapeBack(backTo)
 // Governance is the one section with sub-sections; they get a second strip
 // under the main one on every governance page, records included. An archived
 // project has no governance tab, so it gets no sub-strip either.
+const showPlanningTabs = computed(() => activeProjectSection(route.path) === 'planning')
 const showGovernanceTabs = computed(() => Boolean(project.value?.active) && activeGovernanceSection(route.path) !== null)
-provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.value)))
+provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)))
 </script>
 
 <template>
@@ -117,6 +120,9 @@ provideProjectFrameHeading(computed(() => showFrame.value && Boolean(project.val
     <!-- Governance sub-sections: a second underline strip, same look as the main tabs, on the canvas just under the band. -->
     <SharedPageContainer v-if="showFrame && showGovernanceTabs" width="list" class="nasq-print-hide -my-2">
       <ProjectWorkspaceTabs level="governance" :project-id="projectId!" />
+    </SharedPageContainer>
+    <SharedPageContainer v-if="showFrame && showPlanningTabs" width="list" class="nasq-print-hide -my-2">
+      <ProjectWorkspaceTabs v-if="projectId" :project-id="projectId" :active="project?.active" level="planning" />
     </SharedPageContainer>
     <NuxtPage />
   </div>

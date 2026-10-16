@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 // plain `vitest run`, and this module is unit-tested directly.
 import { parseChatListRoute, serializeChatListRoute } from '../../utils/chatState'
 import { meetingCreateRoute } from '../../utils/meetingRoutes'
-import { returnToQuery, safeReturnTo } from '../../utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 /** The route fields a create action reads; the shell passes `useRoute()`. */
 export interface CreateActionRoute {
@@ -20,13 +20,6 @@ export interface CreateActionRoute {
  */
 export function createListReturnTo(linkId: string, routePath: string, fullPath: string, query: Record<string, unknown>): string {
   const path = routePath.replace(/\/+$/, '') || '/'
-  if (linkId === 'new-tenant') {
-    return path === '/vendor/tenants' ? fullPath : safeReturnTo(query.returnTo, '/vendor/tenants', ['/vendor/tenants'])
-  }
-  if (linkId === 'new-bundle' || linkId === 'new-plan') {
-    const root = linkId === 'new-bundle' ? '/vendor/bundles' : '/vendor/plans'
-    return path === root ? fullPath : safeReturnTo(query.returnTo, root, [root])
-  }
   if (linkId === 'new-project') {
     return path === '/projects' || path === '/projects/dashboard'
       ? fullPath

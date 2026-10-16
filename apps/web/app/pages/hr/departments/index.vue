@@ -2,11 +2,11 @@
 import DepartmentOrgChart from '@/components/hr/DepartmentOrgChart.vue'
 import DepartmentTable from '@/components/hr/DepartmentTable.vue'
 import DepartmentTree from '@/components/hr/DepartmentTree.vue'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import { buildDepartmentTree } from '@/lib/departmentTree'
 import { ApiError } from '@/composables/useApi'
 import { useDeleteHrDepartment, useHrDepartments, type HrDepartment } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()

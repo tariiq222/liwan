@@ -21,3 +21,32 @@ it('public progress whitelists identities and never returns internal artifact or
  const pool={query:async()=>({rowCount:1,rows:[{id,state:'verified',operation:'backup',backup_id:id,artifact_path:'/private/backup',snapshot:{password:'secret'},receipt:{internal:'data'}}]})} as any
  expect(await odooJobProgress(pool,id,id)).toEqual({id,state:'verified',operation:'backup',backupId:id})
 })
+
+it('records a verified backup as created by account:<id>, the one audit spelling of a vendor actor', async () => {
+  const { mkdtemp, mkdir, writeFile, rm, realpath } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { businessKey, payloadDigest } = await import('./provisioning.js')
+  const { recordOdooBackup } = await import('./odoo-backup.js')
+  const { vendorActorIssuer } = await import('../admin-auth/grants.js')
+  const job = { schemaVersion: 1, operation: 'backup', requestId: id, binding } as any
+  const stateDir = await realpath(await mkdtemp(join(tmpdir(), 'nasq-backup-by-')))
+  try {
+    await mkdir(join(stateDir, 'backups', id), { recursive: true })
+    await writeFile(join(stateDir, 'backups', id, 'manifest.json'), JSON.stringify({ ...manifest, businessKey: businessKey(job), payloadDigest: payloadDigest(job) }))
+    const issuer = vendorActorIssuer('inst')
+    const queries: Array<{ sql: string; params: unknown[] }> = []
+    const client = { release() {}, async query(sql: string, params: unknown[] = []) {
+      queries.push({ sql, params })
+      if (sql.includes('FROM shared_jobs')) return { rowCount: 1, rows: [{ id, control_tenant_id: id, issuer, actor_uid: 7 }] }
+      if (sql.includes('FROM vendor_accounts WHERE id')) return { rowCount: 1, rows: [{}] }
+      if (sql.includes('FROM vendor_account_roles')) return { rowCount: 1, rows: [{ role: 'operations' }] }
+      if (sql.includes('FROM tenants')) return { rowCount: 1, rows: [{ id }] }
+      return { rowCount: 1, rows: [{}] }
+    } }
+    const pool = { connect: async () => client } as any
+    await recordOdooBackup(pool, { stateDir } as any, job, { attemptId: id, fence: 1, assertOwned: async () => undefined })
+    const insert = queries.find((q) => q.sql.includes('INSERT INTO shared_backups'))!
+    expect(insert.params.at(-1)).toBe('account:7')
+  } finally { await rm(stateDir, { recursive: true, force: true }) }
+})

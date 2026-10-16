@@ -24,7 +24,7 @@ function stubBrowser() {
   viewport = { scrollY: 0, innerHeight: 800, scrollHeight: 800 }
   frames = []
   globals.window = { get scrollY() { return viewport.scrollY }, get innerHeight() { return viewport.innerHeight } }
-  globals.document = { documentElement: { get scrollHeight() { return viewport.scrollHeight } }, querySelector: () => null }
+  globals.document = Object.assign(new EventTarget(), { documentElement: { get scrollHeight() { return viewport.scrollHeight } }, querySelector: () => null })
   globals.requestAnimationFrame = (callback: () => void) => { frames.push(callback); return frames.length }
 }
 

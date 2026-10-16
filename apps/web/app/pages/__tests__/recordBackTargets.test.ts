@@ -1,4 +1,4 @@
-import * as recordNavigation from '../../utils/recordListOrigin'
+import * as recordNavigation from './helpers/recordNavigation'
 import * as hrNavigation from '../../utils/hrReturnTo'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -109,6 +109,7 @@ function makeRouter() {
       { path: '/projects/:id/finance/:entryId', component: { template: '<div/>' } },
       { path: '/projects/:id/finance/:entryId/edit', component: { template: '<div/>' } },
       { path: '/projects/:id/milestones/:milestoneId/edit', component: { template: '<div/>' } },
+      { path: '/projects/:id/milestones/:milestoneId', component: { template: '<div/>' } },
       { path: '/projects/:id/stakeholders', component: { template: '<div/>' } },
       { path: '/notification-digests/:id', component: { template: '<div/>' } },
       { path: '/:rest(.*)', component: { template: '<div/>' } },
@@ -147,11 +148,13 @@ const EDITS: [string, string, string][] = [
   [withState('/settings/roles/6/edit'), 'app/pages/settings/roles/[roleId]/edit.vue', '/settings/roles/6'],
   [withState('/projects/7/register/3/edit'), 'app/pages/projects/[id]/register/[registerId]/edit.vue', '/projects/7/register/3'],
   [withState('/projects/7/finance/5/edit'), 'app/pages/projects/[id]/finance/[entryId]/edit.vue', '/projects/7/finance/5'],
+  [withState('/projects/7/milestones/8/edit'), 'app/pages/projects/[id]/milestones/[milestoneId]/edit.vue', '/projects/7/milestones/8'],
 ]
 
 const RECORDS: [string, string, string][] = [
   [withState('/hr/employees/12'), 'app/pages/hr/employees/[employeeId].vue', '/hr'],
   [withState('/projects/7/register/3'), 'app/pages/projects/[id]/register/[registerId].vue', '/projects/7/register'],
+  [withState('/projects/7/milestones/8'), 'app/pages/projects/[id]/milestones/[milestoneId].vue', '/projects/7/milestones'],
   [withState('/notification-digests/5'), 'app/pages/notification-digests/[id].vue', '/notifications'],
 ]
 
@@ -173,13 +176,6 @@ describe('a create form returns to the list it adds to', () => {
 describe('an edit form returns to the record it edits, not past it to the list', () => {
   expectTarget('edit', EDITS)
 
-  it('falls back to the section list only where the sub-record has no page of its own', async () => {
-    // There is no /projects/:id/milestones/:milestoneId page to return to, so
-    // the milestone editor is the one edit form that may land on its list.
-    const back = await backTargetOf(withState('/projects/7/milestones/8/edit'), 'app/pages/projects/[id]/milestones/[milestoneId]/edit.vue')
-    expect(back.path).toBe('/projects/7/milestones')
-    expect(back.query.q).toBe('عقد')
-  })
 })
 
 describe('a record returns to the list it belongs to', () => {

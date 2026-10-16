@@ -147,8 +147,14 @@ function policyErrorField(key: string): string | null {
   return null
 }
 
+function focusError() {
+  if (typeof document === 'undefined') return
+  const ids: Record<string, string> = { name: 'new-task-name', project_id: 'new-task-project', milestone_id: 'new-task-milestone', planned_start: 'new-task-planned-start', date_deadline: 'new-task-deadline' }
+  void nextTick(() => { document.getElementById(ids[errorField.value ?? ''] ?? '')?.focus() })
+}
+let submitting = false
 async function submit() {
-  if (!hydrated.value || isPending.value) return
+  if (!hydrated.value || isPending.value || submitting) return
   requiredAttempted.value = true
   error.value = null
   errorField.value = null
@@ -156,19 +162,23 @@ async function submit() {
   if (!trimmed || !selectedProjectId.value) {
     errorField.value = !trimmed ? 'name' : 'project_id'
     error.value = t(!trimmed ? 'tasks.nameRequired' : 'tasks.projectRequired')
+    focusError()
     return
   }
   requiredAttempted.value = false
   if (policyError.value) {
     error.value = t(policyError.value)
     errorField.value = policyErrorField(policyError.value)
+    focusError()
     return
   }
   if (dateError.value) {
     error.value = dateErrorText(dateError.value)
     errorField.value = dateError.value.startsWith('task.start') ? 'planned_start' : 'date_deadline'
+    focusError()
     return
   }
+  submitting = true
   try {
     const descriptionText = description.value.trim()
     const created = await mutateAsync(buildTaskCreatePayload({
@@ -185,7 +195,8 @@ async function submit() {
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('errors.generic')
     errorField.value = e instanceof ApiError ? e.field ?? null : null
-  }
+    focusError()
+  } finally { submitting = false }
 }
 </script>
 
@@ -254,9 +265,9 @@ async function submit() {
         </div>
       </template>
     </UCollapsible>
-    <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+    <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton color="neutral" variant="outline" type="button" :disabled="isPending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
       <UButton type="submit" :loading="isPending" :disabled="!hydrated || isPending">{{ t('app.create') }}</UButton>
-    </div>
+    </SharedFormActions>
   </form>
 </template>

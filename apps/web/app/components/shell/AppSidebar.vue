@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useEventListener, useMediaQuery } from '@vueuse/core'
-import ModuleRail from './ModuleRail.vue'
+import ModuleRail from '@nasq/ui/app/components/shell/ModuleRail.vue'
 import ContextSidebar from './ContextSidebar.vue'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellModel } from '@/composables/useShellModel'
 import { sidebarModel } from '@/composables/nav/sidebarModel'
 import { isSidebarToggleShortcut } from '@/composables/nav/sidebarShortcut'
-import { overlayOwnsEscape } from '@/composables/useEscapeBack'
+import { overlayOwnsEscape } from '@nasq/ui/app/composables/useEscapeBack'
 import { hasNoContextSidebar } from './noContextRoutes'
 
 // Desktop navigation: the module rail and the context sidebar, fed by one model.
@@ -14,7 +14,7 @@ const route = useRoute()
 const showContext = computed(() => !hasNoContextSidebar(route.path))
 const { me } = useMe()
 const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, projectId, project, createTo } = useShellModel()
-const { expanded, hydrated, toggle } = useContextSidebar()
+const { expanded, hydrated, toggle, preference } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 const model = computed(() => sidebarModel({
   links: contextLinks.value,
@@ -52,6 +52,7 @@ watch([() => route.fullPath, () => project.data.value, () => me.value, hydrated]
     :show-nav="model.showNav"
     :counts="counts"
     :expanded="expanded"
+    :preference="preference"
     :hydrated="hydrated"
     :panel="panelView"
     :render-panel="isDesktop"

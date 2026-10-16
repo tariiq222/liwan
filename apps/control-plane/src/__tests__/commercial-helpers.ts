@@ -19,7 +19,7 @@ export function client(pool: Pool, caps: any[] = ALL, issuer = 'commercial-test'
   return async (method: string, path: string, body?: unknown) => {
     const [pathname, search] = path.split('?')
     try {
-      const r = await commercialHttp(pool, { method, pathname: `/v1/commercial${pathname}`, search: search ? `?${search}` : '', raw: body === undefined ? '' : JSON.stringify(body), issuer, actor: 7, capabilities: caps })
+      const r = await commercialHttp(pool, { method, pathname: `/v1/commercial${pathname}`, search: search ? `?${search}` : '', raw: body === undefined ? '' : JSON.stringify(body), issuer, actor: 7, capabilities: caps, stepUpFresh: true })
       return { status: r!.status, body: r!.data as any }
     } catch (e) {
       if (e instanceof CommercialHttpError) return { status: e.status, body: { code: e.code, field: e.field, issues: e.issues } as any }

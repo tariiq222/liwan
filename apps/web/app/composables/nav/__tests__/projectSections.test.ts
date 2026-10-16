@@ -6,8 +6,8 @@ const projectOnly = { role: 'employee', capabilities: ['pmo.projects.read'] }
 const opts = { active: true }
 
 describe('projectSections', () => {
-  it('declares the eight sections in reading order', () => {
-    expect(PROJECT_SECTION_IDS).toEqual(['summary', 'tasks', 'schedule', 'milestones', 'governance', 'finance', 'meetings', 'updates'])
+  it('declares the seven sections in reading order', () => {
+    expect(PROJECT_SECTION_IDS).toEqual(['summary', 'tasks', 'planning', 'governance', 'finance', 'meetings', 'updates'])
   })
 
   it('maps every section to its own path', () => {
@@ -15,7 +15,6 @@ describe('projectSections', () => {
       '/projects/7',
       '/projects/7/tasks',
       '/projects/7/schedule',
-      '/projects/7/milestones',
       '/projects/7/charter',
       '/projects/7/finance',
       '/projects/7/meetings',
@@ -28,7 +27,7 @@ describe('projectSections', () => {
   })
 
   it('an archived project keeps only read-only sections', () => {
-    expect(projectSections(7, reader, { active: false }).map(s => s.id)).toEqual(['summary', 'schedule', 'finance', 'meetings', 'updates'])
+    expect(projectSections(7, reader, { active: false }).map(s => s.id)).toEqual(['summary', 'planning', 'finance', 'meetings', 'updates'])
   })
 
   it('hides meetings without meetings.read', () => {

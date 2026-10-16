@@ -121,3 +121,12 @@ it('registers the idempotent customer creation key in version twenty-one once', 
   const g=fixture([...applied,21]); await migrate(g.pool)
   expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(21)')
 })
+it('registers the users.limit administrator floor in version twenty-three once', async () => {
+  const applied = Array.from({length:21}, (_, i) => i+1)
+  const f=fixture(applied); await migrate(f.pool)
+  const sql=f.query.mock.calls.map(([s])=>s)
+  expect(sql).toContain('INSERT INTO schema_migrations(version) VALUES(23)')
+  expect(sql.some(s=>s.includes('plan_revisions_users_limit_admits_admin'))).toBe(true)
+  const g=fixture([...applied,23]); await migrate(g.pool)
+  expect(g.query.mock.calls.map(([s])=>s)).not.toContain('INSERT INTO schema_migrations(version) VALUES(23)')
+})

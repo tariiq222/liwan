@@ -59,9 +59,9 @@ async function submit() {
     <UFormField class="sm:col-span-2" :label="t('projects.updates.body')">
       <DescriptionEditor ref="descriptionEditor" :model-value="description" :task-id="projectId" :readonly="isPending" @update:model-value="onDescriptionChange" @draft="onDescriptionDraft" />
     </UFormField>
-    <div class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+    <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
-      <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('app.create')" />
-    </div>
+      <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('projects.updates.publish')" />
+    </SharedFormActions>
   </form>
 </template>

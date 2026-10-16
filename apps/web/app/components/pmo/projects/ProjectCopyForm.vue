@@ -95,10 +95,10 @@ async function submit() {
         <UFormField :label="t('projects.copy.startDate')" required :error="fieldErrors.start_date">
           <SharedDateField v-model="startDate" name="project-start-date" :aria-label="t('projects.copy.startDate')" :disabled="!hydrated || mutation.isPending.value" aria-required="true" class="w-full" />
         </UFormField>
-        <div class="flex justify-end gap-2">
+        <SharedFormActions class="flex justify-end gap-2">
           <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated || mutation.isPending.value" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
           <UButton type="submit" data-testid="project-copy-submit" :disabled="!hydrated || mutation.isPending.value" :loading="mutation.isPending.value">{{ t('projects.copy.submit') }}</UButton>
-        </div>
+        </SharedFormActions>
       </form>
     </template>
   </div>

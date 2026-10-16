@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 
+export type AdminConfig = { secretKey: Buffer; rpId: string; origin: string; rpName: 'Nasq' }
+
 export type Config = {
+  admin?: AdminConfig
   customerCommercialIssuer?: string
   customerCommercialServiceKey?: string
   sharedRuntimeConfigPath?: string
@@ -28,6 +31,7 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   if (customerCommercialServiceKey && (Buffer.byteLength(customerCommercialServiceKey) < 32 || customerCommercialServiceKey === key)) throw new Error('CUSTOMER_COMMERCIAL_SERVICE_KEY must be distinct and contain at least 32 bytes')
   if (customerCommercialIssuer && customerCommercialIssuer === installationId) throw new Error('CUSTOMER_COMMERCIAL_ISSUER must be distinct from vendor issuer')
   const internalEffect = internalEffectConfig(key, customerCommercialServiceKey)
+  const admin = adminConfig(process.env)
   const inventoryPath = required('NASQ_CLI_INVENTORY')
   const managedInventoryPath = process.env.NASQ_MANAGED_INVENTORY
   const sharedRuntimeConfigPath = process.env.NASQ_SHARED_RUNTIME_CONFIG
@@ -41,8 +45,23 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
   if ((host !== '127.0.0.1' && host !== '::1' && host !== 'localhost') && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
-  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.NASQ_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
+  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), stateDir, repositoryRoot, python: process.env.NASQ_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
+}
+
+/** Vendor admin sign-in is off without ADMIN_SECRET_KEY. Its secret must be its own key, never a service key. */
+export function adminConfig(env: Record<string, string | undefined>): AdminConfig | undefined {
+  const secret = env.ADMIN_SECRET_KEY
+  if (!secret) return undefined
+  if (Buffer.byteLength(secret) < 32) throw new Error('ADMIN_SECRET_KEY must contain at least 32 bytes')
+  for (const other of [env.CONTROL_SERVICE_KEY, env.CUSTOMER_COMMERCIAL_SERVICE_KEY, env.INTERNAL_EFFECT_KEY]) if (other && other === secret) throw new Error('ADMIN_SECRET_KEY must be distinct from every service key')
+  const rpId = env.ADMIN_RP_ID ?? ''
+  if (!/^[a-z0-9.-]{1,253}$/.test(rpId)) throw new Error('ADMIN_RP_ID is required')
+  let origin: URL
+  try { origin = new URL(env.ADMIN_ORIGIN ?? '') } catch { throw new Error('ADMIN_ORIGIN is required') }
+  const loopback = rpId === 'localhost' && origin.hostname === 'localhost'
+  if (origin.hostname !== rpId || (origin.protocol !== 'https:' && !(loopback && origin.protocol === 'http:')) || origin.pathname !== '/' || origin.search) throw new Error('ADMIN_ORIGIN must be the https origin of ADMIN_RP_ID')
+  return { secretKey: Buffer.from(secret), rpId, origin: origin.origin, rpName: 'Nasq' }
 }
 
 /** The key makes the channel exist; it must be its own secret so a leaked vendor or customer key cannot call it.

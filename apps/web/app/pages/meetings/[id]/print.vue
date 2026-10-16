@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import { recordParentTo, MEETING_LIST_PATHS } from '@/utils/recordListOrigin'
+import { owningListBack, recordParentTo } from '@/utils/recordListOrigin'
+import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument.vue'
 import { formatMeetingDate, selectMeetingMinutesSource, type MeetingMinutesFormValue, type MeetingMinutesRecommendation, type MeetingMinutesSnapshotLike } from '@/utils/meetingMinutesForm'
 import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingVersion } from '@/composables/useMeetingWorkspace'
+import { ApiError } from '@/composables/useApi'
+import { parsePositiveId } from '@/utils/routeParams'
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { branding } = useBranding()
-const id = computed(() => Number(route.params.id))
-const versionId = computed(() => {
-  const value = Number(route.query.version_id)
-  return Number.isInteger(value) && value > 0 ? value : null
-})
+const id = computed(() => parsePositiveId(route.params.id))
+const versionId = computed(() => parsePositiveId(route.query.version_id))
 const meetingQuery = useMeeting(id)
 const versionQuery = useMeetingVersion(id, versionId)
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, MEETING_LIST_PATHS, route.hash))
+const backTo = computed(() => id.value === null ? owningListBack(route.query, sourcePaths.value, route.hash) : recordParentTo(`/meetings/${id.value}`, route.query, sourcePaths.value, route.hash))
 // The page header used to give the shell its title and Escape its target; this page has none.
 usePageHeader(() => t('meetingMinutesForm.printTitle'))
 useEscapeBack(() => backTo.value)
@@ -35,7 +36,8 @@ const legacyAgenda = computed(() => source.value?.kind === 'current' ? meetingQu
 const legacyMinutes = computed(() => source.value?.kind === 'current' ? meetingQuery.data.value?.minutes ?? '' : source.value?.minutes ?? '')
 const versionNumber = computed(() => (versionQuery.data.value as unknown as { number?: number } | undefined)?.number ?? null)
 const printableDate = computed(() => source.value?.kind === 'current' ? meetingQuery.data.value?.meeting_date ?? '' : source.value?.snapshot?.meeting_date ?? '')
-const printError = computed(() => meetingQuery.error.value || versionQuery.error.value)
+// An id that is not a canonical positive integer has no record to load and shows the same not-found state as an unknown id.
+const printError = computed(() => meetingQuery.error.value || versionQuery.error.value || (id.value !== null ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const printReady = computed(() => Boolean(meetingQuery.data.value && !printError.value && (form.value || legacyAgenda.value || legacyMinutes.value || recommendations.value.length)))
 const dateLabels = computed(() => {
   if (!printableDate.value) return { weekday: '', hijri: '' }

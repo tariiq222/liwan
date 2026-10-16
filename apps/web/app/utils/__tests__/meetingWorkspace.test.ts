@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   calendarCoverage,
   filterMeetingResolutions,
   groupMeetingsByMonth,
+  meetingTimelinePhase,
   prioritizeTimelinePage,
   resolutionActions,
   selectNextMeeting,
@@ -10,6 +11,36 @@ import {
 } from '../meetingWorkspace'
 
 describe('meeting workspace projections', () => {
+  const originalTimezone = process.env.TZ
+  beforeAll(() => { process.env.TZ = 'Asia/Riyadh' })
+  afterAll(() => {
+    if (originalTimezone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimezone
+  })
+
+  it('keeps a date-only meeting upcoming and next while its local day has not ended', () => {
+    const now = new Date('2026-09-09T01:00:00.000Z') // 04:00 in Riyadh
+    const meeting = { id: 1, meeting_date: '2026-09-09', start_datetime: null, state: 'confirmed' }
+
+    expect(meetingTimelinePhase(meeting, now)).toBe('upcoming')
+    expect(selectNextMeeting([meeting], now)?.id).toBe(1)
+    expect(meetingTimelinePhase(meeting, new Date('2026-09-09T21:00:00.000Z'))).toBe('overdue') // next local day
+  })
+
+  it('groups a date-only meeting by its local month', () => {
+    const now = new Date('2026-09-09T10:00:00.000Z')
+    const meetings = [{ id: 1, meeting_date: '2026-10-01', start_datetime: null, state: 'confirmed' }]
+
+    expect(groupMeetingsByMonth(meetings, 'en', now).map(group => group.key)).toEqual(['2026-10'])
+  })
+
+  it('buckets a timed meeting by its local month at a month boundary', () => {
+    const now = new Date('2026-09-09T10:00:00.000Z')
+    const meetings = [{ id: 1, meeting_date: '2026-10-01', start_datetime: '2026-09-30T21:30:00.000Z', state: 'confirmed' }] // 00:30 on Oct 1 in Riyadh
+
+    expect(groupMeetingsByMonth(meetings, 'en', now).map(group => group.key)).toEqual(['2026-10'])
+  })
+
   it('chooses the next live meeting by its actual start time', () => {
     const now = new Date('2026-09-09T10:00:00.000Z')
     const meetings = [
@@ -31,6 +62,13 @@ describe('meeting workspace projections', () => {
     ]
 
     expect(selectPreviousMeeting(meetings, now)?.id).toBe(2)
+  })
+
+  it('keeps a done meeting without a start time out of "previous" until its local day ends', () => {
+    const meeting = { id: 1, meeting_date: '2026-09-09', start_datetime: null, state: 'done' }
+
+    expect(selectPreviousMeeting([meeting], new Date('2026-09-09T01:00:00.000Z'))).toBeUndefined() // 04:00 on the day
+    expect(selectPreviousMeeting([meeting], new Date('2026-09-09T21:00:00.000Z'))?.id).toBe(1) // next local day
   })
 
   it('ignores missing or invalid dates instead of inventing an ordering', () => {

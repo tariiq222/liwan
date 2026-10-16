@@ -4,7 +4,8 @@ import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import type { ShellContextLink } from '@/composables/nav/shellModules'
-import type { ShellContextSection, ShellRailItem } from '@/composables/nav/sidebarModel'
+import type { ShellRailItem } from '@nasq/ui/app/types/shell'
+import type { ShellContextSection } from '@/composables/nav/sidebarModel'
 
 // The one mobile drawer (< 768px): modules, then the current module's create
 // actions and sections. Props only; ShellHeader derives them from useShellModel().
@@ -33,7 +34,7 @@ function closeIfCurrent(to: RouteLocationRaw) {
 }
 
 function onModuleActivate(item: ShellRailItem) {
-  if (item.external || router.resolve(item.to).fullPath === route.fullPath) open.value = false
+  if (router.resolve(item.to).fullPath === route.fullPath) open.value = false
 }
 </script>
 
@@ -64,14 +65,11 @@ function onModuleActivate(item: ShellRailItem) {
       </template>
     </UButton>
     <template #body>
-      <nav :aria-label="t('nav.modules')" class="nasq-mobile-section">
+      <nav data-fresh-navigation :aria-label="t('nav.modules')" class="nasq-mobile-section">
         <UButton
           v-for="item in props.modules"
           :key="item.id"
-          :to="item.external ? undefined : item.to"
-          :href="item.external ? item.to : undefined"
-          :target="item.external ? '_blank' : undefined"
-          :rel="item.external ? 'noopener' : undefined"
+          :to="item.to"
           color="neutral"
           variant="ghost"
           class="nasq-context-link"
@@ -100,7 +98,7 @@ function onModuleActivate(item: ShellRailItem) {
           @click="closeIfCurrent(link.to)"
         />
       </div>
-      <nav v-if="props.sections.length" :aria-label="props.title" class="nasq-mobile-section">
+      <nav data-fresh-navigation v-if="props.sections.length" :aria-label="props.title" class="nasq-mobile-section">
         <template v-for="section in props.sections" :key="section.id">
           <h3 v-if="section.titleKey" class="nasq-context-section-title">{{ t(section.titleKey) }}</h3>
           <UButton

@@ -8,6 +8,7 @@ import type { Pool, PoolClient } from 'pg'
 import type { Config } from '../config.js'
 import { executeClaimed, type Claimed, type OperatorInvocation } from '../worker.js'
 import { hasUnresolvedMutation, isScratchDeploymentExemption } from '../db.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const operationId = `op_${'a'.repeat(32)}`
 const requestId = '9a7ab020-474f-4e1a-ae6d-7a32bdd385ca'
@@ -45,7 +46,7 @@ function fakeClaim(type: string, commercialMode = 'saas', payload: Record<string
   const client = { query: vi.fn(async () => ({ rowCount: 1, rows: [] })), release: vi.fn() } as unknown as PoolClient
   return {
     client, lockKey: target,
-    operation: { id: randomUUID(), tenant_id: tenantId, actor_uid: 7, issuer: 'test', type, request_id: requestId, reason: 'unit test', payload, status: 'running' },
+    operation: { id: randomUUID(), tenant_id: tenantId, actor_uid: 7, issuer: vendorActorIssuer('test'), type, request_id: requestId, reason: 'unit test', payload, status: 'running' },
     tenant: { id: tenantId, inventory_target: type === 'scratch-health' ? 'scratch' : target, commercial_mode: type === 'scratch-health' ? 'saas' : commercialMode, catalog_version: 'catalog-v1', catalog_tier: 'core' },
   }
 }
@@ -54,7 +55,8 @@ function fakePool(claim: Claimed, catalog?: unknown): Pool & { finishQueries: Ar
   const finishQueries: Array<{ sql: string; values?: unknown[] }> = []
   const client = { query: vi.fn(async (sql: string, values?: unknown[]) => { finishQueries.push({ sql, values }); return { rowCount: 1, rows: [] } }), release: vi.fn() }
   const query = vi.fn(async (sql: string) => {
-    if (sql.includes('vendor_memberships')) return { rowCount: 1, rows: [{}] }
+    if (sql.includes('FROM vendor_accounts WHERE id')) return { rowCount: 1, rows: [{}] }
+    if (sql.includes('FROM vendor_account_roles')) return { rowCount: 1, rows: [{ role: 'operations' }] }
     if (sql.includes('SELECT inventory_target,commercial_mode,operations_enabled')) return { rowCount: 1, rows: [{ inventory_target: claim.tenant.inventory_target, commercial_mode: claim.tenant.commercial_mode, operations_enabled: true }] }
     if (sql.includes('catalog_entries')) return { rowCount: 1, rows: [catalog] }
     if (sql.includes("status='needs_intervention'")) return { rowCount: 0, rows: [] }
@@ -153,7 +155,7 @@ describe('executeClaimed lanes', () => {
     const expectedFeatures = JSON.parse(calls[0].policyBytes!.toString()).features
     expect(pool.finishQueries.find(({ sql }) => sql.includes('SET desired_policy=$1'))?.values?.[0]).toEqual(expectedFeatures)
     expect(pool.finishQueries.find(({ sql }) => sql.includes('SET policy_revision=$1'))?.values?.[0]).toBe(1)
-    expect(pool.query).toHaveBeenCalledTimes(4) // grant, fresh tenant, unresolved mutations, catalog once
+    expect(pool.query).toHaveBeenCalledTimes(5) // grant (account, roles), fresh tenant, unresolved mutations, catalog once
   })
 
   it.each([

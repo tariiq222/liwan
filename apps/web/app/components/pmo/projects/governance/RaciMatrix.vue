@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
-import RecordNumber from '@/components/shared/data/RecordNumber.vue'
-import { STATUS_COLOR } from '@/utils/statusTone'
+import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
+import { STATUS_COLOR } from '@nasq/ui/app/utils/statusTone'
 import { RACI_ROLE_TONE } from './state'
 
 // Tasks × stakeholders. The first two columns stay in view while the stakeholder columns scroll inside this
@@ -45,7 +45,7 @@ const color = (taskId: number, stakeholderId: number) => {
         <tr v-for="task in tasks" :key="task.id" class="border-b border-default">
           <td class="sticky start-0 z-10 h-auto w-28 min-w-28 max-w-28 bg-default p-3"><RecordNumber :value="task.id" /></td>
           <th scope="row" class="sticky start-28 z-10 bg-default p-3 text-start font-medium">
-            <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${task.id}` }">{{ task.name }}</NuxtLink>
+            <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${task.id}`, query: { returnTo } }">{{ task.name }}</NuxtLink>
           </th>
           <td v-for="item in stakeholders" :key="item.id" class="p-3" data-testid="raci-cell">
             <USelect

@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import { fn } from 'storybook/test'
 import DescriptionEditor from '../../app/components/shared/form/DescriptionEditor.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import PageContainer from '../../app/components/shared/layout/PageContainer.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
 import { ClientOnly } from '../../.storybook/nuxt-shims'
 import { storyContext } from '../support/context'
 
@@ -21,14 +21,14 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const InFormSection: Story = { name: 'داخل قسم نموذج', parameters: storyContext('apps/web/app/pages/meetings/new.vue:177') }
+export const InFormSection: Story = { name: 'داخل قسم نموذج', parameters: storyContext('apps/web/app/pages/meetings/new.vue:189') }
 export const WithContent: Story = {
   name: 'بمحتوى منسق',
-  parameters: storyContext('apps/web/app/pages/meetings/new.vue:177'),
+  parameters: storyContext('apps/web/app/pages/meetings/new.vue:189'),
   args: { modelValue: '<p>جدول أعمال <strong>الاجتماع الشهري</strong></p><ul><li>مراجعة المخاطر</li><li>اعتماد الميزانية</li></ul><p><a href="https://example.com">رابط المرجع</a></p>' },
 }
 export const Readonly: Story = {
   name: 'للقراءة فقط',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:116'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:131'),
   args: { readonly: true, modelValue: '<p>محضر معتمد لا يمكن تعديله.</p>' },
 }

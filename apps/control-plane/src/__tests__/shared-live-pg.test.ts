@@ -15,6 +15,8 @@ import { publishRegistryMutation, recoverRegistry, RegistryError } from '../shar
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob, expireSharedLeases, recoverSharedJob, type SharedFencedAdapter } from '../shared/job-worker.js'
 import { businessKey, payloadDigest } from '../shared/provisioning.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
@@ -27,7 +29,7 @@ else describe('shared live PostgreSQL integration', () => {
   const repositoryRoot = fileURLToPath(new URL('../../../..', import.meta.url))
   let registryDir = ''
   let registryPath = ''
-  const issuer = 'live-gate-installation'
+  const issuer = vendorActorIssuer('live-gate-installation')
   const actor = { issuer, actorUid: 7 }
   const otherActor = { issuer, actorUid: 8 }
   const tenantA = randomUUID()
@@ -49,9 +51,11 @@ else describe('shared live PostgreSQL integration', () => {
     // Order matters: children first, then parents, then reseed the singleton.
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
     await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
-    await pool.query('TRUNCATE vendor_memberships, service_nonces, audit_events, operation_events, operations, restore_approvals')
+    await pool.query('TRUNCATE vendor_accounts CASCADE')
+    await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
-    await pool.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES ($1,7,$2),($1,8,ARRAY[\'vendor.operations.run\'])', [issuer, ['vendor.read','vendor.tenants.manage','vendor.operations.run']])
+    await vendorAccount(pool, ['customer_success', 'operations'], 7)
+    await vendorAccount(pool, ['operations'], 8)
     await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,\'live-v1\',\'core\',true),($4,$5,\'saas\',\'managed\',$6,\'live-v1\',\'core\',true)',
       [tenantA, 'Live A', 'live-gate-a', tenantB, 'Live B', 'live-gate-b'])
     const source = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))

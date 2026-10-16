@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
 import { useAdminUser, useGrantAdminAccount, useReactivateAdminUser, useUpdateAdminUserAccess, useAdminUserCandidates } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRoleDetails, useAdminRoles } from '@/composables/useAdminRoles'
-import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
+import { adminListQuery } from '@/composables/adminSettingsPaths'
 
 const { t, locale } = useI18n()
 const { can } = useAccess()
@@ -10,9 +11,9 @@ const hydrated = useHydrated()
 const { me } = useMe()
 const forbidden = computed(() => !can('access.users.grant'))
 const route = useRoute()
-const backTo = computed(() => {
-  return adminPathWithQuery('/settings/users', adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']))
-})
+const router = useRouter()
+const sourcePaths = useRecordListPaths(['/settings/users'])
+const backTo = computed(() => router.resolve(owningListBack({ ...adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset']), returnTo: route.query.returnTo ?? null }, sourcePaths.value, route.hash)).fullPath)
 const requestedEmployeeId = Number(route.query.employee_id)
 const hasRequestedEmployee = Number.isInteger(requestedEmployeeId) && requestedEmployeeId > 0
 const candidateParams = reactive({ q: '', employee_id: hasRequestedEmployee ? requestedEmployeeId : undefined, limit: 25, offset: 0 })
@@ -89,7 +90,7 @@ async function submit() {
     password.value = ''
     passwordConfirmation.value = ''
     saved.value = true
-    await navigateTo(adminPathWithQuery(`/settings/users/${user.id}`, adminListQuery(route.query, ['q', 'status', 'role_id', 'department_id', 'offset'])))
+    await navigateTo({ path: `/settings/users/${user.id}`, query: { returnTo: backTo.value } }, { replace: true })
   } catch (error) {
     password.value = ''
     passwordConfirmation.value = ''
@@ -152,14 +153,14 @@ async function submit() {
         <p class="text-xs text-muted">{{ selectedCapabilities.join('، ') }}</p>
       </SharedFormSection>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
-      <footer class="nasq-form-footer justify-end">
+      <SharedFormActions class="justify-end">
         <UButton
           type="submit"
           color="primary"
           :label="isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount')"
           :disabled="!hydrated || grant.isPending.value || reactivate.isPending.value || updateAccess.isPending.value || employees.isLoading.value || roles.isLoading.value || existingUser.isLoading.value || !employeeId || selectedRoleIds.length === 0 || !selectedCandidate || (selectedCandidate.user_id !== null && selectedCandidate.access_active !== false) || password.length < 8 || password !== passwordConfirmation"
         />
-      </footer>
+      </SharedFormActions>
     </UForm>
   </SharedCreatePanel>
 </template>

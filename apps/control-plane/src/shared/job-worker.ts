@@ -11,6 +11,7 @@ import { requireJobAuthority } from './job-store.js'
 import { bindJob, businessKey, payloadDigest, reconcileSharedJob, verifiedReceipt } from './provisioning.js'
 import { commercialRestoreGate, finalizeVerifiedRestore } from './shared-backup.js'
 import { runSubscriptionReconfigure, type SubscriptionAdapter } from './subscription-reconfigure.js'
+import { actorLabel } from '../admin-auth/grants.js'
 
 /** The physical adapter must atomically enforce fence validity at each mutation.
  * A caller-provided callback or a preflight lease check alone is NOT sufficient.
@@ -88,7 +89,7 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
     // Sticky intervention journal is deliberately not erased by recovery. An
     // expired started journal can finalize exact existing effects, never execute.
     const decision = reconcileSharedJob(job,target,row.journal,observation)
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actor.issuer+':'+actor.actorUid,'shared_job.recovery_observed',id,reason])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actorLabel(actor),'shared_job.recovery_observed',id,reason])
     if (!['record_verified','replay_verified'].includes(decision.action)) return { state:'needs_intervention' }
     const journal = { ...row.journal,sequence:nextSequence(row.journal.sequence),stage:'verified' }
     const receipt = verifiedReceipt(job,target,journal,fresh)

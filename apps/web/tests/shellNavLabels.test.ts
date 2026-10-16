@@ -2,13 +2,19 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const nav = (locale: string) => (JSON.parse(readFileSync(resolve(import.meta.dirname, `../i18n/locales/${locale}/common.json`), 'utf8')) as { nav: Record<string, string> }).nav
+type NavMessages = { nav: Record<string, string> }
+const read = (path: string) => JSON.parse(readFileSync(resolve(import.meta.dirname, path), 'utf8')) as NavMessages
+// The rail labels live in the ui layer; i18n merges them with the app's own nav keys.
+const nav = (locale: string) => ({
+  ...read(`../../../packages/ui/i18n/locales/${locale}/ui.json`).nav,
+  ...read(`../i18n/locales/${locale}/common.json`).nav,
+})
 
 describe.each(['ar', 'en'])('shell navigation labels (%s)', locale => {
   const labels = nav(locale)
 
-  it('names the home / overview once: rail item and sidebar item agree', () => {
-    expect(labels.home).toBe(labels.projectDashboard)
+  it('distinguishes foundation Home from the project overview', () => {
+    expect(labels.home).not.toBe(labels.projectDashboard)
   })
 
   it('does not label two different pages «my tasks»', () => {

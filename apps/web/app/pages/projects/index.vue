@@ -3,7 +3,7 @@ import { PROJECT_STATUSES } from '@nasq/contracts'
 import { refDebounced } from '@vueuse/core'
 import { onScopeDispose } from 'vue'
 import { onBeforeRouteLeave, type RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@/components/shared/data/FilterBar.vue'
+import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import ProjectTable from '@/components/pmo/projects/ProjectTable.vue'
 import ProjectCards from '@/components/pmo/projects/ProjectCards.vue'
 import {
@@ -16,7 +16,7 @@ import {
   useProjectList,
   type ProjectListRouteState,
 } from '@/composables/useProjects'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const router = useRouter()
 const route = useRoute()
@@ -302,8 +302,8 @@ async function openProject(id: number) {
         </template>
       </UAlert>
 
-      <SharedPageState v-if="projectList.error.value" :error="projectList.error.value" @retry="projectList.refetch" />
-      <div v-else class="grid gap-3">
+      <SharedPageState :error="projectList.error.value" :keep-content="displayedItems.length > 0" @retry="projectList.refetch">
+      <div class="grid gap-3">
         <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
           {{ t('projects.refresh.workspace.resultCount', { count: total }, total) }}
         </p>
@@ -312,6 +312,7 @@ async function openProject(id: number) {
         <ProjectCards v-else :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
         <SharedPagination :page="page" :pages="pages" :disabled="projectList.isFetching.value" @update:page="setPage" />
       </div>
+      </SharedPageState>
     </template>
   </SharedListPage>
 </template>

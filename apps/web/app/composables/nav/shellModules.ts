@@ -14,34 +14,30 @@ import type { NavIcon } from './projectSections'
 // the names in this shared model so every shell consumer renders the same icon
 // without importing Vue component implementations into navigation data.
 const Settings = 'i-lucide-settings'
-const Wrench = 'i-lucide-wrench'
 const ShieldCheck = 'i-lucide-shield-check'
 const UserCog = 'i-lucide-user-cog'
 const History = 'i-lucide-history'
 const Palette = 'i-lucide-palette'
-const Plus = 'i-lucide-plus'
 const House = 'i-lucide-house'
 
-/** Rail module id; applications declare theirs in their manifest, the foundation adds settings, management and vendor. */
+/** Rail module id; applications declare theirs in their manifest, the foundation adds home and settings. */
 export type NavGroup = string
 export type ShellModule = string
 export interface NavItem { to: string; labelKey: string; icon: NavIcon; shortcut: string; goKey?: string; group?: NavGroup; module?: ShellModule; capability: string }
 
-/** Nav items of the foundation (settings, management, subscription); applications declare theirs in their manifest. */
+/** Nav items of the foundation (home, settings, subscription); applications declare theirs in their manifest. */
 const foundationItems: NavItem[] = [
+  { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'nasq.internal' },
   { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'i', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', goKey: 'u', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', goKey: 'r', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
-  { to: '/vendor/overview', labelKey: 'nav.management', icon: 'i-lucide-building-2', shortcut: '', module: 'management', capability: 'vendor.read' },
   // The approved SaaS commercial spec (2026-10-02) puts the customer's subscription inside the workspace as /subscription,
   // gated by the customer capability subscription.read (derived from Nasq settings capabilities, see utils/customerCapabilities.ts)
   // and the customerCommercialEnabled runtime flag. /settings/billing stays absent: no billing placeholder under settings routes.
   { to: '/subscription', labelKey: 'subscription.nav', icon: 'i-lucide-credit-card', shortcut: 'b', group: 'settings', module: 'settings', capability: 'subscription.read' },
 ]
-/** The vendor console entry; added for vendors only. */
-const vendorConsoleItem: NavItem = { to: '/odoo', labelKey: 'nav.console', icon: Wrench, shortcut: 's', module: 'vendor', capability: 'vendor' }
-const FOUNDATION_MODULES: ReadonlySet<string> = new Set(['settings', 'management', 'vendor'])
+const FOUNDATION_MODULES: ReadonlySet<string> = new Set(['home', 'settings'])
 
 /** Application items in manifest (rail) order, then the foundation items. */
 export function allNavItems(): NavItem[] {
@@ -50,7 +46,7 @@ export function allNavItems(): NavItem[] {
     group: manifest.defaultRail ?? manifest.id,
     module: item.module ?? manifest.id,
   })))
-  return [...applications, ...foundationItems, vendorConsoleItem]
+  return [foundationItems[0]!, ...applications, ...foundationItems.slice(1)]
 }
 
 /**
@@ -76,15 +72,13 @@ export function useNav(identity: AccessIdentity): NavItem[] {
     const feature = featureForRailModule(item.module)
     return Array.isArray(identity?.capabilities) && feature !== undefined && hasFeature(identity, feature)
   }
-  const visible = allNavItems().filter(item => item.module !== 'vendor' && (
+  return allNavItems().filter(item => (
     item.capability === 'nasq.internal'
       ? internalAccess(item)
       : item.capability.startsWith('subscription.')
         ? customerCommercialOn() && (deriveCustomerCapabilities(identity?.capabilities) as string[]).includes(item.capability)
         : canReach(identity, item.capability, item.to)
   ))
-  if (identity?.role === 'vendor' && identity.capabilities?.length) visible.push(vendorConsoleItem)
-  return visible
 }
 
 export interface ShellModuleDefinition {
@@ -94,15 +88,14 @@ export interface ShellModuleDefinition {
   to: string
 }
 
-/** Rail order (user decision 2026-09-11): applications by manifest `order`, then the utility slot (settings, management, vendor). */
+/** Rail order (user decision 2026-09-11): applications by manifest `order`, then the settings utility slot. */
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
+    { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
     ...applications.map(({ id, labelKey, icon, to }) => ({ id, labelKey, icon, to })),
     // Settings is administration only: account and appearance live in the header.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: '/settings/users' },
-    { id: 'management', labelKey: 'nav.management', icon: 'i-lucide-building-2', to: '/vendor/overview' },
-    { id: 'vendor', labelKey: 'nav.console', icon: Wrench, to: '/odoo' },
   ]
 }
 /** The rail of the discovered manifests, for consumers that only look up a heading or icon. */
@@ -140,20 +133,6 @@ const foundationContextLinks: Record<string, ShellContextLink[]> = {
     { id: 'roles', labelKey: 'nav.roles', icon: ShieldCheck, to: '/settings/roles', capability: 'access.roles.read' },
     { id: 'access-log', labelKey: 'nav.accessLog', icon: History, to: '/settings/access-log', capability: 'access.audit.read' },
     { id: 'branding', labelKey: 'settings.branding.title', icon: Palette, to: '/settings/branding', capability: 'settings.branding.manage' },
-  ],
-  management: [
-    { id: 'new-tenant', labelKey: 'vendor.tenants.new', icon: Plus, to: '/vendor/tenants/new', capability: 'vendor.tenants.manage', pinned: true },
-    { id: 'vendor-overview', labelKey: 'vendor.overview.title', icon: House, to: '/vendor/overview', capability: 'vendor.read' },
-    { id: 'vendor-tenants', labelKey: 'vendor.tenants.title', icon: 'i-lucide-building-2', to: '/vendor/tenants', capability: 'vendor.read' },
-    { id: 'vendor-customers', labelKey: 'vendor.customers.title', icon: 'i-lucide-users', to: '/vendor/customers', capability: 'vendor.read' },
-    { id: 'vendor-invoices', labelKey: 'vendor.invoices.title', icon: 'i-lucide-receipt', to: '/vendor/invoices', capability: 'vendor.billing.manage' },
-    { id: 'vendor-bundles', labelKey: 'vendor.bundles.title', icon: 'i-lucide-boxes', to: '/vendor/bundles', capability: 'vendor.read' },
-    { id: 'vendor-plans', labelKey: 'vendor.plans.title', icon: 'i-lucide-badge-percent', to: '/vendor/plans', capability: 'vendor.read' },
-    { id: 'vendor-operations', labelKey: 'vendor.operations.title', icon: Wrench, to: '/vendor/operations', capability: 'vendor.read' },
-    { id: 'vendor-audit', labelKey: 'vendor.audit.title', icon: History, to: '/vendor/audit', capability: 'vendor.audit.read' },
-  ],
-  vendor: [
-    { id: 'console', labelKey: 'nav.console', icon: Wrench, to: '/odoo', capability: 'vendor' },
   ],
 }
 

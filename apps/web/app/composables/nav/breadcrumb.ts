@@ -1,9 +1,9 @@
 // Relative imports: unit-tested directly under plain vitest.
 import { activeShellModule, contextModuleFor } from './activeRoute'
-import { moduleContextLinks, shellModuleList } from './shellModules'
+import { allNavItems, moduleContextLinks, shellModuleList } from './shellModules'
 import { isNavPathActive } from '../../utils/accessPolicy'
 
-export interface ShellCrumb { label: string; to?: string }
+import type { ShellCrumb } from '@nasq/ui/app/types/shell'
 
 const normalize = (path: string) => path.replace(/\/+$/, '') || '/'
 const target = (to: unknown): string => (typeof to === 'string' ? to : (to as { path?: string } | null)?.path ?? '')
@@ -21,7 +21,7 @@ export function shellBreadcrumb(input: { path: string; pageTitle?: string | null
     if (last && (last.label === crumb.label || (crumb.to && last.to === crumb.to))) return
     crumbs.push(crumb)
   }
-  // True when the path is exactly the active section's own page: its heading is that section's label.
+  // True when the path is exactly the active section's own page.
   let sectionIsPage = false
   const module = activeShellModule(input.path)
   const definition = module ? shellModuleList().find(item => item.id === module) : undefined
@@ -33,14 +33,16 @@ export function shellBreadcrumb(input: { path: string; pageTitle?: string | null
       .sort((a, b) => target(b.to).length - target(a.to).length)[0]
     if (section) {
       const before = crumbs.length
-      push({ label: input.t(section.labelKey), to: target(section.to) || undefined })
+      const sectionPath = target(section.to)
+      // Sidebar labels may be abbreviated; the trail keeps the owning navigation label.
+      const labelKey = allNavItems().find(item => normalize(item.to) === normalize(sectionPath))?.labelKey ?? section.labelKey
+      push({ label: input.t(labelKey), to: sectionPath || undefined })
       sectionIsPage = crumbs.length > before && normalize(target(section.to)) === normalize(input.path)
     }
   }
   const title = input.pageTitle?.trim()
   // The page registers its heading after the server rendered this header, so the title is unknown on
-  // the first paint. A section's own page always carries that section's name as its heading: drop the
-  // repeating crumb now instead of only after hydration.
+  // the first paint. Drop a section's own crumb now instead of only after hydration.
   if (!title && sectionIsPage) return crumbs.slice(0, -1)
   // The page heading already names the current page. On a list page the last crumb is that same
   // label, so it is dropped and the trail ends at its parent (which keeps its link); a record page

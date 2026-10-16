@@ -7,7 +7,6 @@ import { join, resolve } from 'node:path'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { chromium } from '@playwright/test'
-import { verifyServiceRequest } from '../../packages/commercial-contracts/src/server.ts'
 
 const root = new URL('../../', import.meta.url).pathname
 const artifact = resolve(process.env.NASQ_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output'))
@@ -17,21 +16,12 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
   const directory = await mkdtemp(join(tmpdir(), 'nasq-operational-ssr-'))
   const registry = join(directory, 'registry.json')
   await writeFile(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: tenants.map(({ uid, marker, ...target }) => target) }))
-  const serviceKey = 'synthetic-vendor-service-key-00000000000000'
-  const vendorCalls = []
   const revokedProjects = new Set()
   let notifyAbortSeen, notifyAbortClosed
   const abortSeen = new Promise(resolve => { notifyAbortSeen = resolve })
   const abortClosed = new Promise(resolve => { notifyAbortClosed = resolve })
   const calls = [], sockets = new Set()
   const mock = http.createServer((req, res) => {
-    if (req.url === '/v1/context') {
-      const auth = verifyServiceRequest({ method: req.method, path: req.url, headers: req.headers, key: serviceKey })
-      if (!auth || auth.issuer !== 'operational-vendor') { res.writeHead(403); res.end('{}'); return }
-      vendorCalls.push({ auth, headers: req.headers })
-      res.setHeader('content-type', 'application/json')
-      res.end(JSON.stringify({ actor: auth.actor, issuer: auth.issuer })); return
-    }
     const tenant = tenants.find(t => t.host === req.headers.host)
     res.setHeader('content-type', 'application/json')
     if (!tenant || req.headers['x-nasq-proxy-token'] !== token || req.headers['x-nasq-tenant-revision'] !== '1') { res.writeHead(403); res.end('{}'); return }
@@ -56,7 +46,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
   await new Promise(r => mock.listen(0, '127.0.0.1', r))
   let child, exited, timer, stderr = ''
   try {
-    child = spawn(process.execPath, ['--import', join(root, 'tools/shared_isolation_acceptance/t17-ssr-probe.mjs'), join(artifact, 'server/index.mjs')], { env: { PATH: process.env.PATH, NODE_ENV: 'production', NASQ_TENANCY_MODE: 'shared', NASQ_SHARED_PROXY_TOKEN: token, NASQ_TENANT_REGISTRY_PATH: registry, NUXT_ODOO_URL: `http://127.0.0.1:${mock.address().port}`, T17_ALLOWED_PORT: String(mock.address().port), NUXT_VENDOR_WORKSPACE_ENABLED: 'true', NUXT_VENDOR_CONTROL_URL: `http://127.0.0.1:${mock.address().port}`, NUXT_VENDOR_SERVICE_KEY: serviceKey, NUXT_VENDOR_INSTALLATION_ID: 'operational-vendor' }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
+    child = spawn(process.execPath, ['--import', join(root, 'tools/shared_isolation_acceptance/t17-ssr-probe.mjs'), join(artifact, 'server/index.mjs')], { env: { PATH: process.env.PATH, NODE_ENV: 'production', NASQ_TENANCY_MODE: 'shared', NASQ_SHARED_PROXY_TOKEN: token, NASQ_TENANT_REGISTRY_PATH: registry, NUXT_ODOO_URL: `http://127.0.0.1:${mock.address().port}`, T17_ALLOWED_PORT: String(mock.address().port) }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     child.stdout.resume(); child.stderr.on('data', c => { stderr += c })
     exited = once(child, 'exit')
     const address = await Promise.race([new Promise(r => child.on('message', m => m.bound && r(m.bound))), new Promise((_, reject) => { timer = setTimeout(() => reject(Error('startup_timeout')), 15000) }), exited.then(() => { throw Error(stderr) })])
@@ -144,11 +134,6 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
     assert.ok(!revoked.text.includes(`PROJECT_${tenants[0].marker}`), 'revoked request reused prior query data')
     assert.equal(projectCallsA(), beforeRevocation, 'disabled query still reached upstream')
     verifyQuery(stillAllowed, tenants[1])
-    for (const tenant of tenants) {
-      const vendor = await request(tenant, '/api/vendor/v1/context', { 'x-nasq-actor': '999999' })
-      assert.equal(vendor.status, 200, vendor.text)
-      assert.deepEqual(JSON.parse(vendor.text), { actor: tenant.uid, issuer: 'operational-vendor' })
-    }
     const aborted = http.get({ host: '127.0.0.1', port: address.port, path: '/api/v1/abort-probe', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1' } })
     aborted.on('error', () => {})
     await abortSeen
@@ -189,14 +174,6 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
     assert.equal(partial.headers['x-private-hop'], undefined)
     const unchanged = await request(tenants[1], '/api/v1/unchanged', { 'if-none-match': '"fixture"' })
     assert.equal(unchanged.status, 304); assert.equal(unchanged.text, ''); assert.equal(unchanged.headers.etag, '"fixture"')
-    assert.equal(vendorCalls.length, 2)
-    for (const call of vendorCalls) {
-      assert.equal(call.headers.cookie, undefined)
-      assert.equal(call.headers['x-nasq-proxy-token'], undefined)
-      assert.equal(call.headers['x-nasq-tenant-revision'], undefined)
-      assert.notEqual(call.auth.actor, 999999)
-    }
-    console.log('Built vendorActor signed forwarding: employee user identity preserved, caller actor spoof ignored, no session/private routing headers forwarded')
     console.log('SSR: 24 initial /account identity checks; 18 /search useApi+Vue Query markup/payload checks, then A entitlement revocation versus allowed B. Synthetic upstream; browser hydration above is intercepted and does not prove same-origin session switching or real Odoo.')
   } finally {
     clearTimeout(timer)

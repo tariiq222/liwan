@@ -9,7 +9,7 @@ const { t } = useI18n()
 const projectId = computed(() => Number(route.params.id))
 const registerId = computed(() => Number(route.params.registerId))
 const item = useProjectRegisterItem(projectId, registerId)
-const listPaths = computed(() => [`/projects/${projectId.value}/register`])
+const listPaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/register`])
 const backTo = computed(() => owningListBack(route.query, listPaths.value, route.hash))
 const editTo = computed(() => recordChildTo(`/projects/${projectId.value}/register/${registerId.value}/edit`, route.query, listPaths.value, route.hash))
 const access = useProject(projectId)
@@ -18,7 +18,7 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
 </script>
 
 <template>
-  <SharedRecordPage
+  <SharedRecordPage :keep-content="!!item.data.value"
     v-if="route.path.replace(/\/+$/, '') === detailPath"
     :title="item.data?.value?.title ?? t('projects.refresh.workspace.registerTitle')"
     :back-to="backTo"
@@ -32,18 +32,18 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
     </template>
     <SharedEmptyState v-if="!item.data?.value" :title="t('app.noResults')" />
     <template v-else>
-      <SharedRecordSection :title="t('projects.refresh.workspace.registerDescription')">
+      <SharedRecordSection panel :title="t('projects.refresh.workspace.registerDescription')">
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.description || '—' }}</p>
       </SharedRecordSection>
-      <SharedRecordSection :title="t('projects.refresh.workspace.registerPlan')">
+      <SharedRecordSection panel :title="t('projects.refresh.workspace.registerPlan')">
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.response || '—' }}</p>
-        <p v-if="item.data.value.task" class="text-sm">
+        <p v-if="item.data.value.task" class="mt-2 text-sm">
           <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>
           <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}` }">{{ item.data.value.task.name }}</NuxtLink>
         </p>
       </SharedRecordSection>
     </template>
-    <template v-if="item.data?.value" #aside>
+    <template v-if="item.data?.value" #summary>
       <SharedPropertiesPanel :title="t('projects.refresh.workspace.registerSummary')">
         <SharedPropertyRow :label="t('projects.governance.register.kind')" :value="t(`projects.governance.register.${item.data.value.kind}`)" />
         <SharedPropertyRow :label="t('projects.governance.register.priority')"><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[item.data.value.priority]" :label="t(`projects.governance.register.${item.data.value.priority}`)" /></SharedPropertyRow>

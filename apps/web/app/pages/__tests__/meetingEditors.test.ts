@@ -1,4 +1,4 @@
-import * as recordNavigation from '../../utils/recordListOrigin'
+import * as recordNavigation from './helpers/recordNavigation'
 import { meetingTabFromRoute, meetingTabQuery, isMeetingTab } from '../../utils/meetingTabs'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -7,6 +7,8 @@ import ts from 'typescript'
 import { computed, nextTick, ref, watch } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { createMeetingMinutesForm, validateMeetingMinutesForm } from '../../utils/meetingMinutesForm'
+import { parsePositiveId } from '../../utils/routeParams'
+import { ApiError } from '../../composables/useApi'
 
 const page = (relativePath: string) => resolve('app/pages/meetings', relativePath)
 const source = (relativePath: string) => readFileSync(page(relativePath), 'utf8')
@@ -34,9 +36,9 @@ function evaluatedDetailPage() {
   const runResolution = vi.fn(() => pendingRequest)
   const scope = {
     ...recordNavigation,
-    meetingTabFromRoute, meetingTabQuery, isMeetingTab,
-    onMounted: () => {}, onBeforeUnmount: () => {}, // DOM scrolling is covered by the browser suite.
-
+    onBeforeUnmount: () => {},
+    defineProps: () => ({ meeting: meeting.value, meetingId: 7 }),
+    defineEmits: () => vi.fn(),
     ref,
     computed,
     watch,
@@ -46,27 +48,20 @@ function evaluatedDetailPage() {
     useI18n: () => ({ t: (key: string) => key, locale: ref('ar') }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useAccess: () => ({ can: () => true }),
-    useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
-    useMeetingEvents: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
-    useMeetingVersions: () => ({ data: ref({ items: [], total: 0 }), isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
-    useMeetingAttachments: () => ({ data: ref({ items: [] }), isLoading: ref(false), isFetching: ref(false), error: ref(null), refetch: vi.fn() }),
     useResolutionAction: () => ({ mutateAsync: runResolution }),
-    useMeetingAction: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
-    useUploadMeetingAttachment: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
-    useDeleteMeetingAttachment: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
     useConvertResolution: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
     useProjects: () => ({ data: ref([]), isLoading: ref(false), isFetching: ref(false), error: ref(null) }),
     safeReturnTo: (_value: unknown, fallback: string) => fallback,
     returnToQuery: () => ({}),
-    formatLocalDateTime: (value: string | null) => value || '',
     filterMeetingResolutions: (items: unknown[]) => items,
     resolutionActions: () => ['start', 'complete', 'cancel', 'reopen'],
     ApiError: class ApiError extends Error {},
     navigateTo: vi.fn(),
     useToast: () => ({ add: vi.fn() }),
   }
-  const scriptSource = parse(source('[id].vue')).descriptor.scriptSetup!.content
+  const scriptSource = parse(source('../../components/meetings/MeetingResolutionsTab.vue')).descriptor.scriptSetup!.content
   const scriptFile = ts.createSourceFile('meeting-detail.ts', scriptSource, ts.ScriptTarget.Latest, true)
   const script = scriptFile.statements.filter(statement => !ts.isImportDeclaration(statement)).map(statement => statement.getText(scriptFile)).join('\n').replaceAll('import.meta.client', 'false')
   const js = ts.transpileModule(script, {
@@ -109,7 +104,7 @@ function deferredMutation(result: unknown = {}, shouldReject = false) {
 
 function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed', canEdit = true, canManage = false): Record<string, any> {
   const route = { params: { id: '7' }, query: { returnTo: '/meetings?q=review' }, fullPath: '/meetings/7/minutes?returnTo=%2Fmeetings%3Fq%3Dreview' }
-  const meeting = ref({ id: 7, name: 'Operations review', state, can_edit: canEdit, can_manage: canManage, agenda: '<p>Agenda</p>', minutes: '<p>Minutes</p>' })
+  const meeting = ref({ id: 7, name: 'Operations review', state, can_edit: canEdit, can_manage: canManage, agenda: '<p>Agenda</p>', minutes: '<p>Minutes</p>', write_date: '2026-09-07T10:00:00Z' })
   const navigateTo = vi.fn(async () => {})
   const scope = {
     ...recordNavigation,
@@ -118,9 +113,12 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
     watch,
     nextTick,
     useRoute: () => route,
+    parsePositiveId,
+    ApiError,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeeting: () => mutation,
     createMeetingMinutesForm,
@@ -142,9 +140,12 @@ function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<stri
     watch,
     nextTick,
     useRoute: () => route,
+    parsePositiveId,
+    ApiError,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useMeetingSeries: () => ({ data: series, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeetingSeriesSettings: () => mutation,
     formatCalendarDate: (value: string) => value,
@@ -170,6 +171,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     secretary: null,
     organizer: null,
     series_id: null,
+    write_date: '2026-09-07T10:00:00Z',
   })
   const mutateAsync = vi.fn(async () => ({}))
   const navigateTo = vi.fn(async () => {})
@@ -180,9 +182,12 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     watch,
     nextTick,
     useRoute: () => route,
+    parsePositiveId,
+    ApiError,
     useI18n: () => ({ t: (key: string) => key }),
     useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
+    useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),
     useMeeting: () => ({ data: meeting, isLoading: ref(false), error: ref(null), refetch: vi.fn() }),
     usePatchMeeting: () => ({ mutateAsync, isPending: ref(false), error: ref(null) }),
     safeReturnTo: (value: unknown, fallback: string) => typeof value === 'string' ? value : fallback,
@@ -196,7 +201,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
     navigateTo,
   }
   const pageState = editorScript('[id]/edit.vue', scope, '{ save, name, meetingDate, start, end, canEdit }')
-  return { ...pageState, mutateAsync, navigateTo }
+  return { ...pageState, meeting, mutateAsync, navigateTo }
 }
 
 describe('meeting editor routes and guards', () => {
@@ -240,7 +245,7 @@ describe('meeting editor routes and guards', () => {
     await nextTick()
     editor.release()
     await save
-    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), scope: 'this' } })
+    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), write_date: '2026-09-07T10:00:00Z', scope: 'this' } })
     // The route carries ?returnTo=/meetings?q=review. The minutes editor
     // belongs to one meeting, so that is where saving lands, and the referrer
     // is dropped instead of being copied onto the destination.
@@ -271,6 +276,7 @@ describe('meeting editor routes and guards', () => {
         agenda: '<p>Updated agenda</p>',
         minutes: '<p>Updated minutes</p>',
         minutes_form: editor.minutesForm.value,
+        write_date: '2026-09-07T10:00:00Z',
         scope: 'this',
       },
     })
@@ -300,6 +306,26 @@ describe('meeting editor routes and guards', () => {
     await save
     await second
     expect(editor.navigateTo).toHaveBeenCalledWith({ path: '/meetings/series/12', query: {} })
+  })
+
+  it('sends the revision the form opened on, even after a background refetch', async () => {
+    const editor = evaluatedGeneralEditPage()
+    editor.meeting.value = { ...editor.meeting.value, write_date: '2026-09-07T11:00:00Z' }
+    editor.name.value = 'Renamed after refetch'
+    await editor.save()
+    expect(editor.mutateAsync.mock.calls[0][0].body.write_date).toBe('2026-09-07T10:00:00Z')
+  })
+
+  it('sends the revision the minutes editor opened on, even after a background refetch', async () => {
+    const mutation = deferredMutation({})
+    const editor = evaluatedMinutesPage(mutation)
+    editor.meeting.value = { ...editor.meeting.value, write_date: '2026-09-07T11:00:00Z' }
+    editor.minutes.value = '<p>Concurrent minutes</p>'
+    const save = editor.save()
+    await nextTick()
+    editor.release()
+    await save
+    expect(editor.mutateAsync.mock.calls[0][0].body.write_date).toBe('2026-09-07T10:00:00Z')
   })
 
   it('does not rewrite an untouched near-midnight schedule during an unrelated edit', async () => {

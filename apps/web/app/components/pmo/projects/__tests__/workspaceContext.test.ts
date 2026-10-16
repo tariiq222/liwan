@@ -1,17 +1,18 @@
+import { resolve } from 'node:path'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { defineComponent, h, ref } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { loadShared, renderShared } from '../../../shared/__tests__/helpers/renderShared'
+import { loadShared, renderShared } from '@nasq/ui/test/helpers/renderShared'
 import * as projectNavigation from '../../../../composables/nav/projectSections'
 import * as governanceNavigation from '../../../../composables/nav/governanceSections'
 import * as activeRoute from '../../../../composables/nav/activeRoute'
 import * as workspaceMemory from '../../../../utils/projectWorkspaceMemory'
-import * as sectionTabs from '../../../../utils/sectionTabs'
+import * as sectionTabs from '@nasq/ui/app/utils/sectionTabs'
 
 async function links(path: string, level = 'sections') {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: {} }] })
   await router.push(path)
-  const html = await renderShared('../pmo/projects/workspace/ProjectWorkspaceTabs', { projectId: 7, active: true, level }, {}, {
+  const html = await renderShared(resolve(import.meta.dirname, '../workspace/ProjectWorkspaceTabs.vue'), { projectId: 7, active: true, level }, {}, {
     globals: {
       useRoute: () => router.currentRoute.value,
       useMe: () => ({ me: ref({ capabilities: ['pmo.projects.read', 'pmo.tasks.read', 'meetings.read'] }) }),
@@ -24,7 +25,7 @@ async function links(path: string, level = 'sections') {
       '@/utils/projectWorkspaceMemory': workspaceMemory,
     },
     stubs: {
-      SharedRouteTabs: loadShared('RouteTabs', { modules: { '@/utils/sectionTabs': sectionTabs } }),
+      SharedRouteTabs: loadShared('RouteTabs', { modules: { '../../../utils/sectionTabs': sectionTabs } }),
       UButton: defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
         return () => h('a', { 'data-testid': attrs['data-testid'], href: router.resolve(attrs.to as any).href }, slots.default?.())
       } }),

@@ -4,7 +4,7 @@ import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
 import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
 import { useTaskFilters } from '@/composables/useTaskFilters'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

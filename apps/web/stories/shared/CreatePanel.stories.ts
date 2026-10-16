@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, defineComponent, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import CreatePanel from '../../app/components/shared/layout/CreatePanel.vue'
-import FormSection from '../../app/components/shared/layout/FormSection.vue'
-import UnsavedChanges from '../../app/components/shared/form/UnsavedChanges.vue'
+import CreatePanel from '@nasq/ui/app/components/shared/layout/CreatePanel.vue'
+import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
+import UnsavedChanges from '@nasq/ui/app/components/shared/form/UnsavedChanges.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -18,7 +18,7 @@ type Story = StoryObj<typeof meta>
 
 export const Form: Story = {
   name: 'نموذج إنشاء',
-  parameters: storyContext('apps/web/app/pages/tasks/new.vue:20'),
+  parameters: storyContext('apps/web/app/pages/tasks/new.vue:19'),
   render: () => ({
     components: { CreatePanel },
     setup: () => ({ t: useI18n().t }),
@@ -46,7 +46,7 @@ export const Form: Story = {
 // closing it navigates and SharedUnsavedChanges answers that navigation, as on the app's /new routes.
 export const FormTemplate: Story = {
   name: 'قالب النموذج',
-  parameters: storyContext('apps/web/app/pages/settings/users/new.vue:102', 'قالب النموذج: لوحة الإنشاء المرتبطة بالمسار، وأقسام النموذج، وحماية المسودة عند الإغلاق.'),
+  parameters: storyContext('apps/web/app/pages/settings/users/new.vue:103', 'قالب النموذج: لوحة الإنشاء المرتبطة بالمسار، وأقسام النموذج، وحماية المسودة عند الإغلاق.'),
   render: () => ({
     setup() {
       const router = useRouter()
