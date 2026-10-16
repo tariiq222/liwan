@@ -26,7 +26,6 @@ watch(() => route.path, () => {
       <ModuleRail :modules="rail.modules" :utility="rail.utility" :active-id="activeId" home-to="/" />
     </template>
     <main ref="main" tabindex="-1" data-testid="shell-main" class="nasq-shell-main focus:outline-none" :aria-label="t('app.shell.content')">
-      <StepUpPanel />
       <slot />
     </main>
   </ShellFrame>
