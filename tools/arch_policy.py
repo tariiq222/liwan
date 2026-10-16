@@ -25,9 +25,9 @@ BRIDGE_RANK = 5
 APP_RANK = 4
 FOUNDATION_MAX_RANK = 2
 
-# R2 tokens that are not an addon of this repository: Odoo models and the meeting engine.
+# R2 tokens that are not an addon of this repository: Odoo models.
 # app_token() adds every registered application and bridge (ranks 4 and 5 in arch_layers.json).
-STATIC_APP_TOKENS = ('project', 'cyan_meeting_minutes')
+STATIC_APP_TOKENS = ('project',)
 ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:webvue|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
 # UI1: a file of a shared UI layer (packages/ui, packages/commercial-ui) reaches into an application, an addon, an app alias, the contracts or the control plane.
@@ -491,7 +491,7 @@ def new_app_r2_hits(root: Path, layers: dict, app: str) -> dict[str, int]:
     addons_root = root / 'odoo-addons'
     hits: dict[str, int] = {}
     if app in STATIC_APP_TOKENS:
-        # Already an R2 token (an Odoo model or the meeting engine), so no count can grow.
+        # Already an R2 token (an Odoo model), so no count can grow.
         hits[f'STATIC_APP_TOKENS contains {app!r}'] = 1
     for addon, rank in sorted(ranks.items()):
         if rank >= APP_RANK or not (addons_root / addon).is_dir():

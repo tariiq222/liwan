@@ -13,15 +13,15 @@ class TestMeetingsApiProjects(WebVuePmoCase):
 
     def test_meeting_project_and_date_filters_are_combined_with_correct_total(self):
         self.employee.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
-        target = self.env['cyan.meeting.minute'].create({
+        target = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Target project meeting', 'organizer_id': self.employee.id,
             'project_id': self.project.id, 'meeting_date': '2026-09-10',
         })
-        self.env['cyan.meeting.minute'].create({
+        self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Same project later', 'organizer_id': self.employee.id,
             'project_id': self.project.id, 'meeting_date': '2026-09-11',
         })
-        self.env['cyan.meeting.minute'].create({
+        self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Same date other project', 'organizer_id': self.employee.id,
             'meeting_date': '2026-09-10',
         })
@@ -38,7 +38,7 @@ class TestMeetingsApiProjects(WebVuePmoCase):
     def test_meeting_notifications_visibility_read_states_and_recipient_ownership(self):
         self.employee.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
         self.manager.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
-        Meeting = self.env['cyan.meeting.minute']
+        Meeting = self.env['webvue.meeting.minute']
         visible = Meeting.create({'state': 'draft', 'name': 'Invite visible', 'organizer_id': self.manager.id,
                                   'attendee_ids': [(6, 0, self.employee.ids)]})
         second = Meeting.create({'state': 'draft', 'name': 'Invite second', 'organizer_id': self.manager.id,
@@ -54,7 +54,7 @@ class TestMeetingsApiProjects(WebVuePmoCase):
         })
         rows = self.env['mail.notification'].sudo().search([
             ('res_partner_id', '=', self.employee.partner_id.id),
-            ('mail_message_id.model', '=', 'cyan.meeting.minute'),
+            ('mail_message_id.model', '=', 'webvue.meeting.minute'),
         ])
         by_meeting = {row.mail_message_id.webvue_meeting_id: row for row in rows}
         self.authenticate('api_emp', 'api_emp_pass_123')

@@ -53,18 +53,18 @@ class TestMeetingWorkspace(WebVueMeetingsCase):
             'meeting_date': '2026-09-09',
         }
         vals.update(values)
-        return self.env['cyan.meeting.minute'].create(vals)
+        return self.env['webvue.meeting.minute'].create(vals)
 
     def test_resolution_accepts_execution_period_without_deadline(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Continuous follow up',
             'responsible_id': self.employee.id,
             'execution_period': 'مستمر',
         })
         self.assertFalse(resolution.deadline)
-        same_title = self.env['cyan.meeting.resolution'].create({
+        same_title = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id, 'name': 'Continuous follow up',
             'responsible_id': self.employee.id, 'deadline': '2026-09-30',
         })
@@ -77,7 +77,7 @@ class TestMeetingWorkspace(WebVueMeetingsCase):
             }],
         })
         with self.assertRaises(ValidationError):
-            self.env['cyan.meeting.resolution'].create({
+            self.env['webvue.meeting.resolution'].create({
                 'meeting_id': meeting.id,
                 'name': 'Missing schedule',
                 'responsible_id': self.employee.id,
@@ -179,11 +179,11 @@ class TestMeetingWorkspace(WebVueMeetingsCase):
             'name': 'Workspace filter series', 'organizer_id': self.employee.id,
         })
         meeting = self._meeting(series_id=series.id, name='Series occurrence')
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id, 'name': 'Overdue recommendation',
             'responsible_id': self.employee.id, 'deadline': '2020-01-01',
         })
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id, 'name': 'Period recommendation',
             'responsible_id': self.employee.id, 'execution_period': 'مستمر',
         })

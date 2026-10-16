@@ -14,7 +14,7 @@ class TestMeetingLifecycle(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.company
-        meeting_user = 'webvue_core.group_employee,cyan_meeting_minutes.group_meeting_user'
+        meeting_user = 'webvue_core.group_employee,webvue_meetings.group_cap_meetings_read'
         cls.organizer = new_test_user(
             cls.env, login='life_org', groups=meeting_user,
             company_id=cls.company.id, company_ids=[cls.company.id],
@@ -48,8 +48,8 @@ class TestMeetingLifecycle(TransactionCase):
             ]).ids)],
         })
         Assignment.create({'user_id': cls.organizer.id, 'role_id': create_role.id, 'company_id': cls.company.id})
-        cls.Meeting = cls.env['cyan.meeting.minute']
-        cls.Resolution = cls.env['cyan.meeting.resolution']
+        cls.Meeting = cls.env['webvue.meeting.minute']
+        cls.Resolution = cls.env['webvue.meeting.resolution']
 
     def _create_meeting(self, **extra):
         vals = {
@@ -122,16 +122,6 @@ class TestMeetingLifecycle(TransactionCase):
         self.assertEqual(event.stop, meeting.end_datetime)
         self.assertEqual(event.location, 'New room')
 
-    def test_calendar_import_does_not_create_an_extra_event(self):
-        Event = self.env['calendar.event'].with_user(self.organizer)
-        event = Event.create({'name': 'Import calendar', 'start': '2026-09-08 10:00:00',
-                              'stop': '2026-09-08 11:00:00', 'user_id': self.organizer.id})
-        before = Event.search_count([])
-        action = event.action_open_meeting_minutes()
-        meeting = self.Meeting.browse(action['res_id'])
-        self.assertEqual(meeting.calendar_event_id, event)
-        self.assertEqual(Event.search_count([]), before)
-
     def test_membership_stays_removed_after_rename_and_reschedule(self):
         meeting = self._create_meeting()
         meeting.write({'attendee_ids': [(6, 0, [])]})
@@ -150,7 +140,7 @@ class TestMeetingLifecycle(TransactionCase):
         meeting.write({'name': 'Added together', 'attendee_ids': [(4, self.attendee.id)]})
         self.assertEqual(meeting.attendee_ids, self.attendee)
         self.assertEqual(meeting.secretary_id, self.secretary)
-        self.assertEqual(meeting.calendar_event_id.partner_ids, meeting._cyan_participant_users().mapped('partner_id'))
+        self.assertEqual(meeting.calendar_event_id.partner_ids, meeting._webvue_participant_users().mapped('partner_id'))
 
     def test_calendar_origin_membership_keeps_secretary_and_no_stale_attendee(self):
         meeting = self._create_meeting()

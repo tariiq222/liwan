@@ -18,7 +18,7 @@ class TestMeetingNotificationTypes(WebVueMeetingsCase):
         meetings = [kind for kind, item in types.items() if item['owner'] == 'webvue_meetings']
         self.assertEqual(meetings, MEETING_KINDS)
         self.assertEqual({types[kind]['feature_key'] for kind in meetings}, {'meetings.enabled'})
-        self.assertEqual({types[kind]['model'] for kind in meetings}, {'cyan.meeting.minute'})
+        self.assertEqual({types[kind]['model'] for kind in meetings}, {'webvue.meeting.minute'})
         self.assertIn('meetings.enabled', registry._webvue_notify_feature_keys())
         values = set(self.env['mail.message']._fields['webvue_notification_kind'].get_values(self.env))
         self.assertLessEqual(set(meetings), values)
@@ -26,7 +26,7 @@ class TestMeetingNotificationTypes(WebVueMeetingsCase):
     def test_meeting_delivery_keys_keep_their_pre_split_format(self):
         Message = self.env['mail.message'].sudo()
         other = new_test_user(self.env, login='meeting_key_nora', name='Nora', groups='webvue_core.group_employee')
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Key format meeting', 'organizer_id': self.manager.id,
         })
         partners = other.partner_id | self.employee.partner_id
@@ -50,7 +50,7 @@ class TestMeetingBellVisibility(WebVueMeetingsCase):
     def test_meeting_rows_are_listed_only_for_a_recipient_who_can_read_the_meeting(self):
         self.employee.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
         self.manager.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
-        Meeting = self.env['cyan.meeting.minute']
+        Meeting = self.env['webvue.meeting.minute']
         visible = Meeting.create({'state': 'draft', 'name': 'Bell visible', 'organizer_id': self.manager.id,
                                   'attendee_ids': [(6, 0, self.employee.ids)]})
         inactive = Meeting.create({'state': 'draft', 'name': 'Bell inactive', 'organizer_id': self.manager.id,
@@ -64,7 +64,7 @@ class TestMeetingBellVisibility(WebVueMeetingsCase):
         })
         rows = self.env['mail.notification'].sudo().search([
             ('res_partner_id', '=', self.employee.partner_id.id),
-            ('mail_message_id.model', '=', 'cyan.meeting.minute'),
+            ('mail_message_id.model', '=', 'webvue.meeting.minute'),
         ])
         by_meeting = {row.mail_message_id.webvue_meeting_id: row for row in rows}
         self.assertEqual(set(by_meeting), {visible.id, inactive.id, foreign.id})

@@ -29,7 +29,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
         })
 
     def test_standalone_meeting_has_no_series(self):
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Independent', 'organizer_id': self.employee.id, 'meeting_date': fields.Date.today(),
         })
         self.assertFalse(meeting.series_id)
@@ -104,7 +104,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
         self.env['webvue.access.assignment'].create({
             'user_id': self.employee.id, 'company_id': self.env.company.id, 'role_id': role.id,
         })
-        self.env['cyan.meeting.minute'].with_user(self.employee).create({
+        self.env['webvue.meeting.minute'].with_user(self.employee).create({
             'name': 'Own meeting', 'organizer_id': self.employee.id,
             'meeting_date': fields.Date.today(),
         })
@@ -115,7 +115,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
         with self.assertRaises(AccessError):
             series.with_user(self.employee).action_add_occurrence()
         with self.assertRaises(AccessError):
-            self.env['cyan.meeting.minute'].with_user(self.employee).create({
+            self.env['webvue.meeting.minute'].with_user(self.employee).create({
                 'name': 'Illicit occurrence', 'series_id': series.id,
                 'organizer_id': self.employee.id,
                 'meeting_date': fields.Date.today(),
@@ -144,7 +144,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
         series = self.env['webvue.meeting.series'].create({
             'name': 'Revoked series', 'recurrence': 'none', 'organizer_id': self.manager.id,
         })
-        occurrence = self.env['cyan.meeting.minute'].create({
+        occurrence = self.env['webvue.meeting.minute'].create({
             'name': 'Visible occurrence', 'state': 'draft', 'series_id': series.id,
             'organizer_id': self.manager.id, 'attendee_ids': [(6, 0, self.employee.ids)],
             'meeting_date': fields.Date.today(),
@@ -231,7 +231,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
         self.assertFalse(second.agenda)
 
     def test_scope_overlap_rolls_back_all_occurrences_and_notifications(self):
-        external = self.env['cyan.meeting.minute'].create({
+        external = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'External clash', 'organizer_id': self.manager.id,
             'start_datetime': datetime(2026, 9, 8, 9, 0),
             'end_datetime': datetime(2026, 9, 8, 10, 0), 'meeting_date': '2026-09-08',
@@ -300,11 +300,11 @@ class TestMeetingSeries(WebVueMeetingsCase):
             'name': 'Mixed', 'recurrence': 'none', 'organizer_id': self.manager.id,
             'attendee_ids': [(6, 0, self.employee.ids)],
         })
-        visible = self.env['cyan.meeting.minute'].create({
+        visible = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Seen', 'series_id': series.id, 'organizer_id': self.manager.id,
             'attendee_ids': [(6, 0, self.employee.ids)], 'meeting_date': fields.Date.today(),
         })
-        hidden = self.env['cyan.meeting.minute'].create({
+        hidden = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Hidden', 'series_id': series.id, 'organizer_id': self.manager.id,
             'attendee_ids': [(6, 0, [])], 'meeting_date': fields.Date.today(),
         })
@@ -315,7 +315,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
         self.assertNotIn(hidden.id, ids)
 
     def test_month_window_returns_more_than_200(self):
-        Meeting = self.env['cyan.meeting.minute']
+        Meeting = self.env['webvue.meeting.minute']
         Meeting.create([{
             'state': 'draft', 'name': f'M{index}', 'organizer_id': self.employee.id,
             'meeting_date': '2026-10-01',
@@ -328,14 +328,14 @@ class TestMeetingSeries(WebVueMeetingsCase):
         self.assertGreaterEqual(len(month['items']), 210)
 
     def test_organizer_overlap_rejected(self):
-        self.env['cyan.meeting.minute'].create({
+        self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'First', 'organizer_id': self.employee.id,
             'start_datetime': datetime(2026, 9, 8, 9, 0),
             'end_datetime': datetime(2026, 9, 8, 10, 0),
             'meeting_date': '2026-09-08',
         })
         with self.assertRaises(ValidationError):
-            self.env['cyan.meeting.minute'].create({
+            self.env['webvue.meeting.minute'].create({
                 'state': 'draft', 'name': 'Clash', 'organizer_id': self.employee.id,
                 'start_datetime': datetime(2026, 9, 8, 9, 30),
                 'end_datetime': datetime(2026, 9, 8, 10, 30),
@@ -347,7 +347,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
             'name': 'Carry', 'recurrence': 'none', 'organizer_id': self.employee.id,
         })
         first = series.action_add_occurrence(datetime(2026, 9, 1, 9, 0), datetime(2026, 9, 1, 10, 0), 'Old')
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': first.id, 'name': 'Open item', 'responsible_id': self.employee.id,
             'deadline': fields.Date.today(),
         })
@@ -366,7 +366,7 @@ class TestMeetingSeries(WebVueMeetingsCase):
         second = series.action_add_occurrence(datetime(2026, 9, 8, 9, 0), datetime(2026, 9, 8, 10, 0), 'Second')
         third = series.action_add_occurrence(datetime(2026, 9, 15, 9, 0), datetime(2026, 9, 15, 10, 0), 'Third')
         for meeting, name in ((first, 'First item'), (third, 'Future item')):
-            self.env['cyan.meeting.resolution'].create({
+            self.env['webvue.meeting.resolution'].create({
                 'meeting_id': meeting.id, 'name': name, 'responsible_id': self.employee.id,
                 'deadline': fields.Date.today(),
             })
@@ -376,29 +376,29 @@ class TestMeetingSeries(WebVueMeetingsCase):
 
     def test_rescheduled_meeting_gets_a_reminder_for_its_new_start(self):
         now = fields.Datetime.now()
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'name': 'Rescheduled reminder', 'state': 'draft', 'organizer_id': self.employee.id,
             'attendee_ids': [(6, 0, self.manager.ids)],
             'start_datetime': now + timedelta(hours=2), 'end_datetime': now + timedelta(hours=3),
             'meeting_date': fields.Date.to_date(now),
         })
-        self.env['cyan.meeting.minute']._webvue_run_meeting_reminders()
+        self.env['webvue.meeting.minute']._webvue_run_meeting_reminders()
         meeting.write({
             'start_datetime': now + timedelta(hours=4), 'end_datetime': now + timedelta(hours=5),
         })
-        self.env['cyan.meeting.minute']._webvue_run_meeting_reminders()
+        self.env['webvue.meeting.minute']._webvue_run_meeting_reminders()
         reminders = self.env['mail.message'].sudo().search([
             ('webvue_meeting_id', '=', meeting.id), ('webvue_notification_kind', '=', 'meeting_reminder'),
         ])
         self.assertEqual(len(reminders), 4)
-        for partner in meeting._cyan_participant_users().mapped('partner_id'):
+        for partner in meeting._webvue_participant_users().mapped('partner_id'):
             self.assertEqual(sum(
                 partner in message.notification_ids.mapped('res_partner_id')
                 for message in reminders
             ), 2)
 
     def test_recancelled_meeting_notifies_again_after_reopen(self):
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'name': 'Recancel notification', 'state': 'draft', 'organizer_id': self.employee.id,
             'attendee_ids': [(6, 0, self.manager.ids)], 'meeting_date': fields.Date.today(),
         })
@@ -504,28 +504,28 @@ class TestMeetingSeriesBatches(WebVueMeetingsCase):
         self.assertEqual(len(self._messages('meeting_invite', later)), 3)
 
     def test_overdue_reminders_skip_cancelled_meetings(self):
-        live, cancelled = self.env['cyan.meeting.minute'].create([{
+        live, cancelled = self.env['webvue.meeting.minute'].create([{
             'name': name, 'state': 'draft', 'organizer_id': self.employee.id, 'meeting_date': '2026-09-01',
             'attendee_ids': [(6, 0, self.manager.ids)],
         } for name in ('Live overdue', 'Cancelled overdue')])
         for meeting in (live, cancelled):
-            self.env['cyan.meeting.resolution'].create({
+            self.env['webvue.meeting.resolution'].create({
                 'meeting_id': meeting.id, 'name': 'Late item', 'responsible_id': self.manager.id,
                 'deadline': '2020-01-01',
             })
         cancelled.action_cancel()
-        self.env['cyan.meeting.minute']._webvue_run_meeting_reminders()
+        self.env['webvue.meeting.minute']._webvue_run_meeting_reminders()
         self.assertEqual(len(self._messages('meeting_resolution_overdue', live)), 1)
         self.assertFalse(self._messages('meeting_resolution_overdue', cancelled))
 
     def _occurrences(self, series, count):
-        Meeting = self.env['cyan.meeting.minute']
+        Meeting = self.env['webvue.meeting.minute']
         meetings = Meeting.create([{
             'name': f'{series.name} {index}', 'state': 'draft', 'organizer_id': self.employee.id,
             'series_id': series.id, 'meeting_date': date(2026, 9, 1) + timedelta(days=index),
             'attendee_ids': [(6, 0, self.manager.ids)],
         } for index in range(count)])
-        self.env['cyan.meeting.resolution'].create([{
+        self.env['webvue.meeting.resolution'].create([{
             'meeting_id': meeting.id, 'name': f'Item {meeting.id}', 'responsible_id': self.manager.id,
             'deadline': '2020-01-01' if index % 2 else '2030-01-01',
         } for index, meeting in enumerate(meetings)])
@@ -543,7 +543,7 @@ class TestMeetingSeriesBatches(WebVueMeetingsCase):
         large = self.env['webvue.meeting.series'].create({'name': 'Large', 'recurrence': 'none', 'organizer_id': self.employee.id})
         self._occurrences(small, 3)
         self._occurrences(large, 35)
-        Meeting = self.env['cyan.meeting.minute'].with_user(self.employee)
+        Meeting = self.env['webvue.meeting.minute'].with_user(self.employee)
         Series = self.env['webvue.meeting.series'].with_user(self.employee)
 
         def list_rows(series):

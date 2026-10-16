@@ -117,8 +117,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `mail`; the shared services `webvue_notify` (`webvue_api`, `mail`) and
   `webvue_directory` (`webvue_api`) know no application; PMO also uses
   `webvue_platform`, `webvue_notify`, `webvue_directory`, `project`, `bus`; meetings
-  use `webvue_platform`, `webvue_notify`, `webvue_directory`, `cyan_meeting_minutes`,
-  `calendar`, `mail`; the bridge `webvue_meetings_pmo` (`auto_install`) uses
+  use `webvue_platform`, `webvue_notify`, `webvue_directory`, `calendar`, `mail`; the bridge `webvue_meetings_pmo` (`auto_install`) uses
   `webvue_meetings` and `webvue_pmo` (see manifests). Preserve pillar direction:
   shared `webvue_api` and the shared services never import a pillar, and one
   application never imports another; only a bridge imports both.

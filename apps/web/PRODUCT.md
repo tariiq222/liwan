@@ -60,7 +60,7 @@ company; it does not permit sharing data between customer companies.
 ## Operating Context
 
 - Customer UI: `apps/web` (Nuxt 4) talking to Odoo through `/api/v1`.
-- Engine: Odoo 19 CE. Pillars: `webvue_core` (capabilities/identity), `webvue_pmo` (projects/tasks), `webvue_hr` (directory), `webvue_api` (shared HTTP). Meetings extend `cyan_meeting_minutes` through `webvue_pmo`.
+- Engine: Odoo 19 CE. Pillars: `webvue_core` (capabilities/identity), `webvue_pmo` (projects/tasks), `webvue_hr` (directory), `webvue_api` (shared HTTP). `webvue_meetings` owns the meeting engine and links to projects through the bridge `webvue_meetings_pmo`.
 - Primary hosting target: self-service SaaS on shared application services,
   with a separate database and filestore per customer. Managed dedicated and
   customer-hosted deployments remain separate options. See the

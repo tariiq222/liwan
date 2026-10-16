@@ -1,10 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .common import CyanMeetingCase
+from .common import WebVueMeetingEngineCase
 
 
-class TestResolutionSecurity(CyanMeetingCase):
+class TestResolutionSecurity(WebVueMeetingEngineCase):
 
     def test_responsible_must_be_participant(self):
         meeting = self._create_meeting()
@@ -33,7 +33,6 @@ class TestResolutionSecurity(CyanMeetingCase):
             "result": "<p>Done</p>",
         })
         self.assertEqual(resolution.state, "done")
-        self.assertTrue(resolution.completion_date)
 
     def test_assignee_cannot_cancel_or_reopen(self):
         meeting = self._create_meeting()
@@ -57,16 +56,16 @@ class TestResolutionSecurity(CyanMeetingCase):
         meeting = self._create_meeting()
         resolution = self._create_resolution(meeting)
         with self.assertRaises(AccessError):
-            resolution.with_user(self.organizer).write({"completion_date": meeting.meeting_date})
+            resolution.with_user(self.organizer).write({"company_id": self.company_other.id})
         with self.assertRaises(AccessError):
-            resolution.with_user(self.organizer).write({"is_escalated": True})
+            resolution.with_user(self.organizer).write({"can_edit_decision": True})
         with self.assertRaises(AccessError):
-            self.Resolution.with_user(self.organizer).with_context(default_is_escalated=True).create({
+            self.Resolution.with_user(self.organizer).with_context(default_company_id=self.company_other.id).create({
                 "meeting_id": meeting.id,
                 "name": "x",
                 "responsible_id": self.attendee.id,
                 "deadline": meeting.meeting_date,
-                "is_escalated": True,
+                "company_id": self.company_other.id,
             })
 
     def test_outsider_cannot_read_resolution(self):

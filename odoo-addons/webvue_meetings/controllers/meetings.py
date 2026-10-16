@@ -197,7 +197,7 @@ class MeetingController(http.Controller):
         if args.get('mine') in {'1', 'true'}:
             uid = request.env.uid
             domain += ['|', '|', ('organizer_id', '=', uid), ('secretary_id', '=', uid), ('attendee_ids', 'in', [uid])]
-        Meeting = request.env['cyan.meeting.minute']
+        Meeting = request.env['webvue.meeting.minute']
         records = Meeting.search(domain, order='meeting_date desc, id desc', limit=limit, offset=offset)
         return {
             'items': dump_meetings(records),
@@ -209,7 +209,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def get_meeting(self, meeting_id, **_):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         return dump_meeting(meeting, detail=True)
 
     @http.route('/api/v1/meetings', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -267,7 +267,7 @@ class MeetingController(http.Controller):
                 parse_positive_int(project_id, 'project_id'),
             ))
         with request.env.cr.savepoint():
-            meeting = request.env['cyan.meeting.minute'].create(vals)
+            meeting = request.env['webvue.meeting.minute'].create(vals)
             if minutes_form is not None:
                 meeting._webvue_set_minutes_form(minutes_form)
         return request.make_json_response(dump_meeting(meeting, detail=True), status=201)
@@ -277,7 +277,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def patch_meeting(self, meeting_id, **payload):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_editor(meeting)
         payload.pop('meeting_id', None)
         allowed = {
@@ -360,7 +360,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def cancel_meeting(self, meeting_id, scope='this', **_):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_manager(meeting)
         if scope not in {'this', 'this_and_following'}:
             raise ApiError(422, 'invalid', 'invalid scope', field='scope')
@@ -377,7 +377,7 @@ class MeetingController(http.Controller):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
         if extra:
             raise ApiError(422, 'invalid', 'unsupported resolution fields: %s' % ', '.join(sorted(extra)))
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         if not isinstance(name, str) or not name.strip():
             raise ApiError(422, 'invalid', 'name must not be empty', field='name')
         if deadline is not None and (not isinstance(deadline, str) or not deadline.strip()):
@@ -403,7 +403,7 @@ class MeetingController(http.Controller):
             if not isinstance(priority, str) or priority not in {'0', '1', '2', '3'}:
                 raise ApiError(422, 'invalid', 'priority must be one of 0, 1, 2, or 3', field='priority')
             vals['priority'] = priority
-        resolution = request.env['cyan.meeting.resolution'].create(vals)
+        resolution = request.env['webvue.meeting.resolution'].create(vals)
         if resolution.responsible_id:
             meeting._webvue_notify_partners(
                 resolution.responsible_id.partner_id,
@@ -414,8 +414,8 @@ class MeetingController(http.Controller):
         return request.make_json_response(dump_resolution(resolution), status=201)
 
     def _resolution(self, meeting_id, resolution_id):
-        meeting = get_record('cyan.meeting.minute', meeting_id)
-        resolution = get_record('cyan.meeting.resolution', resolution_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
+        resolution = get_record('webvue.meeting.resolution', resolution_id)
         if resolution.meeting_id != meeting:
             raise ApiError(404, 'not_found', 'resolution not found')
         return meeting, resolution
@@ -425,7 +425,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def confirm_meeting(self, meeting_id, **_):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         meeting.action_confirm()
         return dump_meeting(meeting, detail=True)
 
@@ -434,7 +434,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def complete_meeting(self, meeting_id, **_):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_manager(meeting)
         gap = meeting._webvue_completion_gap()
         if gap:
@@ -448,7 +448,7 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def reopen_meeting(self, meeting_id, **_):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         _require_manager(meeting)
         meeting.action_reset_draft()
         return dump_meeting(meeting, detail=True)
@@ -524,9 +524,9 @@ class MeetingController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def minutes_pdf(self, meeting_id, **_):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         pdf, _type = request.env['ir.actions.report']._render_qweb_pdf(
-            'cyan_meeting_minutes.action_report_meeting_minutes', meeting.ids,
+            'webvue_meetings.action_report_meeting_minutes', meeting.ids,
         )
         filename = '%s.pdf' % (meeting.reference or 'minutes')
         return request.make_response(pdf, headers=[

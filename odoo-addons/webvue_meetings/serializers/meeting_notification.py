@@ -6,7 +6,7 @@ from odoo.addons.webvue_api.serializers.common import iso
 
 def dump_meeting_notification(notification):
     message = notification.mail_message_id
-    meeting = message.env['cyan.meeting.minute'].browse(message.webvue_meeting_id).exists()
+    meeting = message.env['webvue.meeting.minute'].browse(message.webvue_meeting_id).exists()
     return {
         'id': notification.id,
         'kind': message.webvue_notification_kind,

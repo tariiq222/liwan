@@ -236,7 +236,9 @@ cross-addon links.
   `webvue_notify` uses it only for bell delivery and recipient-owned bell reads.
   `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records, the company-wide organizer-overlap check, the
-  meeting-manager group lookup and the recipient-owned bell candidates;
+  meeting-manager group lookup, the existence check of the minutes linked to a
+  calendar event (read only, access is rechecked by the caller) and the
+  recipient-owned bell candidates;
   `webvue_meetings_pmo` only for the id-only lookup of converted tasks. Do not add
   another case without documenting it and fixing ACLs/rules where possible.
 - The current delivery scope has no time logging or payroll product surface.

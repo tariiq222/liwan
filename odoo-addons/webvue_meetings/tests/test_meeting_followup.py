@@ -10,21 +10,21 @@ class TestMeetingFollowup(TestMeetingWorkspace):
 
     def test_followup_visibility_filters_and_pagination(self):
         meeting = self._meeting(name='Global followup source')
-        resolutions = self.env['cyan.meeting.resolution'].create([
+        resolutions = self.env['webvue.meeting.resolution'].create([
             {'meeting_id': meeting.id, 'name': f'Followup {i:03}',
              'responsible_id': self.employee.id, 'deadline': '2020-01-01'}
             for i in range(105)
         ])
         # Non-participants cannot discover recommendations from another meeting.
         hidden = self._meeting(organizer_id=self.manager.id)
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': hidden.id, 'name': 'Hidden assigned',
             'responsible_id': self.manager.id, 'execution_period': 'Continuous',
         })
         other_company = self.env['res.company'].create({'name': 'Followup other company'})
         self.manager.company_ids |= other_company
         other = self._meeting(company_id=other_company.id, organizer_id=self.manager.id)
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': other.id, 'name': 'Other company',
             'responsible_id': self.manager.id, 'execution_period': 'Continuous',
         })
@@ -50,7 +50,7 @@ class TestMeetingFollowup(TestMeetingWorkspace):
     def test_followup_participant_and_secretary_keep_existing_visibility(self):
         for values in ({'attendee_ids': [(6, 0, self.employee.ids)]}, {'secretary_id': self.employee.id}):
             meeting = self._meeting(organizer_id=self.manager.id, **values)
-            self.env['cyan.meeting.resolution'].create({
+            self.env['webvue.meeting.resolution'].create({
                 'meeting_id': meeting.id, 'name': 'Participant followup',
                 'responsible_id': self.manager.id, 'execution_period': 'Continuous',
             })

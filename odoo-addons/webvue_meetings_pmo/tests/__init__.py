@@ -5,7 +5,6 @@ from . import (
     test_meeting_history_pmo,
     test_meeting_series_pmo,
     test_meeting_workspace_pmo,
-    test_meetings_ownership_migration,
     test_meetings_pmo,
     test_resolution_convert,
 )

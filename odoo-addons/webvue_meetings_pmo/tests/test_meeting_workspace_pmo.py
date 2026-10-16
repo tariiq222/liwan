@@ -55,12 +55,12 @@ class TestMeetingWorkspaceProjects(WebVuePmoCase):
             'meeting_date': '2026-09-09',
         }
         vals.update(values)
-        return self.env['cyan.meeting.minute'].create(vals)
+        return self.env['webvue.meeting.minute'].create(vals)
 
     def test_invalid_form_does_not_commit_ordinary_patch_and_foreign_access_is_denied(self):
         meeting = self._meeting()
         other = self._meeting(name='Foreign meeting')
-        foreign_resolution = self.env['cyan.meeting.resolution'].create({
+        foreign_resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': other.id, 'name': 'Foreign recommendation',
             'responsible_id': self.employee.id, 'execution_period': 'مستمر',
         })
@@ -103,7 +103,7 @@ class TestMeetingWorkspaceProjects(WebVuePmoCase):
         project = self.env['project.project'].create({
             'name': 'Workspace task project', 'company_id': self.env.company.id,
         })
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id, 'name': 'Captured task',
             'responsible_id': self.employee.id, 'deadline': '2026-09-30',
         })

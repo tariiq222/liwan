@@ -14,7 +14,7 @@ class TestResolutionConvert(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.company
-        meeting_user = 'webvue_core.group_employee,cyan_meeting_minutes.group_meeting_user'
+        meeting_user = 'webvue_core.group_employee,webvue_meetings.group_cap_meetings_read'
         cls.organizer = new_test_user(
             cls.env, login='cvt_org', groups=meeting_user,
             company_id=cls.company.id, company_ids=[cls.company.id],
@@ -73,8 +73,8 @@ class TestResolutionConvert(TransactionCase):
             ]).ids)],
         })
         Assignment.create({'user_id': cls.organizer.id, 'role_id': create_role.id, 'company_id': cls.company.id})
-        cls.Meeting = cls.env['cyan.meeting.minute']
-        cls.Resolution = cls.env['cyan.meeting.resolution']
+        cls.Meeting = cls.env['webvue.meeting.minute']
+        cls.Resolution = cls.env['webvue.meeting.resolution']
 
     def _create_meeting(self, **extra):
         vals = {

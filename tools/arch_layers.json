@@ -19,9 +19,7 @@
     "webvue_operations_pmo": 5,
     "webvue_registry_probe": 3
   },
-  "exempt": [
-    "cyan_meeting_minutes"
-  ],
+  "exempt": [],
   "web_apps": {
     "ai": {
       "components": [

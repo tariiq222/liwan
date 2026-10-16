@@ -21,8 +21,8 @@ class MeetingResolutionConvertController(http.Controller):
     @requires_feature('meetings.enabled', 'pmo.enabled', operation='write')
     def convert_resolution(self, meeting_id, resolution_id, project_id=None, **_):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
-        resolution = get_record('cyan.meeting.resolution', resolution_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
+        resolution = get_record('webvue.meeting.resolution', resolution_id)
         if resolution.meeting_id != meeting:
             raise ApiError(404, 'not_found', 'resolution not found')
         task = resolution.action_convert_to_task(parse_positive_int(project_id, 'project_id'))

@@ -81,7 +81,7 @@ class TestMeetingPermissions(WebVueMeetingsCase):
                 cls.users['creator'].id,
             ])],
         })
-        cls.meeting = cls.env['cyan.meeting.minute'].with_company(cls.company_a).create({
+        cls.meeting = cls.env['webvue.meeting.minute'].with_company(cls.company_a).create({
             'name': 'Permission meeting',
             'state': 'draft',
             'company_id': cls.company_a.id,

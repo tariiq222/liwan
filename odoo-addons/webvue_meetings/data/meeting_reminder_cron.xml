@@ -2,7 +2,7 @@
 <odoo>
     <record id="ir_cron_webvue_meeting_reminders" model="ir.cron">
         <field name="name">webvue: meeting reminders</field>
-        <field name="model_id" ref="cyan_meeting_minutes.model_cyan_meeting_minute"/>
+        <field name="model_id" ref="model_webvue_meeting_minute"/>
         <field name="state">code</field>
         <field name="code">model._webvue_run_meeting_reminders()</field>
         <field name="user_id" ref="base.user_root"/>

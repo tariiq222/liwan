@@ -2,10 +2,10 @@
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Command
 
-from .common import CyanMeetingCase
+from .common import WebVueMeetingEngineCase
 
 
-class TestMeetingSecurity(CyanMeetingCase):
+class TestMeetingSecurity(WebVueMeetingEngineCase):
 
     def test_outsider_cannot_read_or_write(self):
         meeting = self._create_meeting()
@@ -101,7 +101,8 @@ class TestMeetingSecurity(CyanMeetingCase):
         meeting.with_user(self.organizer).action_confirm()
         copy = meeting.with_user(self.organizer).copy()
         self.assertEqual(copy.state, "draft")
-        self.assertFalse(copy.calendar_event_id)
+        # The copy gets an event of its own: it never shares the original's calendar link.
+        self.assertNotEqual(copy.calendar_event_id, meeting.calendar_event_id)
         self.assertNotEqual(copy.reference, meeting.reference)
 
     def test_batch_unlink_requires_manager(self):

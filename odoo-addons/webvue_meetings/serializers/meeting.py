@@ -53,7 +53,7 @@ def _visible_snapshot_rows(meeting, snapshot):
     the caller cannot open stays out of the version history and the frozen minutes.
     """
     rows = [row for row in snapshot.get('resolutions', []) if isinstance(row, dict) and row.get('id')]
-    Resolution = meeting.env['cyan.meeting.resolution']
+    Resolution = meeting.env['webvue.meeting.resolution']
     visible = Resolution.browse([row['id'] for row in rows]).exists()._filtered_access('read')
     visible_ids = set(visible.ids)
     return [row for row in rows if row['id'] in visible_ids], visible
@@ -142,7 +142,7 @@ def _resolution_allowed_actions(resolution, *, linked, manager=None):
     meeting = resolution.meeting_id
     if meeting.state == 'cancelled':
         return []
-    manager = resolution._cyan_is_manager() if manager is None else manager
+    manager = resolution._webvue_is_manager() if manager is None else manager
     editor = manager or resolution.env.user in (meeting.organizer_id | meeting.secretary_id)
     assignee = resolution.env.user == resolution.responsible_id
     if resolution.state in ('done', 'cancelled'):
@@ -268,7 +268,7 @@ def dump_previous_resolutions(meeting):
     current_key = _meeting_order_key(meeting)
     # A search applies the caller's record rules even when another environment
     # of the same transaction has already cached the series' full occurrence list.
-    others = meeting.env['cyan.meeting.minute'].search([
+    others = meeting.env['webvue.meeting.minute'].search([
         ('series_id', '=', meeting.series_id.id), ('id', '!=', meeting.id),
     ]).filtered(lambda item: _meeting_order_key(item) < current_key)
     readable = _links(meeting)._webvue_readable_links(others.mapped('resolution_ids'))

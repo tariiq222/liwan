@@ -38,11 +38,11 @@ class TestMeetingSeriesProjects(WebVuePmoCase):
         self.assertEqual([row['id'] for row in body['items']], [target.id])
 
     def test_converted_resolution_execution_is_frozen(self):
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Convert freeze', 'organizer_id': self.employee.id,
             'attendee_ids': [(6, 0, self.employee.ids)], 'meeting_date': fields.Date.today(),
         })
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id, 'name': 'Follow', 'responsible_id': self.employee.id,
             'deadline': fields.Date.today(),
         })
@@ -71,7 +71,7 @@ class TestMeetingSeriesProjects(WebVuePmoCase):
         meeting = series.action_add_occurrence(
             datetime(2026, 9, 1, 9, 0), datetime(2026, 9, 1, 10, 0), 'Converted overdue',
         )
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id, 'name': 'Follow on task', 'responsible_id': self.employee.id,
             'deadline': '2020-01-01',
         })
@@ -79,7 +79,7 @@ class TestMeetingSeriesProjects(WebVuePmoCase):
         following = series.action_add_occurrence(
             datetime(2026, 9, 8, 9, 0), datetime(2026, 9, 8, 10, 0), 'Following meeting',
         )
-        self.env['cyan.meeting.minute']._webvue_run_meeting_reminders()
+        self.env['webvue.meeting.minute']._webvue_run_meeting_reminders()
         self.assertFalse(self.env['mail.message'].sudo().search([
             ('webvue_meeting_id', '=', meeting.id),
             ('webvue_notification_kind', '=', 'meeting_resolution_overdue'),
@@ -96,7 +96,7 @@ class TestMeetingSeriesProjects(WebVuePmoCase):
         prior_row = next(item for item in prior if item['id'] == resolution.id)
         self.assertEqual(prior_row['task_id'], task.id)
         task.write({'active': False})
-        self.env['cyan.meeting.minute']._webvue_run_meeting_reminders()
+        self.env['webvue.meeting.minute']._webvue_run_meeting_reminders()
         archived_response = self.api('GET', f'/api/v1/meetings/{following.id}')
         self.assertEqual(archived_response.status_code, 200, archived_response.text)
         archived_prior = archived_response.json()['previous_resolutions']

@@ -20,14 +20,14 @@ class TestWebVueMeetingCompanyAccess(TransactionCase):
             role = cls.env['webvue.access.role'].with_company(company).create({'name_ar': 'اختبار الشركة', 'company_id': company.id,
                 'permission_ids': [(6, 0, Permission.search([('key', 'in', keys)]).ids)]})
             cls.env['webvue.access.assignment'].create({'user_id': cls.user.id, 'role_id': role.id, 'company_id': company.id})
-        cls.meeting = cls.env['cyan.meeting.minute'].with_company(cls.company_b).create({
+        cls.meeting = cls.env['webvue.meeting.minute'].with_company(cls.company_b).create({
             'name': 'Private B', 'company_id': cls.company_b.id, 'organizer_id': cls.owner.id, 'state': 'draft'})
-        cls.resolution = cls.env['cyan.meeting.resolution'].create({'meeting_id': cls.meeting.id,
+        cls.resolution = cls.env['webvue.meeting.resolution'].create({'meeting_id': cls.meeting.id,
             'name': 'Private decision', 'responsible_id': cls.owner.id, 'deadline': '2026-09-10'})
 
     def test_manager_in_a_is_not_manager_or_reader_of_unrelated_b(self):
         Meeting = self.meeting.with_user(self.user).with_company(self.company_b)
-        self.assertFalse(Meeting._cyan_is_manager())
+        self.assertFalse(Meeting._webvue_is_manager())
         self.assertFalse(Meeting.search([('id', '=', self.meeting.id)]))
         with self.assertRaises(AccessError):
             Meeting.read(['name'])
@@ -40,7 +40,7 @@ class TestWebVueMeetingCompanyAccess(TransactionCase):
 
     def test_read_capability_does_not_grant_direct_create(self):
         with self.assertRaises(AccessError):
-            self.env['cyan.meeting.minute'].with_user(self.user).with_company(self.company_b).create({'name': 'Illicit'})
+            self.env['webvue.meeting.minute'].with_user(self.user).with_company(self.company_b).create({'name': 'Illicit'})
 
     def test_b_participant_can_read_but_cannot_edit_or_manage(self):
         self.meeting.write({'attendee_ids': [(4, self.user.id)]})
@@ -52,6 +52,6 @@ class TestWebVueMeetingCompanyAccess(TransactionCase):
 
     def test_attachment_target_access_uses_company_scoped_meeting_rule(self):
         attachment = self.env['ir.attachment'].create({'name': 'private.txt', 'raw': b'private',
-            'res_model': 'cyan.meeting.minute', 'res_id': self.meeting.id, 'type': 'binary'})
+            'res_model': 'webvue.meeting.minute', 'res_id': self.meeting.id, 'type': 'binary'})
         with self.assertRaises(AccessError):
             attachment.with_user(self.user).with_company(self.company_b).read(['raw'])
