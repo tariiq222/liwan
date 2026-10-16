@@ -27,19 +27,19 @@ export async function allOperationCounts(pool: Pool) {
   return result.rows[0]
 }
 
-export async function allOperations(pool: Pool, tenantId: string, page: number) {
+export async function allOperations(pool: Pool, tenantId: string, page: number, statuses: string[] | null) {
   // One snapshot covers page and total, including pages beyond the final row.
   const result = await pool.query(`WITH feed AS (
     SELECT id,tenant_id,type,status,stage,request_id,reason,result,created_at,updated_at,
       'legacy'::text AS source,NULL::timestamptz AS last_event_at
-    FROM operations WHERE ($1::uuid IS NULL OR tenant_id=$1::uuid)
+    FROM operations WHERE ($1::uuid IS NULL OR tenant_id=$1::uuid) AND ($3::text[] IS NULL OR status=ANY($3))
     UNION ALL
     SELECT ${SHARED_FIELDS} FROM ${SHARED_FROM}
-    WHERE ($1::uuid IS NULL OR j.control_tenant_id=$1::uuid)
+    WHERE ($1::uuid IS NULL OR j.control_tenant_id=$1::uuid) AND ($3::text[] IS NULL OR j.state=ANY($3))
   ), page AS (
     SELECT * FROM feed ORDER BY created_at DESC,source ASC,id DESC LIMIT 25 OFFSET $2
   ) SELECT totals.total,page.* FROM (SELECT count(*)::int AS total FROM feed) totals
-    LEFT JOIN page ON true ORDER BY page.created_at DESC,page.source ASC,page.id DESC`, [tenantId || null, (page - 1) * 25])
+    LEFT JOIN page ON true ORDER BY page.created_at DESC,page.source ASC,page.id DESC`, [tenantId || null, (page - 1) * 25, statuses])
   return { items: result.rows.filter(row => row.id !== null).map(({ total: _total, ...row }) => row), total: result.rows[0].total }
 }
 

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { operationFeedSchema, operationSchema } from '../index.js'
+import { operationFeedSchema, operationListStatusSchema, operationSchema, operationStatusesOf } from '../index.js'
 
 const shared = {
   source: 'shared', id: '10000000-0000-4000-8000-000000000001', tenant_id: '10000000-0000-4000-8000-000000000002',
@@ -14,4 +14,11 @@ it('rejects shared arbitrary diagnostics, fabricated update timestamps, and leak
   for (const extra of [{ result: { secret: 'value' } }, { payload: {} }, { reason: '/private/credentials' }, { updated_at: shared.created_at }, { status: 'succeeded' }]) {
     expect(operationFeedSchema.safeParse({ ...shared, ...extra }).success).toBe(false)
   }
+})
+
+it('expands the list status groups to the statuses the overview counts', () => {
+  expect(operationStatusesOf('attention')).toEqual(['failed', 'needs_intervention'])
+  expect(operationStatusesOf('pending')).toEqual(['queued', 'running'])
+  expect(operationStatusesOf('verified')).toEqual(['verified'])
+  expect(operationListStatusSchema.safeParse('bogus').success).toBe(false)
 })

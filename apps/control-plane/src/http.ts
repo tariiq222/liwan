@@ -32,7 +32,7 @@ import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
-import { operationRequestSchema, operationsGrantSchema, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@nasq/commercial-contracts'
+import { operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@nasq/commercial-contracts'
 import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
@@ -529,8 +529,12 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const page = pageFrom(url)
         const tenantId = url.searchParams.get('tenant_id') ?? ''
         if (tenantId && !new RegExp(`^${UUID}$`).test(tenantId)) throw new ApiError(422, 'invalid', 'Invalid tenant', 'tenant_id')
-        if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, await allOperations(pool, tenantId, page))
-        const result = await pool.query(`SELECT ${OP_FIELDS},count(*) OVER()::int AS total FROM operations WHERE ($1='' OR tenant_id=$1::uuid) ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET $2`, [tenantId, (page - 1) * 25])
+        const status = url.searchParams.get('status')
+        const parsedStatus = status === null ? null : operationListStatusSchema.safeParse(status)
+        if (parsedStatus && !parsedStatus.success) throw new ApiError(422, 'invalid', 'Invalid operation status', 'status')
+        const statuses = parsedStatus ? operationStatusesOf(parsedStatus.data) : null
+        if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, await allOperations(pool, tenantId, page, statuses))
+        const result = await pool.query(`SELECT ${OP_FIELDS},count(*) OVER()::int AS total FROM operations WHERE ($1='' OR tenant_id=$1::uuid) AND ($3::text[] IS NULL OR status=ANY($3)) ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET $2`, [tenantId, (page - 1) * 25, statuses])
         return respond(res, 200, { items: result.rows.map(({ total: _total, ...row }) => row), total: result.rows[0]?.total ?? 0 })
       }
       const opMatch = pathname.match(new RegExp(`^/v1/operations/(${UUID})$`))
