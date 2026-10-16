@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createStepUp, StepUpCancelled, type StepUpDeps } from '../useStepUp'
+import { createStepUp, StepUpCancelled, stepUpCancelledKey, type StepUpDeps } from '../useStepUp'
 
 const OPTIONS = { challenge: 'abc' }
 const failure = (statusCode: number, code?: string) => Object.assign(new Error('fetch failed'), { statusCode, data: code ? { code } : undefined })
@@ -122,5 +122,13 @@ describe('createStepUp', () => {
     const error = failure(409, 'conflict')
     await expect(stepUp.run(() => Promise.reject(error))).rejects.toBe(error)
     expect(stepUp.pending.value).toBe(false)
+  })
+})
+
+describe('stepUpCancelledKey', () => {
+  it('names the inline message for a cancelled step-up only', () => {
+    expect(stepUpCancelledKey(new StepUpCancelled())).toBe('adminAuth.stepUp.cancelled')
+    expect(stepUpCancelledKey(new Error('x'))).toBeNull()
+    expect(stepUpCancelledKey(null)).toBeNull()
   })
 })

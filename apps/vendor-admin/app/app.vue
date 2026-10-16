@@ -12,6 +12,7 @@ useHead(() => ({
 
 <template>
   <UApp :locale="locale === 'ar' ? ar : en">
+    <StepUpPanel />
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

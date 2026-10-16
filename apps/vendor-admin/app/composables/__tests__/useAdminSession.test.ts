@@ -34,6 +34,14 @@ describe('useAdminSession', () => {
     expect(first.can('vendor.audit.read')).toBe(false)
   })
 
+  it('does not call the BFF until ready is read', async () => {
+    fetcher.mockResolvedValue(profile)
+    const { refresh } = useAdminSession()
+    expect(fetcher).not.toHaveBeenCalled()
+    await refresh()
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
   it('treats 401 as signed out', async () => {
     fetcher.mockRejectedValue(failure(401))
     const session = useAdminSession()

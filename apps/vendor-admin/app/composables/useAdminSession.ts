@@ -55,5 +55,12 @@ export function useAdminSession() {
 
   const can = (capability: string): boolean => me.value?.capabilities.includes(capability) ?? false
 
-  return { me, ready: load(), can, refresh, signOut }
+  return {
+    me,
+    // Read on demand: pages that must not call the BFF on arrival (enrollment) take only `refresh`.
+    get ready() { return load() },
+    can,
+    refresh,
+    signOut,
+  }
 }

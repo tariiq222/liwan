@@ -13,6 +13,9 @@ export class StepUpCancelled extends Error {
 
 export const isStepUpCancelled = (error: unknown): error is StepUpCancelled => error instanceof StepUpCancelled
 
+/** The inline message a form shows when the person did not confirm; null for any other failure. */
+export const stepUpCancelledKey = (error: unknown): string | null => isStepUpCancelled(error) ? 'adminAuth.stepUp.cancelled' : null
+
 export interface StepUpDeps {
   post: AuthPost
   authenticate: (options: { optionsJSON: PublicKeyCredentialRequestOptionsJSON }) => Promise<AuthenticationResponseJSON>

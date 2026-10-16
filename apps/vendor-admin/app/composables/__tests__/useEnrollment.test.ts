@@ -82,9 +82,9 @@ describe('createEnrollment', () => {
   it('lets the person ask for the authenticator setup again without registering a second passkey', async () => {
     let totpCalls = 0
     const base = setup().post
-    const post = vi.fn(async (path: string, body: object) => {
+    const post = vi.fn(async (path: string) => {
       if (path === '/api/auth/enroll/totp' && totpCalls++ === 0) throw failure(503, 'admin_unavailable')
-      return base(path, body)
+      return base(path)
     })
     const { enrollment, register } = setup({ post: post as unknown as EnrollmentDeps['post'] })
     await enrollment.start()
@@ -130,9 +130,9 @@ describe('createEnrollment', () => {
 
   it('shows a refused code and stays on the authenticator step', async () => {
     const base = setup().post
-    const post = vi.fn(async (path: string, body: object) => {
+    const post = vi.fn(async (path: string) => {
       if (path.endsWith('/complete')) throw failure(422, 'invalid')
-      return base(path, body)
+      return base(path)
     })
     const { enrollment } = setup({ post: post as unknown as EnrollmentDeps['post'] })
     await enrollment.start()
