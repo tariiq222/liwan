@@ -13,8 +13,9 @@ function setup(overrides: Partial<StepUpDeps> = {}) {
   })
   const authenticate = vi.fn(async () => { order.push('authenticate'); return { id: 'assertion' } })
   const onSessionEnded = vi.fn()
-  const stepUp = createStepUp({ post: post as StepUpDeps['post'], authenticate: authenticate as unknown as StepUpDeps['authenticate'], onSessionEnded, ...overrides })
-  return { stepUp, post, authenticate, onSessionEnded, order }
+  const abortPrompt = vi.fn()
+  const stepUp = createStepUp({ post: post as StepUpDeps['post'], authenticate: authenticate as unknown as StepUpDeps['authenticate'], onSessionEnded, abortPrompt, ...overrides })
+  return { stepUp, post, authenticate, onSessionEnded, abortPrompt, order }
 }
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 
@@ -81,6 +82,18 @@ describe('createStepUp', () => {
     await expect(running).rejects.toBeInstanceOf(StepUpCancelled)
     expect(post).not.toHaveBeenCalledWith('/api/auth/step-up-verify', expect.anything())
     expect(retry).not.toHaveBeenCalled()
+  })
+
+  it('cancels at once, and closes the browser prompt, when it never answers', async () => {
+    const { stepUp, abortPrompt } = setup({ authenticate: (() => new Promise(() => undefined)) as unknown as StepUpDeps['authenticate'] })
+    const retry = vi.fn()
+    const running = stepUp.run(retry)
+    await tick()
+    stepUp.cancel()
+    await expect(running).rejects.toBeInstanceOf(StepUpCancelled)
+    expect(abortPrompt).toHaveBeenCalledTimes(1)
+    expect(retry).not.toHaveBeenCalled()
+    expect(stepUp.pending.value).toBe(false)
   })
 
   it('treats a rejected assertion on the server as a retryable failure, not a sign-out', async () => {

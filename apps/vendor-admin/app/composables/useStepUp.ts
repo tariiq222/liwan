@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
-import { startAuthentication, type AuthenticationResponseJSON, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
+import type { AuthenticationResponseJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import { authErrorKey, statusOf } from '../utils/authError'
-import { authPost, type AuthPost } from '../utils/authPost'
+import type { AuthPost } from '../utils/authPost'
 
 /** The person closed the step-up panel: the request that needed it was not sent again. */
 export class StepUpCancelled extends Error {
@@ -21,6 +21,8 @@ export interface StepUpDeps {
   authenticate: (options: { optionsJSON: PublicKeyCredentialRequestOptionsJSON }) => Promise<AuthenticationResponseJSON>
   /** The session behind the cookie is gone. */
   onSessionEnded: () => unknown
+  /** Closes the browser's passkey prompt when the person cancels while it is open. */
+  abortPrompt: () => void
 }
 
 export interface StepUpState {
@@ -44,6 +46,7 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
   let decision: ((choice: Choice) => void) | null = null
   let ceremony: Promise<void> | null = null
   let cancelled = false
+  let cancelPrompt: (() => void) | null = null
 
   const choose = (choice: Choice) => {
     const settle = decision
@@ -60,7 +63,10 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
         await deps.onSessionEnded()
         throw new SessionGone(error)
       })
-    const response = await deps.authenticate({ optionsJSON: challenge.options })
+    const prompt = deps.authenticate({ optionsJSON: challenge.options })
+    // A prompt the person cancelled settles at once, whatever the browser does with it.
+    const dismissed = new Promise<never>((_, reject) => { cancelPrompt = () => reject(new StepUpCancelled()) })
+    const response = await Promise.race([prompt, dismissed]).finally(() => { cancelPrompt = null })
     if (cancelled) throw new StepUpCancelled()
     await deps.post('/api/auth/step-up-verify', { challenge_id: challenge.challenge_id, response })
   }
@@ -104,24 +110,14 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
     retry: () => choose('retry'),
     cancel: () => {
       cancelled = true
+      deps.abortPrompt()
+      cancelPrompt?.()
       choose('cancel')
     },
   }
 }
 
-// The ceremony's pending decision lives in the closure, so there is one per app (keyed by its shared state).
-const instances = new WeakMap<object, ReturnType<typeof createStepUp>>()
-
+/** The app's one step-up flow (see plugins/stepUp.ts). */
 export function useStepUp() {
-  const state: StepUpState = {
-    pending: useState('admin-step-up-pending', () => false),
-    waiting: useState('admin-step-up-waiting', () => false),
-    error: useState<string | null>('admin-step-up-error', () => null),
-  }
-  let instance = instances.get(state.pending)
-  if (!instance) {
-    instance = createStepUp({ post: authPost, authenticate: startAuthentication, onSessionEnded: useSessionEnded() }, state)
-    instances.set(state.pending, instance)
-  }
-  return instance
+  return useNuxtApp().$stepUp
 }
