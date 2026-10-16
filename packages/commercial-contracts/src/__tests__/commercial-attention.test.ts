@@ -10,6 +10,9 @@ describe('vendor attention contract', () => {
     expect(attentionItemSchema.parse(item).kind).toBe('past_due')
     expect(attentionSchema.parse({ items: [item], total: 1, counts }).total).toBe(1)
   })
+  it('has no overdue-invoice count for callers without billing access', () => {
+    expect(attentionSchema.parse({ items: [], total: 0, counts: { ...counts, past_due: null } }).counts.past_due).toBeNull()
+  })
   it('rejects unknown kinds, extra fields, bad ids and an over-long list', () => {
     expect(() => attentionItemSchema.parse({ ...item, kind: 'revenue' })).toThrow()
     expect(() => attentionItemSchema.parse({ ...item, amount: 1 })).toThrow()

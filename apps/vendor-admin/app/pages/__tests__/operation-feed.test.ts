@@ -55,6 +55,11 @@ async function page(name: string, data: unknown, source?: string, query: Record<
 }
 const operation = { id: 'job-id', tenant_id: 'tenant-id', type: 'provision', source: 'shared', status: 'verified', stage: 'verified', reason: 'shared_execution_verified', request_id: 'request-id', result: null, created_at: '2026-10-01T00:00:00Z', updated_at: null, last_event_at: null, events: [] }
 
+it('lets the operation page return to Today and to the operations list', () => {
+  expect(readFileSync(resolve(import.meta.dirname, '../operations/[id].vue'), 'utf8')).toContain("safeReturnTo(route.query.returnTo, '/operations', ['/operations', '/overview'])")
+  expect(safeReturnTo('/overview', '/operations', ['/operations', '/overview'])).toBe('/overview')
+})
+
 it('opts overview and list into the combined feed and carries source through links', async () => {
   expect(readFileSync(resolve(import.meta.dirname, '../overview.vue'), 'utf8')).toContain("request<{ tenants: number, active: number, pending_operations: number, failed_operations: number, last_health_at: string | null }>('overview', { query: { source: 'all' } })")
   const list = await page('operations/index.vue', { items: [operation], total: 1 })

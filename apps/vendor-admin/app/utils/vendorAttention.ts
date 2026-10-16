@@ -15,8 +15,15 @@ export function daysBetween(since: string, now: Date): number {
   return Math.floor((now.getTime() - Date.parse(since)) / DAY_MS)
 }
 
-/** Calendar days until a renewal (0 on the day itself), rounded up from its midnight. */
-export const daysUntil = (since: string, now: Date) => Math.max(0, Math.ceil((Date.parse(since) - now.getTime()) / DAY_MS))
+// The server dates renewals in the business zone (Asia/Riyadh, UTC+3 all year), so days are counted on that calendar.
+const BUSINESS_UTC_OFFSET_MS = 3 * 3_600_000
+const businessDay = (instant: number) => Math.floor((instant + BUSINESS_UTC_OFFSET_MS) / DAY_MS)
+
+/** Calendar days until a renewal (0 on the day itself, or after it). */
+export const daysUntil = (since: string, now: Date) => Math.max(0, businessDay(Date.parse(since)) - businessDay(now.getTime()))
+
+/** Calendar days since a renewal date passed (0 on the day itself). */
+export const daysSinceRenewal = (since: string, now: Date) => Math.max(0, businessDay(now.getTime()) - businessDay(Date.parse(since)))
 
 /** The precise page each kind of item is resolved on. */
 export function attentionPresentation(item: AttentionItem): AttentionPresentation {
@@ -30,6 +37,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: item.operation_id ? { path: `/operations/${item.operation_id}`, query: { source: 'legacy', returnTo: '/overview' } } : null, tone: 'destructive', icon: 'i-lucide-circle-alert', actionKey: action(item.kind) }
     case 'setup_required':
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-wrench', actionKey: action(item.kind) }
+    case 'renewal_missed':
+      return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-calendar-x', actionKey: action(item.kind) }
     case 'renewal_soon':
       return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-calendar-clock', actionKey: action(item.kind) }
   }
@@ -47,6 +56,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
         : { key: 'stalled_waiting', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'operation_failed': return { key: 'operation_failed', days: null, operation: item.detail }
     case 'setup_required': return { key: 'setup_required', days: null, operation: null }
+    case 'renewal_missed': return { key: 'renewal_missed', days: daysSinceRenewal(item.since, now), operation: null }
     case 'renewal_soon': return { key: 'renewal_soon', days: daysUntil(item.since, now), operation: null }
   }
 }
