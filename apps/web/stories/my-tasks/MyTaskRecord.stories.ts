@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import RecordPage from '../../app/components/shared/layout/RecordPage.vue'
-import RecordSection from '../../app/components/shared/layout/RecordSection.vue'
-import PropertiesPanel from '../../app/components/shared/layout/PropertiesPanel.vue'
-import PropertyRow from '../../app/components/shared/layout/PropertyRow.vue'
-import EmptyState from '../../app/components/shared/feedback/EmptyState.vue'
+import RecordPage from '@nasq/ui/app/components/shared/layout/RecordPage.vue'
+import RecordSection from '@nasq/ui/app/components/shared/layout/RecordSection.vue'
+import PropertiesPanel from '@nasq/ui/app/components/shared/layout/PropertiesPanel.vue'
+import PropertyRow from '@nasq/ui/app/components/shared/layout/PropertyRow.vue'
+import EmptyState from '@nasq/ui/app/components/shared/feedback/EmptyState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
