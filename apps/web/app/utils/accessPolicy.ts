@@ -5,7 +5,6 @@ import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 /** Server capabilities gate navigation; resource authorization remains on the API. */
 export type AccessIdentity = {
   role?: string
-  vendorCapabilities?: readonly string[]
   capabilities?: readonly string[]
   modules?: readonly string[]
   entitlements?: Record<string, boolean | number | null>
@@ -21,7 +20,6 @@ export const INTERNAL_NASQ_ACCESS = 'nasq.internal'
 /** UI predicate for the shared inbox; this is not a server capability grant. */
 export const NOTIFICATION_ACCESS = 'nasq.notifications'
 export function hasCapability(identity: AccessIdentity, capability: string): boolean {
-  if (capability.startsWith('vendor.')) return identity?.vendorCapabilities?.includes(capability) ?? false
   if (capability === INTERNAL_NASQ_ACCESS) return Array.isArray(identity?.capabilities)
   if (capability === NOTIFICATION_ACCESS) {
     return activeManifests().some(manifest => manifest.bell?.capabilities.some(key => identity?.capabilities?.includes(key)))

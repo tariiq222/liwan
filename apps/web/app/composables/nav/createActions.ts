@@ -20,13 +20,6 @@ export interface CreateActionRoute {
  */
 export function createListReturnTo(linkId: string, routePath: string, fullPath: string, query: Record<string, unknown>): string {
   const path = routePath.replace(/\/+$/, '') || '/'
-  if (linkId === 'new-tenant') {
-    return path === '/vendor/tenants' ? fullPath : safeReturnTo(query.returnTo, '/vendor/tenants', ['/vendor/tenants'])
-  }
-  if (linkId === 'new-bundle' || linkId === 'new-plan') {
-    const root = linkId === 'new-bundle' ? '/vendor/bundles' : '/vendor/plans'
-    return path === root ? fullPath : safeReturnTo(query.returnTo, root, [root])
-  }
   if (linkId === 'new-project') {
     return path === '/projects' || path === '/projects/dashboard'
       ? fullPath

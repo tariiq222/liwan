@@ -68,10 +68,10 @@ describe('go keys', () => {
 })
 
 describe('palette items', () => {
-  it('Go to rows carry their G letter as a hidden hint and open the console in a new tab', () => {
-    const rows = goToItems([item('/projects', 'p'), item('/odoo')], navItem => navItem.to)
+  it('Go to rows carry their G letter as a hidden hint', () => {
+    const rows = goToItems([item('/projects', 'p'), item('/tasks')], navItem => navItem.to)
     expect(rows[0]).toMatchObject({ id: 'goto:/projects', label: '/projects', to: '/projects', kbds: ['G', 'P'], kbdsHidden: true })
-    expect(rows[1]).toMatchObject({ to: '/odoo', external: true, target: '_blank' })
+    expect(rows[1]).toMatchObject({ to: '/tasks' })
     expect(rows[1]!.kbds).toBeUndefined()
   })
 

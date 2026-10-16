@@ -79,12 +79,7 @@ export default defineNuxtConfig({
     } }),
   },
   runtimeConfig: {
-    vendorWorkspaceEnabled: false,
-    vendorControlUrl: '',
-    vendorServiceKey: '',
-    vendorInstallationId: '',
-    vendorPublicOrigin: '',
-    // Customer-scoped commercial BFF (disabled by default; separate service identity from the vendor keys).
+    // Customer-scoped commercial BFF (disabled by default; own service identity).
     customerCommercialEnabled: false,
     customerCommercialControlUrl: '',
     customerCommercialServiceKey: '',
@@ -96,7 +91,6 @@ export default defineNuxtConfig({
     // Opt-in only behind the dedicated edge that overwrites private identity fields.
     authProxyClientIpHeader: '',
     public: {
-      vendorWorkspaceEnabled: false,
       customerCommercialEnabled: false,
       // Dev: the Nitro dev proxy above does not upgrade websockets, so
       // useBus() connects directly to Odoo's :8069 in dev. Prod: left empty

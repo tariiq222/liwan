@@ -6,11 +6,11 @@ import { hidePinnedNewProject, type ShellContextLink, type ShellModuleDefinition
 export interface ShellContextSection { id: string; titleKey: string | null; links: ShellContextLink[] }
 export interface ShellSidebarModel { createLinks: ShellContextLink[]; sections: ShellContextSection[]; showNav: boolean }
 
-const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings', 'vendor'])
+const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings'])
 
-/** Rail entries in rail order; settings and the vendor console sit in the utility slot at the bottom. */
+/** Rail entries in rail order; settings sits in the utility slot at the bottom. */
 export function railModel(modules: readonly ShellModuleDefinition[]): { all: ShellRailItem[]; primary: ShellRailItem[]; utility: ShellRailItem[] } {
-  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, external: module.id === 'vendor' }))
+  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, external: false }))
   return { all, primary: all.filter(item => !UTILITY_MODULES.has(item.id)), utility: all.filter(item => UTILITY_MODULES.has(item.id)) }
 }
 

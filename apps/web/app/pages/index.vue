@@ -6,7 +6,7 @@ const { t } = useI18n()
 const { me, ready } = useMe()
 await ready
 if (!Array.isArray(me.value?.capabilities)) await navigateTo(postLoginPath(me.value, undefined))
-const destinations = computed(() => useNav(me.value).filter(item => item.to !== '/' && item.to !== '/odoo' && !item.to.startsWith('/vendor')))
+const destinations = computed(() => useNav(me.value).filter(item => item.to !== '/'))
 const actions = computed(() => visibleCommands(me.value))
 </script>
 

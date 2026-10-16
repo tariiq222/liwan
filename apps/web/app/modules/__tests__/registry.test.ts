@@ -81,9 +81,9 @@ describe('capability gate derivation', () => {
     expect(KNOWN_CAPABILITIES.filter(key => !listed.has(key))).toEqual(['meetings.manage'])
   })
 
-  it('leaves the foundation, vendor and subscription prefixes ungated by any application feature', () => {
+  it('leaves the foundation and subscription prefixes ungated by any application feature', () => {
     const locked = { platform: { readable_features: [], writable_features: [] } }
-    for (const capability of ['vendor', 'vendor.read', 'vendor.audit.read', 'vendor.tenants.manage', 'subscription.read', 'billing.read', 'branches.manage', 'nasq.notifications', 'access.users.grant', 'settings.branding.manage']) {
+    for (const capability of ['subscription.read', 'billing.read', 'branches.manage', 'nasq.notifications', 'access.users.grant', 'settings.branding.manage']) {
       expect(featureForCapability(capability), capability).toBeNull()
       // nasq.notifications is the bell: canUse gates it on pmo/meetings, so it is only checked above.
       if (capability !== 'nasq.notifications') expect(canUse(locked, capability, true), capability).toBe(true)

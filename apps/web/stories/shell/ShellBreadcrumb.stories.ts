@@ -10,5 +10,5 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Trail: Story = { name: 'ثلاثة مستويات', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:84') }
-export const Single: Story = { name: 'مستوى واحد', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:84'), args: { items: [{ label: 'الإعدادات' }] } }
+export const Trail: Story = { name: 'ثلاثة مستويات', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:83') }
+export const Single: Story = { name: 'مستوى واحد', parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:83'), args: { items: [{ label: 'الإعدادات' }] } }

@@ -80,7 +80,7 @@ function toItem(item: PaletteItem): CommandPaletteItem {
     ...rest,
     onSelect(event: Event) {
       if (!action) {
-        leavingFor = item.external ? null : pathOf(item.to)
+        leavingFor = pathOf(item.to)
         leavingFrom = route.path
         closedWithoutRestore = false
         if (leavingFor !== null) {

@@ -100,11 +100,9 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/RowActions.vue', 'shared/form/PersonPicker.vue', 'shared/data/FilterChip.vue', 'shared/data/FilterChoice.vue',
     'shared/data/FilterField.vue', 'pmo/projects/ProjectCharterForm.vue',
     'shared/data/AttachmentList.vue', 'shared/form/CommentComposer.vue', 'shared/data/CommentThread.vue', 'shared/data/Checklist.vue',
-    'shared/commerce/PriceBreakdown.vue', 'vendor/EntitlementSummary.vue', 'vendor/PriceListEditor.vue',
-    'vendor/CapacityLimitsEditor.vue', 'vendor/BundleForm.vue', 'vendor/PlanForm.vue', 'vendor/LifecyclePanel.vue',
+    'shared/commerce/PriceBreakdown.vue',
     'subscription/UsagePanel.vue', 'subscription/AutoRenewControl.vue',
     'subscription/BranchSummary.vue',
-    'vendor/SubscriptionSummary.vue', 'vendor/CustomerTermsForm.vue', 'vendor/UsageMeters.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue',
@@ -579,7 +577,7 @@ PAGE_SHELLS = ('SharedPageContainer', 'SharedCreatePanel', 'SharedSettingsPage',
 # Route parents that render a list or <NuxtPage /> by route, plus the unshelled
 # roots. Each entry is a deliberate exception, not a backlog.
 PAGE_SHELL_EXEMPT = frozenset(PAGES + name for name in (
-    'index.vue', 'vendor/index.vue', 'vendor/catalog.vue', 'vendor/bundles.vue', 'vendor/plans.vue', 'vendor/customers.vue', 'vendor/invoices.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
+    'index.vue', 'hr/employees/[employeeId]/access.vue', 'meetings.vue',
     'projects.vue', 'hr.vue', 'hr/departments.vue', 'settings/users.vue',
     'settings/roles.vue', 'projects/settings/catalogs/[resource].vue',
 ))

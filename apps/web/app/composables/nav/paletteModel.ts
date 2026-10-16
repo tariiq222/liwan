@@ -34,8 +34,6 @@ export interface PaletteItem {
   label: string
   icon?: string
   to?: RouteLocationRaw
-  external?: boolean
-  target?: '_blank'
   kbds?: string[]
   /** The key hint is decoration: hidden from assistive tech so the option's name stays its label. */
   kbdsHidden?: boolean
@@ -100,7 +98,6 @@ export function goToItems(visible: readonly NavItem[], label: (item: NavItem) =>
     label: label(item),
     icon: item.icon,
     to: item.to,
-    ...(item.to === '/odoo' ? { external: true, target: '_blank' as const } : {}),
     ...(item.goKey ? { kbds: goKbds(item.goKey), kbdsHidden: true } : {}),
   }))
 }
