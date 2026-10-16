@@ -231,7 +231,10 @@
         "shared_execution_pending": "The operation is queued or running.",
         "shared_execution_verified": "The operation execution was verified.",
         "shared_execution_needs_attention": "An operator must review this operation before continuing changes."
-      }
+      },
+      "operationId": "Operation ID",
+      "workspaceId": "Workspace ID",
+      "customerId": "Customer ID"
     },
     "audit": {
       "title": "Audit log",
@@ -239,6 +242,7 @@
       "empty": "No audit entries found.",
       "actor": "Actor",
       "subject": "Subject",
+      "action": "Action",
       "actions": {
         "membership": {
           "granted": "Vendor access granted",
@@ -276,7 +280,105 @@
         },
         "shared_onboarding": {
           "reserved": "Shared customer workspace reserved"
+        },
+        "auth": {
+          "signed_in": "Signed in",
+          "failed": "Failed sign-in attempt",
+          "locked": "Temporarily locked after failed attempts",
+          "step_up": "Extra identity check",
+          "signed_out": "Signed out",
+          "passkey_registered": "Passkey registered"
+        },
+        "account": {
+          "roles_set": "Account roles changed",
+          "disabled": "Account disabled",
+          "dev_owner": "Developer owner account created",
+          "invited": "Account invited",
+          "reset_issued": "Reset link issued",
+          "reset_completed": "Reset completed",
+          "enrolled": "Account enrollment completed"
+        },
+        "plan": {
+          "created": "Plan created",
+          "revision_created": "New plan revision created",
+          "deleted": "Plan draft deleted",
+          "edit": "Plan edited",
+          "validate": "Plan validated",
+          "publish": "Plan published",
+          "withdraw": "Plan withdrawn from sale",
+          "restore": "Plan restored"
+        },
+        "bundle": {
+          "created": "Bundle created",
+          "revision_created": "New bundle revision created",
+          "deleted": "Bundle draft deleted",
+          "edit": "Bundle edited",
+          "validate": "Bundle validated",
+          "publish": "Bundle published",
+          "withdraw": "Bundle withdrawn",
+          "restore": "Bundle restored"
+        },
+        "order": {
+          "accepted": "Order accepted",
+          "cancelled": "Order cancelled"
+        },
+        "invoice": {
+          "credit_pending": "Invoice credit pending"
+        },
+        "payment": {
+          "intervention": "Payment needs intervention"
+        },
+        "customer_terms": {
+          "created": "Customer terms saved"
+        },
+        "catalog_release": {
+          "created": "Catalog release created"
+        },
+        "registry": {
+          "recovery_requested": "Workspace registry recovery requested"
         }
+      },
+      "when": "When",
+      "search": "Search the audit log",
+      "noResults": "No audit entries match the filters. Clear the filters or change the search.",
+      "category": "Action type",
+      "allCategories": "All types",
+      "actorFilter": "Actor",
+      "actorPlaceholder": "Actor name or email",
+      "from": "From date",
+      "to": "To date",
+      "customerFilter": "Customer log: {name}",
+      "customerFilterUnknown": "One customer’s log",
+      "categories": {
+        "auth": "Sign-in and authentication",
+        "account": "Team accounts",
+        "tenant": "Customer workspaces",
+        "operation": "Operations",
+        "catalog": "Catalog",
+        "catalog_release": "Catalog releases",
+        "plan": "Plans",
+        "bundle": "Bundles",
+        "order": "Orders",
+        "invoice": "Invoices",
+        "payment": "Payments",
+        "customer_terms": "Customer terms"
+      },
+      "kinds": {
+        "account": "Account",
+        "customer": "Customer",
+        "tenant": "Workspace",
+        "order": "Order",
+        "plan": "Plan",
+        "bundle": "Bundle",
+        "catalog": "Catalog",
+        "other": "Record"
+      },
+      "actors": {
+        "operator": "System operator",
+        "anonymous": "Unauthenticated visitor",
+        "system": "System",
+        "shared-worker": "Shared platform worker",
+        "legacy": "Former account"
       }
     },
     "packages": {

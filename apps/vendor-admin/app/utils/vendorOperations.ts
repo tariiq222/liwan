@@ -12,3 +12,10 @@ export function operationStatusFilter(value: unknown): OperationListStatus | 'al
 
 /** Groups have their own wording; a single status reuses the status badge label. */
 export const operationFilterLabelKey = (value: string): string => (GROUPS.includes(value) ? `vendor.operations.filter.${value}` : `vendor.status.${value}`)
+
+/** Where an operation's target opens: the owning customer's operations tab, else the bare workspace page. */
+export function operationTargetTo(operation: { tenant_id: string; customer_id?: string | null }): { path: string; query?: Record<string, string> } {
+  return operation.customer_id
+    ? { path: `/customers/${encodeURIComponent(operation.customer_id)}`, query: { tab: 'operations' } }
+    : { path: `/tenants/${encodeURIComponent(operation.tenant_id)}` }
+}

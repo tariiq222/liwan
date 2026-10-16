@@ -10,7 +10,8 @@ import { invitationPublicHttp, invitationVendorHttp } from './commercial/invitat
 import { odooSetPassword } from './commercial/invitation-odoo.js'
 import type { SetPassword } from './commercial/invitations.js'
 import { internalEffectPasswordAdapter } from './commercial/invitation-effect-client.js'
-import { allOperationCounts, allOperations, sharedOperationDetail } from './operation-feed.js'
+import { listAudit } from './audit-feed.js'
+import { allOperationCounts, allOperations, sharedOperationDetail, withTenantLabels } from './operation-feed.js'
 import {approveOdooRestore,odooJobProgress} from './shared/odoo-backup.js'
 import {loadSharedRuntimeConfig} from './shared/runtime-config.js'
 import { sharedOnboardingRequestSchema } from '@nasq/commercial-contracts'
@@ -32,7 +33,7 @@ import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
-import { operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@nasq/commercial-contracts'
+import { auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@nasq/commercial-contracts'
 import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
@@ -245,7 +246,7 @@ async function operationDetail(pool: Pool, id: string) {
   const row = await pool.query(`SELECT ${OP_FIELDS} FROM operations WHERE id=$1`, [id])
   if (!row.rowCount) throw new ApiError(404, 'not_found', 'Operation not found')
   const events = await pool.query('SELECT stage,status,at FROM operation_events WHERE operation_id=$1 ORDER BY id', [id])
-  return { ...row.rows[0], events: events.rows }
+  return { ...(await withTenantLabels(pool, [row.rows[0]]))[0], events: events.rows }
 }
 
 async function enqueue(pool: Pool, config: Config, auth: { actor: number }, tenantId: string, value: Record<string, unknown>): Promise<{ status: number; data: unknown }> {
@@ -535,7 +536,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const statuses = parsedStatus ? operationStatusesOf(parsedStatus.data) : null
         if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, await allOperations(pool, tenantId, page, statuses))
         const result = await pool.query(`SELECT ${OP_FIELDS},count(*) OVER()::int AS total FROM operations WHERE ($1='' OR tenant_id=$1::uuid) AND ($3::text[] IS NULL OR status=ANY($3)) ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET $2`, [tenantId, (page - 1) * 25, statuses])
-        return respond(res, 200, { items: result.rows.map(({ total: _total, ...row }) => row), total: result.rows[0]?.total ?? 0 })
+        return respond(res, 200, { items: await withTenantLabels(pool, result.rows.map(({ total: _total, ...row }) => row)), total: result.rows[0]?.total ?? 0 })
       }
       const opMatch = pathname.match(new RegExp(`^/v1/operations/(${UUID})$`))
       if (opMatch && method === 'GET') {
@@ -589,9 +590,9 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       if (pathname === '/v1/audit' && method === 'GET') {
         requireCapability(auth, 'vendor.audit.read')
-        const page = pageFrom(url)
-        const result = await pool.query('SELECT id,actor,action,subject,reason,created_at,count(*) OVER()::int AS total FROM audit_events ORDER BY created_at DESC,id DESC LIMIT 25 OFFSET $1', [(page - 1) * 25])
-        return respond(res, 200, { items: result.rows.map(({ total: _total, ...row }) => row), total: result.rows[0]?.total ?? 0 })
+        const query = auditListQuerySchema.safeParse(Object.fromEntries(url.searchParams))
+        if (!query.success) throw new ApiError(422, 'invalid', 'Invalid audit filter', String(query.error.issues[0]?.path[0] ?? 'query'))
+        return respond(res, 200, await listAudit(pool, query.data))
       }
       throw new ApiError(404, 'not_found', 'Endpoint not found')
     } catch (error) {

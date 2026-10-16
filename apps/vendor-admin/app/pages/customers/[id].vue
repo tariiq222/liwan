@@ -171,7 +171,7 @@ async function cancelPendingOrder() {
             <p class="mt-2 text-sm text-muted">{{ t('vendor.customers.terms.isolation') }}</p>
           </SharedRecordSection>
           <SharedRecordSection :title="t('vendor.customers.sections.audit')">
-            <UButton to="/audit" color="neutral" variant="link">{{ t('vendor.customers.openAudit') }}</UButton>
+            <UButton :to="{ path: '/audit', query: { customer_id: id } }" color="neutral" variant="link">{{ t('vendor.customers.openAudit') }}</UButton>
           </SharedRecordSection>
         </template>
       </div>
