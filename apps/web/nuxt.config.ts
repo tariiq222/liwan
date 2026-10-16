@@ -90,8 +90,14 @@ export default defineNuxtConfig({
     odooDb: shared ? '' : (process.env.NUXT_ODOO_DB ?? 'odoo19'),
     // Opt-in only behind the dedicated edge that overwrites private identity fields.
     authProxyClientIpHeader: '',
+    // Nasq AI service (apps/ai-service). Empty hides /ai and disables the executor.
+    aiServiceUrl: process.env.NUXT_AI_SERVICE_URL ?? '',
+    // Shared secret the AI service requires in X-Nasq-Service-Token (empty = none sent).
+    aiServiceToken: process.env.NUXT_AI_SERVICE_TOKEN ?? '',
     public: {
       customerCommercialEnabled: false,
+      // Filled at server start from the runtime `aiServiceUrl` (server/plugins/ai-enabled.ts), never from the build environment.
+      aiEnabled: false,
       // Dev: the Nitro dev proxy above does not upgrade websockets, so
       // useBus() connects directly to Odoo's :8069 in dev. Prod: left empty
       // so useBus() falls back to same-origin (Caddy routes /websocket through).

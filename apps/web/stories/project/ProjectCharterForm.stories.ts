@@ -11,7 +11,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Project/ProjectCharterForm',
   component: ProjectCharterForm,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68') },
   args: { mode: 'create', createDefaults: projectCreateDefaults, defaultManagerName: 'Admin', disabled: false },
   render: args => ({
     components: { FormSection, PageContainer, ProjectCharterForm },
@@ -24,10 +24,24 @@ type Story = StoryObj<typeof meta>
 
 export const CreateWizard: Story = {
   name: 'إنشاء مشروع على خطوات',
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62', 'اختر التصنيف في الخطوة الأولى لتتغيّر الخطوات التالية. «حفظ كمسودة» متاح في كل خطوة.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'اختر التصنيف في الخطوة الأولى لتتغيّر الخطوات التالية. «حفظ كمسودة» متاح في كل خطوة.'),
 }
 export const WaitingForDefaults: Story = {
   name: 'قبل تحميل متطلبات الإنشاء',
   args: { createDefaults: undefined, disabled: true },
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'النموذج معطّل حتى تصل متطلبات الإنشاء.'),
+}
+export const AiDraft: Story = {
+  name: 'مسودة من Nasq AI',
+  args: {
+    initialDraft: {
+      name: 'بوابة خدمات العملاء',
+      description: 'بوابة موحّدة لطلبات العملاء ومتابعتها.',
+      date_start: '2026-11-01',
+      date_end: '2027-03-31',
+      charter: { rationale: 'تقليل زمن الاستجابة للطلبات.', objectives: ['إطلاق البوابة', 'ربطها بقنوات الدعم'], scope: 'الطلبات الواردة من العملاء.' },
+    },
+    attestRequired: true,
+  },
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68', 'مسودة جهّزها Nasq AI تفتح في نموذج الإنشاء نفسه. تظهر الشارة، ويشترط زر الإنشاء في الخطوة الأخيرة إقرار المستخدم.'),
 }

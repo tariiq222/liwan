@@ -2,6 +2,7 @@
 import { useQueryClient } from '@tanstack/vue-query'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { AppearanceMode, FontSize } from '@/utils/appearance'
+import { clearAiSessionState } from '@/utils/aiDraft'
 
 // The one personal menu: account page, language, display mode, font size and sign-out.
 // Mode and size are saved per user on the server (useAppearance); the language is a cookie.
@@ -23,6 +24,7 @@ const navPreferenceKey = computed(() => `nasq-nav:${me.value?.id ?? 'anonymous'}
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST', body: {} })
   sessionStorage.removeItem(navPreferenceKey.value)
+  clearAiSessionState()
   await queryClient.cancelQueries()
   queryClient.clear()
   await refreshNuxtData('me')
