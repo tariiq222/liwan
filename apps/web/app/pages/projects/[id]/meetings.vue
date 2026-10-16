@@ -9,7 +9,7 @@ import { useProject } from '@/composables/useProjects'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { parsePositiveId } from '@/utils/routeParams'
 import { parseOffset } from '@/utils/routeQuery'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

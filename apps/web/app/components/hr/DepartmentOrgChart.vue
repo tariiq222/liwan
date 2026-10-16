@@ -6,7 +6,7 @@ import {
   nextOrgScale,
   type OrgChartBox,
 } from '@/lib/departmentOrgChart'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{
   roots: DepartmentTreeNode[]

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import type { Quote } from '@nasq/commercial-contracts'
-import { cadenceKey, cadenceLabel, commercialErrorKey, commercialReturnTo, formatVendorMoney, keyLabel, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
+import { cadenceKey, commercialErrorKey, commercialReturnTo, keyLabel, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
+import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial(); const hydrated = useHydrated()
@@ -38,7 +39,7 @@ async function done(action: LifecycleAction, result: unknown) {
   else await refresh()
 }
 const editable = computed(() => view.value?.status === 'draft' && can('vendor.catalog.manage') && can('vendor.pricing.manage'))
-const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value: cadenceKey(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatVendorMoney(p.amount, locale.value)}` })))
+const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value: cadenceKey(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatCommercialMoney(p.amount, locale.value)}` })))
 </script>
 <template>
   <NuxtPage v-if="isEdit" />
@@ -56,8 +57,8 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.branchLimit') }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(view.extra_branches_limit, t) }}</dd></div>
 
         </dl>
-        <ul class="mt-4 grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatVendorMoney(p.amount, locale) }}</span></li></ul>
-        <ul v-if="view.extra_branch_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.extra_branch_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.branchPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatVendorMoney(p.amount, locale) }}</span></li></ul>
+        <ul class="mt-4 grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul v-if="view.extra_branch_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.extra_branch_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.branchPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
       </SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.sections.bundles')" class="mt-6">
         <p class="text-sm font-medium">{{ t('vendor.pricing.plan.included') }}</p><ul class="mb-3 list-disc ps-5"><li v-for="x in view.included_bundle_revision_ids" :key="x">{{ bundleName(x) }}</li></ul>
@@ -65,7 +66,7 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
       </SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.quote.title')" :description="t('vendor.pricing.quote.hint')" class="mt-6" data-testid="quote-preview">
         <div class="grid gap-3 sm:grid-cols-2">
-          <UFormField :label="t('vendor.pricing.quote.cadence')"><USelect v-model="cadence" :items="cadenceItems" class="w-full" :disabled="!hydrated" /></UFormField>
+          <UFormField :label="t('commercial.pricing.quote.cadence')"><USelect v-model="cadence" :items="cadenceItems" class="w-full" :disabled="!hydrated" /></UFormField>
           <UFormField :label="t('vendor.pricing.quote.extraBranches')"><UInput v-model="extra" inputmode="numeric" dir="ltr" class="w-full" :disabled="!hydrated" /></UFormField>
         </div>
         <div v-if="view.optional_bundle_revision_ids.length" class="flex flex-wrap gap-4"><UCheckbox v-for="x in view.optional_bundle_revision_ids" :key="x" :model-value="optional.includes(x)" :label="bundleName(x)" :disabled="!hydrated" @update:model-value="optional = $event === true ? [...optional, x] : optional.filter(o => o !== x)" /></div>

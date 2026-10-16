@@ -6,7 +6,7 @@ import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue
 import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
 import { parseOffset } from '@/utils/routeQuery'
 

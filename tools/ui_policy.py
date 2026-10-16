@@ -19,20 +19,22 @@ from pathlib import Path
 BASELINE = 'fce4561330200947e4db88b508285fecf9bb05a5'
 APP = 'apps/web/app/'
 UI = 'packages/ui/app/'
-APP_SOURCES = (APP, UI)
+COMMERCIAL = 'packages/commercial-ui/app/'
+APP_SOURCES = (APP, UI, COMMERCIAL)
 PREVIEW = 'apps/web/design-preview/app/'
 SOURCE_ROOTS = (*APP_SOURCES, PREVIEW)
 LEGACY = APP + 'components/ui/'
 CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
-MANIFESTS = ('package.json', 'apps/web/package.json', 'packages/ui/package.json')
+MANIFESTS = ('package.json', 'apps/web/package.json', 'packages/ui/package.json', 'packages/commercial-ui/package.json')
 STORIES = 'apps/web/stories/'
 STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
 STORY_SUFFIXES = {'.vue', '.ts', '.mjs', '.mdx'}
 COMPONENTS = APP + 'components/'
 UI_COMPONENTS = UI + 'components/'
-COMPONENT_ROOTS = (COMPONENTS, UI_COMPONENTS)
+COMMERCIAL_COMPONENTS = COMMERCIAL + 'components/'
+COMPONENT_ROOTS = (COMPONENTS, UI_COMPONENTS, COMMERCIAL_COMPONENTS)
 # Presentational components that live in the @nasq/ui layer (relative to components/); every other
 # component listed below stays in apps/web.
 LAYER_COMPONENTS = frozenset(
@@ -47,10 +49,14 @@ LAYER_COMPONENTS = frozenset(
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
     + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellFrame')]
 )
+# Billing presentation shared by the customer subscription pages and the vendor console (@nasq/commercial-ui).
+COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
 
 
 def component_file(relative: str) -> str:
     """Repository path of a component given its path under components/."""
+    if relative in COMMERCIAL_LAYER_COMPONENTS:
+        return COMMERCIAL_COMPONENTS + relative
     return (UI_COMPONENTS if relative in LAYER_COMPONENTS else COMPONENTS) + relative
 # Component folders registered in apps/web/nuxt.config.ts with an explicit `prefix`:
 # their auto-import names start with the prefix instead of the folder path.
@@ -168,6 +174,8 @@ def resolve_specifier(path: str, specifier: str) -> str | None:
         return APP + specifier[2:]
     if specifier.startswith('@nasq/ui/'):
         return 'packages/ui/' + specifier[len('@nasq/ui/'):]
+    if specifier.startswith('@nasq/commercial-ui/'):
+        return 'packages/commercial-ui/' + specifier[len('@nasq/commercial-ui/'):]
     if specifier.startswith('.'):
         return posixpath.normpath(posixpath.join(posixpath.dirname(path), specifier))
     return None
@@ -328,7 +336,7 @@ def story_errors(current: dict[str, str]) -> list[str]:
         for match in IMPORTS.finditer(story_source):
             target = resolve_specifier(path, match.group(2))
             if target and target.endswith('.vue') and not target.startswith(COMPONENT_ROOTS):
-                errors.append(path + ': stories import components only from apps/web/app/components or packages/ui/app/components')
+                errors.append(path + ': stories import components only from apps/web/app/components, packages/ui/app/components or packages/commercial-ui/app/components')
                 break
         component = story_component(path, story_source)
         if not component or not component.startswith(COMPONENT_ROOTS):
@@ -862,7 +870,10 @@ def refreshed_story_context(current: dict[str, str]) -> dict[str, str]:
 
 def baseline_path(path: str) -> str:
     """The path a file had in the baseline snapshot, from before the layer owned it."""
-    return APP + path[len(UI):] if path.startswith(UI) else path
+    for root in (UI, COMMERCIAL):
+        if path.startswith(root):
+            return APP + path[len(root):]
+    return path
 
 
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
@@ -877,6 +888,8 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         '@nasq/commercial-contracts',
         # Nasq's own Nuxt layer that owns the @nuxt/ui theme (the same library, not a second one).
         '@nasq/ui',
+        # The billing presentation layer, which itself extends @nasq/ui.
+        '@nasq/commercial-ui',
     }
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source

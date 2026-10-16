@@ -1,10 +1,10 @@
 import {
   bundleCreateSchema, bundleEditSchema, planCreateSchema, planEditSchema, lifecycleActionSchema,
   type Audience, type BundleRevision, type BundleView, type CapacityMap, type CatalogApplication, type CatalogRelease, type CatalogReleaseView, type PlanView,
-  type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Quote, type Selection,
+  type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Selection,
 } from '@nasq/commercial-contracts'
-import { safeReturnTo } from './safeReturnTo'
-import type { StatusBadgeEntry } from './statusBadge'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 
 export const CURRENCY = 'SAR'
 export const EXPONENT = 2
@@ -50,18 +50,10 @@ export function parseVendorMoneyInput(value: string, exponent = EXPONENT): numbe
   return Number.isSafeInteger(minor) ? minor : null
 }
 export function minorToInput(minor: number, exponent = EXPONENT): string { return (minor / 10 ** exponent).toFixed(exponent) }
-export function formatVendorMoney(money: Money, locale = 'ar'): string {
-  const intl = locale.startsWith('ar') ? 'ar-SA-u-nu-latn' : 'en-US'
-  return new Intl.NumberFormat(intl, { style: 'currency', currency: money.currency, minimumFractionDigits: money.exponent, maximumFractionDigits: money.exponent }).format(money.minor / 10 ** money.exponent)
-}
 export const sar = (minor: number): Money => ({ currency: CURRENCY, exponent: EXPONENT, minor })
 
 // ---- Cadence ----
 export const cadenceKey = (c: Cadence) => `${c.unit}:${c.count}`
-export function cadenceLabel(c: Cadence, t: (key: string, params?: Record<string, unknown>) => string): string {
-  if (c.count === 1) return t(`vendor.pricing.cadence.${c.unit}.one`)
-  return t(`vendor.pricing.cadence.${c.unit}.many`, { count: c.count })
-}
 
 // ---- Limits (tri-state: explicit unlimited / none(0) / number; blank is never 0) ----
 export type LimitMode = '' | 'unlimited' | 'none' | 'number'
@@ -285,7 +277,6 @@ export type QuoteInput = { plan: PlanRevision | PlanView; cadence: Cadence; extr
 export function quoteRequestBody(input: QuoteInput) {
   return { kind: 'new' as const, plan_revision_id: input.plan.id, bundle_revision_ids: [...input.plan.included_bundle_revision_ids, ...input.optionalBundleIds], cadence: input.cadence, requested_extra_branches: input.extraBranches }
 }
-export const quoteLinesByTiming = (quote: Quote, timing: 'now' | 'renewal') => quote.lines.filter(l => l.timing === timing)
 
 export function keyLabel(key: string, t: (key: string) => string, te: (key: string) => boolean): string {
   const path = `vendor.pricing.keys.${key.replace(/\./g, '_')}`

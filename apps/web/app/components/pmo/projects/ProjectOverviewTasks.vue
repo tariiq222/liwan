@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useTasks, type TaskListParams } from '@/composables/useTasks'
 import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 // "Needs your attention": the overdue open tasks of the project (first five), as a record section.
 const props = defineProps<{ projectId: number; returnTo: string }>()

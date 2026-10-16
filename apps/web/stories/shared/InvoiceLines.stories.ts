@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import InvoiceLines from '../../app/components/shared/data/InvoiceLines.vue'
+import InvoiceLines from '@nasq/commercial-ui/app/components/shared/data/InvoiceLines.vue'
 import { subscriptionInvoiceView } from '../../app/utils/subscription'
 import { vendorInvoiceLineViews } from '../../app/utils/vendorSubscriptions'
 import { invoice as customerInvoice } from '../subscription/fixtures'
@@ -30,7 +30,7 @@ export const CustomerList: Story = {
 }
 export const VendorTable: Story = {
   name: 'فاتورة المورّد (جدول)',
-  parameters: storyContext('apps/web/app/pages/vendor/invoices/[id].vue:32'),
+  parameters: storyContext('apps/web/app/pages/vendor/invoices/[id].vue:33'),
   render: () => ({
     components: { InvoiceLines },
     setup() {

@@ -18,7 +18,7 @@ import {
   type FinanceListRouteState,
 } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

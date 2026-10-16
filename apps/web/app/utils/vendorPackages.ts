@@ -1,6 +1,6 @@
 import { PACKAGE_LIMIT_MAX, packageInputSchema, type PackageInput } from '@nasq/commercial-contracts'
 import { humanizeId } from './labelFallback'
-import { safeReturnTo } from './safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 export type PackageCatalog = { id: string; version: string; status: string; solution: { base_modules?: string[]; tiers?: PackageTier[] } }
 export type PackageTier = { id?: string; name?: string; modules?: string[]; features?: string[] }
 export type PackageLimitDraft = { mode: '' | 'limited' | 'unlimited'; value: string }

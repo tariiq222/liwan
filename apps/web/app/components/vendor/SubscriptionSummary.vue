@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { customerDisplayBadge } from '@/utils/commercialBadges'
+import { customerDisplayBadge } from '@/utils/vendorBadges'
 import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscriptions'
 import type { SubscriptionView } from '@nasq/commercial-contracts'
-import { cadenceLabel } from '@/utils/vendorCommercial'
+import { cadenceLabel } from '@nasq/commercial-ui/app/utils/commercial'
 import { subscriptionDisplayState, targetStatus } from '@/utils/vendorSubscriptions'
 const props = defineProps<{ subscription: SubscriptionView; planName?: string }>()
 const { t } = useI18n()
@@ -14,7 +14,7 @@ const status = computed(() => targetStatus(props.subscription))
     <SharedPropertiesPanel>
       <SharedPropertyRow :label="t('vendor.common.status')"><SharedStatusBadge :tone="customerDisplayBadge(display).tone" :label="t(customerDisplayBadge(display).labelKey)" /></SharedPropertyRow>
       <SharedPropertyRow :label="t('vendor.customers.plan')" :value="planName" />
-      <SharedPropertyRow :label="t('vendor.pricing.quote.cadence')" :value="subscription.applied ? cadenceLabel(subscription.applied.cadence, t) : null" />
+      <SharedPropertyRow :label="t('commercial.pricing.quote.cadence')" :value="subscription.applied ? cadenceLabel(subscription.applied.cadence, t) : null" />
       <SharedPropertyRow v-if="subscription.applied" :label="t('vendor.customers.sub.period')"><bdi dir="ltr">{{ subscription.applied.period_start }} → {{ subscription.applied.period_end }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('vendor.customers.sub.period')" :value="null" />
       <SharedPropertyRow v-if="subscription.renewal_at" :label="t('vendor.customers.renewal')"><bdi dir="ltr">{{ subscription.renewal_at }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('vendor.customers.renewal')" :value="null" />
       <SharedPropertyRow :label="t('vendor.customers.sub.autoRenew')" :value="subscription.auto_renew.enabled ? t('vendor.common.yes') : t('vendor.common.no')" />

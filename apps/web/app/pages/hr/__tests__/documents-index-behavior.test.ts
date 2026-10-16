@@ -7,7 +7,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { createHooks } from 'hookable'
 import ts from 'typescript'
 import { hasPendingHrSearch, hrCommittedListParams } from '../../../composables/useHrSearch'
-import { returnToQuery } from '../../../utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const cleanups: Array<() => void> = []
 afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()) })
@@ -35,7 +35,7 @@ async function loadPage() {
       return { data: Vue.ref({ items: Array.from({ length: 50 }, (_, index) => ({ id: index + 1 })), total: 50 }), isFetching: Vue.ref(false), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => Promise.resolve() }
     } }
     if (name === '@/composables/useHrDepartments') return { useHrDepartments: () => ({ data: Vue.ref({ items: [] }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => Promise.resolve() }) }
-    if (name === '@/utils/safeReturnTo') return { returnToQuery }
+    if (name === '@nasq/ui/app/utils/safeReturnTo') return { returnToQuery }
     if (name === '@/composables/useHrSearch') return { hasPendingHrSearch, hrCommittedListParams }
     throw new Error(`Unexpected import: ${name}`)
   }

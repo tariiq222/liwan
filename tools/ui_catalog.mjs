@@ -10,7 +10,8 @@ import { createChecker } from 'vue-component-meta'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const OUTPUT = 'docs/design-system/catalog.json'
 const STORIES = 'apps/web/stories'
-const LAYER_PREFIX = '@nasq/ui/'
+// Layer packages a story may import components from, by import prefix.
+const LAYER_PREFIXES = { '@nasq/ui/': 'packages/ui/', '@nasq/commercial-ui/': 'packages/commercial-ui/' }
 const TSCONFIG = 'apps/web/.nuxt/tsconfig.app.json'
 const AUTO_IMPORTS = 'apps/web/.nuxt/components.d.ts'
 
@@ -20,12 +21,17 @@ function walk(dir) {
     : entry.name.endsWith('.stories.ts') ? [`${dir}/${entry.name}`] : [])
 }
 
+function resolveImport(file, specifier) {
+  const layer = Object.keys(LAYER_PREFIXES).find(prefix => specifier.startsWith(prefix))
+  return layer
+    ? LAYER_PREFIXES[layer] + specifier.slice(layer.length)
+    : path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier))
+}
+
 function readStory(file) {
   const source = readFileSync(path.join(root, file), 'utf8')
   const imports = new Map([...source.matchAll(/^\s*import\s+(\w+)\s+from\s+['"]([^'"]+\.vue)['"]/gm)]
-    .map(match => [match[1], match[2].startsWith(LAYER_PREFIX)
-      ? `packages/ui/${match[2].slice(LAYER_PREFIX.length)}`
-      : path.posix.normalize(path.posix.join(path.posix.dirname(file), match[2]))]))
+    .map(match => [match[1], resolveImport(file, match[2])]))
   // Each story runs to the next export; the text before the first one is the meta,
   // whose storyContext covers stories that do not cite their own.
   const [head, ...parts] = source.split(/^export const (?=\w+: Story(?:Obj)?\b)/m)

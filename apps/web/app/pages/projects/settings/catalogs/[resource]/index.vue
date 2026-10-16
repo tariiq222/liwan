@@ -10,7 +10,7 @@ import {
   useUpdateCharterReference,
   type ProjectCharterReference,
 } from '@/composables/useProjectCharterCatalogs'
-import { returnToQuery, safeReturnTo } from '@/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

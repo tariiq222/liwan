@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  actionBlockedReason, appName, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, cadenceLabel, commercialFailure, commercialErrorKey,
-  commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, formatVendorMoney, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput,
-  parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody,
-} from '../vendorCommercial'
+import { actionBlockedReason, appName, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody } from '../vendorCommercial'
 
 const rid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artifact_digest: 'a'.repeat(64), applications: [
@@ -12,7 +8,6 @@ const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artif
     { key: 'projects.max_projects', kind: 'limit' as const, selectable: false, requires: [], enforcement_refs: [] }, { key: 'users.limit', kind: 'limit' as const, selectable: false, requires: [], enforcement_refs: [] }] },
   { id: 'people', name_ar: 'ب', name_en: 'People', modules: [], requires_apps: ['payroll'], conflicts_with_apps: ['projects'], selectable: true, features: [] },
 ] }
-const t = (key: string, p?: Record<string, unknown>) => `${key}${p ? JSON.stringify(p) : ''}`
 
 describe('money', () => {
   it('parses SAR to halalas without float error and rejects bad input', () => {
@@ -24,15 +19,8 @@ describe('money', () => {
     for (const bad of ['', '  ', '-1', '1.234', 'abc', '1.2.3', '.'] ) expect(parseVendorMoneyInput(bad)).toBeNull()
     expect(parseVendorMoneyInput('0')).toBe(0)
   })
-  it('round-trips and formats', () => {
+  it('round-trips', () => {
     expect(minorToInput(1999)).toBe('19.99')
-    expect(formatVendorMoney({ currency: 'SAR', exponent: 2, minor: 150000 }, 'en')).toContain('1,500.00')
-  })
-})
-describe('cadence labels', () => {
-  it('uses one/many keys', () => {
-    expect(cadenceLabel({ unit: 'month', count: 1 }, t)).toBe('vendor.pricing.cadence.month.one')
-    expect(cadenceLabel({ unit: 'year', count: 2 }, t)).toBe('vendor.pricing.cadence.year.many{"count":2}')
   })
 })
 describe('limit tri-state', () => {

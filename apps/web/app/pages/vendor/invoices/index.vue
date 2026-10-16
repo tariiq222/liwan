@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { invoiceStatusBadge } from '@/utils/commercialBadges'
-import { formatVendorMoney } from '@/utils/vendorCommercial'
+import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
+import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import { INVOICE_STATUS_FILTERS, invoiceListQuery, isInvoiceStatusFilter, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.billing.manage' })
@@ -40,8 +40,8 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   <template #number-cell="{ row: { original: i } }"><NuxtLink :to="to(i.id)" data-testid="invoice-row" class="font-medium hover:underline">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink></template>
   <template #status-cell="{ row: { original: i } }"><SharedStatusBadge  :tone="invoiceStatusBadge(i.status, 'vendor.invoices.status').tone" :label="invoiceStatusBadge(i.status, 'vendor.invoices.status').labelKey ? t(invoiceStatusBadge(i.status, 'vendor.invoices.status').labelKey) : i.status" /></template>
   <template #period-cell="{ row: { original: i } }"><bdi dir="ltr">{{ i.period_start }} → {{ i.period_end }}</bdi></template>
-  <template #vat-cell="{ row: { original: i } }"><bdi dir="ltr">{{ formatVendorMoney(i.tax, locale) }}</bdi></template>
-  <template #total-cell="{ row: { original: i } }"><bdi dir="ltr" class="font-semibold tabular-nums">{{ formatVendorMoney(i.total, locale) }}</bdi></template>
+  <template #vat-cell="{ row: { original: i } }"><bdi dir="ltr">{{ formatCommercialMoney(i.tax, locale) }}</bdi></template>
+  <template #total-cell="{ row: { original: i } }"><bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi></template>
   <template #customer-cell="{ row: { original: i } }"><NuxtLink :to="{ path: `/vendor/customers/${encodeURIComponent(i.customer_id)}` }">{{ t('vendor.invoices.openCustomer') }}</NuxtLink></template>
   <template #mobile-row="{ row: i }"><div class="flex flex-wrap items-start justify-between gap-4">
             <h2 class="text-lg font-semibold"><NuxtLink data-testid="invoice-row" :to="to(i.id)">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink></h2>
@@ -49,8 +49,8 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
           </div>
           <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div><dt class="text-muted">{{ t('vendor.invoices.period') }}</dt><dd class="tabular-nums"><bdi dir="ltr">{{ i.period_start }} → {{ i.period_end }}</bdi></dd></div>
-            <div><dt class="text-muted">{{ t('vendor.invoices.vat') }}</dt><dd class="tabular-nums">{{ formatVendorMoney(i.tax, locale) }}</dd></div>
-            <div><dt class="text-muted">{{ t('vendor.invoices.total') }}</dt><dd class="font-semibold tabular-nums">{{ formatVendorMoney(i.total, locale) }}</dd></div>
+            <div><dt class="text-muted">{{ t('vendor.invoices.vat') }}</dt><dd class="tabular-nums">{{ formatCommercialMoney(i.tax, locale) }}</dd></div>
+            <div><dt class="text-muted">{{ t('vendor.invoices.total') }}</dt><dd class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</dd></div>
             <div><dt class="text-muted">{{ t('vendor.invoices.customer') }}</dt><dd><NuxtLink :to="{ path: `/vendor/customers/${encodeURIComponent(i.customer_id)}` }">{{ t('vendor.invoices.openCustomer') }}</NuxtLink></dd></div>
           </dl></template>
 </SharedDataTable>

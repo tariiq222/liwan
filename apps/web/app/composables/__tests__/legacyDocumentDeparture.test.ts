@@ -9,7 +9,7 @@ import { createHooks } from 'hookable'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as hrSearch from '../useHrSearch'
 import { layerFile } from '@nasq/ui/test/helpers/layerFile'
-import { returnToQuery } from '../../utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const testCase = { file: 'hr/documents.vue', base: '/hr/documents' }
 const document = { id: 51, name: 'Policy', body: '', attachment_ids: [], department: { id: 4, name: 'Department' } }

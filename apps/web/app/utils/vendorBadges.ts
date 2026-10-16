@@ -1,16 +1,11 @@
-import { statusBadgeEntry, type StatusBadgeEntry } from './statusBadge'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
 
-// Status tones for the vendor console and the subscription pages (DESIGN.md §2: tones are fixed; cancelled and void read as errors).
+// Status tones for the vendor console (DESIGN.md §2: tones are fixed; failed and canceled read as errors).
 // Pages translate `labelKey` at the call site and hand both to SharedStatusBadge. These maps take plain
 // strings so this file imports nothing from the commercial contracts (R5).
 const entries = (tones: Record<string, StatusTone>, key: (value: string) => string): Record<string, StatusBadgeEntry> =>
   Object.fromEntries(Object.entries(tones).map(([value, tone]) => [value, { tone, labelKey: key(value) }]))
-
-const INVOICE: Record<string, StatusTone> = { draft: 'neutral', issued: 'info', paid: 'success', void: 'destructive', credit_pending: 'warning' }
-export function invoiceStatusBadge(status: string, labelPrefix: string): StatusBadgeEntry {
-  return statusBadgeEntry(entries(INVOICE, value => `${labelPrefix}.${value}`), status)
-}
 
 const CUSTOMER: Record<string, StatusTone> = { awaiting_payment: 'warning', activating: 'info', active: 'success', failed: 'destructive', inactive: 'neutral' }
 const CUSTOMER_MAP = entries(CUSTOMER, value => `vendor.customers.display.${value}`)

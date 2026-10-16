@@ -1485,77 +1485,6 @@
       ]
     },
     {
-      "name": "SharedCommercePriceBreakdown",
-      "file": "apps/web/app/components/shared/commerce/PriceBreakdown.vue",
-      "story": "apps/web/stories/shared/CommercePriceBreakdown.stories.ts",
-      "title": "Shared/Commerce/PriceBreakdown",
-      "props": [
-        {
-          "name": "quote",
-          "type": "{ id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; entitlement_digest: string; requested_extra_branches: number; cadence: { unit: \"month\" | \"year\"; count: number; }; effective_date: string; policy_revision_id: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; }[]; due_now: { currency: string; exponent: number; minor: number; }; next_renewal: { currency: string; exponent: number; minor: number; }; next_renewal_at: string; expires_at: string; digest: string; } | null",
-          "required": false
-        },
-        {
-          "name": "pending",
-          "type": "boolean",
-          "required": false
-        },
-        {
-          "name": "error",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "includedExtraBranches",
-          "type": "number",
-          "required": false
-        },
-        {
-          "name": "hqIncluded",
-          "type": "boolean",
-          "required": false
-        }
-      ],
-      "events": [
-        {
-          "name": "retry",
-          "payload": "[]"
-        }
-      ],
-      "slots": [],
-      "nuxtUi": [
-        "UAlert",
-        "UButton"
-      ],
-      "stories": [
-        {
-          "id": "Quoted",
-          "name": "Quoted",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Loading",
-          "name": "Loading",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Recomputing",
-          "name": "Recomputing",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Failed",
-          "name": "Failed",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        },
-        {
-          "id": "Empty",
-          "name": "Empty",
-          "context": "apps/web/app/pages/vendor/plans/[id].vue:72"
-        }
-      ]
-    },
-    {
       "name": "SharedAttachmentList",
       "file": "apps/web/app/components/shared/data/AttachmentList.vue",
       "story": "apps/web/stories/shared/AttachmentList.stories.ts",
@@ -1850,50 +1779,6 @@
           "id": "FinanceComparison",
           "name": "المخطط مقابل الفعلي",
           "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:124"
-        }
-      ]
-    },
-    {
-      "name": "SharedInvoiceLines",
-      "file": "apps/web/app/components/shared/data/InvoiceLines.vue",
-      "story": "apps/web/stories/shared/InvoiceLines.stories.ts",
-      "title": "Shared/InvoiceLines",
-      "props": [
-        {
-          "name": "lines",
-          "type": "InvoiceLineView[]",
-          "required": true
-        },
-        {
-          "name": "totals",
-          "type": "{ label: string; value: string; }[]",
-          "required": false
-        },
-        {
-          "name": "notice",
-          "type": "string",
-          "required": false
-        },
-        {
-          "name": "layout",
-          "type": "\"list\" | \"table\"",
-          "required": false,
-          "default": "\"table\""
-        }
-      ],
-      "events": [],
-      "slots": [],
-      "nuxtUi": [],
-      "stories": [
-        {
-          "id": "CustomerList",
-          "name": "فاتورة العميل (قائمة وإجماليات)",
-          "context": "apps/web/app/pages/subscription/invoices/[id].vue:16"
-        },
-        {
-          "id": "VendorTable",
-          "name": "فاتورة المورّد (جدول)",
-          "context": "apps/web/app/pages/vendor/invoices/[id].vue:32"
         }
       ]
     },
@@ -2885,17 +2770,17 @@
         {
           "id": "Mixed",
           "name": "Mixed",
-          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
+          "context": "apps/web/app/components/vendor/BundleForm.vue:84"
         },
         {
           "id": "ExplicitNone",
           "name": "ExplicitNone",
-          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
+          "context": "apps/web/app/components/vendor/BundleForm.vue:84"
         },
         {
           "id": "Invalid",
           "name": "Invalid",
-          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
+          "context": "apps/web/app/components/vendor/BundleForm.vue:84"
         }
       ]
     },
@@ -3018,17 +2903,17 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:31"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:32"
         },
         {
           "id": "NoZeroCoercion",
           "name": "NoZeroCoercion",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:31"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:32"
         },
         {
           "id": "Empty",
           "name": "Empty",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:31"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:32"
         }
       ]
     },
@@ -3070,32 +2955,32 @@
         {
           "id": "Draft",
           "name": "Draft",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:36"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:37"
         },
         {
           "id": "Validated",
           "name": "Validated",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:36"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:37"
         },
         {
           "id": "Published",
           "name": "Published",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:36"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:37"
         },
         {
           "id": "Withdrawn",
           "name": "Withdrawn",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:36"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:37"
         },
         {
           "id": "WithIssues",
           "name": "WithIssues",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:36"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:37"
         },
         {
           "id": "PricingBlocked",
           "name": "PricingBlocked",
-          "context": "apps/web/app/pages/vendor/bundles/[id].vue:36"
+          "context": "apps/web/app/pages/vendor/bundles/[id].vue:37"
         }
       ]
     },
@@ -3238,17 +3123,17 @@
         {
           "id": "Filled",
           "name": "Filled",
-          "context": "apps/web/app/components/vendor/BundleForm.vue:90"
+          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
         },
         {
           "id": "Empty",
           "name": "Empty",
-          "context": "apps/web/app/components/vendor/BundleForm.vue:90"
+          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
         },
         {
           "id": "Invalid",
           "name": "Invalid",
-          "context": "apps/web/app/components/vendor/BundleForm.vue:90"
+          "context": "apps/web/app/components/vendor/BundleForm.vue:87"
         }
       ]
     },
@@ -3326,6 +3211,121 @@
           "id": "NoData",
           "name": "NoData",
           "context": "apps/web/app/pages/vendor/customers/[id].vue:109"
+        }
+      ]
+    },
+    {
+      "name": "SharedCommercePriceBreakdown",
+      "file": "packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue",
+      "story": "apps/web/stories/shared/CommercePriceBreakdown.stories.ts",
+      "title": "Shared/Commerce/PriceBreakdown",
+      "props": [
+        {
+          "name": "quote",
+          "type": "{ id: string; customer_id: string; subscription_id: string | null; expected_subscription_revision: number; plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id: string | null; entitlement_digest: string; requested_extra_branches: number; cadence: { unit: \"month\" | \"year\"; count: number; }; effective_date: string; policy_revision_id: string; lines: { key: string; kind: \"base\" | \"bundle\" | \"branch\" | \"discount\" | \"tax\" | \"adjustment\"; timing: \"now\" | \"renewal\"; description: string; quantity: number; amount: { currency: string; exponent: number; minor: number; }; period_start: string; period_end: string; source_revision_id: string; }[]; due_now: { currency: string; exponent: number; minor: number; }; next_renewal: { currency: string; exponent: number; minor: number; }; next_renewal_at: string; expires_at: string; digest: string; } | null",
+          "required": false
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "includedExtraBranches",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "hqIncluded",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton"
+      ],
+      "stories": [
+        {
+          "id": "Quoted",
+          "name": "Quoted",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:73"
+        },
+        {
+          "id": "Loading",
+          "name": "Loading",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:73"
+        },
+        {
+          "id": "Recomputing",
+          "name": "Recomputing",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:73"
+        },
+        {
+          "id": "Failed",
+          "name": "Failed",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:73"
+        },
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/pages/vendor/plans/[id].vue:73"
+        }
+      ]
+    },
+    {
+      "name": "SharedInvoiceLines",
+      "file": "packages/commercial-ui/app/components/shared/data/InvoiceLines.vue",
+      "story": "apps/web/stories/shared/InvoiceLines.stories.ts",
+      "title": "Shared/InvoiceLines",
+      "props": [
+        {
+          "name": "lines",
+          "type": "InvoiceLineView[]",
+          "required": true
+        },
+        {
+          "name": "totals",
+          "type": "{ label: string; value: string; }[]",
+          "required": false
+        },
+        {
+          "name": "notice",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "layout",
+          "type": "\"list\" | \"table\"",
+          "required": false,
+          "default": "\"table\""
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "CustomerList",
+          "name": "فاتورة العميل (قائمة وإجماليات)",
+          "context": "apps/web/app/pages/subscription/invoices/[id].vue:16"
+        },
+        {
+          "id": "VendorTable",
+          "name": "فاتورة المورّد (جدول)",
+          "context": "apps/web/app/pages/vendor/invoices/[id].vue:33"
         }
       ]
     },
@@ -4447,7 +4447,7 @@
       ]
     },
     {
-      "name": "FormActions",
+      "name": "SharedFormActions",
       "file": "packages/ui/app/components/shared/form/FormActions.vue",
       "story": "apps/web/stories/shared/FormActions.stories.ts",
       "title": "Shared/FormActions",
@@ -5089,8 +5089,8 @@
     {
       "name": "SharedRecordPage",
       "file": "packages/ui/app/components/shared/layout/RecordPage.vue",
-      "story": "apps/web/stories/shared/RecordPage.stories.ts",
-      "title": "Shared/RecordPage",
+      "story": "apps/web/stories/my-tasks/MyTaskRecord.stories.ts",
+      "title": "MyTasks/MyTaskRecord",
       "props": [
         {
           "name": "title",
@@ -5153,34 +5153,14 @@
       ],
       "stories": [
         {
-          "id": "Default",
-          "name": "سجل مع خصائص",
-          "context": "unused"
+          "id": "Open",
+          "name": "سجل مهمة",
+          "context": "apps/web/app/pages/my-tasks/[id]/index.vue:148"
         },
         {
-          "id": "Loading",
-          "name": "تحميل",
-          "context": "unused"
-        },
-        {
-          "id": "NotFound",
-          "name": "غير موجود",
-          "context": "unused"
-        },
-        {
-          "id": "ErrorState",
-          "name": "خطأ",
-          "context": "unused"
-        },
-        {
-          "id": "WithBackSlot",
-          "name": "خانة الرجوع",
-          "context": "unused"
-        },
-        {
-          "id": "OperationalSummary",
-          "name": "ملخص تشغيلي قبل المحتوى",
-          "context": "apps/web/app/components/pmo/tasks/TaskDetailPanel.vue:99"
+          "id": "Pending",
+          "name": "أثناء التحميل",
+          "context": "apps/web/app/pages/my-tasks/[id]/index.vue:148"
         }
       ]
     },

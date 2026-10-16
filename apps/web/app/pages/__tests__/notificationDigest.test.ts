@@ -7,7 +7,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { createSSRApp, defineComponent, h, type RenderFunction } from 'vue'
 import { describe, expect, it } from 'vitest'
-import { safeReturnTo } from '../../utils/safeReturnTo'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 
 const filename = resolve(dirname(fileURLToPath(import.meta.url)), '../notification-digests/[id].vue')
 const source = readFileSync(filename, 'utf8')

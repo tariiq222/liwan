@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 import ProjectUpdateList from '@/components/pmo/projects/ProjectUpdateList.vue'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const { t } = useI18n()

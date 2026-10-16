@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { invoiceStatusBadge, paymentAttemptBadge } from '@/utils/commercialBadges'
-import { formatVendorMoney } from '@/utils/vendorCommercial'
+import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
+import { paymentAttemptBadge } from '@/utils/vendorBadges'
+import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import { invoicesReturnTo, isCreditRelated, isNotAvailable, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatNasqDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
@@ -18,7 +19,7 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
 )
 const attemptTime = (value: string) => formatNasqDateTime(value, locale.value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
-const money = (m: NonNullable<typeof data.value>['total']) => formatVendorMoney(m, locale.value)
+const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
 const date = (v: string | null) => (v ? formatNasqDate(v, locale.value) : t('app.notAvailable'))
 </script>
 <template>

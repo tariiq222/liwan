@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectStatus } from '@nasq/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@/utils/statusBadge'
+import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
 import type { TableColumn } from '@nuxt/ui'
 import { formatNullablePercent } from '@/utils/projectFinance'
 import type { DashboardProject } from '@/utils/projectChartData'

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { invoiceStatusBadge } from '@/utils/commercialBadges'
-import { formatVendorMoney } from '@/utils/vendorCommercial'
+import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
+import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import { cancellationErrorKey, branchSummaryText, customersReturnTo, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
-import { entitledSelections } from '@/utils/entitlementApps'
+import { entitledSelections } from '@/utils/vendorEntitlement'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorSubscriptions()
 const id = computed(() => String(route.params.id))
@@ -114,7 +114,7 @@ async function cancelPendingOrder() {
           <ul v-else class="divide-y divide-default">
             <li v-for="i in invoices" :key="i.id" class="flex flex-wrap items-center justify-between gap-3 py-2" data-testid="customer-invoice">
               <NuxtLink :to="{ path: `/vendor/invoices/${encodeURIComponent(i.id)}`, query: { returnTo: route.fullPath } }">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink>
-              <bdi dir="ltr" class="tabular-nums">{{ formatVendorMoney(i.total, locale) }}</bdi>
+              <bdi dir="ltr" class="tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi>
               <SharedStatusBadge :tone="invoiceStatusBadge(i.status, 'vendor.invoices.status').tone" :label="t(invoiceStatusBadge(i.status, 'vendor.invoices.status').labelKey)" />
             </li>
           </ul>

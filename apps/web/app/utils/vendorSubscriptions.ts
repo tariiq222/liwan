@@ -1,9 +1,8 @@
-import type { StatusBadgeEntry } from './statusBadge'
+import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
-import {
-  commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, formatVendorMoney, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft,
-} from './vendorCommercial'
-import { invoiceLineQuantities, type InvoiceLineView } from './invoiceLines'
+import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { invoiceLineQuantities, type InvoiceLineView } from '@nasq/commercial-ui/app/utils/invoiceLines'
 
 export { subscriptionDisplayState }
 export type VendorCustomer = { id: string; name: string; tenant_id: string | null; commercial_setup_required: boolean; subscription: SubscriptionView | null }
@@ -122,10 +121,10 @@ export function vendorInvoiceLineViews(lines: Invoice['lines'], t: (key: string)
       cells: [
         { key: 'free', label: t('vendor.invoices.line.free'), value: q.free === null ? t('app.notAvailable') : String(q.free) },
         { key: 'paid', label: t('vendor.invoices.line.paid'), value: String(q.paid) },
-        { key: 'unit', label: t('vendor.invoices.line.unit'), value: formatVendorMoney(line.unit_amount, locale) },
+        { key: 'unit', label: t('vendor.invoices.line.unit'), value: formatCommercialMoney(line.unit_amount, locale) },
         { key: 'period', label: t('vendor.invoices.line.period'), value: `${line.period_start} → ${line.period_end}` },
       ],
-      amount: formatVendorMoney(line.amount, locale),
+      amount: formatCommercialMoney(line.amount, locale),
     }
   })
 }

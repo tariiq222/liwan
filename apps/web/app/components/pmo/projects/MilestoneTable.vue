@@ -5,7 +5,7 @@ import { ApiError } from '@/composables/useApi'
 import { formatCalendarDate, toCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()

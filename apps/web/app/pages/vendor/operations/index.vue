@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
-import { operationStatusBadge } from '@/utils/commercialBadges'
+import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { OperationFeed } from '@nasq/commercial-contracts'
 import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })

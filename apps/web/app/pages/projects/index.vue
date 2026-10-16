@@ -16,7 +16,7 @@ import {
   useProjectList,
   type ProjectListRouteState,
 } from '@/composables/useProjects'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const router = useRouter()
 const route = useRoute()

@@ -5,8 +5,9 @@ import { renderToString } from '@vue/server-renderer'
 import * as Vue from 'vue'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
-import { invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/commercialBadges'
-import { safeReturnTo } from '../../../utils/safeReturnTo'
+import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
+import { paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/vendorBadges'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
 async function page(name: string, data: unknown, source?: string) {

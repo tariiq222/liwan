@@ -4,7 +4,7 @@ import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import type { HrDocument } from '@/composables/useHrDocuments'
 import { useHrDocuments } from '@/composables/useHrDocuments'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 

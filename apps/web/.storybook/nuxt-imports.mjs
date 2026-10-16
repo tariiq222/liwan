@@ -8,8 +8,9 @@ import { fileURLToPath } from 'node:url'
 const here = dirname(fileURLToPath(import.meta.url))
 export const webRoot = resolve(here, '..')
 const uiRoot = resolve(here, '../../../packages/ui')
-// The app and the @nasq/ui layer both contribute components, composables and utils.
-const appRoots = [join(webRoot, 'app'), join(uiRoot, 'app')]
+const commercialRoot = resolve(here, '../../../packages/commercial-ui')
+// The app and the @nasq/ui and @nasq/commercial-ui layers all contribute components, composables and utils.
+const appRoots = [join(webRoot, 'app'), join(uiRoot, 'app'), join(commercialRoot, 'app')]
 const nuxtDir = join(webRoot, '.nuxt')
 export const shimPath = join(here, 'nuxt-shims.ts')
 

@@ -9,7 +9,7 @@ import { useMeetingListQuerySync } from '../../composables/useMeetingListQuerySy
 import { expect, it } from 'vitest'
 import * as filters from '../../utils/meetingListFilters'
 import { parseOffset } from '../../utils/routeQuery'
-import { returnToQuery } from '../../utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 

@@ -7,8 +7,10 @@ import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../../utils/vendorSubscriptions'
 import * as commercial from '../../../utils/vendorCommercial'
-import { invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/commercialBadges'
-import { safeReturnTo } from '../../../utils/safeReturnTo'
+import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
+import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../../utils/vendorBadges'
+import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 import { formatNasqDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
@@ -43,7 +45,7 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
   const slots = new Map<string, any>()
   const bindings = {
     formatNasqDate, formatNasqDateTime,
-    invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
+    invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
     ...subscriptions, ...commercial, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),
     definePageMeta: () => {}, useHydrated: () => hydrated,

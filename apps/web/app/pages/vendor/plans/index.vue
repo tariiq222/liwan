@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
-import { cadenceLabel, commercialReturnTo, formatVendorMoney, isStatusFilter, keyLabel, limitLabel, STATUS_FILTERS, type PlanView } from '@/utils/vendorCommercial'
+import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { commercialReturnTo, isStatusFilter, keyLabel, limitLabel, STATUS_FILTERS, type PlanView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ middleware: 'vendor', vendorCapability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const { can } = useVendorContext(); const hydrated = useHydrated(); const api = useVendorCommercial()
@@ -42,7 +43,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <SharedDataTable  :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t(q || status !== 'all' ? 'vendor.plans.noResults' : 'vendor.plans.empty')" :caption="t('vendor.plans.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
   <template #name-cell="{ row: { original: p } }"><NuxtLink :to="path(p)" data-testid="plan-row" class="font-medium hover:underline">{{ p.name }}</NuxtLink> <SharedRecordNumber :value="`v${p.version}`" /></template>
   <template #status-cell="{ row: { original: p } }"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(p).tone" :label="lifecycleBadge(p).labelKey ? t(lifecycleBadge(p).labelKey) : p.status" /></template>
-  <template #prices-cell="{ row: { original: p } }"><ul><li v-for="pr in p.prices" :key="`${pr.cadence.unit}${pr.cadence.count}`">{{ cadenceLabel(pr.cadence, t) }}: <bdi dir="ltr">{{ formatVendorMoney(pr.amount, locale) }}</bdi></li></ul></template>
+  <template #prices-cell="{ row: { original: p } }"><ul><li v-for="pr in p.prices" :key="`${pr.cadence.unit}${pr.cadence.count}`">{{ cadenceLabel(pr.cadence, t) }}: <bdi dir="ltr">{{ formatCommercialMoney(pr.amount, locale) }}</bdi></li></ul></template>
   <template #limits-cell="{ row: { original: p } }"><ul><li v-for="(v,k) in p.platform_limits" :key="k">{{ keyLabel(String(k),t,te) }}: {{ limitLabel(v,t) }}</li></ul></template>
   <template #bundles-cell="{ row: { original: p } }">{{ t('vendor.plans.bundlesCount', {included:p.included_bundle_revision_ids.length, optional:p.optional_bundle_revision_ids.length}) }}</template>
   <template #customers-cell="{ row: { original: p } }">{{ t('vendor.pricing.customers', {count:p.customer_count}, p.customer_count) }}</template>
@@ -50,7 +51,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
             <div class="min-w-0"><h2 class="text-lg font-semibold"><NuxtLink data-testid="plan-row" :to="path(p)">{{ p.name }}</NuxtLink> <SharedRecordNumber :value="`v${p.version}`" /></h2><p class="mt-1 text-sm text-muted">{{ t('vendor.plans.termMonths', { count: p.term_months }, p.term_months) }}</p></div>
             <SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(p).tone" :label="t(lifecycleBadge(p).labelKey)" />
           </div>
-          <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums"><li v-for="pr in p.prices" :key="`${pr.cadence.unit}${pr.cadence.count}`">{{ cadenceLabel(pr.cadence, t) }}: <span class="font-medium">{{ formatVendorMoney(pr.amount, locale) }}</span></li></ul>
+          <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm tabular-nums"><li v-for="pr in p.prices" :key="`${pr.cadence.unit}${pr.cadence.count}`">{{ cadenceLabel(pr.cadence, t) }}: <span class="font-medium">{{ formatCommercialMoney(pr.amount, locale) }}</span></li></ul>
           <ul class="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted"><li v-for="(v, k) in p.platform_limits" :key="k">{{ keyLabel(String(k), t, te) }}: {{ limitLabel(v, t) }}</li><li>{{ t('vendor.plans.bundlesCount', { included: p.included_bundle_revision_ids.length, optional: p.optional_bundle_revision_ids.length }) }}</li></ul>
           <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><p class="text-sm text-muted">{{ t('vendor.pricing.customers', { count: p.customer_count }, p.customer_count) }}</p><UButton :to="path(p)" color="neutral" variant="link">{{ t(`vendor.pricing.next.${nextKey(p)}`) }}</UButton></div></template>
 </SharedDataTable>

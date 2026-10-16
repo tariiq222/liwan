@@ -1,7 +1,7 @@
 # فهرس مكونات واجهة نسق
 
 السلطة البصرية هي [DESIGN.md](../../DESIGN.md). هذا الفهرس جرد لملكية الكود
-الحالي في `packages/ui/app` (طبقة Nuxt المشتركة بين التطبيقات) و`apps/web/app` (المكونات المرتبطة بتطبيق) ومساراته؛ لا يضيف سياسة ثانية، ولا مصدرًا بصريًا أو
+الحالي في `packages/ui/app` (طبقة Nuxt المشتركة بين التطبيقات) و`packages/commercial-ui/app` (عرض الفوترة المشترك) و`apps/web/app` (المكونات المرتبطة بتطبيق) ومساراته؛ لا يضيف سياسة ثانية، ولا مصدرًا بصريًا أو
 بيانات تجريبية. المرجع البصري `/Users/tariq/Downloads/nasq-ui` للمقارنة فقط.
 
 Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ اللبنة من `apps/web/stories/<المجلد>/<المكوّن>.stories.ts` ولا ينسخها محليًا؛ المكوّن المشترك الجديد يُشحن مع قصته ويُضاف إلى القائمة الملزمة `STORYBOOK_COMPONENTS` في `tools/ui_policy.py`.
@@ -40,7 +40,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | --- | --- | --- |
 | `packages/ui/app/components/shared/feedback/LoadingSkeleton.vue` | `apps/web/stories/shared/LoadingSkeleton.stories.ts` | `USkeleton`؛ صفوف، سجل، بطاقات |
 | `packages/ui/app/components/shared/feedback/ErrorState.vue` | `apps/web/stories/shared/ErrorState.stories.ts` | `UAlert`، `UButton` (إعادة المحاولة بعد الترطيب) |
-| `apps/web/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`subscriptionInvoiceView`، `vendorInvoiceLineViews`) |
+| `packages/commercial-ui/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`subscriptionInvoiceView`، `vendorInvoiceLineViews`) |
 | `packages/ui/app/components/shared/feedback/ForbiddenState.vue` | `apps/web/stories/shared/ForbiddenState.stories.ts` | `UIcon`؛ 403 بلا إعادة محاولة |
 | `packages/ui/app/components/shared/feedback/NotFoundState.vue` | `apps/web/stories/shared/NotFoundState.stories.ts` | `UIcon`، `UButton` رابط رجوع اختياري؛ 404 |
 | `packages/ui/app/components/shared/layout/StandalonePage.vue` | `apps/web/stories/shared/StandalonePage.stories.ts` | `UCard`؛ `card` هي `<main>` الصفحة وتأخذ `title` أو شريحة `#header` (تستبدل العنوان ويرسم صاحبها `<h1>`)، و`print` وثيقة `.nasq-print` تُطبع أسود على أبيض بلا إطار التطبيق (`packages/ui/app/assets/css/components.css`) |
@@ -124,7 +124,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/web/app/components/vendor/EntitlementSummary.vue` | `apps/web/stories/vendor/EntitlementSummary.stories.ts` | `UBadge` |
 | `apps/web/app/components/vendor/LifecyclePanel.vue` | `apps/web/stories/vendor/LifecyclePanel.stories.ts` | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/web/app/components/vendor/PlanForm.vue` | `apps/web/stories/vendor/PlanForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
-| `apps/web/app/components/shared/commerce/PriceBreakdown.vue` | `apps/web/stories/shared/CommercePriceBreakdown.stories.ts` | `UAlert`, `UButton` |
+| `packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue` | `apps/web/stories/shared/CommercePriceBreakdown.stories.ts` | `UAlert`, `UButton` |
 | `apps/web/app/components/vendor/PriceListEditor.vue` | `apps/web/stories/vendor/PriceListEditor.stories.ts` | `UButton`, `UFormField`, `UInput`, `USelect` |
 | `apps/web/app/components/vendor/SubscriptionSummary.vue` | `apps/web/stories/vendor/SubscriptionSummary.stories.ts` | `UAlert`, `UBadge` |
 | `apps/web/app/components/vendor/UsageMeters.vue` | `apps/web/stories/vendor/UsageMeters.stories.ts` | `UBadge`, `UProgress` |

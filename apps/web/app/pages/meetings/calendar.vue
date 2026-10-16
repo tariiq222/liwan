@@ -2,7 +2,7 @@
 import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeetings } from '@/composables/useMeetings'
-import { returnToQuery } from '@/utils/safeReturnTo'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { formatCalendarDate, formatNasqTime, isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
