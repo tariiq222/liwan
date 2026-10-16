@@ -84,7 +84,7 @@ describe('locale parity for vendor.bundles/plans/pricing', () => {
   it('storage is labelled as counted attachments, not database', () => { expect(json('ar').pricing.keys.storage_limit_mb).toContain('المرفقات'); expect(json('ar').pricing.plan.storageHint).toContain('قاعدة البيانات') })
   it('every t() key used by the new pages exists', () => {
     const files = ['bundles/index.vue', 'bundles/new.vue', 'bundles/[id].vue', 'bundles/[id]/edit.vue', 'plans/index.vue', 'plans/new.vue', 'plans/[id].vue', 'plans/[id]/edit.vue'].map(page)
-      .concat(['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue'].map(comp)).concat(read('../../packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue'))
+      .concat(['BundleForm.vue', 'PlanForm.vue', 'EntitlementSummary.vue', 'LifecyclePanel.vue', 'PriceListEditor.vue', 'CapacityLimitsEditor.vue', 'LimitControl.vue'].map(comp)).concat(read('../../packages/commercial-ui/app/components/shared/commerce/PriceBreakdown.vue'))
     const have = new Set(flat({ vendor: json('en'), commercial: commercial('en') }))
     const missing: string[] = []
     for (const src of files) for (const m of src.matchAll(/\bt\('((?:vendor|commercial)\.[a-zA-Z0-9_.]+)'/g)) if (!have.has(m[1]!)) missing.push(m[1]!)

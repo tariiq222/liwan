@@ -59,57 +59,71 @@ const taxText = computed(() => (props.policy?.tax.kind === 'vat_exclusive' ? t('
   <form class="space-y-6" novalidate data-testid="plan-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <UAlert v-if="failure" color="error" variant="subtle" :title="t(commercialErrorKey(error))" :description="failure.field ? t('vendor.pricing.errors.atField', { field: failure.field }) : undefined" />
-    <SharedFormSection :title="t('vendor.pricing.sections.basics')">
-      <UFormField :label="t('vendor.pricing.fields.name')" required :error="show('name') ?? serverIssue('name')"><UInput v-model="draft.name" maxlength="200" class="w-full" :disabled="dis" /></UFormField>
-      <UFormField :label="t('vendor.pricing.fields.audience')" required :error="show('audience') ?? serverIssue('audience')">
-        <div class="flex flex-wrap gap-2"><USelect v-model="draft.audience.kind" :items="audienceItems" :disabled="dis" :aria-label="t('vendor.pricing.fields.audience')" /><UInput v-if="draft.audience.kind === 'customer'" v-model="draft.audience.customer_id" dir="ltr" :placeholder="t('vendor.pricing.audience.customerId')" :aria-label="t('vendor.pricing.audience.customerId')" :disabled="dis" /></div>
-      </UFormField>
-      <UFormField :label="t('vendor.pricing.fields.currency')"><p class="text-sm">{{ t('vendor.pricing.currencyFixed') }}</p></UFormField>
-      <UFormField :label="t('vendor.pricing.fields.termMonths')" required :error="show('term') ?? serverIssue('term_months')"><UInput v-model="draft.term_months" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
-    </SharedFormSection>
-    <SharedFormSection :title="t('vendor.pricing.sections.basePrices')" :description="t('vendor.pricing.plan.basePricesHint')">
-      <PriceListEditor v-model="draft.prices" :label="t('vendor.pricing.sections.basePrices')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('prices')" />
-    </SharedFormSection>
-    <SharedFormSection :title="t('vendor.pricing.sections.bundles')" :description="t('vendor.pricing.plan.bundlesHint')">
-      <p v-if="!bundles.length" class="text-sm text-muted">{{ t('vendor.pricing.plan.noBundles') }}</p>
-      <p v-if="show('bundles') ?? serverIssue('included_bundle_revision_ids')" class="text-sm text-error">{{ show('bundles') ?? serverIssue('included_bundle_revision_ids') }}</p>
-      <div v-for="b in bundles" :key="b.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg p-3 ring ring-default">
-        <span class="font-medium">{{ bundleName(b) }}</span>
-        <span class="flex flex-wrap gap-4">
-          <UCheckbox :model-value="draft.included.includes(b.id)" :label="t('vendor.pricing.plan.included')" :disabled="dis" @update:model-value="setBundle('included', b.id, $event === true)" />
-          <UCheckbox :model-value="draft.optional.includes(b.id)" :label="t('vendor.pricing.plan.optional')" :disabled="dis" @update:model-value="setBundle('optional', b.id, $event === true)" />
-        </span>
+    <SharedFormSection panel :title="t('vendor.pricing.sections.basics')">
+      <div class="space-y-4">
+        <UFormField :label="t('vendor.pricing.fields.name')" required :error="show('name') ?? serverIssue('name')"><UInput v-model="draft.name" maxlength="200" class="w-full" :disabled="dis" /></UFormField>
+        <UFormField :label="t('vendor.pricing.fields.audience')" required :error="show('audience') ?? serverIssue('audience')">
+          <div class="flex gap-2"><USelect v-model="draft.audience.kind" :items="audienceItems" :disabled="dis" :aria-label="t('vendor.pricing.fields.audience')" :class="draft.audience.kind === 'customer' ? 'w-40 shrink-0' : 'w-full'" /><UInput v-if="draft.audience.kind === 'customer'" v-model="draft.audience.customer_id" dir="ltr" class="min-w-0 flex-1" :placeholder="t('vendor.pricing.audience.customerId')" :aria-label="t('vendor.pricing.audience.customerId')" :disabled="dis" /></div>
+        </UFormField>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UFormField :label="t('vendor.pricing.fields.currency')"><UInput :model-value="t('vendor.pricing.currencyFixed')" readonly class="w-full" /></UFormField>
+          <UFormField :label="t('vendor.pricing.fields.termMonths')" required :error="show('term') ?? serverIssue('term_months')"><UInput v-model="draft.term_months" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+        </div>
       </div>
     </SharedFormSection>
-    <SharedFormSection :title="t('vendor.pricing.sections.platformLimits')" :description="t('vendor.pricing.plan.platformHint')">
-      <CapacityLimitsEditor v-model="draft.platform" :keys="[...PLATFORM_LIMIT_KEYS]" :labels="labels" :hints="hints" :disabled="dis" :show-errors="attempted" />
-      <UAlert v-if="platformBlocked" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :description="t('vendor.pricing.plan.platformNoneWarning')" data-testid="platform-none-warning" />
+    <SharedFormSection panel :title="t('vendor.pricing.sections.pricesAndBundles')">
+      <div class="space-y-6">
+        <VendorPriceListEditor v-model="draft.prices" :label="t('vendor.pricing.sections.basePrices')" :hint="t('vendor.pricing.plan.basePricesHint')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('prices')" />
+        <VendorFormSubsection :title="t('vendor.pricing.sections.bundles')" :description="t('vendor.pricing.plan.bundlesHint')">
+          <SharedEmptyState v-if="!bundles.length" :title="t('vendor.pricing.plan.noBundles')" />
+          <p v-if="show('bundles') ?? serverIssue('included_bundle_revision_ids')" class="text-sm text-error">{{ show('bundles') ?? serverIssue('included_bundle_revision_ids') }}</p>
+          <div v-for="b in bundles" :key="b.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg p-3 ring ring-default">
+            <span class="font-medium">{{ bundleName(b) }}</span>
+            <span class="flex flex-wrap gap-4">
+              <UCheckbox :model-value="draft.included.includes(b.id)" :label="t('vendor.pricing.plan.included')" :disabled="dis" @update:model-value="setBundle('included', b.id, $event === true)" />
+              <UCheckbox :model-value="draft.optional.includes(b.id)" :label="t('vendor.pricing.plan.optional')" :disabled="dis" @update:model-value="setBundle('optional', b.id, $event === true)" />
+            </span>
+          </div>
+        </VendorFormSubsection>
+      </div>
     </SharedFormSection>
-    <SharedFormSection :title="t('vendor.pricing.sections.branches')" :description="t('vendor.pricing.plan.branchesHint')">
-      <p class="rounded-lg bg-elevated p-3 text-sm">{{ t('vendor.pricing.plan.hq') }}</p>
-      <UFormField :label="t('vendor.pricing.fields.freeBranches')" required :error="show('free') ?? serverIssue('included_extra_branches')"><UInput v-model="draft.included_extra_branches" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
-      <PriceListEditor v-model="draft.extra_branch_prices" :label="t('vendor.pricing.fields.branchPrice')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('extra_branch_prices')" />
-      <UFormField :label="t('vendor.pricing.fields.branchLimit')" required :error="show('branchLimit') ?? serverIssue('extra_branches_limit')">
-        <div class="flex flex-wrap gap-2">
-          <USelect :model-value="draft.extra_branches_limit.mode || undefined" :items="[{ label: t('vendor.pricing.limit.unlimited'), value: 'unlimited' }, { label: t('vendor.pricing.limit.none'), value: 'none' }, { label: t('vendor.pricing.limit.number'), value: 'number' }]" :placeholder="t('vendor.pricing.choose')" :disabled="dis" :aria-label="t('vendor.pricing.fields.branchLimit')" @update:model-value="draft.extra_branches_limit = { mode: $event as PlanDraft['extra_branches_limit']['mode'], value: '' }" />
-          <UInput v-if="draft.extra_branches_limit.mode === 'number'" v-model="draft.extra_branches_limit.value" inputmode="numeric" dir="ltr" :aria-label="t('vendor.pricing.fields.branchLimit')" :disabled="dis" />
-        </div>
-      </UFormField>
+    <SharedFormSection panel :title="t('vendor.pricing.sections.limits')">
+      <div class="space-y-6">
+        <VendorFormSubsection :title="t('vendor.pricing.sections.platformLimits')" :description="t('vendor.pricing.plan.platformHint')">
+          <VendorCapacityLimitsEditor v-model="draft.platform" :keys="[...PLATFORM_LIMIT_KEYS]" :labels="labels" :hints="hints" :disabled="dis" :show-errors="attempted" />
+          <UAlert v-if="platformBlocked" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :description="t('vendor.pricing.plan.platformNoneWarning')" data-testid="platform-none-warning" />
+        </VendorFormSubsection>
+        <VendorFormSubsection :title="t('vendor.pricing.sections.branches')" :description="t('vendor.pricing.plan.branchesHint')">
+          <p class="rounded-lg bg-elevated p-3 text-sm">{{ t('vendor.pricing.plan.hq') }}</p>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField :label="t('vendor.pricing.fields.freeBranches')" required :error="show('free') ?? serverIssue('included_extra_branches')"><UInput v-model="draft.included_extra_branches" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+            <UFormField :label="t('vendor.pricing.fields.branchLimit')" required :error="show('branchLimit') ?? serverIssue('extra_branches_limit')"><VendorLimitControl v-model="draft.extra_branches_limit" :label="t('vendor.pricing.fields.branchLimit')" :disabled="dis" /></UFormField>
+          </div>
+          <VendorPriceListEditor v-model="draft.extra_branch_prices" :label="t('vendor.pricing.fields.branchPrice')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('extra_branch_prices')" />
+        </VendorFormSubsection>
+      </div>
     </SharedFormSection>
-    <SharedFormSection :title="t('vendor.pricing.sections.lifecycle')" :description="t('vendor.pricing.plan.lifecycleHint')">
-      <UFormField :label="t('vendor.pricing.fields.trialDays')" required :error="show('trial') ?? serverIssue('trial_days')"><UInput v-model="draft.trial_days" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
-      <UFormField :label="t('vendor.pricing.fields.graceDays')" required :error="show('grace') ?? serverIssue('grace_days')"><UInput v-model="draft.grace_days" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
-      <UFormField :label="t('vendor.pricing.fields.autoSuspend')" required :error="show('suspend') ?? serverIssue('auto_suspend')"><USelect v-model="draft.auto_suspend" :items="choiceItems" :placeholder="t('vendor.pricing.choose')" class="w-full" :disabled="dis" /></UFormField>
-      <UFormField :label="t('vendor.pricing.fields.autoRenew')" required :help="t('vendor.pricing.plan.autoRenewHint')" :error="show('renew') ?? serverIssue('auto_renew_allowed')"><USelect v-model="draft.auto_renew_allowed" :items="choiceItems" :placeholder="t('vendor.pricing.choose')" class="w-full" :disabled="dis" /></UFormField>
+    <SharedFormSection panel :title="t('vendor.pricing.sections.lifecycle')" :description="t('vendor.pricing.plan.lifecycleHint')">
+      <div class="grid items-start gap-4 sm:grid-cols-2">
+        <UFormField :label="t('vendor.pricing.fields.trialDays')" required :error="show('trial') ?? serverIssue('trial_days')"><UInput v-model="draft.trial_days" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+        <UFormField :label="t('vendor.pricing.fields.graceDays')" required :error="show('grace') ?? serverIssue('grace_days')"><UInput v-model="draft.grace_days" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
+        <UFormField :label="t('vendor.pricing.fields.autoSuspend')" required :error="show('suspend') ?? serverIssue('auto_suspend')"><USelect v-model="draft.auto_suspend" :items="choiceItems" :placeholder="t('vendor.pricing.choose')" class="w-full" :disabled="dis" /></UFormField>
+        <UFormField :label="t('vendor.pricing.fields.autoRenew')" required :help="t('vendor.pricing.plan.autoRenewHint')" :error="show('renew') ?? serverIssue('auto_renew_allowed')"><USelect v-model="draft.auto_renew_allowed" :items="choiceItems" :placeholder="t('vendor.pricing.choose')" class="w-full" :disabled="dis" /></UFormField>
+      </div>
     </SharedFormSection>
-    <SharedFormSection :title="t('vendor.pricing.sections.review')" :description="t('vendor.pricing.plan.reviewHint')">
-      <dl class="grid gap-2 text-sm sm:grid-cols-2">
-        <div><dt class="text-muted">{{ t('vendor.pricing.policy.timezone') }}</dt><dd>{{ policy?.timezone ?? '—' }}</dd></div>
-        <div><dt class="text-muted">{{ t('vendor.pricing.policy.tax') }}</dt><dd>{{ taxText }}</dd></div>
-      </dl>
-      <p v-if="attempted && errors.policy" class="text-sm text-error">{{ errors.policy }}</p>
-      <UFormField v-if="requireReason" :label="t('vendor.pricing.fields.reason')" required :error="show('reason') ?? serverIssue('reason')"><UTextarea v-model="draft.reason" maxlength="1000" class="w-full" :disabled="dis" /></UFormField>
+    <SharedFormSection panel :title="t('vendor.pricing.sections.review')" :description="t('vendor.pricing.plan.reviewHint')">
+      <div class="space-y-4">
+        <dl class="grid gap-2 text-sm sm:grid-cols-2">
+          <div><dt class="text-muted">{{ t('vendor.pricing.policy.timezone') }}</dt><dd>{{ policy?.timezone ?? '—' }}</dd></div>
+          <div><dt class="text-muted">{{ t('vendor.pricing.policy.tax') }}</dt><dd>{{ taxText }}</dd></div>
+        </dl>
+        <p v-if="attempted && errors.policy" class="text-sm text-error">{{ errors.policy }}</p>
+        <UFormField v-if="requireReason" :label="t('vendor.pricing.fields.reason')" required :error="show('reason') ?? serverIssue('reason')"><UTextarea v-model="draft.reason" maxlength="1000" class="w-full" :disabled="dis" /></UFormField>
+      </div>
     </SharedFormSection>
-    <div class="flex justify-end gap-2"><UButton color="neutral" variant="outline" :disabled="dis" @click="emit('cancel')">{{ t('app.cancel') }}</UButton><UButton type="submit" :loading="busy" :disabled="dis">{{ t('vendor.pricing.saveDraft') }}</UButton></div>
+    <SharedFormActions>
+      <UButton type="submit" :loading="busy" :disabled="dis">{{ t('vendor.pricing.saveDraft') }}</UButton>
+      <UButton color="neutral" variant="outline" :disabled="dis" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
+    </SharedFormActions>
   </form>
 </template>
