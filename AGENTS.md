@@ -177,7 +177,12 @@ another application) needs the owner's approval, recorded by the owner as an
   focused checks and `npm test` pass; `python3 -B tools/git_policy.py --base main` and
   `python3 -B tools/arch_policy.py --base main` pass (this local run is the binding gate; CI repeats it
   on push); addon or contract changes are reviewed by the `odoo-reviewer` agent; the working tree is
-  clean. Then `git merge --no-ff`. Removing the merged branch and its worktree also needs the owner's
+  clean. Manual integration uses `git merge --no-ff`. The local checked entrypoint is
+  `npm run merge:main -- codex/<area>-<slug>`: it creates the no-ff merge commit in an
+  isolated candidate, runs all twelve checks, then fast-forwards `main` to that exact
+  tested merge commit. It never pushes or cleans up worktrees. Review and owner
+  authorization still apply; direct Git can bypass this tool. Removing the merged branch
+  and its worktree also needs the owner's
   authorization, and happens only after the content is preserved and no process uses it; unmerged work
   is tagged `archive/<name>` before its branch is removed.
 - Only `main` and tags are pushed, each push with the owner's explicit authorization. Task branches stay
@@ -303,8 +308,8 @@ worktrees only after their content is preserved and no process is using them.
 ## Check commands
 
 The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is Woodpecker
-(`.woodpecker.yml`, twelve steps, each runnable locally); its notes and the local `woodpecker-cli exec`
-recipe are in `docs/testing.md` ("CI pipeline notes"). Fast local loop: `npm run check:fast`,
+(`.woodpecker.yml`, twelve steps, each runnable locally); its runner and merge gate
+are in `docs/testing.md` ("Local main merge gate" and "CI pipeline notes"). Fast local loop: `npm run check:fast`,
 `npm run test:odoo`, `npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
 Web checks and general commands:
 
