@@ -19,6 +19,7 @@ Ignored detailed evidence is in `.superpowers/webvue-relocation/` in the rename 
 | Check | Result |
 | --- | --- |
 | Root npm test after relocation, isolated checkout | Exit 0; 810 Python and 3388 JavaScript tests |
+| Canonical main npm test and both app type checks | Exit 0 after code integration `b92c8488` and local Nuxt regeneration; same 810 Python + 3388 JavaScript tests |
 | Namespace regressions | 3 passed; the new URL/path cases each observed RED before GREEN |
 | Bash guard behavioral matrix | 6 passed: new-checkout mutation, explicit new checkout from Odoo, upstream read-only, blocked upstream mutation, blocked development DB tests and allowed scratch command |
 | Architecture/Git/diff checks against current main | Exit 0 |
@@ -29,6 +30,8 @@ Ignored detailed evidence is in `.superpowers/webvue-relocation/` in the rename 
 | Independent Sol/high read-only review | PASS; no Critical/Important findings |
 | Worktree preservation | 14 immediate HEAD/status/hash comparisons passed |
 | New GitHub identity/access/refs | Same ID/privacy/default branch/permissions; refs byte-identical; new origin fetch passed |
+
+The first canonical-main root run reached the UI metadata gate and failed because its pre-existing generated Nuxt config omitted the shared UI layer includes. The same gate failed independently before repair. Running each app's postinstall regenerated local files; the UI catalog then passed with 89 components, followed by the complete canonical root suite and both app type checks. No source assertion was removed or weakened. README now documents these tested preparation commands after dependency installation or relocation. This generated-file repair changed no tracked runtime code.
 
 No old development database was renamed or deleted. No worker implementation was integrated by this relocation.
 

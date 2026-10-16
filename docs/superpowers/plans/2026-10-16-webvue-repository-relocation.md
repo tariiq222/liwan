@@ -50,7 +50,7 @@
 
 ### Task 4: Integrate and verify
 
-- [ ] Run the relevant root tests and type/build checks in the isolated workspace; verify new-path commands and remote fetch.
-- [ ] Obtain independent read-only Sol review, inspect all changed files, then commit/integrate this authorized continuation into latest main per integration policy.
-- [ ] Confirm main tree equals the verified candidate, dirty user files survived, all worktrees remain valid, and no push/deploy happened.
-- [ ] Notify the active coordinator with new paths, remote and test evidence. Record remaining saved-app path limitation precisely.
+- [x] Run the relevant root tests and type/build checks in the isolated workspace; verify new-path commands and remote fetch.
+- [x] Obtain independent read-only Sol review, inspect all changed files, then commit/integrate this authorized continuation into latest main per integration policy.
+- [x] Confirm main tree equals the verified candidate, dirty user files survived, all worktrees remain valid, and no push/deploy happened.
+- [x] Notify the active coordinator with new paths, remote and test evidence. Record remaining saved-app path limitation precisely.
