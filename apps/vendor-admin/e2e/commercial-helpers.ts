@@ -8,6 +8,8 @@ const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'correct-horse-battery'
 const ADMIN_TOTP = process.env.E2E_ADMIN_TOTP ?? '123456'
 const BASE_ORIGIN = new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3133').origin
 
+type NuxtAppHandle = { $router: { push: (to: string) => Promise<unknown> }, $i18n: { setLocale: (locale: string) => Promise<void> } }
+
 export async function login(page: Page, email = ADMIN_EMAIL) {
   const response = await page.request.post('/api/auth/fallback', {
     data: { email, password: ADMIN_PASSWORD, totp_code: ADMIN_TOTP },
@@ -25,10 +27,17 @@ export async function open(page: Page, path: string) {
  * interception applies. A navigation the route gate aborts resolves too; specs assert the outcome.
  */
 export const navigateClient = (page: Page, path: string) =>
-  page.evaluate(
-    target => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push(target).catch(() => undefined),
-    path,
-  )
+  page.evaluate((target) => {
+    const app = (window as unknown as { useNuxtApp: () => NuxtAppHandle }).useNuxtApp()
+    return app.$router.push(target).catch(() => undefined)
+  }, path)
+/** Changes the interface language in the running app, then optionally navigates client-side. */
+export const switchLocale = (page: Page, locale: string, path?: string) =>
+  page.evaluate(async ({ target, destination }) => {
+    const app = (window as unknown as { useNuxtApp: () => NuxtAppHandle }).useNuxtApp()
+    await app.$i18n.setLocale(target)
+    if (destination) await app.$router.push(destination)
+  }, { target: locale, destination: path })
 export const rows = (page: Page) => page.locator('tbody tr[data-shortcut-row]')
 export const mobileRows = (page: Page) => page.locator('li[data-shortcut-row]')
 export const fitsWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)

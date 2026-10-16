@@ -6,7 +6,7 @@ import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
 definePageMeta({ capability: 'vendor.read' })
-type Tenant = { id: string; name: string; commercial_mode: string; hosting_model: string; inventory_target: string; catalog_version: string | null; catalog_tier: string | null; status: string; desired_policy: Record<string, any> | null; observed_policy: Record<string, any> | null; policy_revision: number | null; health_checked_at: string | null; operations_enabled: boolean; available_operations?: unknown; created_at: string }
+type Tenant = { id: string; name: string; commercial_mode: string; hosting_model: string; inventory_target: string; catalog_version: string | null; catalog_tier: string | null; status: string; desired_policy: Record<string, unknown> | null; observed_policy: Record<string, unknown> | null; policy_revision: number | null; health_checked_at: string | null; operations_enabled: boolean; available_operations?: unknown; created_at: string }
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
 const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
 type Catalog = { version: string; status: string; solution: { tiers?: { id: string; name: string; features?: string[]; limits?: Record<string, number> }[] } }
