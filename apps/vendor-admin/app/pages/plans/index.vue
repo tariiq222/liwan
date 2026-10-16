@@ -31,10 +31,9 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.plans.title')" :description="t('vendor.plans.description')" :create-to="can('vendor.catalog.manage') && can('vendor.pricing.manage') ? { path: '/plans/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.plans.create')" create-test-id="vendor-plan-new">
+<SharedListPage :title="t('vendor.catalog.title')" :description="t('vendor.plans.description')" :create-to="can('vendor.catalog.manage') && can('vendor.pricing.manage') ? { path: '/plans/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.plans.create')" create-test-id="vendor-plan-new">
 
-<template #actions><UButton to="/catalog" color="neutral" variant="outline" icon="i-lucide-archive">{{ t('vendor.catalog.title') }}</UButton></template>
-<template #filters><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/plans')">
+<template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/plans')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.plans.search')" :placeholder="t('vendor.plans.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.pricing.filter.${status}`)" @remove="patch({ status: undefined })" /></template>

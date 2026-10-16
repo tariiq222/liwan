@@ -11,9 +11,8 @@
     "nav": {
       "overview": "Overview",
       "customers": "Customers",
+      "catalog": "Catalog",
       "operations": "Operations",
-      "plans": "Plans",
-      "bundles": "Bundles",
       "invoices": "Invoices",
       "audit": "Audit",
       "team": "Team"

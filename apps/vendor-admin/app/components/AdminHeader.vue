@@ -10,6 +10,7 @@ const { t, te, locale, locales } = useI18n()
 const { me, signOut } = useAdminSession()
 const hydrated = useHydrated()
 const pageTitle = usePageHeaderTitle()
+const sectionCrumb = useSectionCrumbState()
 const { choose } = useLocalePreference()
 const { mode, setMode } = useAppearance()
 const toast = useToast()
@@ -24,9 +25,12 @@ const section = computed(() => props.items.find(item => item.id === props.active
 const crumbs = computed(() => {
   const label = section.value ? t(section.value.labelKey) : null
   const title = hydrated.value ? pageTitle.value : null
+  const tab = hydrated.value ? sectionCrumb.value : null
   const trail: ShellCrumb[] = []
-  if (label && section.value) trail.push({ label, to: title && title !== label ? section.value.to : undefined })
-  if (title && title !== label) trail.push({ label: title })
+  const deeper = Boolean(title && title !== label)
+  if (label && section.value) trail.push({ label, to: deeper ? section.value.to : undefined })
+  if (label && tab) trail.push({ label: tab.label, to: deeper ? tab.to : undefined })
+  if (title && deeper) trail.push({ label: title })
   return trail
 })
 

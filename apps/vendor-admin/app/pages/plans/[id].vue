@@ -38,6 +38,18 @@ async function done(action: LifecycleAction, result: unknown) {
   else if (action === 'revisions' && result && typeof result === 'object' && 'id' in result) await navigateTo({ path: `/plans/${(result as PlanView).id}/edit`, query: { returnTo: backTo.value } })
   else await refresh()
 }
+const includedIds = computed(() => view.value?.included_bundle_revision_ids ?? [])
+const bundleOf = (x: string) => data.value?.bundles.find(b => b.id === x)
+const bundleTo = (x: string) => ({ path: `/bundles/${encodeURIComponent(x)}`, query: { returnTo: route.fullPath } })
+const facts = computed(() => {
+  const v = view.value; if (!v) return []
+  const first = v.prices[0]
+  return [
+    { key: 'price', label: t('vendor.pricing.sections.prices'), value: first ? `${formatCommercialMoney(first.amount, locale.value)} · ${cadenceLabel(first.cadence, t)}` : t('vendor.pricing.prices.none') },
+    { key: 'bundles', label: t('vendor.pricing.sections.bundles'), value: t('vendor.plans.bundlesCount', { included: v.included_bundle_revision_ids.length, optional: v.optional_bundle_revision_ids.length }) },
+    { key: 'customers', label: t('vendor.customers.title'), value: t('vendor.pricing.customers', { count: v.customer_count }, v.customer_count) },
+  ]
+})
 const editable = computed(() => view.value?.status === 'draft' && can('vendor.catalog.manage') && can('vendor.pricing.manage'))
 const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value: cadenceKey(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatCommercialMoney(p.amount, locale.value)}` })))
 </script>
@@ -48,21 +60,25 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
       <template #actions><UButton v-if="view && editable" :to="{ path: `/plans/${view.id}/edit`, query: { returnTo: backTo } }" color="neutral" variant="outline">{{ t('vendor.pricing.edit') }}</UButton></template>
 
     <template v-if="view && data">
-
-      <SharedRecordSection :title="t('vendor.plans.summary')" class="mt-6">
-        <dl class="grid gap-4 sm:grid-cols-2">
-
+      <VendorCatalogFacts :facts="facts" class="mt-6">
+        <template #status><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(view).tone" :label="t(lifecycleBadge(view).labelKey)" /></template>
+      </VendorCatalogFacts>
+      <SharedRecordSection :title="t('vendor.plans.sold')" :description="t('vendor.plans.soldHint')" class="mt-6" data-testid="plan-bundles">
+        <ul class="grid gap-2 sm:grid-cols-2">
+          <li v-for="x in [...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids]" :key="x" class="flex items-center justify-between gap-3 rounded-lg p-3 ring ring-default">
+            <NuxtLink :to="bundleTo(x)" data-testid="plan-bundle-link" class="min-w-0 truncate font-medium hover:underline">{{ bundleName(x) }}</NuxtLink>
+            <UBadge color="neutral" :variant="includedIds.includes(x) ? 'subtle' : 'outline'">{{ t(includedIds.includes(x) ? 'vendor.pricing.plan.included' : 'vendor.pricing.plan.optional') }}</UBadge>
+          </li>
+        </ul>
+        <dl class="mt-4 grid gap-4 sm:grid-cols-2">
           <div v-for="(v, k) in view.platform_limits" :key="k"><dt class="text-sm text-muted">{{ keyLabel(String(k), t, te) }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(v, t) }}</dd></div>
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.freeBranches') }}</dt><dd class="font-semibold tabular-nums">{{ view.included_extra_branches }}</dd></div>
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.branchLimit') }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(view.extra_branches_limit, t) }}</dd></div>
-
         </dl>
-        <ul class="mt-4 grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
-        <ul v-if="view.extra_branch_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.extra_branch_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.branchPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
       </SharedRecordSection>
-      <SharedRecordSection :title="t('vendor.pricing.sections.bundles')" class="mt-6">
-        <p class="text-sm font-medium">{{ t('vendor.pricing.plan.included') }}</p><ul class="mb-3 list-disc ps-5"><li v-for="x in view.included_bundle_revision_ids" :key="x">{{ bundleName(x) }}</li></ul>
-        <p class="text-sm font-medium">{{ t('vendor.pricing.plan.optional') }}</p><ul class="list-disc ps-5"><li v-for="x in view.optional_bundle_revision_ids" :key="x">{{ bundleName(x) }}</li></ul>
+      <SharedRecordSection :title="t('vendor.pricing.sections.prices')" class="mt-6">
+        <ul class="grid gap-2 sm:grid-cols-2"><li v-for="p in view.prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
+        <ul v-if="view.extra_branch_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.extra_branch_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-lg p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.branchPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
       </SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.quote.title')" :description="t('vendor.pricing.quote.hint')" class="mt-6" data-testid="quote-preview">
         <div class="grid gap-3 sm:grid-cols-2">
