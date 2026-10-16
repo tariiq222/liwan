@@ -45,7 +45,7 @@ function base32Decode(text: string): Buffer {
 
 /** An authenticator-app code the control plane has not seen: its step is above the last one this account used. */
 class Authenticator {
-  secret = Buffer.alloc(0)
+  secret: Buffer<ArrayBufferLike> = Buffer.alloc(0)
   lastStep = 0
   async nextCode(): Promise<string> {
     for (;;) {
