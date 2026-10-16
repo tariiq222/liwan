@@ -13,6 +13,14 @@ def new_run_id() -> str:
     return "r_" + secrets.token_hex(12)
 
 
+ACTIVE = ("running", "executing")  # a process holds the run: only its lease settles it
+EXECUTING = "executing"  # a claimed write: it may already have run, so a stale one is never re-entered by claim or resume
+
+
+def is_stale(record: RunRecord, stale_after_seconds: float) -> bool:
+    return record.updated_at < datetime.now(UTC) - timedelta(seconds=stale_after_seconds)
+
+
 def new_lease() -> str:
     return secrets.token_hex(16)
 
@@ -32,17 +40,21 @@ class RunRecord:
 class RunStore(Protocol):
     async def create(self, tenant: str, user_ref: str) -> RunRecord: ...
     async def get(self, run_id: str) -> RunRecord | None: ...
-    async def acquire(self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None) -> str | None:
-        """Atomically move the run to 'running' and return its new lease, or None.
+    async def acquire(
+        self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None, to_status: str = "running",
+        takeover: tuple[str, ...] = ("running",),
+    ) -> str | None:
+        """Atomically move the run to ``to_status`` ('running', or 'executing' for a claim) and return its new lease, or None.
 
-        A run in one of ``allowed`` qualifies (for a resume only while ``pending_call_id`` is still its pending call), and so does a
-        'running' run not updated for ``stale_after_seconds`` (its process is gone); the caller decides from the checkpoint what a
-        stale run may do.
+        A run in one of ``allowed`` qualifies (for a resume or claim only while ``pending_call_id`` is still its pending call), except an
+        'executing' run not updated for ``stale_after_seconds``: its write may already have run, so only a caller that lists 'executing'
+        in ``takeover`` (a new user message, which settles the unknown result) can take it. A run in ``takeover`` not updated for
+        ``stale_after_seconds`` (its process is gone) qualifies too; the caller decides from the checkpoint what a stale run may do.
         """
         ...
 
     async def finish(self, run_id: str, status: str, lease: str | None, pending_call_id: str | None = None) -> None:
-        """Record the settled status (and the pending call of a waiting run); only the holder of the current lease of a 'running' run changes it."""
+        """Record the settled status (and the pending call of a waiting run); only the lease holder of a 'running' or 'executing' run changes it."""
         ...
 
     async def delete_older_than(self, days: int) -> list[str]:
@@ -69,23 +81,27 @@ class MemoryRunStore:
     async def get(self, run_id: str) -> RunRecord | None:
         return self.records.get(run_id)
 
-    async def acquire(self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None) -> str | None:
+    async def acquire(
+        self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None, to_status: str = "running",
+        takeover: tuple[str, ...] = ("running",),
+    ) -> str | None:
         async with self._lock:
             record = self.records.get(run_id)
             if record is None:
                 return None
-            now = datetime.now(UTC)
-            stale = record.status == "running" and record.updated_at < now - timedelta(seconds=stale_after_seconds)
+            stale = is_stale(record, stale_after_seconds)
             allowed_now = record.status in allowed and (pending_call_id is None or record.pending_call_id == pending_call_id)
-            if not (stale or allowed_now):
+            if record.status == EXECUTING and stale:
+                allowed_now = False
+            if not (allowed_now or (stale and record.status in takeover)):
                 return None
-            record.status, record.updated_at, record.lease = "running", now, new_lease()
+            record.status, record.updated_at, record.lease = to_status, datetime.now(UTC), new_lease()
             return record.lease
 
     async def finish(self, run_id: str, status: str, lease: str | None, pending_call_id: str | None = None) -> None:
         async with self._lock:
             record = self.records.get(run_id)
-            if record is not None and record.status == "running" and record.lease == lease:
+            if record is not None and record.status in ACTIVE and record.lease == lease:
                 record.status, record.pending_call_id, record.updated_at = status, pending_call_id, datetime.now(UTC)
 
     async def delete_older_than(self, days: int) -> list[str]:
@@ -142,22 +158,27 @@ class PostgresRunStore:
             )).fetchone()
         return RunRecord(*row) if row else None
 
-    async def acquire(self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None) -> str | None:
+    async def acquire(
+        self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None, to_status: str = "running",
+        takeover: tuple[str, ...] = ("running",),
+    ) -> str | None:
         lease = new_lease()
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                "UPDATE ai_runs SET status = 'running', lease = %s, updated_at = now() WHERE run_id = %s AND ("
-                "(status = ANY(%s) AND (%s::text IS NULL OR pending_call_id = %s::text))"
-                " OR (status = 'running' AND updated_at < now() - make_interval(secs => %s))) RETURNING run_id",
-                (lease, run_id, list(allowed), pending_call_id, pending_call_id, float(stale_after_seconds)),
+                "UPDATE ai_runs SET status = %s, lease = %s, updated_at = now() WHERE run_id = %s AND ("
+                "(status = ANY(%s) AND (%s::text IS NULL OR pending_call_id = %s::text)"
+                " AND NOT (status = %s AND updated_at < now() - make_interval(secs => %s)))"
+                " OR (status = ANY(%s) AND updated_at < now() - make_interval(secs => %s))) RETURNING run_id",
+                (to_status, lease, run_id, list(allowed), pending_call_id, pending_call_id, EXECUTING, float(stale_after_seconds),
+                 list(takeover), float(stale_after_seconds)),
             )).fetchone()
         return lease if row else None
 
     async def finish(self, run_id: str, status: str, lease: str | None, pending_call_id: str | None = None) -> None:
         async with self.pool.connection() as conn:
             await conn.execute(
-                "UPDATE ai_runs SET status = %s, pending_call_id = %s, updated_at = now() WHERE run_id = %s AND status = 'running' AND lease = %s",
-                (status, pending_call_id, run_id, lease),
+                "UPDATE ai_runs SET status = %s, pending_call_id = %s, updated_at = now() WHERE run_id = %s AND status = ANY(%s) AND lease = %s",
+                (status, pending_call_id, run_id, list(ACTIVE), lease),
             )
 
     async def delete_older_than(self, days: int) -> list[str]:

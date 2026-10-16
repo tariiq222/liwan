@@ -13,8 +13,8 @@ TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
 PAGE_NAME = r"^[a-z][a-z_-]{0,39}$"
 MAX_TOOLS = 100
 MAX_RESULT_BYTES = 200 * 1024
-RUN_STATUSES = ("running", "waiting_tool", "waiting_user", "done", "failed", "limit_reached")
-RunStatusValue = Literal["running", "waiting_tool", "waiting_user", "done", "failed", "limit_reached"]
+RUN_STATUSES = ("running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached")
+RunStatusValue = Literal["running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached"]
 
 
 def encode_tool_name(name: str) -> str:
@@ -127,6 +127,10 @@ class ToolResult(Strict):
 class ResumeRequest(Strict):
     call_id: str = Field(min_length=1, max_length=40)
     result: ToolResult
+
+
+class ClaimRequest(Strict):
+    call_id: str = Field(min_length=1, max_length=40)
 
 
 class PendingCall(Strict):

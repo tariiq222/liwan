@@ -159,3 +159,28 @@ async def test_a_failed_setup_closes_the_pool_before_raising(monkeypatch):
     with pytest.raises(RuntimeError, match="setup failed"):
         await open_state(url())
     assert closed == [True]
+
+
+async def test_concurrent_claims_give_one_winner_and_a_stale_executing_run_is_only_taken_over_by_a_new_message_in_postgres():
+    store, _checkpointer, aclose = await open_state(url())
+    try:
+        record = await store.create("t1", "42")
+        await store.finish(record.run_id, "waiting_user", record.lease, "c_1")
+        claim = dict(stale_after_seconds=60, pending_call_id="c_1", to_status="executing")
+        assert await store.acquire(record.run_id, ("waiting_user",), **{**claim, "pending_call_id": "c_2"}) is None
+        results = await asyncio.gather(*(store.acquire(record.run_id, ("waiting_user",), **claim) for _ in range(6)))
+        [lease] = [result for result in results if result]
+        stored = await store.get(record.run_id)
+        assert stored.status == "executing" and stored.lease == lease and stored.pending_call_id == "c_1"
+        waiting = ("waiting_tool", "waiting_user", "executing")
+        assert await store.acquire(record.run_id, waiting, stale_after_seconds=60, pending_call_id="c_1") is not None
+        await store.finish(record.run_id, "waiting_user", lease, "c_1")  # the superseded holder cannot settle it
+        assert (await store.get(record.run_id)).status == "running"
+        async with store.pool.connection() as conn:
+            await conn.execute("UPDATE ai_runs SET status = 'executing', updated_at = now() - interval '2 minutes' WHERE run_id = %s", (record.run_id,))
+        assert await store.acquire(record.run_id, ("done",), stale_after_seconds=60) is None  # a stale executing run is not taken by default
+        assert await store.acquire(record.run_id, waiting, stale_after_seconds=60, pending_call_id="c_1") is None  # nor resumed
+        assert await store.acquire(record.run_id, ("waiting_user",), **claim) is None  # nor claimed again
+        assert await store.acquire(record.run_id, ("done",), stale_after_seconds=60, takeover=("running", "executing")) is not None
+    finally:
+        await aclose()

@@ -29,6 +29,17 @@ def _retention_days(environ: Mapping[str, str]) -> int:
     return days
 
 
+MIN_SERVICE_TOKEN_LENGTH = 24
+
+
+def _service_token(environ: Mapping[str, str]) -> str | None:
+    token = environ.get("AI_SERVICE_TOKEN") or None
+    if token is not None and len(token) < MIN_SERVICE_TOKEN_LENGTH:
+        msg = f"AI_SERVICE_TOKEN must be at least {MIN_SERVICE_TOKEN_LENGTH} characters"
+        raise SettingsError("AI_SERVICE_TOKEN", msg)
+    return token
+
+
 @dataclass(frozen=True)
 class CleanupSettings:
     """What the retention job needs: the database and the window, no provider, model or key."""
@@ -53,6 +64,7 @@ class Settings:
     base_url: str | None
     database_url: str | None
     default_timeout_seconds: int
+    service_token: str | None = None
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Settings:
@@ -68,11 +80,16 @@ class Settings:
         if provider in CLOUD_PROVIDERS and not api_key:
             msg = f"AI_API_KEY is required for provider {provider}"
             raise SettingsError("AI_API_KEY", msg)
+        database_url = environ.get("AI_DATABASE_URL", "").strip() or None
+        if database_url is None and environ.get("AI_ALLOW_MEMORY_STATE") != "true":
+            msg = "AI_DATABASE_URL is required (set AI_ALLOW_MEMORY_STATE=true only for local development)"
+            raise SettingsError("AI_DATABASE_URL", msg)
         return cls(
             provider=provider,  # type: ignore[arg-type]
             model=model,
             api_key=api_key,
             base_url=environ.get("AI_BASE_URL") or None,
-            database_url=environ.get("AI_DATABASE_URL") or None,
+            database_url=database_url,
             default_timeout_seconds=int(environ.get("AI_DEFAULT_TIMEOUT_SECONDS", "120")),
+            service_token=_service_token(environ),
         )

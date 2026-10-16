@@ -1,13 +1,17 @@
 """The env-configured app opens its state on the serving loop (no pool bound to a dead loop)."""
+import logging
+
 import httpx
 
 from nasq_ai_service import service
 from nasq_ai_service.service import EnvApp
+from nasq_ai_service.store import MemoryRunStore
 
 
 async def test_env_app_runs_its_lifespan_and_serves(monkeypatch):
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
     app = EnvApp()
     sent = []
@@ -44,6 +48,7 @@ async def test_startup_failure_is_reported_not_swallowed(monkeypatch):
 async def run_startup(monkeypatch, *, build_error):
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     closed = []
 
     async def aclose():
@@ -96,6 +101,7 @@ async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_pool(monk
 
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     order = []
 
     async def aclose():
@@ -126,3 +132,56 @@ async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_pool(monk
 
     await app({"type": "lifespan"}, receive, send)
     assert order == ["drained", "pool closed"]
+
+
+async def start_env_app():
+    app, sent, queue = EnvApp(), [], [{"type": "lifespan.startup"}, {"type": "lifespan.shutdown"}]
+
+    async def receive():
+        return queue.pop(0)
+
+    async def send(message):
+        sent.append(message)
+
+    await app({"type": "lifespan"}, receive, send)
+    return sent
+
+
+async def test_boot_without_a_database_fails_unless_memory_state_is_allowed(monkeypatch):
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.delenv("AI_DATABASE_URL", raising=False)
+    monkeypatch.delenv("AI_ALLOW_MEMORY_STATE", raising=False)
+    assert await start_env_app() == [{"type": "lifespan.startup.failed", "message": "SettingsError: AI_DATABASE_URL"}]
+
+
+async def test_memory_boot_warns_once_about_state_and_about_the_missing_token_without_secrets(monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="nasq_ai_service")
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
+    monkeypatch.delenv("AI_DATABASE_URL", raising=False)
+    monkeypatch.delenv("AI_SERVICE_TOKEN", raising=False)
+    assert (await start_env_app())[0] == {"type": "lifespan.startup.complete"}
+    texts = [record.getMessage() for record in caplog.records]
+    assert sum("memory" in text for text in texts) == 1 and sum("AI_SERVICE_TOKEN" in text for text in texts) == 1
+
+
+async def test_a_database_and_a_token_boot_without_warnings(monkeypatch, caplog):
+    caplog.set_level(logging.WARNING, logger="nasq_ai_service")
+    monkeypatch.setenv("AI_PROVIDER", "ollama")
+    monkeypatch.setenv("AI_MODEL", "m")
+    monkeypatch.setenv("AI_DATABASE_URL", "postgresql://u:pw@h/db")
+    monkeypatch.setenv("AI_SERVICE_TOKEN", "t" * 30)
+
+    async def fake_open_state(_url):
+        from langgraph.checkpoint.memory import InMemorySaver
+
+        async def aclose():
+            return None
+
+        return MemoryRunStore(), InMemorySaver(), aclose
+
+    monkeypatch.setattr(service, "open_state", fake_open_state)
+    assert (await start_env_app())[0] == {"type": "lifespan.startup.complete"}
+    assert caplog.records == []

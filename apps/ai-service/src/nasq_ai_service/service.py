@@ -3,30 +3,33 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import logging
 import os
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 import anyio
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
 
-from nasq_ai_service.contracts import PendingCall, ResumeRequest, RunMessage, RunRequest, RunStatus
+from nasq_ai_service.contracts import ClaimRequest, PendingCall, ResumeRequest, RunMessage, RunRequest, RunStatus
 from nasq_ai_service.errors import client_error, redact
 from nasq_ai_service.graph import build_graph, initial_state, interrupted_replies, request_state, resume_value, run_config, text_of
 from nasq_ai_service.providers import build_chat_model
 from nasq_ai_service.records import records_from_results
 from nasq_ai_service.settings import Settings, SettingsError
 from nasq_ai_service.sse import format_event
-from nasq_ai_service.store import RunRecord, RunStore, open_state
+from nasq_ai_service.store import ACTIVE, EXECUTING, RunRecord, RunStore, is_stale, open_state
 
 log = logging.getLogger("nasq_ai_service")
-WAITING = ("waiting_tool", "waiting_user")
+WAITING = ("waiting_tool", "waiting_user", "executing")  # what a resume may answer: a claimed write call is still waiting for its result
 FINISHED = ("done", "failed", "limit_reached")
-STALE_AFTER_SECONDS = 600 + 60  # the longest run timeout (Limits.timeout_seconds) plus a minute: a 'running' run older than this lost its process
+# The longest run timeout (Limits.timeout_seconds) plus a minute: a 'running' run older than this lost its process;
+# an 'executing' one is settled-unknown (its write may have run) and is never retried.
+STALE_AFTER_SECONDS = 600 + 60
 
 
 def waiting_status(kind: str) -> str:
@@ -60,6 +63,12 @@ def owner(x_nasq_tenant: str = Header(...), x_nasq_user: str = Header(...)) -> O
 def create_app(model, store: RunStore, checkpointer, settings: Settings) -> FastAPI:
     graph = build_graph(model, checkpointer)
     app = FastAPI(title="Nasq AI service", docs_url=None, redoc_url=None)
+
+    def require_service_token(x_nasq_service_token: Annotated[str, Header()] = "") -> None:
+        if settings.service_token is not None and not hmac.compare_digest(x_nasq_service_token.encode(), settings.service_token.encode()):
+            raise HTTPException(401, "invalid service token")
+
+    api = APIRouter(dependencies=[Depends(require_service_token)])
     in_flight: set[asyncio.Task] = set()
 
     async def owned_run(run_id: str, who: Owner) -> RunRecord:
@@ -77,6 +86,9 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
 
     def log_failure(run_id: str, error: Exception, what: str = "failed") -> None:
         log.error("run %s %s: %s: %s", run_id, what, type(error).__name__, redact(str(error), (settings.api_key, settings.database_url)))
+
+    def stale_executing(record: RunRecord) -> bool:
+        return record.status == EXECUTING and is_stale(record, STALE_AFTER_SECONDS)
 
     async def derive_status(run_id: str) -> tuple[str, str | None]:
         """The status and pending call id the checkpoint implies, for a run whose generator was closed before it decided."""
@@ -159,16 +171,16 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
     async def healthz() -> dict[str, bool]:
         return {"ok": True}
 
-    @app.post("/v1/runs")
+    @api.post("/v1/runs")
     async def start_run(request: RunRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
         if request.tenant != who.tenant or request.user_ref != who.user_ref:
             raise HTTPException(422, "tenant/user headers must match the body")
         if request.run_id:
             record = await owned_run(request.run_id, who)
             state = await graph.aget_state(run_config(record.run_id, 1))
-            if pending_of(state) is not None:
+            if pending_of(state) is not None and not stale_executing(record):  # a stale claimed write is answered by the new message
                 raise HTTPException(409, "run is waiting for a tool result; resume it")
-            lease = await store.acquire(record.run_id, FINISHED, stale_after_seconds=STALE_AFTER_SECONDS)
+            lease = await store.acquire(record.run_id, FINISHED, stale_after_seconds=STALE_AFTER_SECONDS, takeover=ACTIVE)
             if lease is None:
                 raise HTTPException(409, "run is not finished; resume it or wait for it")
             replies = interrupted_replies(state.values.get("messages", []))
@@ -178,20 +190,36 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
             lease, graph_input = record.lease, initial_state(request)
         return sse(stream(record.run_id, lease, graph_input, request.limits.model_dump()))
 
-    @app.post("/v1/runs/{run_id}/resume")
+    @api.post("/v1/runs/{run_id}/resume")
     async def resume_run(run_id: str, body: ResumeRequest, who: Annotated[Owner, Depends(owner)]) -> StreamingResponse:
         record = await owned_run(run_id, who)
         state = await graph.aget_state(run_config(record.run_id, 1))
         pending = pending_of(state)
         if pending is None or pending.call_id != body.call_id:
             raise HTTPException(409, "no pending call with this call_id")
+        if record.status == EXECUTING and body.result.decision == "rejected":  # only the claimer resumes a claimed call, never with a decision
+            raise HTTPException(409, "call is already claimed")
         # The call id is compared again inside the acquire, atomically: a late resume cannot answer a newer call.
         lease = await store.acquire(record.run_id, WAITING, stale_after_seconds=STALE_AFTER_SECONDS, pending_call_id=body.call_id)
         if lease is None:
             raise HTTPException(409, "run is already being resumed")
         return sse(stream(record.run_id, lease, Command(resume=resume_value(body.result)), state.values["limits"]))
 
-    @app.get("/v1/runs/{run_id}")
+    @api.post("/v1/runs/{run_id}/claim")
+    async def claim_run(run_id: str, body: ClaimRequest, who: Annotated[Owner, Depends(owner)]) -> dict[str, bool]:
+        """Reserve the pending write call before the caller executes it, so exactly one claimant (and one resume) applies it."""
+        record = await owned_run(run_id, who)
+        pending = pending_of(await graph.aget_state(run_config(record.run_id, 1)))
+        if pending is None or pending.call_id != body.call_id or pending.kind == "read":
+            raise HTTPException(409, "no claimable call with this call_id")
+        lease = await store.acquire(
+            record.run_id, ("waiting_user",), stale_after_seconds=STALE_AFTER_SECONDS, pending_call_id=body.call_id, to_status="executing",
+        )
+        if lease is None:
+            raise HTTPException(409, "call is already claimed or answered")
+        return {"ok": True}
+
+    @api.get("/v1/runs/{run_id}")
     async def get_run(run_id: str, who: Annotated[Owner, Depends(owner)]) -> RunStatus:
         record = await owned_run(run_id, who)
         state = await graph.aget_state(run_config(record.run_id, 1))
@@ -200,9 +228,19 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
             for m in state.values.get("messages", [])
             if isinstance(m, HumanMessage) or (isinstance(m, AIMessage) and text_of(m.content) and not m.tool_calls)
         ]
+        if stale_executing(record):  # settled-unknown: its write may have run, so it is neither pending nor retried
+            return RunStatus(run_id=record.run_id, status="failed", messages=messages, pending=None)
         return RunStatus(run_id=record.run_id, status=record.status, messages=messages, pending=pending_of(state))
 
+    app.include_router(api)
     return app
+
+
+def log_boot_warnings(settings: Settings) -> None:
+    if settings.database_url is None:
+        log.warning("AI_ALLOW_MEMORY_STATE=true: run state lives in memory and is lost on restart (development only)")
+    if settings.service_token is None:
+        log.warning("AI_SERVICE_TOKEN is not set: the service accepts any caller (development only)")
 
 
 class EnvApp:
@@ -225,6 +263,7 @@ class EnvApp:
             if message["type"] == "lifespan.startup":
                 try:
                     settings = Settings.from_env(os.environ)
+                    log_boot_warnings(settings)
                     store, checkpointer, aclose = await open_state(settings.database_url)
                     self.inner = create_app(build_chat_model(settings), store, checkpointer, settings)
                 except Exception as error:  # noqa: BLE001 - the server must report why it cannot start, without secrets
