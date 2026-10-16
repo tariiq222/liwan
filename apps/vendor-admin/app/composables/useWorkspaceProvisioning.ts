@@ -1,12 +1,15 @@
-import type { Ref } from 'vue'
+import type { MaybeRefOrGetter, Ref } from 'vue'
 import { sharedTenantLoginUrl, type SharedTenantProgress } from '@/composables/useSharedTenantOnboarding'
 
 const POLL_INTERVAL_MS = 5000
 const POLL_LIMIT = 60
 const PROVISIONING_STAGES = ['reserved', 'queued', 'verifying', 'activating', 'active', 'needs_intervention']
 
-/** Shared-workspace provisioning progress of one tenant (none for an empty id), checked every five seconds while it is still in progress. */
-export function useWorkspaceProvisioning(id: Ref<string>) {
+/**
+ * Shared-workspace provisioning progress of one tenant (none for an empty id), checked every five seconds while it is still in progress
+ * and while `polling` is true. The page owns one instance and hands it to the panels, so there is one timer and one counter.
+ */
+export function useWorkspaceProvisioning(id: Ref<string>, polling: MaybeRefOrGetter<boolean> = true) {
   const { request } = useVendorApi()
   const vendorContext = useVendorContext()
   const { data: provisioning, error, pending, refresh } = useAsyncData(
@@ -35,7 +38,7 @@ export function useWorkspaceProvisioning(id: Ref<string>) {
   function stopPoll() { if (timer) clearTimeout(timer); timer = undefined }
   function schedulePoll() {
     stopPoll()
-    if (!import.meta.client || disposed || !active.value || error.value || pollCount.value >= POLL_LIMIT) return
+    if (!import.meta.client || disposed || !toValue(polling) || !active.value || error.value || pollCount.value >= POLL_LIMIT) return
     timer = setTimeout(async () => {
       pollCount.value++
       await refresh()
@@ -48,8 +51,10 @@ export function useWorkspaceProvisioning(id: Ref<string>) {
     schedulePoll()
   }
   watch(id, () => { pollCount.value = 0; stopPoll() })
-  watch([active, error], schedulePoll)
+  watch([active, error, () => toValue(polling)], schedulePoll)
   onMounted(schedulePoll)
   onBeforeUnmount(() => { disposed = true; stopPoll() })
-  return { provisioning, error, pending, loginUrl, failed, active, stage, pollingPaused, refreshNow }
+  return reactive({ provisioning, error, pending, loginUrl, failed, active, stage, pollingPaused, refreshNow })
 }
+
+export type WorkspaceProvisioning = ReturnType<typeof useWorkspaceProvisioning>

@@ -25,11 +25,16 @@ describe('workspace panels shared by the customer page and the workspace page', 
     expect(read('app/composables/useTenantRecentOperations.ts')).toMatch(/query: \{ source: 'all', tenant_id: toValue\(id\) \}/)
     expect(operations).toContain("path: '/operations', query: { tenant_id: tenantId }")
   })
-  it('polls provisioning from one composable and shows only the open-workspace link it publishes', () => {
-    expect(workspace).toContain('useWorkspaceProvisioning(tenantId)')
-    expect(properties).toContain('useWorkspaceProvisioning(tenantId)')
+  it('polls provisioning once, from the page, and hands the state to the panels', () => {
     expect(read('app/composables/useWorkspaceProvisioning.ts')).toContain('pollCount.value >= POLL_LIMIT')
-    expect(workspace + properties).toContain(':to="loginUrl"')
+    for (const source of [workspace, properties]) {
+      expect(source).not.toContain('useWorkspaceProvisioning(')
+      expect(source).not.toContain('useVendorTenant(')
+      expect(source).toContain('progress: WorkspaceProvisioning')
+    }
+    expect(workspace + properties).toContain(':to="progress.loginUrl"')
+    expect(read('app/pages/customers/[id].vue').match(/useWorkspaceProvisioning\(/g)).toHaveLength(1)
+    expect(read('app/pages/tenants/[id].vue').match(/useWorkspaceProvisioning\(/g)).toHaveLength(1)
   })
   it('does not repeat the tenant markup in the pages', () => {
     for (const page of ['app/pages/customers/[id].vue', 'app/pages/tenants/[id].vue']) {
@@ -39,11 +44,10 @@ describe('workspace panels shared by the customer page and the workspace page', 
       expect(source).not.toContain('sharedTenantLoginUrl')
     }
   })
-  it('shows a failed tenant load with a retry instead of a blank tab, in all three panels', () => {
-    for (const source of [workspace, properties, operations]) {
-      expect(source).toContain('error: tenantError')
-      expect(source).toMatch(/<SharedPageState :loading="tenantPending && !\w+" :error="tenantError" @retry="refresh\w*">/)
-    }
+  it('shows a failed tenant load with one retry instead of a blank tab: the page owns it for the workspace tab, the operations panel for its own', () => {
+    expect(operations).toMatch(/<SharedPageState :loading="tenantPending && !data" :error="tenantError" @retry="refresh">/)
+    expect(read('app/pages/customers/[id].vue')).toMatch(/<SharedPageState v-else-if="tab === 'workspace'" :loading="tenantPending && !tenant" :error="tenantError" @retry="refreshTenant">/)
+    for (const source of [workspace, properties]) expect(source).not.toContain('SharedPageState')
   })
   it('shows a failed recent-operations load as an error with a retry, apart from the empty state', () => {
     expect(operations).not.toMatch(/catch \{/)

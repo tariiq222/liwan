@@ -972,6 +972,7 @@
       "workspace": "Workspace",
       "modeHosting": "Mode and hosting",
       "noWorkspace": "No workspace",
+      "workspaceUnknown": "Unknown",
       "noCommercial": "No commercial record",
       "noWorkspaceYet": "No workspace has been set up yet",
       "pendingPlan": "{plan} · awaiting activation",
@@ -982,6 +983,8 @@
       "glance": {
         "issuesTitle": "Needs attention: {count}",
         "noIssues": "No open issues",
+        "unreadable": "Workspace state could not be read",
+        "unreadableHint": "Open issues may be missing. Retry to check again.",
         "view": "View",
         "renewal": "Next renewal",
         "renewalIn": "In {days} days",

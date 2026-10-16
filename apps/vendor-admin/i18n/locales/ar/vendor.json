@@ -972,6 +972,7 @@
       "workspace": "مساحة العمل",
       "modeHosting": "النمط والاستضافة",
       "noWorkspace": "لا مساحة عمل",
+      "workspaceUnknown": "غير معروفة",
       "noCommercial": "بلا سجل تجاري",
       "noWorkspaceYet": "لم تُجهَّز مساحة عمل بعد",
       "pendingPlan": "{plan} · بانتظار التفعيل",
@@ -982,6 +983,8 @@
       "glance": {
         "issuesTitle": "يحتاج متابعة: {count}",
         "noIssues": "لا توجد مشاكل مفتوحة",
+        "unreadable": "تعذّر قراءة حالة مساحة العمل",
+        "unreadableHint": "قد تكون هناك مشاكل مفتوحة لا تظهر هنا. أعد المحاولة للتحقق مجددًا.",
         "view": "عرض",
         "renewal": "التجديد القادم",
         "renewalIn": "بعد {days} يومًا",

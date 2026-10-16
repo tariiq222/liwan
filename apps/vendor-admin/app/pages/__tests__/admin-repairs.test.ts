@@ -26,7 +26,7 @@ const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1',
 const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }] }
 const attempt = { id: 'attempt1', order_id: order.id, invoice_id: invoice.id, status: 'pending', amount: money, created_at: '2026-10-04T12:34:00Z', provider_ref: 'private-provider-reference', redirect_url: 'https://private.example/pay' }
 
-async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean } = {}) {
+async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean; tenantError?: unknown } = {}) {
   const filename = resolve(import.meta.dirname, '..', name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'admin-repairs' }).content).replaceAll('import.meta.client', 'false').replace('export default', 'return')
@@ -56,8 +56,8 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     useVendorCommercial: () => ({ listPlans: async () => ({ items: [plan] }), releases: async () => [] }),
     useVendorApi: () => ({ request: async (path: string) => path === 'catalog' ? { items: [] } : { tenants: 1, available_operations: [] } }),
     useTenantRecentOperations: async () => ({ data: Vue.ref([]), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
-    useWorkspaceProvisioning: () => ({ provisioning: Vue.ref(null), loginUrl: Vue.ref(null), failed: Vue.ref(false) }),
-    useVendorTenant: async () => ({ data: Vue.ref({ id: options.tenantId ?? 'customer1', name: 'Workspace' }), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
+    useWorkspaceProvisioning: () => Vue.reactive({ provisioning: null, error: null, pending: false, loginUrl: null, failed: false, stage: 'pending', pollingPaused: false, refreshNow: vi.fn() }),
+    useVendorTenant: async () => ({ data: Vue.ref(options.tenantError ? null : { id: options.tenantId ?? 'customer1', name: 'Workspace' }), error: Vue.ref(options.tenantError ?? null), pending: Vue.ref(false), refresh: vi.fn() }),
     refreshNuxtData: vi.fn(), navigateTo: vi.fn(),
     createError: (error: unknown) => error,
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
@@ -265,12 +265,32 @@ describe('client record tabs', () => {
   })
   it('shows the workspace and operations panels of the customer workspace', async () => {
     const workspace = (await (await page('customers/[id].vue', { tab: 'workspace', tenantId: 'tenant-9' })).rendered()).captured
-    expect(workspace.find(c => c.name === 'VendorWorkspacePanel')?.props['tenant-id']).toBe('tenant-9')
+    expect((workspace.find(c => c.name === 'VendorWorkspacePanel')?.props.tenant as { id: string }).id).toBe('tenant-9')
     const operations = (await (await page('customers/[id].vue', { tab: 'operations', tenantId: 'tenant-9' })).rendered()).captured
     expect(operations.find(c => c.name === 'VendorTenantOperationsPanel')?.props['tenant-id']).toBe('tenant-9')
-    expect(workspace.find(c => c.name === 'VendorTenantProperties')?.props['tenant-id']).toBe('tenant-9')
+    expect((workspace.find(c => c.name === 'VendorTenantProperties')?.props.tenant as { id: string }).id).toBe('tenant-9')
     const summary = (await (await page('customers/[id].vue', { tenantId: 'tenant-9' })).rendered()).captured
     expect(summary.find(c => c.name === 'VendorCustomerGlance')?.props['has-workspace']).toBe(true)
+  })
+  it('tells the summary when the workspace state could not be read and shows an unknown badge, not registered', async () => {
+    const failed = (await (await page('customers/[id].vue', { tenantId: 'tenant-9', tenantError: { status: 503 } })).rendered()).captured.find(c => c.name === 'VendorCustomerGlance')
+    expect(failed?.props['workspace-unreadable']).toBe(true)
+    expect(failed?.props['workspace-badge']).toEqual({ tone: 'neutral', labelKey: 'vendor.customers.workspaceUnknown' })
+    expect(failed?.props.onRetry).toBeTypeOf('function')
+    const ok = (await (await page('customers/[id].vue', { tenantId: 'tenant-9' })).rendered()).captured.find(c => c.name === 'VendorCustomerGlance')
+    expect(ok?.props['workspace-unreadable']).toBe(false)
+    expect(ok?.props['workspace-badge']).toEqual(operationStatusBadge('registered'))
+  })
+  it('shows one error block with a retry on the workspace tab when the workspace cannot be read', async () => {
+    const { html, captured } = await (await page('customers/[id].vue', { tab: 'workspace', tenantId: 'tenant-9', tenantError: { status: 503 } })).rendered()
+    expect(html).toContain('ERROR')
+    expect(captured.some(c => c.name === 'VendorWorkspacePanel' || c.name === 'VendorTenantProperties')).toBe(false)
+  })
+  it('passes the invoices-tab availability to the summary', async () => {
+    const offered = (await (await page('customers/[id].vue')).rendered()).captured.find(c => c.name === 'VendorCustomerGlance')
+    expect(offered?.props['invoices-offered']).toBe(true)
+    const hidden = (await (await page('customers/[id].vue', { grants: ['vendor.read'] })).rendered()).captured.find(c => c.name === 'VendorCustomerGlance')
+    expect(hidden?.props['invoices-offered']).toBe(false)
   })
   it('guards leaving the page, tab switches included, while a reason is typed on either tab', async () => {
     const p = await page('customers/[id].vue', { tab: 'operations', tenantId: 'tenant-9' })
@@ -285,6 +305,7 @@ describe('client record tabs', () => {
     const { captured } = await (await page('tenants/[id].vue', { tenantId: 'tenant-9', tab: 'operations' })).rendered()
     expect(captured.find(c => c.name === 'VendorTenantOperationsPanel')?.props['tenant-id']).toBe('tenant-9')
     expect((await (await page('tenants/[id].vue', { tenantId: 'tenant-9', tab: 'workspace' })).rendered()).captured.some(c => c.name === 'VendorWorkspacePanel')).toBe(true)
+    expect((await (await page('tenants/[id].vue', { tenantId: 'tenant-9' })).rendered()).captured.some(c => c.name === 'VendorTenantProperties')).toBe(true)
     expect(captured.find(c => c.name === 'SharedRecordPage')?.props['back-to']).toBe('/customers?state=active')
   })
 })
