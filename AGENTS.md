@@ -31,7 +31,7 @@ This file is the single source of repository instructions for every coding agent
 Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
-  canonical local development checkout is `/Users/tariq/code/nasq` on `main`.
+  canonical local development checkout is `/Users/tariq/code/webvue` on `main`.
 - Develop bounded tasks in temporary `codex/<area>-<slug>` worktrees based on current
   `main`. Give each task explicit file ownership and independent dependencies,
   generated files, databases, and ports. One orchestrator owns Git integration,
@@ -264,7 +264,7 @@ tests against the production-style `odoo19` database. Temporary integration
 databases, ports, and logs are disposable and must not be described as
 production evidence.
 
-The WebVue Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
+The WebVue Git remote is `origin` (`https://github.com/tariiq222/webvue.git`),
 tracked by `main`. Fetch and compare `main` with `origin/main` before
 integration work. Push only when the user authorizes that push, and do not
 force-push or rewrite published history. Do not imply a push, merge,

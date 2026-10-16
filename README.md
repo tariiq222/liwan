@@ -54,7 +54,7 @@ historical evidence, not UI policy.
 
 ## Local development
 
-The canonical checkout is `/Users/tariq/code/nasq`. A
+The canonical checkout is `/Users/tariq/code/webvue`. A
 temporary worktree may be used for a bounded task. Always point the Odoo
 addons path at that chosen WebVue worktree; `/Users/tariq/code/odoo` is the
 read-only Odoo 19 upstream source checkout. Authorized commands may use an
@@ -109,7 +109,7 @@ No production deployment or DNS cutover is implied by this repository.
 
 The detailed one-writer ownership and isolation workflow is in
 [`docs/parallel-work.md`](docs/parallel-work.md). The Git remote is
-`origin` (`https://github.com/tariiq222/nasq.git`), tracked by `main`. Pushes
+`origin` (`https://github.com/tariiq222/webvue.git`), tracked by `main`. Pushes
 need explicit authorization; do not imply that a push occurred.
 
 ## Documentation

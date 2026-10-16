@@ -2,7 +2,7 @@
 
 واجهة العميل: [DESIGN.md](../DESIGN.md). التقارير المؤرخة ليست تعليمات واجهة.
 
-WebVue uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/nasq` on `main`; a task worktree is not a
+WebVue uses temporary worktrees for bounded tasks. The canonical checkout is `/Users/tariq/code/webvue` on `main`; a task worktree is not a
 permanent product pillar checkout. One writer owns each file. One orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 
@@ -119,7 +119,7 @@ conflicts, and records the resulting branch and runtime state. A passing local
 test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
-The WebVue Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
+The WebVue Git remote is `origin` (`https://github.com/tariiq222/webvue.git`),
 tracked by `main`. Push only with explicit authorization, never force-push
 published history, and do not imply that a push occurred. Do not remove a
 branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover

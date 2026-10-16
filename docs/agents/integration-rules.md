@@ -4,7 +4,7 @@ The authorization meaning of «كومت ودمج» and the git-hook caveat are i
 
 Before every integration, including from an older worktree:
 
-1. Read this policy from the canonical `/Users/tariq/code/nasq/AGENTS.md` and
+1. Read this policy from the canonical `/Users/tariq/code/webvue/AGENTS.md` and
    the latest committed `main`, not only the incoming worktree's older copy.
    Inspect and preserve dirty changes in both checkouts. Record the current
    `main` commit and incoming commit as the integration baseline.
