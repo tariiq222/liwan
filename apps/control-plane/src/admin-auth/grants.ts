@@ -1,6 +1,6 @@
 import type { Pool, PoolClient } from 'pg'
-import type { VendorCapability } from '@nasq/commercial-contracts'
-import { capabilitiesFor, rolesGranting, type VendorRole } from './roles.js'
+import type { VendorCapability, VendorRole } from '@nasq/commercial-contracts'
+import { capabilitiesFor, rolesGranting } from './roles.js'
 
 // A vendor actor is a vendor account: its authority is always computed from vendor_account_roles and
 // vendor_accounts.status. There is no stored copy to keep in sync, so a disabled account or a removed

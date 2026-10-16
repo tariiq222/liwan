@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
+import { adminChallengeResultSchema, adminErrorBodySchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@nasq/commercial-contracts'
 import { signServiceRequest } from '@nasq/commercial-contracts/server'
 import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
@@ -176,6 +177,20 @@ else describe('admin auth routes', () => {
       const res = await post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: '123456' }, {}, brokenOrigin)
       expect([res.status, res.body]).toEqual([503, { code: 'admin_unavailable' }])
     } finally { await new Promise<void>((resolve) => s.close(() => resolve())) }
+  })
+  it('answers in the shapes of the shared contract, strictly', async () => {
+    expect(adminSessionResultSchema.parse(await freshCode().then((totp_code) => post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code })).then((r) => r.body))).toBeDefined()
+    expect(adminSessionResultSchema.parse({ session, ...(await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[0] })).body })).toBeDefined()
+    expect(adminChallengeResultSchema.parse((await post('/v1/admin/auth/passkey/options', {})).body)).toBeDefined()
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'shape@nasq.sa', displayName: 'S', roles: ['support'], reason: 'support' }, new Date()))
+    expect(adminInvitationInfoSchema.parse((await post('/v1/admin/auth/invitation', { token })).body)).toEqual({ email: 'shape@nasq.sa', purpose: 'enroll' })
+    expect(adminTotpEnrollmentSchema.parse((await post('/v1/admin/auth/enroll/totp', { token })).body)).toBeDefined()
+    const done = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'shape', new Date()))
+    const enrolled = await enrollVia(done.token, 'owner@nasq.sa', 'a brand new password')
+    expect(adminSessionResultSchema.parse(enrolled.complete.body).recovery_codes).toHaveLength(10)
+    for (const failed of [await post('/v1/admin/auth/fallback', { email: 'nobody@nasq.sa', password: PASSWORD, totp_code: '123456' }), await post('/v1/admin/auth/fallback', {}), await post('/v1/admin/auth/passkey/options', {}, {}, bareOrigin)]) {
+      expect(adminErrorBodySchema.parse(failed.body)).toEqual(failed.body)
+    }
   })
   it('uses a recovery code once', async () => {
     const first = await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[0] })

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
+import { adminAccountListSchema, adminErrorBodySchema, adminInviteResultSchema, adminMeSchema, adminResetResultSchema } from '@nasq/commercial-contracts'
 import { signServiceRequest } from '@nasq/commercial-contracts/server'
 import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
@@ -93,6 +94,17 @@ else describe('account management routes', () => {
     expect(plainMe.status).toBe(200)
     expect(plainMe.body).toMatchObject({ id: plain.accountId, roles: ['support'], capabilities: ['vendor.audit.read', 'vendor.read'] })
     expect(created.status).toBe(201)
+  })
+  it('answers in the shapes of the shared contract, strictly', async () => {
+    const owner = await ownerSession({ stepUp: true })
+    expect(adminMeSchema.parse((await get('/v1/admin/me', owner)).body).id).toBe(owner.accountId)
+    expect(adminAccountListSchema.parse((await get('/v1/admin/accounts', owner)).body).total).toBe(1)
+    const invited = await post('/v1/admin/accounts', invite, owner)
+    expect(adminInviteResultSchema.parse(invited.body).id).toBeGreaterThan(owner.accountId)
+    expect(adminResetResultSchema.parse((await post(`/v1/admin/accounts/${invited.body.id}/reset`, { reason: 'shape check' }, owner)).body)).toBeDefined()
+    for (const failed of [await post('/v1/admin/accounts/999999/disable', { reason: 'nobody' }, owner), await post('/v1/admin/accounts', { ...invite, extra: 1 }, owner)]) {
+      expect(adminErrorBodySchema.parse(failed.body)).toEqual(failed.body)
+    }
   })
   it('lists accounts with stale step-up', async () => {
     const owner = await ownerSession({ stepUp: false })

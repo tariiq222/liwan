@@ -5,7 +5,7 @@ import { transaction } from '../../db.js'
 import { createSession } from '../../admin-auth/sessions.js'
 import { hashToken } from '../../admin-auth/crypto.js'
 import { vendorActorIssuer } from '../../admin-auth/grants.js'
-import type { VendorRole } from '../../admin-auth/roles.js'
+import type { VendorRole } from '@nasq/commercial-contracts'
 
 export const TEST_KEY = 'test-key-'.repeat(8)
 

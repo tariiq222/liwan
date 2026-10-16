@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
-import { VENDOR_ROLES, type VendorRole } from './roles.js'
+import { VENDOR_ROLES, type AdminErrorCode, type VendorRole } from '@nasq/commercial-contracts'
 
 export class AdminAuthError extends Error {
-  constructor(public status: 401 | 403 | 404 | 409 | 422 | 429, public code: 'auth_failed' | 'forbidden' | 'not_found' | 'conflict' | 'invalid' | 'rate_limited' | 'last_owner' | 'step_up_required', message: string = code) { super(message) }
+  constructor(public status: 401 | 403 | 404 | 409 | 422 | 429, public code: AdminErrorCode, message: string = code) { super(message) }
 }
 export function normalizeEmail(raw: string): string {
   const email = String(raw ?? '').trim().toLowerCase()

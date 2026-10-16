@@ -1,5 +1,6 @@
 import type { IncomingHttpHeaders } from 'node:http'
 import type { Pool, PoolClient } from 'pg'
+import { adminChallengeResultSchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@nasq/commercial-contracts'
 import type { AdminConfig, Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit, normalizeEmail } from './accounts.js'
@@ -20,7 +21,8 @@ export class CountedFailure extends AdminAuthError {
 const counted = (scopes: string[], reason: string): AdminAuthError => new CountedFailure(scopes, reason)
 
 const authFailed = () => new AdminAuthError(401, 'auth_failed')
-const sessionBody = (s: { session: string; expiresAt: Date; idleExpiresAt: Date }) => ({ session: s.session, expires_at: s.expiresAt.toISOString(), idle_expires_at: s.idleExpiresAt.toISOString() })
+const sessionBody = (s: { session: string; expiresAt: Date; idleExpiresAt: Date }, recoveryCodes?: string[]) =>
+  adminSessionResultSchema.parse({ session: s.session, expires_at: s.expiresAt.toISOString(), idle_expires_at: s.idleExpiresAt.toISOString(), ...(recoveryCodes ? { recovery_codes: recoveryCodes } : {}) })
 const tx = <T>(ctx: AuthContext, action: (client: PoolClient) => Promise<T>) => transaction(ctx.pool, action)
 
 // Verified once so unknown emails cost the same as wrong passwords.
@@ -51,14 +53,14 @@ async function finishSignIn(ctx: AuthContext, client: PoolClient, accountId: num
 export const handlers = {
   async invitation(ctx: AuthContext, body: { token: string }): Promise<Result> {
     const inv = await tx(ctx, (c) => openInvitation(c, body.token, ctx.now))
-    return { status: 200, data: { email: inv.email, purpose: inv.purpose } }
+    return { status: 200, data: adminInvitationInfoSchema.parse({ email: inv.email, purpose: inv.purpose }) }
   },
   async enrollPasskeyOptions(ctx: AuthContext, body: { token: string }): Promise<Result> {
     return tx(ctx, async (c) => {
       const inv = await openInvitation(c, body.token, ctx.now)
       const name = (await c.query('SELECT display_name FROM vendor_accounts WHERE id=$1', [inv.accountId])).rows[0].display_name as string
       const { challengeId, options } = await registrationOptions(c, ctx.lib, ctx.admin, { id: inv.accountId, email: inv.email, displayName: name }, ctx.now)
-      return { status: 200, data: { challenge_id: challengeId, options } }
+      return { status: 200, data: adminChallengeResultSchema.parse({ challenge_id: challengeId, options }) }
     })
   },
   async enrollPasskeyVerify(ctx: AuthContext, body: { token: string; challenge_id: string; response: unknown; label: string }): Promise<Result> {
@@ -73,7 +75,7 @@ export const handlers = {
   async enrollTotp(ctx: AuthContext, body: { token: string }): Promise<Result> {
     const inv = await tx(ctx, (c) => openInvitation(c, body.token, ctx.now))
     const secret = newTotpSecret()
-    return { status: 200, data: { totp_uri: totpUri(secret, inv.email), totp_box: seal(ctx.admin.secretKey, secret, totpBoxAad(inv.accountId)).toString('base64') } }
+    return { status: 200, data: adminTotpEnrollmentSchema.parse({ totp_uri: totpUri(secret, inv.email), totp_box: seal(ctx.admin.secretKey, secret, totpBoxAad(inv.accountId)).toString('base64') }) }
   },
   async enrollComplete(ctx: AuthContext, body: { token: string; password: string; totp_code: string; totp_box: string }): Promise<Result> {
     return tx(ctx, async (c) => {
@@ -82,12 +84,12 @@ export const handlers = {
       const registered = await c.query('SELECT 1 FROM vendor_passkeys p JOIN vendor_invitations i ON i.token_hash=$2 WHERE p.account_id=$1 AND p.created_at >= i.created_at LIMIT 1', [inv.accountId, hashToken(body.token)])
       const done = await completeEnrollment(c, body.token, { password: body.password, totpCode: body.totp_code, totpSecretBox: Buffer.from(body.totp_box, 'base64'), passkeyRegistered: Boolean(registered.rowCount) }, ctx.admin.secretKey, ctx.now)
       const session = await createSession(c, done.accountId, ctx.now, true)
-      return { status: 200, data: { recovery_codes: done.recoveryCodes, ...sessionBody(session) } }
+      return { status: 200, data: sessionBody(session, done.recoveryCodes) }
     })
   },
   async passkeyOptions(ctx: AuthContext): Promise<Result> {
     const { challengeId, options } = await tx(ctx, (c) => authenticationOptions(c, ctx.lib, ctx.admin, 'login', null, ctx.now))
-    return { status: 200, data: { challenge_id: challengeId, options } }
+    return { status: 200, data: adminChallengeResultSchema.parse({ challenge_id: challengeId, options }) }
   },
   async passkeyVerify(ctx: AuthContext, body: { challenge_id: string; response: unknown }): Promise<Result> {
     const scopes = [`ip:${ctx.ip}`]
@@ -133,7 +135,7 @@ export const handlers = {
     return tx(ctx, async (c) => {
       const session = await resolveSession(c, value, ctx.now)
       const { challengeId, options } = await authenticationOptions(c, ctx.lib, ctx.admin, 'step_up', session.accountId, ctx.now)
-      return { status: 200, data: { challenge_id: challengeId, options } }
+      return { status: 200, data: adminChallengeResultSchema.parse({ challenge_id: challengeId, options }) }
     })
   },
   async stepUpVerify(ctx: AuthContext, body: { challenge_id: string; response: unknown }): Promise<Result> {

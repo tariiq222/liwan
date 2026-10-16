@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { capabilitiesFor, VENDOR_ROLES } from '../roles.js'
+import { VENDOR_ROLES } from '@nasq/commercial-contracts'
+import { capabilitiesFor } from '../roles.js'
 import { normalizeEmail } from '../accounts.js'
 
 describe('roles', () => {

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { StepUpCancelled } from '../../composables/useStepUp'
-import { invitationLink, reasonValid, sortedRoles, TEAM_ROLES, teamErrorKey } from '../team'
+import { VENDOR_ROLES } from '@nasq/commercial-contracts'
+import { invitationLink, reasonValid, sortedRoles, teamErrorKey } from '../team'
 
 describe('team vocabulary', () => {
   it('knows exactly the six control-plane roles', () => {
-    expect([...TEAM_ROLES]).toEqual(['owner', 'customer_success', 'finance', 'product', 'operations', 'support'])
+    expect([...VENDOR_ROLES]).toEqual(['owner', 'customer_success', 'finance', 'product', 'operations', 'support'])
   })
 
   it('keeps known roles in canonical order and drops anything else', () => {
