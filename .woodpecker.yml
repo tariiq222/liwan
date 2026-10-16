@@ -54,7 +54,8 @@ steps:
       - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
       - source deploy/woodpecker/stage.sh ai-service
       - cd apps/ai-service
-      - python3 -m venv .venv
+      - |
+        "$ODOO_PYTHON" -m venv .venv
       - .venv/bin/pip install --quiet -e '.[dev]'
       - .venv/bin/ruff check src tests
       # The Postgres state tests need a throwaway database, dropped on exit (the control-plane step's conventions).

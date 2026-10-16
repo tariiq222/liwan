@@ -179,8 +179,8 @@ if 'deploy/classification.py' in args: Path(args[args.index('--output')+1]).writ
         self.fake('pip', '')
         self.fake('ruff', '')
         self.fake('pytest', "Path('observed-url').write_text(os.environ['AI_TEST_DATABASE_URL'])\n")
-        self.fake('python3', '''
-if args[0] == '-': os.execv(sys.executable, [sys.executable, *args])
+        self.fake('python3', "if args[0] == '-': os.execv(sys.executable, [sys.executable, *args])\nif '-m' in args: sys.exit(42)  # Host Python may be older than the service requires.\n")
+        self.fake('odoo-python', '''
 if args[:2] == ['-m','venv']:
  directory=Path(args[2])/'bin'; directory.mkdir(parents=True)
  for name in ('pip','ruff','pytest'): (directory/name).symlink_to(Path(sys.argv[0]).parent/name)
