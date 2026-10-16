@@ -3,7 +3,7 @@ import MilestoneTable from '@/components/pmo/projects/MilestoneTable.vue'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
-import { returnToQuery, safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery, safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

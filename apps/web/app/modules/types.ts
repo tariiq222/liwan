@@ -110,7 +110,7 @@ export interface AppManifest {
    */
   recordListSources?: Array<{ pattern: RegExp; capability: string }>
   landing?: AppLandingEntry[]                                     // firstAllowedPath order within the app
-  capabilityAliases?: Record<string, string>                      // chat: { 'nasq.internal': 'chat.enabled' }
+  capabilityAliases?: Record<string, string>                      // chat: { 'webvue.internal': 'chat.enabled' }
   bell?: { capabilities: string[]; kinds?: AppBellKind[] }
   search?: AppSearchProvider[]
   /** Palette actions (Actions group of the command palette). */

@@ -1,48 +1,48 @@
 /* Shell interaction states and browser surfaces. Components use Nuxt UI's
    stock recipes; there are deliberately no component classes here. */
 
-.nasq-mobile-menu-trigger { display: none; }
+.webvue-mobile-menu-trigger { display: none; }
 /* The one mobile drawer (Tasmim spec §5): px geometry, 320px at a 390px phone at any text size, from the inline-start side. */
-.nasq-mobile-menu { width: min(320px, calc(100vw - 48px)); max-width: none; z-index: 70; }
-.nasq-mobile-menu-overlay { z-index: 65; }
-.nasq-mobile-section { display: grid; gap: 2px; }
-.nasq-mobile-title { margin-block: 0 8px; font-size: .875rem; font-weight: 600; }
-.nasq-mobile-menu .nasq-context-link { width: 100%; min-height: 44px; }
-.nasq-mobile-menu .nasq-context-section-title { margin-block-start: 8px; }
-.nasq-search-overlay { z-index: 79; }
-.nasq-search-dialog { z-index: 80; }
+.webvue-mobile-menu { width: min(320px, calc(100vw - 48px)); max-width: none; z-index: 70; }
+.webvue-mobile-menu-overlay { z-index: 65; }
+.webvue-mobile-section { display: grid; gap: 2px; }
+.webvue-mobile-title { margin-block: 0 8px; font-size: .875rem; font-weight: 600; }
+.webvue-mobile-menu .webvue-context-link { width: 100%; min-height: 44px; }
+.webvue-mobile-menu .webvue-context-section-title { margin-block-start: 8px; }
+.webvue-search-overlay { z-index: 79; }
+.webvue-search-dialog { z-index: 80; }
 .approved-account-menu { z-index: 80; }
 
 /* The pinned create action keeps its primary fill even when its route is active. */
-.nasq-context-create[data-active="true"],
-.nasq-context-create[data-active="true"]:hover {
+.webvue-context-create[data-active="true"],
+.webvue-context-create[data-active="true"]:hover {
   background: var(--primary-fill);
   color: var(--primary-fill-foreground);
 }
 
 /* The create action also carries the generic context-link class. Keep its
    primary treatment ahead of the shared link hover state in shell.css. */
-.nasq-context-link.nasq-context-create,
-.nasq-context-link.nasq-context-create:hover,
-.nasq-context-link.nasq-context-create:focus-visible,
-.nasq-context-link.nasq-context-create[data-active="true"],
-.nasq-context-link.nasq-context-create[data-active="true"]:hover {
+.webvue-context-link.webvue-context-create,
+.webvue-context-link.webvue-context-create:hover,
+.webvue-context-link.webvue-context-create:focus-visible,
+.webvue-context-link.webvue-context-create[data-active="true"],
+.webvue-context-link.webvue-context-create[data-active="true"]:hover {
   background: var(--primary-fill);
   color: var(--primary-fill-foreground);
   border-color: transparent;
 }
-.nasq-context-link.nasq-context-create:active {
+.webvue-context-link.webvue-context-create:active {
   background: var(--primary-fill-active);
   color: var(--primary-fill-active-foreground);
 }
 
 @media (max-width: 767px) {
-  .nasq-mobile-menu [data-slot="body"] { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
+  .webvue-mobile-menu [data-slot="body"] { padding-bottom: max(1.25rem, env(safe-area-inset-bottom)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nasq-mobile-menu,
-  .nasq-search-dialog {
+  .webvue-mobile-menu,
+  .webvue-search-dialog {
     animation: none !important;
     transition: none !important;
   }
@@ -55,7 +55,7 @@
 
 /* The approved icon system uses one fixed Lucide geometry everywhere. */
 .iconify,
-.nasq-shell-icon {
+.webvue-shell-icon {
   width: 18px;
   height: 18px;
   flex: none;
@@ -75,18 +75,18 @@
 }
 
 /* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */
-.nasq-status-text-warning { color: var(--status-warning-foreground); }
+.webvue-status-text-warning { color: var(--status-warning-foreground); }
 
-.nasq-status-callout-danger {
+.webvue-status-callout-danger {
   border: 1px solid color-mix(in srgb, var(--destructive) 40%, var(--border));
   background: color-mix(in srgb, var(--destructive) 8%, var(--card));
   color: var(--foreground);
   border-radius: var(--ui-radius);
 }
 
-.nasq-status-dot-success { background: var(--status-success); }
-.nasq-status-dot-warning { background: var(--status-warning); }
-.nasq-unread-count {
+.webvue-status-dot-success { background: var(--status-success); }
+.webvue-status-dot-warning { background: var(--status-warning); }
+.webvue-unread-count {
   background: var(--destructive);
   color: var(--unread-count-foreground);
 }
@@ -106,25 +106,25 @@ html { caret-color: var(--brand-link); }
 *::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--foreground) 38%, transparent); }
 
 /* Print (Tasmim Plan 4). Paper never carries the app chrome: the header, the module
-   rail, the context sidebar, the mobile trigger and anything marked .nasq-print-hide are
+   rail, the context sidebar, the mobile trigger and anything marked .webvue-print-hide are
    dropped, and the workspace loses their offsets. A print page (SharedStandalonePage
-   variant="print", .nasq-print) is black on white in either appearance: it resets the
+   variant="print", .webvue-print) is black on white in either appearance: it resets the
    Nuxt UI tokens and the tokens.css aliases (resolved once on :root), so every utility
    inside follows. */
 @media print {
-  .nasq-shell-header,
-  .nasq-module-rail,
-  .nasq-context-sidebar,
-  .nasq-mobile-menu-trigger,
-  .nasq-print-hide { display: none !important; }
-  .nasq-shell-workspace { min-height: 0 !important; margin-inline-start: 0 !important; padding-block-start: 0 !important; }
-  .nasq-shell-main { min-height: 0 !important; padding: 0 !important; overflow: visible !important; }
-  :root:has(.nasq-print),
-  :root:has(.nasq-print) :is(body, .nasq-shell, .nasq-shell-workspace, .nasq-shell-main) {
+  .webvue-shell-header,
+  .webvue-module-rail,
+  .webvue-context-sidebar,
+  .webvue-mobile-menu-trigger,
+  .webvue-print-hide { display: none !important; }
+  .webvue-shell-workspace { min-height: 0 !important; margin-inline-start: 0 !important; padding-block-start: 0 !important; }
+  .webvue-shell-main { min-height: 0 !important; padding: 0 !important; overflow: visible !important; }
+  :root:has(.webvue-print),
+  :root:has(.webvue-print) :is(body, .webvue-shell, .webvue-shell-workspace, .webvue-shell-main) {
     background: #fff !important;
     color-scheme: light;
   }
-  .nasq-print {
+  .webvue-print {
     --ui-bg: #fff;
     --ui-bg-muted: #fff;
     --ui-bg-elevated: #fff;
@@ -147,13 +147,13 @@ html { caret-color: var(--brand-link); }
     background: #fff;
     color: #000;
   }
-  .nasq-print * { box-shadow: none !important; }
+  .webvue-print * { box-shadow: none !important; }
   /* SharedRecordSection panel: a card on screen, flat on paper. */
-  .nasq-print .nasq-record-panel { background: transparent; border-radius: 0; break-inside: avoid; }
-  .nasq-print .nasq-record-panel > header { border-color: #000; }
-  /* A wide document (the minutes' topic table) asks for landscape: the named page below is chosen by .nasq-print-landscape. */
-  @page nasq-landscape { size: A4 landscape; margin: 12mm; }
-  .nasq-print-landscape { page: nasq-landscape; }
+  .webvue-print .webvue-record-panel { background: transparent; border-radius: 0; break-inside: avoid; }
+  .webvue-print .webvue-record-panel > header { border-color: #000; }
+  /* A wide document (the minutes' topic table) asks for landscape: the named page below is chosen by .webvue-print-landscape. */
+  @page webvue-landscape { size: A4 landscape; margin: 12mm; }
+  .webvue-print-landscape { page: webvue-landscape; }
 }
 
 /* Phase7: component typography/layout belongs to the shared sheet. */
@@ -172,10 +172,10 @@ html { caret-color: var(--brand-link); }
 
 .chart-donut-svg {
   min-height: 0;
-  animation: nasq-chart-in 220ms ease-out;
+  animation: webvue-chart-in 220ms ease-out;
 }
 
-@keyframes nasq-chart-in {
+@keyframes webvue-chart-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }

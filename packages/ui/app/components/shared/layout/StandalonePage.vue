@@ -31,10 +31,10 @@ const props = withDefaults(defineProps<{
       </template>
     </UCard>
   </main>
-  <article v-else :class="['nasq-print grid min-w-0 gap-6', props.width === 'list' ? 'nasq-page-width-list' : 'nasq-page-width-detail']" data-template="standalone-page" data-variant="print">
+  <article v-else :class="['webvue-print grid min-w-0 gap-6', props.width === 'list' ? 'webvue-page-width-list' : 'webvue-page-width-detail']" data-template="standalone-page" data-variant="print">
     <h1 v-if="props.title" class="text-2xl font-semibold text-highlighted">{{ props.title }}</h1>
     <slot />
-    <footer v-if="$slots.footer" class="nasq-print-hide flex flex-wrap items-center justify-end gap-2">
+    <footer v-if="$slots.footer" class="webvue-print-hide flex flex-wrap items-center justify-end gap-2">
       <slot name="footer" />
     </footer>
   </article>

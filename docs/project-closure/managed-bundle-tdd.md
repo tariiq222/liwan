@@ -2,7 +2,7 @@
 
 ## Scope
 
-This child owns only the three new files `tools/nasq_cli/managed_bundle.py`,
+This child owns only the three new files `tools/webvue_cli/managed_bundle.py`,
 `tools/test_managed_bundle.py`, and this document. Worktree:
 `/Users/tariq/code/nasq-managed-saas-acceptance`, branch
 `codex/managed-saas-acceptance`. Existing runtime/probe and prior verifier files
@@ -13,7 +13,7 @@ performed. Temporary test files contained synthetic fixture tokens only.
 ## API and security contract
 
 ```python
-from nasq_cli.managed_bundle import BundleError, CADDYFILE, render_bundle
+from webvue_cli.managed_bundle import BundleError, CADDYFILE, render_bundle
 
 outputs = render_bundle(
     descriptor,
@@ -31,7 +31,7 @@ and `secret_invalid`; diagnostic text never includes input values.
 
 Inputs require:
 
-- An explicitly SaaS descriptor, a safe project and explicit `nasq_scratch_*`
+- An explicitly SaaS descriptor, a safe project and explicit `webvue_scratch_*`
   database, and an absolute `compose.json` destination path without traversal or
   control/interpolation characters.
 - Three distinct unprivileged integer loopback ports, excluding canonical and
@@ -107,10 +107,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=tools python3 -B -m unittest discover -s to
 1. **RED before implementation:** 13 tests, 13 expected failures, exit 1:
    `managed_bundle implementation missing (RED)`.
 2. First implementation run found 10 errors: the reserved-token check mistakenly
-   considered the required `nasq_` prefix a reserved suffix. Corrected the check
-   to inspect only the suffix after `nasq_scratch_`; tests were not weakened.
+   considered the required `webvue_` prefix a reserved suffix. Corrected the check
+   to inspect only the suffix after `webvue_scratch_`; tests were not weakened.
 3. **GREEN:** 13 tests passed, exit 0, including current `DockerProbe` compatibility.
-4. `python3 -B -m ruff check --no-cache tools/nasq_cli/managed_bundle.py tools/test_managed_bundle.py`:
+4. `python3 -B -m ruff check --no-cache tools/webvue_cli/managed_bundle.py tools/test_managed_bundle.py`:
    `All checks passed!`, exit 0.
 5. `git diff --check`: exit 0 (tracked whitespace check; the new Python files
    additionally pass Ruff).

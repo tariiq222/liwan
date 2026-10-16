@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectReportRow } from '@nasq/contracts'
+import type { ProjectReportRow } from '@webvue/contracts'
 import { projectDashboardMetrics } from '@/utils/projectChartData'
 
 const props = defineProps<{ rows: readonly ProjectReportRow[] }>()

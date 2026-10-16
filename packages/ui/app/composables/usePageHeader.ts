@@ -8,7 +8,7 @@ interface PageHeaderRegistration {
   description?: string
 }
 
-const PAGE_HEADER_STATE_KEY = 'nasq-page-header'
+const PAGE_HEADER_STATE_KEY = 'webvue-page-header'
 
 function usePageHeaderState() {
   return useState<PageHeaderRegistration | null>(PAGE_HEADER_STATE_KEY, () => null)
@@ -46,7 +46,7 @@ export function usePageHeader(
   })
 }
 
-const FRAME_OWNS_HEADING = Symbol('nasq-frame-owns-heading') as InjectionKey<Readonly<Ref<boolean>>>
+const FRAME_OWNS_HEADING = Symbol('webvue-frame-owns-heading') as InjectionKey<Readonly<Ref<boolean>>>
 const NO_FRAME_HEADING = readonly(ref(false))
 
 /**

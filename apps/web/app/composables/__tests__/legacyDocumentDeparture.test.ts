@@ -8,8 +8,8 @@ import { refDebounced } from '@vueuse/core'
 import { createHooks } from 'hookable'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as hrSearch from '../useHrSearch'
-import { layerFile } from '@nasq/ui/test/helpers/layerFile'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { layerFile } from '@webvue/ui/test/helpers/layerFile'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const testCase = { file: 'hr/documents.vue', base: '/hr/documents' }
 const document = { id: 51, name: 'Policy', body: '', attachment_ids: [], department: { id: 4, name: 'Department' } }
@@ -22,8 +22,8 @@ const source = compileScript(parse(readFileSync(filename, 'utf8'), { filename })
 const pageCode = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
 async function mountList(guard: (to: RouteLocationNormalized) => NavigationGuardReturn | Promise<NavigationGuardReturn>) {
   vi.stubGlobal('document', { addEventListener() {}, removeEventListener() {}, visibilityState: 'visible' })
-  const hooks = createHooks<{ 'nasq:navigation:start': (to: RouteLocationNormalized) => void }>()
-  const nuxt = { hook: hooks.hook, callHook: (to: RouteLocationNormalized) => Promise.resolve().then(() => hooks.callHook('nasq:navigation:start', to)) }
+  const hooks = createHooks<{ 'webvue:navigation:start': (to: RouteLocationNormalized) => void }>()
+  const nuxt = { hook: hooks.hook, callHook: (to: RouteLocationNormalized) => Promise.resolve().then(() => hooks.callHook('webvue:navigation:start', to)) }
   let documentParams!: Vue.ComputedRef
   const bindings = {
     ...hrSearch, returnToQuery, _defineComponent: Vue.defineComponent, h: Vue.h, ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch,

@@ -4,13 +4,13 @@
 
 **Goal:** Plans («باقة») are the only thing sold: real tenant usage is collected so a downgrade below it is refused, Track A packages become read-only history, the vendor creates a shared tenant from a plan, the vocabulary is «باقة» = plan / «حزمة» = bundle (vendor only), and spec 3.6's acceptance is proven end to end on a scratch control database and a scratch Odoo tenant.
 
-**Architecture:** Odoo counts usage per registered limit key (`_nasq_count_usage`), the subscription effect observes it keyed by limit and with each limit's application gates, the control plane persists it through a scheduler job (`collectUsage` → `recordUsage`) and checks every lowered limit generically, skipping a limit whose application the target closes (its rows stay read-only). Track A's HTTP writes answer 410 and its onboarding refuses new assignments; the vendor's shared new-tenant form creates a customer, a plan quote and an order. A committed, environment-gated live test drives the real compiler, quotes, orders, collector and the real Python effect against a scratch Odoo tenant.
+**Architecture:** Odoo counts usage per registered limit key (`_webvue_count_usage`), the subscription effect observes it keyed by limit and with each limit's application gates, the control plane persists it through a scheduler job (`collectUsage` → `recordUsage`) and checks every lowered limit generically, skipping a limit whose application the target closes (its rows stay read-only). Track A's HTTP writes answer 410 and its onboarding refuses new assignments; the vendor's shared new-tenant form creates a customer, a plan quote and an order. A committed, environment-gated live test drives the real compiler, quotes, orders, collector and the real Python effect against a scratch Odoo tenant.
 
 **Tech Stack:** Odoo 19 Community (`/Users/tariq/code/odoo`, read-only), Python 3 (`tools/`), PostgreSQL, TypeScript + Zod + Vitest (`packages/commercial-contracts`, `apps/control-plane`), Nuxt 4 + vue-i18n + Vitest (`apps/web`).
 
-**Spec:** `docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md` §3.6 with the owner decisions of 2026-10-07 (O1–O5), roadmap `docs/superpowers/plans/2026-10-05-architecture-roadmap.md` «المرحلة 3» and «خارج المراحل» (`recordUsage` without a caller), `docs/superpowers/specs/2026-10-02-package-management-design.md`, `docs/superpowers/specs/2026-10-02-saas-commercial-product.md`, `docs/superpowers/specs/nasq-cp0-commercial-contracts.md`.
+**Spec:** `docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md` §3.6 with the owner decisions of 2026-10-07 (O1–O5), roadmap `docs/superpowers/plans/2026-10-05-architecture-roadmap.md` «المرحلة 3» and «خارج المراحل» (`recordUsage` without a caller), `docs/superpowers/specs/2026-10-02-package-management-design.md`, `docs/superpowers/specs/2026-10-02-saas-commercial-product.md`, `docs/superpowers/specs/webvue-cp0-commercial-contracts.md`.
 
-**This is plan 3b of two.** It runs in the worktree and branch of plan 3a (`/Users/tariq/code/nasq-packages`, `codex/cp-packages`) after 3a's Task 8, and uses 3a's runners (`/tmp/nasq-packages/odoo-run.sh`, `/tmp/nasq-packages/cp-live.sh`). Interfaces it consumes from 3a: `nasq.entitlement.service._nasq_close_unlisted_features(features) -> dict`; `deriveCatalogPolicy` / `releaseModules` in `@nasq/commercial-contracts`; `derivePolicy` and `deriveSharedPolicy(catalog, tierId)` (schema 3 = whole release, others closed); `compileEntitlements` = `commercial-compiler/2` (release modules, release-complete features); `deploy/catalog/solutions/platform_v3.json`; `entitledFeaturePrefixes` in `apps/web/app/utils/entitlementApps.ts`; runner guard accepting `nasq_scratch_ffff0000000000000000000000000003`.
+**This is plan 3b of two.** It runs in the worktree and branch of plan 3a (`/Users/tariq/code/nasq-packages`, `codex/cp-packages`) after 3a's Task 8, and uses 3a's runners (`/tmp/webvue-packages/odoo-run.sh`, `/tmp/webvue-packages/cp-live.sh`). Interfaces it consumes from 3a: `webvue.entitlement.service._webvue_close_unlisted_features(features) -> dict`; `deriveCatalogPolicy` / `releaseModules` in `@webvue/commercial-contracts`; `derivePolicy` and `deriveSharedPolicy(catalog, tierId)` (schema 3 = whole release, others closed); `compileEntitlements` = `commercial-compiler/2` (release modules, release-complete features); `deploy/catalog/solutions/platform_v3.json`; `entitledFeaturePrefixes` in `apps/web/app/utils/entitlementApps.ts`; runner guard accepting `webvue_scratch_ffff0000000000000000000000000003`.
 
 ## Deviations from rulings
 
@@ -18,7 +18,7 @@
 2. **Usage metrics become keyed by limit key, in the limit's own unit** (`storage.limit_mb` in MiB, rounded up). Today snapshots are written with unit keys (`users`, `attachment_bytes`) only by tests, while `getUsage` reads them with limit keys (`customer-http.ts:85`, `routes-b.ts:53`), so customer usage is always `not_collected`. The usage contract gains two unit values additively (`count`, `mebibytes`); the four existing values stay.
 3. **"Tenant creation picks a plan" is implemented as customer + quote + order from the vendor form.** There is no vendor endpoint that provisions from a plan directly; the paid-subscription fulfilment (`commercial/fulfillment.ts`) already provisions a tenant from an order. The shared-mode form now needs `vendor.subscriptions.manage` in addition to `vendor.tenants.manage`. The dedicated (non-shared) lane keeps catalog version + tier: it is not Track A.
 4. **Track A retirement is enforced at the HTTP boundary and at new assignment, not in the store functions.** `createPackage`/`mutatePackage` stay (existing rows, `packages-live.test.ts`, legacy mapping); `package-http.ts` answers every write with 410 `packages_retired`; `onboardSharedTenant` refuses `package_revision_id` with 410 `package_retired`. Tables, rows, triggers and job-time package authority for already pinned tenants are untouched (O1).
-5. **Acceptance 4 is proven with a synthetic catalog in the scratch control database.** `nasq_registry_probe` is barred from committed catalogs (`catalog_check.TEST_ONLY_MODULES`), so the acceptance inserts `platform_v3.json` plus one tier `{"id": "probe", "name": "Probe", "modules": ["nasq_registry_probe"], "features": ["boolean:probe.enabled"]}` and shows the release, a bundle and the tenant policy carry `probe.enabled` with no code edit. A new application still needs one catalog tier (data) besides its registry keys; `catalog_check`'s completeness rule (3a Task 4) refuses a release module whose keys are in no tier.
+5. **Acceptance 4 is proven with a synthetic catalog in the scratch control database.** `webvue_registry_probe` is barred from committed catalogs (`catalog_check.TEST_ONLY_MODULES`), so the acceptance inserts `platform_v3.json` plus one tier `{"id": "probe", "name": "Probe", "modules": ["webvue_registry_probe"], "features": ["boolean:probe.enabled"]}` and shows the release, a bundle and the tenant policy carry `probe.enabled` with no code edit. A new application still needs one catalog tier (data) besides its registry keys; `catalog_check`'s completeness rule (3a Task 4) refuses a release module whose keys are in no tier.
 6. **The acceptance is a committed, environment-gated live test** (`packages-acceptance.live.test.ts`, skipped unless its four variables are set) plus a committed scratch-only effect entry point (`tools/shared_saas_lifecycle/scratch_effect.py`), instead of a throwaway script, so the proof can be re-run. It marks orders applied with the same two SQL updates the existing downgrade suite uses (`commercial-downgrade.test.ts` `fixture()`), because payment and fulfilment are out of the proof.
 
 **Inventory corrections found while reading the source:**
@@ -48,7 +48,7 @@
 
 | File | Responsibility |
 |---|---|
-| `odoo-addons/nasq_platform/models/entitlement_service.py`, `tests/test_quotas.py` | `_nasq_count_usage` for storage (MiB) and branches |
+| `odoo-addons/webvue_platform/models/entitlement_service.py`, `tests/test_quotas.py` | `_webvue_count_usage` for storage (MiB) and branches |
 | `tools/shared_saas_lifecycle/subscription_effect.py`, `test_subscription_effect.py` | Usage keyed by limit with gates; generic `check_downgrade` |
 | `packages/commercial-contracts/src/commercial/usage.ts` | `count`, `mebibytes` units |
 | `apps/control-plane/src/commercial/usage.ts`, `quotes.ts`, `orders.ts`, `__tests__/commercial-downgrade.test.ts` | Generic lowered-limit check; release-aware closed-app skip; limit-keyed units |
@@ -73,9 +73,9 @@ cd /Users/tariq/code/nasq-packages
 git status --short
 git log --format='%h %s' main..HEAD
 python3 -B tools/catalog_check.py --release-modules
-grep -c "_nasq_close_unlisted_features" odoo-addons/nasq_platform/models/entitlement_service.py
+grep -c "_webvue_close_unlisted_features" odoo-addons/webvue_platform/models/entitlement_service.py
 grep -c "commercial-compiler/2" packages/commercial-contracts/src/commercial/entitlements.ts
-grep -c "nasq_scratch_ffff0000000000000000000000000003" /tmp/nasq-packages/odoo-run.sh
+grep -c "webvue_scratch_ffff0000000000000000000000000003" /tmp/webvue-packages/odoo-run.sh
 ```
 
 Expected: empty status; eight commits ending with `refactor(tools): grant admin roles by entitlement, not modules`; the ten-module list; three counts of at least 1. Otherwise stop: plan 3a is not complete.
@@ -85,29 +85,29 @@ Expected: empty status; eight commits ending with `refactor(tools): grant admin 
 ### Task 1: Count usage per limit key in Odoo and the subscription effect
 
 **Files:**
-- Modify: `odoo-addons/nasq_platform/models/entitlement_service.py` (`_nasq_count_usage`, `:276-281`)
-- Modify: `odoo-addons/nasq_platform/tests/test_quotas.py` (append two tests)
+- Modify: `odoo-addons/webvue_platform/models/entitlement_service.py` (`_webvue_count_usage`, `:276-281`)
+- Modify: `odoo-addons/webvue_platform/tests/test_quotas.py` (append two tests)
 - Modify: `tools/shared_saas_lifecycle/subscription_effect.py:32-37,115-133,237-261,269-282`
 - Modify: `tools/shared_saas_lifecycle/test_subscription_effect.py:37-41,164-180,240-252` (+ one test)
 
 **Interfaces:**
-- Produces: `_nasq_count_usage('storage.limit_mb')` = attachment bytes rounded up to MiB; `_nasq_count_usage('branches.extra_limit')` = active branches. Observation `usage: {limit_key: int}` for every registered limit and `limit_gates: {limit_key: [boolean keys of the owning application]}` (`[]` for platform limits). `check_downgrade` skips a limit whose gates are all `False` in the target.
+- Produces: `_webvue_count_usage('storage.limit_mb')` = attachment bytes rounded up to MiB; `_webvue_count_usage('branches.extra_limit')` = active branches. Observation `usage: {limit_key: int}` for every registered limit and `limit_gates: {limit_key: [boolean keys of the owning application]}` (`[]` for platform limits). `check_downgrade` skips a limit whose gates are all `False` in the target.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `TestTenantQuotas` in `odoo-addons/nasq_platform/tests/test_quotas.py`:
+Append to `TestTenantQuotas` in `odoo-addons/webvue_platform/tests/test_quotas.py`:
 
 ```python
 
     def test_storage_usage_is_counted_in_whole_mebibytes(self):
         self.env['ir.attachment'].create({'name': 'counted.txt', 'raw': b'x' * 10, 'mimetype': 'text/plain'})
-        used = int(self.service._nasq_count_storage_bytes())
-        self.assertEqual(self.service._nasq_count_usage('storage.limit_mb'), -(-used // 1048576))
-        self.assertGreaterEqual(self.service._nasq_count_usage('storage.limit_mb'), 1)
+        used = int(self.service._webvue_count_storage_bytes())
+        self.assertEqual(self.service._webvue_count_usage('storage.limit_mb'), -(-used // 1048576))
+        self.assertGreaterEqual(self.service._webvue_count_usage('storage.limit_mb'), 1)
 
     def test_branch_usage_counts_active_branches(self):
-        active = self.env['nasq.tenant.branch'].search_count([('state', '=', 'active')])
-        self.assertEqual(self.service._nasq_count_usage('branches.extra_limit'), active)
+        active = self.env['webvue.tenant.branch'].search_count([('state', '=', 'active')])
+        self.assertEqual(self.service._webvue_count_usage('branches.extra_limit'), active)
 ```
 
 In `tools/shared_saas_lifecycle/test_subscription_effect.py` replace the `'usage': {...}` line of `observation()`:
@@ -158,14 +158,14 @@ Expected: failures (`observation_invalid` for the new usage shape; the closing t
 
 - [ ] **Step 3: Count storage and branches in Odoo**
 
-In `odoo-addons/nasq_platform/models/entitlement_service.py` replace:
+In `odoo-addons/webvue_platform/models/entitlement_service.py` replace:
 
 ```python
     @api.model
-    def _nasq_count_usage(self, limit_key):
+    def _webvue_count_usage(self, limit_key):
         """Usage counted against LIMIT_KEY. The addon that registers a limit extends this through super()."""
         if limit_key == 'users.limit':
-            return self._nasq_count_users()
+            return self._webvue_count_users()
         return 0
 ```
 
@@ -173,7 +173,7 @@ with:
 
 ```python
     @api.model
-    def _nasq_count_usage(self, limit_key):
+    def _webvue_count_usage(self, limit_key):
         """Usage counted against LIMIT_KEY, in the limit's own unit.
 
         The addon that registers a limit extends this through super(); an
@@ -181,11 +181,11 @@ with:
         limit in MiB means the bytes exceed it.
         """
         if limit_key == 'users.limit':
-            return self._nasq_count_users()
+            return self._webvue_count_users()
         if limit_key == 'storage.limit_mb':
-            return -(-int(self._nasq_count_storage_bytes()) // 1048576)
+            return -(-int(self._webvue_count_storage_bytes()) // 1048576)
         if limit_key == 'branches.extra_limit':
-            return self.env['nasq.tenant.branch'].search_count([('state', '=', 'active')])
+            return self.env['webvue.tenant.branch'].search_count([('state', '=', 'active')])
         return 0
 ```
 
@@ -196,8 +196,8 @@ In `tools/shared_saas_lifecycle/subscription_effect.py` delete the `LIMITS = (..
 In `_COMMON`'s `collect`, replace:
 
 ```python
-    usage = {'users': service._nasq_count_users(), 'projects': service._nasq_count_usage('projects.max_projects'),
-             'attachment_bytes': int(service._nasq_count_storage_bytes()),
+    usage = {'users': service._webvue_count_users(), 'projects': service._webvue_count_usage('projects.max_projects'),
+             'attachment_bytes': int(service._webvue_count_storage_bytes()),
              'extra_branches': len([b for b in branches if b['state'] == 'active'])}
     return {'database': env.cr.dbname, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
@@ -208,15 +208,15 @@ In `_COMMON`'s `collect`, replace:
 with:
 
 ```python
-    definitions = env['nasq.feature.registry']._nasq_feature_map()
+    definitions = env['webvue.feature.registry']._webvue_feature_map()
     usage, gates = {}, {}
     for key, item in sorted(definitions.items()):
         if item['type'] != 'limit':
             continue
-        usage[key] = int(service._nasq_count_usage(key))
+        usage[key] = int(service._webvue_count_usage(key))
         owner = item['module']
         gates[key] = sorted(k for k, other in definitions.items()
-                            if other['type'] == 'boolean' and other['module'] == owner and owner != 'nasq_platform')
+                            if other['type'] == 'boolean' and other['module'] == owner and owner != 'webvue_platform')
     return {'database': env.cr.dbname, 'commercial_revision_id': profile.commercial_revision_id or None,
             'commercial_digest': profile.commercial_digest or None,
             'commercial_applied_at': str(profile.commercial_applied_at) if profile.commercial_applied_at else None,
@@ -303,8 +303,8 @@ def check_downgrade(request, observed):
 ```bash
 python3 -B -m unittest discover -s tools -p 'test_*.py' 2>&1 | tail -n 3
 ruff check odoo-addons
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_b1 \
-  nasq_core,nasq_platform,nasq_api,nasq_hr /nasq_core,/nasq_platform,/nasq_api,/nasq_hr
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_b1 \
+  webvue_core,webvue_platform,webvue_api,webvue_hr /webvue_core,/webvue_platform,/webvue_api,/webvue_hr
 ```
 
 Expected: tools `OK`; `All checks passed!`; `ODOO_RUN_TEST_OK` with 3a's HR count + 2.
@@ -312,7 +312,7 @@ Expected: tools `OK`; `All checks passed!`; `ODOO_RUN_TEST_OK` with 3a's HR coun
 - [ ] **Step 6: Commit**
 
 ```bash
-git add odoo-addons/nasq_platform/models/entitlement_service.py odoo-addons/nasq_platform/tests/test_quotas.py \
+git add odoo-addons/webvue_platform/models/entitlement_service.py odoo-addons/webvue_platform/tests/test_quotas.py \
   tools/shared_saas_lifecycle/subscription_effect.py tools/shared_saas_lifecycle/test_subscription_effect.py
 git commit -m "feat(platform): observe usage per registered limit key" -m "<TRAILER>"
 ```
@@ -382,7 +382,7 @@ In `apps/web/app/pages/__tests__/subscriptionJourney.test.ts` add (and add `usag
 - [ ] **Step 2: Run them to see them fail**
 
 ```bash
-/tmp/nasq-packages/cp-live.sh src/__tests__/commercial-downgrade.test.ts 2>&1 | tail -n 12
+/tmp/webvue-packages/cp-live.sh src/__tests__/commercial-downgrade.test.ts 2>&1 | tail -n 12
 npm -w apps/web run test -- app/pages/__tests__/subscriptionJourney.test.ts 2>&1 | tail -n 5
 ```
 
@@ -401,7 +401,7 @@ Replace `apps/control-plane/src/commercial/usage.ts` with:
 
 ```ts
 import type { Pool, PoolClient } from 'pg'
-import type { CatalogRelease, UsageSnapshot, UsageMetric } from '@nasq/commercial-contracts'
+import type { CatalogRelease, UsageSnapshot, UsageMetric } from '@webvue/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 
@@ -418,7 +418,7 @@ function closedByTarget(release: Pick<CatalogRelease, 'applications'> | undefine
 }
 
 /** Both quote preview and acceptance check against the applied entitlement.
- * Metrics are keyed by limit key, in the limit's own unit (Odoo's _nasq_count_usage). */
+ * Metrics are keyed by limit key, in the limit's own unit (Odoo's _webvue_count_usage). */
 export async function assertDowngradeFitsUsage(client: Pick<PoolClient, 'query'>, input: {
   tenant_id: string | null; subscription_id: string; previous: Features; target: Features
   release?: Pick<CatalogRelease, 'applications'>; now?: Date
@@ -538,7 +538,7 @@ Locales: in `apps/web/i18n/locales/ar/subscription.json`, inside `"usage"`, add 
 ```bash
 npm -w packages/commercial-contracts run test 2>&1 | tail -n 4
 npm -w apps/control-plane run build 2>&1 | tail -n 3
-/tmp/nasq-packages/cp-live.sh src/__tests__/commercial-downgrade.test.ts src/__tests__/commercial-branches.test.ts src/__tests__/commercial-quotes.test.ts 2>&1 | tail -n 8
+/tmp/webvue-packages/cp-live.sh src/__tests__/commercial-downgrade.test.ts src/__tests__/commercial-branches.test.ts src/__tests__/commercial-quotes.test.ts 2>&1 | tail -n 8
 npm -w apps/web run test -- app/pages/__tests__/subscriptionJourney.test.ts 2>&1 | tail -n 4
 npm -w apps/web run lint 2>&1 | tail -n 4
 ```
@@ -567,7 +567,7 @@ git commit -m "feat(cp): check every lowered limit against limit-keyed usage" -m
 - Modify: `apps/control-plane/src/shared/subscription-reconfigure.ts:9-12`, `apps/control-plane/src/shared/odoo-adapter.ts:150-156`, `apps/control-plane/src/commercial/scheduler.ts`, `apps/control-plane/src/shared-worker-main.ts:24`
 
 **Interfaces:**
-- Produces: `type UsageObservation = { database: string; observed_at: string; usage: Record<string, number> }`; `type UsageObserveRunner = (input: { tenant_id: string; database: string }) => Promise<UsageObservation>`; `acceptObservation(observed: unknown, database: string, now: Date): UsageObservation | null`; `collectUsage(pool, { runner, now?, log? }) -> Promise<{ recorded: number; skipped: number }>`; adapter `observeUsage`; scheduler option `usageRunner` and env `NASQ_COMMERCIAL_USAGE_EVERY` (ticks, default = `NASQ_COMMERCIAL_RECONCILE_EVERY`'s default 10).
+- Produces: `type UsageObservation = { database: string; observed_at: string; usage: Record<string, number> }`; `type UsageObserveRunner = (input: { tenant_id: string; database: string }) => Promise<UsageObservation>`; `acceptObservation(observed: unknown, database: string, now: Date): UsageObservation | null`; `collectUsage(pool, { runner, now?, log? }) -> Promise<{ recorded: number; skipped: number }>`; adapter `observeUsage`; scheduler option `usageRunner` and env `WEBVUE_COMMERCIAL_USAGE_EVERY` (ticks, default = `WEBVUE_COMMERCIAL_RECONCILE_EVERY`'s default 10).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -585,12 +585,12 @@ const NOW = new Date('2026-10-07T10:00:00Z')
 const ok = (database: string, over: Record<string, unknown> = {}) => ({ database, observed_at: '2026-10-07T09:59:00Z', usage: { 'users.limit': 3, 'storage.limit_mb': 2 }, ...over })
 
 describe('usage observation gate (no database)', () => {
-  const db = 'nasq_scratch_' + 'a'.repeat(32)
+  const db = 'webvue_scratch_' + 'a'.repeat(32)
   it('accepts a fresh, limit-keyed observation of the bound database', () => {
     expect(acceptObservation(ok(db), db, NOW)).toEqual(ok(db))
   })
   it.each([
-    ['another tenant database', ok('nasq_scratch_' + 'b'.repeat(32))],
+    ['another tenant database', ok('webvue_scratch_' + 'b'.repeat(32))],
     ['a stale sample', ok(db, { observed_at: '2026-10-07T09:44:59Z' })],
     ['a future sample', ok(db, { observed_at: '2026-10-07T10:06:00Z' })],
     ['a malformed time', ok(db, { observed_at: 'yesterday' })],
@@ -610,7 +610,7 @@ suite('usage collector (scratch control database)', () => {
   afterAll(async () => pool.end())
 
   async function tenant(enabled = true) {
-    const id = randomUUID(), hex = id.replaceAll('-', ''), database = `nasq_scratch_${hex}`
+    const id = randomUUID(), hex = id.replaceAll('-', ''), database = `webvue_scratch_${hex}`
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'Usage','saas','managed',$2,true)", [id, `inv-${id}`])
     const customer = randomUUID(), subscription = randomUUID(), revision = randomUUID()
     await pool.query('INSERT INTO customers(id,name,tenant_id) VALUES($1,$2,$3)', [customer, 'Usage', id])
@@ -760,11 +760,11 @@ In `apps/control-plane/src/commercial/scheduler.ts` add after the line `import t
 import { collectUsage, type UsageObserveRunner } from './usage-collector.js'
 ```
 
-add `  usageRunner?: UsageObserveRunner` after the `subscriptionRunner?: ...` line of `CommercialSchedulerOptions`, add after `  const reconcileEvery = posInt(env.NASQ_COMMERCIAL_RECONCILE_EVERY, 10)`:
+add `  usageRunner?: UsageObserveRunner` after the `subscriptionRunner?: ...` line of `CommercialSchedulerOptions`, add after `  const reconcileEvery = posInt(env.WEBVUE_COMMERCIAL_RECONCILE_EVERY, 10)`:
 
 ```ts
   // Downgrade checks need a sample younger than 15 minutes (usage.ts); keep ticks × interval below that.
-  const usageEvery = posInt(env.NASQ_COMMERCIAL_USAGE_EVERY, 10)
+  const usageEvery = posInt(env.WEBVUE_COMMERCIAL_USAGE_EVERY, 10)
 ```
 
 and add after the closing `}` of the `if (ticks % reconcileEvery === 0) { ... }` block:
@@ -783,7 +783,7 @@ In `apps/control-plane/src/shared-worker-main.ts` replace `subscriptionRunner:ad
 ```bash
 npm -w apps/control-plane run build 2>&1 | tail -n 3
 npm -w apps/control-plane test -- src/__tests__/usage-collector.test.ts src/__tests__/commercial-scheduler.test.ts 2>&1 | tail -n 4
-/tmp/nasq-packages/cp-live.sh src/__tests__/usage-collector.test.ts 2>&1 | tail -n 6
+/tmp/webvue-packages/cp-live.sh src/__tests__/usage-collector.test.ts 2>&1 | tail -n 6
 ```
 
 Expected: build green; the gate tests pass without a database; `CP_LIVE_EXIT 0` with the two live tests passing.
@@ -940,7 +940,7 @@ Then make the now-unused imports go away: replace the first five lines' imports
 ```ts
 import { z } from 'zod'
 import type { Pool } from 'pg'
-import { packageInputSchema,packageEditSchema,packageActionSchema,packageCloneSchema,type VendorCapability } from '@nasq/commercial-contracts'
+import { packageInputSchema,packageEditSchema,packageActionSchema,packageCloneSchema,type VendorCapability } from '@webvue/commercial-contracts'
 import { createPackage,getPackage,listPackages,mutatePackage,PackageError } from './packages.js'
 ```
 
@@ -949,7 +949,7 @@ with
 ```ts
 import { z } from 'zod'
 import type { Pool } from 'pg'
-import type { VendorCapability } from '@nasq/commercial-contracts'
+import type { VendorCapability } from '@webvue/commercial-contracts'
 import { getPackage,listPackages,PackageError } from './packages.js'
 ```
 
@@ -985,7 +985,7 @@ with:
 Create `apps/web/app/utils/vendorTenantPlan.ts`:
 
 ```ts
-import type { Cadence } from '@nasq/commercial-contracts'
+import type { Cadence } from '@webvue/commercial-contracts'
 
 /** The customer that will own the shared tenant; fulfilment enrolls this administrator. */
 export function planTenantCustomerBody(form: { name: string; admin_name: string; admin_login: string }) {
@@ -1004,7 +1004,7 @@ Replace `apps/web/app/pages/vendor/tenants/new.vue` with:
 
 ```vue
 <script setup lang="ts">
-import type { Cadence } from '@nasq/commercial-contracts'
+import type { Cadence } from '@webvue/commercial-contracts'
 import { safeReturnTo } from '@/utils/safeReturnTo'
 import { cadenceKey, cadenceLabel, commercialErrorKey } from '@/utils/vendorCommercial'
 import { planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
@@ -1127,7 +1127,7 @@ Locales. In `apps/web/i18n/locales/ar/vendor.json` add to `vendor.packages`: `"r
 ```bash
 npm -w apps/control-plane run build 2>&1 | tail -n 3
 npm -w apps/control-plane test -- src/__tests__/package-http.test.ts src/shared/onboarding.test.ts 2>&1 | tail -n 4
-/tmp/nasq-packages/cp-live.sh src/__tests__/packages-live.test.ts src/__tests__/shared-onboarding-live.test.ts src/__tests__/commercial-migration.test.ts 2>&1 | tail -n 8
+/tmp/webvue-packages/cp-live.sh src/__tests__/packages-live.test.ts src/__tests__/shared-onboarding-live.test.ts src/__tests__/commercial-migration.test.ts 2>&1 | tail -n 8
 npm -w apps/web run test -- app/utils/__tests__/vendorTenantPlan.test.ts app/composables/nav/__tests__/vendorNavigation.test.ts app/pages/vendor/__tests__ 2>&1 | tail -n 6
 npm -w apps/web run lint 2>&1 | tail -n 4
 ```
@@ -1211,7 +1211,7 @@ Append to `apps/web/app/utils/__tests__/vendorCommercial.test.ts` (inside its to
 ```ts
   it('shows an application that only registered its keys and got a catalog tier (spec 3.6 acceptance 4)', () => {
     const release = { id: 'r', version: 'v', source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64), applications: [
-      { id: 'probe', name_ar: 'Probe', name_en: 'Probe', modules: ['nasq_registry_probe'], requires_apps: [], conflicts_with_apps: [], selectable: true,
+      { id: 'probe', name_ar: 'Probe', name_en: 'Probe', modules: ['webvue_registry_probe'], requires_apps: [], conflicts_with_apps: [], selectable: true,
         features: [{ key: 'probe.enabled', kind: 'boolean', selectable: true, requires: [], enforcement_refs: [] }, { key: 'probe.max_items', kind: 'limit', selectable: false, requires: [], enforcement_refs: [] }] },
     ] } as never
     expect(appName((release as { applications: never[] }).applications[0]!, 'ar')).toBe('Probe')
@@ -1225,7 +1225,7 @@ Append to `packages/commercial-contracts/src/__tests__/commercial-entitlements.t
 ```ts
   it('names an application unknown to the platform from its catalog tier', () => {
     const v3 = JSON.parse(readFileSync(new URL('../../../../deploy/catalog/solutions/platform_v3.json', import.meta.url), 'utf8'))
-    v3.tiers.push({ id: 'probe', name: 'Probe', modules: ['nasq_registry_probe'], features: ['boolean:probe.enabled'] })
+    v3.tiers.push({ id: 'probe', name: 'Probe', modules: ['webvue_registry_probe'], features: ['boolean:probe.enabled'] })
     const probe = catalogApplicationsFromSolution(v3, 'v3').find(a => a.id === 'probe')!
     expect([probe.name_ar, probe.name_en]).toEqual(['Probe', 'Probe'])
     expect(probe.features.map(f => [f.key, f.selectable])).toEqual([['probe.enabled', true]])
@@ -1286,11 +1286,11 @@ git commit -m "fix(web): name plans باقة and bundles حزمة across ar and 
 **Files:**
 - Create: `tools/shared_saas_lifecycle/scratch_effect.py`
 - Create: `apps/control-plane/src/__tests__/packages-acceptance.live.test.ts`
-- Create (outside the repo): `/tmp/nasq-packages/acceptance-shell.sh`
+- Create (outside the repo): `/tmp/webvue-packages/acceptance-shell.sh`
 
 **Interfaces:**
-- Consumes: everything above; `odoo-run.sh base|shell|serve` with `nasq_scratch_ffff0000000000000000000000000003`.
-- Produces: `python3 -B -m tools.shared_saas_lifecycle.scratch_effect` (stdin one JSON request `{action: 'provision'|'observe'|'reconfigure', ...}`, stdout one JSON line `{result}` or `{error_code}`; env `NASQ_SCRATCH_ODOO_SHELL`, `NASQ_SCRATCH_JOURNAL`). The live test runs only when `CONTROL_TEST_DATABASE_URL` (scratch), `NASQ_PACKAGES_ACCEPTANCE_DB`, `NASQ_PACKAGES_ACCEPTANCE_URL` and `NASQ_SCRATCH_ODOO_SHELL` are set.
+- Consumes: everything above; `odoo-run.sh base|shell|serve` with `webvue_scratch_ffff0000000000000000000000000003`.
+- Produces: `python3 -B -m tools.shared_saas_lifecycle.scratch_effect` (stdin one JSON request `{action: 'provision'|'observe'|'reconfigure', ...}`, stdout one JSON line `{result}` or `{error_code}`; env `WEBVUE_SCRATCH_ODOO_SHELL`, `WEBVUE_SCRATCH_JOURNAL`). The live test runs only when `CONTROL_TEST_DATABASE_URL` (scratch), `WEBVUE_PACKAGES_ACCEPTANCE_DB`, `WEBVUE_PACKAGES_ACCEPTANCE_URL` and `WEBVUE_SCRATCH_ODOO_SHELL` are set.
 
 - [ ] **Step 1: Write the scratch effect entry point**
 
@@ -1302,10 +1302,10 @@ Create `tools/shared_saas_lifecycle/scratch_effect.py`:
 
 Runs the real provisioning policy script and the real subscription effect
 (observe, reconfigure) against one scratch tenant through a local ``odoo shell``
-command named by NASQ_SCRATCH_ODOO_SHELL (it takes the database name and reads
+command named by WEBVUE_SCRATCH_ODOO_SHELL (it takes the database name and reads
 the script on stdin). It never installs a module: a reconfigure that asks for an
 install fails with ``install_requested``, which is the spec 3.6 proof that a plan
-change needs no install job. Database names must be ``nasq_scratch_<32 hex>``.
+change needs no install job. Database names must be ``webvue_scratch_<32 hex>``.
 """
 from __future__ import annotations
 
@@ -1315,7 +1315,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.nasq_cli.managed_verify import build_policy_script, parse_snapshot
+from tools.webvue_cli.managed_verify import build_policy_script, parse_snapshot
 from tools.shared_saas_lifecycle import odoo_effect
 from tools.shared_saas_lifecycle.odoo_effect import EffectError
 from tools.shared_saas_lifecycle.subscription_effect import SubscriptionEffect
@@ -1345,14 +1345,14 @@ class ScratchShellRunner:
 
 def main():
     request = json.loads(sys.stdin.read())
-    runner = ScratchShellRunner(request['tenant']['database'], os.environ['NASQ_SCRATCH_ODOO_SHELL'])
+    runner = ScratchShellRunner(request['tenant']['database'], os.environ['WEBVUE_SCRATCH_ODOO_SHELL'])
     try:
         if request['action'] == 'provision':
             policy = request['policy']
             output = runner.run_script(build_policy_script(policy, runner.database), 'policy', mutate=True)
             result = parse_snapshot(output, policy, runner.database)
         else:
-            effect = SubscriptionEffect(runner, Path(os.environ['NASQ_SCRATCH_JOURNAL']).resolve())
+            effect = SubscriptionEffect(runner, Path(os.environ['WEBVUE_SCRATCH_JOURNAL']).resolve())
             result = effect.observe(request) if request['action'] == 'observe' else effect.reconfigure(request)
     except EffectError as error:
         print(json.dumps({'error_code': str(error)}))
@@ -1369,13 +1369,13 @@ if __name__ == '__main__':
 ```
 
 ```bash
-cat > /tmp/nasq-packages/acceptance-shell.sh <<'SHELL'
+cat > /tmp/webvue-packages/acceptance-shell.sh <<'SHELL'
 #!/usr/bin/env bash
 # odoo shell for the acceptance tenant only (the runner guards the name).
-exec /tmp/nasq-packages/odoo-run.sh shell "$1" /Users/tariq/code/nasq-packages
+exec /tmp/webvue-packages/odoo-run.sh shell "$1" /Users/tariq/code/nasq-packages
 SHELL
-chmod +x /tmp/nasq-packages/acceptance-shell.sh
-mkdir -p /private/tmp/nasq-packages/journal
+chmod +x /tmp/webvue-packages/acceptance-shell.sh
+mkdir -p /private/tmp/webvue-packages/journal
 python3 -B -c "import ast; ast.parse(open('tools/shared_saas_lifecycle/scratch_effect.py').read()); print('scratch-effect-ok')"
 ```
 
@@ -1387,7 +1387,7 @@ Create `apps/control-plane/src/__tests__/packages-acceptance.live.test.ts`:
 
 ```ts
 /** Spec 3.6 acceptance (plan 2026-10-07-phase-3b, Task 6). Runs only against a scratch control
- * database and the one scratch Odoo tenant named by NASQ_PACKAGES_ACCEPTANCE_DB, through the real
+ * database and the one scratch Odoo tenant named by WEBVUE_PACKAGES_ACCEPTANCE_DB, through the real
  * compiler, quotes, orders, usage collector and the real Python effect. Plan values are fixtures. */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { spawnSync } from 'node:child_process'
@@ -1402,9 +1402,9 @@ import { deriveSharedPolicy } from '../shared/job-store.js'
 import { migrate } from '../db.js'
 import { client, money, monthly, url } from './commercial-helpers.js'
 
-const DB = process.env.NASQ_PACKAGES_ACCEPTANCE_DB
-const ODOO = process.env.NASQ_PACKAGES_ACCEPTANCE_URL
-const ready = Boolean(url && DB && ODOO && process.env.NASQ_SCRATCH_ODOO_SHELL && /^nasq_scratch_[a-f0-9]{32}$/.test(DB ?? ''))
+const DB = process.env.WEBVUE_PACKAGES_ACCEPTANCE_DB
+const ODOO = process.env.WEBVUE_PACKAGES_ACCEPTANCE_URL
+const ready = Boolean(url && DB && ODOO && process.env.WEBVUE_SCRATCH_ODOO_SHELL && /^webvue_scratch_[a-f0-9]{32}$/.test(DB ?? ''))
 const suite = ready ? describe : describe.skip
 const repo = fileURLToPath(new URL('../../../..', import.meta.url))
 const POLICY = '6f1c3d8e-0000-4000-8000-000000000001'
@@ -1413,13 +1413,13 @@ const HOST = 'accept.packages.test'
 function effect(request: Record<string, unknown>) {
   const done = spawnSync('python3', ['-B', '-m', 'tools.shared_saas_lifecycle.scratch_effect'], {
     cwd: repo, input: JSON.stringify(request), encoding: 'utf8', timeout: 1_800_000,
-    env: { ...process.env, NASQ_SCRATCH_JOURNAL: process.env.NASQ_SCRATCH_JOURNAL ?? '/private/tmp/nasq-packages/journal' },
+    env: { ...process.env, WEBVUE_SCRATCH_JOURNAL: process.env.WEBVUE_SCRATCH_JOURNAL ?? '/private/tmp/webvue-packages/journal' },
   })
   const line = done.stdout.trim().split('\n').at(-1) ?? '{}'
   return JSON.parse(line) as { result?: any; error_code?: string }
 }
 function odooShell(script: string) {
-  return spawnSync(process.env.NASQ_SCRATCH_ODOO_SHELL!, [DB!], { input: script, encoding: 'utf8', timeout: 900_000 }).stdout
+  return spawnSync(process.env.WEBVUE_SCRATCH_ODOO_SHELL!, [DB!], { input: script, encoding: 'utf8', timeout: 900_000 }).stdout
 }
 async function session() {
   const r = await fetch(`${ODOO}/web/session/authenticate`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1439,7 +1439,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   const vendor: any = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.pricing.manage'] }
   const reason = 'Phase 3 acceptance'
   const solution = JSON.parse(readFileSync(`${repo}deploy/catalog/solutions/platform_v3.json`, 'utf8'))
-  solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', modules: ['nasq_registry_probe'], features: ['boolean:probe.enabled'] })
+  solution.tiers.push({ id: 'probe', name: 'Probe', description: 'Registry probe (acceptance only).', modules: ['webvue_registry_probe'], features: ['boolean:probe.enabled'] })
   const state: Record<string, any> = {}
 
   async function publish(kind: 'bundles' | 'plans', body: Record<string, unknown>) {
@@ -1550,7 +1550,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
   it('5: a downgrade below real collected usage is refused', async () => {
     const request = { kind: 'change' as const, plan_revision_id: state.small.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0 }
     await expect(createQuoteForCustomer(pool, { customer_id: state.customer, request }, new Date())).rejects.toMatchObject({ status: 409, code: 'usage_unavailable', field: 'users.limit' })
-    const created = odooShell("for n in ('one', 'two'):\n    env['res.users'].create({'name': 'Accept ' + n, 'login': 'accept-' + n + '@packages.test', 'group_ids': [(4, env.ref('nasq_core.group_employee').id)]})\nenv.cr.commit()\nprint('ACCEPT_USERS', env['nasq.entitlement.service']._nasq_count_users())\n")
+    const created = odooShell("for n in ('one', 'two'):\n    env['res.users'].create({'name': 'Accept ' + n, 'login': 'accept-' + n + '@packages.test', 'group_ids': [(4, env.ref('webvue_core.group_employee').id)]})\nenv.cr.commit()\nprint('ACCEPT_USERS', env['webvue.entitlement.service']._webvue_count_users())\n")
     expect(created).toMatch(/ACCEPT_USERS [2-9]/)
     const collected = await collectUsage(pool, { runner: async ({ database }) => {
       const out = effect({ action: 'observe', tenant: { database, host: HOST } })
@@ -1566,7 +1566,7 @@ suite('spec 3.6 acceptance: plans flip keys and limits on a tenant with every ap
 })
 ```
 
-If `res.users` in this Odoo uses `groups_id` instead of `group_ids`, use the field name `nasq_api/tests` and `new_test_user` use in this checkout (`grep -n "group_ids\|groups_id" /Users/tariq/code/odoo/odoo/addons/base/models/res_users.py | head -3`).
+If `res.users` in this Odoo uses `groups_id` instead of `group_ids`, use the field name `webvue_api/tests` and `new_test_user` use in this checkout (`grep -n "group_ids\|groups_id" /Users/tariq/code/odoo/odoo/addons/base/models/res_users.py | head -3`).
 
 - [ ] **Step 3: Check the skip path and the Python entry point without the environment**
 
@@ -1581,30 +1581,30 @@ Expected: the acceptance suite is reported skipped; tools `OK`; build green.
 - [ ] **Step 4: Prepare the scratch Odoo tenant and its server (background)**
 
 ```bash
-/tmp/nasq-packages/odoo-run.sh base nasq_scratch_ffff0000000000000000000000000003 /Users/tariq/code/nasq-packages \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_registry_probe
-/tmp/nasq-packages/odoo-run.sh serve nasq_scratch_ffff0000000000000000000000000003 > /tmp/nasq-packages/logs/acceptance-serve.out 2>&1 &
-echo $! > /tmp/nasq-packages/acceptance-serve.pid
+/tmp/webvue-packages/odoo-run.sh base webvue_scratch_ffff0000000000000000000000000003 /Users/tariq/code/nasq-packages \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat,webvue_registry_probe
+/tmp/webvue-packages/odoo-run.sh serve webvue_scratch_ffff0000000000000000000000000003 > /tmp/webvue-packages/logs/acceptance-serve.out 2>&1 &
+echo $! > /tmp/webvue-packages/acceptance-serve.pid
 for i in $(seq 1 60); do curl -fsS http://127.0.0.1:8239/web/health >/dev/null 2>&1 && break; sleep 2; done
 curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8239/web/health
 ```
 
-Expected: `ODOO_RUN_BASE_OK` with `INSTALLED_PROBE nasq_chat,nasq_hr,nasq_meetings,nasq_meetings_pmo,nasq_pmo,nasq_registry_probe,project`; then `200`.
+Expected: `ODOO_RUN_BASE_OK` with `INSTALLED_PROBE webvue_chat,webvue_hr,webvue_meetings,webvue_meetings_pmo,webvue_pmo,webvue_registry_probe,project`; then `200`.
 
 - [ ] **Step 5: Run the acceptance against the scratch control database**
 
 ```bash
 export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=tariq
-dropdb --if-exists nasq_control_scratch_packages && createdb nasq_control_scratch_packages
-CONTROL_TEST_DATABASE_URL=postgres://tariq@127.0.0.1:5432/nasq_control_scratch_packages \
-NASQ_PACKAGES_ACCEPTANCE_DB=nasq_scratch_ffff0000000000000000000000000003 \
-NASQ_PACKAGES_ACCEPTANCE_URL=http://127.0.0.1:8239 \
-NASQ_SCRATCH_ODOO_SHELL=/tmp/nasq-packages/acceptance-shell.sh \
-NASQ_SCRATCH_JOURNAL=/private/tmp/nasq-packages/journal \
-  npm -w apps/control-plane test -- src/__tests__/packages-acceptance.live.test.ts 2>&1 | tee /tmp/nasq-packages/logs/acceptance.log | grep -E 'ACCEPT_|Test Files|Tests '
-dropdb --if-exists nasq_control_scratch_packages
-kill "$(cat /tmp/nasq-packages/acceptance-serve.pid)"; wait 2>/dev/null || true
-/tmp/nasq-packages/odoo-run.sh drop nasq_scratch_ffff0000000000000000000000000003
+dropdb --if-exists webvue_control_scratch_packages && createdb webvue_control_scratch_packages
+CONTROL_TEST_DATABASE_URL=postgres://tariq@127.0.0.1:5432/webvue_control_scratch_packages \
+WEBVUE_PACKAGES_ACCEPTANCE_DB=webvue_scratch_ffff0000000000000000000000000003 \
+WEBVUE_PACKAGES_ACCEPTANCE_URL=http://127.0.0.1:8239 \
+WEBVUE_SCRATCH_ODOO_SHELL=/tmp/webvue-packages/acceptance-shell.sh \
+WEBVUE_SCRATCH_JOURNAL=/private/tmp/webvue-packages/journal \
+  npm -w apps/control-plane test -- src/__tests__/packages-acceptance.live.test.ts 2>&1 | tee /tmp/webvue-packages/logs/acceptance.log | grep -E 'ACCEPT_|Test Files|Tests '
+dropdb --if-exists webvue_control_scratch_packages
+kill "$(cat /tmp/webvue-packages/acceptance-serve.pid)"; wait 2>/dev/null || true
+/tmp/webvue-packages/odoo-run.sh drop webvue_scratch_ffff0000000000000000000000000003
 ```
 
 Expected: five `ACCEPT_*` lines and `Tests  5 passed (5)`:
@@ -1641,8 +1641,8 @@ In `CLAUDE.md`, section `## Odoo addon and API rules`, insert before the bullet 
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application
   (closed: `false` / `0`; catalog `platform_v3.json`, `commercial-compiler/2`).
-  `_nasq_validate_features` stays strict; operator scripts complete a target with
-  `_nasq_close_unlisted_features`, and `nasq.tenant.profile._register_hook`
+  `_webvue_validate_features` stays strict; operator scripts complete a target with
+  `_webvue_close_unlisted_features`, and `webvue.tenant.profile._register_hook`
   registers a newly installed application's keys closed. Usage is collected per
   limit key; removing an application is not a downgrade below usage.
 ```
@@ -1669,7 +1669,7 @@ and append at the end of section `## المرحلة 3 — الباقات` (after
 لوحة البائع فقط، وصفحة «الحزم» القديمة (Track A) للاطلاع فقط ولا تُنشأ منها نسخة؛ ونسخة العميل المشتركة تُنشأ من باقة. كل
 تطبيقات الإصدار تُثبَّت في كل قاعدة (`platform_v3.json`، والقائمة من `catalog_check.py --release-modules`)، وكل سياسة وكل
 استحقاق مُجمَّع (`commercial-compiler/2`) يحمل كل مفاتيح الإصدار (المغلق `false`/`0`). أُصلح خلل التخفيض الكامن مع وجود
-`nasq_pmo` (أُثبت أولاً بالسكربت الحقيقي على قاعدة scratch)، وصارت مفاتيح التطبيق المثبت لاحقاً تُسجَّل مغلقة عند تحميل
+`webvue_pmo` (أُثبت أولاً بالسكربت الحقيقي على قاعدة scratch)، وصارت مفاتيح التطبيق المثبت لاحقاً تُسجَّل مغلقة عند تحميل
 السجل، والتحقق من التثبيت المُدار يقارن بالإغلاق الذي يعيده Python، وأدوار مدير الباقة تتبع الاستحقاق. الاستخدام يُجمع من
 Odoo دورياً لكل مفتاح حد، والتخفيض تحت الاستخدام مرفوض، وإزالة تطبيق ليست تخفيضاً تحت استخدامه. القبول (3.6) مثبت على
 قاعدتي scratch بالاختبار `packages-acceptance.live.test.ts`.
@@ -1706,7 +1706,7 @@ npm -w packages/contracts run build 2>&1 | tail -n 3
 npm -w packages/commercial-contracts run test 2>&1 | tail -n 4
 npm -w packages/commercial-contracts run build 2>&1 | tail -n 3
 npm -w apps/control-plane run build 2>&1 | tail -n 3
-/tmp/nasq-packages/cp-live.sh 2>&1 | tail -n 15
+/tmp/webvue-packages/cp-live.sh 2>&1 | tail -n 15
 ```
 
 Expected: `All checks passed!`; deploy `OK`; `CATALOG_OK solutions=3`; three `exit=0`; empty `git diff --stat`; `R1-R10 blocks identical` (if `main` already differs, report it); everything green; `CP_LIVE_EXIT 0` (the acceptance suite skipped here, it ran in Task 6).
@@ -1714,14 +1714,14 @@ Expected: `All checks passed!`; deploy `OK`; `CATALOG_OK solutions=3`; three `ex
 Then the three Odoo installs (background, one after the other):
 
 ```bash
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_final \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_pmo,/nasq_meetings,/nasq_meetings_pmo,/nasq_hr,/nasq_chat
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_final_hr \
-  nasq_core,nasq_platform,nasq_api,nasq_hr /nasq_core,/nasq_platform,/nasq_api,/nasq_hr
-/tmp/nasq-packages/odoo-run.sh test nasq_scratch_packages_final_meet \
-  nasq_core,nasq_platform,nasq_api,nasq_notify,nasq_directory,nasq_meetings \
-  /nasq_core,/nasq_platform,/nasq_api,/nasq_notify,/nasq_directory,/nasq_meetings
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_final \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_final_hr \
+  webvue_core,webvue_platform,webvue_api,webvue_hr /webvue_core,/webvue_platform,/webvue_api,/webvue_hr
+/tmp/webvue-packages/odoo-run.sh test webvue_scratch_packages_final_meet \
+  webvue_core,webvue_platform,webvue_api,webvue_notify,webvue_directory,webvue_meetings \
+  /webvue_core,/webvue_platform,/webvue_api,/webvue_notify,/webvue_directory,/webvue_meetings
 ```
 
 Expected: three `ODOO_RUN_TEST_OK`; counts = 3a's final counts + 2 (TEN), + 2 (HR), + 0 (MEET).

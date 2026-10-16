@@ -6,7 +6,7 @@ import type { AppManifest } from '../types'
 import { allNavItems } from '../../composables/nav/shellModules'
 import { goKeyProblems } from '../../composables/nav/paletteModel'
 import { appCommands } from '../surfaces'
-import { SHELL_RESERVED_KEYS } from '@nasq/ui/app/composables/shortcuts/keymap'
+import { SHELL_RESERVED_KEYS } from '@webvue/ui/app/composables/shortcuts/keymap'
 
 const crm: AppManifest = {
   id: 'crm',
@@ -55,7 +55,7 @@ describe('app manifests', () => {
   })
 
   it.each([
-    ['/chat', 'nasq.internal'], ['/chat/new', 'nasq.internal'],
+    ['/chat', 'webvue.internal'], ['/chat/new', 'webvue.internal'],
     ['/projects/settings', 'pmo.settings.manage'], ['/projects/settings/x', 'pmo.settings.manage'],
     ['/tasks/new', 'pmo.tasks.create'], ['/projects/5/tasks/new', 'pmo.tasks.create'], ['/projects/new', 'pmo.projects.create'],
     ['/projects/dashboard', 'pmo.projects.read'], ['/tasks/4', 'pmo.tasks.read'],
@@ -66,7 +66,7 @@ describe('app manifests', () => {
     ['/hr/employees/new', 'hr.employees.manage'], ['/hr/employees/3/edit', 'hr.employees.manage'],
     ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'],
     ['/hr/departments', 'hr.departments.read'], ['/hr/documents', 'hr.documents.read'],
-    ['/notifications', 'nasq.notifications'], ['/settings/users/new', 'access.users.grant'],
+    ['/notifications', 'webvue.notifications'], ['/settings/users/new', 'access.users.grant'],
     ['/settings/users/3/access', 'access.users.assign_roles'], ['/settings/roles/4/edit', 'access.roles.manage'],
     ['/settings/roles/4', 'access.roles.read'], ['/settings/branding', 'settings.branding.manage'],
     ['/account', null], ['/zzz', null],
@@ -94,12 +94,12 @@ describe('app manifests', () => {
   })
 
   it('aliases chat access and shared notifications through the manifests', () => {
-    expect(featureForCapability('nasq.internal')).toBe('chat.enabled')
-    expect(canUse({ platform: { readable_features: ['chat.enabled'], writable_features: [] } }, 'nasq.internal')).toBe(true)
-    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'nasq.notifications')).toBe(false)
-    expect(hasCapability({ capabilities: ['meetings.read'] }, 'nasq.notifications')).toBe(true)
+    expect(featureForCapability('webvue.internal')).toBe('chat.enabled')
+    expect(canUse({ platform: { readable_features: ['chat.enabled'], writable_features: [] } }, 'webvue.internal')).toBe(true)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'webvue.notifications')).toBe(false)
+    expect(hasCapability({ capabilities: ['meetings.read'] }, 'webvue.notifications')).toBe(true)
     const onlyHr = { capabilities: ['meetings.read'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
-    expect(canReach(onlyHr, 'nasq.notifications')).toBe(false)
+    expect(canReach(onlyHr, 'webvue.notifications')).toBe(false)
   })
 
   describe('a manifest registered for a new application', () => {
@@ -126,9 +126,9 @@ describe('app manifests', () => {
         expect(firstAllowedPath(identity)).toBe('/crm')
         expect(postLoginPath(identity, '/crm')).toBe('/crm')
         expect(postLoginPath(withoutCrm, '/crm')).toBe('/')
-        expect(hasCapability(identity, 'nasq.notifications')).toBe(true)
-        expect(canUse(identity, 'nasq.notifications')).toBe(true)
-        expect(canUse(withoutCrm, 'nasq.notifications')).toBe(false)
+        expect(hasCapability(identity, 'webvue.notifications')).toBe(true)
+        expect(canUse(identity, 'webvue.notifications')).toBe(true)
+        expect(canUse(withoutCrm, 'webvue.notifications')).toBe(false)
       })
     })
     it('gates a claimed prefix that has no capability rule by the application feature', () => {

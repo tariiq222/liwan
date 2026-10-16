@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { MeetingListItem } from '@nasq/contracts'
+import type { MeetingListItem } from '@webvue/contracts'
 import MeetingTimeline from '../../app/components/meetings/MeetingTimeline.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const organizer = { id: 3, name: 'سارة القحطاني' }
@@ -24,7 +24,7 @@ type Story = StoryObj<typeof meta>
 const render: Story['render'] = args => ({
   components: { MeetingTimeline, PageContainer },
   setup: () => ({ args }),
-  template: '<main class="nasq-shell-main"><PageContainer width="detail"><MeetingTimeline v-bind="args" /></PageContainer></main>',
+  template: '<main class="webvue-shell-main"><PageContainer width="detail"><MeetingTimeline v-bind="args" /></PageContainer></main>',
 })
 
 export const Timeline: Story = {

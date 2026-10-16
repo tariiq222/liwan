@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest'
 import { validateRealBackupManifest, realRestoreHost } from './odoo-backup.js'
-const binding={tenantId:'alpha',database:'nasq_scratch_'+'a'.repeat(32),filestore:'nasq_scratch_'+'a'.repeat(32),registryRevision:2}
+const binding={tenantId:'alpha',database:'webvue_scratch_'+'a'.repeat(32),filestore:'webvue_scratch_'+'a'.repeat(32),registryRevision:2}
 const id='687674dc-5789-4a99-b151-12d69f010cc3'
 const manifest={schemaVersion:1,format:'odoo-pg-filestore-v1',backupId:id,controlTenantId:id,binding,businessKey:'backup-key',payloadDigest:'a'.repeat(64),databaseSha256:'b'.repeat(64),filestoreSha256:'c'.repeat(64),sourceImageId:'sha256:'+'d'.repeat(64),postgresImageId:'sha256:'+'e'.repeat(64),capturedAt:'2026-10-01T00:00:00.000Z',inventory:{databaseAttachments:[],attachments:[],projects:1,tasks:1,modules:[],profile:[]}}
 describe('real backup authority',()=>{
@@ -11,8 +11,8 @@ describe('real backup authority',()=>{
   expect(()=>validateRealBackupManifest(manifest,{backupId:id,binding,controlTenantId:'b'.repeat(36)})).toThrow()
  })
  it('derives restore host only from a valid approval ID',()=>{
-  expect(realRestoreHost(id,'saas.accept.nasq.test')).toBe('r687674dc57894a99b15112d69f010cc3.restore.saas.accept.nasq.test')
-  expect(()=>realRestoreHost('../escape','saas.accept.nasq.test')).toThrow()
+  expect(realRestoreHost(id,'saas.accept.webvue.test')).toBe('r687674dc57894a99b15112d69f010cc3.restore.saas.accept.webvue.test')
+  expect(()=>realRestoreHost('../escape','saas.accept.webvue.test')).toThrow()
  })
 })
 
@@ -30,7 +30,7 @@ it('records a verified backup as created by account:<id>, the one audit spelling
   const { recordOdooBackup } = await import('./odoo-backup.js')
   const { vendorActorIssuer } = await import('../admin-auth/grants.js')
   const job = { schemaVersion: 1, operation: 'backup', requestId: id, binding } as any
-  const stateDir = await realpath(await mkdtemp(join(tmpdir(), 'nasq-backup-by-')))
+  const stateDir = await realpath(await mkdtemp(join(tmpdir(), 'webvue-backup-by-')))
   try {
     await mkdir(join(stateDir, 'backups', id), { recursive: true })
     await writeFile(join(stateDir, 'backups', id, 'manifest.json'), JSON.stringify({ ...manifest, businessKey: businessKey(job), payloadDigest: payloadDigest(job) }))

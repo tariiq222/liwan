@@ -6,7 +6,7 @@ import { chromium, type Browser, type Page } from 'playwright'
 import ts from 'typescript'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { RACI_ROLE_TONE } from '../governance/state'
-import { STATUS_COLOR } from '@nasq/ui/app/utils/statusTone'
+import { STATUS_COLOR } from '@webvue/ui/app/utils/statusTone'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const webRoot = resolve(here, '../../../../../')

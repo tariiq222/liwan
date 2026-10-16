@@ -1,8 +1,8 @@
-import type { Invoice, Money, Quote, SubscriptionDisplayState, UsageMetric, UsageSnapshot } from '@nasq/commercial-contracts'
+import type { Invoice, Money, Quote, SubscriptionDisplayState, UsageMetric, UsageSnapshot } from '@webvue/commercial-contracts'
 
-import { invoiceLineQuantities, type InvoiceLineView } from '@nasq/commercial-ui/app/utils/invoiceLines'
-import { humanizeId } from '@nasq/ui/app/utils/humanizeId'
-import { statusBadgeEntry, type StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
+import { invoiceLineQuantities, type InvoiceLineView } from '@webvue/commercial-ui/app/utils/invoiceLines'
+import { humanizeId } from '@webvue/ui/app/utils/humanizeId'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
 export type { SubscriptionDisplayState }
 export const DISPLAY_STATE_KEYS: Record<SubscriptionDisplayState, string> = {
@@ -49,14 +49,14 @@ export function sanitizeBody<T extends Record<string, unknown>>(body: T): T {
  */
 export type KeyStore = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 export function idempotencyKey(store: KeyStore | null, action: string, make: () => string = () => crypto.randomUUID()): string {
-  const name = `nasq:idem:${action}`
+  const name = `webvue:idem:${action}`
   const existing = store?.getItem(name)
   if (existing) return existing
   const fresh = make()
   store?.setItem(name, fresh)
   return fresh
 }
-export function forgetIdempotencyKey(store: KeyStore | null, action: string) { store?.removeItem(`nasq:idem:${action}`) }
+export function forgetIdempotencyKey(store: KeyStore | null, action: string) { store?.removeItem(`webvue:idem:${action}`) }
 
 /** Stable action name: same inputs (subscription, revision, request content) → same key across refresh/retry. */
 export function safeIdemAction(kind: string, subscriptionId: string, revision: number, content: string): string {

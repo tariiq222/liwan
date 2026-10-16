@@ -39,7 +39,7 @@
 - RESTORE.md وmanifest.json: الاستعادة وبصمات الملفات الأصلية.
 - before.bundle وfinal.bundle: سجل Git قبل العمل وبعد الدمج، مع لقطة التغييرات الأصلية المؤقتة؛ جرى التحقق من الحزمة.
 - retired/: نسخ العمل الأربع الكاملة. مؤشرات .git القديمة تاريخية؛ الاستعادة إلى worktree جديد حسب الدليل.
-- سجلات الدمج: retired/nasq-ui-integration/.runtime/ui-integration/، ولقطات المتصفح داخل apps/web/test-results/ في النسخة المؤرشفة.
+- سجلات الدمج: retired/webvue-ui-integration/.runtime/ui-integration/، ولقطات المتصفح داخل apps/web/test-results/ في النسخة المؤرشفة.
 - main-unit.log وmain-lint.log وmain-runtime-source.json وcleanup.json: دليل main والتنظيف.
 
 رفض حاجز التحديث صيغة npm exec التي قد تثبّت حزمًا؛ استُخدم nuxt prepare من الملف التنفيذي المحلي الموجود دون تحديث. رفض أيضًا تعديل AGENTS.md المحمي، فبقي كما هو؛ طلب المستخدم الأخير وDESIGN.md المحدث يحكمان قرار خلفية السايد شيت.

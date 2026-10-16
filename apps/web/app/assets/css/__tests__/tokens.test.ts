@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { layerFile } from '@nasq/ui/test/helpers/layerFile'
-import { contrastRatio, DARK_SURFACES, LIGHT_CANVAS } from '../../../utils/nasqPalette'
+import { layerFile } from '@webvue/ui/test/helpers/layerFile'
+import { contrastRatio, DARK_SURFACES, LIGHT_CANVAS } from '../../../utils/webvuePalette'
 import { createBrandTheme, DEFAULT_PRIMARY } from '../../../utils/brandTheme'
 
 const sheet = (name: string) => readFileSync(layerFile(`app/assets/css/${name}`), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
@@ -26,19 +26,19 @@ function declarations(body: string): Map<string, string> {
 
 const LITERAL = /^#[0-9a-f]{6}$/i
 
-describe('the module rail is fixed Nasq midnight', () => {
+describe('the module rail is fixed WebVue midnight', () => {
   for (const selector of [':root', '.dark']) {
-    it(`${selector} declares --nasq-rail and --nasq-rail-deep as literal colours`, () => {
+    it(`${selector} declares --webvue-rail and --webvue-rail-deep as literal colours`, () => {
       const found = declarations(ruleBodies(sheet('tokens.css'), selector))
-      expect(found.get('--nasq-rail')).toMatch(LITERAL)
-      expect(found.get('--nasq-rail-deep')).toMatch(LITERAL)
+      expect(found.get('--webvue-rail')).toMatch(LITERAL)
+      expect(found.get('--webvue-rail-deep')).toMatch(LITERAL)
     })
   }
 
-  it('.nasq-module-rail paints with the rail tokens and nothing tenant-derived', () => {
-    const rail = ruleBodies(sheet('shell.css'), '.nasq-module-rail')
-    expect(rail).toContain('var(--nasq-rail)')
-    expect(rail).toContain('var(--nasq-rail-deep)')
+  it('.webvue-module-rail paints with the rail tokens and nothing tenant-derived', () => {
+    const rail = ruleBodies(sheet('shell.css'), '.webvue-module-rail')
+    expect(rail).toContain('var(--webvue-rail)')
+    expect(rail).toContain('var(--webvue-rail-deep)')
     expect(rail).not.toMatch(/--primary|--brand|--ui-primary|--color-brand/)
   })
 })
@@ -47,7 +47,7 @@ describe('dark surfaces', () => {
   it('tokens.css .dark matches DARK_SURFACES', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
     const expected: Record<string, string> = {
-      '--nasq-canvas': DARK_SURFACES.canvas,
+      '--webvue-canvas': DARK_SURFACES.canvas,
       '--ui-bg': DARK_SURFACES.bg,
       '--ui-bg-muted': DARK_SURFACES.muted,
       '--ui-bg-elevated': DARK_SURFACES.elevated,
@@ -74,20 +74,20 @@ describe('dark solid primary defaults', () => {
 describe('page canvas and rail', () => {
   it('paints the shell on the canvas token and keeps cards on --ui-bg', () => {
     const tokens = sheet('tokens.css')
-    expect(declarations(ruleBodies(tokens, ':root')).get('--nasq-canvas')?.toLowerCase()).toBe(LIGHT_CANVAS)
+    expect(declarations(ruleBodies(tokens, ':root')).get('--webvue-canvas')?.toLowerCase()).toBe(LIGHT_CANVAS)
     const shell = sheet('shell.css')
-    for (const selector of ['.nasq-shell', '.nasq-shell-workspace', '.nasq-shell-main']) {
-      expect(declarations(ruleBodies(shell, selector)).get('background'), selector).toBe('var(--nasq-canvas)')
+    for (const selector of ['.webvue-shell', '.webvue-shell-workspace', '.webvue-shell-main']) {
+      expect(declarations(ruleBodies(shell, selector)).get('background'), selector).toBe('var(--webvue-canvas)')
     }
   })
 
   it('keeps the dark rail distinguishable from the page canvas and the cards', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
-    const rail = found.get('--nasq-rail')!
+    const rail = found.get('--webvue-rail')!
     expect(contrastRatio(rail, DARK_SURFACES.canvas)).toBeGreaterThanOrEqual(1.35)
-    expect(contrastRatio(found.get('--nasq-rail-deep')!, DARK_SURFACES.canvas)).toBeGreaterThanOrEqual(1.2)
-    expect(contrastRatio('#ffffff', found.get('--nasq-rail-deep')!)).toBeGreaterThanOrEqual(4.5)
-    expect(found.get('--nasq-rail-edge')).toBeDefined()
+    expect(contrastRatio(found.get('--webvue-rail-deep')!, DARK_SURFACES.canvas)).toBeGreaterThanOrEqual(1.2)
+    expect(contrastRatio('#ffffff', found.get('--webvue-rail-deep')!)).toBeGreaterThanOrEqual(4.5)
+    expect(found.get('--webvue-rail-edge')).toBeDefined()
   })
 })
 

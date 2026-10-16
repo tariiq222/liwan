@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DashboardChartPanel from '../../../app/components/pmo/projects/dashboard/DashboardChartPanel.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import type { DashboardChart } from '../../../app/utils/projectChartData'
 import { dashboardCharts } from '../../fixtures/projectReports'
 import { storyContext } from '../../support/context'
@@ -28,7 +28,7 @@ function panel(key: ChartKey, title: string, options: { variant?: 'pie' | 'donut
       const { t } = useI18n()
       return { chart: computed(() => dashboardCharts(t)[key]), t, title, options, grid: GRID }
     },
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :style="options.wide ? 'grid-column: span 2' : ''" :test-id="'story-' + title" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" v-bind="options.height ? { height: options.height } : {}" /></div></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="min-w-0" style="container-type: inline-size"><div class="min-w-0" :style="grid"><DashboardChartPanel :style="options.wide ? 'grid-column: span 2' : ''" :test-id="'story-' + title" :title="t(title)" description="" :chart="chart" :variant="options.variant" :has-data="options.hasData ?? true" :loading="options.loading ?? false" :empty-text="t('projects.dashboard.charts.noStatusData')" :accessible-label="t(title)" v-bind="options.height ? { height: options.height } : {}" /></div></div></PageContainer></main>`,
   })
 }
 

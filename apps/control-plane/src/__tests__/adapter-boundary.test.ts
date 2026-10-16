@@ -40,14 +40,14 @@ async function fakeDocker(temporaryRoot: string): Promise<{ path: string; calls:
 }
 
 function invokeAdapter(args: string[], inventoryPath: string, stateDir: string, path: string): AdapterResult {
-  const result = spawnSync('python3', ['-B', '-m', 'nasq_cli.managed_runtime', ...args, '--json'], {
+  const result = spawnSync('python3', ['-B', '-m', 'webvue_cli.managed_runtime', ...args, '--json'], {
     cwd: repositoryRoot,
     encoding: 'utf8',
     env: {
       ...process.env,
       PYTHONPATH: join(repositoryRoot, 'tools'),
-      NASQ_MANAGED_INVENTORY: inventoryPath,
-      NASQ_CLI_STATE_DIR: stateDir,
+      WEBVUE_MANAGED_INVENTORY: inventoryPath,
+      WEBVUE_CLI_STATE_DIR: stateDir,
       PATH: `${path}:${process.env.PATH ?? ''}`,
     },
     timeout: 10_000,
@@ -93,7 +93,7 @@ afterEach(async () => {
 
 describe('real managed adapter subprocess boundary', () => {
   it('binds policy bytes to the journal and returns a strictly read-only status receipt', async () => {
-    temporaryRoot = await mkdtemp(join(tmpdir(), 'nasq-adapter-boundary-'))
+    temporaryRoot = await mkdtemp(join(tmpdir(), 'webvue-adapter-boundary-'))
     const stateDir = join(temporaryRoot, 'state')
     const fake = await fakeDocker(temporaryRoot)
     const catalogBytes = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))
@@ -110,7 +110,7 @@ describe('real managed adapter subprocess boundary', () => {
       resource_refs: {
         project: 'boundary-test',
         compose_file: composePath,
-        db_name: 'nasq_scratch_boundary_test',
+        db_name: 'webvue_scratch_boundary_test',
         data_dir: join(temporaryRoot, 'data'),
         backup_root: join(temporaryRoot, 'backups'),
         ports: { db: 24001, odoo: 24002, web: 24003 },
@@ -132,7 +132,7 @@ describe('real managed adapter subprocess boundary', () => {
     const inventoryPath = join(inventoryRoot, 'managed.json')
     await privateFile(inventoryPath, JSON.stringify({ schema_version: 3, targets: { [target]: { ...descriptorWithoutDigest, descriptor_digest: descriptorDigest } } }))
 
-    const policyBytes = Buffer.from('{"schema_version":1,"channel":"control_plane","modules":["nasq_core","nasq_platform","nasq_api"],"features":{"users.limit":null,"storage.limit_mb":null}}', 'utf8')
+    const policyBytes = Buffer.from('{"schema_version":1,"channel":"control_plane","modules":["webvue_core","webvue_platform","webvue_api"],"features":{"users.limit":null,"storage.limit_mb":null}}', 'utf8')
     const firstPolicyPath = join(temporaryRoot, 'policy-original.json')
     await privateFile(firstPolicyPath, policyBytes)
     expect((await import('node:fs/promises').then(({ stat }) => stat(firstPolicyPath))).mode & 0o777).toBe(0o600)

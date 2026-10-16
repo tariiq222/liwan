@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_webvue_meeting_series_read,webvue.meeting.series.read,model_webvue_meeting_series,group_cap_meetings_read,1,0,0,0
+access_webvue_meeting_series_create,webvue.meeting.series.create,model_webvue_meeting_series,group_cap_meetings_create,1,1,1,0
+access_webvue_meeting_series_manage,webvue.meeting.series.manage,model_webvue_meeting_series,group_cap_meetings_manage,1,1,1,1
+access_webvue_meeting_event_read,webvue.meeting.event.read,model_webvue_meeting_event,group_cap_meetings_read,1,0,0,0
+access_webvue_meeting_minutes_version_read,webvue.meeting.minutes.version.read,model_webvue_meeting_minutes_version,group_cap_meetings_read,1,0,0,0
+access_webvue_meeting_event_manage_read,webvue.meeting.event.manage.read,model_webvue_meeting_event,group_cap_meetings_manage,1,0,0,0
+access_webvue_meeting_minutes_version_manage_read,webvue.meeting.minutes.version.manage.read,model_webvue_meeting_minutes_version,group_cap_meetings_manage,1,0,0,0

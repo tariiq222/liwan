@@ -20,20 +20,20 @@ Data package: controllers/project_reports.py, serializers/project_reports.py, pr
 - `npm -w apps/web run lint`: Vue typecheck passed.
 - `npm run build`: passed. Final preview build explicitly set NUXT_ODOO_URL/DB and WS URL to the isolated runtime at build time and runtime.
 - Focused Ruff for changed PMO Python files: passed.
-- Odoo `/nasq_pmo:TestProjectReports,/nasq_pmo:TestProjects`: 37 tests, 0 failures, 0 errors, using isolated `nasq_dashboard_scratch_20260907` before browser fixtures were seeded. Full Odoo suite was not rerun.
+- Odoo `/webvue_pmo:TestProjectReports,/webvue_pmo:TestProjects`: 37 tests, 0 failures, 0 errors, using isolated `webvue_dashboard_scratch_20260907` before browser fixtures were seeded. Full Odoo suite was not rerun.
 - `E2E_BASE_URL=http://127.0.0.1:3983 ./node_modules/.bin/playwright test --config=apps/web/playwright.config.ts apps/web/e2e/project-dashboard.spec.ts`: 7 passed. Covers exact menu and active item, authenticated summary/list API values, all/mine/create navigation, legacy filter redirect, contextual return preserving mine/search, summary failure without hiding the table, and mobile dark/large text.
 - Browser sizes: 390, 768, 1440; document overflow checks passed. Desktop and mobile screenshots reviewed; final dark chart fills use the shared foreground token for contrast; English translations added, but English browser presentation was not separately exercised.
 - Independent Astra source review cleared spec compliance and code quality after partial-budget wording/chart fix. Remaining nonblocking test opportunities: explicit aggregate isolation assertions and more hidden-task/top-ten tie coverage.
 
 ## Runtime and reproduction
 
-Preview: Nuxt `127.0.0.1:3983`, Odoo `127.0.0.1:9983`, database `nasq_dashboard_scratch_20260907`. Odoo preview uses `/tmp/nasq-dashboard-briefs/odoo-data` for isolated sessions and a copy of this scratch database's filestore. Browser fixtures are in `apps/web/e2e/fixtures/project-dashboard.py` with an exact scratch-database guard. They must run once on a disposable initialized database. Accounts/passwords are explicit test-only fixture data.
+Preview: Nuxt `127.0.0.1:3983`, Odoo `127.0.0.1:9983`, database `webvue_dashboard_scratch_20260907`. Odoo preview uses `/tmp/webvue-dashboard-briefs/odoo-data` for isolated sessions and a copy of this scratch database's filestore. Browser fixtures are in `apps/web/e2e/fixtures/project-dashboard.py` with an exact scratch-database guard. They must run once on a disposable initialized database. Accounts/passwords are explicit test-only fixture data.
 
-The first browser run failed because build-time /web proxies retained the default Odoo URL while the API used the scratch runtime URL, causing session logout. The final build points proxies to the scratch server and uses isolated session storage; all seven browser cases then passed. No business-write browser cases were used. Earlier failures and final evidence are preserved under `/tmp/nasq-dashboard-briefs/`.
+The first browser run failed because build-time /web proxies retained the default Odoo URL while the API used the scratch runtime URL, causing session logout. The final build points proxies to the scratch server and uses isolated session storage; all seven browser cases then passed. No business-write browser cases were used. Earlier failures and final evidence are preserved under `/tmp/webvue-dashboard-briefs/`.
 
 Screenshots: [desktop](../evidence/project-dashboard-2026-09-07/dashboard-1440.png), [mobile](../evidence/project-dashboard-2026-09-07/dashboard-390.png), [tablet](../evidence/project-dashboard-2026-09-07/dashboard-768.png), [dark/large mobile](../evidence/project-dashboard-2026-09-07/dashboard-dark-large-mobile.png).
 
-Worker sources remain preserved in `/Users/tariq/code/nasq-dashboard-data`, `/Users/tariq/code/nasq-dashboard-view`, and `/Users/tariq/code/nasq-my-projects`. Logs, briefs, and independent review: `/tmp/nasq-dashboard-briefs/`. No worktree cleanup, Git commit, or merge is included in this delivery.
+Worker sources remain preserved in `/Users/tariq/code/nasq-dashboard-data`, `/Users/tariq/code/nasq-dashboard-view`, and `/Users/tariq/code/nasq-my-projects`. Logs, briefs, and independent review: `/tmp/webvue-dashboard-briefs/`. No worktree cleanup, Git commit, or merge is included in this delivery.
 
 Final verification after dark contrast adjustment: `unit-verified.log` (122 contracts + 542 web), `build-contrast.log` (successful build), `browser-contrast.log` (7 passed). The independent reviewer accepted the scoped semantic-token adjustment.
 

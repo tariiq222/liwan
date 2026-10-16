@@ -46,7 +46,7 @@ onBeforeUnmount(() => {
   <ShellFrame :no-sidebar="noSidebar">
     <template #header><ShellHeader /></template>
     <template #sidebar><ShellAppSidebar /></template>
-    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="nasq-shell-main focus:outline-none" :class="{ 'nasq-page-content-motion': pageMotionActive }">
+    <main ref="shellMain" tabindex="-1" data-testid="shell-main" class="webvue-shell-main focus:outline-none" :class="{ 'webvue-page-content-motion': pageMotionActive }">
       <slot />
     </main>
   </ShellFrame>

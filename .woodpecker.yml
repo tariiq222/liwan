@@ -13,8 +13,8 @@
 #
 # The control-plane live-PG suites run serially by design (apps/control-plane `test`
 # sets --no-file-parallelism and a 60s hook timeout); parallel runs conflict because
-# the suites TRUNCATE the same tables. Three suites pin their own database name, so
-# deploy/control-plane/ci-test.sh provisions nasq_control_scratch_{ci,payfinal,restorec}.
+# the suites TRUNCATE the same tables. Some suites pin their own database name, so
+# deploy/control-plane/ci-test.sh provisions webvue_control_scratch_{ci,payfinal,restorec,analytics}.
 when:
   event: [push, manual, pull_request]
   branch: main
@@ -52,8 +52,8 @@ steps:
       - .venv/bin/ruff check src tests
       # The Postgres state tests need a throwaway database, dropped on exit (the control-plane step's conventions).
       - |
-        export PGUSER=nasq_test PGPASSWORD=odoo
-        AI_DB="nasq_ai_ci_${CI_PIPELINE_NUMBER}"
+        export PGUSER=webvue_test PGPASSWORD=odoo
+        AI_DB="webvue_ai_ci_${CI_PIPELINE_NUMBER}"
         trap 'dropdb -h 127.0.0.1 -U "$PGUSER" --if-exists "$AI_DB"' EXIT
         dropdb -h 127.0.0.1 -U "$PGUSER" --if-exists "$AI_DB"
         createdb -h 127.0.0.1 -U "$PGUSER" "$AI_DB"
@@ -68,7 +68,7 @@ steps:
       - if git rev-parse --is-shallow-repository | grep -q true; then git fetch --unshallow origin; fi
       # Creates the three scratch databases the live suites pin by name, runs them in
       # two groups, builds, and drops the databases (see the script header).
-      - PGUSER=nasq_test PGPASSWORD=odoo deploy/control-plane/ci-test.sh
+      - PGUSER=webvue_test PGPASSWORD=odoo deploy/control-plane/ci-test.sh
 
   # The vendor admin app (apps/vendor-admin, port 3100): type check, unit tests and a production build. It is a separate
   # Nuxt application with its own layers (packages/ui, packages/commercial-ui), so the web steps do not cover it.
@@ -93,7 +93,7 @@ steps:
         ODOO_ROOT="/Users/tariq/code/odoo"
         ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
         ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
-        SCRATCH_DB="nasq_ci_scratch_${CI_PIPELINE_NUMBER}"
+        SCRATCH_DB="webvue_ci_scratch_${CI_PIPELINE_NUMBER}"
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         TAGS="/$${MODULES//,/,/}"
         SCRATCH_ROOT="$(mktemp -d)"
@@ -102,8 +102,8 @@ steps:
         trap cleanup EXIT
         PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" || true
         if [ ! -d "$SCRATCH_ROOT/_odoo/.git" ]; then git clone https://github.com/odoo/odoo.git "$SCRATCH_ROOT/_odoo" && git -C "$SCRATCH_ROOT/_odoo" checkout "$ODOO_COMMIT"; fi
-        export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
-        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
+        export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG"
         "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \
           --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" \
           --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
@@ -118,9 +118,9 @@ steps:
 
   # The two steps below prove the non-release configurations of the tasks application. Their module
   # lists are hard-coded on purpose: the `odoo` step installs the whole release (where PMO's own record
-  # rule hides the nasq_tasks company clause), these install only part of it. Distinct database names
+  # rule hides the webvue_tasks company clause), these install only part of it. Distinct database names
   # and HTTP ports keep every Odoo step from colliding on one agent.
-  # nasq_tasks ALONE: no nasq_pmo, hook defaults, no projects.
+  # webvue_tasks ALONE: no webvue_pmo, hook defaults, no projects.
   - name: odoo-tasks-standalone
     image: bash
     commands:
@@ -129,36 +129,36 @@ steps:
         export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
         ODOO_ROOT="/Users/tariq/code/odoo"
         ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
-        SCRATCH_DB="nasq_scratch_ci_tasks_alone_${CI_PIPELINE_NUMBER}"
-        MODULES="nasq_tasks"
+        SCRATCH_DB="webvue_scratch_ci_tasks_alone_${CI_PIPELINE_NUMBER}"
+        MODULES="webvue_tasks"
         SCRATCH_ROOT="$(mktemp -d)"
         mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
         cleanup() { PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; }
         trap cleanup EXIT
         PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" || true
-        export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
-        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
+        export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG"
         "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \
           --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" \
           --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
           -d "$SCRATCH_DB" --db-filter="^$${SCRATCH_DB}$" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
           -i "$MODULES" \
-          --test-tags "/nasq_tasks" \
+          --test-tags "/webvue_tasks" \
           --http-port=8193 --workers=0 --max-cron-threads=0 --stop-after-init --log-level=test 2>&1 | tee "$SCRATCH_ROOT/odoo-test.log"
         # --logfile keeps Odoo's log out of stdout, so the verdict is read from the logfile itself.
         grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/logs/odoo.log" \
           || { echo "odoo tests did not report 0 failures; last log lines:" >&2; tail -n 80 "$SCRATCH_ROOT/logs/odoo.log" >&2; exit 1; }
         grep -E 'odoo.tests.result:' "$SCRATCH_ROOT/logs/odoo.log" | tail -n 1
-        # The standalone proof is void if the PMO addons came along: nasq_tasks must not pull them in.
-        pmo_installed="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT name FROM ir_module_module WHERE name IN ('nasq_pmo', 'nasq_tasks_pmo') AND state = 'installed' ORDER BY name")"
+        # The standalone proof is void if the PMO addons came along: webvue_tasks must not pull them in.
+        pmo_installed="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT name FROM ir_module_module WHERE name IN ('webvue_pmo', 'webvue_tasks_pmo') AND state = 'installed' ORDER BY name")"
         echo "PMO addons installed (expected empty): '$pmo_installed'"
-        test -z "$pmo_installed" || { echo "nasq_tasks alone installed PMO addons: $pmo_installed" >&2; exit 1; }
-        tasks_state="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT state FROM ir_module_module WHERE name = 'nasq_tasks'")"
-        echo "nasq_tasks state: $tasks_state"
-        test "$tasks_state" = installed || { echo "nasq_tasks state is '$tasks_state', expected installed" >&2; exit 1; }
+        test -z "$pmo_installed" || { echo "webvue_tasks alone installed PMO addons: $pmo_installed" >&2; exit 1; }
+        tasks_state="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT state FROM ir_module_module WHERE name = 'webvue_tasks'")"
+        echo "webvue_tasks state: $tasks_state"
+        test "$tasks_state" = installed || { echo "webvue_tasks state is '$tasks_state', expected installed" >&2; exit 1; }
 
-  # nasq_tasks with the PMO bridge only (nasq_tasks_pmo auto-installs; its dependencies come along).
+  # webvue_tasks with the PMO bridge only (webvue_tasks_pmo auto-installs; its dependencies come along).
   - name: odoo-tasks-bridge
     image: bash
     commands:
@@ -167,31 +167,31 @@ steps:
         export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
         ODOO_ROOT="/Users/tariq/code/odoo"
         ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
-        SCRATCH_DB="nasq_scratch_ci_tasks_bridge_${CI_PIPELINE_NUMBER}"
-        MODULES="nasq_tasks,nasq_pmo,nasq_tasks_pmo"
+        SCRATCH_DB="webvue_scratch_ci_tasks_bridge_${CI_PIPELINE_NUMBER}"
+        MODULES="webvue_tasks,webvue_pmo,webvue_tasks_pmo"
         SCRATCH_ROOT="$(mktemp -d)"
         mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
         cleanup() { PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; }
         trap cleanup EXIT
         PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" || true
-        export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
-        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$NASQ_COMMERCIAL_CONFIG"
+        export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+        python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG"
         "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \
           --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" \
           --db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo \
           -d "$SCRATCH_DB" --db-filter="^$${SCRATCH_DB}$" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
           -i "$MODULES" \
-          --test-tags "/nasq_tasks,/nasq_tasks_pmo" \
+          --test-tags "/webvue_tasks,/webvue_tasks_pmo" \
           --http-port=8194 --workers=0 --max-cron-threads=0 --stop-after-init --log-level=test 2>&1 | tee "$SCRATCH_ROOT/odoo-test.log"
         # --logfile keeps Odoo's log out of stdout, so the verdict is read from the logfile itself.
         grep -Eq 'odoo.tests.result: 0 failed, 0 error\(s\) of [1-9][0-9]* tests when loading database' "$SCRATCH_ROOT/logs/odoo.log" \
           || { echo "odoo tests did not report 0 failures; last log lines:" >&2; tail -n 80 "$SCRATCH_ROOT/logs/odoo.log" >&2; exit 1; }
         grep -E 'odoo.tests.result:' "$SCRATCH_ROOT/logs/odoo.log" | tail -n 1
         # The bridge must have auto-installed with its two parents.
-        bridge_state="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT state FROM ir_module_module WHERE name = 'nasq_tasks_pmo'")"
-        echo "nasq_tasks_pmo state: $bridge_state"
-        test "$bridge_state" = installed || { echo "nasq_tasks_pmo state is '$bridge_state', expected installed" >&2; exit 1; }
+        bridge_state="$(PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d "$SCRATCH_DB" -At -v ON_ERROR_STOP=1 -c "SELECT state FROM ir_module_module WHERE name = 'webvue_tasks_pmo'")"
+        echo "webvue_tasks_pmo state: $bridge_state"
+        test "$bridge_state" = installed || { echo "webvue_tasks_pmo state is '$bridge_state', expected installed" >&2; exit 1; }
 
   - name: upgrade
     image: bash
@@ -203,9 +203,9 @@ steps:
         ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
         ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
-        BASE_TAG="$(git tag --list 'release/*' --sort=-v:refname | head -n1)"
-        test -n "$BASE_TAG" || { echo "no release/* tag; upgrade job skipped"; exit 0; }
-        SCRATCH_DB="nasq_ci_upgrade_scratch"
+        BASE_TAG="$(python3 -B tools/upgrade_baseline.py)"
+        test -n "$BASE_TAG" || { echo "no WebVue-namespace release baseline; fresh-install gate remains binding"; exit 0; }
+        SCRATCH_DB="webvue_ci_upgrade_scratch"
         SCRATCH_ROOT="$(mktemp -d)"
         mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
         cleanup() { PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; rm -rf "$SCRATCH_ROOT"; git worktree remove _baseline --force 2>/dev/null || true; }
@@ -215,7 +215,7 @@ steps:
         ODOO_DB_ARGS="--db_host=127.0.0.1 --db_port=5432 --db_user=odoo --db_password=odoo"
         git worktree add _baseline "$BASE_TAG"
         # Install the previous release
-        if [ -n "$${NASQ_COMMERCIAL_CONFIG:-}" ]; then
+        if [ -n "$${WEBVUE_COMMERCIAL_CONFIG:-}" ]; then
           echo "previous release must not inherit a commercial classification" >&2
           exit 1
         fi
@@ -224,9 +224,9 @@ steps:
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
           -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
         # Upgrade to this commit. -i installs the addons the previous release did
-        # not have (nasq_meetings, nasq_meetings_pmo); Odoo skips the installed ones.
+        # not have (webvue_meetings, webvue_meetings_pmo); Odoo skips the installed ones.
         python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$SCRATCH_ROOT/upgrade-classification.json"
-        export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"
+        export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"
         "$ODOO_PYTHON" "$SCRATCH_ROOT/_odoo/odoo-bin" $ODOO_DB_ARGS \
           --addons-path="$SCRATCH_ROOT/_odoo/addons,$PWD/odoo-addons" \
           --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/upgrade.log" \
@@ -249,9 +249,9 @@ steps:
         ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)"
         W="$(mktemp -d)"
         mkdir -p "$W/data" "$W/restored" "$W/logs"
-        SRC_DB="nasq_drill_src_scratch"
-        RST_DB="nasq_drill_restored_scratch"
-        RST2_DB="nasq_drill_restored2_scratch"
+        SRC_DB="webvue_drill_src_scratch"
+        RST_DB="webvue_drill_restored_scratch"
+        RST2_DB="webvue_drill_restored2_scratch"
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         cleanup() {
           if [ -n "$${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
@@ -263,8 +263,8 @@ steps:
         if [ ! -d "$W/_odoo/.git" ]; then git clone https://github.com/odoo/odoo.git "$W/_odoo" && git -C "$W/_odoo" checkout "$ODOO_COMMIT"; fi
         export PGPASSWORD=odoo
         B="$(dirname "$(readlink -f "$(command -v pg_dump)")")"
-        export NASQ_COMMERCIAL_CONFIG="$W/restore-classification.json"
-        python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$NASQ_COMMERCIAL_CONFIG"
+        export WEBVUE_COMMERCIAL_CONFIG="$W/restore-classification.json"
+        python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$WEBVUE_COMMERCIAL_CONFIG"
         "$ODOO_PYTHON" "$W/_odoo/odoo-bin" --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
           --addons-path="$W/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/data" \
           -d "$SRC_DB" -i "$MODULES" \
@@ -278,7 +278,7 @@ steps:
           --psql "$B/psql" --pg-host 127.0.0.1 --pg-user odoo; }
         verify "$RST_DB"
         # Classified restored databases must start without a mapping or billing service.
-        unset NASQ_COMMERCIAL_CONFIG
+        unset WEBVUE_COMMERCIAL_CONFIG
         "$ODOO_PYTHON" "$W/_odoo/odoo-bin" --db_host=127.0.0.1 --db_user=odoo --db_password=odoo \
           --addons-path="$W/_odoo/addons,$PWD/odoo-addons" --data-dir="$W/restored" \
           -d "$RST_DB" --http-port=8169 --workers=0 --max-cron-threads=0 > "$W/restored-odoo.log" 2>&1 &
@@ -307,8 +307,8 @@ steps:
         # builder, which leaves TARGETARCH empty and breaks the wkhtmltox COPY.
         export DOCKER_CONFIG="$(eval echo "~$(id -un)")/.docker"
         docker info
-        docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg NASQ_REVISION="${CI_COMMIT_SHA:0:12}" -t nasq-odoo:ci .
-        SCRATCH_DB="nasq_image_scratch"
+        docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg WEBVUE_REVISION="${CI_COMMIT_SHA:0:12}" -t webvue-odoo:ci .
+        SCRATCH_DB="webvue_image_scratch"
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         cleanup() { docker rm -fv db 2>/dev/null || true; docker network rm t 2>/dev/null || true; PGPASSWORD=odoo dropdb -h 127.0.0.1 -U odoo --if-exists "$SCRATCH_DB" 2>/dev/null || true; }
         trap cleanup EXIT
@@ -319,10 +319,10 @@ steps:
         printf '%s\n' '[options]' 'db_host = db' 'db_user = odoo' 'db_password = odoo' 'list_db = False' > /tmp/odoo.conf
         for i in $(seq 1 30); do docker exec db pg_isready -U odoo && break; sleep 2; done
         docker run --rm --network t -v /tmp/odoo.conf:/etc/odoo/odoo.conf:ro \
-          -v /tmp/image-classification.json:/run/nasq/classification.json:ro \
-          -e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json nasq-odoo:ci \
+          -v /tmp/image-classification.json:/run/webvue/classification.json:ro \
+          -e WEBVUE_COMMERCIAL_CONFIG=/run/webvue/classification.json webvue-odoo:ci \
           -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port=8169 --stop-after-init
-        docker run --rm --entrypoint sh nasq-odoo:ci -c 'test ! -w /opt/nasq/addons && test "$(id -u)" = 10001 && ! command -v git'
+        docker run --rm --entrypoint sh webvue-odoo:ci -c 'test ! -w /opt/webvue/addons && test "$(id -u)" = 10001 && ! command -v git'
 
   - name: e2e-mock
     image: bash
@@ -335,7 +335,7 @@ steps:
         npx playwright install chromium
         test -s e2e/ci-mock-specs.txt
         export PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498
-        export NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only
+        export NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only
         export NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket
         export E2E_BASE_URL=http://localhost:4097 E2E_PROJECT_POPUPS=1
         node e2e/internal-ui-audit-mock.mjs > mock.log 2>&1 &

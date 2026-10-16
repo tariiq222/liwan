@@ -7,7 +7,7 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import * as hrNavigation from '../../../utils/hrReturnTo'
 
 const shared = 'components/hr/DocumentCreateForm.vue'

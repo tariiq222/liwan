@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { ProjectStatus } from '@nasq/contracts'
+import type { ProjectStatus } from '@webvue/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
+import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
 import ProjectPhaseStepper from '@/components/pmo/projects/ProjectPhaseStepper.vue'
 import ProjectWorkspaceTabs from '@/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue'
 import { ApiError } from '@/composables/useApi'
 import { activeGovernanceSection, activeProjectSection, projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject } from '@/composables/useProjects'
 import { projectRecordBack } from '@/utils/projectNavigation'
-import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 
 const sourcePaths = useRecordListPaths(['/projects', '/projects/dashboard'])
 const route = useRoute()
@@ -68,7 +68,7 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
 <template>
   <div class="flex flex-col gap-6">
     <!-- Layer 1: a full-bleed white band (project identity, meta line and the main tabs on its bottom edge). -->
-    <div v-if="showFrame" class="nasq-page-band nasq-print-hide border-b border-default bg-default" data-testid="project-workspace-frame">
+    <div v-if="showFrame" class="webvue-page-band webvue-print-hide border-b border-default bg-default" data-testid="project-workspace-frame">
       <SharedPageContainer width="list">
         <div class="flex flex-col gap-3">
           <!-- Record header: back + title + status + actions on one line, in the same slot on every tab. -->
@@ -120,10 +120,10 @@ provideFrameOwnsHeading(computed(() => showFrame.value && Boolean(project.value)
       </SharedPageContainer>
     </div>
     <!-- Governance sub-sections: a second underline strip, same look as the main tabs, on the canvas just under the band. -->
-    <SharedPageContainer v-if="showFrame && showGovernanceTabs" width="list" class="nasq-print-hide -my-2">
+    <SharedPageContainer v-if="showFrame && showGovernanceTabs" width="list" class="webvue-print-hide -my-2">
       <ProjectWorkspaceTabs level="governance" :project-id="projectId!" />
     </SharedPageContainer>
-    <SharedPageContainer v-if="showFrame && showPlanningTabs" width="list" class="nasq-print-hide -my-2">
+    <SharedPageContainer v-if="showFrame && showPlanningTabs" width="list" class="webvue-print-hide -my-2">
       <ProjectWorkspaceTabs v-if="projectId" :project-id="projectId" :active="project?.active" level="planning" />
     </SharedPageContainer>
     <NuxtPage />

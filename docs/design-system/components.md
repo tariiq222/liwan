@@ -1,4 +1,4 @@
-# فهرس مكونات واجهة نسق
+# فهرس مكونات واجهة ويب فيو
 
 السلطة البصرية هي [DESIGN.md](../../DESIGN.md). هذا الفهرس جرد لملكية الكود
 الحالي في `packages/ui/app` (طبقة Nuxt المشتركة بين التطبيقات) و`packages/commercial-ui/app` (عرض الفوترة المشترك) و`apps/web/app` (المكونات المرتبطة بتطبيق) ومساراته؛ لا يضيف سياسة ثانية، ولا مصدرًا بصريًا أو
@@ -17,7 +17,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | القوائم والمحتوى | `packages/ui/app/components/shared/data/Pagination.vue` (قصة: `apps/web/stories/shared/Pagination.stories.ts`), `packages/ui/app/components/shared/form/RichText.vue` (قصة: `apps/web/stories/shared/RichText.stories.ts`), `packages/ui/app/components/shared/data/MetricTile.vue` (قصة: `apps/web/stories/shared/MetricTile.stories.ts`), `apps/web/app/components/shared/form/PersonPicker.vue` (قصة: `apps/web/stories/shared/PersonPicker.stories.ts`) | `Pagination`: UPagination مع «صفحة x من y»؛ `RichText`: HTML منقّى بتنسيق واحد؛ `MetricTile`: UCard لمؤشر واحد؛ `PersonPicker`: USelectMenu فوق `/api/v1/people` |
 | هوية السجل والرسوم | `packages/ui/app/components/shared/data/RecordNumber.vue` (قصة: `apps/web/stories/shared/RecordNumber.stories.ts`), `apps/web/app/components/shared/data/DashboardChart.client.vue` (قصة: `apps/web/stories/shared/DashboardChart.stories.ts`) | رقم السجل ومحولات الرسوم |
 | محولات الرسوم | `apps/web/app/components/charts/ChartContainer.vue` (قصة: `apps/web/stories/charts/ChartContainer.stories.ts`), `apps/web/app/components/charts/ChartLegendContent.vue`, `apps/web/app/components/charts/ChartStyle.vue`, `apps/web/app/components/charts/ChartTooltipContent.vue` | Unovis وتوكنات الرسم المشتقة من الهوية |
-| الهوية المؤقتة | `packages/ui/app/components/shared/layout/BrandWordmark.vue` (قصة: `apps/web/stories/shared/BrandWordmark.stories.ts`) | علامة نصية `نَسَق` مع نقطة ليمون زخرفية حتى يتوفر شعار SVG؛ الوضع المعكوس للشريط الداكن |
+| الهوية المؤقتة | `packages/ui/app/components/shared/layout/BrandWordmark.vue` (قصة: `apps/web/stories/shared/BrandWordmark.stories.ts`) | علامة نصية `ويب فيو` مع نقطة ليمون زخرفية حتى يتوفر شعار SVG؛ الوضع المعكوس للشريط الداكن |
 
 | تذييل إجراءات النماذج | `packages/ui/app/components/shared/form/FormActions.vue` (قصة: `apps/web/stories/shared/FormActions.stories.ts`) | HTML form association وVue Teleport إلى تذييل `SharedCreatePanel`؛ نفس الأزرار الأصلية، بلا وصفة ألوان جديدة |
 
@@ -43,13 +43,13 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `packages/commercial-ui/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`subscriptionInvoiceView`) |
 | `packages/ui/app/components/shared/feedback/ForbiddenState.vue` | `apps/web/stories/shared/ForbiddenState.stories.ts` | `UIcon`؛ 403 بلا إعادة محاولة |
 | `packages/ui/app/components/shared/feedback/NotFoundState.vue` | `apps/web/stories/shared/NotFoundState.stories.ts` | `UIcon`، `UButton` رابط رجوع اختياري؛ 404 |
-| `packages/ui/app/components/shared/layout/StandalonePage.vue` | `apps/web/stories/shared/StandalonePage.stories.ts` | `UCard`؛ `card` هي `<main>` الصفحة وتأخذ `title` أو شريحة `#header` (تستبدل العنوان ويرسم صاحبها `<h1>`)، و`print` وثيقة `.nasq-print` تُطبع أسود على أبيض بلا إطار التطبيق (`packages/ui/app/assets/css/components.css`) |
+| `packages/ui/app/components/shared/layout/StandalonePage.vue` | `apps/web/stories/shared/StandalonePage.stories.ts` | `UCard`؛ `card` هي `<main>` الصفحة وتأخذ `title` أو شريحة `#header` (تستبدل العنوان ويرسم صاحبها `<h1>`)، و`print` وثيقة `.webvue-print` تُطبع أسود على أبيض بلا إطار التطبيق (`packages/ui/app/assets/css/components.css`) |
 | `packages/ui/app/components/shared/data/ChartPanel.vue` | `apps/web/stories/shared/ChartPanel.stories.ts` | `UCard` (`as="section"`)، `USkeleton`؛ المخطط في الخانة الافتراضية، وإجراء في الترويسة |
 | `packages/ui/app/components/shared/layout/DashboardPage.vue` | `apps/web/stories/shared/DashboardPage.stories.ts` | `SharedPageContainer`، `SharedPageHeader`؛ صف `SharedMetricTile` ثم شبكة `SharedChartPanel` باستعلام حاوية |
 | `packages/ui/app/components/shared/layout/RecordPage.vue` | `apps/web/stories/shared/RecordPage.stories.ts` | `SharedPageContainer` (`detail`)، `SharedPageHeader`، `SharedLoadingSkeleton` (`record`)، `SharedPageState`، `USkeleton`؛ شريحة `#back` لرجوع مخصص، و`#summary` للبيانات التشغيلية قبل التبويبات والمحتوى، و`#aside` للتفاصيل المساندة |
 | `packages/ui/app/components/shared/layout/PropertiesPanel.vue` | `apps/web/stories/shared/PropertiesPanel.stories.ts` | `<section>` بعنوان و`<dl>` |
 | `packages/ui/app/components/shared/layout/PropertyRow.vue` | `apps/web/stories/shared/PropertyRow.stories.ts` | `dt`/`dd`؛ القيمة الفارغة «—» مخفية عن قارئ الشاشة مع `states.noValue` |
-| `packages/ui/app/components/shared/layout/RecordSection.vue` | `apps/web/stories/shared/RecordSection.stories.ts` | `<section aria-labelledby>` بعنوان `h2` وإجراءات؛ `panel` يرسمه بطاقة بصف عنوان (`nasq-record-panel`) |
+| `packages/ui/app/components/shared/layout/RecordSection.vue` | `apps/web/stories/shared/RecordSection.stories.ts` | `<section aria-labelledby>` بعنوان `h2` وإجراءات؛ `panel` يرسمه بطاقة بصف عنوان (`webvue-record-panel`) |
 | `apps/web/app/components/shared/data/AttachmentList.vue` | `apps/web/stories/shared/AttachmentList.stories.ts` | `SharedPageState`، `SharedInlineConfirm`، `SharedFileField`، `UButton`؛ روابط المرفقات وحذف بتأكيد مضمّن وحقل رفع واحد، والمعالجان `uploadFile` و`deleteFile` يمرّرهما التطبيق (`pmo/tasks/TaskAttachments.vue` و`personal-tasks/MyTaskAttachments.vue`) |
 | `apps/web/app/components/shared/data/CommentThread.vue` | `apps/web/stories/shared/CommentThread.stories.ts` | `SharedPageState`؛ تعليقات نصية من الأقدم مع فتحة `composer`، ولا تغني عن `pmo/tasks/Timeline.vue` الذي يعرض HTML وتغييرات الحقول |
 | `apps/web/app/components/shared/form/CommentComposer.vue` | `apps/web/stories/shared/CommentComposer.stories.ts` | `UTextarea`، `UFormField`، `UButton`؛ حقل تعليق وزر نشر بلا مسودة ولا طلب، وفتحة `below` لقائمة الإشارات في `pmo/tasks/CommentComposer.vue` |
@@ -61,7 +61,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `packages/ui/app/components/shared/data/ViewSwitch.vue` | `apps/web/stories/shared/ViewSwitch.stories.ts` | `UButton` بأيقونة و`aria-pressed`، `UTooltip`؛ لا يعمل قبل الترطيب |
 | `packages/ui/app/components/shared/data/StatusBadge.vue` | `apps/web/stories/shared/StatusBadge.stories.ts` | `UBadge` بلون `STATUS_COLOR` (محايد/معلومة/تحذير/نجاح/خطأ/أساسي للمدير فقط) والنوع الافتراضي `subtle` (`outline` للأزرار لا للشارات) ونص ≥ 12px؛ الدلالة في DESIGN.md §2 «الشارات والحالات»؛ الخرائط تبقى في ملفات التطبيقات (`projectStatusBadge`، `taskStateBadge`، `deadlineTone`، `accessStateBadge`، `hrAccessBadge`، `subscriptionStateBadge`، `lifecycleBadge`، `orderPaymentBadge`/`orderFulfillmentBadge`، `invoiceStatusBadge`، `customerDisplayBadge`، `operationStatusBadge`، `paymentAttemptBadge`) |
 | `packages/ui/app/components/shared/layout/RouteTabs.vue` | `apps/web/stories/shared/RouteTabs.stories.ts` | `UButton` روابط، `UIcon`؛ `routeTabsStripClass`/`routeTabClass`، و`aria-current="page"` للقسم الحالي |
-| `packages/ui/app/components/shared/layout/SettingsPage.vue` | `apps/web/stories/shared/SettingsPage.stories.ts` | `SharedPageContainer` وأنماط `.nasq-settings-*` العامة (نُقل من `settings/SettingsLayout.vue`) |
+| `packages/ui/app/components/shared/layout/SettingsPage.vue` | `apps/web/stories/shared/SettingsPage.stories.ts` | `SharedPageContainer` وأنماط `.webvue-settings-*` العامة (نُقل من `settings/SettingsLayout.vue`) |
 
 ## المشاريع والمهام
 
@@ -91,7 +91,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | المحادثات | `apps/web/app/components/chat/ChatAttachment.vue` (قصة: `apps/web/stories/chat/ChatAttachment.stories.ts`), `apps/web/app/components/chat/ChatInfoPanel.vue` (جسم معلومات المحادثة، يُعرض في لوحة المعلومات بتخطيط المحادثة), `apps/web/app/components/chat/ChatWorkspace.vue`, `apps/web/app/components/chat/ChatSidebarPanel.vue` (لوحة المحادثات في القائمة السياقية عبر `sidebarPanel`), `apps/web/app/components/chat/ConversationList.vue`, `apps/web/app/components/chat/MessageComposer.vue`, `apps/web/app/components/chat/MessageHistory.vue` | مساحة المحادثة والرسائل والمرفقات |
 | الإشعارات | `apps/web/app/components/notifications/NotificationCenter.vue` | مركز الإشعارات |
 
-## مساعد Nasq AI
+## مساعد WebVue AI
 
 | السطح | المكونات الفعلية | المسؤولية الحالية |
 | --- | --- | --- |

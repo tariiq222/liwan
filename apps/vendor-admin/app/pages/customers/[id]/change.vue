@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Quote } from '@nasq/commercial-contracts'
+import type { Quote } from '@webvue/commercial-contracts'
 import { cadenceKey, commercialErrorKey, parseCount } from '@/utils/vendorCommercial'
-import { cadenceLabel } from '@nasq/commercial-ui/app/utils/commercial'
+import { cadenceLabel } from '@webvue/commercial-ui/app/utils/commercial'
 import { customerQuoteBody, customersReturnTo } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'

@@ -1,5 +1,5 @@
 import { getQuery } from 'h3'
-import { AiRunListQuerySchema, AiRunListSchema } from '@nasq/contracts'
+import { AiRunListQuerySchema, AiRunListSchema } from '@webvue/contracts'
 import { serviceFetch } from '../../../utils/ai/upstream'
 import { runSession } from '../../../utils/ai/session'
 

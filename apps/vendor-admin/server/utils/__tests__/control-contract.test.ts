@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { verifyServiceRequest } from '@nasq/commercial-contracts/server'
+import { verifyServiceRequest } from '@webvue/commercial-contracts/server'
 import passkeyOptions from '../../api/auth/passkey-options.post'
 import stepUpOptions from '../../api/auth/step-up-options.post'
 import proxy from '../../api/vendor/v1/[...path]'
@@ -29,14 +29,14 @@ describe('BFF to control-plane signing', () => {
     expect(call.url.pathname + call.url.search).toBe('/v1/commercial/customers?q=a')
     expect(verify(call)).toMatchObject({ actor: 7, issuer: INSTALLATION })
     expect(verify(call, { anonymous: true })).toBeNull()
-    expect(call.headers['x-nasq-session']).toBe(SESSION)
+    expect(call.headers['x-webvue-session']).toBe(SESSION)
   })
 
   it('signs the session routes under /v1/admin/auth as anonymous and still carries the session', async () => {
     const calls = stubUpstream(() => json(200, { challenge_id: 'c', options: {} }))
     await send(stepUpOptions, '/api/auth/step-up-options', { body: {}, headers: cookieHeader() })
     expect(verify(at(calls, 0), { anonymous: true })).toMatchObject({ actor: 'anonymous' })
-    expect(at(calls, 0).headers['x-nasq-session']).toBe(SESSION)
+    expect(at(calls, 0).headers['x-webvue-session']).toBe(SESSION)
   })
 
   it('rejects a tampered body, path or actor', async () => {
@@ -47,26 +47,26 @@ describe('BFF to control-plane signing', () => {
     expect(verify({ ...call, body: '{"a":2}' })).toBeNull()
     expect(verify({ ...call, url: new URL(`${CONTROL}/v1/other`) })).toBeNull()
     expect(verify(call, { actor: 8 })).toBeNull()
-    expect(verify({ ...call, headers: { ...call.headers, 'x-nasq-actor': '8' } })).toBeNull()
+    expect(verify({ ...call, headers: { ...call.headers, 'x-webvue-actor': '8' } })).toBeNull()
   })
 
   it('never forwards the browser cookie or a browser-supplied client address', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-nasq-client-ip': '6.6.6.6', authorization: 'Bearer x', 'x-nasq-actor': '99' } })
+    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-webvue-client-ip': '6.6.6.6', authorization: 'Bearer x', 'x-webvue-actor': '99' } })
     const names = Object.keys(at(calls, 0).headers).map(n => n.toLowerCase())
     expect(names).not.toContain('cookie')
     expect(names).not.toContain('authorization')
-    expect(at(calls, 0).headers['x-nasq-client-ip']).not.toBe('6.6.6.6')
-    expect(at(calls, 0).headers['x-nasq-actor']).toBe('7')
+    expect(at(calls, 0).headers['x-webvue-client-ip']).not.toBe('6.6.6.6')
+    expect(at(calls, 0).headers['x-webvue-actor']).toBe('7')
   })
 
-  it('always sets x-nasq-client-ip to the observed address', async () => {
+  it('always sets x-webvue-client-ip to the observed address', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-nasq-client-ip': '6.6.6.6' } })
-    expect(at(calls, 0).headers['x-nasq-client-ip']).toBe('127.0.0.1')
+    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-webvue-client-ip': '6.6.6.6' } })
+    expect(at(calls, 0).headers['x-webvue-client-ip']).toBe('127.0.0.1')
     stubConfig({ trustProxy: true })
-    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-nasq-client-ip': '6.6.6.6', 'x-forwarded-for': '203.0.113.7' } })
-    expect(at(calls, 1).headers['x-nasq-client-ip']).toBe('203.0.113.7')
+    await send(proxy, '/api/vendor/v1/context', { method: 'GET', headers: { ...cookieHeader(), 'x-webvue-client-ip': '6.6.6.6', 'x-forwarded-for': '203.0.113.7' } })
+    expect(at(calls, 1).headers['x-webvue-client-ip']).toBe('203.0.113.7')
   })
 
   it('refuses an auth call whose client address is unknown, and a refused address reaches nothing upstream', async () => {

@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Prepare the `codex/web-tasmim` branch (phases 0, 0.5 and 1 of the spec) and deliver the new Nasq foundations — midnight/lime palette, light/dark only, dense type and shape — ending at owner checkpoint CP1.
+**Goal:** Prepare the `codex/web-tasmim` branch (phases 0, 0.5 and 1 of the spec) and deliver the new WebVue foundations — midnight/lime palette, light/dark only, dense type and shape — ending at owner checkpoint CP1.
 
 **Architecture:** All visual inputs stay where the repo already keeps them: tokens in `apps/web/app/assets/css/tokens.css`, Nuxt UI recipes in `apps/web/app/app.config.ts`, the tenant-colour engine in `apps/web/app/utils/brandTheme.ts`, the display preference in `apps/web/app/utils/appearance.ts`. A Storybook-driven Playwright spec captures visual snapshots (ar/en × light/dark) and runs axe, so every later plan has a regression net. No Odoo, contract or API change.
 
 **Tech Stack:** Nuxt 4, Nuxt UI 4.11.1, Tailwind 4.3, Storybook 10.6, Playwright 1.62, Vitest 4, Python policy checks in `tools/`.
 
-**Spec:** `docs/superpowers/specs/2026-10-11-nasq-tasmim-design.md`
+**Spec:** `docs/superpowers/specs/2026-10-11-webvue-tasmim-design.md`
 
 ## Global Constraints
 
@@ -31,7 +31,7 @@
 2. **A tenant primary that is very dark, very light, or pure lime/yellow** — expected: links ≥ 4.5:1 and rings/fills ≥ 3:1 on every light and dark surface, and the rail stays midnight. Pinned in Task 6 (`brandTheme.test.ts` sampled-primary loop and rail-independence test).
 3. **English locale** — expected: root font is 1px smaller than Arabic at every font size and Latin glyphs use the Plex family. Pinned in Task 7 (`density.spec` en measurement).
 4. **Large font size** — expected: controls and rows scale proportionally (no clipped text). Pinned in Task 7 (`density.spec` large measurement).
-5. **Dark mode surfaces and lime accent** — expected: body text ≥ 4.5:1 on every dark surface, lime fill with midnight text ≥ 4.5:1, white on the rail ≥ 4.5:1. Pinned in Task 6 (`nasqPalette` contrast tests).
+5. **Dark mode surfaces and lime accent** — expected: body text ≥ 4.5:1 on every dark surface, lime fill with midnight text ≥ 4.5:1, white on the rail ≥ 4.5:1. Pinned in Task 6 (`webvuePalette` contrast tests).
 
 ---
 
@@ -69,7 +69,7 @@ Start the mock and Nuxt on free ports (see memory note "isolated UI mock stack")
 ```bash
 cd apps/web
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498 node e2e/internal-ui-audit-mock.mjs &
-NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 &
+NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 &
 E2E_BASE_URL=http://localhost:4097 E2E_PROJECT_POPUPS=1 npx playwright test --reporter=line 2>&1 | grep -E '^\s+[0-9]+\) ' | sort > "$SCRATCH/e2e-baseline-failures.txt"
 ```
 Expected: a sorted list of failing titles (around 73 known). This file is the comparison set for every later e2e run. Stop both background processes afterwards.
@@ -470,36 +470,36 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ---
 
-### Task 6: Nasq palette in the brand engine (midnight default, fixed rail, dark surfaces)
+### Task 6: WebVue palette in the brand engine (midnight default, fixed rail, dark surfaces)
 
 **Files:**
 - Modify: `apps/web/app/utils/brandTheme.ts`
-- Create: `apps/web/app/utils/nasqPalette.ts`
-- Test: `apps/web/app/utils/__tests__/brandTheme.test.ts`, create `apps/web/app/utils/__tests__/nasqPalette.test.ts`
+- Create: `apps/web/app/utils/webvuePalette.ts`
+- Test: `apps/web/app/utils/__tests__/brandTheme.test.ts`, create `apps/web/app/utils/__tests__/webvuePalette.test.ts`
 
 **Interfaces:**
 - Consumes: `AppearanceMode = 'light' | 'dark'` (Task 5).
 - Produces:
-  - `nasqPalette.ts`: `export const NASQ_MIDNIGHT = '#13234a'`, `export const NASQ_LIME = '#c8f031'`, `export const NASQ_LIME_FOREGROUND = '#13234a'`, `export const DARK_SURFACES = { bg: '#0a1124', muted: '#0f182f', elevated: '#15203b', accented: '#1d2a48', border: '#22304f', borderMuted: '#1a2642', borderAccented: '#2c3b5e' } as const`, `export function contrastRatio(a: string, b: string): number`.
-  - `brandTheme.ts`: `DEFAULT_PRIMARY === NASQ_MIDNIGHT`; `MODE_SURFACES: Record<AppearanceMode, string[]>` with no `cream` key and dark entries = `Object.values(DARK_SURFACES)`; `createBrandTheme` no longer returns `--shell-background`, `--shell-foreground`, `--shell-hover`, `--shell-active` (the rail is fixed, owned by `tokens.css`).
+  - `webvuePalette.ts`: `export const WEBVUE_MIDNIGHT = '#13234a'`, `export const WEBVUE_LIME = '#c8f031'`, `export const WEBVUE_LIME_FOREGROUND = '#13234a'`, `export const DARK_SURFACES = { bg: '#0a1124', muted: '#0f182f', elevated: '#15203b', accented: '#1d2a48', border: '#22304f', borderMuted: '#1a2642', borderAccented: '#2c3b5e' } as const`, `export function contrastRatio(a: string, b: string): number`.
+  - `brandTheme.ts`: `DEFAULT_PRIMARY === WEBVUE_MIDNIGHT`; `MODE_SURFACES: Record<AppearanceMode, string[]>` with no `cream` key and dark entries = `Object.values(DARK_SURFACES)`; `createBrandTheme` no longer returns `--shell-background`, `--shell-foreground`, `--shell-hover`, `--shell-active` (the rail is fixed, owned by `tokens.css`).
 
 - [ ] **Step 1: Write the palette tests**
 
-Create `apps/web/app/utils/__tests__/nasqPalette.test.ts`:
+Create `apps/web/app/utils/__tests__/webvuePalette.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { contrastRatio, DARK_SURFACES, NASQ_LIME, NASQ_LIME_FOREGROUND, NASQ_MIDNIGHT } from '../nasqPalette'
+import { contrastRatio, DARK_SURFACES, WEBVUE_LIME, WEBVUE_LIME_FOREGROUND, WEBVUE_MIDNIGHT } from '../webvuePalette'
 
-describe('Nasq palette', () => {
+describe('WebVue palette', () => {
   it('keeps white text readable on the midnight rail', () => {
-    expect(contrastRatio('#ffffff', NASQ_MIDNIGHT)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio('#ffffff', WEBVUE_MIDNIGHT)).toBeGreaterThanOrEqual(4.5)
   })
   it('keeps midnight text readable on lime fills', () => {
-    expect(contrastRatio(NASQ_LIME_FOREGROUND, NASQ_LIME)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(WEBVUE_LIME_FOREGROUND, WEBVUE_LIME)).toBeGreaterThanOrEqual(4.5)
   })
   it('keeps lime visible as a bar on the rail', () => {
-    expect(contrastRatio(NASQ_LIME, NASQ_MIDNIGHT)).toBeGreaterThanOrEqual(3)
+    expect(contrastRatio(WEBVUE_LIME, WEBVUE_MIDNIGHT)).toBeGreaterThanOrEqual(3)
   })
   it('keeps light body text readable on every dark surface', () => {
     for (const surface of [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated, DARK_SURFACES.accented]) {
@@ -517,7 +517,7 @@ In `apps/web/app/utils/__tests__/brandTheme.test.ts`:
 - Add:
 
 ```ts
-it('defaults to Nasq midnight', () => {
+it('defaults to WebVue midnight', () => {
   expect(DEFAULT_PRIMARY).toBe('#13234a')
 })
 
@@ -541,21 +541,21 @@ it.each(['#000000', '#ffffff', '#c8f031', '#ffff00', '#13234a', '#0055ff', '#e11
   },
 )
 ```
-Import `contrastRatio` from `../nasqPalette`.
+Import `contrastRatio` from `../webvuePalette`.
 
 - [ ] **Step 3: Run to see them fail**
 
-Run: `cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web && npx vitest run app/utils/__tests__/nasqPalette.test.ts app/utils/__tests__/brandTheme.test.ts`
-Expected: FAIL — `nasqPalette` module missing; `DEFAULT_PRIMARY` is `#18181b`; shell keys present.
+Run: `cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web && npx vitest run app/utils/__tests__/webvuePalette.test.ts app/utils/__tests__/brandTheme.test.ts`
+Expected: FAIL — `webvuePalette` module missing; `DEFAULT_PRIMARY` is `#18181b`; shell keys present.
 
-- [ ] **Step 4: Implement `nasqPalette.ts`**
+- [ ] **Step 4: Implement `webvuePalette.ts`**
 
 ```ts
-// Nasq's own identity (spec 2026-10-11 §3). Tenant colours replace the
-// primary only; the midnight rail and lime accent stay Nasq's.
-export const NASQ_MIDNIGHT = '#13234a'
-export const NASQ_LIME = '#c8f031'
-export const NASQ_LIME_FOREGROUND = '#13234a'
+// WebVue's own identity (spec 2026-10-11 §3). Tenant colours replace the
+// primary only; the midnight rail and lime accent stay WebVue's.
+export const WEBVUE_MIDNIGHT = '#13234a'
+export const WEBVUE_LIME = '#c8f031'
+export const WEBVUE_LIME_FOREGROUND = '#13234a'
 
 export const DARK_SURFACES = {
   bg: '#0a1124',
@@ -584,7 +584,7 @@ export function contrastRatio(first: string, second: string): number {
 
 - [ ] **Step 5: Update `brandTheme.ts`**
 
-- `import { DARK_SURFACES, NASQ_MIDNIGHT, contrastRatio } from './nasqPalette'`; `export const DEFAULT_PRIMARY = NASQ_MIDNIGHT`.
+- `import { DARK_SURFACES, WEBVUE_MIDNIGHT, contrastRatio } from './webvuePalette'`; `export const DEFAULT_PRIMARY = WEBVUE_MIDNIGHT`.
 - Replace the private `relativeLuminance`/`contrast` pair with `contrastRatio` where `contrast(` was used (keep `relativeLuminance` only if `interaction()` still needs it — it does, so keep that function and delete only `contrast`, renaming its call sites to `contrastRatio`).
 - `MODE_SURFACES`:
   ```ts
@@ -594,7 +594,7 @@ export function contrastRatio(first: string, second: string): number {
   }
   ```
 - In `createBrandTheme`: `const surface = mode === 'dark' ? DARK_SURFACES.bg : '#ffffff'`; delete the `shell` constant and the four `--shell-*` entries from the returned object.
-- `BrandingPreview.vue:147` uses `var(--shell-background)`/`var(--shell-foreground)`, which no longer exist: change its inline style to `background: var(--nasq-rail); color: #fff` (the preview now shows the fixed midnight rail). Task 7 adds the `bg-nasq-rail` utility; replacing the inline style with it is left to Plan 4's settings work. Also update its `dark` block in `modeSurfaceTokens` to the `DARK_SURFACES` values (`--ui-bg: DARK_SURFACES.bg`, `--ui-bg-muted: DARK_SURFACES.muted`, `--ui-bg-elevated: DARK_SURFACES.elevated`, `--ui-bg-accented: DARK_SURFACES.accented`, `--ui-border: DARK_SURFACES.border`, `--ui-border-muted: DARK_SURFACES.borderMuted`, `--ui-border-accented: DARK_SURFACES.borderAccented`, text `#e2e8f0`, muted text `#94a3b8`).
+- `BrandingPreview.vue:147` uses `var(--shell-background)`/`var(--shell-foreground)`, which no longer exist: change its inline style to `background: var(--webvue-rail); color: #fff` (the preview now shows the fixed midnight rail). Task 7 adds the `bg-webvue-rail` utility; replacing the inline style with it is left to Plan 4's settings work. Also update its `dark` block in `modeSurfaceTokens` to the `DARK_SURFACES` values (`--ui-bg: DARK_SURFACES.bg`, `--ui-bg-muted: DARK_SURFACES.muted`, `--ui-bg-elevated: DARK_SURFACES.elevated`, `--ui-bg-accented: DARK_SURFACES.accented`, `--ui-border: DARK_SURFACES.border`, `--ui-border-muted: DARK_SURFACES.borderMuted`, `--ui-border-accented: DARK_SURFACES.borderAccented`, text `#e2e8f0`, muted text `#94a3b8`).
 
 - [ ] **Step 6: Run the tests**
 
@@ -606,7 +606,7 @@ Expected: PASS. If a sampled primary fails link/ring contrast in dark mode, the 
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim
 git add -A apps/web/app
-git commit -m "feat(web): add Nasq palette and fixed rail to the brand engine
+git commit -m "feat(web): add WebVue palette and fixed rail to the brand engine
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -620,12 +620,12 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Modify: `apps/web/app/app.config.ts`
 - Modify: `tools/ui_policy.py:442-470` (`ALLOWED_RECIPE_KEYS` unchanged, `REQUIRED_TOKENS`, radius rule) and `tools/test_ui_policy.py:390-410` (`whole()` fixture)
 - Create: `apps/web/stories/foundations/Density.stories.ts`
-- Modify: `apps/web/stories/foundations/Colors.stories.ts` (Nasq group)
+- Modify: `apps/web/stories/foundations/Colors.stories.ts` (WebVue group)
 - Create: `apps/web/e2e/storybook-density.spec.ts`
 
 **Interfaces:**
-- Consumes: `NASQ_*`, `DARK_SURFACES` values (Task 6, copied as CSS literals).
-- Produces CSS custom properties used by Plans 2–5: `--nasq-midnight`, `--nasq-lime`, `--nasq-lime-foreground`, `--nasq-control-h` (2.285714rem = 32px at 14px root), `--nasq-row-h` (2.571429rem = 36px), `--nasq-rail` (fixed midnight), `--nasq-rail-deep`, `--rail-hover`; Tailwind utilities `bg-nasq-lime`, `text-nasq-lime-foreground`, `bg-nasq-rail`, `bg-nasq-midnight`.
+- Consumes: `WEBVUE_*`, `DARK_SURFACES` values (Task 6, copied as CSS literals).
+- Produces CSS custom properties used by Plans 2–5: `--webvue-midnight`, `--webvue-lime`, `--webvue-lime-foreground`, `--webvue-control-h` (2.285714rem = 32px at 14px root), `--webvue-row-h` (2.571429rem = 36px), `--webvue-rail` (fixed midnight), `--webvue-rail-deep`, `--rail-hover`; Tailwind utilities `bg-webvue-lime`, `text-webvue-lime-foreground`, `bg-webvue-rail`, `bg-webvue-midnight`.
 - Story ids: `foundations-density--controls`, `foundations-density--table`.
 
 - [ ] **Step 1: Write the density story**
@@ -647,7 +647,7 @@ export const Controls: StoryObj = {
         <UInput data-testid="density-input" placeholder="بحث" />
         <USelect :items="['أ', 'ب']" model-value="أ" />
         <UBadge data-testid="density-badge">قيد التنفيذ</UBadge>
-        <span class="inline-flex items-center rounded-md bg-nasq-lime px-2 text-xs font-medium text-nasq-lime-foreground" data-testid="density-lime">جديد</span>
+        <span class="inline-flex items-center rounded-md bg-webvue-lime px-2 text-xs font-medium text-webvue-lime-foreground" data-testid="density-lime">جديد</span>
       </div>`,
   }),
 }
@@ -715,19 +715,19 @@ test.describe('Tasmim density', () => {
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 npm run build-storybook && npx playwright test e2e/storybook-density.spec.ts --reporter=line
 ```
-Expected: FAIL (heights/radii are today's values; `bg-nasq-lime` has no colour).
+Expected: FAIL (heights/radii are today's values; `bg-webvue-lime` has no colour).
 
 - [ ] **Step 4: Rewrite `tokens.css`**
 
 Apply these changes (keep every token not mentioned; Plans 2–5 retire the rest):
-1. Header comment: describe "Nasq identity (midnight + lime), light/dark modes, dense type and shape".
+1. Header comment: describe "WebVue identity (midnight + lime), light/dark modes, dense type and shape".
 2. `@theme`: add `--text-2xl: 1.714286rem;` (24px at 14px root). Keep the Plex Arabic font stack — it covers Latin glyphs, so no second family is loaded.
 3. `:root`:
    - `--ui-radius: 0.285714rem;` (4px at 14px root, so Nuxt UI's `rounded-md` = 6px and `rounded-lg` = 8px).
    - Default primary family from midnight: `--primary: #13234a; --primary-hover: #2f3c5f; --primary-active: #4a5573; --brand-link: #13234a;` (foregrounds `#fff`). `brandTheme.ts` overwrites these at runtime; the defaults only matter before hydration.
-   - Add `--nasq-midnight: #13234a; --nasq-lime: #c8f031; --nasq-lime-foreground: #13234a;`
-   - Add `--nasq-control-h: 2.285714rem; --nasq-row-h: 2.571429rem;`
-   - Replace the rail lines with fixed values: `--nasq-rail: #13234a; --nasq-rail-deep: #0d1a38; --rail-hover: #1f3160;`
+   - Add `--webvue-midnight: #13234a; --webvue-lime: #c8f031; --webvue-lime-foreground: #13234a;`
+   - Add `--webvue-control-h: 2.285714rem; --webvue-row-h: 2.571429rem;`
+   - Replace the rail lines with fixed values: `--webvue-rail: #13234a; --webvue-rail-deep: #0d1a38; --rail-hover: #1f3160;`
    - Chart defaults: `--chart-1: #13234a; --chart-2: #3a5191; --chart-3: #6b7fb8; --chart-4: #9ab0d8; --chart-5: #5b6b8c; --chart-6: #8b97b1;`
 4. Font sizes: keep `[data-font-size="medium"]` 16px and `large` 18px, and add
    ```css
@@ -752,13 +752,13 @@ Apply these changes (keep every token not mentioned; Plans 2–5 retire the rest
      --ui-text-muted: #94a3b8;
      --ui-text-toned: #cbd5e1;
      --ui-text-dimmed: #94a3b8;
-     --nasq-rail: #0d1a38;
-     --nasq-rail-deep: #081129;
+     --webvue-rail: #0d1a38;
+     --webvue-rail-deep: #081129;
      --rail-hover: #1a2a52;
      --unread-count-foreground: var(--ui-bg);
    }
    ```
-7. `@theme inline`: add `--color-nasq-midnight: var(--nasq-midnight); --color-nasq-lime: var(--nasq-lime); --color-nasq-lime-foreground: var(--nasq-lime-foreground); --color-nasq-rail: var(--nasq-rail);`
+7. `@theme inline`: add `--color-webvue-midnight: var(--webvue-midnight); --color-webvue-lime: var(--webvue-lime); --color-webvue-lime-foreground: var(--webvue-lime-foreground); --color-webvue-rail: var(--webvue-rail);`
 
 - [ ] **Step 5: Rewrite `app.config.ts` recipes**
 
@@ -766,24 +766,24 @@ Apply these changes (keep every token not mentioned; Plans 2–5 retire the rest
 export default defineAppConfig({
   ui: {
     // Tasmim recipes (DESIGN.md «وصفات الثيم المعتمدة»). Colours: tenant primary
-    // from settings (utils/brandTheme.ts), slate neutral, Nasq midnight/lime in
-    // tokens.css. Sizes come from tokens: --nasq-control-h, --nasq-row-h,
+    // from settings (utils/brandTheme.ts), slate neutral, WebVue midnight/lime in
+    // tokens.css. Sizes come from tokens: --webvue-control-h, --webvue-row-h,
     // --ui-radius (rounded-md = 6px, rounded-lg = 8px at the 14px root).
     colors: { primary: 'brand', neutral: 'slate' },
 
-    button: { slots: { base: 'rounded-md min-h-(--nasq-control-h) transition-colors duration-150 motion-reduce:transition-none' } },
-    input: { slots: { base: 'rounded-md min-h-(--nasq-control-h) bg-default' } },
-    inputNumber: { slots: { base: 'rounded-md min-h-(--nasq-control-h) bg-default' } },
+    button: { slots: { base: 'rounded-md min-h-(--webvue-control-h) transition-colors duration-150 motion-reduce:transition-none' } },
+    input: { slots: { base: 'rounded-md min-h-(--webvue-control-h) bg-default' } },
+    inputNumber: { slots: { base: 'rounded-md min-h-(--webvue-control-h) bg-default' } },
     textarea: { slots: { base: 'rounded-md bg-default' } },
-    select: { slots: { base: 'rounded-md min-h-(--nasq-control-h) bg-default', content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
-    selectMenu: { slots: { base: 'rounded-md min-h-(--nasq-control-h) bg-default', content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
+    select: { slots: { base: 'rounded-md min-h-(--webvue-control-h) bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
+    selectMenu: { slots: { base: 'rounded-md min-h-(--webvue-control-h) bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
 
     // Surfaces: hairline ring, no resting shadow, compact padding.
     card: { slots: { root: 'rounded-lg ring ring-default shadow-none', header: 'px-4 py-3', body: 'p-3 sm:p-4', footer: 'px-4 py-3' } },
     table: {
       slots: {
-        th: 'h-(--nasq-row-h) px-3 py-0 text-xs font-medium text-muted',
-        td: 'h-(--nasq-row-h) px-3 py-0 text-sm',
+        th: 'h-(--webvue-row-h) px-3 py-0 text-xs font-medium text-muted',
+        td: 'h-(--webvue-row-h) px-3 py-0 text-sm',
         tr: 'transition-colors hover:bg-elevated/50 data-[selected=true]:bg-primary/5',
       },
     },
@@ -794,10 +794,10 @@ export default defineAppConfig({
     tabs: { slots: { list: 'rounded-md', indicator: 'rounded-sm', trigger: 'rounded-sm' } },
 
     // Floating layers carry the only shadows.
-    dropdownMenu: { slots: { content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
-    popover: { slots: { content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
-    tooltip: { slots: { content: 'z-[var(--nasq-ui-z-menu)] rounded-md' } },
-    slideover: { slots: { content: 'z-[var(--nasq-ui-z-sheet)]' } },
+    dropdownMenu: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
+    popover: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
+    tooltip: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-md' } },
+    slideover: { slots: { content: 'z-[var(--webvue-ui-z-sheet)]' } },
     modal: { slots: { content: 'z-[80] rounded-lg shadow-xl', overlay: 'z-[79] backdrop-blur-xs' } },
   },
 })
@@ -807,11 +807,11 @@ export default defineAppConfig({
 
 In `tools/ui_policy.py`:
 ```python
-REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--nasq-midnight', '--nasq-lime', '.dark')
-RETIRED_TOKENS = ('--nasq-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
+REQUIRED_TOKENS = ('--color-brand-500', 'IBM Plex Sans Arabic', '--webvue-midnight', '--webvue-lime', '.dark')
+RETIRED_TOKENS = ('--webvue-radius', '--elevation-1', '--content-shadow', '--radius:', ':root.cream')
 ```
-Radius rule: replace `r'--ui-radius:\s*0\.5rem'` with `r'--ui-radius:\s*0\.285714rem'` and the message with `'--ui-radius is the one official radius token (4px base: md 6px, lg 8px)'`. Update the comment above `ALLOWED_RECIPE_KEYS` to "brand primary, slate neutral, Nasq midnight/lime, the official --ui-radius token, the Arabic font and the light/dark modes".
-In `tools/test_ui_policy.py` `whole()`: tokens fixture becomes `":root { --color-brand-500: #06c; --ui-radius: 0.285714rem; --nasq-midnight: #13234a; --nasq-lime: #c8f031;\n" … "\n.dark { color: #fff; }"` (drop `:root.cream`). Add a test:
+Radius rule: replace `r'--ui-radius:\s*0\.5rem'` with `r'--ui-radius:\s*0\.285714rem'` and the message with `'--ui-radius is the one official radius token (4px base: md 6px, lg 8px)'`. Update the comment above `ALLOWED_RECIPE_KEYS` to "brand primary, slate neutral, WebVue midnight/lime, the official --ui-radius token, the Arabic font and the light/dark modes".
+In `tools/test_ui_policy.py` `whole()`: tokens fixture becomes `":root { --color-brand-500: #06c; --ui-radius: 0.285714rem; --webvue-midnight: #13234a; --webvue-lime: #c8f031;\n" … "\n.dark { color: #fff; }"` (drop `:root.cream`). Add a test:
 
 ```python
     def test_cream_mode_is_retired(self):
@@ -819,10 +819,10 @@ In `tools/test_ui_policy.py` `whole()`: tokens fixture becomes `":root { --color
         self.assertIn(APP + "assets/css/tokens.css: retired token :root.cream", policy.theme_errors(snapshot))
 ```
 
-- [ ] **Step 7: Add the Nasq group to the colour story**
+- [ ] **Step 7: Add the WebVue group to the colour story**
 
 In `stories/foundations/Colors.stories.ts` add
-`export const Nasq: StoryObj = { ...table(colorNames('nasq')), name: 'هوية نسق' }` — check `groupTokens` prefixes: `--nasq-midnight` and `--nasq-lime` share the `nasq` prefix with `--nasq-surface`; if that makes `Surfaces` duplicate them, remove `'nasq'` from the `Surfaces` prefix list.
+`export const WebVue: StoryObj = { ...table(colorNames('webvue')), name: 'هوية ويب فيو' }` — check `groupTokens` prefixes: `--webvue-midnight` and `--webvue-lime` share the `webvue` prefix with `--webvue-surface`; if that makes `Surfaces` duplicate them, remove `'webvue'` from the `Surfaces` prefix list.
 
 - [ ] **Step 8: Run all checks**
 
@@ -832,7 +832,7 @@ npm -w apps/web run lint && npm test 2>&1 | tail -5
 python3 -B tools/ui_policy.py && python3 -B -m unittest tools.test_ui_policy -q
 cd apps/web && npm run build-storybook && npx playwright test e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts --reporter=line
 ```
-Expected: all pass. If the `min-h-(--nasq-control-h)` utility is not generated (button height unchanged), confirm Tailwind 4.3 parses `min-h-(--var)`; the fallback is `min-h-[var(--nasq-control-h)]`, and `ui_policy`'s arbitrary-value rule must still pass — report which form was used.
+Expected: all pass. If the `min-h-(--webvue-control-h)` utility is not generated (button height unchanged), confirm Tailwind 4.3 parses `min-h-(--var)`; the fallback is `min-h-[var(--webvue-control-h)]`, and `ui_policy`'s arbitrary-value rule must still pass — report which form was used.
 
 - [ ] **Step 9: Commit**
 
@@ -854,7 +854,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Modify: `tools/ui_policy.py` (`STORYBOOK_COMPONENTS` += `'shared/BrandWordmark.vue'`), `apps/web/i18n/locales/{ar,en}/common.json` (`brand.name`), `docs/design-system/components.md`
 
 **Interfaces:**
-- Produces: `<SharedBrandWordmark size="sm|md|lg" :inverted="boolean" />` — renders `t('brand.name')` (ar «نَسَق», en «Nasq») followed by a decorative lime dot (`aria-hidden="true"`). Plan 2 places it in the rail and on the login page.
+- Produces: `<SharedBrandWordmark size="sm|md|lg" :inverted="boolean" />` — renders `t('brand.name')` (ar «ويب فيو», en «WebVue») followed by a decorative lime dot (`aria-hidden="true"`). Plan 2 places it in the rail and on the login page.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -864,15 +864,15 @@ import { describe, expect, it } from 'vitest'
 import { createI18n } from 'vue-i18n'
 import BrandWordmark from '../BrandWordmark.vue'
 
-const i18n = createI18n({ legacy: false, locale: 'ar', messages: { ar: { brand: { name: 'نَسَق' } } } })
+const i18n = createI18n({ legacy: false, locale: 'ar', messages: { ar: { brand: { name: 'ويب فيو' } } } })
 
 describe('BrandWordmark', () => {
   it('renders the product name and a decorative lime dot', () => {
     const wrapper = mount(BrandWordmark, { global: { plugins: [i18n] } })
-    expect(wrapper.text()).toBe('نَسَق')
+    expect(wrapper.text()).toBe('ويب فيو')
     const dot = wrapper.find('[data-slot="dot"]')
     expect(dot.attributes('aria-hidden')).toBe('true')
-    expect(dot.classes()).toContain('bg-nasq-lime')
+    expect(dot.classes()).toContain('bg-webvue-lime')
   })
   it('uses white text when inverted', () => {
     const wrapper = mount(BrandWordmark, { props: { inverted: true }, global: { plugins: [i18n] } })
@@ -891,7 +891,7 @@ Expected: FAIL — component missing.
 
 ```vue
 <script setup lang="ts">
-// Temporary Nasq wordmark until an SVG logo exists (spec 2026-10-11 §2).
+// Temporary WebVue wordmark until an SVG logo exists (spec 2026-10-11 §2).
 const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg', inverted?: boolean }>(), { size: 'md', inverted: false })
 const { t } = useI18n()
 const text = { sm: 'text-sm', md: 'text-base', lg: 'text-xl' } as const
@@ -900,11 +900,11 @@ const dot = { sm: 'size-1.5', md: 'size-2', lg: 'size-2.5' } as const
 
 <template>
   <span class="inline-flex items-baseline gap-1 font-semibold" :class="[text[props.size], props.inverted ? 'text-white' : 'text-highlighted']">
-    {{ t('brand.name') }}<span data-slot="dot" aria-hidden="true" class="inline-block rounded-full bg-nasq-lime" :class="dot[props.size]" />
+    {{ t('brand.name') }}<span data-slot="dot" aria-hidden="true" class="inline-block rounded-full bg-webvue-lime" :class="dot[props.size]" />
   </span>
 </template>
 ```
-Add `"brand": { "name": "نَسَق" }` to `ar/common.json` and `"brand": { "name": "Nasq" }` to `en/common.json` (merge with an existing `brand` key if present).
+Add `"brand": { "name": "ويب فيو" }` to `ar/common.json` and `"brand": { "name": "WebVue" }` to `en/common.json` (merge with an existing `brand` key if present).
 
 - [ ] **Step 4: Story**
 
@@ -916,7 +916,7 @@ export default { title: 'Shared/BrandWordmark', component: BrandWordmark } satis
 export const Default: StoryObj<typeof BrandWordmark> = { args: { size: 'md' } }
 export const OnRail: StoryObj<typeof BrandWordmark> = {
   args: { size: 'lg', inverted: true },
-  render: args => ({ components: { BrandWordmark }, setup: () => ({ args }), template: '<div class="bg-nasq-rail p-4"><BrandWordmark v-bind="args" /></div>' }),
+  render: args => ({ components: { BrandWordmark }, setup: () => ({ args }), template: '<div class="bg-webvue-rail p-4"><BrandWordmark v-bind="args" /></div>' }),
 }
 ```
 Follow the `storyContext(...)` convention if the sibling stories in `stories/shared/` use it (check `EmptyState.stories.ts`) — `ui_policy` story checks require it.
@@ -928,7 +928,7 @@ cd /Users/tariq/code/nasq/.worktrees/tasmim
 (cd apps/web && npx vitest run app/components/shared/__tests__/BrandWordmark.test.ts)
 npm -w apps/web run lint && npm test 2>&1 | tail -5 && python3 -B tools/ui_policy.py
 git add -A apps/web tools/ui_policy.py docs/design-system/components.md
-git commit -m "feat(web): add temporary Nasq text wordmark
+git commit -m "feat(web): add temporary WebVue text wordmark
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -947,9 +947,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - [ ] **Step 1: Rewrite the foundations in DESIGN.md (Arabic, matching the file's voice)**
 
 Replace:
-- The «المرجع البصري المعتمد» paragraph: the approved reference is now the Tasmim spec (`docs/superpowers/specs/2026-10-11-nasq-tasmim-design.md`); Nuxt UI stays the component library, styled by Nasq's tokens and recipes.
-- §1: theme inputs = tenant primary (feeds `primary`), `slate` neutral, Nasq midnight `#13234a` and lime `#c8f031`, IBM Plex Sans Arabic (covers Latin) with three font sizes, **two** appearances (light/dark); density tokens `--nasq-control-h` (32px) and `--nasq-row-h` (36px); radius 6/8px via `--ui-radius: 0.285714rem`; shadows only on floating layers. State that the shell geometry is being redone in Tasmim Plan 2 and the current numbers remain until then.
-- §2 colour table: add rows «هوية نسق — الأزرق الليلي» (default primary, replaced by tenant colour) and «التمييز — الليموني» (fixed; fill with midnight text, dot or bar; never text on light surfaces; used for active rail bar, unread dot, 100% progress, logo, first empty-state action); change «شريط الموديولات» to «ثابت بالأزرق الليلي `--nasq-rail`، لا يتبع لون العميل».
+- The «المرجع البصري المعتمد» paragraph: the approved reference is now the Tasmim spec (`docs/superpowers/specs/2026-10-11-webvue-tasmim-design.md`); Nuxt UI stays the component library, styled by WebVue's tokens and recipes.
+- §1: theme inputs = tenant primary (feeds `primary`), `slate` neutral, WebVue midnight `#13234a` and lime `#c8f031`, IBM Plex Sans Arabic (covers Latin) with three font sizes, **two** appearances (light/dark); density tokens `--webvue-control-h` (32px) and `--webvue-row-h` (36px); radius 6/8px via `--ui-radius: 0.285714rem`; shadows only on floating layers. State that the shell geometry is being redone in Tasmim Plan 2 and the current numbers remain until then.
+- §2 colour table: add rows «هوية ويب فيو — الأزرق الليلي» (default primary, replaced by tenant colour) and «التمييز — الليموني» (fixed; fill with midnight text, dot or bar; never text on light surfaces; used for active rail bar, unread dot, 100% progress, logo, first empty-state action); change «شريط الموديولات» to «ثابت بالأزرق الليلي `--webvue-rail`، لا يتبع لون العميل».
 - Remove every mention of «كريمي» / cream in DESIGN.md.
 - «وصفات الثيم المعتمدة» table: one row per key in the new `app.config.ts` (Task 7 Step 5) with its recipe and intent.
 
@@ -1018,7 +1018,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 - [ ] **Step 5: Present CP1 to the owner**
 
-Collect into the scratchpad: the `Foundations/Colors` (Nasq, Brand, Surfaces), `Foundations/Density` and `Shared/BrandWordmark` snapshots for ar-light, ar-dark, en-light, en-dark, plus one before/after pair of `shared-pageheader` and `task-taskcard`. Send them with `SendUserFile` and ask the owner to approve or adjust the exact midnight, lime and dark-surface values. Plan 2 does not start until the owner approves CP1.
+Collect into the scratchpad: the `Foundations/Colors` (WebVue, Brand, Surfaces), `Foundations/Density` and `Shared/BrandWordmark` snapshots for ar-light, ar-dark, en-light, en-dark, plus one before/after pair of `shared-pageheader` and `task-taskcard`. Send them with `SendUserFile` and ask the owner to approve or adjust the exact midnight, lime and dark-surface values. Plan 2 does not start until the owner approves CP1.
 
 ---
 
@@ -1031,4 +1031,4 @@ Collect into the scratchpad: the `Foundations/Colors` (Nasq, Brand, Surfaces), `
 | 4 — Templates and states | 4: `ListPage`/`DataTable`, `RecordPage`/`PropertiesPanel`/`PropertyRow`/`RecordSection`, `DashboardPage`/`ChartPanel`, `TimelineFrame`, `ConversationLayout`, `SettingsPage` (from `SettingsLayout`), `StandalonePage` with print sheet, `LoadingSkeleton`/`ErrorState`/`ForbiddenState`/`NotFoundState` with `PageState` facade, `StatusBadge` merge, `FilterCard`→`FilterBar`, `InvoiceLines` merge, tab helper merge | CP4 |
 | 5 — Pilot | 5: `/projects` and `/projects/[id]` on the templates | CP5 (decisive) |
 | 6 — Rollout | 6: one sub-plan per app on `codex/web-tasmim-<app>` sub-branches (PMO, HR, Meetings incl. splitting `meetings/[id].vue`, Chat, Settings/Account, Subscription, Vendor) | per-app shots |
-| 7 — Close-out | 7: remove leftover `nasq-*` classes, scoped and inline styles (RichText and Gantt last), final `DESIGN.md`, merge `main` in, full gates, review, owner-authorized `--no-ff` merge | owner merge approval |
+| 7 — Close-out | 7: remove leftover `webvue-*` classes, scoped and inline styles (RichText and Gantt last), final `DESIGN.md`, merge `main` in, full gates, review, owner-authorized `--no-ff` merge | owner merge approval |

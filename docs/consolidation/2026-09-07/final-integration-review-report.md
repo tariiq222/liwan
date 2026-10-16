@@ -29,4 +29,4 @@ The historical phase decision table contains every file path recorded for all fi
 
 ## Acceptance boundaries
 
-The brief supplies coordinator counts of 120 contract, 510 web, 460 Nasq Odoo and 55 standalone Cyan passes. This reviewer did not rerun them. Final build/lint, meeting follow-up acceptance, documentation promotion and canonical main integration are coordinator responsibilities; no completion of those pending steps is claimed. No production/deployment or physical-device proof is implied.
+The brief supplies coordinator counts of 120 contract, 510 web, 460 WebVue Odoo and 55 standalone Cyan passes. This reviewer did not rerun them. Final build/lint, meeting follow-up acceptance, documentation promotion and canonical main integration are coordinator responsibilities; no completion of those pending steps is claimed. No production/deployment or physical-device proof is implied.

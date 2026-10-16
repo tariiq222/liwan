@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { branchSummarySchema, invoiceSchema, subscriptionViewSchema, usageSnapshotSchema } from '@nasq/commercial-contracts'
+import { branchSummarySchema, invoiceSchema, subscriptionViewSchema, usageSnapshotSchema } from '@webvue/commercial-contracts'
 
 // The stub control plane serves these records to the mock e2e. They must be valid wire shapes, or a
 // page spec would pass against data the real control plane can never send.

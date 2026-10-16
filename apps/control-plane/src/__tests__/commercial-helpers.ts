@@ -6,7 +6,7 @@ import { commercialHttp } from '../commercial/http.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 
 export const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
+if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
 export const ALL = ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'] as any[]
 export async function setup(pool: Pool) {
   await migrate(pool)

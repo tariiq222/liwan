@@ -123,7 +123,7 @@ export const AiDraftPayloadSchema = z.object({
 })
 export type AiDraftPayload = z.infer<typeof AiDraftPayloadSchema>
 
-/** What `/ai` stores for `/projects/new?aiDraft=<id>` (sessionStorage key `nasq:ai-draft:<id>`). */
+/** What `/ai` stores for `/projects/new?aiDraft=<id>` (sessionStorage key `webvue:ai-draft:<id>`). */
 export const AiDraftHandoffSchema = z.object({
   run_id: z.string(), call_id: z.string(), tool: z.string(), payload: AiDraftPayloadSchema,
 }).strict()

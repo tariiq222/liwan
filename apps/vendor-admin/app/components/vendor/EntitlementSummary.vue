@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CapacityMap, CatalogRelease, Selection } from '@nasq/commercial-contracts'
+import type { CapacityMap, CatalogRelease, Selection } from '@webvue/commercial-contracts'
 import { appName, keyLabel, limitLabel } from '@/utils/vendorCommercial'
 const props = defineProps<{ release?: CatalogRelease | null; selections: Selection[]; limits?: CapacityMap; includeCore?: boolean }>()
 const { t, te, locale } = useI18n()

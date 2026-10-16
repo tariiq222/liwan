@@ -2,20 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** عزل الشركة داخل قاعدة العميل الواحدة، وإعلان نطاق كل موديل nasq، وإدخال الهيكل الأدنى لـ`nasq_platform` بـ`root_company_id`، دون باقات أو استحقاقات أو تزويد.
+**Goal:** عزل الشركة داخل قاعدة العميل الواحدة، وإعلان نطاق كل موديل webvue، وإدخال الهيكل الأدنى لـ`webvue_platform` بـ`root_company_id`، دون باقات أو استحقاقات أو تزويد.
 
-**Architecture:** ست مهام متسلسلة في العمل المشترك، مع استقلال نسبي لـL1 بعد وجود المنصة. `nasq_platform` يضيف جدولًا واحدًا ولا يفتح API أعمال. العزل يُفرض في الخادم (record rules + اختبارات تسريب). الواجهة لا تُعاد تصميمها.
+**Architecture:** ست مهام متسلسلة في العمل المشترك، مع استقلال نسبي لـL1 بعد وجود المنصة. `webvue_platform` يضيف جدولًا واحدًا ولا يفتح API أعمال. العزل يُفرض في الخادم (record rules + اختبارات تسريب). الواجهة لا تُعاد تصميمها.
 
-**Tech Stack:** Odoo 19 CE · `nasq_*` addons · `packages/contracts` بلا حقول استحقاق · GitHub Actions القائمة · unittest داخل addons.
+**Tech Stack:** Odoo 19 CE · `webvue_*` addons · `packages/contracts` بلا حقول استحقاق · GitHub Actions القائمة · unittest داخل addons.
 
-**Spec:** `docs/superpowers/specs/2026-09-19-nasq-distribution-models-design.md` (§3، §4، §5.1، §6، §10 Phase 1، §12 Phase 1). L1–L4 من `docs/superpowers/specs/2026-09-15-nasq-vertical-saas-transformation.md` §14.3 كما صحّحتها مواصفة 09-19 (branding = `root_company_id` لا host).
+**Spec:** `docs/superpowers/specs/2026-09-19-webvue-distribution-models-design.md` (§3، §4، §5.1، §6، §10 Phase 1، §12 Phase 1). L1–L4 من `docs/superpowers/specs/2026-09-15-webvue-vertical-saas-transformation.md` §14.3 كما صحّحتها مواصفة 09-19 (branding = `root_company_id` لا host).
 
 **Baseline (2026-09-20):** `main` = `1b0394c93edab5d70bbee7074ac314e2fcda0a8a`. Phase 0 مدمج. لا تبدأ هذه الخطة من برومبت Phase 0.
 
 ## Global Constraints
 
 - **لا Phase 2:** لا `features` ولا `tier` ولا `status/valid_until` ولا `@requires_feature` ولا تغيير `/api/v1/me` ولا `apps/web/app/modules/registry.ts`.
-- **لا Phase 3/4:** لا كتالوج، لا `nasq-cli`، لا `nasq_quality`، لا industry pack.
+- **لا Phase 3/4:** لا كتالوج، لا `webvue-cli`، لا `webvue_quality`، لا industry pack.
 - لا منتج مشترك القاعدة. Tenant = Database. Company = Branch.
 - كل ملف Python يبدأ بـ `# Part of Odoo. See LICENSE file for full copyright and licensing details.`
 - `'license': 'LGPL-3'`، `version` وفق `docs/migrations.md`، author `Tariq Alwalidi`.
@@ -27,49 +27,49 @@
 - في `main` تعديلات غير مودَعة على `docs/WORKSPACE.md` و`docs/verification/2026-09-20-workspace-cleanup.md` **لا تُلمس**. ليست جزءًا من هذه المرحلة.
 - لا push ولا دمج في `main` دون إذن. لا تغليف Customer-Hosted.
 - تراجع الترقية = استرجاع DB + filestore، لا downgrade migration.
-- سلسلة الاعتماد الوحيدة: `nasq_core → nasq_platform → nasq_api → الركائز`.
+- سلسلة الاعتماد الوحيدة: `webvue_core → webvue_platform → webvue_api → الركائز`.
 - جملة CLAUDE.md الحالية `there is no shared tenant layer` تُستبدل في Task 6 بالنص المعتمد لا بأي صياغة multi-tenant على قاعدة واحدة.
 
 ## حقائق مُتحقَّق منها (2026-09-20)
 
 | الحقيقة | الأثر |
 |---|---|
-| `GET /api/v1/branding` ما زال `sudo().search([], order='id', limit=1)` في `nasq_api/controllers/branding.py:13` | L2 لم يُصلح. الإصلاح الوحيد المسموح: `root_company_id` |
-| `nasq_chat/__manifest__.py` يصرّح أن القنوات بلا نطاق شركة. `discuss.channel` في Odoo 19 بلا `company_id` مخزَّن | L1 يحتاج inherit + حقل + rule + ترحيل |
-| `nasq_pmo/security/nasq_pmo_rules.xml` يسمح `company_id in [current, False]` للمشاريع والمهام | L4. CLAUDE.md ينتظر تفويضًا صريحًا؛ هذه الخطة هي التفويض |
-| `NasqPmoCase` ينشئ المشروع المشترك بـ`company_id: False` (`nasq_pmo/tests/common.py:19`) | تشديد القاعدة **سيفشل مئات اختبارات PMO** إن لم يُغيَّر الـfixture أولًا |
+| `GET /api/v1/branding` ما زال `sudo().search([], order='id', limit=1)` في `webvue_api/controllers/branding.py:13` | L2 لم يُصلح. الإصلاح الوحيد المسموح: `root_company_id` |
+| `webvue_chat/__manifest__.py` يصرّح أن القنوات بلا نطاق شركة. `discuss.channel` في Odoo 19 بلا `company_id` مخزَّن | L1 يحتاج inherit + حقل + rule + ترحيل |
+| `webvue_pmo/security/webvue_pmo_rules.xml` يسمح `company_id in [current, False]` للمشاريع والمهام | L4. CLAUDE.md ينتظر تفويضًا صريحًا؛ هذه الخطة هي التفويض |
+| `WebVuePmoCase` ينشئ المشروع المشترك بـ`company_id: False` (`webvue_pmo/tests/common.py:19`) | تشديد القاعدة **سيفشل مئات اختبارات PMO** إن لم يُغيَّر الـfixture أولًا |
 | اختبارات أخرى تفترض مشاريع بلا شركة: `test_deadline_digest.py`، `test_project_schedule.py`، `test_project_reports.py`، `test_project_charter.py`، `test_project_finance.py`، `test_project_governance.py` (`self.companyless_project = self.project`) | تُحوَّل من «سلوك متوافق» إلى «مرفوض أو غير مرئي» بعد تغيير الـfixture |
-| `_nasq_check_visible_current` يسمح بالمشروع بلا شركة (`project.company_id and ...`) | يُضيَّق مع L4 |
-| `_nasq_sync_capability_groups` يتّحد عبر شركات المستخدم (`res_users.py:165-193`) | L3: لا تُكسر المزامنة؛ يُوثَّق + اختبار تغطية rules |
-| `nasq.access.permission` بلا `company_id`؛ `nasq.access.role` له `company_id` (مدمج False، مخصص مطلوب) وrule `False أو الحالية` | permission = `tenant`؛ **الدور كله** `company` — النطاق لكل نموذج لا لكل صف |
-| لا يوجد `nasq_platform` ولا `_nasq_scope` | يُضاف في هذه المرحلة |
-| CI و`provision.sh` و`NASQ_ADDONS` و`upgrade_smoke` يثبّتون `nasq_core,nasq_api,nasq_pmo,nasq_hr,nasq_chat` | بعد Task 2 يجب إدراج `nasq_platform` **قبل** `nasq_api` |
-| حارس الترحيل يقارن `nasq_*/__manifest__.py` مع `origin/main` | وحدة جديدة بلا تاريخ لا تحتاج مجلد migrations؛ رفع إصدار وحدة قائمة مع مخطط أو تضييق rule **يحتاج** `migrations/<version>/` |
-| المالية والقوالب لها `company_id` مخزَّن. `nasq.project.stakeholder` / `raci` / `register` تعزل عبر `project_id` بلا عمود شركة | في Task 4: related مخزَّن مثل المالية، لا في Task 1 |
+| `_webvue_check_visible_current` يسمح بالمشروع بلا شركة (`project.company_id and ...`) | يُضيَّق مع L4 |
+| `_webvue_sync_capability_groups` يتّحد عبر شركات المستخدم (`res_users.py:165-193`) | L3: لا تُكسر المزامنة؛ يُوثَّق + اختبار تغطية rules |
+| `webvue.access.permission` بلا `company_id`؛ `webvue.access.role` له `company_id` (مدمج False، مخصص مطلوب) وrule `False أو الحالية` | permission = `tenant`؛ **الدور كله** `company` — النطاق لكل نموذج لا لكل صف |
+| لا يوجد `webvue_platform` ولا `_webvue_scope` | يُضاف في هذه المرحلة |
+| CI و`provision.sh` و`WEBVUE_ADDONS` و`upgrade_smoke` يثبّتون `webvue_core,webvue_api,webvue_pmo,webvue_hr,webvue_chat` | بعد Task 2 يجب إدراج `webvue_platform` **قبل** `webvue_api` |
+| حارس الترحيل يقارن `webvue_*/__manifest__.py` مع `origin/main` | وحدة جديدة بلا تاريخ لا تحتاج مجلد migrations؛ رفع إصدار وحدة قائمة مع مخطط أو تضييق rule **يحتاج** `migrations/<version>/` |
+| المالية والقوالب لها `company_id` مخزَّن. `webvue.project.stakeholder` / `raci` / `register` تعزل عبر `project_id` بلا عمود شركة | في Task 4: related مخزَّن مثل المالية، لا في Task 1 |
 
 ## File Structure
 
 | الملف | المسؤولية |
 |---|---|
-| `odoo-addons/nasq_core/models/nasq_model.py` | إعلان `_nasq_scope` على موديلات nasq الجديدة |
-| `odoo-addons/nasq_core/tests/test_nasq_scope.py` | يفشل إن غاب الإعلان أو إن `company` بلا `company_id` |
-| `odoo-addons/nasq_platform/` | `nasq.tenant.profile` singleton + `root_company_id` |
-| `odoo-addons/nasq_platform/hooks.py` (`post_init_hook`) | أول تثبيت على قاعدة قائمة **ليس** `to upgrade` للوحدة الجديدة؛ لا تعتمد `migrations/0.0.0` |
-| `odoo-addons/nasq_api/__manifest__.py` | `depends: ['nasq_platform', 'auth_totp']` |
-| `odoo-addons/nasq_api/controllers/branding.py` | يقرأ `root_company_id` فقط |
-| `odoo-addons/nasq_chat/models/discuss_channel.py` | `company_id` مخزَّن |
-| `odoo-addons/nasq_chat/security/chat_rules.xml` | rule الشركة الحالية |
-| `odoo-addons/nasq_pmo/security/nasq_pmo_rules.xml` | `company_id = company_id` بعد backfill |
-| `odoo-addons/nasq_pmo/migrations/<version>/pre-backfill_company.py` | صفوف `company_id IS NULL` ← `root_company_id` |
-| `odoo-addons/nasq_pmo/tests/common.py` | المشروع الافتراضي على `env.company` |
+| `odoo-addons/webvue_core/models/webvue_model.py` | إعلان `_webvue_scope` على موديلات webvue الجديدة |
+| `odoo-addons/webvue_core/tests/test_webvue_scope.py` | يفشل إن غاب الإعلان أو إن `company` بلا `company_id` |
+| `odoo-addons/webvue_platform/` | `webvue.tenant.profile` singleton + `root_company_id` |
+| `odoo-addons/webvue_platform/hooks.py` (`post_init_hook`) | أول تثبيت على قاعدة قائمة **ليس** `to upgrade` للوحدة الجديدة؛ لا تعتمد `migrations/0.0.0` |
+| `odoo-addons/webvue_api/__manifest__.py` | `depends: ['webvue_platform', 'auth_totp']` |
+| `odoo-addons/webvue_api/controllers/branding.py` | يقرأ `root_company_id` فقط |
+| `odoo-addons/webvue_chat/models/discuss_channel.py` | `company_id` مخزَّن |
+| `odoo-addons/webvue_chat/security/chat_rules.xml` | rule الشركة الحالية |
+| `odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml` | `company_id = company_id` بعد backfill |
+| `odoo-addons/webvue_pmo/migrations/<version>/pre-backfill_company.py` | صفوف `company_id IS NULL` ← `root_company_id` |
+| `odoo-addons/webvue_pmo/tests/common.py` | المشروع الافتراضي على `env.company` |
 | `.github/workflows/ci.yml` · `deploy/provision.sh` · `deploy/check_isolated.py` · `CLAUDE.md` | تثبيت المنصة وصياغة العزل |
 
 ترتيب التنفيذ: **Task 1 → 2 → 3 → 4 → 5 → 6**. لا تبدأ Task 4 قبل Task 2 (الـbackfill يحتاج `root_company_id`). Task 3 و5 بعد Task 2 لأن CI يجب أن يثبّت المنصة.
 
 | البند | المهام |
 |---|---|
-| `_nasq_scope` | Task 1 |
-| `nasq_platform` + L2 | Task 2 |
+| `_webvue_scope` | Task 1 |
+| `webvue_platform` + L2 | Task 2 |
 | L1 chat | Task 3 |
 | L4 projects/tasks | Task 4 |
 | L3 rule coverage | Task 5 |
@@ -77,15 +77,15 @@
 
 ---
 
-### Task 1: إعلان `_nasq_scope`
+### Task 1: إعلان `_webvue_scope`
 
 **Files:**
-- Create: `odoo-addons/nasq_core/models/nasq_model.py`, `odoo-addons/nasq_core/tests/test_nasq_scope.py`
-- Modify: `odoo-addons/nasq_core/models/__init__.py`، `odoo-addons/nasq_core/tests/__init__.py` (استيراد الاختبار إلزامي)، وكل `_name = 'nasq.*'` ذي جدول ليعلن النطاق. لا رفع إصدار: لا مخطط في هذه المهمة.
+- Create: `odoo-addons/webvue_core/models/webvue_model.py`, `odoo-addons/webvue_core/tests/test_webvue_scope.py`
+- Modify: `odoo-addons/webvue_core/models/__init__.py`، `odoo-addons/webvue_core/tests/__init__.py` (استيراد الاختبار إلزامي)، وكل `_name = 'webvue.*'` ذي جدول ليعلن النطاق. لا رفع إصدار: لا مخطط في هذه المهمة.
 
 **Interfaces:**
-- `_nasq_scope` ∈ `{'company', 'tenant', 'global'}`
-- الاختبار يمر فقط على `_name.startswith('nasq.')` و`_auto is True` (جدول حقيقي) **زائد** الخدمات المعلنة صراحة أدناه. لا mixins.
+- `_webvue_scope` ∈ `{'company', 'tenant', 'global'}`
+- الاختبار يمر فقط على `_name.startswith('webvue.')` و`_auto is True` (جدول حقيقي) **زائد** الخدمات المعلنة صراحة أدناه. لا mixins.
 - `company` ⇒ `'company_id' in model._fields` في هذه المهمة. النماذج الثلاثة بلا عمود (`stakeholder` / `raci` / `register`) **لا تُعلن `company` هنا**؛ تُعالَج في Task 4 بعد related مخزَّن.
 - موروثات Odoo خارج الإعلان.
 
@@ -93,22 +93,22 @@
 
 | النموذج | النطاق |
 |---|---|
-| `nasq.access.permission` | `tenant` |
-| `nasq.access.role` | `company` (الحقل موجود؛ الـrule القائمة `False أو الحالية` تُبقي المدمج مرئيًا) |
-| `nasq.access.assignment` | `company` |
-| `nasq.access.audit` | `company` |
-| `nasq.hr.document` | `company` |
-| `nasq.meeting.series` | `company` |
-| `nasq.meeting.minutes.version` | `company` |
-| `nasq.meeting.event` | `company` |
-| `nasq.project.finance.entry` | `company` |
-| `nasq.project.type` | `company` |
-| `nasq.project.owning.unit` | `company` |
-| `nasq.project.template` | `company` |
-| `nasq.pmo.settings` | `global` (AbstractModel) |
-| `nasq.access.service` · `nasq.chat.service` | `global` |
-| `nasq.governance.visibility` · `nasq.project.charter.catalog.mixin` | لا إعلان (mixin) |
-| `nasq.project.stakeholder` · `raci` · `register` | مؤجَّل إلى Task 4 |
+| `webvue.access.permission` | `tenant` |
+| `webvue.access.role` | `company` (الحقل موجود؛ الـrule القائمة `False أو الحالية` تُبقي المدمج مرئيًا) |
+| `webvue.access.assignment` | `company` |
+| `webvue.access.audit` | `company` |
+| `webvue.hr.document` | `company` |
+| `webvue.meeting.series` | `company` |
+| `webvue.meeting.minutes.version` | `company` |
+| `webvue.meeting.event` | `company` |
+| `webvue.project.finance.entry` | `company` |
+| `webvue.project.type` | `company` |
+| `webvue.project.owning.unit` | `company` |
+| `webvue.project.template` | `company` |
+| `webvue.pmo.settings` | `global` (AbstractModel) |
+| `webvue.access.service` · `webvue.chat.service` | `global` |
+| `webvue.governance.visibility` · `webvue.project.charter.catalog.mixin` | لا إعلان (mixin) |
+| `webvue.project.stakeholder` · `raci` · `register` | مؤجَّل إلى Task 4 |
 
 - [ ] **Step 1:** اختبار فاشل على الجداول الحقيقية + الخدمات الثلاث.
 
@@ -118,43 +118,43 @@
 
 - [ ] **Step 4:** الاختبار أخضر. لا يُفرض على `cyan.*`.
 
-**Acceptance:** نموذج nasq جدولي بلا إعلان يفشل (أضفه مؤقتًا ثم احذفه). `company` بلا `company_id` في `_fields` يفشل. `stakeholder` لا يُكسر في هذه المهمة.
+**Acceptance:** نموذج webvue جدولي بلا إعلان يفشل (أضفه مؤقتًا ثم احذفه). `company` بلا `company_id` في `_fields` يفشل. `stakeholder` لا يُكسر في هذه المهمة.
 
 **Rollback:** احذف الملفات والإعلانات.
 
 ---
 
-### Task 2: `nasq_platform` + ترحيل الجذر + L2 branding
+### Task 2: `webvue_platform` + ترحيل الجذر + L2 branding
 
 **Files:**
-- Create: شجرة `odoo-addons/nasq_platform/` كاملة
-- Modify: `odoo-addons/nasq_api/__manifest__.py` (`depends` فقط؛ إن لم يتغير المخطط لا ترفع الإصدار)
-- Modify: `odoo-addons/nasq_api/controllers/branding.py`
-- Modify: `odoo-addons/nasq_api/tests/test_branding.py` و`odoo-addons/nasq_api/tests/__init__.py` إن أُضيف ملف اختبار
-- Modify: قائمة التثبيت **في هذه المهمة** وإلا `-i nasq_api` ينكسر:
+- Create: شجرة `odoo-addons/webvue_platform/` كاملة
+- Modify: `odoo-addons/webvue_api/__manifest__.py` (`depends` فقط؛ إن لم يتغير المخطط لا ترفع الإصدار)
+- Modify: `odoo-addons/webvue_api/controllers/branding.py`
+- Modify: `odoo-addons/webvue_api/tests/test_branding.py` و`odoo-addons/webvue_api/tests/__init__.py` إن أُضيف ملف اختبار
+- Modify: قائمة التثبيت **في هذه المهمة** وإلا `-i webvue_api` ينكسر:
 
 ```
-nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat
+webvue_core,webvue_platform,webvue_api,webvue_pmo,webvue_hr,webvue_chat
 ```
 
-مواقع إلزامية (ليست اختيارية): `.github/workflows/ci.yml` (`-i` و`MODULES` و`--test-tags` لتشمل `/nasq_platform`)، `deploy/provision.sh`، `deploy/check_isolated.py` (`NASQ_ADDONS`)، `deploy/OPERATIONS.md` المثالان عند السطرين 83 و200، `deploy/verification-checks.json`، أمر scratch في `CLAUDE.md`. لا تُحدّث فقرة tenant في CLAUDE.md هنا (Task 6).
-- Modify: `deploy/odoo/upgrade_smoke.py` — لا تكتفِ بـ`nasq_%`؛ ارفض إن غاب `nasq_platform` بالاسم.
+مواقع إلزامية (ليست اختيارية): `.github/workflows/ci.yml` (`-i` و`MODULES` و`--test-tags` لتشمل `/webvue_platform`)، `deploy/provision.sh`، `deploy/check_isolated.py` (`WEBVUE_ADDONS`)، `deploy/OPERATIONS.md` المثالان عند السطرين 83 و200، `deploy/verification-checks.json`، أمر scratch في `CLAUDE.md`. لا تُحدّث فقرة tenant في CLAUDE.md هنا (Task 6).
+- Modify: `deploy/odoo/upgrade_smoke.py` — لا تكتفِ بـ`webvue_%`؛ ارفض إن غاب `webvue_platform` بالاسم.
 - Modify: `deploy/test_operations.py` إن نسخت أمثلة الوحدات الأربع.
 
 **Interfaces:**
 
 ```python
-class NasqTenantProfile(models.Model):
-    _name = 'nasq.tenant.profile'
-    _description = 'Nasq tenant profile'
-    _nasq_scope = 'tenant'
+class WebVueTenantProfile(models.Model):
+    _name = 'webvue.tenant.profile'
+    _description = 'WebVue tenant profile'
+    _webvue_scope = 'tenant'
 
     root_company_id = fields.Many2one('res.company', required=True, ondelete='restrict')
 ```
 
-- صف واحد: عمود `singleton_key = fields.Char(default='tenant', required=True)` مع `models.Constraint('UNIQUE(singleton_key)', ...)` ومنع `create` ثاني في `create()`. xmlid ثابت `nasq_platform.tenant_profile`.
+- صف واحد: عمود `singleton_key = fields.Char(default='tenant', required=True)` مع `models.Constraint('UNIQUE(singleton_key)', ...)` ومنع `create` ثاني في `create()`. xmlid ثابت `webvue_platform.tenant_profile`.
 - لا حقول `solution` / `tier` / `features`.
-- ACL: لا كتابة من المستخدم. branding العام: `sudo().env.ref('nasq_platform.tenant_profile')` ثم `root_company_id`. إن غاب السجل أو تعدد ⇒ خطأ. لا `search([], order='id')` على `res.company`.
+- ACL: لا كتابة من المستخدم. branding العام: `sudo().env.ref('webvue_platform.tenant_profile')` ثم `root_company_id`. إن غاب السجل أو تعدد ⇒ خطأ. لا `search([], order='id')` على `res.company`.
 - `GET /api/v1/branding` يقرأ تلك الشركة فقط.
 
 **أول تثبيت على قاعدة قائمة:** Odoo يضع الوحدة الجديدة في `to install` لا `to upgrade`، لذلك **`migrations/` لن يعمل**. ضع المنطق في `post_init_hook` (و`post_load` ممنوع):
@@ -174,16 +174,16 @@ XML `data` يجوز أن يزرع `base.main_company` على قاعدة فارغ
 
 - [ ] **Step 1:** اختبار L2 أحمر على الكود الحالي: أبقِ `base.main_company` (id=1) فخًا. أنشئ شركة ثانية (id أكبر). بعد الإصلاح سيكون `root_company_id` = الشركة الثانية. اليوم `order='id' limit=1` يعيد الشركة الأولى — هذا هو الفشل المطلوب. **لا تحاول إنشاء id أصغر عبر `create`.**
 
-- [ ] **Step 2:** اختبار hook: شركة جذر واحدة ينشئ profile. شركتان `parent_id IS NULL` يرفع. لا تختبر باستدعاء `migrate()` يتيم. أضف حالة scratch حقيقية `-i nasq_platform` (أو `-u nasq_api` بعد depends) بجذرين وتتوقع الفشل.
+- [ ] **Step 2:** اختبار hook: شركة جذر واحدة ينشئ profile. شركتان `parent_id IS NULL` يرفع. لا تختبر باستدعاء `migrate()` يتيم. أضف حالة scratch حقيقية `-i webvue_platform` (أو `-u webvue_api` بعد depends) بجذرين وتتوقع الفشل.
 
 - [ ] **Step 3:** نفّذ الوحدة + الربط + branding + قوائم التثبيت.
 
-- [ ] **Step 4:** `test_nasq_addons_cover_every_shipped_pillar` يجب أن يتوقع `nasq_platform`.
+- [ ] **Step 4:** `test_webvue_addons_cover_every_shipped_pillar` يجب أن يتوقع `webvue_platform`.
 
 **Acceptance:**
 - تثبيت جديد بجذر واحد: branding = هوية `root_company_id` حتى لو وُجدت شركة أخرى بـid أصغر.
 - تثبيت/ترقية بجذرين تفشل برسالة صريحة (hook لا XML).
-- `upgrade_smoke` يفشل إن غاب `nasq_platform`.
+- `upgrade_smoke` يفشل إن غاب `webvue_platform`.
 - `python3 -B tools/migration_guard.py --base origin/main` يخرج 0.
 
 **Rollback:** `git revert`. لا downgrade.
@@ -193,9 +193,9 @@ XML `data` يجوز أن يزرع `base.main_company` على قاعدة فارغ
 ### Task 3: L1 — عزل `discuss.channel`
 
 **Files:**
-- Create: `odoo-addons/nasq_chat/models/discuss_channel.py`, `odoo-addons/nasq_chat/security/chat_rules.xml`
-- Modify: `odoo-addons/nasq_chat/__manifest__.py` → `19.0.1.1.0` + `data` للـrule + `migrations/19.0.1.1.0/post-channel_company.py`
-- Modify: `odoo-addons/nasq_chat/models/__init__.py`، `chat_service.py`، `tests/__init__.py` إن لزم، `tests/test_chat_security.py`
+- Create: `odoo-addons/webvue_chat/models/discuss_channel.py`, `odoo-addons/webvue_chat/security/chat_rules.xml`
+- Modify: `odoo-addons/webvue_chat/__manifest__.py` → `19.0.1.1.0` + `data` للـrule + `migrations/19.0.1.1.0/post-channel_company.py`
+- Modify: `odoo-addons/webvue_chat/models/__init__.py`، `chat_service.py`، `tests/__init__.py` إن لزم، `tests/test_chat_security.py`
 - **لا** تضف `ir.model.access.csv` لـ`discuss.channel` ما لم تثبت أن ACL في `mail` ناقص.
 
 **Interfaces:**
@@ -224,26 +224,26 @@ XML `data` يجوز أن يزرع `base.main_company` على قاعدة فارغ
 **هذه المهمة تغيّر عقدًا معلّقًا في CLAUDE.md.** بعد دمجها: المشاريع بلا شركة غير مرئية، والإنشاء الجديد يفرض الشركة الحالية (موجود جزئيًا).
 
 **Files:**
-- Modify: `odoo-addons/nasq_pmo/security/nasq_pmo_rules.xml` → `[('company_id', '=', company_id)]` للمشروع والمهمة
-- Modify: `odoo-addons/nasq_pmo/models/project_project.py` `_nasq_check_visible_current` يرفض `not project.company_id`
-- Modify: `odoo-addons/nasq_pmo/__manifest__.py` → `19.0.1.1.0`
-- Create: `odoo-addons/nasq_pmo/migrations/19.0.1.1.0/pre-backfill_project_company.py` (عمود `project_project.company_id` موجود مسبقًا — `pre-` صحيح هنا)
-- Modify: `odoo-addons/nasq_pmo/models/project_governance.py` — `company_id` related مخزَّن على `stakeholder` / `raci` / `register` مثل المالية، ثم `_nasq_scope = 'company'`
-- Modify: `odoo-addons/nasq_pmo/tests/common.py` — **أولًا** `company_id: self.env.company.id`
+- Modify: `odoo-addons/webvue_pmo/security/webvue_pmo_rules.xml` → `[('company_id', '=', company_id)]` للمشروع والمهمة
+- Modify: `odoo-addons/webvue_pmo/models/project_project.py` `_webvue_check_visible_current` يرفض `not project.company_id`
+- Modify: `odoo-addons/webvue_pmo/__manifest__.py` → `19.0.1.1.0`
+- Create: `odoo-addons/webvue_pmo/migrations/19.0.1.1.0/pre-backfill_project_company.py` (عمود `project_project.company_id` موجود مسبقًا — `pre-` صحيح هنا)
+- Modify: `odoo-addons/webvue_pmo/models/project_governance.py` — `company_id` related مخزَّن على `stakeholder` / `raci` / `register` مثل المالية، ثم `_webvue_scope = 'company'`
+- Modify: `odoo-addons/webvue_pmo/tests/common.py` — **أولًا** `company_id: self.env.company.id`
 - Modify كل اختبار يفترض المشروع المشترك بلا شركة، بما فيها `test_project_governance.py`
 - حدّث تعليقات المالية/التقارير التي تقول إن الـfixture بلا شركة
 
 **ترحيل:**
 
 ```sql
--- بعد التأكد من وجود nasq_tenant_profile.root_company_id صف واحد
+-- بعد التأكد من وجود webvue_tenant_profile.root_company_id صف واحد
 UPDATE project_project SET company_id = :root WHERE company_id IS NULL;
 UPDATE project_task SET company_id = :root WHERE company_id IS NULL;
 ```
 
 إن تعذر الجذر ⇒ `raise`. لا توزيع صفوف على شركات متعددة.
 
-- [ ] **Step 1:** غيّر `NasqPmoCase` إلى شركة حالية. شغّل عيّنة PMO scratch. إن فشل شيء غير متعلق بالشركة، أصلحه كرجوع لا كتوسيع نطاق.
+- [ ] **Step 1:** غيّر `WebVuePmoCase` إلى شركة حالية. شغّل عيّنة PMO scratch. إن فشل شيء غير متعلق بالشركة، أصلحه كرجوع لا كتوسيع نطاق.
 
 - [ ] **Step 2:** اختبار تسريب: مشروع `company_id=False` (عبر SQL في الاختبار قبل التضييق، أو صف يُنشأ ثم يُصفَّر إن سمح ORM) لا يظهر لـ`api_emp`. بعد التضييق: `search` لا يعيده.
 
@@ -260,19 +260,19 @@ UPDATE project_task SET company_id = :root WHERE company_id IS NULL;
 ### Task 5: L3 — تغطية القواعد لا كسر اتحاد المجموعات
 
 **Files:**
-- Create: `odoo-addons/nasq_core/tests/test_record_rule_coverage.py`
-- Modify: `odoo-addons/nasq_core/tests/__init__.py`
-- Modify: `odoo-addons/nasq_core/models/res_users.py` — تعليق فوق `_nasq_sync_capability_groups` يشير إلى هذا الاختبار. لا تغيّر المنطق.
-- `docs/superpowers/specs/2026-09-19-nasq-distribution-models-design.md` لا تُعدَّل. أضف فقرة قصيرة في `CLAUDE.md` تحت العقود: اتحاد `res.groups` عبر شركات المستخدم **مقصود في Odoo**؛ الحماية هي record rule + `_nasq_scope=company`.
+- Create: `odoo-addons/webvue_core/tests/test_record_rule_coverage.py`
+- Modify: `odoo-addons/webvue_core/tests/__init__.py`
+- Modify: `odoo-addons/webvue_core/models/res_users.py` — تعليق فوق `_webvue_sync_capability_groups` يشير إلى هذا الاختبار. لا تغيّر المنطق.
+- `docs/superpowers/specs/2026-09-19-webvue-distribution-models-design.md` لا تُعدَّل. أضف فقرة قصيرة في `CLAUDE.md` تحت العقود: اتحاد `res.groups` عبر شركات المستخدم **مقصود في Odoo**؛ الحماية هي record rule + `_webvue_scope=company`.
 
 **Interfaces:**
-- لكل نموذج nasq جدولي `_nasq_scope == 'company'`: يوجد `ir.rule` على `model_id` ذلك النموذج يتضمّن `company_id`.
+- لكل نموذج webvue جدولي `_webvue_scope == 'company'`: يوجد `ir.rule` على `model_id` ذلك النموذج يتضمّن `company_id`.
 - لا يُطلب rule لـ`tenant`/`global`.
 - لا يُعاد كتابة مزامنة المجموعات.
 
 - [ ] **Step 1:** اختبار يفشل إن أُضيف نموذج company بلا rule (استخدم قائمة بيضاء مؤقتة فارغة ثم املأها من الواقع بعد الجرد).
 
-- [ ] **Step 2:** الجرد من `security/*.xml` الحالية. أي فجوة حقيقية في نماذج nasq الجدولية تُغلق بـrule، لا باستثناء صامت، إلا mixin بلا جدول.
+- [ ] **Step 2:** الجرد من `security/*.xml` الحالية. أي فجوة حقيقية في نماذج webvue الجدولية تُغلق بـrule، لا باستثناء صامت، إلا mixin بلا جدول.
 
 **Acceptance:** فشل متعمّد (نموذج وهمي في الاختبار) يُكتشف. المزامنة عبر الشركات تبقى كما هي مع تعليق في `res_users.py` يشير إلى الاختبار.
 
@@ -286,14 +286,14 @@ UPDATE project_task SET company_id = :root WHERE company_id IS NULL;
 - Modify: `CLAUDE.md` — استبدل جملة الطبقة المشتركة بالنص المعتمد حرفيًا:
 
 ```
-Nasq has a tenant abstraction through nasq_platform,
+WebVue has a tenant abstraction through webvue_platform,
 but tenant isolation remains database-per-tenant.
 There is no shared-database tenant layer.
 ```
 
 - أزل أو حدّث فقرة «Legacy company-less collaboration compatibility is awaiting explicit authorization» لأنها نُفّذت في Task 4.
 - في قسم التخطيط في `CLAUDE.md`، جملة أن كل addon نسخته `19.0.1.0.0` لم تعد صحيحة بعد Task 3/4؛ أشر إلى `docs/migrations.md`.
-- أضف `nasq_platform` إلى تخطيط المستودع في `CLAUDE.md` (`nasq_core → nasq_platform → nasq_api`).
+- أضف `webvue_platform` إلى تخطيط المستودع في `CLAUDE.md` (`webvue_core → webvue_platform → webvue_api`).
 - Modify: `docs/WORKSPACE.md` **فقط داخل worktree**؛ لا تدمج فوق تعديلات المالك غير المودَعة على checkout `main` الحالي.
 - لا تكتب خطة Phase 2 هنا.
 
@@ -301,17 +301,17 @@ There is no shared-database tenant layer.
 - [ ] **Step 2:** scratch:
 
 ```
--i nasq_core,nasq_platform,nasq_api,nasq_pmo,nasq_hr,nasq_chat
---test-tags /nasq_core,/nasq_api,/nasq_pmo,/nasq_hr,/nasq_chat,/nasq_platform
+-i webvue_core,webvue_platform,webvue_api,webvue_pmo,webvue_hr,webvue_chat
+--test-tags /webvue_core,/webvue_api,/webvue_pmo,/webvue_hr,/webvue_chat,/webvue_platform
 ```
 
-- [ ] **Step 3:** دورة `-u` من `release/19.0.1.0.0` إلى HEAD على scratch (أو من وسم أحدث إن وُجد). Expected: `UPGRADE_SMOKE_OK` وعدد وحدات nasq يشمل المنصة.
+- [ ] **Step 3:** دورة `-u` من `release/19.0.1.0.0` إلى HEAD على scratch (أو من وسم أحدث إن وُجد). Expected: `UPGRADE_SMOKE_OK` وعدد وحدات webvue يشمل المنصة.
 
 **Acceptance — تعريف «Phase 1 أخضر»:**
 1. اختبارات التسريب L1 وL2 وL4 حمراء سابقًا ثم خضراء على scratch.
 2. ترحيل `root_company_id`: جذر واحد يمر؛ متعدد يفشل.
-3. كل نموذج nasq جدولي يعلن `_nasq_scope`؛ `company` له rule.
-4. CI يثبّت `nasq_platform` قبل `nasq_api`.
+3. كل نموذج webvue جدولي يعلن `_webvue_scope`؛ `company` له rule.
+4. CI يثبّت `webvue_platform` قبل `webvue_api`.
 5. لا حقول استحقاق ولا كتالوج ولا تغيير `/me`.
 6. CLAUDE.md بالنص المعتمد.
 
@@ -325,7 +325,7 @@ There is no shared-database tenant layer.
 2. لا تنسخ تعديلات `docs/WORKSPACE.md` غير المودَعة.
 3. TDD لكل مهمة. commit واحد في نهايتها. لا `git add -A`.
 4. قبل المهمة التالية: `ruff check odoo-addons` وعيّنة الاختبارات المتأثرة على scratch ثم `dropdb`.
-5. نقاط توقف: أي `sudo()` إضافي؛ أي تخمين لجذر متعدد؛ أي الإبقاء على `NasqPmoCase` بلا شركة بعد Task 4؛ أي بدء Feature Registry؛ أي `ir.rule` مجموعة على القناة بدل قاعدة عامة؛ أي `migrations/0.0.0` للمنصة؛ أي Task 4 قبل أن يكتب `post_init_hook` الجذر فعلًا.
+5. نقاط توقف: أي `sudo()` إضافي؛ أي تخمين لجذر متعدد؛ أي الإبقاء على `WebVuePmoCase` بلا شركة بعد Task 4؛ أي بدء Feature Registry؛ أي `ir.rule` مجموعة على القناة بدل قاعدة عامة؛ أي `migrations/0.0.0` للمنصة؛ أي Task 4 قبل أن يكتب `post_init_hook` الجذر فعلًا.
 
 ## خارج هذه الخطة عمدًا
 

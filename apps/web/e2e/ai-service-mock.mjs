@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A scripted Nasq AI service for the mock stack: no model, deterministic runs.
+// A scripted WebVue AI service for the mock stack: no model, deterministic runs.
 // A message containing «مشروع» asks for a project draft (a plain answer when the request's catalog has no draft tool);
 // any other message reads the caller's tasks once and answers from the result.
 import http from 'node:http'
@@ -24,7 +24,7 @@ function reply(res, status, body) {
   res.end(JSON.stringify(body))
 }
 const readBody = req => new Promise((resolve) => { let b = ''; req.on('data', c => (b += c)); req.on('end', () => resolve(b)) })
-const owner = req => `${req.headers['x-nasq-tenant']}|${req.headers['x-nasq-user']}`
+const owner = req => `${req.headers['x-webvue-tenant']}|${req.headers['x-webvue-user']}`
 
 function finish(run, text, records) {
   run.pending = null

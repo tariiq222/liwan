@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
+import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
 import { paymentAttemptBadge } from '@/utils/vendorBadges'
-import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import { invoicesReturnTo, isCreditRelated, isNotAvailable, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { formatNasqDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatWebVueDate, formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
 const { can } = useVendorContext()
@@ -17,10 +17,10 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
   () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
 )
-const attemptTime = (value: string) => formatNasqDateTime(value, locale.value)
+const attemptTime = (value: string) => formatWebVueDateTime(value, locale.value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
-const date = (v: string | null) => (v ? formatNasqDate(v, locale.value) : null)
+const date = (v: string | null) => (v ? formatWebVueDate(v, locale.value) : null)
 const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status, 'vendor.invoices.status') : null))
 const notOfficial = computed(() => `${t('vendor.invoices.notOfficial')} — ${t('vendor.invoices.notOfficialHint')}`)
 </script>

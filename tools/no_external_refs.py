@@ -28,7 +28,7 @@ ALLOWED_HOSTS = frozenset({
     'localhost',
     'meet.example',
     'meet.example.test',
-    'nasq.local',
+    'webvue.local',
     'series.example',
     'unovis.dev',
     'www.w3.org',

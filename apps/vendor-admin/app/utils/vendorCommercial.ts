@@ -2,9 +2,9 @@ import {
   bundleCreateSchema, bundleEditSchema, planCreateSchema, planEditSchema, lifecycleActionSchema,
   type Audience, type BundleRevision, type BundleView, type CapacityMap, type CatalogApplication, type CatalogRelease, type CatalogReleaseView, type PlanView,
   type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Selection,
-} from '@nasq/commercial-contracts'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
-import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
+} from '@webvue/commercial-contracts'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import type { StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
 export const CURRENCY = 'SAR'
 export const EXPONENT = 2
@@ -14,7 +14,7 @@ export const PLATFORM_LIMIT_KEYS = ['users.limit', 'storage.limit_mb'] as const
 export const PLATFORM_ONLY_FEATURES = new Set(['branches.extra_limit', ...PLATFORM_LIMIT_KEYS])
 
 // ---- View types come from the server contract (bundleViewSchema / planViewSchema / catalogReleaseViewSchema) ----
-export type { BundleView, PlanView, CatalogReleaseView, CommercialIssue as ViewIssue, PricingPolicy } from '@nasq/commercial-contracts'
+export type { BundleView, PlanView, CatalogReleaseView, CommercialIssue as ViewIssue, PricingPolicy } from '@webvue/commercial-contracts'
 export type VendorListEnvelope<T> = { items: T[]; total: number }
 export type LifecycleStatus = 'draft' | 'validated' | 'published' | 'withdrawn'
 export type LifecycleAction = 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions' | 'delete'
@@ -266,7 +266,7 @@ export function fieldIssue(failure: CommercialFailure | null, field: string): st
 // ---- Routing ----
 export function commercialReturnTo(value: unknown, root: '/bundles' | '/plans'): string {
   const safe = safeReturnTo(value, root, [root])
-  return new URL(safe, 'http://nasq.local').pathname.replace(/\/$/, '') === root ? safe : root
+  return new URL(safe, 'http://webvue.local').pathname.replace(/\/$/, '') === root ? safe : root
 }
 
 // ---- Summaries ----

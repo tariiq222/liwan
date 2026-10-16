@@ -1,4 +1,4 @@
-# Nasq visual replacement implementation plan
+# WebVue visual replacement implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Coordinator controls execution and all validation. Project/user rules override generic skill commit/test instructions.
 
@@ -16,7 +16,7 @@
 - Reference source is the Vue/CSS design in /Users/tariq/Downloads/nasq-ui, not its different static preview. Never import fixtures or prototype composables into runtime.
 - Use U primitives directly and existing composite APIs. Preserve public props, emits, slots and data-testid hooks. No wrapper per button.
 - CSS ownership: assets/css/main.css imports fonts/Tailwind/Nuxt and tokens.css, components.css, shell.css. tokens owns variables; components owns shared recipes; shell owns layout. app.config.ts owns primitive variants. Delete old four CSS files once their needed semantics are ported.
-- Existing semantic nasq-* class/API names may remain when reused as the new implementation; obsolete visual rules and old-source names do not remain active. No redundant compatibility stylesheet.
+- Existing semantic webvue-* class/API names may remain when reused as the new implementation; obsolete visual rules and old-source names do not remain active. No redundant compatibility stylesheet.
 - No dependency upgrades. Unify icon rendering onto UIcon with existing local iconify Lucide bundle; remove direct @lucide/vue only after zero imports.
 - Shared ownership: Task 1 owns styles/config/shell/shared Vue; Task 2 docs/reference only; Tasks 3/4/5 own disjoint module pages/components; Task 6 coordinator-directed integration/checker/icon/chart work after them.
 - Worktrees isolated, no commits/merges/pushes/deploys/branch or worktree deletion. Preserve canonical dirty state. Workers do not run build/lint/full tests or start runtime, and do not spawn agents. Root validates once per integrated batch.
@@ -26,12 +26,12 @@
 
 **Target/Files:** apps/web/app/assets/css/*.css, app/app.config.ts, app/layouts/default.vue, app/components/shared/*.vue, app/components/shell/*.vue, app/components/AppSidebar.vue, AppAccountMenu.vue, AppLogo.vue if present. Do not own DashboardChart.client.vue (Task 6). Own visual-only expectations in shared/shell unit tests; leave module tests to their owners.
 **Change:** Recompose the 1099 lines of old CSS into one coherent reference implementation, removing overridden rules. Port layout/motion/accessibility/print behavior. Header light, rail dark, context white/cream/dark surface. Preserve rail/sidebar collapse and mobile navigation. Retain existing action hierarchy, filters and feature slots.
-**Interfaces:** Existing components' props/emits/slots unchanged; semantic variables and nasq-ui recipes continue resolving but render new reference style.
+**Interfaces:** Existing components' props/emits/slots unchanged; semantic variables and webvue-ui recipes continue resolving but render new reference style.
 
 - [ ] Inspect source reference main.css and all owned current files. Compare scripts to baseline, and list owned function hooks in report.
 - [ ] Use exact reference neutral starting values, adapted to current appearance selectors and branding:
 ```css
-:root { --nasq-surface-page: #f6f7fb; --nasq-surface: #fff; --nasq-surface-soft: #f8f9fc; --nasq-text: #171923; --nasq-muted: #717789; --nasq-border: #e5e8ef; --nasq-rail: #1d2030; --nasq-radius: 14px; }
+:root { --webvue-surface-page: #f6f7fb; --webvue-surface: #fff; --webvue-surface-soft: #f8f9fc; --webvue-text: #171923; --webvue-muted: #717789; --webvue-border: #e5e8ef; --webvue-rail: #1d2030; --webvue-radius: 14px; }
 ```
 - [ ] Implement tokens.css/components.css/shell.css; main imports only these plus required libraries/fonts. Keep brandTheme output interface and chart tokens; map presentation colors without editing brand calculations.
 - [ ] Configure UCard rounded reference surfaces and subtle shadow, UButton compact 36px desktop/44px touch, unified fields/status/table/header; preserve readable scalable typography.
@@ -41,7 +41,7 @@
 
 ## Task 2: Design policy and obsolete reference cleanup
 
-**Target/Files:** DESIGN.md, CLAUDE.md frontend-specific old guidance only, AGENTS.md introduction only, apps/web/AGENTS.md, docs/design-system/**, docs/agents/frontend-theme.md, .claude/agents/odoo-reviewer.md UI guidance only, .claude/skills/nasq-dev-servers/* and shadcn-vue skill, .claude/skills/VENDORED.md, apps/web/design-preview/**. No other docs/superpowers, recovery docs or backend instructions.
+**Target/Files:** DESIGN.md, CLAUDE.md frontend-specific old guidance only, AGENTS.md introduction only, apps/web/AGENTS.md, docs/design-system/**, docs/agents/frontend-theme.md, .claude/agents/odoo-reviewer.md UI guidance only, .claude/skills/webvue-dev-servers/* and shadcn-vue skill, .claude/skills/VENDORED.md, apps/web/design-preview/**. No other docs/superpowers, recovery docs or backend instructions.
 **Change:** Replace visual policy with the approved reference and preservation contract. Remove superseded executable HTML, preview, obsolete design generators and old shadcn instructions. Keep product/security/test constraints and license notices needed for retained code. No blanket deletion of mixed product/history documents.
 **Interfaces:** Document Task 1 CSS owners and existing component APIs; catalog runtime composites, not a second application. Keep the current plan/spec paths.
 
@@ -62,7 +62,7 @@
 ```vue
 <SharedPageContainer width="list">
   <SharedPageHeader :title="title"><template #actions><!-- retain original action nodes --></template></SharedPageHeader>
-  <section class="nasq-ui-record-surface"><!-- retain original data view and bindings --></section>
+  <section class="webvue-ui-record-surface"><!-- retain original data view and bindings --></section>
 </SharedPageContainer>
 ```
 - [ ] Preserve full original scripts except presentation-only icon imports and necessary template-related types; never replace a whole workflow with reference mock markup.

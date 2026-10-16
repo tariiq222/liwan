@@ -39,7 +39,7 @@ it('publishes the actual client target before readiness and waits for listeners 
   const view = loadGuard()
   const to = { path: '/projects/2/finance/51', fullPath: '/projects/2/finance/51?q=budget' }
   const navigation = view.guard(to)
-  expect(view.callHook).toHaveBeenCalledWith('nasq:navigation:start', to)
+  expect(view.callHook).toHaveBeenCalledWith('webvue:navigation:start', to)
   view.ready.resolve()
   await Promise.resolve()
   expect(view.refresh).not.toHaveBeenCalled()

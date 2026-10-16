@@ -1,4 +1,4 @@
-import { PROJECT_CHARTER_STEPS, type ProjectCharterStep } from '@nasq/contracts'
+import { PROJECT_CHARTER_STEPS, type ProjectCharterStep } from '@webvue/contracts'
 import type { CharterFieldKey } from '@/utils/projectCharter'
 import { firstQuery } from './routeQuery'
 

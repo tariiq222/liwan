@@ -3,10 +3,10 @@
 
 Runs the real provisioning policy script and the real subscription effect
 (observe, reconfigure) against one scratch tenant through a local ``odoo shell``
-command named by NASQ_SCRATCH_ODOO_SHELL (it takes the database name and reads
+command named by WEBVUE_SCRATCH_ODOO_SHELL (it takes the database name and reads
 the script on stdin). It never installs a module: a reconfigure that asks for an
 install fails with ``install_requested``, which is the spec 3.6 proof that a plan
-change needs no install job. Database names must be ``nasq_scratch_<32 hex>``.
+change needs no install job. Database names must be ``webvue_scratch_<32 hex>``.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tools.nasq_cli.managed_verify import build_policy_script, parse_snapshot
+from tools.webvue_cli.managed_verify import build_policy_script, parse_snapshot
 from tools.shared_saas_lifecycle import odoo_effect
 from tools.shared_saas_lifecycle.odoo_effect import EffectError
 from tools.shared_saas_lifecycle.subscription_effect import SubscriptionEffect
@@ -46,14 +46,14 @@ class ScratchShellRunner:
 
 def main():
     request = json.loads(sys.stdin.read())
-    runner = ScratchShellRunner(request['tenant']['database'], os.environ['NASQ_SCRATCH_ODOO_SHELL'])
+    runner = ScratchShellRunner(request['tenant']['database'], os.environ['WEBVUE_SCRATCH_ODOO_SHELL'])
     try:
         if request['action'] == 'provision':
             policy = request['policy']
             output = runner.run_script(build_policy_script(policy, runner.database), 'policy', mutate=True)
             result = parse_snapshot(output, policy, runner.database)
         else:
-            effect = SubscriptionEffect(runner, Path(os.environ['NASQ_SCRATCH_JOURNAL']).resolve())
+            effect = SubscriptionEffect(runner, Path(os.environ['WEBVUE_SCRATCH_JOURNAL']).resolve())
             result = effect.observe(request) if request['action'] == 'observe' else effect.reconfigure(request)
     except EffectError as error:
         print(json.dumps({'error_code': str(error)}))

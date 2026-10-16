@@ -26,23 +26,30 @@ export async function open(page: Page, path: string) {
 }
 /** Waits until the client has taken over the server render, so history navigation reaches the router. */
 export const hydrated = (page: Page) =>
-  page.waitForFunction(() => (window as unknown as { useNuxtApp?: () => NuxtAppHandle }).useNuxtApp?.().isHydrating === false)
+  page.waitForFunction(() => {
+    const app = (window as unknown as { useNuxtApp?: () => NuxtAppHandle }).useNuxtApp?.()
+    return app?.isHydrating === false && Boolean(app.$router)
+  })
 /**
  * A client-side navigation, so the browser (not the server render) fetches the page's data and route
  * interception applies. A navigation the route gate aborts resolves too; specs assert the outcome.
  */
-export const navigateClient = (page: Page, path: string) =>
-  page.evaluate((target) => {
+export const navigateClient = async (page: Page, path: string) => {
+  await hydrated(page)
+  return page.evaluate((target) => {
     const app = (window as unknown as { useNuxtApp: () => NuxtAppHandle }).useNuxtApp()
     return app.$router.push(target).catch(() => undefined)
   }, path)
+}
 /** Changes the interface language in the running app, then optionally navigates client-side. */
-export const switchLocale = (page: Page, locale: string, path?: string) =>
-  page.evaluate(async ({ target, destination }) => {
+export const switchLocale = async (page: Page, locale: string, path?: string) => {
+  await hydrated(page)
+  return page.evaluate(async ({ target, destination }) => {
     const app = (window as unknown as { useNuxtApp: () => NuxtAppHandle }).useNuxtApp()
     await app.$i18n.setLocale(target)
     if (destination) await app.$router.push(destination)
   }, { target: locale, destination: path })
+}
 export const rows = (page: Page) => page.locator('tbody tr[data-shortcut-row]')
 export const mobileRows = (page: Page) => page.locator('li[data-shortcut-row]')
 export const fitsWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)

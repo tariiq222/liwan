@@ -3,9 +3,9 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 import { resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
 
-const forbidden = /^(x-odoo-|x-openerp-|x-nasq-|forwarded$|x-forwarded-)/i
+const forbidden = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
-const browserHeaders = new Set(['x-nasq-csrf'])
+const browserHeaders = new Set(['x-webvue-csrf'])
 const selectors = /^(db|database|session_id|sid)$/i
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() / 1000)) {
@@ -29,12 +29,12 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
 export function requestPlan(req, registry, token, codec) {
   const host = req.headers.host
   const tenant = resolveTenantHost(host, registry.targets)
-  const internal = equal(req.headers['x-nasq-proxy-token'], token)
+  const internal = equal(req.headers['x-webvue-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-nasq-proxy-token', 'x-nasq-tenant-revision'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-webvue-proxy-token', 'x-webvue-tenant-revision'].includes(name))) throw Error('forbidden_header')
   }
-  if (internal && req.headers['x-nasq-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
+  if (internal && req.headers['x-webvue-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
   const url = new URL(req.url, 'http://boundary.invalid')
   for (const key of url.searchParams.keys()) if (selectors.test(key)) throw Error('forbidden_selector')
@@ -75,8 +75,8 @@ export function requestPlan(req, registry, token, codec) {
   if (odoo) headers.cookie = rawSid ? `session_id=${rawSid}` : ''
   headers.host = odoo ? tenant.database : host
   if (!odoo) {
-    headers['x-nasq-proxy-token'] = token
-    headers['x-nasq-tenant-revision'] = String(tenant.registryRevision)
+    headers['x-webvue-proxy-token'] = token
+    headers['x-webvue-tenant-revision'] = String(tenant.registryRevision)
   }
   return { tenant, internal, odoo, headers, path: url.pathname + url.search }
 }

@@ -1,6 +1,6 @@
-import type { ProjectStatus } from '@nasq/contracts'
+import type { ProjectStatus } from '@webvue/contracts'
 import type { StateTone } from './taskState'
-import { statusBadgeEntry, type StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
 
 // Pure project-status helpers (no Nuxt imports) — see __tests__/projectStatus.test.ts.
 export const PROJECT_STATUS_LABEL_KEY: Record<ProjectStatus, string> = {

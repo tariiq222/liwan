@@ -15,7 +15,7 @@ No commit, merge, push, deployment, main restart, destructive cleanup, tests on 
 
 ### Task 1: Backend and contracts
 
-Owned worktree: `/Users/tariq/code/nasq-charter-backend`. Own `odoo-addons/nasq_pmo/**` and `packages/contracts/src/pmo/**` only. Reference the spec frozen contracts. Add model extension, validators, API serialization and task planned_start support, protecting native capabilities. Read-only inspect all relevant call paths including templates and parent changes. Write tests in milestone/schedule suites and contract test files for checklist roundtrip, independent progress, date boundaries, parent shrinking, task reassignment, authorization and legacy undated behavior.
+Owned worktree: `/Users/tariq/code/nasq-charter-backend`. Own `odoo-addons/webvue_pmo/**` and `packages/contracts/src/pmo/**` only. Reference the spec frozen contracts. Add model extension, validators, API serialization and task planned_start support, protecting native capabilities. Read-only inspect all relevant call paths including templates and parent changes. Write tests in milestone/schedule suites and contract test files for checklist roundtrip, independent progress, date boundaries, parent shrinking, task reassignment, authorization and legacy undated behavior.
 
 - [ ] Write regression tests first and tell coordinator exact command/paths for red gate. Do not run tests yourself.
 - [ ] Implement model and serializer contracts after coordinator sees expected red.

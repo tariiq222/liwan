@@ -14,7 +14,7 @@ class Probe:
 
     @route('/b', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_registered_feature('nasq.example', '_keys', keys=('registry:nasq.example',), operation='read')
+    @requires_registered_feature('webvue.example', '_keys', keys=('registry:webvue.example',), operation='read')
     def registered_gate(self):
         return None
 
@@ -30,7 +30,7 @@ class TestFeatureMetadata(unittest.TestCase):
     def test_both_gates_document_their_keys_and_operation(self):
         functions = {node.name: node for node in ast.walk(ast.parse(SOURCE)) if isinstance(node, ast.FunctionDef)}
         self.assertEqual(api_surface.feature_metadata(functions['static_gate']), (['a.enabled', 'b.enabled'], 'read'))
-        self.assertEqual(api_surface.feature_metadata(functions['registered_gate']), (['registry:nasq.example'], 'read'))
+        self.assertEqual(api_surface.feature_metadata(functions['registered_gate']), (['registry:webvue.example'], 'read'))
         self.assertEqual(api_surface.feature_metadata(functions['row_level']), ([], None))
 
 

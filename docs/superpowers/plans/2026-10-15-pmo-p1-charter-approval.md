@@ -4,18 +4,18 @@
 
 **Goal:** A project charter moves `draft → submitted → approved` through explicit actions, and, when the company requires it, only the project sponsor authorizes it (PMBOK "Develop Project Charter": the sponsor authorizes the project).
 
-**Architecture:** New charter approval fields on `project.project` (extended in `nasq_pmo`), four transition routes under `/api/v1/projects/{id}/charter/*`, a PMO policy `require_charter_approval` (default off, so today's behaviour is unchanged), and an inline approval panel on the existing charter page. The state is no longer writable through `PATCH /projects/{id}`.
+**Architecture:** New charter approval fields on `project.project` (extended in `webvue_pmo`), four transition routes under `/api/v1/projects/{id}/charter/*`, a PMO policy `require_charter_approval` (default off, so today's behaviour is unchanged), and an inline approval panel on the existing charter page. The state is no longer writable through `PATCH /projects/{id}`.
 
-**Tech Stack:** Odoo 19 (`nasq_pmo`), zod contracts (`packages/contracts`), Nuxt 4 + Nuxt UI + TanStack Query (`apps/web`), Storybook, Vitest, Playwright mock stack.
+**Tech Stack:** Odoo 19 (`webvue_pmo`), zod contracts (`packages/contracts`), Nuxt 4 + Nuxt UI + TanStack Query (`apps/web`), Storybook, Vitest, Playwright mock stack.
 
 **Spec:** [`2026-10-15-pmo-pmi-gaps-master.md`](2026-10-15-pmo-pmi-gaps-master.md), decisions D1, D2, D3, D7, D8.
 
 ## Global Constraints
 
 - Branch `codex/pmo-charter-approval`, worktree from `npm run wt -- new pmo-charter-approval`; never test on `odoo19`.
-- `nasq_pmo` version `19.0.1.5.0` → `19.0.1.6.0`, migration directory `migrations/19.0.1.6.0/` in the same commit as the schema change.
+- `webvue_pmo` version `19.0.1.5.0` → `19.0.1.6.0`, migration directory `migrations/19.0.1.6.0/` in the same commit as the schema change.
 - Routes: `type='json2'`, `auth='user'`, explicit `methods`, `@api_handler`, `@requires_feature('pmo.enabled', operation='write')` (R10).
-- No new `.sudo()` call anywhere (R7 baseline for `project_project.py` is 19 and only shrinks); the sponsor write reuses `_nasq_write_sudo`.
+- No new `.sudo()` call anywhere (R7 baseline for `project_project.py` is 19 and only shrinks); the sponsor write reuses `_webvue_write_sudo`.
 - Error statuses: `403 forbidden`, `404 not_found`, `409 stale_write` / `409 charter_state`, `422 invalid`.
 - Arabic is the default locale; every user string through `t()` in `apps/web/i18n/locales/{ar,en}/projects.json` or `settings.json`.
 - No dialogs: approve/return/withdraw are inline, return asks for its note inline (DESIGN.md).
@@ -35,12 +35,12 @@
 ### Task 1: PMO policy `require_charter_approval`
 
 **Files:**
-- Modify: `odoo-addons/nasq_pmo/models/nasq_settings.py` (constants block, `PSC_DEFAULTS`, `_company_psc_values`, `_validate_psc_payload`)
+- Modify: `odoo-addons/webvue_pmo/models/webvue_settings.py` (constants block, `PSC_DEFAULTS`, `_company_psc_values`, `_validate_psc_payload`)
 - Modify: `packages/contracts/src/pmo/settings.ts`
-- Test: `odoo-addons/nasq_pmo/tests/test_settings.py`, `packages/contracts/src/pmo/__tests__/project-settings-controls.test.ts`
+- Test: `odoo-addons/webvue_pmo/tests/test_settings.py`, `packages/contracts/src/pmo/__tests__/project-settings-controls.test.ts`
 
 **Interfaces:**
-- Produces: `env['nasq.pmo.settings'].get()['require_charter_approval'] -> bool`; `ProjectSettings.require_charter_approval: boolean`.
+- Produces: `env['webvue.pmo.settings'].get()['require_charter_approval'] -> bool`; `ProjectSettings.require_charter_approval: boolean`.
 
 - [ ] **Step 1: Write the failing Odoo test** (append to the class that holds the GET/PATCH settings tests in `test_settings.py`)
 
@@ -60,13 +60,13 @@ Use the admin login the other tests in that file already use (check the first `a
 
 - [ ] **Step 2: Run it, expect failure**
 
-Run: `npm run test:odoo -- --addons nasq_pmo`
+Run: `npm run test:odoo -- --addons webvue_pmo`
 Expected: FAIL, `KeyError: 'require_charter_approval'`.
 
-- [ ] **Step 3: Implement** in `nasq_settings.py`
+- [ ] **Step 3: Implement** in `webvue_settings.py`
 
 ```python
-PARAM_REQUIRE_CHARTER_APPROVAL = 'nasq_pmo.require_charter_approval'
+PARAM_REQUIRE_CHARTER_APPROVAL = 'webvue_pmo.require_charter_approval'
 ```
 
 Add `'require_charter_approval': False,` to `PSC_DEFAULTS`, add to `_company_psc_values`:
@@ -101,13 +101,13 @@ it('requires the charter approval policy flag', () => {
 
 - [ ] **Step 5: Run and pass**
 
-Run: `npm run test:odoo -- --addons nasq_pmo` and `npm test`
+Run: `npm run test:odoo -- --addons webvue_pmo` and `npm test`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add odoo-addons/nasq_pmo/models/nasq_settings.py odoo-addons/nasq_pmo/tests/test_settings.py packages/contracts/src/pmo apps/web/e2e/internal-ui-audit-mock.mjs apps/web/stories/fixtures
+git add odoo-addons/webvue_pmo/models/webvue_settings.py odoo-addons/webvue_pmo/tests/test_settings.py packages/contracts/src/pmo apps/web/e2e/internal-ui-audit-mock.mjs apps/web/stories/fixtures
 git commit -m "feat(pmo): add the require_charter_approval project policy"
 ```
 
@@ -116,20 +116,20 @@ git commit -m "feat(pmo): add the require_charter_approval project policy"
 ### Task 2: Charter approval model, transitions and migration
 
 **Files:**
-- Modify: `odoo-addons/nasq_pmo/models/project_project.py` (constants :28-50, fields :139-145, `write()` :324-377, `_nasq_write_sudo` :421-441, `_nasq_lock_for_write` :709-728, new section after `# --- updates`)
-- Modify: `odoo-addons/nasq_pmo/__manifest__.py` (`version`)
-- Create: `odoo-addons/nasq_pmo/migrations/19.0.1.6.0/pre-charter_final_to_approved.py`
-- Create: `odoo-addons/nasq_pmo/tests/test_charter_approval.py`; Modify: `odoo-addons/nasq_pmo/tests/__init__.py`
+- Modify: `odoo-addons/webvue_pmo/models/project_project.py` (constants :28-50, fields :139-145, `write()` :324-377, `_webvue_write_sudo` :421-441, `_webvue_lock_for_write` :709-728, new section after `# --- updates`)
+- Modify: `odoo-addons/webvue_pmo/__manifest__.py` (`version`)
+- Create: `odoo-addons/webvue_pmo/migrations/19.0.1.6.0/pre-charter_final_to_approved.py`
+- Create: `odoo-addons/webvue_pmo/tests/test_charter_approval.py`; Modify: `odoo-addons/webvue_pmo/tests/__init__.py`
 
 **Interfaces:**
 - Consumes: `settings.get()['require_charter_approval']` (Task 1).
 - Produces:
   - `CHARTER_STATES = ('draft', 'submitted', 'approved')`
-  - `class NasqCharterState(UserError)` — wrong state or locked content.
-  - `project._nasq_charter_submit() / _nasq_charter_approve() / _nasq_charter_return(note: str) / _nasq_charter_withdraw()` → `self`
-  - `project._nasq_can_review_charter() -> bool`
-  - `project._nasq_lock_for_write(expected: str, *, require_manage: bool = True)`
-  - fields `nasq_charter_submitted_by_id`, `nasq_charter_submitted_at`, `nasq_charter_approved_by_id`, `nasq_charter_approved_at`, `nasq_charter_return_note`.
+  - `class WebVueCharterState(UserError)` — wrong state or locked content.
+  - `project._webvue_charter_submit() / _webvue_charter_approve() / _webvue_charter_return(note: str) / _webvue_charter_withdraw()` → `self`
+  - `project._webvue_can_review_charter() -> bool`
+  - `project._webvue_lock_for_write(expected: str, *, require_manage: bool = True)`
+  - fields `webvue_charter_submitted_by_id`, `webvue_charter_submitted_at`, `webvue_charter_approved_by_id`, `webvue_charter_approved_at`, `webvue_charter_return_note`.
 
 - [ ] **Step 1: Write the failing tests** — `tests/test_charter_approval.py`
 
@@ -138,25 +138,25 @@ git commit -m "feat(pmo): add the require_charter_approval project policy"
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.nasq_pmo.models.project_project import NasqCharterState
+from odoo.addons.webvue_pmo.models.project_project import WebVueCharterState
 
-from .common import NasqPmoCase
+from .common import WebVuePmoCase
 
 
-@tagged('post_install', '-at_install', 'nasq')
-class TestCharterApproval(NasqPmoCase):
+@tagged('post_install', '-at_install', 'webvue')
+class TestCharterApproval(WebVuePmoCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.sponsor = new_test_user(
             cls.env, login='api_sponsor', password='api_sponsor_pass_123', name='Sara',
-            groups='nasq_core.group_employee',
+            groups='webvue_core.group_employee',
         )
-        cls.project.write({'user_id': cls.manager.id, 'nasq_sponsor_id': cls.sponsor.id})
+        cls.project.write({'user_id': cls.manager.id, 'webvue_sponsor_id': cls.sponsor.id})
 
     def _policy(self, required):
-        key = f'nasq_pmo.require_charter_approval.{self.env.company.id}'
+        key = f'webvue_pmo.require_charter_approval.{self.env.company.id}'
         self.env['ir.config_parameter'].sudo().set_param(key, 'true' if required else 'false')
 
     def _as(self, user):
@@ -164,149 +164,149 @@ class TestCharterApproval(NasqPmoCase):
 
     def test_submit_without_policy_approves_directly(self):
         self._policy(False)
-        self._as(self.manager)._nasq_charter_submit()
-        self.assertEqual(self.project.nasq_charter_state, 'approved')
-        self.assertEqual(self.project.nasq_charter_approved_by_id, self.manager)
+        self._as(self.manager)._webvue_charter_submit()
+        self.assertEqual(self.project.webvue_charter_state, 'approved')
+        self.assertEqual(self.project.webvue_charter_approved_by_id, self.manager)
 
     def test_submit_with_policy_waits_for_sponsor(self):
         self._policy(True)
-        self._as(self.manager)._nasq_charter_submit()
-        self.assertEqual(self.project.nasq_charter_state, 'submitted')
-        self.assertEqual(self.project.nasq_charter_submitted_by_id, self.manager)
-        self.assertTrue(self._as(self.sponsor)._nasq_can_review_charter())
-        self.assertFalse(self._as(self.manager)._nasq_can_review_charter())
+        self._as(self.manager)._webvue_charter_submit()
+        self.assertEqual(self.project.webvue_charter_state, 'submitted')
+        self.assertEqual(self.project.webvue_charter_submitted_by_id, self.manager)
+        self.assertTrue(self._as(self.sponsor)._webvue_can_review_charter())
+        self.assertFalse(self._as(self.manager)._webvue_can_review_charter())
         with self.assertRaises(AccessError):
-            self._as(self.manager)._nasq_charter_approve()
-        self._as(self.sponsor)._nasq_charter_approve()
-        self.assertEqual(self.project.nasq_charter_state, 'approved')
-        self.assertEqual(self.project.nasq_charter_approved_by_id, self.sponsor)
+            self._as(self.manager)._webvue_charter_approve()
+        self._as(self.sponsor)._webvue_charter_approve()
+        self.assertEqual(self.project.webvue_charter_state, 'approved')
+        self.assertEqual(self.project.webvue_charter_approved_by_id, self.sponsor)
 
     def test_manager_who_is_sponsor_approves_directly(self):
         self._policy(True)
-        self.project.nasq_sponsor_id = self.manager
-        self._as(self.manager)._nasq_charter_submit()
-        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self.project.webvue_sponsor_id = self.manager
+        self._as(self.manager)._webvue_charter_submit()
+        self.assertEqual(self.project.webvue_charter_state, 'approved')
 
     def test_submit_requires_sponsor_under_policy(self):
         self._policy(True)
-        self.project.nasq_sponsor_id = False
+        self.project.webvue_sponsor_id = False
         with self.assertRaises(ValidationError):
-            self._as(self.manager)._nasq_charter_submit()
-        self.assertEqual(self.project.nasq_charter_state, 'draft')
+            self._as(self.manager)._webvue_charter_submit()
+        self.assertEqual(self.project.webvue_charter_state, 'draft')
 
     def test_submit_requires_readable_sponsor(self):
         self._policy(True)
         outsider = new_test_user(self.env, login='api_portal_like', name='No PMO', groups='base.group_user')
-        self.project.nasq_sponsor_id = outsider
+        self.project.webvue_sponsor_id = outsider
         with self.assertRaises(ValidationError):
-            self._as(self.manager)._nasq_charter_submit()
+            self._as(self.manager)._webvue_charter_submit()
 
     def test_submit_subscribes_sponsor_on_private_project(self):
         self._policy(True)
         self.project.privacy_visibility = 'followers'
-        self._as(self.manager)._nasq_charter_submit()
-        self.assertIn(self.sponsor, self.project._nasq_followers())
+        self._as(self.manager)._webvue_charter_submit()
+        self.assertIn(self.sponsor, self.project._webvue_followers())
 
     def test_return_needs_note_and_goes_back_to_draft(self):
         self._policy(True)
-        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._webvue_charter_submit()
         with self.assertRaises(ValidationError):
-            self._as(self.sponsor)._nasq_charter_return('   ')
-        self._as(self.sponsor)._nasq_charter_return('Scope is unclear')
-        self.assertEqual(self.project.nasq_charter_state, 'draft')
-        self.assertEqual(self.project.nasq_charter_return_note, 'Scope is unclear')
-        self._as(self.manager)._nasq_charter_submit()
-        self.assertEqual(self.project.nasq_charter_return_note, '')
+            self._as(self.sponsor)._webvue_charter_return('   ')
+        self._as(self.sponsor)._webvue_charter_return('Scope is unclear')
+        self.assertEqual(self.project.webvue_charter_state, 'draft')
+        self.assertEqual(self.project.webvue_charter_return_note, 'Scope is unclear')
+        self._as(self.manager)._webvue_charter_submit()
+        self.assertEqual(self.project.webvue_charter_return_note, '')
 
     def test_withdraw_by_manager_only(self):
         self._policy(True)
-        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._webvue_charter_submit()
         with self.assertRaises(AccessError):
-            self._as(self.sponsor)._nasq_charter_withdraw()
-        self._as(self.manager)._nasq_charter_withdraw()
-        self.assertEqual(self.project.nasq_charter_state, 'draft')
-        self.assertFalse(self.project.nasq_charter_submitted_by_id)
+            self._as(self.sponsor)._webvue_charter_withdraw()
+        self._as(self.manager)._webvue_charter_withdraw()
+        self.assertEqual(self.project.webvue_charter_state, 'draft')
+        self.assertFalse(self.project.webvue_charter_submitted_by_id)
 
     def test_wrong_state_transitions_raise(self):
         self._policy(True)
-        with self.assertRaises(NasqCharterState):
-            self._as(self.sponsor)._nasq_charter_approve()
-        with self.assertRaises(NasqCharterState):
-            self._as(self.manager)._nasq_charter_withdraw()
+        with self.assertRaises(WebVueCharterState):
+            self._as(self.sponsor)._webvue_charter_approve()
+        with self.assertRaises(WebVueCharterState):
+            self._as(self.manager)._webvue_charter_withdraw()
         self._policy(False)
-        self._as(self.manager)._nasq_charter_submit()
-        with self.assertRaises(NasqCharterState):
-            self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._webvue_charter_submit()
+        with self.assertRaises(WebVueCharterState):
+            self._as(self.manager)._webvue_charter_submit()
 
     def test_submitted_charter_is_locked(self):
         self._policy(True)
-        self._as(self.manager)._nasq_charter_submit()
-        with self.assertRaises(NasqCharterState):
-            self._as(self.manager)._nasq_write_as_manager({'nasq_scope': 'Changed'})
+        self._as(self.manager)._webvue_charter_submit()
+        with self.assertRaises(WebVueCharterState):
+            self._as(self.manager)._webvue_write_as_manager({'webvue_scope': 'Changed'})
         # Non-charter fields stay editable while waiting.
-        self._as(self.manager)._nasq_write_as_manager({'tag_ids': [(6, 0, [])]})
+        self._as(self.manager)._webvue_write_as_manager({'tag_ids': [(6, 0, [])]})
 
     def test_change_reopens_approved_charter_under_policy(self):
         self._policy(True)
-        self.project.nasq_sponsor_id = self.manager
-        self._as(self.manager)._nasq_charter_submit()
-        self._as(self.manager)._nasq_write_as_manager({'nasq_scope': 'Bigger scope'})
-        self.assertEqual(self.project.nasq_charter_state, 'draft')
-        self.assertFalse(self.project.nasq_charter_approved_by_id)
+        self.project.webvue_sponsor_id = self.manager
+        self._as(self.manager)._webvue_charter_submit()
+        self._as(self.manager)._webvue_write_as_manager({'webvue_scope': 'Bigger scope'})
+        self.assertEqual(self.project.webvue_charter_state, 'draft')
+        self.assertFalse(self.project.webvue_charter_approved_by_id)
 
     def test_change_keeps_approval_without_policy(self):
         self._policy(False)
-        self._as(self.manager)._nasq_charter_submit()
-        self._as(self.manager)._nasq_write_as_manager({'nasq_scope': 'Bigger scope'})
-        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self._as(self.manager)._webvue_charter_submit()
+        self._as(self.manager)._webvue_write_as_manager({'webvue_scope': 'Bigger scope'})
+        self.assertEqual(self.project.webvue_charter_state, 'approved')
 
     def test_unchanged_save_keeps_approval(self):
         self._policy(True)
-        self.project.write({'nasq_sponsor_id': self.manager.id, 'nasq_scope': 'Same', 'nasq_objectives': [{'goal': 'G', 'metric': '', 'target': ''}]})
-        self._as(self.manager)._nasq_charter_submit()
-        self._as(self.manager)._nasq_write_as_manager({
-            'nasq_scope': 'Same',
-            'nasq_objectives': [{'goal': 'G', 'metric': '', 'target': ''}],
-            'nasq_sponsor_id': self.manager.id,
+        self.project.write({'webvue_sponsor_id': self.manager.id, 'webvue_scope': 'Same', 'webvue_objectives': [{'goal': 'G', 'metric': '', 'target': ''}]})
+        self._as(self.manager)._webvue_charter_submit()
+        self._as(self.manager)._webvue_write_as_manager({
+            'webvue_scope': 'Same',
+            'webvue_objectives': [{'goal': 'G', 'metric': '', 'target': ''}],
+            'webvue_sponsor_id': self.manager.id,
             'name': self.project.name,
         })
-        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self.assertEqual(self.project.webvue_charter_state, 'approved')
 
     def test_new_sponsor_reviews_after_change(self):
         self._policy(True)
-        self._as(self.manager)._nasq_charter_submit()
-        other = new_test_user(self.env, login='api_sponsor2', name='Huda', groups='nasq_core.group_employee')
+        self._as(self.manager)._webvue_charter_submit()
+        other = new_test_user(self.env, login='api_sponsor2', name='Huda', groups='webvue_core.group_employee')
         # Changing the sponsor is not charter content locked by submission.
-        self._as(self.manager)._nasq_write_as_manager({'nasq_sponsor_id': other.id})
-        self.assertFalse(self._as(self.sponsor)._nasq_can_review_charter())
-        self._as(other)._nasq_charter_approve()
-        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self._as(self.manager)._webvue_write_as_manager({'webvue_sponsor_id': other.id})
+        self.assertFalse(self._as(self.sponsor)._webvue_can_review_charter())
+        self._as(other)._webvue_charter_approve()
+        self.assertEqual(self.project.webvue_charter_state, 'approved')
 
     def test_submitted_survives_policy_off(self):
         self._policy(True)
-        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._webvue_charter_submit()
         self._policy(False)
-        self._as(self.sponsor)._nasq_charter_approve()
-        self.assertEqual(self.project.nasq_charter_state, 'approved')
+        self._as(self.sponsor)._webvue_charter_approve()
+        self.assertEqual(self.project.webvue_charter_state, 'approved')
 
     def test_state_is_not_manager_writable(self):
         with self.assertRaises(AccessError):
-            self.project.with_user(self.manager).write({'nasq_charter_state': 'approved'})
+            self.project.with_user(self.manager).write({'webvue_charter_state': 'approved'})
 
     def test_copy_starts_as_draft(self):
         self._policy(False)
-        self._as(self.manager)._nasq_charter_submit()
+        self._as(self.manager)._webvue_charter_submit()
         copy = self.project.copy()
-        self.assertEqual(copy.nasq_charter_state, 'draft')
-        self.assertFalse(copy.nasq_charter_approved_by_id)
+        self.assertEqual(copy.webvue_charter_state, 'draft')
+        self.assertFalse(copy.webvue_charter_approved_by_id)
 ```
 
 Register it in `tests/__init__.py`: `from . import test_charter_approval`.
 
 - [ ] **Step 2: Run, expect failure**
 
-Run: `npm run test:odoo -- --addons nasq_pmo`
-Expected: FAIL at import, `cannot import name 'NasqCharterState'`.
+Run: `npm run test:odoo -- --addons webvue_pmo`
+Expected: FAIL at import, `cannot import name 'WebVueCharterState'`.
 
 - [ ] **Step 3: Constants and exception** — in `project_project.py` replace line 28 and the field sets:
 
@@ -315,66 +315,66 @@ CHARTER_STATES = ('draft', 'submitted', 'approved')
 CHARTER_RETURN_NOTE_MAX = 2000
 ```
 
-Remove `'nasq_charter_state'` from `CHARTER_MANAGER_FIELDS`. After `PROTECTED_FIELDS` add:
+Remove `'webvue_charter_state'` from `CHARTER_MANAGER_FIELDS`. After `PROTECTED_FIELDS` add:
 
 ```python
-# Written only by the charter transitions (_nasq_charter_*), never by PATCH.
+# Written only by the charter transitions (_webvue_charter_*), never by PATCH.
 CHARTER_APPROVAL_FIELDS = {
-    'nasq_charter_state', 'nasq_charter_submitted_by_id', 'nasq_charter_submitted_at',
-    'nasq_charter_approved_by_id', 'nasq_charter_approved_at', 'nasq_charter_return_note',
+    'webvue_charter_state', 'webvue_charter_submitted_by_id', 'webvue_charter_submitted_at',
+    'webvue_charter_approved_by_id', 'webvue_charter_approved_at', 'webvue_charter_return_note',
 }
 # Content a submitted charter locks and an approved one reopens on change.
 # The sponsor itself is excluded: replacing an unavailable sponsor must stay possible.
-CHARTER_CONTENT_FIELDS = (CHARTER_MANAGER_FIELDS - {'nasq_sponsor_id'}) | {
+CHARTER_CONTENT_FIELDS = (CHARTER_MANAGER_FIELDS - {'webvue_sponsor_id'}) | {
     'name', 'description', 'user_id', 'date_start', 'date',
 }
 CHARTER_RESET_VALS = {
-    'nasq_charter_state': 'draft',
-    'nasq_charter_submitted_by_id': False, 'nasq_charter_submitted_at': False,
-    'nasq_charter_approved_by_id': False, 'nasq_charter_approved_at': False,
+    'webvue_charter_state': 'draft',
+    'webvue_charter_submitted_by_id': False, 'webvue_charter_submitted_at': False,
+    'webvue_charter_approved_by_id': False, 'webvue_charter_approved_at': False,
 }
 ```
 
-Change `REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'} | CHARTER_APPROVAL_FIELDS` (a transition invalidates open editors' write tokens). After `class NasqStaleWrite` add:
+Change `REVISION_CONTENT_FIELDS = MANAGER_WRITABLE | {'company_id'} | CHARTER_APPROVAL_FIELDS` (a transition invalidates open editors' write tokens). After `class WebVueStaleWrite` add:
 
 ```python
-class NasqCharterState(UserError):
+class WebVueCharterState(UserError):
     """The charter is not in a state that allows this action or edit."""
 ```
 
-- [ ] **Step 4: Fields** — replace the `nasq_charter_state` field (:139-145):
+- [ ] **Step 4: Fields** — replace the `webvue_charter_state` field (:139-145):
 
 ```python
     # draft → submitted (waiting for the sponsor) → approved. Only the
-    # _nasq_charter_* transitions write these; see CHARTER_APPROVAL_FIELDS.
-    nasq_charter_state = fields.Selection(
+    # _webvue_charter_* transitions write these; see CHARTER_APPROVAL_FIELDS.
+    webvue_charter_state = fields.Selection(
         [('draft', 'Draft'), ('submitted', 'Submitted'), ('approved', 'Approved')],
         default='draft',
         required=True,
         copy=False,
     )
-    nasq_charter_submitted_by_id = fields.Many2one('res.users', ondelete='set null', copy=False)
-    nasq_charter_submitted_at = fields.Datetime(copy=False)
-    nasq_charter_approved_by_id = fields.Many2one('res.users', ondelete='set null', copy=False)
-    nasq_charter_approved_at = fields.Datetime(copy=False)
-    nasq_charter_return_note = fields.Text(default='', copy=False)
+    webvue_charter_submitted_by_id = fields.Many2one('res.users', ondelete='set null', copy=False)
+    webvue_charter_submitted_at = fields.Datetime(copy=False)
+    webvue_charter_approved_by_id = fields.Many2one('res.users', ondelete='set null', copy=False)
+    webvue_charter_approved_at = fields.Datetime(copy=False)
+    webvue_charter_return_note = fields.Text(default='', copy=False)
 ```
 
 - [ ] **Step 5: Whitelisted sudo write and revision lock**
 
-Change `_nasq_write_sudo` signature and check (keep its single `self.sudo().write(vals)`):
+Change `_webvue_write_sudo` signature and check (keep its single `self.sudo().write(vals)`):
 
 ```python
-    def _nasq_write_sudo(self, vals, allowed=MANAGER_WRITABLE):
+    def _webvue_write_sudo(self, vals, allowed=MANAGER_WRITABLE):
         ...
         self.ensure_one()
         bad = set(vals) - allowed
 ```
 
-Add after `_nasq_write_as_manager`:
+Add after `_webvue_write_as_manager`:
 
 ```python
-    def _nasq_write_charter_approval(self, vals):
+    def _webvue_write_charter_approval(self, vals):
         """The *do* step of a charter transition: approval fields only.
 
         Documented PMO elevated case (charter approval): the sponsor is not a
@@ -382,29 +382,29 @@ Add after `_nasq_write_as_manager`:
         project.project. Every caller ran its own check first (manager for
         submit/withdraw, sponsor for approve/return).
         """
-        return self._nasq_write_sudo(vals, allowed=CHARTER_APPROVAL_FIELDS)
+        return self._webvue_write_sudo(vals, allowed=CHARTER_APPROVAL_FIELDS)
 ```
 
-Change `_nasq_lock_for_write(self, expected)` to `_nasq_lock_for_write(self, expected, *, require_manage=True)` and guard the manage call: `if require_manage: self._nasq_check_manage()`.
+Change `_webvue_lock_for_write(self, expected)` to `_webvue_lock_for_write(self, expected, *, require_manage=True)` and guard the manage call: `if require_manage: self._webvue_check_manage()`.
 
-- [ ] **Step 6: Lock and reopen inside `write()`** — insert right after `self._nasq_prepare_charter_vals(vals, records=self)` (:355):
+- [ ] **Step 6: Lock and reopen inside `write()`** — insert right after `self._webvue_prepare_charter_vals(vals, records=self)` (:355):
 
 ```python
-        reopen = self._nasq_charter_guard(vals)
+        reopen = self._webvue_charter_guard(vals)
 ```
 
 and right before `return result` at the end of `write()`:
 
 ```python
         for project in reopen:
-            project._nasq_write_charter_approval(dict(CHARTER_RESET_VALS))
+            project._webvue_write_charter_approval(dict(CHARTER_RESET_VALS))
 ```
 
 Add the helpers in a new section after `# --- updates` methods:
 
 ```python
     # --- charter approval ----------------------------------------------------
-    def _nasq_charter_differs(self, vals, names):
+    def _webvue_charter_differs(self, vals, names):
         self.ensure_one()
         for name in names:
             field = self._fields[name]
@@ -413,91 +413,91 @@ Add the helpers in a new section after `# --- updates` methods:
                 return True
         return False
 
-    def _nasq_charter_guard(self, vals):
+    def _webvue_charter_guard(self, vals):
         """Lock submitted charters; return approved ones a change must reopen."""
         names = set(vals) & CHARTER_CONTENT_FIELDS
         if not names:
             return self.browse()
-        changed = self.filtered(lambda project: project._nasq_charter_differs(vals, names))
-        if any(project.nasq_charter_state == 'submitted' for project in changed):
-            raise NasqCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
-        if not self.env['nasq.pmo.settings'].get()['require_charter_approval']:
+        changed = self.filtered(lambda project: project._webvue_charter_differs(vals, names))
+        if any(project.webvue_charter_state == 'submitted' for project in changed):
+            raise WebVueCharterState(self.env._("The charter is waiting for approval; withdraw it to edit."))
+        if not self.env['webvue.pmo.settings'].get()['require_charter_approval']:
             return self.browse()
-        return changed.filtered(lambda project: project.nasq_charter_state == 'approved')
+        return changed.filtered(lambda project: project.webvue_charter_state == 'approved')
 
-    def _nasq_charter_approval_required(self):
-        return self.env['nasq.pmo.settings'].get()['require_charter_approval']
+    def _webvue_charter_approval_required(self):
+        return self.env['webvue.pmo.settings'].get()['require_charter_approval']
 
-    def _nasq_can_review_charter(self):
+    def _webvue_can_review_charter(self):
         self.ensure_one()
-        return self.nasq_charter_state == 'submitted' and self.nasq_sponsor_id == self.env.user
+        return self.webvue_charter_state == 'submitted' and self.webvue_sponsor_id == self.env.user
 
-    def _nasq_check_charter_reviewer(self):
-        self._nasq_check_visible_current()
-        if self.nasq_sponsor_id != self.env.user:
+    def _webvue_check_charter_reviewer(self):
+        self._webvue_check_visible_current()
+        if self.webvue_sponsor_id != self.env.user:
             raise AccessError(self.env._("Only the project sponsor can review the charter."))
 
-    def _nasq_check_charter_state(self, state):
-        if self.nasq_charter_state != state:
-            raise NasqCharterState(self.env._("The charter is not in the expected state."))
+    def _webvue_check_charter_state(self, state):
+        if self.webvue_charter_state != state:
+            raise WebVueCharterState(self.env._("The charter is not in the expected state."))
 
-    def _nasq_charter_submit(self):
+    def _webvue_charter_submit(self):
         self.ensure_one()
-        self._nasq_check_manage()
-        self._nasq_check_charter_state('draft')
+        self._webvue_check_manage()
+        self._webvue_check_charter_state('draft')
         user, now = self.env.user, fields.Datetime.now()
         vals = {
-            'nasq_charter_submitted_by_id': user.id,
-            'nasq_charter_submitted_at': now,
-            'nasq_charter_return_note': '',
+            'webvue_charter_submitted_by_id': user.id,
+            'webvue_charter_submitted_at': now,
+            'webvue_charter_return_note': '',
         }
-        sponsor = self.nasq_sponsor_id
-        if not self._nasq_charter_approval_required() or sponsor == user:
+        sponsor = self.webvue_sponsor_id
+        if not self._webvue_charter_approval_required() or sponsor == user:
             vals.update({
-                'nasq_charter_state': 'approved',
-                'nasq_charter_approved_by_id': user.id,
-                'nasq_charter_approved_at': now,
+                'webvue_charter_state': 'approved',
+                'webvue_charter_approved_by_id': user.id,
+                'webvue_charter_approved_at': now,
             })
         else:
-            service = self.env['nasq.access.service']
-            if not sponsor or not sponsor.active or not service._nasq_has_capability(sponsor, 'pmo.projects.read'):
+            service = self.env['webvue.access.service']
+            if not sponsor or not sponsor.active or not service._webvue_has_capability(sponsor, 'pmo.projects.read'):
                 raise ValidationError(self.env._("Choose a sponsor who can open projects before submitting the charter."))
-            if self.privacy_visibility == 'followers' and sponsor not in self._nasq_followers():
-                self._nasq_add_follower(sponsor)
-            vals['nasq_charter_state'] = 'submitted'
-        self._nasq_write_charter_approval(vals)
+            if self.privacy_visibility == 'followers' and sponsor not in self._webvue_followers():
+                self._webvue_add_follower(sponsor)
+            vals['webvue_charter_state'] = 'submitted'
+        self._webvue_write_charter_approval(vals)
         return self
 
-    def _nasq_charter_approve(self):
+    def _webvue_charter_approve(self):
         self.ensure_one()
-        self._nasq_check_charter_reviewer()
-        self._nasq_check_charter_state('submitted')
-        self._nasq_write_charter_approval({
-            'nasq_charter_state': 'approved',
-            'nasq_charter_approved_by_id': self.env.uid,
-            'nasq_charter_approved_at': fields.Datetime.now(),
+        self._webvue_check_charter_reviewer()
+        self._webvue_check_charter_state('submitted')
+        self._webvue_write_charter_approval({
+            'webvue_charter_state': 'approved',
+            'webvue_charter_approved_by_id': self.env.uid,
+            'webvue_charter_approved_at': fields.Datetime.now(),
         })
         return self
 
-    def _nasq_charter_return(self, note):
+    def _webvue_charter_return(self, note):
         self.ensure_one()
-        self._nasq_check_charter_reviewer()
-        self._nasq_check_charter_state('submitted')
+        self._webvue_check_charter_reviewer()
+        self._webvue_check_charter_state('submitted')
         note = (note or '').strip() if isinstance(note, str) else ''
         if not note or len(note) > CHARTER_RETURN_NOTE_MAX:
             raise ValidationError(self.env._("A return note of 1 to 2000 characters is required."))
-        self._nasq_write_charter_approval({**CHARTER_RESET_VALS, 'nasq_charter_return_note': note})
+        self._webvue_write_charter_approval({**CHARTER_RESET_VALS, 'webvue_charter_return_note': note})
         return self
 
-    def _nasq_charter_withdraw(self):
+    def _webvue_charter_withdraw(self):
         self.ensure_one()
-        self._nasq_check_manage()
-        self._nasq_check_charter_state('submitted')
-        self._nasq_write_charter_approval(dict(CHARTER_RESET_VALS))
+        self._webvue_check_manage()
+        self._webvue_check_charter_state('submitted')
+        self._webvue_write_charter_approval(dict(CHARTER_RESET_VALS))
         return self
 ```
 
-Note for the implementer: `_nasq_check_manage` raises `AccessError`, which is what `test_withdraw_by_manager_only` expects for the sponsor.
+Note for the implementer: `_webvue_check_manage` raises `AccessError`, which is what `test_withdraw_by_manager_only` expects for the sponsor.
 
 - [ ] **Step 7: Migration and version** — `__manifest__.py`: `'version': '19.0.1.6.0',`. Create `migrations/19.0.1.6.0/pre-charter_final_to_approved.py`:
 
@@ -512,13 +512,13 @@ def migrate(cr, version):
     if not version:
         return
     cr.execute(
-        "UPDATE project_project SET nasq_charter_state = 'approved' WHERE nasq_charter_state = 'final'",
+        "UPDATE project_project SET webvue_charter_state = 'approved' WHERE webvue_charter_state = 'final'",
     )
 ```
 
 - [ ] **Step 8: Run and pass**
 
-Run: `npm run test:odoo -- --addons nasq_pmo`
+Run: `npm run test:odoo -- --addons webvue_pmo`
 Expected: the new class passes. `test_project_charter.py` tests that send `'state'` now fail; they are fixed in Task 3, so do not commit until Step 9.
 
 - [ ] **Step 9: Make the old charter tests express the new rule** — in `test_project_charter.py`:
@@ -535,14 +535,14 @@ These pass after Task 3 Step 3 (serializer). Run Task 3 before committing Task 2
 ### Task 3: Charter approval API and contracts
 
 **Files:**
-- Modify: `odoo-addons/nasq_pmo/serializers/project_charter.py`, `odoo-addons/nasq_pmo/serializers/project.py`
-- Modify: `odoo-addons/nasq_pmo/controllers/projects.py` (token parsing, PATCH error mapping, list filter)
-- Create: `odoo-addons/nasq_pmo/controllers/project_charter.py`; Modify: `odoo-addons/nasq_pmo/controllers/__init__.py`
+- Modify: `odoo-addons/webvue_pmo/serializers/project_charter.py`, `odoo-addons/webvue_pmo/serializers/project.py`
+- Modify: `odoo-addons/webvue_pmo/controllers/projects.py` (token parsing, PATCH error mapping, list filter)
+- Create: `odoo-addons/webvue_pmo/controllers/project_charter.py`; Modify: `odoo-addons/webvue_pmo/controllers/__init__.py`
 - Modify: `packages/contracts/src/pmo/project-charter.ts`, `packages/contracts/src/pmo/project.ts`
-- Test: `odoo-addons/nasq_pmo/tests/test_charter_approval.py` (new API class), `odoo-addons/nasq_pmo/tests/test_project_charter.py` (`CHARTER_KEYS`), `packages/contracts/src/pmo/__tests__/project-charter.test.ts`
+- Test: `odoo-addons/webvue_pmo/tests/test_charter_approval.py` (new API class), `odoo-addons/webvue_pmo/tests/test_project_charter.py` (`CHARTER_KEYS`), `packages/contracts/src/pmo/__tests__/project-charter.test.ts`
 
 **Interfaces:**
-- Consumes: Task 2 model methods and `NasqCharterState`.
+- Consumes: Task 2 model methods and `WebVueCharterState`.
 - Produces (HTTP, all return `ProjectDetail` with status 200):
   - `POST /api/v1/projects/{id}/charter/submit` body `{expected_updated_at}`
   - `POST /api/v1/projects/{id}/charter/approve` body `{expected_updated_at}`
@@ -555,18 +555,18 @@ These pass after Task 3 Step 3 (serializer). Run Task 3 before committing Task 2
 - [ ] **Step 1: Write the failing API tests** — append to `tests/test_charter_approval.py`:
 
 ```python
-@tagged('post_install', '-at_install', 'nasq')
-class TestCharterApprovalApi(NasqPmoCase):
+@tagged('post_install', '-at_install', 'webvue')
+class TestCharterApprovalApi(WebVuePmoCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.sponsor = new_test_user(
             cls.env, login='api_sponsor', password='api_sponsor_pass_123', name='Sara',
-            groups='nasq_core.group_employee',
+            groups='webvue_core.group_employee',
         )
-        cls.project.write({'user_id': cls.manager.id, 'nasq_sponsor_id': cls.sponsor.id})
-        key = f'nasq_pmo.require_charter_approval.{cls.env.company.id}'
+        cls.project.write({'user_id': cls.manager.id, 'webvue_sponsor_id': cls.sponsor.id})
+        key = f'webvue_pmo.require_charter_approval.{cls.env.company.id}'
         cls.env['ir.config_parameter'].sudo().set_param(key, 'true')
 
     def _post(self, action, body):
@@ -613,7 +613,7 @@ class TestCharterApprovalApi(NasqPmoCase):
     def test_approve_with_stale_token(self):
         self.authenticate('api_mgr', 'api_mgr_pass_123')
         submitted = self._post('submit', {'expected_updated_at': self._token()}).json()
-        self.project.with_user(self.manager)._nasq_write_as_manager({'tag_ids': [(6, 0, [])]})
+        self.project.with_user(self.manager)._webvue_write_as_manager({'tag_ids': [(6, 0, [])]})
         self.authenticate('api_sponsor', 'api_sponsor_pass_123')
         res = self._post('approve', {'expected_updated_at': submitted['updated_at']})
         self.assertEqual((res.status_code, res.json()['code']), (409, 'stale_write'))
@@ -632,28 +632,28 @@ In `test_project_charter.py` extend `CHARTER_KEYS` with `'approval_required', 'c
 
 - [ ] **Step 2: Run, expect failure**
 
-Run: `npm run test:odoo -- --addons nasq_pmo`
+Run: `npm run test:odoo -- --addons webvue_pmo`
 Expected: FAIL with 404 on `/charter/submit`, `KeyError: 'approval_required'`.
 
 - [ ] **Step 3: Serializer** — `serializers/project_charter.py`:
-  - import `iso` from `odoo.addons.nasq_api.serializers.common`;
+  - import `iso` from `odoo.addons.webvue_api.serializers.common`;
   - remove `'state'` from `CHARTER_WRITE_FIELDS`, add it to `CHARTER_READONLY_FIELDS`, delete the `elif key == 'state':` branch;
   - in `dump_charter` replace the `'state'` line with:
 
 ```python
-        'state': project.nasq_charter_state or 'draft',
-        'approval_required': project._nasq_charter_approval_required(),
-        'can_review': project._nasq_can_review_charter(),
-        'submitted_by': dump_user_ref(project.nasq_charter_submitted_by_id),
-        'submitted_at': iso(project.nasq_charter_submitted_at) if project.nasq_charter_submitted_at else None,
-        'approved_by': dump_user_ref(project.nasq_charter_approved_by_id),
-        'approved_at': iso(project.nasq_charter_approved_at) if project.nasq_charter_approved_at else None,
-        'return_note': project.nasq_charter_return_note or '',
+        'state': project.webvue_charter_state or 'draft',
+        'approval_required': project._webvue_charter_approval_required(),
+        'can_review': project._webvue_can_review_charter(),
+        'submitted_by': dump_user_ref(project.webvue_charter_submitted_by_id),
+        'submitted_at': iso(project.webvue_charter_submitted_at) if project.webvue_charter_submitted_at else None,
+        'approved_by': dump_user_ref(project.webvue_charter_approved_by_id),
+        'approved_at': iso(project.webvue_charter_approved_at) if project.webvue_charter_approved_at else None,
+        'return_note': project.webvue_charter_return_note or '',
 ```
 
   - `CHARTER_STATES` import stays unused only if nothing else needs it; drop it from the import to keep ruff clean.
 
-In `serializers/project.py`, `dump_project` dict: add `'charter_state': project.nasq_charter_state or 'draft',`. Add a shared token parser there:
+In `serializers/project.py`, `dump_project` dict: add `'charter_state': project.webvue_charter_state or 'draft',`. Add a shared token parser there:
 
 ```python
 def parse_write_token(value):
@@ -671,17 +671,17 @@ def parse_write_token(value):
             raise ApiError(422, 'invalid', "charter_review must be '1', 'true', '0' or 'false'", field='charter_review')
 ```
 
-  and after the `mine` domain line: `if review_param in ('1', 'true'): domain += [('nasq_sponsor_id', '=', request.env.uid), ('nasq_charter_state', '=', 'submitted')]`
+  and after the `mine` domain line: `if review_param in ('1', 'true'): domain += [('webvue_sponsor_id', '=', request.env.uid), ('webvue_charter_state', '=', 'submitted')]`
   - in `patch_project` replace the inline token check with `parse_write_token(expected)`, and wrap the write:
 
 ```python
         try:
-            project._nasq_write_as_manager(vals)
-        except NasqCharterState as e:
+            project._webvue_write_as_manager(vals)
+        except WebVueCharterState as e:
             raise ApiError(409, 'charter_state', str(e)) from e
 ```
 
-  (import `NasqCharterState` from the model module and `parse_write_token` from `serializers.project`).
+  (import `WebVueCharterState` from the model module and `parse_write_token` from `serializers.project`).
 
 Create `controllers/project_charter.py`:
 
@@ -690,9 +690,9 @@ Create `controllers/project_charter.py`:
 from odoo import http
 from odoo.exceptions import ValidationError
 
-from odoo.addons.nasq_api.controllers.common import ApiError, api_handler, get_record, requires_feature
-from odoo.addons.nasq_pmo.models.project_project import NasqCharterState, NasqStaleWrite
-from odoo.addons.nasq_pmo.serializers.project import dump_project_detail, parse_write_token
+from odoo.addons.webvue_api.controllers.common import ApiError, api_handler, get_record, requires_feature
+from odoo.addons.webvue_pmo.models.project_project import WebVueCharterState, WebVueStaleWrite
+from odoo.addons.webvue_pmo.serializers.project import dump_project_detail, parse_write_token
 
 ACTIONS = {
     # action: (allowed body keys, the caller must manage the project)
@@ -713,22 +713,22 @@ def _run(project_id, action, payload):
     token = parse_write_token(payload.get('expected_updated_at'))
     project = get_record('project.project', project_id)
     try:
-        project._nasq_lock_for_write(token, require_manage=manage)
-    except NasqStaleWrite as e:
+        project._webvue_lock_for_write(token, require_manage=manage)
+    except WebVueStaleWrite as e:
         raise ApiError(409, 'stale_write', str(e), field='expected_updated_at') from e
     try:
         if action == 'submit':
-            project._nasq_charter_submit()
+            project._webvue_charter_submit()
         elif action == 'approve':
-            project._nasq_charter_approve()
+            project._webvue_charter_approve()
         elif action == 'return':
             note = payload.get('note')
             if not isinstance(note, str) or not note.strip():
                 raise ApiError(422, 'invalid', "note is required", field='note')
-            project._nasq_charter_return(note)
+            project._webvue_charter_return(note)
         else:
-            project._nasq_charter_withdraw()
-    except NasqCharterState as e:
+            project._webvue_charter_withdraw()
+    except WebVueCharterState as e:
         raise ApiError(409, 'charter_state', str(e)) from e
     except ValidationError as e:
         field = 'note' if action == 'return' else 'sponsor_id'
@@ -798,13 +798,13 @@ In `project.ts` add `charter_state: ProjectCharterStateSchema` to the list item 
 
 - [ ] **Step 6: Run and pass**
 
-Run: `npm run test:odoo -- --addons nasq_pmo,nasq_tasks_pmo,nasq_meetings_pmo,nasq_operations_pmo` then `npm test`
+Run: `npm run test:odoo -- --addons webvue_pmo,webvue_tasks_pmo,webvue_meetings_pmo,webvue_operations_pmo` then `npm test`
 Expected: PASS, nonzero test count.
 
 - [ ] **Step 7: Commit Tasks 2 and 3**
 
 ```bash
-git add odoo-addons/nasq_pmo packages/contracts/src/pmo apps/web/e2e/internal-ui-audit-mock.mjs apps/web/stories/fixtures
+git add odoo-addons/webvue_pmo packages/contracts/src/pmo apps/web/e2e/internal-ui-audit-mock.mjs apps/web/stories/fixtures
 git commit -m "feat(pmo): add sponsor approval of the project charter"
 ```
 
@@ -815,7 +815,7 @@ git commit -m "feat(pmo): add sponsor approval of the project charter"
 **Files:**
 - Modify: `AGENTS.md` (Product contracts, the PMO `sudo()` sentence)
 
-- [ ] **Step 1:** In the bullet that starts "`nasq_hr`, `nasq_tasks`, `nasq_operations` and their bridges have no `sudo()` path", change "In PMO, only the documented manager-write, policy/config, …" to "In PMO, only the documented manager-write, charter-approval (sponsor approve/return through the manager-write whitelist), policy/config, …". The owner approves this wording during review (D7).
+- [ ] **Step 1:** In the bullet that starts "`webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path", change "In PMO, only the documented manager-write, policy/config, …" to "In PMO, only the documented manager-write, charter-approval (sponsor approve/return through the manager-write whitelist), policy/config, …". The owner approves this wording during review (D7).
 - [ ] **Step 2:** Run `python3 -B tools/arch_policy.py --base main` and `python3 -B tools/git_policy.py --base main`. Expected: both exit 0 (no R7 growth; the migration's SQL is exempt).
 - [ ] **Step 3: Commit** — `git commit -m "docs(pmo): document the charter approval elevated write"`
 
@@ -923,7 +923,7 @@ it('offers withdraw to the manager while submitted', async () => {
   - Return: clicking reveals a `UTextarea` (`charter-return-note`, maxlength `CHARTER_RETURN_NOTE_MAX`) and `charter-return-confirm`, disabled while the trimmed note is empty.
   - `approved`: color `success`, title `projects.charter.approvedBy` `{ name, date }` when `approved_by` is set, else `projects.charter.state.approved`.
   - Every action calls `transition({ id: project.id, action, expected: project.updated_at, note })`; on `409 stale_write` show `projects.charter.staleReview` and refetch; other `ApiError` show `e.message`.
-  - Class `nasq-print-hide` on the panel (the charter page prints).
+  - Class `webvue-print-hide` on the panel (the charter page prints).
 - [ ] **Step 3: i18n** — `ar/projects.json` under `projects.charter` (and English equivalents in `en`):
 
 ```json
@@ -989,7 +989,7 @@ cd apps/web && E2E_BASE_URL=http://localhost:<nuxt> E2E_PROJECT_POPUPS=1 npx pla
 Expected: the new spec passes; for the two existing specs, compare failing titles with a pre-change worktree (known ~73 mock failures on `main`) — no new failures.
 
 - [ ] **Step 5: Screenshots** — RTL light and dark, desktop and 375 px, of the charter page in `submitted` (sponsor view) and `draft` with a return note; attach to the review.
-- [ ] **Step 6: Full gates** — `npm test`, `cd apps/web && npm run lint`, `npm run test:odoo -- --addons nasq_pmo`, `python3 -B tools/arch_policy.py --base main`, `python3 -B tools/git_policy.py --base main`, then the `odoo-reviewer` agent on the branch.
+- [ ] **Step 6: Full gates** — `npm test`, `cd apps/web && npm run lint`, `npm run test:odoo -- --addons webvue_pmo`, `python3 -B tools/arch_policy.py --base main`, `python3 -B tools/git_policy.py --base main`, then the `odoo-reviewer` agent on the branch.
 - [ ] **Step 7: Commit** — `git commit -m "feat(web): charter approval policy switch and pending reviews"`
 
 ---
@@ -997,5 +997,5 @@ Expected: the new spec passes; for the two existing specs, compare failing title
 ## Self-review notes
 
 - Spec coverage: D1 (Tasks 2, 3), D2 (Tasks 1, 2), D3 (Task 2 guard; phase 3 replaces the reopen rule), D7 (Tasks 2, 4), D8 (Task 6). The sponsor bell notification is phase 2 by design; until then the dashboard list (Task 7) is how a sponsor finds pending charters.
-- Names used across tasks: `NasqCharterState`, `CHARTER_APPROVAL_FIELDS`, `CHARTER_CONTENT_FIELDS`, `CHARTER_RESET_VALS`, `_nasq_charter_submit|approve|return|withdraw`, `_nasq_can_review_charter`, `_nasq_lock_for_write(..., require_manage=)`, `parse_write_token`, `useCharterTransition`, `ProjectCharterAction`, `charter_review`, `charter_state`, `CHARTER_RETURN_NOTE_MAX`.
-- Known risk: `_nasq_charter_differs` compares through `convert_to_cache`; the `description` Html field may sanitize differently from what the wizard sends. Review Focus 1 pins the common fields; if `description` causes false reopens, exclude it from `CHARTER_CONTENT_FIELDS` and note why.
+- Names used across tasks: `WebVueCharterState`, `CHARTER_APPROVAL_FIELDS`, `CHARTER_CONTENT_FIELDS`, `CHARTER_RESET_VALS`, `_webvue_charter_submit|approve|return|withdraw`, `_webvue_can_review_charter`, `_webvue_lock_for_write(..., require_manage=)`, `parse_write_token`, `useCharterTransition`, `ProjectCharterAction`, `charter_review`, `charter_state`, `CHARTER_RETURN_NOTE_MAX`.
+- Known risk: `_webvue_charter_differs` compares through `convert_to_cache`; the `description` Html field may sanitize differently from what the wizard sends. Review Focus 1 pins the common fields; if `description` causes false reopens, exclude it from `CHARTER_CONTENT_FIELDS` and note why.

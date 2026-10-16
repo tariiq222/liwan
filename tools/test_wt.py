@@ -35,17 +35,17 @@ detached
 class TestWt(unittest.TestCase):
     def test_database_name_matches_scratch_pattern(self):
         for suffix in ('pmo-fix-x', 'web-' + 'a' * 80, 'docs-A_b--c'):
-            self.assertRegex(database_name(suffix), r'^nasq_scratch_[a-z0-9_]{1,42}$')
+            self.assertRegex(database_name(suffix), r'^webvue_scratch_[a-z0-9_]{1,42}$')
 
     def test_short_database_name_is_unchanged(self):
-        self.assertEqual(database_name('pmo-fix-x'), 'nasq_scratch_pmo_fix_x')
+        self.assertEqual(database_name('pmo-fix-x'), 'webvue_scratch_pmo_fix_x')
 
     def test_long_names_with_the_same_prefix_get_different_databases(self):
         prefix = 'web-' + 'a' * 60
         first, second = database_name(prefix + '-one'), database_name(prefix + '-two')
         self.assertNotEqual(first, second)
         for name in (first, second):
-            self.assertRegex(name, r'^nasq_scratch_[a-z0-9_]{1,42}$')
+            self.assertRegex(name, r'^webvue_scratch_[a-z0-9_]{1,42}$')
             self.assertRegex(name, r'_[0-9a-f]{6}$')
 
     def test_pick_port_skips_used_and_busy(self):
@@ -54,7 +54,7 @@ class TestWt(unittest.TestCase):
             pick_port(range(10, 12), {10, 11}, lambda p: True)
 
     def test_env_content_is_consistent(self):
-        text = env_content(3101, 8171, 'nasq_scratch_x')
+        text = env_content(3101, 8171, 'webvue_scratch_x')
         self.assertIn('NUXT_ODOO_URL=http://127.0.0.1:8171', text)
         self.assertIn('NUXT_PUBLIC_WS_URL=ws://localhost:8171/websocket', text)
         self.assertEqual(set(map(int, re.findall(r'PORT=(\d+)', text))), {3101, 8171})
@@ -62,14 +62,14 @@ class TestWt(unittest.TestCase):
     def test_used_ports_reads_sibling_worktrees(self):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / 'a').mkdir()
-            (Path(tmp) / 'a' / '.env.worktree').write_text(env_content(3105, 8180, 'nasq_scratch_a'), encoding='utf-8')
+            (Path(tmp) / 'a' / '.env.worktree').write_text(env_content(3105, 8180, 'webvue_scratch_a'), encoding='utf-8')
             self.assertEqual(used_ports(Path(tmp)), {3105, 8180})
 
     def test_used_ports_reads_registered_worktree_paths(self):
         with tempfile.TemporaryDirectory() as tmp:
             other = Path(tmp) / 'elsewhere'
             other.mkdir()
-            (other / '.env.worktree').write_text(env_content(3110, 8190, 'nasq_scratch_b'), encoding='utf-8')
+            (other / '.env.worktree').write_text(env_content(3110, 8190, 'webvue_scratch_b'), encoding='utf-8')
             self.assertEqual(used_ports(Path(tmp) / 'none', [str(other), str(Path(tmp) / 'missing')]), {3110, 8190})
 
     def test_parse_worktrees(self):
@@ -185,7 +185,7 @@ class TestWt(unittest.TestCase):
 def worktree(**overrides):
     values = dict(
         path=Path('/r/.worktrees/pmo-a'), branch='codex/pmo-a', is_main=False, canonical=True, ahead=0, behind=3,
-        merged=True, dirty=False, age_days=2, size=2048, database='nasq_scratch_pmo_a', ports=[3100, 8170])
+        merged=True, dirty=False, age_days=2, size=2048, database='webvue_scratch_pmo_a', ports=[3100, 8170])
     values.update(overrides)
     return wt.Worktree(**values)
 
@@ -197,9 +197,9 @@ class TestStatusAndGc(unittest.TestCase):
 
     def test_env_values_reads_database_and_ports(self):
         with tempfile.TemporaryDirectory() as tmp:
-            (Path(tmp) / '.env.worktree').write_text(env_content(3105, 8180, 'nasq_scratch_a'), encoding='utf-8')
+            (Path(tmp) / '.env.worktree').write_text(env_content(3105, 8180, 'webvue_scratch_a'), encoding='utf-8')
             values = wt.env_values(tmp)
-            self.assertEqual((values['NUXT_ODOO_DB'], values['NUXT_PORT']), ('nasq_scratch_a', '3105'))
+            self.assertEqual((values['NUXT_ODOO_DB'], values['NUXT_PORT']), ('webvue_scratch_a', '3105'))
             self.assertEqual(wt.env_values(Path(tmp) / 'missing'), {})
 
     def test_removable_needs_merged_clean_own_commits_unused_and_not_current(self):
@@ -219,21 +219,21 @@ class TestStatusAndGc(unittest.TestCase):
         root = Path('/r')
         entry = wt.inspect_worktree(root, '/r/.worktrees/codex-gone', 'refs/heads/codex/pmo-gone')
         self.assertTrue(entry.missing)
-        self.assertEqual(entry.database, 'nasq_scratch_pmo_gone')
+        self.assertEqual(entry.database, 'webvue_scratch_pmo_gone')
         text = wt.format_status([worktree(is_main=True, path=root), entry], root)
         self.assertIn('missing', text)
         self.assertIn('1 folder missing', text)
 
     def test_abandoned_databases_only_those_of_going_worktrees_and_unconnected(self):
         databases = {
-            'nasq_scratch_pmo_a': 0, 'nasq_scratch_e2e': 0, 'nasq_scratch_hand_ux': 0,
-            'nasq_scratch_live': 2, 'nasq_scratch_kept': 0,
+            'webvue_scratch_pmo_a': 0, 'webvue_scratch_e2e': 0, 'webvue_scratch_hand_ux': 0,
+            'webvue_scratch_live': 2, 'webvue_scratch_kept': 0,
         }
-        owners = [worktree(), worktree(database='nasq_scratch_e2e'), worktree(database='nasq_scratch_live'),
-                  worktree(database='nasq_scratch_kept')]
-        survivors = [worktree(database='nasq_scratch_kept')]
+        owners = [worktree(), worktree(database='webvue_scratch_e2e'), worktree(database='webvue_scratch_live'),
+                  worktree(database='webvue_scratch_kept')]
+        survivors = [worktree(database='webvue_scratch_kept')]
         with mock.patch.object(wt, 'scratch_databases', return_value=databases):
-            self.assertEqual(wt.abandoned_databases(owners, survivors), ['nasq_scratch_pmo_a'])
+            self.assertEqual(wt.abandoned_databases(owners, survivors), ['webvue_scratch_pmo_a'])
 
     def test_no_database_lookup_without_candidates(self):
         with mock.patch.object(wt, 'scratch_databases', side_effect=AssertionError):
@@ -241,8 +241,8 @@ class TestStatusAndGc(unittest.TestCase):
 
     def test_scratch_databases_parse_with_separator(self):
         with mock.patch.object(wt.shutil, 'which', return_value='/bin/psql'), \
-                mock.patch.object(wt, 'run', return_value=(0, 'nasq_scratch_old|0\nodoo19|3\n')):
-            self.assertEqual(wt.scratch_databases(), {'nasq_scratch_old': 0})
+                mock.patch.object(wt, 'run', return_value=(0, 'webvue_scratch_old|0\nodoo19|3\n')):
+            self.assertEqual(wt.scratch_databases(), {'webvue_scratch_old': 0})
 
     def test_scratch_databases_fail_loudly(self):
         with mock.patch.object(wt.shutil, 'which', return_value=None), self.assertRaises(WorktreeError):
@@ -263,7 +263,7 @@ class TestStatusAndGc(unittest.TestCase):
     def _gc(self, apply, sh_side_effect):
         patches = (
             mock.patch.object(wt, 'inspect_all', return_value=[worktree()]), mock.patch.object(wt, 'busy_paths', return_value=set()),
-            mock.patch.object(wt, 'scratch_databases', return_value={'nasq_scratch_pmo_a': 0, 'nasq_scratch_old': 0}),
+            mock.patch.object(wt, 'scratch_databases', return_value={'webvue_scratch_pmo_a': 0, 'webvue_scratch_old': 0}),
             mock.patch.object(wt, 'sh', side_effect=sh_side_effect),
         )
         with patches[0], patches[1], patches[2], patches[3]:
@@ -274,8 +274,8 @@ class TestStatusAndGc(unittest.TestCase):
         dry = self._gc(False, lambda argv, cwd: calls.append(argv))
         self.assertEqual(calls, [])
         self.assertIn('would remove worktree /r/.worktrees/pmo-a', dry)
-        self.assertIn('would drop database nasq_scratch_pmo_a', dry)
-        self.assertNotIn('nasq_scratch_old', dry)
+        self.assertIn('would drop database webvue_scratch_pmo_a', dry)
+        self.assertNotIn('webvue_scratch_old', dry)
         self.assertIn('ignored files', dry)
 
     def test_gc_apply_removes_worktree_branch_and_its_database(self):
@@ -288,7 +288,7 @@ class TestStatusAndGc(unittest.TestCase):
         self._gc(True, fake)
         self.assertEqual(calls, [
             ['git', 'branch', '--show-current'], ['git', 'worktree', 'remove', '/r/.worktrees/pmo-a'],
-            ['git', 'branch', '-d', 'codex/pmo-a'], ['dropdb', '--if-exists', 'nasq_scratch_pmo_a']])
+            ['git', 'branch', '-d', 'codex/pmo-a'], ['dropdb', '--if-exists', 'webvue_scratch_pmo_a']])
 
     def test_gc_apply_refuses_when_root_is_not_on_main(self):
         with self.assertRaises(WorktreeError):
@@ -308,7 +308,7 @@ class TestStatusAndGc(unittest.TestCase):
             self._gc(True, fake)
         self.assertIn('locked', str(caught.exception))
         self.assertNotIn(['git', 'branch', '-d', 'codex/pmo-a'], calls)  # the worktree is still there
-        self.assertNotIn(['dropdb', '--if-exists', 'nasq_scratch_pmo_a'], calls)  # its worktree survived
+        self.assertNotIn(['dropdb', '--if-exists', 'webvue_scratch_pmo_a'], calls)  # its worktree survived
 
     def test_gc_reports_when_nothing_qualifies(self):
         with mock.patch.object(wt, 'inspect_all', return_value=[worktree(dirty=True)]), \

@@ -3,7 +3,7 @@
 الحالة: **مقترح للتنفيذ، غير منفّذ** (proposal, not implemented). المصدر:
 `d780862e468e027286374ecebb9643f1490cc9e6` على فرع `codex/shared-isolation`.
 هذا العقد مستخرج من `apps/web/server/utils/tenantHostResolver.ts` و
-`docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md` (البند 2)،
+`docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md` (البند 2)،
 ولا يدّعي أن أي مسار طلب يستدعيه اليوم.
 
 ## 1. هوية العميل الثابتة (immutable tenant identity)

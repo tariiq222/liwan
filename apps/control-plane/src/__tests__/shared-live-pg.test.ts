@@ -1,6 +1,6 @@
 // Real-PostgreSQL integration for the shared registry (schema 005) and shared
 // queue/worker (schema 006). Gated on CONTROL_TEST_DATABASE_URL; never runs on
-// odoo19 or any non-loopback nasq_control_scratch database. This is package-1
+// odoo19 or any non-loopback webvue_control_scratch database. This is package-1
 // SQL evidence only: it proves live SQL semantics (triggers, CAS, uniqueness,
 // fencing, lease expiry) and NOT any production adapter, Odoo, or deployment.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -21,7 +21,7 @@ import { vendorActorIssuer } from '../admin-auth/grants.js'
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
 }
 if (!url) describe.skip('shared live PostgreSQL integration (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('shared live PostgreSQL integration', () => {
@@ -42,9 +42,9 @@ else describe('shared live PostgreSQL integration', () => {
   let backupPayload: any
 
   beforeAll(async () => {
-    registryDir = process.env.NASQ_LIVE_GATE_ROOT
-      ? join(process.env.NASQ_LIVE_GATE_ROOT, 'registry')
-      : await mkdtemp(join(tmpdir(), 'nasq-shared-live-'))
+    registryDir = process.env.WEBVUE_LIVE_GATE_ROOT
+      ? join(process.env.WEBVUE_LIVE_GATE_ROOT, 'registry')
+      : await mkdtemp(join(tmpdir(), 'webvue-shared-live-'))
     registryPath = join(registryDir, 'registry.json')
     await mkdir(registryDir, { recursive: true })
     await migrate(pool)

@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_webvue_hr_document_employee,webvue.hr.document.employee,model_webvue_hr_document,webvue_core.group_employee,1,0,0,0
+access_webvue_hr_document_manager,webvue.hr.document.hr_manager,model_webvue_hr_document,group_cap_hr_documents_manage,1,1,1,0
+access_webvue_hr_document_reader,webvue.hr.document.hr_reader,model_webvue_hr_document,group_cap_hr_documents_read,1,0,0,0
+access_webvue_hr_employee_reader,hr.employee.hr_reader,model_hr_employee,group_cap_hr_employees_read,1,0,0,0
+access_webvue_hr_employee_manager,hr.employee.hr_manager,model_hr_employee,group_cap_hr_employees_manage,1,1,1,0
+access_webvue_hr_employee_archiver,hr.employee.hr_archiver,model_hr_employee,group_cap_hr_employees_archive,1,1,0,0
+access_webvue_hr_department_reader,hr.department.hr_reader,model_hr_department,group_cap_hr_departments_read,1,0,0,0
+access_webvue_hr_department_manager,hr.department.hr_manager,model_hr_department,group_cap_hr_departments_manage,1,1,1,0
+access_audit_hr_writer,access.audit hr writer,webvue_core.model_webvue_access_audit,group_cap_hr_employees_archive,0,0,1,0
+access_users_hr_archive,users hr archive,base.model_res_users,group_cap_hr_employees_archive,1,1,0,0

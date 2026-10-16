@@ -1,6 +1,6 @@
 > **سياق تاريخي للمنتج والتنفيذ.** قرارات الشكل القديمة هنا ليست تعليمات واجهة؛ اتبع [DESIGN.md](../../../DESIGN.md). تبقى العقود وقيود الأمن والبيانات خاضعة للمصادر الحالية في المشروع.
 
-# Nasq branch unification implementation plan
+# WebVue branch unification implementation plan
 
 > تاريخي. السياسة: [DESIGN.md](../../../DESIGN.md). ليس تعليمات واجهة.
 
@@ -9,13 +9,13 @@
 Goal: unify approved work in main with one canonical checkout and preserve all original work.
 Architecture: preserve Phase 3b history, use access-admin capabilities and routed pages as the integrated policy base, then apply branding/design, sidebar and collaboration deltas.
 Tech: Odoo19 addons, Nuxt4, Zod, PostgreSQL.
-Spec: /Users/tariq/.codex/visualizations/2026/09/05/01a072e0-4452-7012-afe3-be75e591d60b/nasq-branch-unification-audit.md (user approved by ابدا).
+Spec: /Users/tariq/.codex/visualizations/2026/09/05/01a072e0-4452-7012-afe3-be75e591d60b/webvue-branch-unification-audit.md (user approved by ابدا).
 
 ## Global constraints
-- Never modify stock Odoo or test on odoo19. Scratch DB nasq_unified_20260905; backend 9479 and web 3479, explicit addons path.
+- Never modify stock Odoo or test on odoo19. Scratch DB webvue_unified_20260905; backend 9479 and web 3479, explicit addons path.
 - preserve /api/v1/people user IDs versus HR employee IDs and list envelopes.
 - access-admin capability policy and exact-company guards remain authoritative.
-- company name/logo edited only by Odoo system admin; Nasq API permits primary_color only.
+- company name/logo edited only by Odoo system admin; WebVue API permits primary_color only.
 - all business operations use routed pages; destructive confirmation inline, simple pickers may be overlays.
 - Source worktrees remain read-only during integration. Every changed/deleted/new source file is preserved in recovery, with hashes, plus all Git refs and stash in bundle.
 - No remote configured. User approved integration and consolidation; no push or deployment.

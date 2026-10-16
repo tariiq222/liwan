@@ -8,7 +8,7 @@ const registry = { schemaVersion: 1, snapshotRevision: 1, targets: [tenant] }
 const token = 'synthetic-proxy-token-not-secret-123456789'
 const codec = sessionCodec({ test: 'synthetic-signing-key-not-secret-123456789' }, 'test')
 // Execute only real serializer functions selected via AST; no Odoo import/runtime.
-const source = new URL('../../odoo-addons/nasq_api/serializers/company.py', import.meta.url).pathname
+const source = new URL('../../odoo-addons/webvue_api/serializers/company.py', import.meta.url).pathname
 const logos = JSON.parse(execFileSync('python3', ['-c', `import ast,hashlib,json,datetime,types,sys
 module=ast.parse(open(sys.argv[1]).read())
 functions=[n for n in module.body if isinstance(n,ast.FunctionDef) and n.name in ('_logo_version','dump_branding')]

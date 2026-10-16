@@ -30,7 +30,7 @@ REQUIRED_TENANT_KEYS = (
     "network_name",
     "subnet",
 )
-RESERVED_NAMES = {"nasq", "odoo19", "postgres", "production", "canonical"}
+RESERVED_NAMES = {"webvue", "odoo19", "postgres", "production", "canonical"}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_-]{2,62}$")
 HOSTS = {"localhost", "127.0.0.1"}
 

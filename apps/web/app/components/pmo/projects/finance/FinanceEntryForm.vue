@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FinanceEntry, FinanceKind } from '@nasq/contracts'
+import type { FinanceEntry, FinanceKind } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useCreateFinanceEntry, useProjectFinanceEntry, useUpdateFinanceEntry } from '@/composables/useProjectFinance'
 import FinanceBudgetPicker from '@/components/pmo/projects/finance/FinanceBudgetPicker.vue'

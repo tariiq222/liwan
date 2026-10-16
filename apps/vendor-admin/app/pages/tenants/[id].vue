@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { TENANT_TABS, clientTab, clientTabItems } from '@/utils/vendorClients'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 definePageMeta({ capability: 'vendor.read', middleware: 'tenant-customer' })
 const { t } = useI18n()
 const route = useRoute()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VENDOR_ROLES } from '@nasq/commercial-contracts'
+import { VENDOR_ROLES } from '@webvue/commercial-contracts'
 import type { TeamRole } from '../../utils/team'
 
 const props = defineProps<{ modelValue: TeamRole[], disabled?: boolean, error?: string }>()

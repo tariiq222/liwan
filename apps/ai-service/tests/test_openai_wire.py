@@ -8,13 +8,13 @@ import pytest
 import uvicorn
 from langgraph.checkpoint.memory import InMemorySaver
 
-from nasq_ai_service import graph
-from nasq_ai_service.providers import build_chat_model
-from nasq_ai_service.service import create_app
-from nasq_ai_service.settings import Settings
-from nasq_ai_service.store import MemoryRunStore
 from tests.fake_openai import FAKE_TITLE, LEGAL_NAME, create_fake_openai, text_turn, tool_turn
 from tests.test_service import BODY, HEADERS, parse_sse
+from webvue_ai_service import graph
+from webvue_ai_service.providers import build_chat_model
+from webvue_ai_service.service import create_app
+from webvue_ai_service.settings import Settings
+from webvue_ai_service.store import MemoryRunStore
 
 TASKS = {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}], "total": 1}}
 
@@ -99,13 +99,13 @@ async def test_a_continuation_after_the_tool_limit_passes_the_providers_message_
 
 async def test_openrouter_sends_the_bearer_legal_tool_names_and_attribution_headers(serve_fake):
     fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1")])
-    async with service_client(base_url, "openrouter", AI_OPENROUTER_REFERER="https://nasq.example", AI_OPENROUTER_TITLE="Nasq") as client:
+    async with service_client(base_url, "openrouter", AI_OPENROUTER_REFERER="https://webvue.example", AI_OPENROUTER_TITLE="WebVue") as client:
         events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
     assert fake.state.rejected == [] and events[-1][1] == {"status": "waiting_tool"}
     assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project"]
     headers = fake.state.headers[0]
     assert headers["authorization"] == "Bearer sk-test"
-    assert headers["http-referer"] == "https://nasq.example" and headers["x-title"] == "Nasq"
+    assert headers["http-referer"] == "https://webvue.example" and headers["x-title"] == "WebVue"
 
 
 async def test_openrouter_without_attribution_variables_sends_neither_header(serve_fake):

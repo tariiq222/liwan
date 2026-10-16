@@ -8,7 +8,7 @@ import {
   type TaskDetail,
   type TaskPatch,
   type TaskState,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 import { daysRemaining } from './taskState'
 import { invalidateProjectCaches } from './projectKeys'
 

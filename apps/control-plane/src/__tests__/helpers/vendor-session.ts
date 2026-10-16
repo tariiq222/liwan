@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
+import { signServiceRequest } from '@webvue/commercial-contracts/server'
 import { transaction } from '../../db.js'
 import { createSession } from '../../admin-auth/sessions.js'
 import { hashToken } from '../../admin-auth/crypto.js'
 import { vendorActorIssuer } from '../../admin-auth/grants.js'
-import type { VendorRole } from '@nasq/commercial-contracts'
+import type { VendorRole } from '@webvue/commercial-contracts'
 
 export const TEST_KEY = 'test-key-'.repeat(8)
 
@@ -40,7 +40,7 @@ export async function vendorSession(pool: Pool, issuer: string, roles: readonly 
       accountId, session,
       headers: (method: string, path: string, body = '', nonce?: string): Record<string, string> => ({
         ...signServiceRequest({ method, path, body, actor: accountId, issuer, key, nonce }),
-        'x-nasq-session': session,
+        'x-webvue-session': session,
       }),
     }
   })
@@ -66,5 +66,5 @@ export function mockSessionQuery(sql: string, params: unknown[] = []): { rowCoun
 }
 /** signServiceRequest plus the session header the mock pool recognises. */
 export function signMock(args: Parameters<typeof signServiceRequest>[0]): Record<string, string> {
-  return { ...signServiceRequest(args), 'x-nasq-session': mockSessionHeader(args.actor as number) }
+  return { ...signServiceRequest(args), 'x-webvue-session': mockSessionHeader(args.actor as number) }
 }

@@ -15,7 +15,7 @@ class OutageFixtureMasterPasswordTests(unittest.TestCase):
     def test_adds_random_master_password_to_existing_private_secrets_without_output(self):
         with tempfile.TemporaryDirectory() as temporary:
             secrets_file = Path(temporary) / 'secrets.env'
-            original = 'FIXTURE_PG_PASSWORD=pg-fixture-secret\nNASQ_FIXTURE_ADMIN_LOGIN=outage_fixture_admin\n'
+            original = 'FIXTURE_PG_PASSWORD=pg-fixture-secret\nWEBVUE_FIXTURE_ADMIN_LOGIN=outage_fixture_admin\n'
             secrets_file.write_text(original, encoding='ascii')
             secrets_file.chmod(0o600)
 
@@ -31,7 +31,7 @@ class OutageFixtureMasterPasswordTests(unittest.TestCase):
             self.assertEqual(result.stderr, '')
             values = dict(line.split('=', 1) for line in secrets_file.read_text(encoding='ascii').splitlines())
             self.assertEqual(values['FIXTURE_PG_PASSWORD'], 'pg-fixture-secret')
-            self.assertEqual(values['NASQ_FIXTURE_ADMIN_LOGIN'], 'outage_fixture_admin')
+            self.assertEqual(values['WEBVUE_FIXTURE_ADMIN_LOGIN'], 'outage_fixture_admin')
             self.assertRegex(values['FIXTURE_ODOO_MASTER_PASSWORD'], re.compile(r'^[A-Za-z0-9_-]{40,}$'))
             self.assertEqual(os.stat(secrets_file).st_mode & 0o777, 0o600)
 
@@ -94,8 +94,8 @@ class OutageFixtureMasterPasswordTests(unittest.TestCase):
     def test_prepare_guards_the_actual_compose_volume_and_inspected_image_id(self):
         fixture = (ROOT / 'deploy/control-plane-outage/outage-fixture').read_text(encoding='utf-8')
         compose = (ROOT / 'deploy/control-plane-outage/compose.yml').read_text(encoding='utf-8')
-        self.assertIn('name: nasq-saas-outage-fixture_outage_pg', compose)
-        self.assertIn('nasq-saas-outage-fixture_outage_pg', fixture)
+        self.assertIn('name: webvue-saas-outage-fixture_outage_pg', compose)
+        self.assertIn('webvue-saas-outage-fixture_outage_pg', fixture)
         self.assertIn("docker image inspect \"$POSTGRES_IMAGE\" --format '{{.Id}}'", fixture)
         self.assertIn('== "$expected_id"', fixture)
 

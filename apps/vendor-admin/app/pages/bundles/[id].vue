@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { lifecycleBadge } from '@/utils/vendorCommercial'
-import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import { type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { catalogReturn, plansUsingBundle, priceFact } from '@/utils/vendorCatalog'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'

@@ -8,7 +8,7 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
-SOURCE = Path(__file__).resolve().parents[1] / 'odoo-addons/nasq_platform/commercial_config.py'
+SOURCE = Path(__file__).resolve().parents[1] / 'odoo-addons/webvue_platform/commercial_config.py'
 spec = importlib.util.spec_from_file_location('commercial_config', SOURCE)
 config = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(config)
@@ -20,7 +20,7 @@ class TestCommercialConfig(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / 'classification.json'
         self.mapping = {
-            'schema_version': 1, 'database': 'nasq_mapping_scratch',
+            'schema_version': 1, 'database': 'webvue_mapping_scratch',
             'commercial_mode': 'non_saas', 'entitlement_source': 'local_policy',
             'expected_valid_until': None, 'valid_until_action': 'preserve',
         }
@@ -30,7 +30,7 @@ class TestCommercialConfig(unittest.TestCase):
 
     def load(self, **updates):
         self.path.write_text(json.dumps({**self.mapping, **updates}))
-        return config.load_classification('nasq_mapping_scratch')
+        return config.load_classification('webvue_mapping_scratch')
 
     def test_explicit_pairs(self):
         self.assertEqual(self.load()['commercial_mode'], 'non_saas')
@@ -40,7 +40,7 @@ class TestCommercialConfig(unittest.TestCase):
         for value in ('', 'relative.json'):
             with self.subTest(value=value), patch.dict(os.environ, {config.CONFIG_ENV: value}):
                 with self.assertRaises(ValueError):
-                    config.load_classification('nasq_mapping_scratch')
+                    config.load_classification('webvue_mapping_scratch')
 
     def test_invalid_mapping(self):
         for update in (
@@ -57,20 +57,20 @@ class TestCommercialConfig(unittest.TestCase):
         for raw in ('{"database": "a", "database": "b"}', 'x' * 16385):
             self.path.write_text(raw)
             with self.assertRaises(ValueError):
-                config.load_classification('nasq_mapping_scratch')
+                config.load_classification('webvue_mapping_scratch')
 
     def test_clear_requires_matching_cutoff(self):
         self.mapping.update(expected_valid_until='2026-01-01', valid_until_action='clear')
         self.path.write_text(json.dumps(self.mapping))
-        self.assertTrue(config.load_classification('nasq_mapping_scratch', date(2026, 1, 1))['clear_valid_until'])
+        self.assertTrue(config.load_classification('webvue_mapping_scratch', date(2026, 1, 1))['clear_valid_until'])
         with self.assertRaises(ValueError):
-            config.load_classification('nasq_mapping_scratch', date(2026, 1, 2))
+            config.load_classification('webvue_mapping_scratch', date(2026, 1, 2))
 
     def test_non_saas_cannot_preserve_cutoff(self):
         self.mapping.update(expected_valid_until='2026-01-01')
         self.path.write_text(json.dumps(self.mapping))
         with self.assertRaises(ValueError):
-            config.load_classification('nasq_mapping_scratch', date(2026, 1, 1))
+            config.load_classification('webvue_mapping_scratch', date(2026, 1, 1))
 
     def test_saas_cannot_clear_cutoff(self):
         with self.assertRaises(ValueError):

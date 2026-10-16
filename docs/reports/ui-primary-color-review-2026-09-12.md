@@ -31,4 +31,4 @@
 
 الأدلة في `/Users/tariq/code/nasq-ui-redesign-artifacts/primary-only`، مع لقطة كاملة لملفات الواجهة قبل هذا التعديل في `before/`.
 
-التنفيذ في `/Users/tariq/code/nasq-ui-redesign` على `codex/ui-redesign` فقط. لا commit أو دمج أو نشر ضمن الطلب. الاختبارات تستخدم قاعدة `nasq_ui_redesign_20260912` وخادم Odoo 8178 والواجهة 3478. إعداد عنوان Odoo مطلوب عند البناء والتشغيل معًا.
+التنفيذ في `/Users/tariq/code/nasq-ui-redesign` على `codex/ui-redesign` فقط. لا commit أو دمج أو نشر ضمن الطلب. الاختبارات تستخدم قاعدة `webvue_ui_redesign_20260912` وخادم Odoo 8178 والواجهة 3478. إعداد عنوان Odoo مطلوب عند البناء والتشغيل معًا.

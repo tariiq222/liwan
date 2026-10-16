@@ -1,4 +1,4 @@
-import { OperationStateSchema } from '@nasq/contracts'
+import { OperationStateSchema } from '@webvue/contracts'
 import { ref } from 'vue'
 
 export function operationListLocation(path: string, query: Record<string, unknown>, hash = '') {

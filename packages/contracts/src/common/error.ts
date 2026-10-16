@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // The error envelope every /api/v1 endpoint returns (see
-// odoo-addons/nasq_api/controllers/common.py::ApiError) - shared plumbing,
+// odoo-addons/webvue_api/controllers/common.py::ApiError) - shared plumbing,
 // not a pillar's.
 export const ApiErrorSchema = z.object({
   code: z.string(),

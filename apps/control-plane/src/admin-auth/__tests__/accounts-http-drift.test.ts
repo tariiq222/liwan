@@ -11,7 +11,7 @@ const call = (pathname: string, rows: unknown[]) => accountsHttp({ query: async 
 
 describe('contract drift on the control plane side', () => {
   it('answers 503 admin_unavailable, not 422, when a stored row no longer fits the response contract', async () => {
-    await expect(call('/v1/admin/me', [{ id: 1, email: 'a@nasq.sa', display_name: 'A', roles: ['not-a-role'] }])).rejects.toMatchObject({ status: 503, code: 'admin_unavailable' })
-    await expect(call('/v1/admin/accounts', [{ id: 1, email: 'a@nasq.sa', display_name: 'A', status: 'gone', roles: [], passkeys: 0, last_seen_at: null }])).rejects.toMatchObject({ status: 503, code: 'admin_unavailable' })
+    await expect(call('/v1/admin/me', [{ id: 1, email: 'a@webvue.sa', display_name: 'A', roles: ['not-a-role'] }])).rejects.toMatchObject({ status: 503, code: 'admin_unavailable' })
+    await expect(call('/v1/admin/accounts', [{ id: 1, email: 'a@webvue.sa', display_name: 'A', status: 'gone', roles: [], passkeys: 0, last_seen_at: null }])).rejects.toMatchObject({ status: 503, code: 'admin_unavailable' })
   })
 })

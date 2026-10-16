@@ -1,5 +1,5 @@
-import { statusBadgeEntry, type StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
-import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
+import { statusBadgeEntry, type StatusBadgeEntry } from '@webvue/ui/app/utils/statusBadge'
+import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
 
 // Invoice status tones for the invoice lists of both consoles (DESIGN.md §2: tones are fixed; void reads as an error).
 // Pages translate `labelKey` at the call site and hand both to SharedStatusBadge. The map takes plain

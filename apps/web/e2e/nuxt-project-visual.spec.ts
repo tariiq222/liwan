@@ -5,7 +5,7 @@ for (const [mode, fontSize, width] of [['light', 'small', 1440], ['dark', 'large
     test.setTimeout(120_000)
     if (!baseURL?.includes(':3469')) throw new Error('Isolated migration runtime required')
     expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).ok()).toBeTruthy()
-    await context.addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize })), url: baseURL }])
+    await context.addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize })), url: baseURL }])
     await page.setViewportSize({ width, height: 960 })
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))

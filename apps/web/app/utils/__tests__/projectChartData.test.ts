@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ProjectReportRow } from '@nasq/contracts'
+import type { ProjectReportRow } from '@webvue/contracts'
 import {
   projectBudgetHealthData,
   projectChartLabels,

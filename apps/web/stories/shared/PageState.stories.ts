@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import SettingsPage from '@nasq/ui/app/components/shared/layout/SettingsPage.vue'
-import PageState from '@nasq/ui/app/components/shared/feedback/PageState.vue'
+import SettingsPage from '@webvue/ui/app/components/shared/layout/SettingsPage.vue'
+import PageState from '@webvue/ui/app/components/shared/feedback/PageState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -11,7 +11,7 @@ const meta = {
   render: args => ({
     components: { SettingsPage, PageState },
     setup: () => ({ args }),
-    template: `<main class="nasq-shell-main"><SettingsPage width="list"><div id="results" class="nasq-settings-anchor"><PageState v-bind="args"><div class="rounded-lg ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsPage></main>`,
+    template: `<main class="webvue-shell-main"><SettingsPage width="list"><div id="results" class="webvue-settings-anchor"><PageState v-bind="args"><div class="rounded-lg ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsPage></main>`,
   }),
 } satisfies Meta<typeof PageState>
 export default meta

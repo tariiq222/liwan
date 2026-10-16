@@ -5,8 +5,8 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <div class="nasq-settings-layout" data-testid="settings-layout">
-    <SharedPageContainer :width="width" class="nasq-settings-content">
+  <div class="webvue-settings-layout" data-testid="settings-layout">
+    <SharedPageContainer :width="width" class="webvue-settings-content">
       <slot />
     </SharedPageContainer>
   </div>

@@ -1,4 +1,4 @@
-import type { Cadence } from '@nasq/commercial-contracts'
+import type { Cadence } from '@webvue/commercial-contracts'
 
 export const DAY_MS = 86_400_000
 /** The business runs on Asia/Riyadh (invoice numbering uses it too); it has no daylight saving, so a fixed offset is exact. */

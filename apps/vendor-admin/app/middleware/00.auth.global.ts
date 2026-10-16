@@ -1,5 +1,5 @@
 import { decideAccess } from '../utils/routeAccess'
-import { normalizePath } from '@nasq/ui/app/utils/safeReturnTo'
+import { normalizePath } from '@webvue/ui/app/utils/safeReturnTo'
 
 // Every page needs a session and, when it names one, a capability. Public pages (sign-in,
 // enrollment) are open; the profile is looked up for the sign-in page only, so enrollment makes

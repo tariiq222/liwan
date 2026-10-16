@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { TaskDetail } from '@nasq/contracts'
+import type { TaskDetail } from '@webvue/contracts'
 import { useUpdateTask } from '@/composables/useTasks'
 import { isDirtySnapshot } from '@/lib/formDirty'
 import { richTextHasContent } from '@/utils/richText'
-import { sanitizeHtml } from '@nasq/ui/app/utils/sanitize'
+import { sanitizeHtml } from '@webvue/ui/app/utils/sanitize'
 import DescriptionEditor from '@/components/shared/form/DescriptionEditor.vue'
 
 const props = defineProps<{ task: TaskDetail }>()

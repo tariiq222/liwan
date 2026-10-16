@@ -14,7 +14,7 @@ import {
   type ChatMessageReactionWrite,
   type ChatMessageSend,
   type ChatMessageUpdate,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 import { ApiError } from './useApi'
 import {
   CHAT_PAGE_SIZE,

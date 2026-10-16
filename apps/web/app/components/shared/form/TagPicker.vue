@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import { ApiError } from '@/composables/useApi'
 import { useCreateTag, useTags } from '@/composables/useTags'

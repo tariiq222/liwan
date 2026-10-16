@@ -19,9 +19,9 @@ As an operator, I need managed creation to activate a tenant only when its durab
 The worker now:
 
 1. Keeps the exact policy bytes sent to creation and reuses those bytes for status. Desired policy comes from that same invocation, not a second catalog lookup.
-2. Verifies the durable operation ID, request ID, target, operation, descriptor fingerprint, and exact journal digest. The digest follows `nasq_cli.journal.payload_digest`: canonical request, target fingerprint, then length-framed original policy bytes and full enrolled descriptor including `descriptor_digest`. The fingerprint itself excludes the descriptor digest field.
+2. Verifies the durable operation ID, request ID, target, operation, descriptor fingerprint, and exact journal digest. The digest follows `webvue_cli.journal.payload_digest`: canonical request, target fingerprint, then length-framed original policy bytes and full enrolled descriptor including `descriptor_digest`. The fingerprint itself excludes the descriptor digest field.
 3. Requires durable `deployment_ready === true` and `policy_verified === true`, a `safeProfileFeatures`-valid profile with exactly the expected feature keys and values, and matching top-level/profile initial revision 1 (the Python initial-create verifier requires 1).
-4. Requires profile modules as installation evidence: a valid unique module list whose NASQ module set exactly matches the selected policy. Stock Odoo dependencies are permitted, as in `managed_verify.parse_snapshot`. The parent clarified that the Python verified profile always exposes modules; absence is therefore rejected.
+4. Requires profile modules as installation evidence: a valid unique module list whose WEBVUE module set exactly matches the selected policy. Stock Odoo dependencies are permitted, as in `managed_verify.parse_snapshot`. The parent clarified that the Python verified profile always exposes modules; absence is therefore rejected.
 5. Keeps incomplete managed creation quarantined. Rejected managed evidence has false readiness flags and no projected revision, so it cannot advance the tenant revision or health timestamp through `finishClaim`.
 6. Leaves the scratch deployment exemption intact, including its verified observed policy despite `deployment_ready: false`.
 
@@ -51,7 +51,7 @@ All new behavior tests are in `apps/control-plane/src/__tests__/worker-managed.t
 | Guarantee | Evidence |
 | --- | --- |
 | Only durable matching proof activates creation and projects the original desired policy/revision | `activates only from the durable verified matching create profile, not the immediate response` |
-| True flags cannot override absent profile, wrong features/classification/revision, missing/extra NASQ modules, duplicate/malformed module list | Twelve `rejects truth flags with ...` cases; also assert no revision or health timestamp update |
+| True flags cannot override absent profile, wrong features/classification/revision, missing/extra WEBVUE modules, duplicate/malformed module list | Twelve `rejects truth flags with ...` cases; also assert no revision or health timestamp update |
 | Request/target/operation-ID/fingerprint/digest mismatch fails closed | Six binding cases, including identical semantic policy with different bytes (trailing newline) |
 | Immediate true flags cannot replace incomplete durable flags | Two durable false-flag cases |
 | Journal algorithm matches the Python implementation | `accepts a journal digest computed by Python over the identical request and policy bytes`; subprocess imports `journal.payload_digest` only, no journal instance or database |

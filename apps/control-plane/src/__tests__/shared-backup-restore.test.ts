@@ -34,7 +34,7 @@ const preChangeTarget = scratchDatabases[7] ?? ''
 const mismatchTarget = scratchDatabases[8] ?? ''
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
 }
 if (!url) describe.skip('shared backup and restore authority (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('shared backup and restore authority', () => {
@@ -51,7 +51,7 @@ else describe('shared backup and restore authority', () => {
   let registryPath = ''
 
   beforeAll(async () => {
-    const gateRoot = process.env.NASQ_LIVE_GATE_ROOT ?? await mkdtemp(join(tmpdir(), 'nasq-backup-'))
+    const gateRoot = process.env.WEBVUE_LIVE_GATE_ROOT ?? await mkdtemp(join(tmpdir(), 'webvue-backup-'))
     backupRoot = join(gateRoot, 'backups')
     await mkdir(backupRoot, { recursive: true })
     await migrate(pool)

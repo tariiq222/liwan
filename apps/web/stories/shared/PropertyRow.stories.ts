@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import PropertyRow from '@nasq/ui/app/components/shared/layout/PropertyRow.vue'
+import PropertyRow from '@webvue/ui/app/components/shared/layout/PropertyRow.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

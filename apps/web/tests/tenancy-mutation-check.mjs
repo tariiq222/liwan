@@ -7,7 +7,7 @@ const web = resolve(import.meta.dirname, '..')
 async function check(built, runtime, mutate) {
   const artifact = resolve(web, `.output-t16-${built}`)
   const child = spawn(process.execPath, ['--import', resolve(import.meta.dirname, 'tenancy-mutation-probe.mjs'), resolve(artifact, 'server/index.mjs')], {
-    env: { PATH: process.env.PATH, NODE_ENV: 'production', NASQ_TENANCY_MODE: runtime, HOST: '127.0.0.1', PORT: '0', NUXT_ODOO_URL: 'http://127.0.0.1:1' }, stdio: ['ignore','pipe','pipe','ipc'],
+    env: { PATH: process.env.PATH, NODE_ENV: 'production', WEBVUE_TENANCY_MODE: runtime, HOST: '127.0.0.1', PORT: '0', NUXT_ODOO_URL: 'http://127.0.0.1:1' }, stdio: ['ignore','pipe','pipe','ipc'],
   })
   let out = ''; let err = ''
   child.stdout.on('data', x => out += x); child.stderr.on('data', x => err += x)

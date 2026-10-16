@@ -1,4 +1,4 @@
-import { NotificationDigestDetailSchema } from '@nasq/contracts'
+import { NotificationDigestDetailSchema } from '@webvue/contracts'
 import { expect, test } from '@playwright/test'
 import { fitsWidth, loginAdmin, openShell } from './support/tasmim6d'
 

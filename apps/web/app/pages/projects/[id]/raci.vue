@@ -4,9 +4,9 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { settleServerQueries } from '@/lib/vueQuerySsr'
 import { governanceMatrixFilters } from '@/composables/projectGovernanceKeys'
 import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreateProjectRaci, useUpdateProjectRaci, useDeleteProjectRaci } from '@/composables/useProjectGovernance'
-import type { ProjectRaci, ProjectRaciRole } from '@nasq/contracts'
+import type { ProjectRaci, ProjectRaciRole } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))

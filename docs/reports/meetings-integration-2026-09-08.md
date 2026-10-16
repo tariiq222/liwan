@@ -18,7 +18,7 @@ The incoming branch adds the series/recurrence/calendar workflows and reviewed p
 
 All checks run against the combined candidate, not either parent alone:
 
-- Fresh isolated Odoo installation (`nasq_core,nasq_api,nasq_pmo,nasq_hr`) on `nasq_meetings_merge_20260908`: 518 passed, zero failures/errors.
+- Fresh isolated Odoo installation (`webvue_core,webvue_api,webvue_pmo,webvue_hr`) on `webvue_meetings_merge_20260908`: 518 passed, zero failures/errors.
 - Contracts: 147 passed.
 - Web: 648 passed in 113 files.
 - `npm run lint`: vue-tsc and Ruff passed.

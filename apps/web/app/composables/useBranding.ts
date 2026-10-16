@@ -1,4 +1,4 @@
-import { BrandingSchema, type Branding } from '@nasq/contracts'
+import { BrandingSchema, type Branding } from '@webvue/contracts'
 import { createBrandTheme } from '@/utils/brandTheme'
 
 export function useBranding() {
@@ -27,7 +27,7 @@ export function useBranding() {
     .map(([key, value]) => `${key}:${value}`)
     .join(';'))
   useHead(() => ({
-    title: branding.value?.name ?? 'nasq',
+    title: branding.value?.name ?? 'webvue',
     link: faviconUrl.value ? [{ key: 'institution-favicon', rel: 'icon', href: faviconUrl.value }] : [],
     htmlAttrs: { style: themeStyle.value },
   }))

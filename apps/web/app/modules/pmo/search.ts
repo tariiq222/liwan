@@ -1,4 +1,4 @@
-import { ProjectRefSchema, TaskListSchema } from '@nasq/contracts'
+import { ProjectRefSchema, TaskListSchema } from '@webvue/contracts'
 import type { AppSearchProvider } from '../types'
 
 const PROJECTS_CAP = 200

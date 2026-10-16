@@ -12,17 +12,17 @@ describe('SharedStandalonePage', () => {
     expect(html).toContain('min-h-svh')
     expect(html).toMatch(/<h1[^>]*>Sign in<\/h1>/)
     expect(html.indexOf('data-body')).toBeLessThan(html.indexOf('>Print<'))
-    expect(html).not.toContain('nasq-print')
+    expect(html).not.toContain('webvue-print')
   })
 
   it('print is an article inside the shell main, black-on-white class, footer not printed', async () => {
     const html = await renderShared('StandalonePage', { variant: 'print', title: 'Minutes' }, body)
     expect(html.startsWith('<article')).toBe(true)
     expect(html).not.toContain('<main')
-    expect(html).toMatch(/class="nasq-print[ "]/)
+    expect(html).toMatch(/class="webvue-print[ "]/)
     expect(html).toContain('data-variant="print"')
     expect(html).toMatch(/<h1[^>]*>Minutes<\/h1>/)
-    expect(html).toMatch(/<footer class="nasq-print-hide[^"]*">(?:<!--\[-->)?<button>Print<\/button>/)
+    expect(html).toMatch(/<footer class="webvue-print-hide[^"]*">(?:<!--\[-->)?<button>Print<\/button>/)
   })
 
   it('renders no heading and no footer when they are not given', async () => {
@@ -34,7 +34,7 @@ describe('SharedStandalonePage', () => {
   })
 
   it('card draws the header slot in place of the title heading', async () => {
-    const header = () => h('div', { 'data-brand': '' }, [h('h1', 'Nasq'), h('p', 'Sign in to continue')])
+    const header = () => h('div', { 'data-brand': '' }, [h('h1', 'WebVue'), h('p', 'Sign in to continue')])
     const html = await renderShared('StandalonePage', { title: 'Ignored' }, { ...body, header })
     expect(html).toContain('data-brand')
     expect(html).not.toContain('Ignored')

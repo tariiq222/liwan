@@ -7,8 +7,8 @@ describe('access policy navigation', () => {
     expect(hasCapability(null, 'hr.employees.read')).toBe(false)
   })
   it('opens the bell for a project reader without tasks.read (charter rows are delivered on projects.read)', () => {
-    expect(hasCapability({ capabilities: ['pmo.projects.read'] }, 'nasq.notifications')).toBe(true)
-    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'nasq.notifications')).toBe(false)
+    expect(hasCapability({ capabilities: ['pmo.projects.read'] }, 'webvue.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'webvue.notifications')).toBe(false)
   })
   it('checks the named capability without elevating other domains', () => {
     const hr = { capabilities: ['hr.employees.read', 'hr.employees.manage'] }
@@ -78,18 +78,18 @@ describe('access policy navigation', () => {
     expect(requiredCapabilityForPath('/projects/settings/catalogs/types/new')).toBe('pmo.settings.manage')
     expect(isNavPathActive('/projects/settings', '/projects')).toBe(false)
   })
-  it('keeps /chat for internal Nasq identities and rejects portal or role-only objects', () => {
+  it('keeps /chat for internal WebVue identities and rejects portal or role-only objects', () => {
     const internal = { capabilities: ['access.users.read'] }
     const employee = { capabilities: ['pmo.tasks.read'] }
-    expect(requiredCapabilityForPath('/chat')).toBe('nasq.internal')
-    expect(requiredCapabilityForPath('/chat/new')).toBe('nasq.internal')
-    expect(requiredCapabilityForPath('/chat/42')).toBe('nasq.internal')
-    expect(requiredCapabilityForPath('/chat/42/info')).toBe('nasq.internal')
-    expect(hasCapability(internal, 'nasq.internal')).toBe(true)
-    expect(hasCapability(employee, 'nasq.internal')).toBe(true)
-    expect(hasCapability({ role: 'portal' }, 'nasq.internal')).toBe(false)
-    expect(hasCapability({ role: 'admin' }, 'nasq.internal')).toBe(false)
-    expect(hasCapability(null, 'nasq.internal')).toBe(false)
+    expect(requiredCapabilityForPath('/chat')).toBe('webvue.internal')
+    expect(requiredCapabilityForPath('/chat/new')).toBe('webvue.internal')
+    expect(requiredCapabilityForPath('/chat/42')).toBe('webvue.internal')
+    expect(requiredCapabilityForPath('/chat/42/info')).toBe('webvue.internal')
+    expect(hasCapability(internal, 'webvue.internal')).toBe(true)
+    expect(hasCapability(employee, 'webvue.internal')).toBe(true)
+    expect(hasCapability({ role: 'portal' }, 'webvue.internal')).toBe(false)
+    expect(hasCapability({ role: 'admin' }, 'webvue.internal')).toBe(false)
+    expect(hasCapability(null, 'webvue.internal')).toBe(false)
     expect(postLoginPath(internal, '/chat')).toBe('/chat')
     expect(postLoginPath(employee, '/chat/42?q=ops&filter=unread')).toBe('/chat/42?q=ops&filter=unread')
     expect(postLoginPath(internal, '/chat/new')).toBe('/chat/new')
@@ -100,7 +100,7 @@ describe('access policy navigation', () => {
   it("reaches a newer application's capability through its own feature, without navigation", () => {
     const unregistered = (readable: string[], writable: string[]) => ({
       capabilities: ['zz_unregistered.orders.read', 'zz_unregistered.orders.write'],
-      modules: ['nasq_zz_unregistered'],
+      modules: ['webvue_zz_unregistered'],
       entitlements: { 'zz_unregistered.enabled': readable.includes('zz_unregistered.enabled') },
       platform: { readable_features: readable, writable_features: writable },
     })

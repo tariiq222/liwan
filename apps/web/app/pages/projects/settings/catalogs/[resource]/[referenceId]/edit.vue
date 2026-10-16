@@ -2,7 +2,7 @@
 import { ApiError } from '@/composables/useApi'
 import ProjectCharterReferenceForm from '@/components/pmo/projects/settings/ProjectCharterReferenceForm.vue'
 import { isCharterCatalogResource, useCharterCatalogItem } from '@/composables/useProjectCharterCatalogs'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()

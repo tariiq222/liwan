@@ -1,27 +1,27 @@
 export default defineAppConfig({
   ui: {
     // Tasmim recipes (DESIGN.md «وصفات الثيم المعتمدة»). Colours: tenant primary
-    // from settings (utils/brandTheme.ts), slate neutral, Nasq midnight/lime in
-    // tokens.css. Sizes come from tokens: --nasq-control-h, --nasq-row-h,
+    // from settings (utils/brandTheme.ts), slate neutral, WebVue midnight/lime in
+    // tokens.css. Sizes come from tokens: --webvue-control-h, --webvue-row-h,
     // --ui-radius (rounded-md = 6px, rounded-lg = 8px at the 14px root).
     colors: { primary: 'brand', neutral: 'slate' },
 
     // The 32px control floor applies to the default (md) size only; xs/sm stay compact.
     // Dark mode: the solid primary paints from --primary-solid (brandTheme.ts darkSolid), not the
     // greyed --brand-link that text-primary and focus keep (owner amendment 4, CP2).
-    button: { slots: { base: 'rounded-md transition-colors duration-150 motion-reduce:transition-none' }, variants: { size: { md: { base: 'min-h-(--nasq-control-h)' } } }, compoundVariants: [{ size: 'md', square: true, class: 'min-w-(--nasq-control-h)' }, { color: 'primary', variant: 'solid', class: 'dark:bg-(--primary-solid) dark:text-(--primary-solid-foreground) dark:hover:bg-(--primary-solid-hover) dark:hover:text-(--primary-solid-hover-foreground) dark:active:bg-(--primary-solid-hover) dark:active:text-(--primary-solid-hover-foreground) dark:disabled:bg-(--primary-solid) dark:aria-disabled:bg-(--primary-solid)' }] },
-    input: { slots: { base: 'rounded-md bg-default' }, variants: { size: { md: { base: 'min-h-(--nasq-control-h)' } } } },
-    inputNumber: { slots: { base: 'rounded-md bg-default' }, variants: { size: { md: { base: 'min-h-(--nasq-control-h)' } } } },
+    button: { slots: { base: 'rounded-md transition-colors duration-150 motion-reduce:transition-none' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } }, compoundVariants: [{ size: 'md', square: true, class: 'min-w-(--webvue-control-h)' }, { color: 'primary', variant: 'solid', class: 'dark:bg-(--primary-solid) dark:text-(--primary-solid-foreground) dark:hover:bg-(--primary-solid-hover) dark:hover:text-(--primary-solid-hover-foreground) dark:active:bg-(--primary-solid-hover) dark:active:text-(--primary-solid-hover-foreground) dark:disabled:bg-(--primary-solid) dark:aria-disabled:bg-(--primary-solid)' }] },
+    input: { slots: { base: 'rounded-md bg-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
+    inputNumber: { slots: { base: 'rounded-md bg-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
     textarea: { slots: { base: 'rounded-md bg-default' } },
-    select: { slots: { base: 'rounded-md bg-default', content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--nasq-control-h)' } } } },
-    selectMenu: { slots: { base: 'rounded-md bg-default', content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--nasq-control-h)' } } } },
+    select: { slots: { base: 'rounded-md bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
+    selectMenu: { slots: { base: 'rounded-md bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
 
     // Surfaces: hairline ring, no resting shadow, compact padding.
     card: { slots: { root: 'rounded-lg bg-default ring ring-default shadow-none', header: 'px-4 py-3 sm:px-4', body: 'p-3 sm:p-4', footer: 'px-4 py-3 sm:px-4' } },
     table: {
       slots: {
-        th: 'h-(--nasq-row-h) bg-elevated/60 px-3 py-0 text-xs font-medium text-muted',
-        td: 'h-(--nasq-row-h) px-3 py-0 text-sm',
+        th: 'h-(--webvue-row-h) bg-elevated/60 px-3 py-0 text-xs font-medium text-muted',
+        td: 'h-(--webvue-row-h) px-3 py-0 text-sm',
         tr: 'transition-colors hover:bg-elevated/50 data-[selected=true]:bg-primary/5',
       },
     },
@@ -32,15 +32,15 @@ export default defineAppConfig({
     // Solid badges: white on error-500 is 3.8:1, so solid fills use the 600/700 step with white (warning: dark text on 500).
     badge: { slots: { base: 'rounded-md' }, variants: { size: { xs: { base: 'text-xs/4 px-1.5 py-0.5 rounded-md' }, sm: { base: 'text-xs/4 px-1.5 py-0.5 rounded-md' } } }, defaultVariants: { variant: 'subtle' }, compoundVariants: [{ color: 'secondary', variant: 'soft', class: 'text-secondary-800 dark:text-secondary' }, { color: 'success', variant: 'soft', class: 'text-success-800 dark:text-success' }, { color: 'info', variant: 'soft', class: 'text-info-800 dark:text-info' }, { color: 'warning', variant: 'soft', class: 'text-warning-800 dark:text-warning' }, { color: 'error', variant: 'soft', class: 'text-error-800 dark:text-error' }, { color: 'secondary', variant: 'subtle', class: 'text-secondary-800 dark:text-secondary' }, { color: 'success', variant: 'subtle', class: 'text-success-800 dark:text-success' }, { color: 'info', variant: 'subtle', class: 'text-info-800 dark:text-info' }, { color: 'warning', variant: 'subtle', class: 'text-warning-800 dark:text-warning' }, { color: 'error', variant: 'subtle', class: 'text-error-800 dark:text-error' }, { color: 'secondary', variant: 'solid', class: 'bg-secondary-600 text-white dark:bg-secondary dark:text-inverted' }, { color: 'success', variant: 'solid', class: 'bg-success-700 text-white dark:bg-success dark:text-inverted' }, { color: 'info', variant: 'solid', class: 'bg-info-600 text-white dark:bg-info dark:text-inverted' }, { color: 'warning', variant: 'solid', class: 'bg-warning-500 text-slate-900 dark:bg-warning dark:text-inverted' }, { color: 'error', variant: 'solid', class: 'bg-error-600 text-white dark:bg-error dark:text-inverted' }] },
     // The brand fills the bar in both modes (--ui-primary is the readable brand tone); a finished bar turns lime.
-    progress: { slots: { base: 'rounded-full', indicator: 'rounded-full data-[state=complete]:bg-nasq-lime' } },
+    progress: { slots: { base: 'rounded-full', indicator: 'rounded-full data-[state=complete]:bg-webvue-lime' } },
     avatar: { slots: { root: 'ring-2 ring-bg' } },
     tabs: { slots: { list: 'rounded-md', indicator: 'rounded-sm', trigger: 'rounded-sm' } },
 
     // Floating layers carry the only shadows.
-    dropdownMenu: { slots: { content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
-    popover: { slots: { content: 'z-[var(--nasq-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
-    tooltip: { slots: { content: 'z-[var(--nasq-ui-z-menu)] rounded-md' } },
-    slideover: { slots: { content: 'z-[var(--nasq-ui-z-sheet)]' } },
+    dropdownMenu: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
+    popover: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-lg shadow-lg ring ring-default' } },
+    tooltip: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-md' } },
+    slideover: { slots: { content: 'z-[var(--webvue-ui-z-sheet)]' } },
     modal: { slots: { content: 'z-[80] rounded-lg shadow-xl', overlay: 'z-[79] backdrop-blur-xs' } },
   },
 })

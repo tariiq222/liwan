@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { TagSchema } from '@nasq/contracts'
+import { TagSchema } from '@webvue/contracts'
 import { charterDefaults, charterOwningUnits, charterTypes, me, people, projectCreateDefaults, projectDetail, projectRefs, tags, taskDetail } from '../fixtures/pmo'
 
 const contains = (value: string, request: Request) => value.includes(new URL(request.url).searchParams.get('q') ?? '')

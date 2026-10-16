@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { TaskState } from '@nasq/contracts'
+import type { TaskState } from '@webvue/contracts'
 import { taskStateBadge } from '@/composables/taskState'
-import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
-import type { TaskDetail } from '@nasq/contracts'
+import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import type { TaskDetail } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useTaskDependencies, useTaskDependencyCandidates, useUpdateTaskDependencies } from '@/composables/useTaskDependencies'
 

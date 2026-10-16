@@ -3,7 +3,7 @@ import {
   BrandingSchema,
   type Branding,
   type BrandingPatch,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 
 const brandingAdminKeys = {
   all: ['branding-admin'] as const,

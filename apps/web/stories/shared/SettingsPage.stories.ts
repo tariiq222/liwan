@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import SettingsPage from '@nasq/ui/app/components/shared/layout/SettingsPage.vue'
-import PageHeader from '@nasq/ui/app/components/shared/layout/PageHeader.vue'
-import PageState from '@nasq/ui/app/components/shared/feedback/PageState.vue'
+import SettingsPage from '@webvue/ui/app/components/shared/layout/SettingsPage.vue'
+import PageHeader from '@webvue/ui/app/components/shared/layout/PageHeader.vue'
+import PageState from '@webvue/ui/app/components/shared/feedback/PageState.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>
 const layout = (width: 'list' | 'detail' | 'form', title: string): Story['render'] => () => ({
   components: { SettingsPage, PageHeader, PageState },
   setup: () => ({ t: useI18n().t, width, title }),
-  template: `<main class="nasq-shell-main"><SettingsPage :width="width"><PageHeader :title="t(title)" /><PageState :empty="true" /></SettingsPage></main>`,
+  template: `<main class="webvue-shell-main"><SettingsPage :width="width"><PageHeader :title="t(title)" /><PageState :empty="true" /></SettingsPage></main>`,
 })
 
 export const FormPage: Story = { name: 'صفحة إعداد بنموذج', parameters: storyContext('apps/web/app/pages/projects/settings.vue:14'), render: layout('form', 'settings.projects.title') }

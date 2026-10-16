@@ -4,7 +4,7 @@
 // instead of a static prop, or a successful PATCH/transition never shows up.
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, watch, type Ref } from 'vue'
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 import { taskKeys } from '../../app/composables/useTasks'
 import { taskDetail } from '../fixtures/pmo'
 

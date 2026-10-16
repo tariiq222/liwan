@@ -1,6 +1,6 @@
 # عقد Host→Tenant الأول — دليل شريحة معزولة
 
-**الفرع:** `codex/managed-saas-acceptance` عند HEAD `d780862e468e027286374ecebb9643f1490cc9e6` مع تغييرات عمل سابقة غير ملتزمة. **النطاق:** دالة pure في `apps/web/server/utils/tenantHostResolver.ts` واختباراتها؛ لا ربط بـNuxt handler أو Caddy أو Odoo، ولا سجل هدف حي أو قاعدة حقيقية. المرجع [عقد الاستضافة](../superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md) AC-01 (جزئيًا فقط).
+**الفرع:** `codex/managed-saas-acceptance` عند HEAD `d780862e468e027286374ecebb9643f1490cc9e6` مع تغييرات عمل سابقة غير ملتزمة. **النطاق:** دالة pure في `apps/web/server/utils/tenantHostResolver.ts` واختباراتها؛ لا ربط بـNuxt handler أو Caddy أو Odoo، ولا سجل هدف حي أو قاعدة حقيقية. المرجع [عقد الاستضافة](../superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md) AC-01 (جزئيًا فقط).
 
 | المرحلة | الأمر | النتيجة |
 |---|---|---|

@@ -1,6 +1,6 @@
 import { computed, onServerPrefetch, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { OperationExecutionKindsSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema } from '@nasq/contracts'
+import { OperationExecutionKindsSchema, OperationTargetsSchema, OperationProcessListSchema, OperationProcessSchema, OperationRequestListSchema, OperationRequestSchema } from '@webvue/contracts'
 import { useApi } from '../useApi'
 import { operationProcessMutationOptions, operationRequestMutationOptions, type OperationApi } from './mutations'
 

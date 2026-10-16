@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { VENDOR_ROLES } from '@nasq/commercial-contracts'
+import { VENDOR_ROLES } from '@webvue/commercial-contracts'
 import { capabilitiesFor } from '../roles.js'
 import { normalizeEmail } from '../accounts.js'
 
@@ -16,7 +16,7 @@ describe('roles', () => {
     expect(capabilitiesFor([])).toEqual([])
   })
   it('normalizes email', () => {
-    expect(normalizeEmail('  Admin@Nasq.SA ')).toBe('admin@nasq.sa')
+    expect(normalizeEmail('  Admin@WebVue.SA ')).toBe('admin@webvue.sa')
     expect(() => normalizeEmail('nope')).toThrow()
   })
 })

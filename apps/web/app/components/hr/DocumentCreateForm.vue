@@ -36,7 +36,7 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <UForm novalidate :state="{ name, body }" class="nasq-form" method="post" @submit="submit">
+  <UForm novalidate :state="{ name, body }" class="webvue-form" method="post" @submit="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     <SharedFormSection :title="t('hr.docs.newTitle')">
       <div class="grid gap-4 mt-4">

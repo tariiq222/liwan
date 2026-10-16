@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { ProjectStatus } from '@nasq/contracts'
+import type { ProjectStatus } from '@webvue/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
-import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
-import type { ProjectUpdate } from '@nasq/contracts'
-import { formatCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import type { ProjectUpdate } from '@webvue/contracts'
+import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 

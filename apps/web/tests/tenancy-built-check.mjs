@@ -6,10 +6,10 @@ import assert from 'node:assert/strict'
 const web = resolve(import.meta.dirname, '..')
 const probe = resolve(import.meta.dirname, 'tenancy-built-probe.mjs')
 async function check(built, runtime) {
-  const env = { PATH: process.env.PATH, NODE_ENV: 'production', HOST: '127.0.0.1', PORT: '0', NITRO_HOST: '127.0.0.1', NITRO_PORT: '0', NASQ_TENANCY_MODE: runtime,
+  const env = { PATH: process.env.PATH, NODE_ENV: 'production', HOST: '127.0.0.1', PORT: '0', NITRO_HOST: '127.0.0.1', NITRO_PORT: '0', WEBVUE_TENANCY_MODE: runtime,
     // Attempts to forge a runtime-config/build stamp must have no effect.
-    __NASQ_BUILD_TENANCY_MODE__: runtime, NUXT_BUILD_TENANCY_MODE: runtime,
-    NUXT_NASQ_BUILD_TENANCY_MODE: runtime, NITRO_BUILD_TENANCY_MODE: runtime,
+    __WEBVUE_BUILD_TENANCY_MODE__: runtime, NUXT_BUILD_TENANCY_MODE: runtime,
+    NUXT_WEBVUE_BUILD_TENANCY_MODE: runtime, NITRO_BUILD_TENANCY_MODE: runtime,
     NUXT_ODOO_URL: 'http://127.0.0.1:1', NUXT_ODOO_DB: 'synthetic_never_connect' }
   const child = spawn(process.execPath, ['--import', probe, resolve(web, `.output-t11-${built}/server/index.mjs`)], { env, stdio: ['ignore', 'pipe', 'pipe'] })
   let out = ''; let err = ''; let bound

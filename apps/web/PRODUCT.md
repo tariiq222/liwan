@@ -12,7 +12,7 @@ web
 
 ## Users
 
-Confirmed: a customer **company and its employees**. Nasq is used inside the institution, not as a consumer app.
+Confirmed: a customer **company and its employees**. WebVue is used inside the institution, not as a consumer app.
 
 The vision serves companies across business functions and industries. The
 currently implemented roles below do not limit the long-term audience to PMO
@@ -22,12 +22,12 @@ Roles inside that company (from shipped routes, not a ranked persona): project m
 
 ## Product Purpose
 
-**نسق منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
+**ويب فيو منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
 وتربط بياناتها وإجراءاتها وصلاحياتها في نظام واحد.** بدل اشتراك الشركة في أنظمة
-متعددة معزولة وتكرار البيانات وبناء تكاملات بينها، تبدأ بما تحتاجه في نسق وتتوسع
+متعددة معزولة وتكرار البيانات وبناء تكاملات بينها، تبدأ بما تحتاجه في ويب فيو وتتوسع
 تدريجيًا، بهدف خفض التكلفة الإجمالية للاشتراكات والتكامل والتشغيل.
 
-Nasq aims to cover company operations with a breadth comparable to Odoo,
+WebVue aims to cover company operations with a breadth comparable to Odoo,
 under its own identity and customer experience. The vision includes sales,
 finance, purchasing, inventory, HR, projects, and other business applications
 on a common foundation. PMO and HR are initial applications within that
@@ -45,7 +45,7 @@ Owner-approved positioning:
 
 1. One business platform with connected applications, data, workflows, and
    permissions, replacing fragmented subscriptions and isolated systems.
-2. Arabic RTL-first customer experience under Nasq's identity, built on Odoo
+2. Arabic RTL-first customer experience under WebVue's identity, built on Odoo
    Community as the business engine.
 3. Progressive adoption: companies use the applications they need and expand
    as their needs grow.
@@ -60,11 +60,11 @@ company; it does not permit sharing data between customer companies.
 ## Operating Context
 
 - Customer UI: `apps/web` (Nuxt 4) talking to Odoo through `/api/v1`.
-- Engine: Odoo 19 CE. Pillars: `nasq_core` (capabilities/identity), `nasq_pmo` (projects/tasks), `nasq_hr` (directory), `nasq_api` (shared HTTP). Meetings extend `cyan_meeting_minutes` through `nasq_pmo`.
+- Engine: Odoo 19 CE. Pillars: `webvue_core` (capabilities/identity), `webvue_pmo` (projects/tasks), `webvue_hr` (directory), `webvue_api` (shared HTTP). Meetings extend `cyan_meeting_minutes` through `webvue_pmo`.
 - Primary hosting target: self-service SaaS on shared application services,
   with a separate database and filestore per customer. Managed dedicated and
   customer-hosted deployments remain separate options. See the
-  [hosting contract](../../docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md)
+  [hosting contract](../../docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md)
   and [delivery evidence](../../docs/WORKSPACE.md); local integration is not
   production or release approval.
 - HR records live at `/hr`. Account grants live at `/settings/users`. `/api/v1/people` remains the PMO user-id picker; employee ids and user ids stay distinct.
@@ -87,7 +87,7 @@ updating the definition does not implement or authorize them automatically.
 
 ## Brand Commitments
 
-Name: نَسَق (Nasq). Binding UI constitution: [DESIGN.md](../../DESIGN.md). This file does not define a second theme.
+Name: ويب فيو (WebVue). Binding UI constitution: [DESIGN.md](../../DESIGN.md). This file does not define a second theme.
 
 ## Evidence on Hand
 
@@ -98,7 +98,7 @@ Name: نَسَق (Nasq). Binding UI constitution: [DESIGN.md](../../DESIGN.md). 
 ## Product Principles
 
 1. Customer data stays isolated even when application services are shared.
-2. Employees work in Nasq; the Nasq vendor administration (`apps/vendor-admin`) is a separate staff application, not part of this product.
+2. Employees work in WebVue; the WebVue vendor administration (`apps/vendor-admin`) is a separate staff application, not part of this product.
 3. Business applications share a coherent platform; PMO and HR are initial
    domains, with their own contracts, within the broader product vision.
 4. Capability and record/company context gate every action.

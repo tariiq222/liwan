@@ -4,7 +4,7 @@
 
 New owned files only:
 
-- `tools/nasq_cli/managed_health.py`
+- `tools/webvue_cli/managed_health.py`
 - `tools/test_managed_health.py`
 - this document
 
@@ -14,7 +14,7 @@ serializer, or frontend file was edited in this task. No real Docker process,
 network request, database access, commit, or merge was performed.
 
 ```python
-from nasq_cli.managed_health import health
+from webvue_cli.managed_health import health
 
 healthy = health(descriptor, runner=approved_local_bounded_runner)
 # Optional test seam: opener=..., attempts=15, delay=.5
@@ -52,7 +52,7 @@ The helper never performs those mutations or accesses a database.
    must match the serializer's local company/version path. Empty objects, extra
    keys, duplicate keys, nonfinite JSON values and wrong types are refused.
 6. Edge `/login` returns HTTP200 HTML containing real parsed Nuxt root `#__nuxt`,
-   source-owned `main.nasq-login-page`, `input#login[autocomplete=username]`, and
+   source-owned `main.webvue-login-page`, `input#login[autocomplete=username]`, and
    `input#password[type=password]`. Matching strings inside comments/scripts do
    not satisfy this requirement. These markers were read in
    `apps/web/app/pages/login.vue`, not invented as a generic HTML signature.
@@ -85,7 +85,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=tools python3 -B -m unittest discover -s to
 - **RED before implementation:** 16 tests ran, 16 expected failures, exit1:
   `managed_health implementation missing (RED)`.
 - **GREEN after implementation:** 16 tests passed, exit0.
-- **Lint:** `python3 -B -m ruff check --no-cache tools/nasq_cli/managed_health.py tools/test_managed_health.py`
+- **Lint:** `python3 -B -m ruff check --no-cache tools/webvue_cli/managed_health.py tools/test_managed_health.py`
   returned `All checks passed!`, exit0.
 - **Coverage:** in-memory standard-library `trace.Trace` ran the same tests and
   compared executed lines to `trace._find_executable_linenos(path)`:

@@ -6,7 +6,7 @@ import {
   TaskAttachmentSchema,
   type TaskAttachment,
   type TaskAttachmentList,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 import { taskKeys } from './useTasks'
 
 export type { TaskAttachment, TaskAttachmentList }

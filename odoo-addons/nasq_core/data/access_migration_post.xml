@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <function model="nasq.access.service" name="_nasq_repair_builtin_role_grants"/>
-    <function model="nasq.access.service" name="_nasq_apply_legacy_admin_snapshot"/>
-</odoo>

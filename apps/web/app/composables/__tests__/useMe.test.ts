@@ -1,4 +1,4 @@
-import { MeSchema } from '@nasq/contracts'
+import { MeSchema } from '@webvue/contracts'
 import { createError } from 'h3'
 import { describe, expect, it } from 'vitest'
 import { isLoggedOutError, isSchemaError } from '../useMe'

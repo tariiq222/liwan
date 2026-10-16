@@ -156,6 +156,13 @@ class UiPolicyTest(unittest.TestCase):
                 self.assertTrue(self.errors({MANIFEST: json.dumps({'dependencies': {name: '1'}})}))
                 self.assertTrue(self.errors({PAGE: f"import X from '{name}'"}))
 
+    def test_product_contracts_keep_their_internal_dependency_boundary_after_rename(self):
+        manifest = json.loads(self.current[MANIFEST])
+        manifest.setdefault('dependencies', {})['@webvue/contracts'] = '0.1.0'
+        errors = self.errors({MANIFEST: json.dumps(manifest), PAGE: "import type { PersonRef } from '@webvue/contracts'"})
+        self.assertEqual(errors, [])
+        self.assertTrue(self.errors({MANIFEST: json.dumps({'dependencies': {'@webvue/unknown': '1'}})}))
+
     def test_nuxt_ui_requires_manifest_and_registered_component(self):
         source = '<template><UButton>حفظ</UButton></template>'
         self.assertTrue(self.errors({COMPONENT: source}))
@@ -223,7 +230,7 @@ class UiPolicyTest(unittest.TestCase):
             (MAIN_CSS, ':root { --brand: #123456; }'),
             (UI + 'assets/css/tokens.css', ':root { --brand: #123456; }'),
             (UI + 'assets/css/components.css', '.card { color: #123456; }'),
-            (UI + 'assets/css/shell.css', '@font-face { font-family: Nasq; }'),
+            (UI + 'assets/css/shell.css', '@font-face { font-family: WebVue; }'),
             (APP + 'utils/brandTheme.ts', 'export const brand = "#123456"'),
             (UI + 'app.config.ts', 'export default { ui: { colors: { primary: "#123456" } } }'),
         ):
@@ -421,17 +428,17 @@ class StaticGateTest(unittest.TestCase):
             UI + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
                                    "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
             UI + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.285714rem;\n"
-                                           "  --nasq-midnight: #13234a; --nasq-lime: #c8f031;\n"
+                                           "  --webvue-midnight: #13234a; --webvue-lime: #c8f031;\n"
                                            "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
                                            "  --status-danger: red; --status-danger-foreground: white;\n"
                                            "  --unread-count-foreground: white;\n"
                                            "  font-family: 'IBM Plex Sans Arabic'; }\n"
                                            "\n.dark { color: #fff; }",
-            UI + "assets/css/components.css": ".nasq-status-text-warning { color: var(--status-warning); }\n"
-                                               ".nasq-unread-count { color: var(--unread-count-foreground); }",
-            UI + "assets/css/shell.css": ".nasq-page-width-list { max-width: none; }\n"
-                                          ".nasq-page-width-detail { max-width: 68rem; }\n"
-                                          ".nasq-page-width-form { max-width: 58rem; }",
+            UI + "assets/css/components.css": ".webvue-status-text-warning { color: var(--status-warning); }\n"
+                                               ".webvue-unread-count { color: var(--unread-count-foreground); }",
+            UI + "assets/css/shell.css": ".webvue-page-width-list { max-width: none; }\n"
+                                          ".webvue-page-width-detail { max-width: 68rem; }\n"
+                                          ".webvue-page-width-form { max-width: 58rem; }",
         }
         snapshot.update(files)
         return snapshot
@@ -519,8 +526,8 @@ class StaticGateTest(unittest.TestCase):
     # --- theme and recipes -----------------------------------------------------
 
     def test_custom_recipe_class_is_reported_and_z_tokens_are_not(self):
-        self.assertTrue(policy.recipe_errors({self.COMPONENTS + "x.vue": '<div class="nasq-ui-panel" />'}))
-        self.assertEqual(policy.recipe_errors({self.COMPONENTS + "x.vue": '<div class="nasq-ui-z-40" />'}), [])
+        self.assertTrue(policy.recipe_errors({self.COMPONENTS + "x.vue": '<div class="webvue-ui-panel" />'}))
+        self.assertEqual(policy.recipe_errors({self.COMPONENTS + "x.vue": '<div class="webvue-ui-z-40" />'}), [])
 
     def test_theme_colors_and_undocumented_recipe_key_are_reported(self):
         config = UI + "app.config.ts"
@@ -563,9 +570,9 @@ class StaticGateTest(unittest.TestCase):
 
     def test_page_width_probe_tolerates_minified_css(self):
         minified = self.whole()
-        minified[UI + "assets/css/shell.css"] = (".nasq-page-width-list{max-width:none}"
-                                                  ".nasq-page-width-detail{max-width:68rem}"
-                                                  ".nasq-page-width-form{max-width:58rem}")
+        minified[UI + "assets/css/shell.css"] = (".webvue-page-width-list{max-width:none}"
+                                                  ".webvue-page-width-detail{max-width:68rem}"
+                                                  ".webvue-page-width-form{max-width:58rem}")
         self.assertEqual([e for e in policy.page_shell_errors(minified) if "page width" in e], [])
 
     def test_completeness_rules_say_nothing_about_a_partial_snapshot(self):
@@ -624,9 +631,9 @@ class StaticGateTest(unittest.TestCase):
     def test_layer_components_are_scanned_by_the_app_wide_rules(self):
         layer = policy.UI_COMPONENTS + "shared/data/X.vue"
         self.assertTrue(policy.button_rank_errors({layer: '<UButton color="secondary">Go</UButton>'}))
-        self.assertTrue(policy.recipe_errors({layer: "<template><div class=\"nasq-ui-card\" /></template>"}))
+        self.assertTrue(policy.recipe_errors({layer: "<template><div class=\"webvue-ui-card\" /></template>"}))
         self.assertTrue(policy.template_errors({policy.UI_COMPONENTS + "shared/data/OtherBadge.vue": "<template />"}))
-        self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@nasq/ui/app/utils/sectionTabs"), UI + "utils/sectionTabs")
+        self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@webvue/ui/app/utils/sectionTabs"), UI + "utils/sectionTabs")
 
     def test_commercial_layer_is_scanned_and_resolved_like_the_ui_layer(self):
         commercial = "packages/commercial-ui/app/"
@@ -635,7 +642,7 @@ class StaticGateTest(unittest.TestCase):
         self.assertEqual(policy.component_file("shared/data/InvoiceLines.vue"), layer)
         self.assertEqual(policy.component_file("shared/commerce/PriceBreakdown.vue"), commercial + "components/shared/commerce/PriceBreakdown.vue")
         self.assertEqual(policy.component_file("shared/data/DataTable.vue"), UI + "components/shared/data/DataTable.vue")
-        self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@nasq/commercial-ui/app/utils/commercial"), commercial + "utils/commercial")
+        self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@webvue/commercial-ui/app/utils/commercial"), commercial + "utils/commercial")
         self.assertEqual(policy.baseline_path(layer), APP + "components/shared/data/InvoiceLines.vue")
         self.assertTrue(policy.button_rank_errors({layer: '<UButton color="secondary">Go</UButton>'}))
         self.assertIn("packages/commercial-ui/package.json", policy.MANIFESTS)
@@ -650,7 +657,7 @@ class StaticGateTest(unittest.TestCase):
     def test_retired_route_sheet_file_and_artifact_are_reported(self):
         self.assertTrue(policy.retired_artifact_errors({policy.RETIRED_FILES[0]: "<template><div /></template>"}))
         self.assertTrue(policy.retired_artifact_errors({
-            UI + "assets/css/components.css": ".nasq-sheet-in { opacity: 0; }"}))
+            UI + "assets/css/components.css": ".webvue-sheet-in { opacity: 0; }"}))
 
     # --- HR boundary -----------------------------------------------------------
 

@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Catalog validation for the nasq solution catalog (distribution-models spec §7.3).
+"""Catalog validation for the webvue solution catalog (distribution-models spec §7.3).
 
 Two independent stages, both offline:
 
@@ -24,9 +24,9 @@ import sys
 from pathlib import Path
 
 try:  # run as a script (tools/ on the path) or imported as tools.catalog_check
-    from nasq_cli.module_closure import ClosureError, install_closure, install_order
+    from webvue_cli.module_closure import ClosureError, install_closure, install_order
 except ModuleNotFoundError:
-    from tools.nasq_cli.module_closure import ClosureError, install_closure, install_order
+    from tools.webvue_cli.module_closure import ClosureError, install_closure, install_order
 
 ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 
@@ -34,7 +34,7 @@ CATALOG_DIR = 'deploy/catalog'
 ADDONS_DIR = 'odoo-addons'
 # Every addon owned by this repository is prefixed, so an unresolvable prefixed
 # dependency is a typo or a missing module rather than an Odoo core addon.
-ADDON_PREFIX = 'nasq_'
+ADDON_PREFIX = 'webvue_'
 
 # The schema URL is an editor hint. Nothing in this repository fetches it, and the
 # Customer-Hosted rule (§2.1: no runtime external dependency) is unaffected.
@@ -47,7 +47,7 @@ SUPPORTED_KEYWORDS = frozenset({
 
 # Test-only addons must never be sold in a catalog tier. Each entry is verified
 # against its own manifest, so this list cannot silently rot (see check_test_only).
-TEST_ONLY_MODULES = frozenset({'nasq_registry_probe'})
+TEST_ONLY_MODULES = frozenset({'webvue_registry_probe'})
 TEST_ONLY_MARKER = 'never installed in production'
 
 # A schema-3 solution installs its whole release in every tenant (spec 3.6).
@@ -65,12 +65,12 @@ RELEASE_COPIES = (
     'deploy/verification-checks.json',
     'deploy/control-plane-outage/outage-fixture',
     'deploy/control-plane-outage/README.md',
-    'tools/nasq_cli/operator.py',
+    'tools/webvue_cli/operator.py',
 )
 ARCH_LAYERS = 'tools/arch_layers.json'
 APPLICATION_RANK = 4
 _COMMA_LIST = re.compile(r'/?[a-z][a-z0-9_]*(?:,/?[a-z][a-z0-9_]*)+')
-_ADDON_TUPLE = re.compile(r'(?P<head>\b(?:NASQ_ADDONS|CREATE_MODULES) = \()(?P<body>[^)]*)\)')
+_ADDON_TUPLE = re.compile(r'(?P<head>\b(?:WEBVUE_ADDONS|CREATE_MODULES) = \()(?P<body>[^)]*)\)')
 _TUPLE_WIDTH = 100
 
 JSON_TYPES = {
@@ -211,7 +211,7 @@ def read_registry(root):
         for node in ast.walk(tree):
             if not isinstance(node, ast.FunctionDef):
                 continue
-            if node.name not in {'_nasq_feature_definitions', '_nasq_module_definitions'}:
+            if node.name not in {'_webvue_feature_definitions', '_webvue_module_definitions'}:
                 continue
             for entry in ast.walk(node):
                 if not isinstance(entry, ast.Dict):
@@ -221,7 +221,7 @@ def read_registry(root):
                     name = _literal(key_node)
                     if isinstance(name, str):
                         data[name] = _literal(value_node)
-                if node.name == '_nasq_feature_definitions':
+                if node.name == '_webvue_feature_definitions':
                     if not isinstance(data.get('key'), str):
                         raise SchemaError(f'{path}: feature definition without a literal key')
                     if data['key'] in features:
@@ -312,7 +312,7 @@ def _check_features(entries, where, installed, subject, registry, limit_keys, er
                 errors.append(f'{where}: {key!r} is not a known limit key')
             declared_limits.add(key)
         owner = definition.get('module')
-        if owner and owner != 'nasq_platform' and owner not in installed:
+        if owner and owner != 'webvue_platform' and owner not in installed:
             errors.append(
                 f'{where}: feature {key!r} belongs to {owner!r}, '
                 f'which {subject} does not install',
@@ -320,13 +320,13 @@ def _check_features(entries, where, installed, subject, registry, limit_keys, er
     return declared_limits
 
 
-def _nasq_owned(name, manifests, registry_modules):
+def _webvue_owned(name, manifests, registry_modules):
     """True when a dependency must resolve inside odoo-addons.
 
     Odoo core addons (project, hr, mail, auth_totp …) are checked out separately in
     CI and are not resolvable here, so they stay external by design. A module is
-    nasq-owned when it ships from odoo-addons, is declared in the module registry,
-    or carries the repository's nasq_ prefix.
+    webvue-owned when it ships from odoo-addons, is declared in the module registry,
+    or carries the repository's webvue_ prefix.
     """
     return name in manifests or name in registry_modules or name.startswith(ADDON_PREFIX)
 
@@ -374,13 +374,13 @@ def _check_release(root, where, data, registry, errors):
         if len(tier_ids) > 1:
             errors.append(f'{where}: feature {key!r} is declared by more than one tier ({", ".join(tier_ids)})')
         owner = (registry.get(key) or {}).get('module')
-        if owner and owner != 'nasq_platform' and owner not in release:
+        if owner and owner != 'webvue_platform' and owner not in release:
             errors.append(f'{where}: feature {key!r} belongs to module {owner!r}, which is not in the release')
     for key, definition in sorted(registry.items()):
         module = definition.get('module')
         if module in TEST_ONLY_MODULES:
             continue
-        if (module == 'nasq_platform' or module in release) and key not in tiers_by_key:
+        if (module == 'webvue_platform' or module in release) and key not in tiers_by_key:
             errors.append(f'{where}: feature {key!r} of release module {module!r} is in no tier')
 
 
@@ -437,7 +437,7 @@ def _rewrite_tuple(match, order, expected, anchor):
 def sync_release_copies(root, catalog_dir=CATALOG_DIR):
     """Rewrite the module lists inside RELEASE_COPIES to the current release.
 
-    Only the lists change (names outside the release that are not Nasq addons, such as
+    Only the lists change (names outside the release that are not WebVue addons, such as
     the theme, keep their place after them). Returns the relative paths rewritten."""
     root = Path(root)
     current = current_release(root, catalog_dir)
@@ -488,7 +488,7 @@ def _check_release_apps(root, where, data, errors):
 
 def _check_release_copies(root, base_modules, modules, errors):
     """Literal copies of the release list must equal it (names outside the release that
-    are not Nasq addons, such as the theme, are ignored)."""
+    are not WebVue addons, such as the theme, are ignored)."""
     expected = set(modules)
     anchor = base_modules[0] if base_modules else None
     for relative in RELEASE_COPIES:
@@ -663,13 +663,13 @@ def check_catalog(root, catalog_dir=CATALOG_DIR):
         if module not in manifests:
             continue
         for dependency in manifests[module]['depends']:
-            if dependency not in manifests and _nasq_owned(
+            if dependency not in manifests and _webvue_owned(
                 dependency, manifests, registry_modules,
             ):
-                # A nasq-owned dependency with no manifest is a typo or a missing
+                # A webvue-owned dependency with no manifest is a typo or a missing
                 # module, not an Odoo core addon.
                 errors.append(
-                    f'{module}: nasq dependency {dependency!r} is missing from {ADDONS_DIR}',
+                    f'{module}: webvue dependency {dependency!r} is missing from {ADDONS_DIR}',
                 )
         edges[module] = [
             dependency for dependency in manifests[module]['depends']

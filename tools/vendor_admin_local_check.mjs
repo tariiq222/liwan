@@ -3,7 +3,7 @@
 //
 //   node tools/vendor_admin_local_check.mjs
 //
-// Creates the scratch database nasq_control_scratch_p3live, starts the control plane (127.0.0.1:4711), bootstraps
+// Creates the scratch database webvue_control_scratch_p3live, starts the control plane (127.0.0.1:4711), bootstraps
 // the first owner, builds and starts apps/vendor-admin (production build, port 3103) and runs the Playwright live
 // spec (apps/vendor-admin/e2e/live-control.spec.ts, config playwright.live.config.ts). Prints a pass/fail table
 // and tears everything down in a finally block. Keys are generated per run and never printed; not part of CI.
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ADMIN_APP = join(ROOT, 'apps', 'vendor-admin')
-const DB_NAME = 'nasq_control_scratch_p3live'
+const DB_NAME = 'webvue_control_scratch_p3live'
 const PG = { host: '127.0.0.1', port: '5432' }
 const CONTROL_PORT = 4711
 const ADMIN_PORT = 3103
@@ -25,7 +25,7 @@ const ADMIN_ORIGIN = `http://localhost:${ADMIN_PORT}`
 const INSTALLATION_ID = 'vendor-live'
 const SHOTS_DIR = join(ROOT, '.superpowers', 'wave4-live-shots')
 
-if (!DB_NAME.startsWith('nasq_control_scratch_')) throw new Error('refusing to run: the database must be a nasq_control_scratch_* database')
+if (!DB_NAME.startsWith('webvue_control_scratch_')) throw new Error('refusing to run: the database must be a webvue_control_scratch_* database')
 
 const rows = []
 const record = (name, ok, detail = '') => { rows.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`) }
@@ -115,7 +115,7 @@ try {
     CONTROL_DATABASE_URL: databaseUrl, CONTROL_INSTALLATION_ID: INSTALLATION_ID, CONTROL_SERVICE_KEY: serviceKey,
     CONTROL_HOST: '127.0.0.1', CONTROL_PORT: String(CONTROL_PORT),
     ADMIN_SECRET_KEY: adminSecret, ADMIN_RP_ID: 'localhost', ADMIN_ORIGIN: ADMIN_ORIGIN,
-    NASQ_CLI_INVENTORY: join(workDir, 'inventory.json'), NASQ_CLI_STATE_DIR: join(workDir, 'state'), NASQ_REPOSITORY_ROOT: join(workDir, 'repo'),
+    WEBVUE_CLI_INVENTORY: join(workDir, 'inventory.json'), WEBVUE_CLI_STATE_DIR: join(workDir, 'state'), WEBVUE_REPOSITORY_ROOT: join(workDir, 'repo'),
   }
   const control = start('control plane', 'npm', ['-w', 'apps/control-plane', 'run', 'dev'], { cwd: ROOT, env: controlEnv })
   try {

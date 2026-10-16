@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-# Original author: Cyan. Version 19.0.1.3.1 is Nasq hardening of vendor 19.0.1.3.0.
+# Original author: Cyan. Version 19.0.1.3.1 is WebVue hardening of vendor 19.0.1.3.0.
 # SPDX-License-Identifier: LGPL-3
 {
     "name": "Cyan Meeting Minutes",

@@ -18,7 +18,7 @@ SOURCES = (APP, LAYER)
 UI = APP / 'components/ui'
 CHARTS = APP / 'components/charts'
 CHART_OWNER = 'apps/web/app/components/shared/data/DashboardChart.client.vue'
-WRAPPERS = re.compile(r'\bnasq-(?:panel(?:-header|-body)?|metrics|metric(?:-title|-value|-foot)?|form-section-heading|settings-section-heading|project-toolbar|tabs|view-switch|settings-nav)\b')
+WRAPPERS = re.compile(r'\bwebvue-(?:panel(?:-header|-body)?|metrics|metric(?:-title|-value|-foot)?|form-section-heading|settings-section-heading|project-toolbar|tabs|view-switch|settings-nav)\b')
 COMMENT = re.compile(r'<!--[\s\S]*?-->|/\*[\s\S]*?\*/|^\s*//[^\n]*', re.M)
 
 

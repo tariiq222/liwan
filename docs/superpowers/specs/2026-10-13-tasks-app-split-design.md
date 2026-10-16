@@ -23,30 +23,30 @@ comments, global search provider, Kanban board, digests.
 
 | Unit | Kind | Rank | Owns |
 |---|---|---|---|
-| `nasq_tasks` | application | 4 | personal tasks (`project.task` rows with `project_id = False`), `tasks.enabled`, the `tasks.*` capabilities, `/api/v1/my-tasks/*`, the `nasq.task.links` hook with its "no project" defaults, the `tasks.assigned` bell kind |
-| `nasq_tasks_pmo` | bridge | 5, `auto_install` | project-task branch of `nasq.task.links`, conversion route, convert-target lookup |
+| `webvue_tasks` | application | 4 | personal tasks (`project.task` rows with `project_id = False`), `tasks.enabled`, the `tasks.*` capabilities, `/api/v1/my-tasks/*`, the `webvue.task.links` hook with its "no project" defaults, the `tasks.assigned` bell kind |
+| `webvue_tasks_pmo` | bridge | 5, `auto_install` | project-task branch of `webvue.task.links`, conversion route, convert-target lookup |
 | `apps/web/app/modules/tasks` | web application | — | `/my-tasks` pages, `components/my-tasks`, locale `my-tasks.json` |
 
-Rules honoured: R1–R4 (new addon depends on `project`, `mail`, `nasq_core`,
-`nasq_api`, `nasq_notify`, `nasq_directory`; never on `nasq_pmo`), R7 (no
+Rules honoured: R1–R4 (new addon depends on `project`, `mail`, `webvue_core`,
+`webvue_api`, `webvue_notify`, `webvue_directory`; never on `webvue_pmo`), R7 (no
 `sudo()` except the two documented cases in §7), R9 (public extension points
 only), R10 (feature + capabilities registered by the owning addon).
 
 Scaffold with `python3 -B tools/new_app.py tasks --name-ar المهام --name-en Tasks`,
-then the bridge by hand following `nasq_meetings_pmo`.
+then the bridge by hand following `webvue_meetings_pmo`.
 
-`nasq_pmo` is not refactored. Its `/api/v1/tasks/*` routes, `/tasks` web
+`webvue_pmo` is not refactored. Its `/api/v1/tasks/*` routes, `/tasks` web
 routes, bell kinds and locale `tasks.json` stay as they are. The only PMO
 change is limited to the documented extension points (§6.3: the web manifest is unchanged).
 
 ## 3. Data
 
 Personal task = `project.task` with `project_id = False` (Odoo's own
-"🔒 Private" value). No new model. `nasq_tasks` adds to `project.task`:
+"🔒 Private" value). No new model. `webvue_tasks` adds to `project.task`:
 
-- `nasq_personal` — stored boolean, computed `not project_id`, indexed.
+- `webvue_personal` — stored boolean, computed `not project_id`, indexed.
   Used by rules and domains so the two populations never overlap.
-- `nasq_parent_id` / `nasq_child_ids` — a personal sub-task points at its parent through these
+- `webvue_parent_id` / `webvue_child_ids` — a personal sub-task points at its parent through these
   own fields (many2one with `ondelete='cascade'` and one2many), not Odoo's `parent_id`/`child_ids`:
   Odoo forbids `parent_id` on a project-less task. The convert (section 6) moves the sub-tasks of
   a converted task to Odoo's `parent_id` once the parent has a project.
@@ -63,11 +63,11 @@ and is also dropped from the task's followers so a comment never reaches them (s
 Constraints enforced in the service layer:
 
 - A personal task's `company_id` is the caller's current company.
-- A personal sub-task's parent (`nasq_parent_id`) is a readable personal task in the same
+- A personal sub-task's parent (`webvue_parent_id`) is a readable personal task in the same
   company; depth 1 only (a sub-task has no sub-tasks).
 - Assignees come from the `/api/v1/people` population (active internal
-  users of the current company); `nasq_tasks` registers its feature keys in
-  `nasq.directory`.
+  users of the current company); `webvue_tasks` registers its feature keys in
+  `webvue.directory`.
 - Welcome to-dos created by `project_todo` for `base.user_root` are excluded
   from every list (`create_uid != base.user_root`).
 
@@ -99,12 +99,12 @@ value the bridge supplies (`/projects/{project_id}/tasks/{id}`). The web
 never builds a project URL itself.
 
 `PersonRef` is the `/api/v1/people` shape `{id, name, user_id}` (`res.users` ids); comment `author`
-is null when the author has no user. Personal sub-tasks use `nasq_parent_id` (Odoo forbids `parent_id`
+is null when the author has no user. Personal sub-tasks use `webvue_parent_id` (Odoo forbids `parent_id`
 on project-less tasks), and `subtasks` lists active, readable children only.
 
 `TaskComment`: `id, body (plain text), author: PersonRef|null, created_at`.
 
-## 5. API (`nasq_tasks`, all `type='json2'`, `auth='user'`, `@api_handler`, gated by `tasks.enabled`)
+## 5. API (`webvue_tasks`, all `type='json2'`, `auth='user'`, `@api_handler`, gated by `tasks.enabled`)
 
 | Method | Route | Capability | Notes |
 |---|---|---|---|
@@ -114,30 +114,30 @@ on project-less tasks), and `subtasks` lists active, readable children only.
 | PATCH | `/api/v1/my-tasks/<id>` | `tasks.tasks.write` | same fields as POST except `parent_id` |
 | POST | `/api/v1/my-tasks/<id>/done` · `/reopen` · `/cancel` | `tasks.tasks.write` | returns detail |
 | GET/POST | `/api/v1/my-tasks/<id>/comments` | read / write | plain-text `body`; stored as `mail.message` on the task |
-| GET/POST/DELETE | `/api/v1/my-tasks/<id>/attachments[/<att_id>]` | read / write | `nasq_api/serializers/attachment.py` validator; storage counted by `_nasq_claim_storage` |
+| GET/POST/DELETE | `/api/v1/my-tasks/<id>/attachments[/<att_id>]` | read / write | `webvue_api/serializers/attachment.py` validator; storage counted by `_webvue_claim_storage` |
 
 Errors: 403 `forbidden` / `feature_not_included`, 404 `not_found`, 422
 `invalid` with `field`.
 
 Unified list composition: domain =
-`(nasq_personal AND visible-by-rule) OR links._nasq_project_task_domain(uid)`.
+`(webvue_personal AND visible-by-rule) OR links._webvue_project_task_domain(uid)`.
 The default hook returns an always-false domain, so a base-only tenant lists
-personal tasks only. Rows are serialised by `nasq_tasks`; the project column
-comes from `links._nasq_project_ref(task)` (default `None`).
+personal tasks only. Rows are serialised by `webvue_tasks`; the project column
+comes from `links._webvue_project_ref(task)` (default `None`).
 
-## 6. Bridge (`nasq_tasks_pmo`)
+## 6. Bridge (`webvue_tasks_pmo`)
 
-### 6.1 Hook `nasq.task.links`
+### 6.1 Hook `webvue.task.links`
 
-Defined in `nasq_tasks/models/task_links.py` as an AbstractModel, mirroring
-`nasq.meeting.links`:
+Defined in `webvue_tasks/models/task_links.py` as an AbstractModel, mirroring
+`webvue.meeting.links`:
 
-- `_nasq_project_task_domain(uid)` → default `Domain.FALSE`; bridge returns
+- `_webvue_project_task_domain(uid)` → default `Domain.FALSE`; bridge returns
   `project_id != False AND uid in user_ids AND project active in company`
   (ordinary ACL and record rules still apply, no `sudo()`).
-- `_nasq_project_ref(task)` → default `None`; bridge returns `{id, name}`
+- `_webvue_project_ref(task)` → default `None`; bridge returns `{id, name}`
   and `href`.
-- `_nasq_can_convert(task)` → default `False`; bridge returns whether the
+- `_webvue_can_convert(task)` → default `False`; bridge returns whether the
   caller holds `pmo.tasks.create` on at least one active project.
 
 ### 6.2 Routes (gated by `tasks.enabled` **and** `pmo.enabled`)
@@ -158,36 +158,36 @@ tasks list from the navigation, so `nav`, `landing`, `routePrefixes`, the
 `/tasks/*` pages, `/archived-tasks`, bell hrefs and context links all stay as
 they were. «مهامي» (`/my-tasks`) coexists with PMO's «المهام» entry; both show
 when both applications are enabled and nothing hides either. Everything else in
-`nasq_pmo` is untouched. (This reverses the earlier plan to drop the entry.)
+`webvue_pmo` is untouched. (This reverses the earlier plan to drop the entry.)
 
 ## 7. Security
 
-Capabilities registered through `nasq.access.service` with owner `nasq_tasks`:
+Capabilities registered through `webvue.access.service` with owner `webvue_tasks`:
 `tasks.tasks.read`, `tasks.tasks.create`, `tasks.tasks.write`. Dependencies:
-`create` and `write` require `read`. Built-in grants: `nasq_core.role_employee`
+`create` and `write` require `read`. Built-in grants: `webvue_core.role_employee`
 gets all three (every employee has a to-do list); `system_admin` gets none
 implicitly, consistent with HR/PMO. No new role.
 
-Groups and records in `nasq_tasks/security/`: three capability groups, ACLs
+Groups and records in `webvue_tasks/security/`: three capability groups, ACLs
 on `project.task` for those groups (read/create/write, no unlink), and
 record rules:
 
 - `rule_personal_task_visible`, a **global** rule (no groups, so it narrows Odoo's own task rules
   instead of being OR-ed with them):
-  `['|', ('nasq_personal','=',False), '&', ('company_id','=',company_id),
+  `['|', ('webvue_personal','=',False), '&', ('company_id','=',company_id),
     '|', '|', ('create_uid','=',user.id), ('user_ids','in',[user.id]),
-    '|', ('nasq_parent_id.create_uid','=',user.id), ('nasq_parent_id.user_ids','in',[user.id])]`
+    '|', ('webvue_parent_id.create_uid','=',user.id), ('webvue_parent_id.user_ids','in',[user.id])]`
 - Two group rules OR the extra access in: read of sub-tasks for the participants of the parent
   (group `tasks.tasks.read`) and write for the creator or an assignee (group `tasks.tasks.write`).
 
 The implementer verifies Odoo 19's own private-task rules on `project.task`
-in `/Users/tariq/code/odoo/addons/project/security/` and keeps the Nasq rule
+in `/Users/tariq/code/odoo/addons/project/security/` and keeps the WebVue rule
 at least as strict; a stranger must get 404 on a personal task even when
-Odoo's rule would read it. Existing `nasq_pmo` rule
+Odoo's rule would read it. Existing `webvue_pmo` rule
 `rule_task_current_company` keeps applying globally.
 
-Documented `sudo()` cases in `nasq_tasks`: (1) the `tasks.assigned` bell
-delivery through `nasq.notify.service`, (2) the recipient-owned bell
+Documented `sudo()` cases in `webvue_tasks`: (1) the `tasks.assigned` bell
+delivery through `webvue.notify.service`, (2) the recipient-owned bell
 candidate lookup, exactly as PMO's notification cases. Nothing else.
 
 PMO's own routes (`PATCH/transition/archive /api/v1/tasks/<id>`) can reach a personal task once the
@@ -200,22 +200,22 @@ stored state outside the three personal ones as `open`, so a detail never fails 
 
 ## 8. Entitlements and catalog
 
-- `nasq_tasks/models/feature_registry.py`: `tasks.enabled` (boolean, owner
-  `nasq_tasks`). No limit key in v1; attachments count against
+- `webvue_tasks/models/feature_registry.py`: `tasks.enabled` (boolean, owner
+  `webvue_tasks`). No limit key in v1; attachments count against
   `storage.limit_mb`.
 - `deploy/catalog/solutions/platform_v3.json` (still unpublished, edited in
-  place): new tier `{"id":"tasks","name":"Tasks","modules":["nasq_tasks"],
+  place): new tier `{"id":"tasks","name":"Tasks","modules":["webvue_tasks"],
   "features":["boolean:tasks.enabled"]}`. Composing it with messaging and
   meetings into the commercial "workspace" bundle is a plan/bundle decision
   in the vendor console, not a catalog change.
-- `tools/arch_layers.json`: `nasq_tasks: 4`, `nasq_tasks_pmo: 5`, web app
+- `tools/arch_layers.json`: `webvue_tasks: 4`, `webvue_tasks_pmo: 5`, web app
   `tasks: {components: ["my-tasks"], pages: ["my-tasks"]}`.
-- `nasq.tenant.profile._register_hook` registers `tasks.enabled` closed on
+- `webvue.tenant.profile._register_hook` registers `tasks.enabled` closed on
   existing tenants; operator scripts open it with the base bundle.
 
 ## 9. Notifications
 
-`nasq_tasks` registers kind `tasks.assigned` in `nasq.notify.registry`:
+`webvue_tasks` registers kind `tasks.assigned` in `webvue.notify.registry`:
 sent when a user other than the recipient adds them to a personal task's
 assignees. One row per (task, recipient), replaced on re-assignment. Bell
 href `/my-tasks/{task_id}`. The web manifest lists it under `bell.kinds`.
@@ -254,7 +254,7 @@ filters the rest.
 ## 11. Migration and compatibility
 
 - Fresh install only; no data migration. Existing databases get
-  `nasq_personal` computed on install (store + compute handles it).
+  `webvue_personal` computed on install (store + compute handles it).
 - PMO's `GET /api/v1/tasks` keeps excluding project-less tasks; the two
   lists never show the same row twice except as a project row in
   `/my-tasks`, by design.
@@ -262,20 +262,20 @@ filters the rest.
 
 ## 12. Tests
 
-Odoo (`NasqApiCase`, every `test_*.py` imported in `tests/__init__.py`):
+Odoo (`WebVueApiCase`, every `test_*.py` imported in `tests/__init__.py`):
 
-- `nasq_tasks`: create/list/detail by creator; assignee sees and edits;
+- `webvue_tasks`: create/list/detail by creator; assignee sees and edits;
   stranger gets 404 on detail and no row in list; other company gets
   nothing; sub-task depth limit; state transitions and `allowed_actions`;
   comments and attachment validator/quota; feature gate 403 when
   `tasks.enabled` is false; `tasks.assigned` delivered once and replaced;
   Welcome to-do excluded.
-- `nasq_tasks_pmo`: list shows an assigned project task with `source`
+- `webvue_tasks_pmo`: list shows an assigned project task with `source`
   `project` and the PMO href; convert requires `pmo.tasks.create` on the
   target project (403 otherwise), moves attachments and sub-tasks, and the
   row disappears from `/api/v1/my-tasks/<id>` (404) while appearing in PMO's
   `/api/v1/tasks/<id>`; convert-targets only lists eligible projects.
-- Without `nasq_pmo` installed, `nasq_tasks` tests pass alone (hook defaults).
+- Without `webvue_pmo` installed, `webvue_tasks` tests pass alone (hook defaults).
 
 Web: vitest for the manifest, composable and list filters; a mock-backed
 Playwright spec for list → create → done → detail; hydration test for the
@@ -287,8 +287,8 @@ Static: `ruff check odoo-addons`, `python3 -B tools/arch_policy.py --base main`,
 
 ## 13. Delivery order
 
-1. Scaffold `nasq_tasks` + registration files; feature, capabilities,
-   groups, rules; `nasq_personal`; service + tests (no routes yet).
+1. Scaffold `webvue_tasks` + registration files; feature, capabilities,
+   groups, rules; `webvue_personal`; service + tests (no routes yet).
 2. Routes, serializers, contracts, comments, attachments, notification.
 3. Bridge addon with hook, routes, tests.
 4. Web module, pages, composable, locale, stories, tests; no PMO manifest change (§6.3).

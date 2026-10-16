@@ -10,9 +10,9 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from nasq_cli.managed_bundle import render_bundle
-from nasq_cli.managed_process import local_docker_runner
-from nasq_cli.managed_runtime import CATALOG_PATH, descriptor_digest, managed_adapter
+from webvue_cli.managed_bundle import render_bundle
+from webvue_cli.managed_process import local_docker_runner
+from webvue_cli.managed_runtime import CATALOG_PATH, descriptor_digest, managed_adapter
 
 
 def verify_replay(fields, created):
@@ -42,10 +42,10 @@ def verify_replay(fields, created):
 
 def main():
     os.umask(0o077)
-    root = Path(tempfile.mkdtemp(prefix='nasq-managed-acceptance-')).resolve()
+    root = Path(tempfile.mkdtemp(prefix='webvue-managed-acceptance-')).resolve()
     suffix = secrets.token_hex(4)
     target = 'tgt_local_' + suffix
-    project = 'nasq-accept-' + suffix
+    project = 'webvue-accept-' + suffix
     sockets = []
     ports = {}
     for key in ('db', 'odoo', 'web'):
@@ -55,8 +55,8 @@ def main():
         ports[key] = sock.getsockname()[1]
     runner = local_docker_runner()
     images = {}
-    for key, tag in {'odoo': 'nasq-acceptance-odoo:d780862e',
-                     'web': 'nasq-acceptance-web:d780862e',
+    for key, tag in {'odoo': 'webvue-acceptance-odoo:d780862e',
+                     'web': 'webvue-acceptance-web:d780862e',
                      'proxy': 'caddy:2.11.4', 'db': 'postgres:16'}.items():
         code, output, _ = runner(['docker', 'image', 'inspect', tag])
         if code:
@@ -67,7 +67,7 @@ def main():
         'adapter': {'kind': 'compose-local', 'version': 1},
         'environment_id': 'local-acceptance', 'commercial_mode': 'saas',
         'resource_refs': {'project': project, 'compose_file': str(root / 'compose.json'),
-                          'db_name': 'nasq_scratch_' + suffix,
+                          'db_name': 'webvue_scratch_' + suffix,
                           'data_dir': str(root / 'data'), 'backup_root': str(root / 'backups'),
                           'ports': ports},
         'secret_refs': {key: str(root / (key + '.secret')) for key in ('db_password', 'admin_password')},
@@ -101,8 +101,8 @@ def main():
               'modules': catalog['base_modules'] + tier['modules'], 'features': features}
     policy_path = root / 'policy.json'
     policy_path.write_text(json.dumps(policy))
-    os.environ['NASQ_MANAGED_INVENTORY'] = str(inventory)
-    os.environ['NASQ_CLI_STATE_DIR'] = str(root / 'state')
+    os.environ['WEBVUE_MANAGED_INVENTORY'] = str(inventory)
+    os.environ['WEBVUE_CLI_STATE_DIR'] = str(root / 'state')
     for sock in sockets:
         sock.close()
     fields = {'operation': 'tenant.create', 'target': target,

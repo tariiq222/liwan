@@ -22,7 +22,7 @@ class TestClassification(unittest.TestCase):
         self.source = self.root / 'input.json'
         self.output = self.root / 'snapshot.json'
         self.data = {
-            'schema_version': 1, 'database': 'nasq_test_scratch',
+            'schema_version': 1, 'database': 'webvue_test_scratch',
             'commercial_mode': 'non_saas', 'entitlement_source': 'local_policy',
             'expected_valid_until': None, 'valid_until_action': 'preserve',
         }
@@ -56,13 +56,13 @@ class TestClassification(unittest.TestCase):
         self.assertTrue(self.output.exists())
 
     def test_fixture_is_explicit_scratch_only_and_never_overwrites(self):
-        for db in ('customer', 'odoo19', 'nasq_production_scratch'):
+        for db in ('customer', 'odoo19', 'webvue_production_scratch'):
             with self.assertRaises(ValueError):
                 classification.fixture(db, 'saas', self.output)
-        classification.fixture('nasq_test_scratch', 'saas', self.output)
+        classification.fixture('webvue_test_scratch', 'saas', self.output)
         self.assertEqual(json.loads(self.output.read_text())['entitlement_source'], 'control_plane')
         with self.assertRaises(FileExistsError):
-            classification.fixture('nasq_test_scratch', 'non_saas', self.output)
+            classification.fixture('webvue_test_scratch', 'non_saas', self.output)
 
     def test_missing_and_invalid_json_are_fail_closed(self):
         with self.assertRaises(FileNotFoundError):
@@ -78,7 +78,7 @@ class TestClassification(unittest.TestCase):
         deploy.mkdir()
         for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py'):
             shutil.copy(ROOT / 'deploy' / name, deploy / name)
-        config = self.root / 'odoo-addons/nasq_platform'
+        config = self.root / 'odoo-addons/webvue_platform'
         config.mkdir(parents=True)
         shutil.copy(classification.PARSER, config / 'commercial_config.py')
         (deploy / 'odoo').mkdir()
@@ -98,7 +98,7 @@ import json, os, pathlib, sys
 args = sys.argv[1:]
 record = {'args': args}
 if 'docker-compose.classification.yml' in args:
-    path = pathlib.Path(os.environ['NASQ_CLASSIFICATION_FILE'])
+    path = pathlib.Path(os.environ['WEBVUE_CLASSIFICATION_FILE'])
     record['snapshot'] = json.loads(path.read_text())
     record['path'] = str(path)
 if 'psql' in args:
@@ -111,7 +111,7 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         envsubst.write_text('#!/bin/sh\nexec cat\n')
         envsubst.chmod(0o755)
         env = {**os.environ, 'PATH': str(binpath) + os.pathsep + os.environ['PATH'],
-               'NASQ_COMMERCIAL_CONFIG': str(self.source), 'NASQ_IMAGE_TAG': 'test-only',
+               'WEBVUE_COMMERCIAL_CONFIG': str(self.source), 'WEBVUE_IMAGE_TAG': 'test-only',
                'DOCKER_LOG': str(self.root / 'docker.log')}
         return deploy, env
 
@@ -146,9 +146,9 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn(f'tenant_db={self.data["database"]}', record['args'])
         self.assertIn('ON_ERROR_STOP=1', record['args'])
         sql = record['stdin']
-        self.assertIn("rolname = 'nasq_ai'", sql)
+        self.assertIn("rolname = 'webvue_ai'", sql)
         self.assertIn('FROM PUBLIC', sql)
-        self.assertIn('FROM nasq_ai', sql)
+        self.assertIn('FROM webvue_ai', sql)
         self.assertNotIn(self.data['database'], sql)
 
     def test_invalid_provision_never_calls_docker(self):
@@ -162,8 +162,8 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
     def test_compose_overlay_is_readonly_opt_in_and_ci_targets_are_explicit(self):
         base = (ROOT / 'deploy/docker-compose.yml').read_text()
         overlay = (ROOT / 'deploy/docker-compose.classification.yml').read_text()
-        self.assertNotIn('NASQ_COMMERCIAL_CONFIG', base)
-        for text in ('read_only: true', 'create_host_path: false', '/run/nasq/classification.json', '${NASQ_CLASSIFICATION_FILE:?'):
+        self.assertNotIn('WEBVUE_COMMERCIAL_CONFIG', base)
+        for text in ('read_only: true', 'create_host_path: false', '/run/webvue/classification.json', '${WEBVUE_CLASSIFICATION_FILE:?'):
             self.assertIn(text, overlay)
         # CI is Woodpecker (.woodpecker.yml plus the deploy/woodpecker image
         # gate); GitHub Actions was removed. The same provisioning invariants
@@ -173,18 +173,18 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         # Local-backend pipeline uses shell variables for DB names; verify
         # the fixture invocations are present with the expected modes.
         self.assertIn('fixture --database "$SCRATCH_DB" --mode saas', pipeline)
-        self.assertIn('fixture --database nasq_image_scratch --mode non_saas', pipeline)
+        self.assertIn('fixture --database webvue_image_scratch --mode non_saas', pipeline)
         self.assertIn('fixture --database "$SRC_DB" --mode non_saas', pipeline)
         # The previous-release install must run without any commercial
         # classification, and only the upgrade step may point at the fixture.
         previous = pipeline.split('# Install the previous release', 1)[1].split('# Upgrade to this commit', 1)[0]
         upgrade = pipeline.split('# Upgrade to this commit', 1)[1].split('# Post-upgrade smoke', 1)[0]
         self.assertIn('previous release must not inherit a commercial classification', previous)
-        self.assertNotIn('NASQ_COMMERCIAL_CONFIG=', previous)
-        self.assertIn('NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
-        self.assertIn('-e NASQ_COMMERCIAL_CONFIG=/run/nasq/classification.json', pipeline)
-        self.assertIn('image-classification.json:/run/nasq/classification.json:ro', pipeline)
-        self.assertIn('unset NASQ_COMMERCIAL_CONFIG', pipeline)
+        self.assertNotIn('WEBVUE_COMMERCIAL_CONFIG=', previous)
+        self.assertIn('WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
+        self.assertIn('-e WEBVUE_COMMERCIAL_CONFIG=/run/webvue/classification.json', pipeline)
+        self.assertIn('image-classification.json:/run/webvue/classification.json:ro', pipeline)
+        self.assertIn('unset WEBVUE_COMMERCIAL_CONFIG', pipeline)
         self.assertIn('negative case passed unexpectedly', pipeline)
         self.assertIn('tools/upgrade_log_guard.py', pipeline)
 

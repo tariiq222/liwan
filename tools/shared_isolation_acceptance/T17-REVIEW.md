@@ -20,7 +20,7 @@ Required fix: use a server-only transport that demonstrably preserves trusted Ho
 
 ## Built SSR secrecy evidence and limitations
 
-Executed real built login SSR, not source replay. Strict mock receives synthetic traffic only, child connects solely to its designated loopback upstream port. Response HTML contains neither the synthetic private token nor x-nasq-proxy-token. Scanned **310 public artifact files**: no synthetic token or NASQ_SHARED_PROXY_TOKEN. This scan completes despite failing desired SSR branding assertion. It is bounded evidence for this artifact/anonymous page, not every authenticated SSR payload. T7-S01 is NOT closed because actual transport broke binding. No production debug route added; only test preload forces127.0.0.1 port0 and denies other outbound sockets.
+Executed real built login SSR, not source replay. Strict mock receives synthetic traffic only, child connects solely to its designated loopback upstream port. Response HTML contains neither the synthetic private token nor x-webvue-proxy-token. Scanned **310 public artifact files**: no synthetic token or WEBVUE_SHARED_PROXY_TOKEN. This scan completes despite failing desired SSR branding assertion. It is bounded evidence for this artifact/anonymous page, not every authenticated SSR payload. T7-S01 is NOT closed because actual transport broke binding. No production debug route added; only test preload forces127.0.0.1 port0 and denies other outbound sockets.
 
 ## Fresh command evidence
 

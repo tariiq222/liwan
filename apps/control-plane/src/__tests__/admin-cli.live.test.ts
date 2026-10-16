@@ -22,9 +22,9 @@ function runCli(args: string[], env: Record<string, string | undefined> = {}): P
         ADMIN_SECRET_KEY: 's'.repeat(40),
         ADMIN_RP_ID: 'localhost',
         ADMIN_ORIGIN: 'http://localhost:3100',
-        NASQ_CLI_INVENTORY: '/tmp/nasq-cli-test/inventory.json',
-        NASQ_CLI_STATE_DIR: '/tmp/nasq-cli-test/state',
-        NASQ_REPOSITORY_ROOT: '/tmp/nasq-cli-test/repo',
+        WEBVUE_CLI_INVENTORY: '/tmp/webvue-cli-test/inventory.json',
+        WEBVUE_CLI_STATE_DIR: '/tmp/webvue-cli-test/state',
+        WEBVUE_REPOSITORY_ROOT: '/tmp/webvue-cli-test/repo',
         ...env,
       } as NodeJS.ProcessEnv,
     })
@@ -43,22 +43,22 @@ else describe('admin CLI', () => {
   afterAll(async () => { await pool.end() })
 
   it('bootstraps the first owner once', async () => {
-    const first = await runCli(['bootstrap-owner', 'owner@nasq.sa', 'Owner', 'first owner'])
+    const first = await runCli(['bootstrap-owner', 'owner@webvue.sa', 'Owner', 'first owner'])
     expect(first.stderr).toBe(''); expect(first.code).toBe(0); expect(first.stdout).toMatch(linkPattern)
-    const second = await runCli(['bootstrap-owner', 'other@nasq.sa', 'Other', 'second'])
+    const second = await runCli(['bootstrap-owner', 'other@webvue.sa', 'Other', 'second'])
     expect(second.code).toBe(1); expect(second.stderr).toMatch(/owner already exists/); expect(second.stdout).toBe('')
     const audit = await pool.query("SELECT actor FROM audit_events WHERE action='account.invited' ORDER BY created_at DESC LIMIT 1")
     expect(audit.rows[0].actor).toBe('operator')
   })
   it('refuses to bootstrap when admin sign-in is not configured', async () => {
-    const result = await runCli(['bootstrap-owner', 'owner@nasq.sa', 'Owner', 'first owner'], { ADMIN_SECRET_KEY: undefined })
+    const result = await runCli(['bootstrap-owner', 'owner@webvue.sa', 'Owner', 'first owner'], { ADMIN_SECRET_KEY: undefined })
     expect(result.code).toBe(1); expect(result.stdout).toBe('')
   })
   it('prints a reset link for an existing account and refuses unknown emails', async () => {
-    await runCli(['bootstrap-owner', 'owner@nasq.sa', 'Owner', 'first owner'])
-    const reset = await runCli(['reset-account', 'Owner@nasq.sa', 'locked out'])
+    await runCli(['bootstrap-owner', 'owner@webvue.sa', 'Owner', 'first owner'])
+    const reset = await runCli(['reset-account', 'Owner@webvue.sa', 'locked out'])
     expect(reset.code).toBe(0); expect(reset.stdout).toMatch(linkPattern)
-    const unknown = await runCli(['reset-account', 'nobody@nasq.sa', 'locked out'])
+    const unknown = await runCli(['reset-account', 'nobody@webvue.sa', 'locked out'])
     expect(unknown.code).toBe(1); expect(unknown.stdout).toBe('')
   })
   it('no longer accepts grant or revoke', async () => {

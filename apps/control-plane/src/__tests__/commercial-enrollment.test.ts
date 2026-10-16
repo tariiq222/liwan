@@ -19,11 +19,11 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
   const actor = { issuer: `enroll-${randomUUID()}`, actorUid: 7 }
   let config: any, release: string
   beforeAll(async () => {
-    vi.stubEnv('NASQ_TENANCY_MODE', 'shared')
+    vi.stubEnv('WEBVUE_TENANCY_MODE', 'shared')
     const { version } = await setup(pool)
     release = (await client(pool)('POST', '/catalog/releases', { catalog_version: version, reason: 'Enrollment regression' })).body.id
-    const root = await realpath(await mkdtemp(join(tmpdir(), 'nasq-enroll-')))
-    const runtime = { schemaVersion: 1, projectName: 'nasq-saas-enroll', composeFile: join(root, 'compose.yml'), envFile: join(root, 'runtime.env'), stateDir: root, domainSuffix: 'enrollment.test' }
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'webvue-enroll-')))
+    const runtime = { schemaVersion: 1, projectName: 'webvue-saas-enroll', composeFile: join(root, 'compose.yml'), envFile: join(root, 'runtime.env'), stateDir: root, domainSuffix: 'enrollment.test' }
     await writeFile(runtime.composeFile, 'services: {}\n'); await writeFile(runtime.envFile, '')
     await writeFile(join(root, 'runtime.json'), JSON.stringify(runtime))
     config = { installationId: actor.issuer, key: 'scratch-key'.repeat(8), inventoryPath: '/unused', stateDir: root, repositoryRoot: fileURLToPath(new URL('../../../..', import.meta.url)), python: 'python3', sharedRuntimeConfigPath: join(root, 'runtime.json'), tenantRegistryPath: join(root, 'registry.json') }
@@ -33,7 +33,7 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     const customer = randomUUID(), subscription = randomUUID(), target = randomUUID(), order = randomUUID(), archive = randomUUID()
     await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'New customer', 'First admin', admin ? `${customer}@example.test` : null])
     await pool.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [subscription, customer])
-    const entitlement = { catalog_release_id: release, modules: ['nasq_core','nasq_platform','nasq_api'], features: { 'users.limit': 8 }, digest: 'a'.repeat(64), compiler_version: 1 }
+    const entitlement = { catalog_release_id: release, modules: ['webvue_core','webvue_platform','webvue_api'], features: { 'users.limit': 8 }, digest: 'a'.repeat(64), compiler_version: 1 }
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [target, subscription, { entitlement, period_end: '2027-01-01',branch_archive_ids:[archive] }, randomUUID()])
     await pool.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [subscription, target])
     await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'new',$4,$5,$6,'queued',$7,'test',100,'SAR',2)", [order, customer, subscription, randomUUID(), target, payment, randomUUID()])

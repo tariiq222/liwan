@@ -136,7 +136,7 @@ for (const action of ['cancel', 'escape', 'navigation', 'back']) {
     await page.locator('#my-task-name').fill('مسودة لها أصل')
     if (action === 'cancel') await page.getByTestId('my-task-form-cancel').click()
     else if (action === 'escape') await page.keyboard.press('Escape')
-    else if (action === 'navigation') await page.evaluate(() => (document.querySelector('.nasq-module-rail-brand') as HTMLElement).click())
+    else if (action === 'navigation') await page.evaluate(() => (document.querySelector('.webvue-module-rail-brand') as HTMLElement).click())
     else await page.goBack()
     const guard = page.getByTestId('unsaved-changes-dialog')
     await expect(guard).toBeVisible()

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { Milestone } from '@nasq/contracts'
+import type { Milestone } from '@webvue/contracts'
 import { getLocalTimeZone, today } from '@internationalized/date'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate, toCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate, toCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
-import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
 

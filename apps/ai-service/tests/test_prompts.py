@@ -1,6 +1,6 @@
-from nasq_ai_service.contracts import RunContext, ToolSpec
-from nasq_ai_service.prompts import system_prompt, tool_summary
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
+from webvue_ai_service.contracts import RunContext, ToolSpec
+from webvue_ai_service.prompts import system_prompt, tool_summary
 
 
 def test_system_prompt_states_the_rules_in_the_locale():

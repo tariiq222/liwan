@@ -17,19 +17,19 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `not_found`, and 422 `invalid`. Never use `type='http'` for JSON or
   `auth='bearer'` for browser traffic. Never use `sudo()` to dodge an access
   error; fix the group or record rule.
-- An application registers its capabilities by extending `nasq.access.service`
-  through `super()`: `_nasq_capability_definitions` (with `owner` set to the
-  addon), `_nasq_permission_dependencies`, `_nasq_builtin_role_grants`, and when
-  needed `_nasq_legacy_capability_keys`, `_nasq_record_company`,
-  `_nasq_contextual_capability`, `_nasq_identity_extra`,
-  `_nasq_customer_actor_keys` and `_nasq_legacy_admin_roles`. Its data declares
+- An application registers its capabilities by extending `webvue.access.service`
+  through `super()`: `_webvue_capability_definitions` (with `owner` set to the
+  addon), `_webvue_permission_dependencies`, `_webvue_builtin_role_grants`, and when
+  needed `_webvue_legacy_capability_keys`, `_webvue_record_company`,
+  `_webvue_contextual_capability`, `_webvue_identity_extra`,
+  `_webvue_customer_actor_keys` and `_webvue_legacy_admin_roles`. Its data declares
   its groups, permission records and role, then calls
-  `_nasq_configure_permission_dependencies` and `_nasq_repair_builtin_role_grants`.
+  `_webvue_configure_permission_dependencies` and `_webvue_repair_builtin_role_grants`.
   Moving an xml id between addons needs a `pre-` migration that renames the
   `ir_model_data` row.
 - Serializers whitelist fields explicitly: shared shapes belong in
-  `nasq_api/serializers`, PMO shapes in `nasq_pmo/serializers`, and HR shapes
-  in `nasq_hr/serializers`. Never send a raw ORM `read()` result. Every write
+  `webvue_api/serializers`, PMO shapes in `webvue_pmo/serializers`, and HR shapes
+  in `webvue_hr/serializers`. Never send a raw ORM `read()` result. Every write
   returns the full detail shape.
 - Task state names on the wire are
   `in_progress | changes_requested | approved | waiting | done | cancelled`,
@@ -37,13 +37,13 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   04_waiting_normal | 1_done | 1_canceled`. Write and approve capabilities
   and record-specific allowed actions decide transitions; do not infer them
   from a legacy role label.
-- Plans («باقة») are what customers buy; bundles («حزمة», managed only in the Nasq vendor administration, `apps/vendor-admin`) are
+- Plans («باقة») are what customers buy; bundles («حزمة», managed only in the WebVue vendor administration, `apps/vendor-admin`) are
   the app groups inside them; Track A packages are read-only history. Every
   application of the release is installed in every shared-SaaS tenant, and a
   policy or compiled entitlement carries every key of every release application
   (closed: `false` / `0`; catalog `deploy/catalog/solutions/platform_v4.json`, `commercial-compiler/2`).
-  `_nasq_validate_features` stays strict; operator scripts complete a target with
-  `_nasq_close_unlisted_features`, and `nasq.tenant.profile._register_hook`
+  `_webvue_validate_features` stays strict; operator scripts complete a target with
+  `_webvue_close_unlisted_features`, and `webvue.tenant.profile._register_hook`
   registers a newly installed application's keys closed. Usage is collected per
   limit key; removing an application is not a downgrade below usage.
 - Branding source of truth is `res.company`; `deploy/branding.json` seeds it.
@@ -51,14 +51,14 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `primary_color`, and ignores stored secondary colour for rendering. The API
   retains optional `secondary_color` compatibility; it rejects identity fields
   and mixed identity/color requests before any write.
-- PMO project management uses record-scoped `_nasq_can_manage` and checked
+- PMO project management uses record-scoped `_webvue_can_manage` and checked
   private mutation helpers. Task writes, approvals, archive, dependency edits
   and attachment mutations preserve their dedicated capability/visibility gates.
 - Documented PMO elevated operations are policy/config access, policy-based
   project creation, checked manager mutations, serializer display lookups,
   integer counts, automatic completion status after an authorized task
   mutation, the notification cron scans, and the recipient-owned candidate
-  lookups that build PMO's notification visibility branches. `nasq_notify`'s
+  lookups that build PMO's notification visibility branches. `webvue_notify`'s
   documented elevated operations are bell delivery and recipient-owned bell
   reads: every elevated read first restricts to the current partner's inbox
   rows, and the owning application's branch decides, in the caller's ordinary
@@ -66,7 +66,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   Meeting-only access must not reveal task/digest notifications. Do not add an
   undocumented bypass.
 - The project charter is written as a stepper: basics, then the optional
-  steps the project type configures (`charter_steps` on `nasq.project.type`,
+  steps the project type configures (`charter_steps` on `webvue.project.type`,
   exposed on the types catalog and on `charter.type`), then review. The
   charter carries `state` (`draft | final`); a new charter is a draft and the
   review step finalizes it. `/projects/new` uses the route-backed create panel
@@ -82,12 +82,12 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   read the task, and replaces that person's `comment` row.
 - Task attachment uploads accept PDF, PNG, JPEG, text, DOCX and XLSX up to
   10 MiB decoded, with exact binary task linkage and ordinary attachment ACLs.
-  The validator is `nasq_api/serializers/attachment.py`, shared by task,
+  The validator is `webvue_api/serializers/attachment.py`, shared by task,
   meeting and chat uploads; HR documents keep their own parser.
   Dependency edits require project management, same active project, positive
   unique IDs and no cycles. Restores require a readable active parent project.
 - A new application starts from `python3 -B tools/new_app.py <app> --name-ar <ar>
-  --name-en <en>` and the `nasq-new-app` skill. Outside its own folders it edits
+  --name-en <en>` and the `webvue-new-app` skill. Outside its own folders it edits
   only three registration files: `tools/arch_layers.json`,
   `deploy/catalog/solutions/platform_v4.json` and `packages/contracts/src/index.ts`
   (plus copies written by `python3 -B tools/catalog_check.py --sync-release-copies`).
@@ -113,27 +113,27 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `category: Hidden`, `installable: True`, `application: False`; versions use
   `19.0.X.Y.Z` (the current numbers are in each manifest). Follow
   `docs/migrations.md` for schema/data version bumps and migrations.
-- Declare real dependencies: core uses `base` only; HR uses `nasq_api`, `hr`,
-  `mail`; the shared services `nasq_notify` (`nasq_api`, `mail`) and
-  `nasq_directory` (`nasq_api`) know no application; PMO also uses
-  `nasq_platform`, `nasq_notify`, `nasq_directory`, `project`, `bus`; meetings
-  use `nasq_platform`, `nasq_notify`, `nasq_directory`, `cyan_meeting_minutes`,
-  `calendar`, `mail`; the bridge `nasq_meetings_pmo` (`auto_install`) uses
-  `nasq_meetings` and `nasq_pmo` (see manifests). Preserve pillar direction:
-  shared `nasq_api` and the shared services never import a pillar, and one
+- Declare real dependencies: core uses `base` only; HR uses `webvue_api`, `hr`,
+  `mail`; the shared services `webvue_notify` (`webvue_api`, `mail`) and
+  `webvue_directory` (`webvue_api`) know no application; PMO also uses
+  `webvue_platform`, `webvue_notify`, `webvue_directory`, `project`, `bus`; meetings
+  use `webvue_platform`, `webvue_notify`, `webvue_directory`, `cyan_meeting_minutes`,
+  `calendar`, `mail`; the bridge `webvue_meetings_pmo` (`auto_install`) uses
+  `webvue_meetings` and `webvue_pmo` (see manifests). Preserve pillar direction:
+  shared `webvue_api` and the shared services never import a pillar, and one
   application never imports another; only a bridge imports both.
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
   `controllers/` and whitelist-based `serializers/`; PMO has `i18n/` and
-  `migrations/`; `nasq_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
+  `migrations/`; `webvue_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;
   list every XML/CSV file in manifest `data` in the required dependency order.
-- New models use dotted `nasq.*` names and `Nasq*` classes; extend stock models
+- New models use dotted `webvue.*` names and `WebVue*` classes; extend stock models
   with `_inherit`, not copies. Model files and local XML ids use snake_case
-  (`permission_access_users_read`, `nasq_hr_document_company_rule`); qualify
+  (`permission_access_users_read`, `webvue_hr_document_company_rule`); qualify
   cross-addon ids. ACLs live in `security/ir.model.access.csv` (PMO also has
   suffixed ACL CSVs), with `access_*` ids and `model_<dots_as_underscores>` refs.
 - Tests live in `tests/test_*.py` and must be imported in `tests/__init__.py`.
-  Model tests use `TransactionCase`; HTTP tests use `NasqApiCase(HttpCase)` via
-  `NasqHrCase` / `NasqPmoCase`. Mirror existing `nasq` / `nasq_access` tags and
+  Model tests use `TransactionCase`; HTTP tests use `WebVueApiCase(HttpCase)` via
+  `WebVueHrCase` / `WebVuePmoCase`. Mirror existing `webvue` / `webvue_access` tags and
   `post_install`, `-at_install` selection where appropriate.
 - Arabic: PMO ships `i18n/ar.po`; core/HR currently have no `i18n/` directory.
   Core capability data has explicit `name_ar` / `name_en` fields. Keep shipped
@@ -145,7 +145,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 - Authorized module tests: use the **Check commands** block below
   and `.woodpecker.yml` **odoo** step (including its classification fixture; the
   **odoo-tasks-standalone** and **odoo-tasks-bridge** steps run the same shape for
-  `nasq_tasks` alone and with the PMO bridge),
+  `webvue_tasks` alone and with the PMO bridge),
   with the selected checkout's explicit addons path, `-i` modules,
   `--test-tags /<addon>` and `--stop-after-init`. Require a nonzero test count;
   preserve isolation/cleanup. These are documented commands, not run by setup.
@@ -153,7 +153,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 ## Check commands (Odoo scratch database)
 
 Run Odoo checks from `/Users/tariq/code/odoo` using a fresh scratch database
-and the selected Nasq worktree's explicit addons path. Use a scratch-only
+and the selected WebVue worktree's explicit addons path. Use a scratch-only
 config at `/absolute/path/to/scratch-only.conf`; do not use a live config whose
 `data_dir` or `logfile` points inside the read-only Odoo checkout. Keep the
 temporary data and logs outside that checkout, and remove the scratch database,
@@ -165,11 +165,11 @@ cd /Users/tariq/code/odoo
 ODOO_ROOT=/Users/tariq/code/odoo
 ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
 ODOO_CONF=/absolute/path/to/scratch-only.conf
-WORKTREE=/absolute/path/to/nasq-worktree
+WORKTREE=/absolute/path/to/webvue-worktree
 SCRATCH_ROOT=$(mktemp -d)
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
-export NASQ_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
-(cd "$WORKTREE" && python3 deploy/classification.py fixture --database nasq_scratch --mode saas --output "$NASQ_COMMERCIAL_CONFIG")
+export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
+(cd "$WORKTREE" && python3 deploy/classification.py fixture --database webvue_scratch --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG")
 # Set PGHOST, PGPORT, PGUSER, and PGPASSWORD in the environment as needed;
 # never put a password on the command line.
 PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
@@ -179,7 +179,7 @@ TAGS="/${MODULES//,/,/}"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
-  -d nasq_scratch --db-filter='^nasq_scratch$' \
+  -d webvue_scratch --db-filter='^webvue_scratch$' \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \
   -i "$MODULES" --test-tags "$TAGS" \
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init

@@ -33,7 +33,7 @@ test.describe('Plan 6a: the project frame', () => {
 
   test('the frame does not print', async ({ page }) => {
     await open(page, '/projects/2/milestones')
-    await expect(page.getByTestId('project-workspace-frame')).toHaveClass(/nasq-print-hide/)
+    await expect(page.getByTestId('project-workspace-frame')).toHaveClass(/webvue-print-hide/)
     await page.emulateMedia({ media: 'print' })
     await expect(page.getByTestId('project-workspace-frame')).toBeHidden()
   })

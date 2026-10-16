@@ -10,7 +10,7 @@ The page uses the approved prototype's content spacing, quiet metrics strip, pan
 
 ## Implementation and review
 
-- New read-only analytics endpoint in `nasq_pmo`; current-company and normal project/task visibility checks remain authoritative.
+- New read-only analytics endpoint in `webvue_pmo`; current-company and normal project/task visibility checks remain authoritative.
 - Shared task and finance batches avoid repeated per-project queries. Existing report APIs remain compatible.
 - Shared chart renderer imports only required bar/pie, tooltip, legend, grid, zoom, ARIA and SVG modules.
 - Luna implemented isolated backend and UI packages. Coordinator integrated dependencies, contracts, documentation, fixtures and browser acceptance. Independent Astra review accepted backend; four UI findings were fixed and re-reviewed.
@@ -18,7 +18,7 @@ The page uses the approved prototype's content spacing, quiet metrics strip, pan
 
 ## Verification
 
-- Isolated database `nasq_charts_scratch_20260907`: 41 report/project tests plus one finance/grouped-task regression passed. No tests on `odoo19`.
+- Isolated database `webvue_charts_scratch_20260907`: 41 report/project tests plus one finance/grouped-task regression passed. No tests on `odoo19`.
 - Browser fixture contains 12 projects, 110 tasks, known recent ordering and a manager with 10 owned projects; these data were created only in the scratch database.
 - Final source: 124 contract tests and 548 web tests passed; Vue type checks, Ruff and production build passed. Eight browser cases passed at 390/768/1440 px, dark/cream large mobile text, recent-five order/detail/back, manager scope, legacy redirect/empty reload, API error/retry, and narrow-to-wide chart resize. See `docs/evidence/project-charts-2026-09-07/` for screenshots and review reconciliation.
 - Browser language verification is Arabic. English locale keys are supplied, but the current app has no language-switch control and disables browser locale detection; no English runtime claim is made.

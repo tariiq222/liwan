@@ -4,7 +4,7 @@ import { join } from 'node:path'
 const here = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineNuxtConfig({
-  extends: ['@nasq/ui'],
+  extends: ['@webvue/ui'],
   // Same naming as the ui layer: the group folder is dropped (shared/data/InvoiceLines.vue is SharedInvoiceLines),
   // and shared/commerce/PriceBreakdown.vue is SharedCommercePriceBreakdown.
   components: [

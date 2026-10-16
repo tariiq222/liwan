@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { deadlineLabel, deadlineTone } from '@/composables/taskState'
 import { taskDaysRemaining } from './taskDeadline'
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
 

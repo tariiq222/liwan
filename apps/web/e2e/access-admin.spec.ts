@@ -1,6 +1,6 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test'
 
-const TEST_PASSWORD = 'NasqAccess-Test-123!'
+const TEST_PASSWORD = 'WebVueAccess-Test-123!'
 async function login(page: Page, login = 'admin', password = 'admin') {
   await page.goto('/login')
   await page.getByLabel('اسم المستخدم').fill(login)
@@ -161,7 +161,7 @@ test('security page resets a password and reactivates the same account', async (
   await login(page)
   const fixture = await grantFixture(page.request, 'employee', 'security')
   const memberContext = await browser.newContext()
-  const replacement = 'NasqAccess-Changed-456!'
+  const replacement = 'WebVueAccess-Changed-456!'
   try {
     const member = await memberContext.newPage()
     await login(member, fixture.login, TEST_PASSWORD)

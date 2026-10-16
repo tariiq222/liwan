@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Invoice } from '@nasq/commercial-contracts'
+import type { Invoice } from '@webvue/commercial-contracts'
 import { formatSubscriptionMoney, subscriptionInvoiceView } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })

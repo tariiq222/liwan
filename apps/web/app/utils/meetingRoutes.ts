@@ -1,4 +1,4 @@
-import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { firstQuery } from './routeQuery'
 
 export function meetingCreateRoute(returnTo: string, projectId?: number | string, seriesId?: number | string) {

@@ -18,12 +18,12 @@
 | ملكية المكونات | [فهرس المكونات](components.md)؛ كل مسار فيه يبدأ بـ `apps/web/app/components/` |
 
 مدخلات الثيم (كما في DESIGN.md §1): لون الهوية من العميل (الافتراضي الأزرق
-الليلي `#13234a`) يغذّي `primary`، والمحايد `slate`، وهوية نسق: الأزرق الليلي
+الليلي `#13234a`) يغذّي `primary`، والمحايد `slate`، وهوية ويب فيو: الأزرق الليلي
 والليموني `#c8f031` في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام،
 ومظهران فقط (فاتح وداكن؛ أي قيمة قديمة مخزنة تُقرأ فاتحًا). الكثافة من
-`--nasq-control-h` (32px) و`--nasq-row-h` (36px)، والزوايا من
+`--webvue-control-h` (32px) و`--webvue-row-h` (36px)، والزوايا من
 `--ui-radius: 0.285714rem` (6px و8px)، والظلال للطبقات العائمة فقط. الريل ثابت
-بـ `--nasq-rail` ولا يتبع لون العميل. هندسة الغلاف في قسم «الغلاف» أدناه.
+بـ `--webvue-rail` ولا يتبع لون العميل. هندسة الغلاف في قسم «الغلاف» أدناه.
 المحايدات وأساليب الحالة منفصلة عن لون الهوية؛ `brandTheme.ts` يشتق عائلة
 `--primary*` و`--chart-*` من اللون الأساسي لكل مظهر، مع إبقاء توكنات النجاح
 والتحذير والخطأ والمعلومة دلالية. الشعار المؤقت في
@@ -60,7 +60,7 @@ Storybook في `apps/web` هو **فهرس المكونات الملزم** لكل
 | الاستيرادات التلقائية | تُولَّد من `.nuxt/imports.d.ts` و`.nuxt/components.d.ts` في `nuxt-imports.mjs` |
 | بدائل Nuxt | `apps/web/.storybook/nuxt-shims.ts`؛ البناء يفشل إذا استدعى كود التطبيق واجهة Nuxt بلا بديل |
 | القصص | `apps/web/stories/**`؛ كل قصة مكوّن تذكر سياقها الحقيقي بـ `storyContext('ملف:سطر')` |
-| البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@nasq/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
+| البيانات والـ API | `apps/web/stories/fixtures/**` تمر عبر مخططات `@webvue/contracts`؛ `apps/web/stories/handlers/api.ts` يحاكي `/api/v1` عبر MSW |
 | قائمة التغطية | `STORYBOOK_COMPONENTS` في `tools/ui_policy.py` |
 
 التشغيل: `npm -w apps/web run storybook` (منفذ 6006، أو `-- -p <port>`). البناء: `npm -w apps/web run build-storybook`. الفحص: `cd apps/web && npx playwright test e2e/storybook-smoke.spec.ts` بعد البناء (بلا فلترة grep؛ فحص الأنواع `cd apps/web && npx vue-tsc --noEmit -p .storybook/tsconfig.json` يجب أن يخرج بـ 0 مباشرة (لا تستخدم `npx -w`؛ `npx` لا يدعمها فيفحص لا شيء ويخرج بـ 0 كاذب)).
@@ -85,7 +85,7 @@ Storybook في `apps/web` هو **فهرس المكونات الملزم** لكل
 
 ## الغلاف
 
-غلاف نسق مخصص (`apps/web/app/components/shell/`) ولا يستخدم `UDashboard*`، لثلاثة أسباب: الهيدر يجب أن يعلو القائمة السياقية، ونقطة التوقف `lg` مثبتة داخل المكونات، ولكل شريط جانبي درج جوال خاص بجهة ثابتة على اليسار. زر طي القائمة السياقية يبقى معطلًا حتى الترطيب (قاعدة `useHydrated()`)، أما حالته فتُحفظ في كوكي `nasq-context-sidebar` يقرؤه الخادم فتُرسم من أول إطار، بالأسلوب نفسه الذي يستخدمه `useResizable`. المكونات المستخدمة داخله: `USlideover` و`UButton` و`UTooltip` و`UBreadcrumb` و`UBadge`.
+غلاف ويب فيو مخصص (`apps/web/app/components/shell/`) ولا يستخدم `UDashboard*`، لثلاثة أسباب: الهيدر يجب أن يعلو القائمة السياقية، ونقطة التوقف `lg` مثبتة داخل المكونات، ولكل شريط جانبي درج جوال خاص بجهة ثابتة على اليسار. زر طي القائمة السياقية يبقى معطلًا حتى الترطيب (قاعدة `useHydrated()`)، أما حالته فتُحفظ في كوكي `webvue-context-sidebar` يقرؤه الخادم فتُرسم من أول إطار، بالأسلوب نفسه الذي يستخدمه `useResizable`. المكونات المستخدمة داخله: `USlideover` و`UButton` و`UTooltip` و`UBreadcrumb` و`UBadge`.
 
 تُستخدم `UCommandPalette` داخل `UModal` في `shell/GlobalSearch.vue` وحده، ويمنع `ui_policy` استخدامها في مكان آخر. إعداداتها:
 

@@ -4,13 +4,13 @@ import {
   ChatConversationSchema,
   ChatMessageListSchema,
   ChatRecipientListSchema,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
-const FIXTURE_PASSWORD = 'NasqAccess-Test-123!'
+const FIXTURE_PASSWORD = 'WebVueAccess-Test-123!'
 const SHOTS = process.env.CHAT_E2E_SHOT_DIR
-  ?? '/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/nasq-chat-workspace-logs/screenshots'
+  ?? '/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/opencode/webvue-chat-workspace-logs/screenshots'
 
 async function loginAs(page: Page, username: string, password: string) {
   const login = await page.request.post('/api/auth/login', { data: { login: username, password } })

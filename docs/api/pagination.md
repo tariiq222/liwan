@@ -11,7 +11,7 @@ contract and must not be introduced on one route without a versioned change.
 | `offset` | Optional non-negative integer. Missing means `0`. |
 | anything else | `422 invalid` with `field` set to the rejected name. |
 
-`nasq_api.controllers.common.parse_page(args, default=50, maximum=200)` is the
+`webvue_api.controllers.common.parse_page(args, default=50, maximum=200)` is the
 shared reader. A route may pass a lower maximum, but it must not pass a higher
 one without recording why that list cannot use the standard bound.
 

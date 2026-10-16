@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { taskStateBadge } from '@/composables/taskState'
-import { badgeLabel } from '@nasq/ui/app/utils/statusBadge'
-import type { Task, TaskState } from '@nasq/contracts'
+import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
+import type { Task, TaskState } from '@webvue/contracts'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { ApiError } from '@/composables/useApi'
 import { useTransitionTask } from '@/composables/useTasks'

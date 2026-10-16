@@ -3,7 +3,7 @@ from datetime import timedelta
 
 import pytest
 
-from nasq_ai_service.store import MemoryRunStore
+from webvue_ai_service.store import MemoryRunStore
 
 
 async def test_memory_store_round_trip_and_ownership():

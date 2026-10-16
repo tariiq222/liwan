@@ -17,9 +17,9 @@ await page.getByLabel(/كلمة المرور|Password/i).first().fill('admin')
 await page.getByRole('button', { name: /دخول|Sign in|Log in|تسجيل/i }).first().click()
 await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 20_000 })
 for (const mode of modes) {
-  // The app reads the mode from the `nasq-appearance` cookie on the server, so
+  // The app reads the mode from the `webvue-appearance` cookie on the server, so
   // branding contrast (brandTheme.ts) is computed for the real mode.
-  await context.addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), domain: 'localhost', path: '/' }])
+  await context.addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), domain: 'localhost', path: '/' }])
   for (const path of paths) {
     for (const width of widths) {
       await page.setViewportSize({ width, height: 900 })

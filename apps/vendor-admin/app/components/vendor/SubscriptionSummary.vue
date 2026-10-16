@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { customerDisplayBadge } from '@/utils/vendorBadges'
 import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscriptions'
-import type { SubscriptionView } from '@nasq/commercial-contracts'
-import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
-import { formatNasqDate } from '@nasq/ui/app/composables/calendarDate'
+import type { SubscriptionView } from '@webvue/commercial-contracts'
+import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
+import { formatWebVueDate } from '@webvue/ui/app/composables/calendarDate'
 import { subscriptionDisplayState, targetStatus } from '@/utils/vendorSubscriptions'
 const props = defineProps<{ subscription: SubscriptionView; planName?: string }>()
 const { t, locale } = useI18n()
 const display = computed(() => subscriptionDisplayState(props.subscription))
 const status = computed(() => targetStatus(props.subscription))
-const date = (value: string | null | undefined) => (value ? formatNasqDate(value, locale.value) : null)
+const date = (value: string | null | undefined) => (value ? formatWebVueDate(value, locale.value) : null)
 const order = computed(() => props.subscription.pending_order)
 </script>
 <template>

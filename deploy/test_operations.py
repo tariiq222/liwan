@@ -31,7 +31,7 @@ def _fake_worktree(root: Path) -> tuple[Path, Path, Path]:
     _touch(root / 'odoo' / 'addons' / 'base' / '__manifest__.py', '{}')
     _touch(stock / 'project' / '__manifest__.py', '{}')
     _touch(stock / 'hr' / '__manifest__.py', '{}')
-    for name in check_isolated.NASQ_ADDONS:
+    for name in check_isolated.WEBVUE_ADDONS:
         _touch(addons / name / '__manifest__.py', '{}')
     python = root / 'python'
     odoo_bin = root / 'odoo-bin'
@@ -56,10 +56,10 @@ class TestScratchDbAndPorts(unittest.TestCase):
             'production',
             'prod',
             'postgres',
-            'nasq_scratch_odoo19',
-            'nasq_scratch_production',
-            'nasq_scratch;dropdb',
-            'nasq_scratch && true',
+            'webvue_scratch_odoo19',
+            'webvue_scratch_production',
+            'webvue_scratch;dropdb',
+            'webvue_scratch && true',
         ):
             with self.subTest(name=name), self.assertRaises(check_isolated.IsolationError):
                 check_isolated.validate_scratch_db(
@@ -70,15 +70,15 @@ class TestScratchDbAndPorts(unittest.TestCase):
     def test_scratch_substring_without_lifecycle_is_rejected(self) -> None:
         for lifecycle in ('', 'existing', 'reuse', 'true', 'scratch', 'CREATE_NEW'):
             with self.subTest(lifecycle=lifecycle), self.assertRaises(check_isolated.IsolationError):
-                check_isolated.validate_scratch_db('nasq_scratch_wp8_iso', lifecycle=lifecycle)
+                check_isolated.validate_scratch_db('webvue_scratch_wp8_iso', lifecycle=lifecycle)
 
     def test_accepts_explicit_scratch_name_with_new_lifecycle(self) -> None:
         self.assertEqual(
             check_isolated.validate_scratch_db(
-                'nasq_scratch_wp8_iso',
+                'webvue_scratch_wp8_iso',
                 lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
             ),
-            'nasq_scratch_wp8_iso',
+            'webvue_scratch_wp8_iso',
         )
 
     def test_rejects_default_dev_ports(self) -> None:
@@ -147,7 +147,7 @@ class TestScratchDbAndPorts(unittest.TestCase):
 
 
 class TestOdooWrapper(unittest.TestCase):
-    def test_nasq_addons_cover_every_shipped_pillar(self) -> None:
+    def test_webvue_addons_cover_every_shipped_pillar(self) -> None:
         root = Path(__file__).resolve().parents[1]
         sys.path.insert(0, str(root / 'tools'))
         try:
@@ -155,8 +155,8 @@ class TestOdooWrapper(unittest.TestCase):
         finally:
             sys.path.pop(0)
         _name, release = catalog_check.current_release(root)
-        self.assertEqual(check_isolated.NASQ_ADDONS[:3], ('nasq_core', 'nasq_platform', 'nasq_api'))
-        self.assertEqual(sorted(check_isolated.NASQ_ADDONS), release)
+        self.assertEqual(check_isolated.WEBVUE_ADDONS[:3], ('webvue_core', 'webvue_platform', 'webvue_api'))
+        self.assertEqual(sorted(check_isolated.WEBVUE_ADDONS), release)
 
     def test_build_odoo_argv_is_explicit_and_overrides_conf(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -168,15 +168,15 @@ class TestOdooWrapper(unittest.TestCase):
                 odoo_conf=str(root / 'odoo.conf'),
                 stock_addons=str(stock),
                 worktree_addons=str(addons),
-                scratch_db='nasq_scratch_wp8_iso',
+                scratch_db='webvue_scratch_wp8_iso',
                 scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
                 http_port=8169,
-                modules='nasq_core,nasq_api,nasq_pmo,nasq_hr',
-                test_tags='/nasq_core,/nasq_api',
+                modules='webvue_core,webvue_api,webvue_pmo,webvue_hr',
+                test_tags='/webvue_core,/webvue_api',
             )
             self.assertEqual(argv[0], str((root / 'python').resolve()))
             self.assertIn('-d', argv)
-            self.assertEqual(argv[argv.index('-d') + 1], 'nasq_scratch_wp8_iso')
+            self.assertEqual(argv[argv.index('-d') + 1], 'webvue_scratch_wp8_iso')
             self.assertIn('--http-port', argv)
             self.assertEqual(argv[argv.index('--http-port') + 1], '8169')
             self.assertTrue(any(item.startswith('--addons-path=') for item in argv))
@@ -207,11 +207,11 @@ class TestOdooWrapper(unittest.TestCase):
                 odoo_conf=str(root / 'odoo.conf'),
                 stock_addons=str(stock),
                 worktree_addons=str(addons),
-                scratch_db='nasq_scratch_wp8_iso',
+                scratch_db='webvue_scratch_wp8_iso',
                 scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
                 http_port=8169,
-                modules='nasq_core,nasq_api,nasq_pmo,nasq_hr',
-                test_tags='/nasq_core',
+                modules='webvue_core,webvue_api,webvue_pmo,webvue_hr',
+                test_tags='/webvue_core',
             )
             self.assertEqual(argv[0], str(link))
             self.assertNotEqual(argv[0], str(real.resolve()))
@@ -221,7 +221,7 @@ class TestOdooWrapper(unittest.TestCase):
             check_isolated.validate_port(True)  # noqa: FBT003
         with self.assertRaises(check_isolated.IsolationError):
             check_isolated.validate_scratch_db(
-                'nasq_scratch,odoo19',
+                'webvue_scratch,odoo19',
                 lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
             )
 
@@ -230,7 +230,7 @@ class TestOdooWrapper(unittest.TestCase):
             root = Path(tmp)
             worktree, addons, _stock = _fake_worktree(root)
             other = root / 'other' / 'odoo-addons'
-            _touch(other / 'nasq_core' / '__manifest__.py', '{}')
+            _touch(other / 'webvue_core' / '__manifest__.py', '{}')
             with self.assertRaises(check_isolated.IsolationError):
                 check_isolated.validate_worktree_addons(str(worktree), str(other))
             with self.assertRaises(check_isolated.IsolationError):
@@ -246,14 +246,14 @@ class TestOdooWrapper(unittest.TestCase):
                 odoo_conf=str(root / 'odoo.conf'),
                 stock_addons=str(stock),
                 worktree_addons=str(addons),
-                scratch_db='nasq_psc_scratch_integration_e2e_20260906',
+                scratch_db='webvue_psc_scratch_integration_e2e_20260906',
                 scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
                 http_port=9791,
             )
             upgrade = check_isolated.build_upgrade_argv(
                 **kwargs,
-                modules='nasq_core,nasq_api,nasq_pmo,nasq_hr',
-                test_tags='/nasq_pmo',
+                modules='webvue_core,webvue_api,webvue_pmo,webvue_hr',
+                test_tags='/webvue_pmo',
             )
             self.assertIn('-u', upgrade)
             self.assertNotIn('-i', upgrade)
@@ -261,7 +261,7 @@ class TestOdooWrapper(unittest.TestCase):
             runtime = check_isolated.build_runtime_argv(**kwargs)
             self.assertNotIn('--stop-after-init', runtime)
             self.assertNotIn('-i', runtime)
-            self.assertIn('--db-filter=^nasq_psc_scratch_integration_e2e_20260906$', runtime)
+            self.assertIn('--db-filter=^webvue_psc_scratch_integration_e2e_20260906$', runtime)
             self.assertEqual(runtime[runtime.index('--http-port') + 1], '9791')
             parser = check_isolated.build_parser()
             with self.assertRaises(SystemExit):
@@ -280,7 +280,7 @@ class TestOdooWrapper(unittest.TestCase):
             self.assertEqual(core, (root / 'odoo' / 'addons').resolve())
             self.assertEqual(check_isolated.validate_stock_addons(str(stock)), stock.resolve())
             self.assertEqual(worktree.name, 'worktree')
-            self.assertTrue((addons / 'nasq_core' / '__manifest__.py').is_file())
+            self.assertTrue((addons / 'webvue_core' / '__manifest__.py').is_file())
 
             only_base = root / 'looks-like-core'
             _touch(only_base / 'base' / '__manifest__.py', '{}')
@@ -343,11 +343,11 @@ class TestOdooWrapper(unittest.TestCase):
                 python=str(root / 'python'),
                 odoo_bin=str(root / 'odoo-bin'),
                 odoo_conf=str(root / 'odoo.conf'),
-                scratch_db='nasq_scratch_wp8_iso',
+                scratch_db='webvue_scratch_wp8_iso',
                 scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
                 http_port=8169,
-                modules='nasq_core,nasq_api,nasq_pmo,nasq_hr',
-                test_tags='/nasq_core',
+                modules='webvue_core,webvue_api,webvue_pmo,webvue_hr',
+                test_tags='/webvue_core',
             )
             seen = {}
 
@@ -368,7 +368,7 @@ class TestE2EWrapper(unittest.TestCase):
             base_url='http://127.0.0.1:3100',
             odoo_url='http://127.0.0.1:8169',
             ws_url='ws://127.0.0.1:8169/websocket',
-            scratch_db='nasq_scratch_wp8_iso',
+            scratch_db='webvue_scratch_wp8_iso',
             scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
             parent_env={
                 'E2E_BASE_URL': 'http://localhost:3000',
@@ -378,7 +378,7 @@ class TestE2EWrapper(unittest.TestCase):
             },
         )
         self.assertEqual(env['E2E_BASE_URL'], 'http://127.0.0.1:3100')
-        self.assertEqual(env['NUXT_ODOO_DB'], 'nasq_scratch_wp8_iso')
+        self.assertEqual(env['NUXT_ODOO_DB'], 'webvue_scratch_wp8_iso')
         self.assertEqual(env['NUXT_ODOO_URL'], 'http://127.0.0.1:8169')
         self.assertNotEqual(env['E2E_BASE_URL'], 'http://localhost:3000')
         self.assertNotEqual(env['NUXT_ODOO_DB'], 'odoo19')
@@ -389,7 +389,7 @@ class TestE2EWrapper(unittest.TestCase):
                 base_url='',
                 odoo_url='http://127.0.0.1:8169',
                 ws_url='ws://127.0.0.1:8169/websocket',
-                scratch_db='nasq_scratch_wp8_iso',
+                scratch_db='webvue_scratch_wp8_iso',
                 scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
                 parent_env={},
             )
@@ -401,7 +401,7 @@ class TestE2EWrapper(unittest.TestCase):
                 'e2e',
                 '--worktree', '/x',
                 '--addons-path', '/x/odoo-addons',
-                '--scratch-db', 'nasq_scratch_x',
+                '--scratch-db', 'webvue_scratch_x',
             ])
 
     def test_command_e2e_sets_explicit_env_and_npm_argv(self) -> None:
@@ -411,7 +411,7 @@ class TestE2EWrapper(unittest.TestCase):
             args = SimpleNamespace(
                 worktree=str(worktree),
                 addons_path=str(addons),
-                scratch_db='nasq_scratch_wp8_iso',
+                scratch_db='webvue_scratch_wp8_iso',
                 scratch_lifecycle=check_isolated.SCRATCH_LIFECYCLE_TOKEN,
                 base_url='http://127.0.0.1:3100',
                 odoo_url='http://127.0.0.1:8169',

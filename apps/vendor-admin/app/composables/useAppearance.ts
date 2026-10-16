@@ -2,7 +2,7 @@ export type AppearanceMode = 'light' | 'dark'
 
 /** The console's display mode, kept in a cookie so the server renders it before the first paint. */
 export function useAppearance() {
-  const cookie = usePreferenceCookie<AppearanceMode>('nasq-admin-mode', 'light')
+  const cookie = usePreferenceCookie<AppearanceMode>('webvue-admin-mode', 'light')
   const mode = computed<AppearanceMode>(() => (cookie.value === 'dark' ? 'dark' : 'light'))
   return { mode, setMode: (value: AppearanceMode) => { cookie.value = value } }
 }

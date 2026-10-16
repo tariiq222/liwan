@@ -7,7 +7,7 @@ import {
   type HrEmployee,
   type HrEmployeeCreate,
   type HrEmployeePatch,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 
 export type { HrEmployee }
 

@@ -521,7 +521,7 @@ const current = computed(() => activeProjectSection(route.path))
 <template>
   <nav
     v-if="sections.length"
-    class="nasq-ui-tab-strip"
+    class="webvue-ui-tab-strip"
     data-testid="project-workspace-tabs"
     :aria-label="t('projects.workspace.tabsLabel')"
   >
@@ -530,7 +530,7 @@ const current = computed(() => activeProjectSection(route.path))
       :key="section.id"
       color="neutral"
       variant="ghost"
-      class="nasq-ui-tab"
+      class="webvue-ui-tab"
       :to="section.to"
       :aria-current="current === section.id ? 'page' : undefined"
       :data-active="current === section.id"
@@ -548,11 +548,11 @@ Append to `apps/web/app/assets/css/components.css`:
 ```css
 /* A record's own sections sit under the project sections. Quieter and smaller
    so two strips read as two levels rather than one crowded row. */
-.nasq-ui-tab-strip--nested .nasq-ui-tab {
-  font-size: var(--nasq-font-support);
+.webvue-ui-tab-strip--nested .webvue-ui-tab {
+  font-size: var(--webvue-font-support);
   color: var(--ui-text-muted);
 }
-.nasq-ui-tab-strip--nested .nasq-ui-tab[data-active='true'] {
+.webvue-ui-tab-strip--nested .webvue-ui-tab[data-active='true'] {
   color: var(--ui-text-highlighted);
 }
 ```
@@ -858,13 +858,13 @@ defineExpose({ taskTo })
       <section class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
         <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams">
           <template #view>
-            <nav class="nasq-ui-segment" :aria-label="t('projects.planning.views')">
+            <nav class="webvue-ui-segment" :aria-label="t('projects.planning.views')">
               <UButton color="neutral" size="sm" icon="i-lucide-list" :variant="isBoard ? 'ghost' : 'soft'" :to="viewTo('list')" :aria-current="isBoard ? undefined : 'page'">{{ t('projects.tabs.list') }}</UButton>
               <UButton color="neutral" size="sm" icon="i-lucide-layout-grid" :variant="isBoard ? 'soft' : 'ghost'" :to="viewTo('board')" :aria-current="isBoard ? 'page' : undefined">{{ t('projects.tabs.board') }}</UButton>
             </nav>
           </template>
         </TaskToolbar>
-        <div class="nasq-ui-record-surface">
+        <div class="webvue-ui-record-surface">
           <TaskTable v-if="!isBoard" :params="params" variant="project" embedded @open="(id: number) => router.push(taskTo(id))" @create="openCreate" />
           <TaskBoard v-else :params="params" :stage-source="stageSource" embedded @open="(id: number) => router.push(taskTo(id))" />
         </div>
@@ -1067,7 +1067,7 @@ const cards = computed(() => [
         v-for="card in cards"
         :key="card.id"
         :to="`/projects/${projectId}/${card.segment}`"
-        class="nasq-ui-record-surface flex items-start gap-3 p-4 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        class="webvue-ui-record-surface flex items-start gap-3 p-4 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         :data-testid="`governance-card-${card.id}`"
       >
         <UIcon :name="card.icon" class="size-5 shrink-0 text-muted" aria-hidden="true" />
@@ -1366,7 +1366,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Delete: `apps/web/app/utils/workspaceBreadcrumbs.ts`
 - Delete: `apps/web/app/utils/projectBreadcrumbs.ts`
 - Delete: `apps/web/app/utils/__tests__/workspaceBreadcrumbs.test.ts`, `apps/web/app/utils/__tests__/projectBreadcrumbs.test.ts`
-- Modify: `apps/web/app/assets/css/shell.css` (delete `.nasq-project-breadcrumb` rules)
+- Modify: `apps/web/app/assets/css/shell.css` (delete `.webvue-project-breadcrumb` rules)
 - Test: `apps/web/app/components/shell/__tests__/shellStructure.test.ts`
 
 **Interfaces:**
@@ -1392,11 +1392,11 @@ Expected: FAIL — `project-sidebar-breadcrumb` is present.
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `ContextSidebar.vue`: delete the `workspaceBreadcrumbs` import, the `breadcrumbs` computed, the `breadcrumbLinks` destructure, and the entire `<nav v-if="breadcrumbs.length && expanded" class="nasq-project-breadcrumb" …>…</nav>` block.
+In `ContextSidebar.vue`: delete the `workspaceBreadcrumbs` import, the `breadcrumbs` computed, the `breadcrumbLinks` destructure, and the entire `<nav v-if="breadcrumbs.length && expanded" class="webvue-project-breadcrumb" …>…</nav>` block.
 
 In `useShellNavigation.ts`: delete the `breadcrumbLinks` computed, its `projectSidebarLinks` import, and remove `breadcrumbLinks` from the returned object.
 
-Delete the four breadcrumb files, and remove `.nasq-project-breadcrumb` rules from `shell.css`.
+Delete the four breadcrumb files, and remove `.webvue-project-breadcrumb` rules from `shell.css`.
 
 Remove the now-unused `nav.breadcrumb`, `nav.breadcrumbCreate`, and `nav.breadcrumbDetails` keys from `apps/web/i18n/locales/ar/common.json` and `apps/web/i18n/locales/en/common.json`.
 
@@ -1789,7 +1789,7 @@ const orderedLinks = computed(() => {
 })
 ```
 
-and render `createLinks` / `navigationLinks` from it in place of `contextGroups`. Delete the `nasq-context-group` wrapper and its heading, since there was never more than one group.
+and render `createLinks` / `navigationLinks` from it in place of `contextGroups`. Delete the `webvue-context-group` wrapper and its heading, since there was never more than one group.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1857,7 +1857,7 @@ Keep the existing «الاستثناءات فقط» list of four unchanged, and 
 
 - [ ] **Step 3: Add the nested strip to §6**
 
-In §6, after the tab-strip bullet, append: `صفّ تبويبات السجل داخل صفحة سجل يستخدم `nasq-ui-tab-strip--nested` بخط أصغر ولون أهدأ ليقرأ كمستوى ثانٍ.`
+In §6, after the tab-strip bullet, append: `صفّ تبويبات السجل داخل صفحة سجل يستخدم `webvue-ui-tab-strip--nested` بخط أصغر ولون أهدأ ليقرأ كمستوى ثانٍ.`
 
 - [ ] **Step 4: Update the component index**
 

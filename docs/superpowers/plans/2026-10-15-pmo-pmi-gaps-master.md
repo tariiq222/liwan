@@ -1,6 +1,6 @@
 # PMO: closing the PMI/PMBOK gaps — master plan
 
-**Source:** the PMI coverage audit of `nasq_pmo` and `apps/web` projects pages done on 2026-10-15
+**Source:** the PMI coverage audit of `webvue_pmo` and `apps/web` projects pages done on 2026-10-15
 (read-only code review, no runtime evidence). It found a strong single-project base (charter
 wizard, tasks, RACI, risk/issue register, budget vs. actual, status updates) and these gaps, in
 the owner's priority order:
@@ -44,7 +44,7 @@ rows become `approved` in the 19.0.1.6.0 migration. The state is never written t
 **D2. The sponsor authorizes the charter, behind a company policy.** New PMO setting
 `require_charter_approval` (default `false`, so today's behaviour is unchanged): when off, the
 manager's "approve" goes straight to `approved`; when on, it goes to `submitted` and only the
-sponsor (`nasq_sponsor_id`) approves or returns it with a note. A manager who is also the sponsor
+sponsor (`webvue_sponsor_id`) approves or returns it with a note. A manager who is also the sponsor
 approves directly. Admins do not approve on the sponsor's behalf; they change the sponsor.
 
 **D3. A submitted charter is locked; an approved one reopens on change.** While `submitted`,
@@ -54,7 +54,7 @@ approved charter goes through a change request instead; phase 3 replaces the reo
 
 **D4. Phases follow PMBOK process groups:** `initiating → planning → executing → closing →
 closed`. Monitoring and controlling is continuous, not a phase. Each forward move passes a gate
-whose checks are a registry (`_nasq_gate_checks(phase)`), so later phases add checks without
+whose checks are a registry (`_webvue_gate_checks(phase)`), so later phases add checks without
 editing the gate code: phase 2 ships "charter approved" (initiating → planning); phase 4 adds
 "baseline set" (planning → executing); phase 6 adds "closure checklist complete" (closing →
 closed). The existing `last_update_status` (on track / at risk / …) stays the health signal and
@@ -70,7 +70,7 @@ shares from the baseline (default: equal weight per task). AC = finance expenses
 baseline's time-phased budget (linear between task start and end). The UI states this method.
 
 **D7. Every new elevated write is a documented case.** The sponsor is not a project manager, so
-the charter approval write runs through the existing `_nasq_write_sudo` with its own whitelist,
+the charter approval write runs through the existing `_webvue_write_sudo` with its own whitelist,
 not a new `sudo()` call. Phase 1 adds that case to the PMO sudo list in `AGENTS.md`; the owner
 approves that wording in the phase 1 review.
 

@@ -1,4 +1,4 @@
-import { ProjectReportRowSchema, type ProjectReportRow } from '@nasq/contracts'
+import { ProjectReportRowSchema, type ProjectReportRow } from '@webvue/contracts'
 import {
   projectBudgetHealthChart,
   projectChartLabels,

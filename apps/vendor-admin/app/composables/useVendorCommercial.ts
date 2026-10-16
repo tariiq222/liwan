@@ -1,4 +1,4 @@
-import type { PricingPolicy, Quote } from '@nasq/commercial-contracts'
+import type { PricingPolicy, Quote } from '@webvue/commercial-contracts'
 import type { BundleView, CatalogReleaseView, CommercialKind, LifecycleAction, VendorListEnvelope, PlanView, StatusFilter } from '@/utils/vendorCommercial'
 import { lifecycleBody, lifecycleUrl } from '@/utils/vendorCommercial'
 

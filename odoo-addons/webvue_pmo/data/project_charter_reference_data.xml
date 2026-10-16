@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <function model="webvue.project.type" name="_webvue_seed_all_companies"/>
+</odoo>

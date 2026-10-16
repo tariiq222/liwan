@@ -1,4 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-<record id="group_cap_ai_use" model="res.groups"><field name="name">Use the Nasq AI assistant</field><field name="privilege_id" ref="nasq_core.res_groups_privilege_nasq"/></record>
-</odoo>

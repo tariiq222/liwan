@@ -8,11 +8,11 @@ import { setup, client, monthly, money } from './commercial-helpers.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { customerHttp } from '../commercial/customer-http.js'
-import { signServiceRequest } from '@nasq/commercial-contracts/server'
-import { riyadhDate } from '@nasq/commercial-contracts'
+import { signServiceRequest } from '@webvue/commercial-contracts/server'
+import { riyadhDate } from '@webvue/commercial-contracts'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
+if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
 const suite = url ? describe : describe.skip
 
 suite('commercial branches & usage (B4)', () => {
@@ -127,8 +127,8 @@ suite('commercial branches & usage (B4)', () => {
     const path='/v1/customer/quotes',raw=JSON.stringify({kind:'change',plan_revision_id:plan.id,bundle_revision_ids:[],cadence:monthly,requested_extra_branches:3,effective_date:effective})
     const header=Buffer.from(JSON.stringify({actor_id:'7',kind:'customer',tenant_id:t,capabilities:['subscription.manage']})).toString('base64')
     const config={installationId:'branch-vendor',key:'vendor-test-key-'.repeat(4),customerCommercialIssuer:'branch-customer',customerCommercialServiceKey:'customer-test-key-'.repeat(4),inventoryPath:'',repositoryRoot:'',python:'python3',stateDir:''}
-    const signed=signServiceRequest({method:'POST',path,body:`nasq-principal:${header}\n${raw}`,actor:7,issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey})
-    const result=await customerHttp(pool,config,{method:'POST',path,raw,headers:{...signed,'x-nasq-principal':header}})
+    const signed=signServiceRequest({method:'POST',path,body:`webvue-principal:${header}\n${raw}`,actor:7,issuer:config.customerCommercialIssuer,key:config.customerCommercialServiceKey})
+    const result=await customerHttp(pool,config,{method:'POST',path,raw,headers:{...signed,'x-webvue-principal':header}})
     expect(result).toMatchObject({status:201,data:{effective_date:riyadhDate(new Date())}})
   })
 

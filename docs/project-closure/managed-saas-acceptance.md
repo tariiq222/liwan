@@ -11,8 +11,8 @@
 | حقل | قيمة مثبتة |
 |---|---|
 | Target | `tgt_local_54b24f06` |
-| Compose project | `nasq-accept-54b24f06` |
-| Database | `nasq_scratch_54b24f06` |
+| Compose project | `webvue-accept-54b24f06` |
+| Database | `webvue_scratch_54b24f06` |
 | Operation | `op_7ac14c1a999141e2ac2e650c1f4e6909` |
 | Request | `96bf5ac9-7678-43e0-8740-f8d26b2d0d58` |
 | الحالة | `ok / provisioned` |
@@ -23,7 +23,7 @@
 | واجهة العميل المحلية | `http://127.0.0.1:53019/login` |
 | منافذ التجربة | PostgreSQL `53017`، Odoo `53018`، proxy `53019`؛ كلها loopback |
 
-الوحدات الخاصة المثبتة فعلًا: `nasq_core,nasq_platform,nasq_api,nasq_hr`. لم تثبت `nasq_pmo` أو `nasq_chat`. وجود `project` و`hr` و`cyan_meeting_minutes` بين تبعيات Odoo لا يعني اختيار ركائز Nasq غير المختارة.
+الوحدات الخاصة المثبتة فعلًا: `webvue_core,webvue_platform,webvue_api,webvue_hr`. لم تثبت `webvue_pmo` أو `webvue_chat`. وجود `project` و`hr` و`cyan_meeting_minutes` بين تبعيات Odoo لا يعني اختيار ركائز WebVue غير المختارة.
 
 ## سلسلة الإثبات المنفّذة
 
@@ -32,7 +32,7 @@
 3. مطابقة أسرار الملفات الخاصة مع INI، وبصمات Compose وملفات RO وإعادة فحصها قبل كل أمر.
 4. قاعدة جديدة فقط ثم انتظار TCP، وتثبيت الوحدات المختارة دون HTTP.
 5. تطبيق السياسة تحت قفل singleton ومصدر موثوق وحالة أولية؛ commit واحد ثم **جلسة Odoo مستقلة read-only** تؤكد المصدر والوحدات والميزات والمراجعة.
-6. تعيين كلمة مرور المسؤول البشري غير الافتراضية عبر helper Nasq المصرح، ثم **جلسة مستقلة read-only** تتحقق من hash الفعلي وترفض `admin`. السر لا يظهر في argv أو الإيصال.
+6. تعيين كلمة مرور المسؤول البشري غير الافتراضية عبر helper WebVue المصرح، ثم **جلسة مستقلة read-only** تتحقق من hash الفعلي وترفض `admin`. السر لا يظهر في argv أو الإيصال.
 7. تشغيل الخدمات ثم فحص الهويات الكاملة للحاويات والصور والمنافذ؛ branding مطابق مباشرة وعبر proxy وصفحة دخول Nuxt الفعلية.
 8. إعادة الطلب نفسه بإيصال النجاح مع runner/probe/resolver ترفض أي استدعاء: نجحت دون آثار. status أعاد سياسة verified مطابقة. تغيير بايتات السياسة أعاد request_conflict؛ طلب إنشاء جديد للهدف provisioned أعاد lifecycle_conflict.
 
@@ -47,16 +47,16 @@
 
 | Project | DB | الحالة الأصلية |
 |---|---|---|
-| `nasq-accept-243b7e2a` | `nasq_scratch_243b7e2a` | حجر عند السياسة؛ DB فقط دون خدمات عميل |
-| `nasq-accept-fb7a5b30` | `nasq_scratch_fb7a5b30` | حجر عند الصحة؛ الخدمات تعمل، الإيصال لم يُعاد تصنيفه |
-| `nasq-accept-54b24f06` | `nasq_scratch_54b24f06` | نجاح القبول المحلي |
+| `webvue-accept-243b7e2a` | `webvue_scratch_243b7e2a` | حجر عند السياسة؛ DB فقط دون خدمات عميل |
+| `webvue-accept-fb7a5b30` | `webvue_scratch_fb7a5b30` | حجر عند الصحة؛ الخدمات تعمل، الإيصال لم يُعاد تصنيفه |
+| `webvue-accept-54b24f06` | `webvue_scratch_54b24f06` | نجاح القبول المحلي |
 
-ملفات المدخلات والأسرار محفوظة في مجلدات خاصة خارج المستودع، وليست مرفقات تسليم. مجلد النجاح: `/private/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/nasq-managed-acceptance-_z3h1u52`. لا نسخ للأسرار إلى الوثائق. لا صلاحية ضمنية لتنظيف أي مورد.
+ملفات المدخلات والأسرار محفوظة في مجلدات خاصة خارج المستودع، وليست مرفقات تسليم. مجلد النجاح: `/private/var/folders/17/rgg6yjtn60d3jf_3xszmvtw00000gn/T/webvue-managed-acceptance-_z3h1u52`. لا نسخ للأسرار إلى الوثائق. لا صلاحية ضمنية لتنظيف أي مورد.
 
 ## بوابة التحقق النهائية
 
 - `PYTHONPATH=tools python3 -B -m unittest discover -s tools -p 'test_managed*.py'`: **246 passed**.
-- `PYTHONPATH=tools python3 -B -m unittest test_nasq_cli_operator test_nasq_cli_scratch_guards`: **56 passed**.
+- `PYTHONPATH=tools python3 -B -m unittest test_webvue_cli_operator test_webvue_cli_scratch_guards`: **56 passed**.
 - Ruff لكل managed modules/tests ومشغل القبول: **passed**.
 - `npm -w apps/control-plane test`: **95 passed،7 ملفات ناجحة،ملف service.test.ts متخطى**؛ لا يُحتسب هذا الملف كاختبار خدمة ناجح.
 - `npm -w apps/control-plane run build`: **tsc --noEmit passed**.

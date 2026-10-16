@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
-import { MeSchema, RoleListSchema } from '@nasq/contracts'
+import { MeSchema, RoleListSchema } from '@webvue/contracts'
 
 async function login(page: Page) {
   await page.goto('/login')
@@ -118,7 +118,7 @@ test('saved appearance is present before hydration and controls wait for hydrati
   expect((await page.request.post('/api/auth/login', { data: { login: process.env.E2E_ADMIN_LOGIN ?? 'admin', password: process.env.E2E_ADMIN_PASSWORD ?? 'admin' } })).status()).toBe(200)
   expect(baseURL).toBeDefined()
   await context.addCookies([{
-    name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'dark', fontSize: 'medium' })),
+    name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode: 'dark', fontSize: 'medium' })),
     url: new URL(baseURL!).origin,
   }])
   let resume!: () => void

@@ -109,8 +109,8 @@ async function capture(baseUrl, out) {
   const browser = await chromium.launch()
   const base = { baseURL: baseUrl, reducedMotion: 'reduce', locale: 'ar-SA', timezoneId: 'Asia/Riyadh', deviceScaleFactor: 1 }
   const cookies = (lang, theme) => [
-    { name: 'nasq-locale', value: lang, url: baseUrl },
-    { name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode: theme, fontSize: 'small' })), url: baseUrl },
+    { name: 'webvue-locale', value: lang, url: baseUrl },
+    { name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode: theme, fontSize: 'small' })), url: baseUrl },
   ]
 
   // Sign in once; the session cookie is reused by every authenticated context.

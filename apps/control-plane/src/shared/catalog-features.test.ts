@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { CatalogInvalidError, DESCRIPTOR_GRAMMAR_V2, parseCatalogTiers, parseFeatureDescriptor } from '@nasq/commercial-contracts'
+import { CatalogInvalidError, DESCRIPTOR_GRAMMAR_V2, parseCatalogTiers, parseFeatureDescriptor } from '@webvue/commercial-contracts'
 import { deriveFeatures } from './catalog-features.js'
 import { deriveSharedPolicy } from './job-store.js'
 import { derivePackagePolicy } from '../packages.js'
@@ -92,7 +92,7 @@ describe('schema-3 release-complete policies through every control-plane derivat
   const v3 = JSON.parse(readFileSync(join(root, 'deploy/catalog/fixtures/release_features.json'), 'utf8')).cases[0].catalog
   it('shared onboarding installs the whole release and closes the other apps', () => {
     const policy = deriveSharedPolicy(v3, 'people')
-    expect(policy.modules).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo', 'nasq_meetings', 'nasq_hr'])
+    expect(policy.modules).toEqual(['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo', 'webvue_meetings', 'webvue_hr'])
     expect(policy.features).toEqual({ 'users.limit': null, 'storage.limit_mb': null, 'branches.extra_limit': 0, 'pmo.enabled': false, 'meetings.enabled': false, 'projects.max_projects': 0, 'hr.enabled': true })
   })
   it('a package may only set the open tier limits, never a closed one', () => {
@@ -101,6 +101,6 @@ describe('schema-3 release-complete policies through every control-plane derivat
     expect(() => derivePackagePolicy(v3, 'people', { 'users.limit': 5, 'storage.limit_mb': 100, 'projects.max_projects': 3 })).toThrow('package_limits_invalid')
   })
   it('v2 stays base plus tier modules', () => {
-    expect(deriveSharedPolicy(read('platform_v2.json'), 'people').modules).toEqual(['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_hr'])
+    expect(deriveSharedPolicy(read('platform_v2.json'), 'people').modules).toEqual(['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_hr'])
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ProjectCopyInputSchema } from '@nasq/contracts'
+import { ProjectCopyInputSchema } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useCopyProject, useProject } from '@/composables/useProjects'
 

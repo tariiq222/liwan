@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
-import ShellFrame from '@nasq/ui/app/components/shell/ShellFrame.vue'
+import ShellFrame from '@webvue/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
 import { createBrandTheme } from '../../app/utils/brandTheme'
 import { __getRouter, useCookie } from '../../.storybook/nuxt-shims'
@@ -26,14 +26,14 @@ const at = (path: string) => async () => {
 const frame = (sidebar: 'open' | 'closed' = 'open', before?: () => void) => ({
   components: { AppSidebar, ShellFrame, ShellHeader },
   setup: () => {
-    useCookie<'open' | 'closed'>('nasq-context-sidebar').value = sidebar
+    useCookie<'open' | 'closed'>('webvue-context-sidebar').value = sidebar
     before?.()
     return { t: useI18n().t }
   },
   template: `<ShellFrame>
     <template #header><ShellHeader /></template>
     <template #sidebar><AppSidebar /></template>
-    <main class="nasq-shell-main" data-testid="shell-main"><div class="nasq-page-stack nasq-page-width-list"><h1 class="text-xl font-semibold">{{ t('nav.tasks') }}</h1></div></main>
+    <main class="webvue-shell-main" data-testid="shell-main"><div class="webvue-page-stack webvue-page-width-list"><h1 class="text-xl font-semibold">{{ t('nav.tasks') }}</h1></div></main>
   </ShellFrame>`,
 })
 

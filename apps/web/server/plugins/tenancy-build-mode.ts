@@ -1,11 +1,11 @@
 // Nitro replaces this identifier with a literal from nuxt.config.ts. Never use
 // runtimeConfig or an environment-variable build stamp: those are overrideable.
-declare const __NASQ_BUILD_TENANCY_MODE__: string
+declare const __WEBVUE_BUILD_TENANCY_MODE__: string
 
 export default defineNitroPlugin((nitroApp) => {
-  const builtMode = __NASQ_BUILD_TENANCY_MODE__
+  const builtMode = __WEBVUE_BUILD_TENANCY_MODE__
   const assertMode = () => {
-    const runtimeMode = process.env.NASQ_TENANCY_MODE ?? 'dedicated'
+    const runtimeMode = process.env.WEBVUE_TENANCY_MODE ?? 'dedicated'
     if (!['dedicated', 'shared'].includes(builtMode) || runtimeMode !== builtMode) {
       throw new Error('tenancy_build_runtime_mismatch')
     }

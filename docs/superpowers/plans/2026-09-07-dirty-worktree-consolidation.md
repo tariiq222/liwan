@@ -20,7 +20,7 @@
 
 ## Source evidence
 
-External recovery directory: `/Users/tariq/.codex/visualizations/2026/09/07/01a07b91-635e-7300-8483-4d649f43ae0e/nasq-consolidation`.
+External recovery directory: `/Users/tariq/.codex/visualizations/2026/09/07/01a07b91-635e-7300-8483-4d649f43ae0e/webvue-consolidation`.
 `checkpoints.json` records every source parent, commit, tree, worktree and file list. `merges.jsonl` records initial resolutions. Initial candidate retains current files at conflicts pending explicit reconciliation; this alone is not acceptance.
 
 ## Ownership and independence
@@ -52,7 +52,7 @@ Project parallel-work instructions supersede SDD's generic serial-worker default
 
 - [x] Review full Cyan and meetings source changes end-to-end, including newest org-admin role additions and calendar/edit/resolution routes.
 - [x] Reproduce and fix meeting notifications being excluded by recipient list/read domain; preserve current-company, record visibility and recipient ownership. Test cross-company/hidden/readability/read states.
-- [x] Reconcile Cyan standalone security tests versus Nasq-dependent added tests in the source conflict. Nasq-specific behavior belongs to dependent addon tests.
+- [x] Reconcile Cyan standalone security tests versus WebVue-dependent added tests in the source conflict. WebVue-specific behavior belongs to dependent addon tests.
 - [x] Check meeting creation/edit/workflow/attachments/resolution conversion and access grants. Correct concrete integration failures, preserve attachment ACL and capability guards; report shared file needs.
 - [x] Worker performs source checks/focused tests only; coordinator runs isolated Odoo tests and all final gates.
 

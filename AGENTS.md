@@ -1,4 +1,4 @@
-# Nasq agent instructions (single source)
+# WebVue agent instructions (single source)
 
 This file is the single source of repository instructions for every coding agent
 (Codex and Claude). `CLAUDE.md` imports it. Rules that apply only to one layer live in
@@ -10,7 +10,7 @@ This file is the single source of repository instructions for every coding agent
 
 ## تعريف المنتج المعتمد — 2026-09-30
 
-نسق منصة عربية موحّدة لتشغيل الشركات، والأساس المشترك لجميع تطبيقاتها، ببيانات
+ويب فيو منصة عربية موحّدة لتشغيل الشركات، والأساس المشترك لجميع تطبيقاتها، ببيانات
 وإجراءات وصلاحيات مترابطة في نظام واحد. رؤيتها شاملة لوظائف الشركة، مثل أودو في
 اتساع النطاق، بدل الاشتراك في أنظمة متعددة معزولة، بهدف خفض التكلفة الإجمالية
 للاشتراكات والتكامل والتشغيل. المشاريع والمهام والموارد البشرية تطبيقات أولية
@@ -18,7 +18,7 @@ This file is the single source of repository instructions for every coding agent
 [تعريف المنتج](apps/web/PRODUCT.md).
 
 ميّز دائمًا بين هذه الرؤية والقدرات المنفّذة والمتحققة حاليًا. المجالات المؤجلة
-هي حدود مرحلة تنفيذ، وليست استبعادًا دائمًا من رؤية نسق. توسيع التعريف لا يجيز
+هي حدود مرحلة تنفيذ، وليست استبعادًا دائمًا من رؤية ويب فيو. توسيع التعريف لا يجيز
 تنفيذ وحدات جديدة تلقائيًا أو الادعاء بجاهزيتها، وخفض التكلفة هدف يحتاج قياسًا.
 
 ## واجهة العميل
@@ -36,9 +36,9 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   `main`. Give each task explicit file ownership and independent dependencies,
   generated files, databases, and ports. One orchestrator owns Git integration,
   shared-file edits, runtime changes, and final checks.
-- Preserve stock Odoo source. Extend `project` through `nasq_pmo` and `hr`
-  through `nasq_hr`. Do not recreate either pillar.
-- The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `nasq_directory`). Preserve
+- Preserve stock Odoo source. Extend `project` through `webvue_pmo` and `hr`
+  through `webvue_hr`. Do not recreate either pillar.
+- The HR page is `/hr`; `/api/v1/people` remains the user-id picker (owned by `webvue_directory`). Preserve
   HR documents and the `{items, total}` list envelopes.
 - Presentation (pages, the one route-backed create panel `SharedCreatePanel`,
   and the three overlay exceptions: search, notification bell, unsaved draft)
@@ -57,7 +57,7 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   evidence and the actual branch/runtime state.
 
 Odoo 19 Community is the engine and `apps/web` (Nuxt 4) is the customer UI,
-with Nasq's own identity and experience. The current
+with WebVue's own identity and experience. The current
 deployment templates run an independent database, Odoo instance, frontend, and
 edge per customer. The **target primary model** is self-service SaaS on shared
 application services, retaining a separate database and filestore per customer;
@@ -65,19 +65,19 @@ local integration and acceptance boundaries are recorded in
 [WORKSPACE.md](docs/WORKSPACE.md); they do not establish release approval.
 Managed dedicated remains
 separate from customer-hosted non-SaaS, which must not require SaaS billing or a
-vendor connection at runtime. Nasq has a tenant abstraction through
-`nasq_platform`, but tenant isolation remains database-per-tenant. There is no
+vendor connection at runtime. WebVue has a tenant abstraction through
+`webvue_platform`, but tenant isolation remains database-per-tenant. There is no
 shared-database tenant layer. Customer-specific behavior belongs in a
 `customer_<name>_*` overlay, never in the core pillars. See the new
-[hosting and acceptance contract](docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md)
+[hosting and acceptance contract](docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md)
 for the target and its pending gates; the older
-`docs/superpowers/specs/2026-09-03-nasq-platform-design.md` describes its own
+`docs/superpowers/specs/2026-09-03-webvue-platform-design.md` describes its own
 historical scope. Government packaging from one release line is preferred for
 assessment; a permanent fork is not approved by default.
 
 ## Clean pre-release codebase: no accumulation — 2026-10-15
 
-Nasq has not been released and has no live tenants, so there is nothing to stay
+WebVue has not been released and has no live tenants, so there is nothing to stay
 backward compatible with. The product must ship sound and clean: clean code, correct data
 structures, and a file architecture where every file has one owner and one reason to exist.
 Accumulation in code or in the database schema is a defect, not technical debt to schedule.
@@ -119,17 +119,17 @@ Accumulation in code or in the database schema is a defect, not technical debt t
 
 ## Architecture rules (R1–R10)
 
-Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-nasq-reference-architecture-and-git-workflow-design.md).
+Spec: [reference architecture and Git workflow](docs/superpowers/specs/2026-10-05-webvue-reference-architecture-and-git-workflow-design.md).
 `tools/arch_policy.py` (runs inside `npm test`) and `tools/git_policy.py` (CI `static` step) enforce these
 rules. Violations that predate them are recorded in `tools/arch_baseline.json`. That baseline only shrinks:
 never add an entry or raise a count to make a check pass.
 
-- **R1** `nasq_core` depends on `base` only and names no application model or group.
+- **R1** `webvue_core` depends on `base` only and names no application model or group.
 - **R2** Each application owns its capabilities, groups, roles and record rules inside its own addon.
 - **R3** No application imports another application. Two applications are linked by a bridge addon
-  `nasq_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
+  `webvue_<a>_<b>` with `auto_install`. The same holds in `apps/web`: an application folder under
   `pages/` or `components/` does not use another application's components.
-- **R4** Dependencies point down only: foundation (`nasq_core` ← `nasq_platform` ← `nasq_api`) ← shared
+- **R4** Dependencies point down only: foundation (`webvue_core` ← `webvue_platform` ← `webvue_api`) ← shared
   services ← applications ← bridges ← `customer_<name>_*`.
 - **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
   from `apps/control-plane`; no new file references the control plane. `apps/vendor-admin` is the only vendor
@@ -143,13 +143,13 @@ never add an entry or raise a count to make a check pass.
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
   reason and a test, no copied Odoo methods.
 - **R10** Each application registers its `<app>.enabled` feature, sub-features, limits and counters in
-  `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
+  `webvue.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
   shared service (rank 3) gates its routes with `requires_registered_feature`, whose keys the
   applications register in that service's registry.
 
 - **UI1** The shared UI layers `packages/ui` and `packages/commercial-ui` import no
-  application, addon, app alias, `@nasq/contracts` or control-plane code.
-- **VA1** `apps/vendor-admin` imports only itself, the shared UI layers and `@nasq/commercial-contracts`, calls no
+  application, addon, app alias, `@webvue/contracts` or control-plane code.
+- **VA1** `apps/vendor-admin` imports only itself, the shared UI layers and `@webvue/commercial-contracts`, calls no
   Odoo route, and `apps/web` never imports it. UI1 and VA1 are hard rules, never baselined.
 
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
@@ -230,14 +230,14 @@ cross-addon links.
   bearer token.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
-- `nasq_hr`, `nasq_tasks`, `nasq_operations` and their bridges have no `sudo()` path. In PMO, only the documented manager-write,
-  charter-approval (approval fields only, through `_nasq_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
+- `webvue_hr`, `webvue_tasks`, `webvue_operations` and their bridges have no `sudo()` path. In PMO, only the documented manager-write,
+  charter-approval (approval fields only, through `_webvue_write_sudo` with its own whitelist, after the manager or sponsor check), policy/config, display-lookup, integer-count, completion-status and notification
   cron/candidate cases use `sudo()` after the caller's authorization check;
-  `nasq_notify` uses it only for bell delivery and recipient-owned bell reads.
-  `nasq_meetings` uses it only for its server-controlled minutes, snapshot,
+  `webvue_notify` uses it only for bell delivery and recipient-owned bell reads.
+  `webvue_meetings` uses it only for its server-controlled minutes, snapshot,
   version and event records, the company-wide organizer-overlap check, the
   meeting-manager group lookup and the recipient-owned bell candidates;
-  `nasq_meetings_pmo` only for the id-only lookup of converted tasks. Do not add
+  `webvue_meetings_pmo` only for the id-only lookup of converted tasks. Do not add
   another case without documenting it and fixing ACLs/rules where possible.
 - The current delivery scope has no time logging or payroll product surface.
   These are stage constraints, not permanent exclusions from the product
@@ -264,7 +264,7 @@ tests against the production-style `odoo19` database. Temporary integration
 databases, ports, and logs are disposable and must not be described as
 production evidence.
 
-The Nasq Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
+The WebVue Git remote is `origin` (`https://github.com/tariiq222/nasq.git`),
 tracked by `main`. Fetch and compare `main` with `origin/main` before
 integration work. Push only when the user authorizes that push, and do not
 force-push or rewrite published history. Do not imply a push, merge,
@@ -275,8 +275,8 @@ files.
 ## Authorization model
 
 
-Authorization uses the capability catalog composed by `nasq.access.service` (the nine
-`nasq_core` system capabilities plus each application's own), built-in and
+Authorization uses the capability catalog composed by `webvue.access.service` (the nine
+`webvue_core` system capabilities plus each application's own), built-in and
 custom roles, and company-scoped assignments. `system_admin` manages access
 and settings without implicitly granting HR/PMO write access. Project ownership
 contributes contextual PMO capabilities. Legacy groups are migration/ORM support,
@@ -289,7 +289,7 @@ current-company and record visibility. Customers do not open Odoo.
 Run focused checks appropriate to the changed layer, then the owning
 orchestrator runs broader gates once. Odoo addon checks run from
 `/Users/tariq/code/odoo` against a fresh scratch database with the selected
-Nasq worktree's addons path. Web checks run from the selected worktree. Fresh
+WebVue worktree's addons path. Web checks run from the selected worktree. Fresh
 test output proves that checked layer only; it is not production or DNS proof.
 Before claiming completion, report changed files, fresh command evidence, and
 any residual risk.
@@ -312,8 +312,8 @@ Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`
 `npx -w apps/web vue-tsc ...`: `npx` has no `-w` flag, so it silently runs
 from the repo root, checks nothing, and exits 0. Every `vue-tsc` invocation
 runs from `apps/web`. Employee fixtures are created through Odoo, never through the
-Nuxt UI. API tests extend `NasqApiCase` from `nasq_api/tests/common.py` or
-`NasqPmoCase` for PMO fixtures; every `test_*.py` must be imported by its
+Nuxt UI. API tests extend `WebVueApiCase` from `webvue_api/tests/common.py` or
+`WebVuePmoCase` for PMO fixtures; every `test_*.py` must be imported by its
 addon `tests/__init__.py`. Loading a code/data change into an authorized
 development database may use `-u <addon> --no-http --stop-after-init`; never
 run tests against the dev `odoo19` database.
@@ -326,9 +326,9 @@ Test layers and the isolated agentic e2e runner (`npm run e2e`) are described in
 [`docs/testing.md`](docs/testing.md).
 
 The global `~/.npmrc` may be malformed. Use `npm ci --ignore-scripts` and never
-edit that file. Use `rg` and targeted file reads for code search across Odoo and Nasq addons.
+edit that file. Use `rg` and targeted file reads for code search across Odoo and WebVue addons.
 
 New collaboration endpoints require the current company. Company-less
 projects and tasks are not visible after the Phase 1 backfill; isolation is
-database-per-tenant with `nasq_platform.root_company_id`. Addon versions follow
+database-per-tenant with `webvue_platform.root_company_id`. Addon versions follow
 [`docs/migrations.md`](docs/migrations.md).

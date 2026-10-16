@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MeSchema, TaskDetailSchema, TaskSchema } from '@nasq/contracts'
+import { MeSchema, TaskDetailSchema, TaskSchema } from '@webvue/contracts'
 import { makeTask, me, taskDetail } from '../pmo'
 
 describe('Storybook PMO fixtures follow the wire contracts', () => {

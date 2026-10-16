@@ -1,5 +1,5 @@
 import type { Pool } from 'pg'
-import { pricingPolicySchema, type PricingPolicy } from '@nasq/commercial-contracts'
+import { pricingPolicySchema, type PricingPolicy } from '@webvue/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 
 export function policyWire(row: Record<string, any>): PricingPolicy {

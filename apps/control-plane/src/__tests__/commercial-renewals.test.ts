@@ -9,7 +9,7 @@ import { generateRenewals, applyDunning, trialEndsAt } from '../commercial/renew
 import { markReturned } from '../commercial/payments.js'
 
 const url=process.env.CONTROL_TEST_DATABASE_URL
-if(url && new URL(url).pathname!=='/nasq_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
+if(url && new URL(url).pathname!=='/webvue_control_scratch_payfinal') throw new Error('renewal tests require own scratch DB')
 const suite=url?describe:describe.skip
 suite('live PostgreSQL pinned subscription renewals',()=>{
   const pool=new Pool({connectionString:url,max:8}),api=client(pool)
@@ -39,7 +39,7 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1",[order.subscription_id])
     return {customer,id:order.subscription_id}
   }
-  const args=(adapter:SimulatorAdapter)=>({now,adapter,allowedOrigin:'https://nasq.test',return_path:'/subscription'})
+  const args=(adapter:SimulatorAdapter)=>({now,adapter,allowedOrigin:'https://webvue.test',return_path:'/subscription'})
   it('invoices once across repeated and concurrent generation, uses pinned price despite newer revision',async()=>{
     const s=await subscription()
     // Publish a new revision in the SAME plan family without changing the applied revision.

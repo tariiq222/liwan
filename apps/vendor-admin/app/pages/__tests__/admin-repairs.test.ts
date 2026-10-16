@@ -8,11 +8,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../utils/vendorSubscriptions'
 import * as commercial from '../../utils/vendorCommercial'
 import * as clients from '../../utils/vendorClients'
-import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
-import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { invoiceStatusBadge } from '@webvue/commercial-ui/app/utils/commercialBadges'
+import { cadenceLabel, formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 import { paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
-import { formatNasqDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
+import { formatWebVueDate, formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
@@ -44,7 +44,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
   const hydrated = Vue.ref(options.hydrated ?? true)
   const slots = new Map<string, unknown>()
   const bindings = {
-    formatNasqDate, formatNasqDateTime,
+    formatWebVueDate, formatWebVueDateTime,
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
     ...subscriptions, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),

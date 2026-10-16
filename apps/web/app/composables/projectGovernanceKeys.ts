@@ -1,7 +1,7 @@
 // Governance cache keys and route-filter parsers, kept beside `projectKeys`
 // so composables never import from `components/`. Tone maps stay in
 // `components/pmo/projects/governance/state.ts` (presentation only).
-import type { ProjectRegisterKind, ProjectRegisterStatus, ProjectRegisterPriority } from '@nasq/contracts'
+import type { ProjectRegisterKind, ProjectRegisterStatus, ProjectRegisterPriority } from '@webvue/contracts'
 import { projectKeys } from './projectKeys'
 
 export type GovernanceRegisterFilters = { q?: string; kind?: ProjectRegisterKind; status?: ProjectRegisterStatus; priority?: ProjectRegisterPriority; limit?: number; offset?: number }

@@ -11,17 +11,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from nasq_cli.managed_bundle import CADDYFILE
+from webvue_cli.managed_bundle import CADDYFILE
 
-if importlib.util.find_spec('nasq_cli.managed_probe') is None:
+if importlib.util.find_spec('webvue_cli.managed_probe') is None:
     managed_probe = None
 else:
-    from nasq_cli import managed_probe
+    from webvue_cli import managed_probe
 
 
 IMAGES = ['sha256:' + digit * 64 for digit in 'abcd']
-PROJECT = 'nasq-probe-fixture'
-DATABASE = 'nasq_scratch_probe_fixture'
+PROJECT = 'webvue-probe-fixture'
+DATABASE = 'webvue_scratch_probe_fixture'
 
 
 class FixtureRunner:
@@ -92,7 +92,7 @@ class DockerProbeCase(unittest.TestCase):
                 'odoo': {'image': IMAGES[0], 'ports': ['127.0.0.1:28061:8069'],
                          'volumes': ['odoo_data:/var/lib/odoo', './odoo.conf:/etc/odoo/odoo.conf:ro',
                                      './classification.json:/etc/odoo/commercial.json:ro'],
-                         'environment': {'NASQ_COMMERCIAL_CONFIG': '/etc/odoo/commercial.json'},
+                         'environment': {'WEBVUE_COMMERCIAL_CONFIG': '/etc/odoo/commercial.json'},
                          'networks': ['tenant_net']},
                 'web': {'image': IMAGES[1], 'environment': {
                     'NUXT_ODOO_URL': 'http://odoo:8069', 'NUXT_ODOO_DB': DATABASE},
@@ -173,7 +173,7 @@ class DockerProbeCase(unittest.TestCase):
 
     def test_exact_image_id_and_repo_digest(self):
         self.assertEqual(self.probe('image_identity', IMAGES[0]), IMAGES[0])
-        ref = 'example.invalid/nasq@' + IMAGES[0]
+        ref = 'example.invalid/webvue@' + IMAGES[0]
         self.descriptor['release_ref']['identity_kind'] = 'repo_digest'
         self.descriptor['release_ref']['odoo_image'] = ref
         probe = managed_probe.DockerProbe(self.descriptor, catalog_path=self.catalog, runner=self.runner)

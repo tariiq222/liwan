@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import NotFoundState from '@nasq/ui/app/components/shared/feedback/NotFoundState.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import NotFoundState from '@webvue/ui/app/components/shared/feedback/NotFoundState.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -17,13 +17,13 @@ export const WithBack: Story = {
   render: () => ({
     components: { NotFoundState, PageContainer },
     setup: () => ({ t: useI18n().t }),
-    template: '<main class="nasq-shell-main"><PageContainer width="detail"><NotFoundState back-to="/projects" :back-label="t(\'nav.projects\')" /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="detail"><NotFoundState back-to="/projects" :back-label="t(\'nav.projects\')" /></PageContainer></main>',
   }),
 }
 export const Bare: Story = {
   name: 'بلا رابط',
   render: () => ({
     components: { NotFoundState, PageContainer },
-    template: '<main class="nasq-shell-main"><PageContainer width="detail"><NotFoundState /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="detail"><NotFoundState /></PageContainer></main>',
   }),
 }

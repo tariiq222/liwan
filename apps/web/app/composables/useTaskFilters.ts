@@ -6,5 +6,5 @@ import type { TaskListParams } from '@/composables/useTasks'
 // re-declaring its own — a second declaration with different defaults would
 // silently desync from what the table actually queried with.
 export function useTaskFilters() {
-  return useLocalStorage<TaskListParams>('nasq.tasks.filters', { closed: false }, { mergeDefaults: true })
+  return useLocalStorage<TaskListParams>('webvue.tasks.filters', { closed: false }, { mergeDefaults: true })
 }

@@ -7,7 +7,7 @@
 
 	route {
 		rate_limit {
-			zone nasq_auth {
+			zone webvue_auth {
 				match {
 					path /api/auth/* /api/v1/auth/* /web/session/* /web/login /web/login/*
 					not path /web/session/get_session_info
@@ -17,7 +17,7 @@
 				window 1m
 				ipv6_prefix 64
 			}
-			zone nasq_api {
+			zone webvue_api {
 				match {
 					path /api/v1/*
 					not path /api/v1/auth/*
@@ -27,7 +27,7 @@
 				window 1m
 				ipv6_prefix 64
 			}
-			zone nasq_odoo {
+			zone webvue_odoo {
 				match {
 					path /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/*
 					not path /web/session/* /web/login /web/login/* /web/health
@@ -40,7 +40,7 @@
 				window 1m
 				ipv6_prefix 64
 			}
-			zone nasq_web {
+			zone webvue_web {
 				match {
 					not path /api/auth/* /api/v1/* /web/* /odoo/* /website/translations /base_setup/* /bus/* /json/* /doc/* */static/* /report/* /mail/* /discuss/* /websocket*
 				}
@@ -59,9 +59,9 @@
 		handle {
 			reverse_proxy web:3000 {
 				# Set after Connection-nominated fields are stripped; never append.
-				header_up X-Nasq-Client-IP {remote_host}
-				header_up X-Nasq-Client-Host {hostport}
-				header_up X-Nasq-Client-Proto {scheme}
+				header_up X-WebVue-Client-IP {remote_host}
+				header_up X-WebVue-Client-Host {hostport}
+				header_up X-WebVue-Client-Proto {scheme}
 			}
 		}
 	}

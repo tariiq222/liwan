@@ -47,7 +47,7 @@ async function login(page: Page) {
 
 async function setAppearance(page: Page, mode: 'light' | 'dark', fontSize: 'medium' | 'large') {
   await page.context().addCookies([{
-    name: 'nasq-appearance',
+    name: 'webvue-appearance',
     value: JSON.stringify({ mode, fontSize }),
     url: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:4387',
   }])
@@ -86,7 +86,7 @@ async function visit(page: Page, route: (typeof ROUTES)[number], opts: { checkWi
   await expect(page.getByRole('button', { name: 'بحث', exact: true })).toBeEnabled()
   await page.evaluate(() => document.fonts.ready)
   if (route.id === 'projects') await expect(page.getByTestId('project-row')).toHaveCount(3)
-  if (route.id === 'tasks') await expect(page.locator('.nasq-status-chip-success')).not.toHaveCount(0)
+  if (route.id === 'tasks') await expect(page.locator('.webvue-status-chip-success')).not.toHaveCount(0)
   await assertNoErrorPage(page)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   if (overflow > 1) defects.push(`overflow ${overflow}px`)
@@ -153,10 +153,10 @@ async function measureChipContrast(page: Page) {
       return { color: style.color, background: style.backgroundColor, fg, bg, ratio: ratio(fg, bg) }
     }
     return {
-      success: pick(document.querySelector('.nasq-status-chip-success')),
-      warning: pick(document.querySelector('.nasq-status-chip-warning')),
-      danger: pick(document.querySelector('.nasq-status-chip-danger')),
-      unread: pick(document.querySelector('.nasq-unread-count')),
+      success: pick(document.querySelector('.webvue-status-chip-success')),
+      warning: pick(document.querySelector('.webvue-status-chip-warning')),
+      danger: pick(document.querySelector('.webvue-status-chip-danger')),
+      unread: pick(document.querySelector('.webvue-unread-count')),
     }
   })
 }
@@ -182,9 +182,9 @@ test('desktop 1440 light medium — route smoke and targeted fixes', async ({ pa
   fs.writeFileSync(path.join(SHOTS, 'desktop-routes.json'), JSON.stringify({ coverage, batchDefects }, null, 2))
 
   await page.goto('/tasks')
-  await expect(page.locator('.nasq-status-chip-success')).not.toHaveCount(0)
-  await expect(page.locator('.nasq-status-chip-warning')).not.toHaveCount(0)
-  await expect(page.locator('.nasq-status-chip-danger')).not.toHaveCount(0)
+  await expect(page.locator('.webvue-status-chip-success')).not.toHaveCount(0)
+  await expect(page.locator('.webvue-status-chip-warning')).not.toHaveCount(0)
+  await expect(page.locator('.webvue-status-chip-danger')).not.toHaveCount(0)
   await expect(page.getByTestId('notification-count')).not.toHaveCount(0)
   const lightContrast = await measureChipContrast(page)
   for (const [name, sample] of Object.entries(lightContrast)) {
@@ -193,11 +193,11 @@ test('desktop 1440 light medium — route smoke and targeted fixes', async ({ pa
   }
 
   await page.goto('/projects/1/settings')
-  await expect(page.locator('.nasq-form-section-title')).toHaveCount(3)
+  await expect(page.locator('.webvue-form-section-title')).toHaveCount(3)
   const gap = await page.evaluate(() => {
-    const titles = [...document.querySelectorAll('.nasq-form-section-title')]
+    const titles = [...document.querySelectorAll('.webvue-form-section-title')]
     return titles.map((title) => {
-      const section = title.closest('.nasq-form-section')
+      const section = title.closest('.webvue-form-section')
       const next = title.nextElementSibling as HTMLElement | null
       if (!section || !next) return { title: title.textContent, gap: -1 }
       return {
@@ -218,7 +218,7 @@ test('desktop 1440 light medium — route smoke and targeted fixes', async ({ pa
   await page.screenshot({ path: shot('catalog-new-1920.png'), fullPage: true })
 
   await page.goto('/projects/settings')
-  const settingsForm = page.locator('.nasq-settings-form-page')
+  const settingsForm = page.locator('.webvue-settings-form-page')
   await expect(settingsForm).toBeVisible()
   const settingsBox = await settingsForm.evaluate((el) => {
     const style = getComputedStyle(el)
@@ -254,9 +254,9 @@ test('mobile 390 dark large — smoke', async ({ page }) => {
   fs.writeFileSync(path.join(SHOTS, 'mobile-routes.json'), JSON.stringify({ coverage, batchDefects }, null, 2))
 
   await page.goto('/tasks')
-  await expect(page.locator('.nasq-status-chip-success')).not.toHaveCount(0)
-  await expect(page.locator('.nasq-status-chip-warning')).not.toHaveCount(0)
-  await expect(page.locator('.nasq-status-chip-danger')).not.toHaveCount(0)
+  await expect(page.locator('.webvue-status-chip-success')).not.toHaveCount(0)
+  await expect(page.locator('.webvue-status-chip-warning')).not.toHaveCount(0)
+  await expect(page.locator('.webvue-status-chip-danger')).not.toHaveCount(0)
   await expect(page.getByTestId('notification-count')).not.toHaveCount(0)
   const darkContrast = await measureChipContrast(page)
   for (const [name, sample] of Object.entries(darkContrast)) {

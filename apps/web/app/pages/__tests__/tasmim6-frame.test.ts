@@ -13,8 +13,8 @@ describe('the project frame uses one tab helper', () => {
     const frame = read('pages/projects/[id].vue')
     expect(frame).not.toContain('ProjectGovernanceTabs')
     expect(frame).toContain('level="governance"')
-    expect(frame).toContain('nasq-page-band nasq-print-hide')
-    expect(frame).toContain('class="nasq-print-hide -my-2"')
+    expect(frame).toContain('webvue-page-band webvue-print-hide')
+    expect(frame).toContain('class="webvue-print-hide -my-2"')
   })
 
   it('the project settings page is a settings page', () => {

@@ -3,7 +3,7 @@ import { hashToken, newRecoveryCodes, newToken, open, totpBoxAad } from './crypt
 import { checkTotp } from './totp.js'
 import { hashPassword, passwordAcceptable } from './passwords.js'
 import { actorName, AdminAuthError, audit, lockOwners, normalizeEmail, setRoles } from './accounts.js'
-import type { VendorRole } from '@nasq/commercial-contracts'
+import type { VendorRole } from '@webvue/commercial-contracts'
 
 const DAY = 24 * 3600_000
 

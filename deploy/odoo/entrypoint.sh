@@ -13,10 +13,10 @@ case "${1:-}" in
     ;;
 esac
 
-exec /opt/venv/bin/python /opt/nasq/odoo_secure.py \
+exec /opt/venv/bin/python /opt/webvue/odoo_secure.py \
   --odoo-root /opt/odoo \
   "$subcommand" \
   -c /etc/odoo/odoo.conf \
-  --addons-path=/opt/odoo/addons,/opt/nasq/addons \
+  --addons-path=/opt/odoo/addons,/opt/webvue/addons \
   --data-dir=/var/lib/odoo \
   "$@"

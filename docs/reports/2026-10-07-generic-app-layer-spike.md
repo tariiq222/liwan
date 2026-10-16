@@ -16,7 +16,7 @@ Branch `spike/generic-app-layer`, which branches from `main` b959e5cc. This bran
 A mutation run confirms the tests catch real regressions.
 
 The limits come from two places:
-- **The platform around the generic layer.** Several foundation files hard-code the list of applications. That blocks *any* fourth app, generated or hand-written. The places are `nasq_platform` legacy policy, the `nasq_core` permission-domain selection, the `/me` capability enum and the web `modules/registry.ts`.
+- **The platform around the generic layer.** Several foundation files hard-code the list of applications. That blocks *any* fourth app, generated or hand-written. The places are `webvue_platform` legacy policy, the `webvue_core` permission-domain selection, the `/me` capability enum and the web `modules/registry.ts`.
 - **The repository's static guards.** `arch_policy` R10 and `api_surface` are AST-based, so they cannot see routes that are generated at runtime.
 
 The approach fits plain CRUD records. It does not fit the workflow screens: task board, project charter, chat, approvals and transitions.
@@ -25,7 +25,7 @@ The approach fits plain CRUD records. It does not fit the workflow screens: task
 
 ### What was built (all on the spike branch)
 
-Odoo (`odoo-addons/nasq_spike_assets`, rank 4 in `tools/arch_layers.json`):
+Odoo (`odoo-addons/webvue_spike_assets`, rank 4 in `tools/arch_layers.json`):
 
 - `resources/asset.json` is the descriptor. It holds:
   - the fields, with read/write, type, required, nullable, values, min and max_length
@@ -33,7 +33,7 @@ Odoo (`odoo-addons/nasq_spike_assets`, rank 4 in `tools/arch_layers.json`):
   - the feature key and the company field
   - the sort whitelist, search fields, filters and page bounds
   - UI hints: i18n namespace, list columns and form sections
-- `generic/resource.py` is the runtime. It names no app and imports only `nasq_api`. It provides:
+- `generic/resource.py` is the runtime. It names no app and imports only `webvue_api`. It provides:
   - `Resource` validates the descriptor and fails on any unknown key.
   - `check_model` checks the descriptor against the ORM model.
   - `dump` builds the response field by field from the descriptor and never calls `read()`.
@@ -54,11 +54,11 @@ Web (`apps/web`):
 
 ### Properties proven by tests
 
-Fresh run on the committed code, using scratch database `nasq_scratch_spike_final`, port 8219, runner `/tmp/nasq-spike/odoo-run.sh`. The tests ran `nasq_spike_assets` plus `nasq_api:TestFeatureRouteCoverage`:
+Fresh run on the committed code, using scratch database `webvue_scratch_spike_final`, port 8219, runner `/tmp/webvue-spike/odoo-run.sh`. The tests ran `webvue_spike_assets` plus `webvue_api:TestFeatureRouteCoverage`:
 
 ```
-odoo.tests.result: 0 failed, 0 error(s) of 15 tests when loading database 'nasq_scratch_spike_final'
-ODOO_RUN_TEST_OK nasq_scratch_spike_final
+odoo.tests.result: 0 failed, 0 error(s) of 15 tests when loading database 'webvue_scratch_spike_final'
+ODOO_RUN_TEST_OK webvue_scratch_spike_final
 ```
 
 | Property | Test (TestAssetResource.*) |
@@ -77,7 +77,7 @@ ODOO_RUN_TEST_OK nasq_scratch_spike_final
 | The descriptor matches the model; drift (wrong type, missing field, sort on a hidden field, missing capability, unknown key) is detected | `test_descriptor_matches_model`, `test_descriptor_rejects_drift` |
 | All 6 generated routes are `json2` / `auth='user'` / carry `('assets.enabled',)`; they also pass the platform-wide `TestFeatureRouteCoverage` | `test_generated_routes_carry_feature_metadata`, `TestFeatureRouteCoverage.test_non_base_json_routes_declare_feature_metadata` |
 
-**Mutation control** (database `nasq_scratch_spike_mut`): I removed the create capability check, removed the current-company term from `fetch`, and disabled the sort whitelist. Result: `3 failed ... of 14 tests`, with failures in `test_capability_is_checked_before_body_validation`, `test_hidden_field_cannot_be_filtered_or_sorted` and `test_other_company_record_is_not_found`. `test_capability_is_checked_per_operation` still passed with the create check removed. That is because Odoo's `ir.model.access` (the viewer's group has no create right) also returns 403. The generated runtime keeps Odoo ACLs and rules as a second layer because it never uses `sudo()`.
+**Mutation control** (database `webvue_scratch_spike_mut`): I removed the create capability check, removed the current-company term from `fetch`, and disabled the sort whitelist. Result: `3 failed ... of 14 tests`, with failures in `test_capability_is_checked_before_body_validation`, `test_hidden_field_cannot_be_filtered_or_sorted` and `test_other_company_record_is_not_found`. `test_capability_is_checked_per_operation` still passed with the create check removed. That is because Odoo's `ir.model.access` (the viewer's group has no create right) also returns 403. The generated runtime keeps Odoo ACLs and rules as a second layer because it never uses `sudo()`.
 
 **Contract:** `npx vitest run src/spike_assets --typecheck` → `Test Files 1 passed`, `Tests 4 passed`, `Type Errors no errors`. This covers:
 - strict shape rejects `internal_notes`
@@ -160,9 +160,9 @@ The break-even point is about one and a half resources. Each further CRUD resour
   - the department tree and org chart
 
   The descriptor has no vocabulary for state machines, record-scoped allowed actions, or multi-record invariants, and should not get one.
-- **Anything with contextual capabilities.** For example, project ownership granting PMO capabilities through `_nasq_contextual_capability(user, key, record)`. The runtime checks `_nasq_has_capability(user, key)` without a record. A record-aware variant is easy to add, but the rule itself stays hand-written.
+- **Anything with contextual capabilities.** For example, project ownership granting PMO capabilities through `_webvue_contextual_capability(user, key, record)`. The runtime checks `_webvue_has_capability(user, key)` without a record. A record-aware variant is easy to add, but the rule itself stays hand-written.
 - **Model, ACL, record rules, capability catalog entries (ar/en names, sensitivity), feature registry.** These are deliberately not generated (R2: the app owns them). Generating XML security from a descriptor would hide the security surface from review.
-- **Rich relational reads.** Examples: `employee_count`, `child_ids`, and HR's `_nasq_serialized_relations_map` batching. Only `user_ref` exists, and its serializer reads `record.assigned_user_id.name` per row, which is N+1 on large pages. A real design needs batched reference resolution and more reference kinds (partner, employee, own-app model).
+- **Rich relational reads.** Examples: `employee_count`, `child_ids`, and HR's `_webvue_serialized_relations_map` batching. Only `user_ref` exists, and its serializer reads `record.assigned_user_id.name` per row, which is N+1 on large pages. A real design needs batched reference resolution and more reference kinds (partner, employee, own-app model).
 
 ### Where the descriptor approach leaks or weakens a rule (specific)
 
@@ -174,10 +174,10 @@ The break-even point is about one and a half resources. Each further CRUD resour
    This is the main weakening. It must be fixed before adoption, either by teaching both tools to read descriptors or by build-time codegen of Python.
 2. **Controller registration trap.** A shared base class `ResourceController(http.Controller)` with per-app subclasses is unsafe. Odoo's `_generate_routing_rules` merges all leaf subclasses of one top controller into a single class, so two apps would collide on method names. The spike builds each controller with `type(..., (http.Controller,), {'__module__': app_module})`. Any real runtime must keep that, and the convention should be tested.
 3. **Hard-coded app lists in the foundation.** These are not caused by the descriptor, but they block every new app:
-   - `nasq_platform/tenant_profile._nasq_initialize_legacy_policy` rejects modules other than pmo/hr/chat.
-   - `entitlement_service._nasq_legacy_features_for` must name every registered feature, or the tenant profile write fails with `features payload is missing required keys`.
-   - Spike workarounds: the feature `module` is set to `nasq_platform`, and the asset addon overrides `_nasq_legacy_features_for`.
-   - `nasq_core` `nasq.access.permission.domain` is a closed selection with hr/pmo/meetings. The spike uses `selection_add`, which is an R1 smell in core.
+   - `webvue_platform/tenant_profile._webvue_initialize_legacy_policy` rejects modules other than pmo/hr/chat.
+   - `entitlement_service._webvue_legacy_features_for` must name every registered feature, or the tenant profile write fails with `features payload is missing required keys`.
+   - Spike workarounds: the feature `module` is set to `webvue_platform`, and the asset addon overrides `_webvue_legacy_features_for`.
+   - `webvue_core` `webvue.access.permission.domain` is a closed selection with hr/pmo/meetings. The spike uses `selection_add`, which is an R1 smell in core.
    - `packages/contracts/src/access/access.ts` `CapabilitySchema` is a closed `z.enum`. A new capability on `/me` makes **the whole UI fail** to parse identity: the auth middleware threw `Invalid option` at `capabilities[27]`. The spike added the asset keys by hand.
    - `apps/web/app/modules/registry.ts` hard-codes `FeatureKey`, `MODULE_FEATURES`, `featureForCapability` and `WRITE_CAPABILITIES`. As a result, the asset pages have no nav entry and no client-side feature gate. They rely only on server 403 plus `can()`.
 4. **UI policy.**
@@ -197,12 +197,12 @@ The break-even point is about one and a half resources. Each further CRUD resour
 
   Add:
   - a reference kind with a target model and a batched display lookup
-  - an optional per-operation `record_capability: true` that passes the record to `_nasq_has_capability`
+  - an optional per-operation `record_capability: true` that passes the record to `_webvue_has_capability`
   - explicit `archive: {field: 'active'}` or `archive: false`
   - named hooks (`before_create`, `after_write`, `validate`) that point to app methods for the small domain rules
 
   Unknown keys must keep failing at load time.
-- **Where the runtime lives.** Put it in a new shared-service addon at rank 3, for example `nasq_resource`, depending only on `nasq_api`. It exposes `Resource`, `build_controller` and the serializers, and it names no app. Applications (rank 4) own their descriptors and call the factory, so routes register under the app module. Do not put it in `nasq_api` itself: `nasq_api` stays plumbing, and a rank-3 home keeps the "foundation knows no apps" rule easy to audit. R7: the runtime must never use `sudo()`. Keep a test that asserts the factory's code has zero `sudo` calls.
+- **Where the runtime lives.** Put it in a new shared-service addon at rank 3, for example `webvue_resource`, depending only on `webvue_api`. It exposes `Resource`, `build_controller` and the serializers, and it names no app. Applications (rank 4) own their descriptors and call the factory, so routes register under the app module. Do not put it in `webvue_api` itself: `webvue_api` stays plumbing, and a rank-3 home keeps the "foundation knows no apps" rule easy to audit. R7: the runtime must never use `sudo()`. Keep a test that asserts the factory's code has zero `sudo` calls.
 - **How R1–R10 and the guards should treat generated code.**
   - Extend `arch_policy` R10 to load every `resources/*.json` under rank 4/5 addons and require `feature` and all four capabilities.
   - Extend `api_surface.py` to emit operations from descriptors.
@@ -231,6 +231,6 @@ The break-even point is about one and a half resources. Each further CRUD resour
    - the closed `CapabilitySchema` extension
    - mock API asset handlers
    - `nuxt.config.ts` locale lines
-   - the `arch_layers.json` rank for `nasq_spike_assets`
-   - the `_nasq_legacy_features_for` override
+   - the `arch_layers.json` rank for `webvue_spike_assets`
+   - the `_webvue_legacy_features_for` override
    - the `selection_add` on the permission domain

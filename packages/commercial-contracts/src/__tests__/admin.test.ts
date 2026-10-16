@@ -8,8 +8,8 @@ const token = 'A'.repeat(43)
 const at = '2026-11-01T10:00:00.000Z'
 const samples = {
   session: { value: { session: `7.${token}`, expires_at: at, idle_expires_at: at }, schema: adminSessionResultSchema },
-  me: { value: { id: 7, email: 'a@nasq.sa', display_name: 'A', roles: ['owner'], capabilities: ['vendor.read'] }, schema: adminMeSchema },
-  item: { value: { id: 7, email: 'a@nasq.sa', display_name: 'A', status: 'active', roles: ['support'], passkeys: 1, last_seen_at: null }, schema: adminAccountItemSchema },
+  me: { value: { id: 7, email: 'a@webvue.sa', display_name: 'A', roles: ['owner'], capabilities: ['vendor.read'] }, schema: adminMeSchema },
+  item: { value: { id: 7, email: 'a@webvue.sa', display_name: 'A', status: 'active', roles: ['support'], passkeys: 1, last_seen_at: null }, schema: adminAccountItemSchema },
   list: { value: { items: [], total: 0 }, schema: adminAccountListSchema },
   invite: { value: { id: 7, invitation_token: token, expires_at: at }, schema: adminInviteResultSchema },
   reset: { value: { invitation_token: token, expires_at: at }, schema: adminResetResultSchema },
@@ -33,7 +33,7 @@ describe('vendor-admin identity contracts', () => {
   })
   it('shares one role vocabulary across responses and request bodies', () => {
     expect(vendorRoleSchema.options).toEqual([...VENDOR_ROLES])
-    expect(adminInviteBodySchema.safeParse({ email: 'a@nasq.sa', display_name: 'A', roles: ['god'], reason: 'new hire' }).success).toBe(false)
+    expect(adminInviteBodySchema.safeParse({ email: 'a@webvue.sa', display_name: 'A', roles: ['god'], reason: 'new hire' }).success).toBe(false)
     expect(adminMeSchema.safeParse({ ...samples.me.value, roles: ['god'] }).success).toBe(false)
     expect(adminAccountItemSchema.safeParse({ ...samples.item.value, status: 'gone' }).success).toBe(false)
   })
@@ -49,11 +49,11 @@ describe('vendor-admin identity contracts', () => {
   it('takes an empty body for the developer sign-in routes', () => {
     for (const route of ['dev-login', 'dev-step-up'] as const) {
       expect(adminAuthBodies[route].safeParse({}).success).toBe(true)
-      expect(adminAuthBodies[route].safeParse({ email: 'a@nasq.sa' }).success).toBe(false)
+      expect(adminAuthBodies[route].safeParse({ email: 'a@webvue.sa' }).success).toBe(false)
     }
   })
   it('declares strict bodies for every auth route', () => {
     for (const schema of Object.values(adminAuthBodies)) expect(schema.safeParse({ unexpected: true }).success).toBe(false)
-    expect(adminAuthBodies.fallback.safeParse({ email: 'a@nasq.sa', password: 'x', totp_code: '123456' }).success).toBe(true)
+    expect(adminAuthBodies.fallback.safeParse({ email: 'a@webvue.sa', password: 'x', totp_code: '123456' }).success).toBe(true)
   })
 })

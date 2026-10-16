@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectPhase } from '@nasq/contracts'
+import type { ProjectPhase } from '@webvue/contracts'
 import { PHASE_COUNT, PHASE_LABEL_KEY, phaseNumber, phaseSteps } from '@/composables/projectPhase'
 
 // Display only: the five lifecycle steps, current one highlighted. Moves go through ProjectPhaseGate.

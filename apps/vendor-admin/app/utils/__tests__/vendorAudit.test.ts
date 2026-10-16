@@ -24,7 +24,7 @@ describe('vendorAudit', () => {
   it('names the actor from the account, a system actor, a former account, or the raw value', () => {
     expect(auditActor({ actor: 'account:2', actor_name: 'Layla' })).toEqual({ kind: 'name', name: 'Layla' })
     expect(auditActor({ actor: 'operator', actor_name: null })).toEqual({ kind: 'system', key: 'operator' })
-    expect(auditActor({ actor: 'legacy-uid:nasq:2', actor_name: null })).toEqual({ kind: 'legacy', id: 'nasq:2' })
+    expect(auditActor({ actor: 'legacy-uid:webvue:2', actor_name: null })).toEqual({ kind: 'legacy', id: 'webvue:2' })
     expect(auditActor({ actor: 'someone', actor_name: null })).toEqual({ kind: 'raw', id: 'someone' })
   })
   it('opens only the subjects the console has a page for', () => {

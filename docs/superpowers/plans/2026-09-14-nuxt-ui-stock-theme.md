@@ -4,7 +4,7 @@
 
 **Goal:** Revert today's Stripe/ClickUp refresh and make every control render with Nuxt UI v4's stock recipes (Figma "Nuxt UI v4 (Community)"), keeping the shell layout, the brand primary from settings, the Arabic font and the three modes.
 
-**Architecture:** One revert commit, then delete the component recipe layer (`app.config.ts` slots, `nasq-ui-*` classes, geometry/elevation tokens) and replace its ~107 usages with Nuxt UI primitives and stock utilities. Shell geometry (`shell.css`) and brand derivation (`brandTheme.ts`) stay.
+**Architecture:** One revert commit, then delete the component recipe layer (`app.config.ts` slots, `webvue-ui-*` classes, geometry/elevation tokens) and replace its ~107 usages with Nuxt UI primitives and stock utilities. Shell geometry (`shell.css`) and brand derivation (`brandTheme.ts`) stay.
 
 **Tech Stack:** Nuxt 4, Nuxt UI 4.11, Tailwind v4, Storybook 10, vitest, Playwright.
 
@@ -43,25 +43,25 @@ describe('stock Nuxt UI theme', () => {
   it('app.config only sets colors and overlay layers', () => {
     expect(config).toContain("colors: { primary: 'brand', neutral: 'slate' }")
     for (const key of ['button:', 'input:', 'card:', 'table:', 'badge:', 'textarea:', 'calendar:', 'progress:']) expect(config).not.toContain(key)
-    expect(config).not.toMatch(/rounded-|min-h-|nasq-ui-/)
+    expect(config).not.toMatch(/rounded-|min-h-|webvue-ui-/)
   })
   it('tokens keep brand derivation and drop custom geometry', () => {
     expect(tokens).toContain('--color-brand-500')
-    for (const t of ['--nasq-radius', '--ui-radius', '--elevation-1', '--content-shadow']) expect(tokens).not.toContain(t)
+    for (const t of ['--webvue-radius', '--ui-radius', '--elevation-1', '--content-shadow']) expect(tokens).not.toContain(t)
   })
   it('no component recipes remain in components.css', () => {
-    expect(comps).not.toMatch(/\.nasq-ui-|\.nasq-elevation-/)
+    expect(comps).not.toMatch(/\.webvue-ui-|\.webvue-elevation-/)
   })
 })
 ```
-- [ ] Implement per spec Step 2 (app.config, tokens, components.css, shell.css). Keep `.nasq-status-*`, shell rules, icon size, focus outline for links/editors, scrollbar/selection.
+- [ ] Implement per spec Step 2 (app.config, tokens, components.css, shell.css). Keep `.webvue-status-*`, shell rules, icon size, focus outline for links/editors, scrollbar/selection.
 - [ ] Run the test + `vue-tsc`; commit `feat(theme): stock Nuxt UI recipes; brand primary only`.
 
-### Task 3: Replace `nasq-ui-*` usages
+### Task 3: Replace `webvue-ui-*` usages
 
-**Files:** every `.vue`/`.ts` under `apps/web/app` and `apps/web/stories` matching `nasq-ui-|nasq-elevation-|data-nasq-reference-detail|--nasq-ui-progress` (list with `rg -l`).
+**Files:** every `.vue`/`.ts` under `apps/web/app` and `apps/web/stories` matching `webvue-ui-|webvue-elevation-|data-webvue-reference-detail|--webvue-ui-progress` (list with `rg -l`).
 
-- [ ] Failing test `apps/web/app/components/shared/__tests__/noCustomRecipes.test.ts`: walk `app/` and `stories/`, assert no file contains `nasq-ui-` or `nasq-elevation-` (allow `nasq-ui-z-` tokens).
+- [ ] Failing test `apps/web/app/components/shared/__tests__/noCustomRecipes.test.ts`: walk `app/` and `stories/`, assert no file contains `webvue-ui-` or `webvue-elevation-` (allow `webvue-ui-z-` tokens).
 - [ ] Apply the mapping table from the spec, file by file. Routed tab strips (`ProjectFrame`, settings) → `UTabs variant="link"` items with `to`; segments → `UButtonGroup`; record surfaces → `UCard`; progress → `UProgress :model-value`.
 - [ ] Update design tests that asserted the old classes (`taskListDesign`, `governanceDesign`, `registerDesign`, `templateDesign`, `financeListDesign`, `notificationPageDesign`, `composition`, `taskChromeDesign`, `pmoRepairContracts`) to assert the replacements.
 - [ ] Run vitest + `vue-tsc` + `ui_policy`; commit `refactor(web): replace custom recipes with Nuxt UI primitives`.

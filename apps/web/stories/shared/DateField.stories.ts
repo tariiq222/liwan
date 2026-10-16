@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DateField from '@nasq/ui/app/components/shared/form/DateField.vue'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
-import FormSection from '@nasq/ui/app/components/shared/layout/FormSection.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import DateField from '@webvue/ui/app/components/shared/form/DateField.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import FormSection from '@webvue/ui/app/components/shared/layout/FormSection.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -22,7 +22,7 @@ const inForm = (error?: string): Story['render'] => args => ({
     const { t } = useI18n()
     return { args, t, value: ref(args.modelValue), error: error ? t(error) : undefined }
   },
-  template: `<main class="nasq-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionSchedule')"><div class="nasq-form-grid"><UFormField :label="t('meetingsUi.date')" name="date" required :error="error"><DateField id="meeting-date" v-model="value" class="w-full" :disabled="args.disabled" :min-value="args.minValue" :max-value="args.maxValue" :aria-invalid="!!error" aria-required="true" /></UFormField></div></FormSection></form></PageContainer></main>`,
+  template: `<main class="webvue-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionSchedule')"><div class="webvue-form-grid"><UFormField :label="t('meetingsUi.date')" name="date" required :error="error"><DateField id="meeting-date" v-model="value" class="w-full" :disabled="args.disabled" :min-value="args.minValue" :max-value="args.maxValue" :aria-invalid="!!error" aria-required="true" /></UFormField></div></FormSection></form></PageContainer></main>`,
 })
 
 const formContext = storyContext('apps/web/app/pages/meetings/new.vue:165')
@@ -38,7 +38,7 @@ export const InFilterPopover: Story = {
   render: () => ({
     components: { DateField, FilterBar, PageContainer },
     setup: () => ({ t: useI18n().t, from: ref<string | null>(null) }),
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><FilterBar class="w-full" :default-open="true"><div class="grid min-w-0 content-start gap-1"><label for="meeting-date-from" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.fromDateLabel') }}</label><DateField id="meeting-date-from" v-model="from" class="w-full" /></div></FilterBar></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><FilterBar class="w-full" :default-open="true"><div class="grid min-w-0 content-start gap-1"><label for="meeting-date-from" class="text-sm font-medium text-highlighted">{{ t('meetingsFilters.fromDateLabel') }}</label><DateField id="meeting-date-from" v-model="from" class="w-full" /></div></FilterBar></PageContainer></main>`,
   }),
 }
 
@@ -49,6 +49,6 @@ export const WithTime: Story = {
   render: args => ({
     components: { DateField, PageContainer },
     setup: () => ({ t: useI18n().t, value: ref(args.modelValue), time: ref('09:00') }),
-    template: `<main class="nasq-shell-main"><PageContainer width="form"><div class="grid max-w-xs gap-1"><span class="text-sm text-muted">{{ t('tasks.drawer.deadline') }}</span><DateField id="task-deadline" v-model="value" :label="value ? value + ' ' + time : undefined" :aria-label="t('tasks.drawer.deadline')"><template #footer><UInput v-model="time" type="time" class="me-auto w-32" :aria-label="t('tasks.drawer.deadlineTime')" /></template></DateField></div></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="form"><div class="grid max-w-xs gap-1"><span class="text-sm text-muted">{{ t('tasks.drawer.deadline') }}</span><DateField id="task-deadline" v-model="value" :label="value ? value + ' ' + time : undefined" :aria-label="t('tasks.drawer.deadline')"><template #footer><UInput v-model="time" type="time" class="me-auto w-32" :aria-label="t('tasks.drawer.deadlineTime')" /></template></DateField></div></PageContainer></main>`,
   }),
 }

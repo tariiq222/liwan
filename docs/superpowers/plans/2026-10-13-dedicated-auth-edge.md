@@ -2,7 +2,7 @@
 
 **Goal:** Fix the three reported authentication/proxy defects in the dedicated deployment, with executable regression evidence.
 
-**Design:** Caddy uses the socket peer as its client authority and overwrites private `X-Nasq-Client-IP/Host/Proto` fields on the Nuxt hop. The dedicated Compose deployment opts in to consuming those fields. Login and TOTP forward validated values to stock Odoo ProxyFix; local Nuxt without the opt-in keeps its existing behavior. One edge handler applies a 20/minute aggregate credential budget before choosing Nuxt or Odoo.
+**Design:** Caddy uses the socket peer as its client authority and overwrites private `X-WebVue-Client-IP/Host/Proto` fields on the Nuxt hop. The dedicated Compose deployment opts in to consuming those fields. Login and TOTP forward validated values to stock Odoo ProxyFix; local Nuxt without the opt-in keeps its existing behavior. One edge handler applies a 20/minute aggregate credential budget before choosing Nuxt or Odoo.
 
 **Constraints:** Preserve unrelated changes, stock Odoo, shared-mode `proxy_mode=False`, cookies, CSRF checks, and tenant routing. Initial implementation scope did not authorize commit, merge, push or deployment; the later owner authorization and integration checkpoint are recorded below. Only the edge publishes ports. Clients sharing a real NAT address still share its budget.
 

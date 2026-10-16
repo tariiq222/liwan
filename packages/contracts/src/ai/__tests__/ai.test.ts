@@ -6,7 +6,7 @@ const READ = {
   input_map: { query: { filter: 'mine' } }, result_summary: ['items[].id'], draft_target: null,
 }
 
-describe('Nasq AI contracts', () => {
+describe('WebVue AI contracts', () => {
   it('parses the tools response with limits', () => {
     const parsed = AiToolsResponseSchema.parse({ items: [READ], total: 1, limits: { tool_calls_per_run: 8, messages_monthly: null, messages_used: 2 } })
     expect(parsed.items[0]!.route?.method).toBe('GET')

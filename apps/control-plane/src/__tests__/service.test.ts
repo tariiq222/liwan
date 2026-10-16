@@ -15,7 +15,7 @@ import { claimNext, executeClaimed, expireLeases, finishClaim } from '../worker.
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
   const parsed = new URL(url)
-  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback nasq_control_scratch database')
+  if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^webvue_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback webvue_control_scratch database')
 }
 if (!url) describe.skip('control-plane PostgreSQL integration (requires CONTROL_TEST_DATABASE_URL)', () => {})
 else describe('control-plane PostgreSQL integration', () => {
@@ -35,7 +35,7 @@ else describe('control-plane PostgreSQL integration', () => {
     startedAt = (await pool.query('SELECT clock_timestamp() AS now')).rows[0].now
     await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
     await pool.query('TRUNCATE vendor_accounts CASCADE')
-    fixtureDir = await mkdtemp(join(tmpdir(), 'nasq-control-test-'))
+    fixtureDir = await mkdtemp(join(tmpdir(), 'webvue-control-test-'))
     const classification = join(fixtureDir, 'classification.json')
     await writeFile(classification, JSON.stringify({ schema_version:1,database:'scratch_control_a',commercial_mode:'saas',entitlement_source:'control_plane',expected_valid_until:null,valid_until_action:'preserve' }))
     const classification2 = join(fixtureDir, 'classification-two.json')

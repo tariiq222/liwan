@@ -27,24 +27,24 @@ fi
 # uses `:?` on several variables. Supply the same non-secret values up.sh used
 # (and derive the temp-dir paths from TMPDIR_BASE) so teardown works even when the
 # operator's shell no longer carries them — e.g. after a failed up.sh.
-: "${NASQ_IMAGE_TAG:=unknown}"
-: "${DOMAIN:=a.accept.nasq.test b.accept.nasq.test}"
-: "${DB_NAME:=nasq_accept_a_scratch}"
+: "${WEBVUE_IMAGE_TAG:=unknown}"
+: "${DOMAIN:=a.accept.webvue.test b.accept.webvue.test}"
+: "${DB_NAME:=webvue_accept_a_scratch}"
 : "${ODOO_COMMIT:=unknown}"
-: "${NASQ_EDGE_BIND:=127.0.0.1}"
-: "${NASQ_EDGE_HTTPS_PORT:=443}"
-: "${NASQ_EDGE_HTTP_PORT:=80}"
-: "${NASQ_TENANT_REGISTRY_DIR:=$TMPDIR_BASE/registry}"
-: "${NASQ_SHARED_ODOO_CONFIG:=$TMPDIR_BASE/odoo.conf}"
-: "${NASQ_COMMERCIAL_CONFIG_DIR:=$TMPDIR_BASE/commercial}"
+: "${WEBVUE_EDGE_BIND:=127.0.0.1}"
+: "${WEBVUE_EDGE_HTTPS_PORT:=443}"
+: "${WEBVUE_EDGE_HTTP_PORT:=80}"
+: "${WEBVUE_TENANT_REGISTRY_DIR:=$TMPDIR_BASE/registry}"
+: "${WEBVUE_SHARED_ODOO_CONFIG:=$TMPDIR_BASE/odoo.conf}"
+: "${WEBVUE_COMMERCIAL_CONFIG_DIR:=$TMPDIR_BASE/commercial}"
 # Dummy non-empty values: unused by `down`, but required to satisfy :? in the
 # shared overlay so the file can be parsed. Never printed.
-: "${NASQ_SHARED_PROXY_TOKEN:=teardown-unused}"
-: "${NASQ_SESSION_KEYS:={\"k1\":\"teardownunusedteardownunusedteardown-unused\"}}"
-: "${NASQ_SESSION_ACTIVE_KID:=k1}"
-export NASQ_IMAGE_TAG DOMAIN DB_NAME ODOO_COMMIT NASQ_EDGE_BIND NASQ_EDGE_HTTPS_PORT \
-  NASQ_EDGE_HTTP_PORT NASQ_TENANT_REGISTRY_DIR NASQ_SHARED_ODOO_CONFIG \
-  NASQ_COMMERCIAL_CONFIG_DIR NASQ_SHARED_PROXY_TOKEN NASQ_SESSION_KEYS NASQ_SESSION_ACTIVE_KID
+: "${WEBVUE_SHARED_PROXY_TOKEN:=teardown-unused}"
+: "${WEBVUE_SESSION_KEYS:={\"k1\":\"teardownunusedteardownunusedteardown-unused\"}}"
+: "${WEBVUE_SESSION_ACTIVE_KID:=k1}"
+export WEBVUE_IMAGE_TAG DOMAIN DB_NAME ODOO_COMMIT WEBVUE_EDGE_BIND WEBVUE_EDGE_HTTPS_PORT \
+  WEBVUE_EDGE_HTTP_PORT WEBVUE_TENANT_REGISTRY_DIR WEBVUE_SHARED_ODOO_CONFIG \
+  WEBVUE_COMMERCIAL_CONFIG_DIR WEBVUE_SHARED_PROXY_TOKEN WEBVUE_SESSION_KEYS WEBVUE_SESSION_ACTIVE_KID
 
 echo "Tearing down project: $PROJECT_NAME"
 

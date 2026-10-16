@@ -1,4 +1,4 @@
-import { BrandingPatchSchema, type BrandingPatch } from '@nasq/contracts'
+import { BrandingPatchSchema, type BrandingPatch } from '@webvue/contracts'
 
 export function normalizeHex(value: string): string | null {
   const candidate = value.trim()

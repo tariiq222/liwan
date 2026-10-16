@@ -1,12 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Run the Odoo tests of the changed Nasq addons on a disposable scratch database.
+"""Run the Odoo tests of the changed WebVue addons on a disposable scratch database.
 
 The release modules are installed once into a template database built from the
 merge-base with the base branch (keyed by Odoo commit, module list, the
 ``odoo-addons`` tree and the template format). The template's filestore is kept
 beside it in the cache directory. Each run clones that template, copies its
 filestore, updates only the changed addons and the addons that depend on them,
-runs their tests and drops the clone. Only ``nasq_scratch_*`` databases are ever
+runs their tests and drops the clone. Only ``webvue_scratch_*`` databases are ever
 created, cloned or dropped; the dev ``odoo19`` database is never touched.
 ``npm test`` and CI stay the binding gate.
 """
@@ -30,8 +30,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 ODOO_ROOT = Path(os.environ.get('ODOO_ROOT', '/Users/tariq/code/odoo'))
-SCRATCH_DB = re.compile(r'nasq_scratch_[a-z0-9_]{1,42}')
-GC_DB = re.compile(r'nasq_scratch_(tplb|run|tpl)_[a-z0-9_]{1,42}')
+SCRATCH_DB = re.compile(r'webvue_scratch_[a-z0-9_]{1,42}')
+GC_DB = re.compile(r'webvue_scratch_(tplb|run|tpl)_[a-z0-9_]{1,42}')
 RESULT_RE = re.compile(r'(\d+) failed, (\d+) error\(s\) of (\d+) tests')
 TEMPLATE_FORMAT = 2
 PORTS = range(8170, 8200)
@@ -47,13 +47,13 @@ def warn(message):
 
 def require_scratch(name):
     if not SCRATCH_DB.fullmatch(name):
-        raise OdooTestError('refusing database %r: only nasq_scratch_* names are allowed' % name)
+        raise OdooTestError('refusing database %r: only webvue_scratch_* names are allowed' % name)
     return name
 
 
 def cache_dir():
-    root = os.environ.get('NASQ_ODOO_TEST_CACHE')
-    path = Path(root) if root else Path.home() / '.cache' / 'nasq-odoo-test'
+    root = os.environ.get('WEBVUE_ODOO_TEST_CACHE')
+    path = Path(root) if root else Path.home() / '.cache' / 'webvue-odoo-test'
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -138,7 +138,7 @@ def with_dependents(changed, depends):
 def template_name(odoo_commit, modules, addons_tree):
     parts = [odoo_commit, ','.join(sorted(modules)), addons_tree, 'format%d' % TEMPLATE_FORMAT]
     digest = hashlib.sha256('|'.join(parts).encode()).hexdigest()
-    return require_scratch('nasq_scratch_tpl_' + digest[:12])
+    return require_scratch('webvue_scratch_tpl_' + digest[:12])
 
 
 def parse_result(log_text):
@@ -261,10 +261,10 @@ class Pg:
         return set(out.split())
 
     def scratch_databases(self):
-        return set(self._query(r"select datname from pg_database where datname like 'nasq\_scratch\_%'").split())
+        return set(self._query(r"select datname from pg_database where datname like 'webvue\_scratch\_%'").split())
 
     def active_databases(self):
-        sql = r"select distinct datname from pg_stat_activity where datname like 'nasq\_scratch\_%'"
+        sql = r"select distinct datname from pg_stat_activity where datname like 'webvue\_scratch\_%'"
         return set(self._query(sql).split())
 
 
@@ -298,7 +298,7 @@ def run_odoo(addons_dirs, database, scratch, data_dir, port, extra, log_name):
     config.write_text('', encoding='utf-8')
     classification_file = scratch / ('classification-%s.json' % database)
     classification(database, classification_file)
-    env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', NASQ_COMMERCIAL_CONFIG=str(classification_file))
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', WEBVUE_COMMERCIAL_CONFIG=str(classification_file))
     logfile = scratch / log_name
     cmd = odoo_command(addons_dirs, database, config, data_dir, logfile, port, extra)
     result = run(cmd, cwd=str(ODOO_ROOT), env=env, capture_output=True)
@@ -332,7 +332,7 @@ def build_template(pg, name, modules, merge_base, scratch, cache, port, log):
             raise OdooTestError('git archive of %s failed' % merge_base)
         addons = export / 'odoo-addons'
         present = [m for m in modules if (addons / m / '__manifest__.py').is_file()]
-        building = 'nasq_scratch_tplb_' + uuid.uuid4().hex[:10]
+        building = 'webvue_scratch_tplb_' + uuid.uuid4().hex[:10]
         build_dir = Path(tempfile.mkdtemp(prefix='build-', dir=str(cache)))
         pg.create(building)
         renamed = False
@@ -368,7 +368,7 @@ def collect_garbage(pg, cache, current):
     dropped = []
     for name in gc_selection(pg.scratch_databases(), current, pg.active_databases()):
         if pg.drop(name):
-            if name.startswith('nasq_scratch_tpl_'):
+            if name.startswith('webvue_scratch_tpl_'):
                 shutil.rmtree(str(Path(cache) / name), ignore_errors=True)
             sys.stdout.write('dropped %s\n' % name)
             dropped.append(name)
@@ -426,9 +426,9 @@ def main(argv=None):
         return 0
 
     signal.signal(signal.SIGTERM, _on_sigterm)
-    scratch = Path(tempfile.mkdtemp(prefix='nasq-odoo-test-'))
+    scratch = Path(tempfile.mkdtemp(prefix='webvue-odoo-test-'))
     (scratch / 'data').mkdir()
-    database = require_scratch('nasq_scratch_run_' + uuid.uuid4().hex[:10])
+    database = require_scratch('webvue_scratch_run_' + uuid.uuid4().hex[:10])
     created = False
     port_lock = None
     try:

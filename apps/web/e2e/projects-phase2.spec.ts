@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { FinanceEntrySchema, FinanceEntryListSchema, FinanceSummarySchema, ProjectReportListSchema } from '@nasq/contracts'
+import { FinanceEntrySchema, FinanceEntryListSchema, FinanceSummarySchema, ProjectReportListSchema } from '@webvue/contracts'
 
 const LOGIN = process.env.E2E_PHASE2_LOGIN ?? 'phase2_manager'
 const PASSWORD = process.env.E2E_PHASE2_PASSWORD ?? 'phase2_test_only_2026'

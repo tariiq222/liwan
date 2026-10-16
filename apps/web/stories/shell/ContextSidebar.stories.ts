@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>
 const render = (titleKey: string) => (args: Story['args']) => ({
   components: { ContextSidebar },
   setup: () => ({ args, t: useI18n().t }),
-  template: `<div class="nasq-shell min-h-svh"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div>`,
+  template: `<div class="webvue-shell min-h-svh"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div>`,
 })
 
 export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:47'), render: render('nav.projects') }

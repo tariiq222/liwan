@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectRegister, ProjectRegisterKind, ProjectRegisterPriority, ProjectRegisterStatus, ProjectRegisterWrite } from '@nasq/contracts'
+import type { ProjectRegister, ProjectRegisterKind, ProjectRegisterPriority, ProjectRegisterStatus, ProjectRegisterWrite } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { usePeople } from '@/composables/usePeople'
 import { useTasks, type TaskListParams } from '@/composables/useTasks'

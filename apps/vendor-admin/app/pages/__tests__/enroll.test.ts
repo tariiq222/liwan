@@ -12,7 +12,7 @@ interface State {
   lang?: 'ar' | 'en'
 }
 
-const URI = 'otpauth://totp/Nasq%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=Nasq'
+const URI = 'otpauth://totp/WebVue%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=WebVue'
 
 function renderEnroll({ step, errorKey = null, totpUri = null, codes = [], saved = false, lang = 'ar' }: State) {
   return renderSfc('pages/enroll.vue', {}, {}, {

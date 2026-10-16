@@ -8,7 +8,7 @@ const app = resolve(import.meta.dirname, '../..')
 const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('branding without a logo', () => {
-  it('login shows the logo only when logo_url is set and falls back to the Nasq wordmark', () => {
+  it('login shows the logo only when logo_url is set and falls back to the WebVue wordmark', () => {
     const source = read('pages/login.vue')
     expect(source).toContain('v-if="branding?.logo_url"')
     expect(source).toContain('<SharedBrandWordmark v-else')

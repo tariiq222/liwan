@@ -100,7 +100,7 @@ test('nested edit refresh retains list filters',async({page})=>{
 
 for(const [mode,fontSize,root] of [['light','small',14],['light','medium',16],['dark','large',18]] as const){
   test('shared appearance '+mode+'/'+fontSize,async({page})=>{
-    await page.context().addCookies([{name:'nasq-appearance',value:encodeURIComponent(JSON.stringify({mode,fontSize})),url:page.url()}])
+    await page.context().addCookies([{name:'webvue-appearance',value:encodeURIComponent(JSON.stringify({mode,fontSize})),url:page.url()}])
     for(const path of ['/hr','/meetings','/settings/users','/notifications']){
       await page.goto(path)
       await expect(page.locator('main h1')).toBeVisible()

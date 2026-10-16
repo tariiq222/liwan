@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/vue-query'
-import type { HrDocument } from '@nasq/contracts'
+import type { HrDocument } from '@webvue/contracts'
 
 export type DocumentListQueryParams = {
   q?: string

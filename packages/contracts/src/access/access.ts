@@ -10,7 +10,7 @@ export const IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]*$/
 /**
  * The capability keys of today's applications, for typed code. A newer application registers
  * its own keys on the server; the contract accepts any well-formed key and the server
- * (nasq_core `nasq.access.permission`) validates the same pattern.
+ * (webvue_core `webvue.access.permission`) validates the same pattern.
  */
 export const KNOWN_CAPABILITIES = [
   'access.users.read',

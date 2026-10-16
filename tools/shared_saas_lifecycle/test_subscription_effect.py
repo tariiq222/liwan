@@ -12,7 +12,7 @@ from unittest import mock
 from tools.shared_saas_lifecycle import subscription_effect as se
 from tools.shared_saas_lifecycle.odoo_effect import EffectError
 
-DB = 'nasq_scratch_' + 'a' * 32
+DB = 'webvue_scratch_' + 'a' * 32
 OP = '11111111-1111-4111-8111-111111111111'
 PREV = '22222222-2222-4222-8222-222222222222'
 TARGET = '33333333-3333-4333-8333-333333333333'
@@ -27,7 +27,7 @@ def make_request(**over):
         'action': 'reconfigure', 'tenant': {'database': DB, 'host': 'acme.example.test'},
         'order_id': 'order-1', 'operation_id': OP, 'previous_revision_id': PREV,
         'target_revision_id': TARGET,
-        'entitlement': {'modules': ['nasq_core', 'nasq_platform', 'nasq_api', 'nasq_pmo'],
+        'entitlement': {'modules': ['webvue_core', 'webvue_platform', 'webvue_api', 'webvue_pmo'],
                         'features': {'users.limit': 10, 'projects.max_projects': 5,
                                      'storage.limit_mb': 100, 'branches.extra_limit': 2},
                         'digest': DIGEST, 'compiler_version': 1},
@@ -40,7 +40,7 @@ def make_request(**over):
 def observation(**over):
     value = {'database': DB, 'root_company_id': 1, 'commercial_revision_id': PREV, 'commercial_digest': 'c' * 64,
              'commercial_applied_at': None, 'features': {'users.limit': 3},
-             'modules': ['nasq_api', 'nasq_core', 'nasq_platform'], 'branches': [],
+             'modules': ['webvue_api', 'webvue_core', 'webvue_platform'], 'branches': [],
              'usage': {'users.limit': 1, 'projects.max_projects': 0, 'storage.limit_mb': 0, 'branches.extra_limit': 0},
              'limit_gates': {'users.limit': [], 'projects.max_projects': ['pmo.enabled'],
                              'storage.limit_mb': [], 'branches.extra_limit': []}}
@@ -109,14 +109,14 @@ class ValidationTests(unittest.TestCase):
         se.validate_reconfigure(make_request())
 
     def test_bad_database(self):
-        for db in ('odoo19', 'nasq_scratch_x', DB + ';'):
+        for db in ('odoo19', 'webvue_scratch_x', DB + ';'):
             self.bad(tenant={'database': db, 'host': 'a.test'})
 
     def test_bad_digest_and_modules(self):
         ent = make_request()['entitlement']
         self.bad(entitlement={**ent, 'digest': 'z' * 64})
         self.bad(entitlement={**ent, 'digest': 'B' * 64})
-        self.bad(entitlement={**ent, 'modules': ['nasq_core', 'sale']})
+        self.bad(entitlement={**ent, 'modules': ['webvue_core', 'sale']})
         self.bad(entitlement={**ent, 'features': {'users.limit': -1}})
         self.bad(entitlement={**ent, 'features': {'x': 'yes'}})
 
@@ -133,9 +133,9 @@ class ReconfigureTests(Base):
         request = make_request(branches={'apply': [{'branch_id': B1, 'name': 'Riyadh'}], 'archive': []})
         runner = FakeRunner(observation(), apply_state=applied_state(request))
         receipt = self.effect(runner).reconfigure(request)
-        self.assertEqual(runner.installed, [['nasq_pmo']])
+        self.assertEqual(runner.installed, [['webvue_pmo']])
         self.assertEqual(runner.applies, 1)
-        self.assertEqual(receipt['modules_installed'], ['nasq_pmo'])
+        self.assertEqual(receipt['modules_installed'], ['webvue_pmo'])
         self.assertEqual(receipt['observed_entitlement_digest'], DIGEST)
         self.assertEqual(receipt['branch_bindings'], [{'branch_id': B1, 'odoo_company_id': 7}])
         self.assertEqual(receipt['order_id'], 'order-1')
@@ -306,15 +306,15 @@ class ReconfigureTests(Base):
 
     def test_apply_script_closes_unlisted_keys_through_odoo(self):
         script = se.build_apply_script(make_request())
-        self.assertIn("._nasq_close_unlisted_features(values['features'])", script)
+        self.assertIn("._webvue_close_unlisted_features(values['features'])", script)
         self.assertNotIn("item['type'] == 'boolean' and key not in features", script)
 
     def test_apply_script_grants_newly_opened_roles_to_the_enrolment_admin_only(self):
         script = se.build_apply_script(make_request(admin_login='boss@acme.test'))
         self.assertIn("values = json.loads(", script)
         self.assertIn('boss@acme.test', script)
-        self.assertIn("roles_before = env['nasq.entitlement.service']._nasq_entitled_admin_roles()", script)
-        self.assertIn("operator._nasq_grant_opened_admin_roles(values['admin_login'], roles_before)", script)
+        self.assertIn("roles_before = env['webvue.entitlement.service']._webvue_entitled_admin_roles()", script)
+        self.assertIn("operator._webvue_grant_opened_admin_roles(values['admin_login'], roles_before)", script)
         self.assertLess(script.index('roles_before ='), script.index("'features': features"))
         # An older job without a login passes None; Odoo grants nothing and logs it.
         self.assertIn('"admin_login": null', se.build_apply_script(make_request()))
@@ -360,7 +360,7 @@ class ReconfigureTests(Base):
                 se.validate_reconfigure(make_request(admin_login=bad))
 
     def test_release_complete_target_installs_nothing(self):
-        modules = ['nasq_api', 'nasq_core', 'nasq_platform', 'nasq_pmo']
+        modules = ['webvue_api', 'webvue_core', 'webvue_platform', 'webvue_pmo']
         request = make_request(entitlement={**make_request()['entitlement'], 'modules': modules})
         runner = FakeRunner(observation(modules=modules), apply_state=applied_state(request))
         receipt = self.effect(runner).reconfigure(request)
@@ -430,7 +430,7 @@ class SigtermTests(unittest.TestCase):
                 (root / name).write_text('')
             request = make_request(
                 fence=1, attemptId='aaaaaaaa-1111-4111-8111-111111111111',
-                config={'schemaVersion': 1, 'projectName': 'nasq-shared-acme', 'composeFile': str(root / 'compose.yml'),
+                config={'schemaVersion': 1, 'projectName': 'webvue-shared-acme', 'composeFile': str(root / 'compose.yml'),
                         'envFile': str(root / 'env'), 'stateDir': str(root), 'domainSuffix': 'example.test'})
             handlers, killed = {}, []
 
@@ -454,7 +454,7 @@ class SigtermTests(unittest.TestCase):
         self.assertEqual(json.loads(out.getvalue()), {'error_code': 'authority_lost'})
         self.assertEqual(len(killed), 1)
         self.assertEqual(killed[0][:2], ['docker', 'kill'])
-        self.assertRegex(killed[0][2], r'^nasq-shared-acme-effect-aaaaaaaa-observe-[0-9a-f]{8}$')
+        self.assertRegex(killed[0][2], r'^webvue-shared-acme-effect-aaaaaaaa-observe-[0-9a-f]{8}$')
 
 
 if __name__ == '__main__':

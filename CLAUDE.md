@@ -1,4 +1,4 @@
-# CLAUDE.md — nasq
+# CLAUDE.md — webvue
 
 @AGENTS.md
 

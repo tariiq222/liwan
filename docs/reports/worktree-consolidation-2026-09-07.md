@@ -12,7 +12,7 @@ No branches, worktrees, stash entries or source history are deleted. The old Pha
 
 Candidate: `/Users/tariq/code/nasq/.worktrees/consolidation-20260907`, branch `codex/consolidation-20260907`, based on main checkpoint `df282334` (previous main `a2c1534`). Independent reconciliation trees are `reconcile-web-20260907`, `reconcile-hr-20260907`, and `reconcile-meetings-20260907` under `.worktrees/`.
 
-External recovery and detailed logs: `/Users/tariq/.codex/visualizations/2026/09/07/01a07b91-635e-7300-8483-4d649f43ae0e/nasq-consolidation`. Source commits preserve all untracked additions; binary pre-commit patches preserve tracked diffs. Ignored dependencies and local databases are not part of those Git snapshots.
+External recovery and detailed logs: `/Users/tariq/.codex/visualizations/2026/09/07/01a07b91-635e-7300-8483-4d649f43ae0e/webvue-consolidation`. Source commits preserve all untracked additions; binary pre-commit patches preserve tracked diffs. Ignored dependencies and local databases are not part of those Git snapshots.
 
 ## Reconciliation decisions
 
@@ -20,7 +20,7 @@ External recovery and detailed logs: `/Users/tariq/.codex/visualizations/2026/09
 - HR repair snapshots and the department chart are combined in the current HR routes. The two different DirectoryTable versions receive an explicit reconciliation.
 - Historical phase snapshots contain governance, schedule, templates, finance and reports already integrated through previous phase branches. [Per-path decisions](../consolidation/2026-09-07/phase-decisions.md) retain later capability checks, finance exact cents, optimistic-concurrency recovery, combined contract exports, and task/project cache invalidation. Source test-name comparison found no missing source cases.
 - Gantt keeps the uncommitted project date range and capped axis. Integration restores visible dates, task state and undated information, a today cue, long-name containment, and inset milestone markers. The broad pressed-button color override is removed to preserve primary button contrast. Responsive child sizing and coarse-pointer hit areas are retained from the repair snapshot.
-- Meetings and Cyan are combined with current task/template behavior. Notification visibility, meeting-only UI access, Nasq-dependent Cyan tests and resolution conversion require dedicated integration repairs and verification.
+- Meetings and Cyan are combined with current task/template behavior. Notification visibility, meeting-only UI access, WebVue-dependent Cyan tests and resolution conversion require dedicated integration repairs and verification.
 - The UI constitution, project frontend role, tool adapters and approved prototype are consolidated. `DESIGN.md` is the customer UI authority; existing light/cream/dark preferences remain supported. This does not implement the subsequent replacement layout or remove all legacy CSS.
 - Delivery JSON, historical reports, screenshots and settings-navigation test output remain evidence from their original runs. Their presence does not constitute current verification.
 
@@ -33,18 +33,18 @@ Fresh coordinator gates on the reconciled candidate:
 | Contracts + web units | 120 + 510 passed | external `full-web-test.log` |
 | Type checking + Ruff | PASS | external `lint.log` |
 | Nuxt production build | PASS | external `final-build.log` |
-| Nasq fresh isolated install | 460 passed | external `verified-odoo.log` |
-| Nasq final isolated update after calendar fix | 462 passed, zero failures/errors | external `final-odoo.log` |
+| WebVue fresh isolated install | 460 passed | external `verified-odoo.log` |
+| WebVue final isolated update after calendar fix | 462 passed, zero failures/errors | external `final-odoo.log` |
 | Standalone Cyan policy | 55 passed | external `cyan.log` |
 | Brand palette checks | 28 passed after neutral-surface contrast correction | external `brand-test.log` |
 | Concurrent resolution conversion | One HTTP 200, one 422; exactly one task and partial unique index verified | external `concurrent-result.json`, `concurrent-db.json` |
 | Source preservation | All 16 checkpoint ancestors; original 16 worktrees clean | checkpoint manifest and promotion audit |
 
-The combined Nasq selectors are `/nasq_core,/nasq_api,/nasq_pmo,/nasq_hr`.
-Standalone Cyan is tested separately because installing Nasq intentionally makes
+The combined WebVue selectors are `/webvue_core,/webvue_api,/webvue_pmo,/webvue_hr`.
+Standalone Cyan is tested separately because installing WebVue intentionally makes
 actual current-company capabilities authoritative over Cyan's global support
-groups. The final run used only `nasq_consolidation_20260907_verified`; standalone
-Cyan used `nasq_cyan_standalone_20260907_final`. Neither is `odoo19`.
+groups. The final run used only `webvue_consolidation_20260907_verified`; standalone
+Cyan used `webvue_cyan_standalone_20260907_final`. Neither is `odoo19`.
 
 Regression evidence includes four normal calendar membership failures before
 repair, then two missing-datetime cases with three failing assertions before

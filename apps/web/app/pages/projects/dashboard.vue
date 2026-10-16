@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { PROJECT_STATUSES } from '@nasq/contracts'
+import { PROJECT_STATUSES } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import type { RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import ProjectDashboardCharts from '@/components/pmo/projects/dashboard/ProjectDashboardCharts.vue'
 import PendingCharterReviews from '@/components/pmo/projects/dashboard/PendingCharterReviews.vue'
 import ProjectDashboardMetrics from '@/components/pmo/projects/dashboard/ProjectDashboardMetrics.vue'
@@ -50,7 +50,7 @@ function resumeListWrites() {
   if (!applyingRoute && isDashboard()) scheduleQueryWrite()
 }
 
-const removeNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => {
+const removeNavigationStart = useNuxtApp().hook('webvue:navigation:start', to => {
   pendingNavigation = to
   if (pendingOwnQuery && !pendingOwnQuery.navigation && to.fullPath === pendingOwnQuery.target) pendingOwnQuery.navigation = to
 })

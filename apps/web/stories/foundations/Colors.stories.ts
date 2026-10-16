@@ -19,7 +19,7 @@ const table = (names: string[]): StoryObj => ({
 
 export default { title: 'Foundations/Colors' } satisfies Meta
 export const Surfaces: StoryObj = { ...table(colorNames('ui', 'background', 'foreground', 'muted', 'popover', 'border', 'color', 'card', 'accent', 'destructive', 'secondary', 'input', 'ring')), name: 'الأسطح والنص والحدود' }
-export const Nasq: StoryObj = { ...table(colorNames('nasq')), name: 'هوية نسق' }
+export const WebVue: StoryObj = { ...table(colorNames('webvue')), name: 'هوية ويب فيو' }
 export const Brand: StoryObj = { ...table(colorNames('primary', 'chart', 'brand')), name: 'لون الهوية والرسوم' }
 export const Status: StoryObj = { ...table(colorNames('status')), name: 'الحالات' }
 export const Shell: StoryObj = { ...table(colorNames('sidebar', 'shell', 'project', 'rail', 'context', 'unread')), name: 'الغلاف' }

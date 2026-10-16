@@ -26,7 +26,7 @@ suite('bounded authoritative payment reconciliation on PostgreSQL', () => {
       await c.query(`INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at)
         VALUES($1,$2,$3,$4,'initial','SAR',2,10000,1500,11500,'2026-01-01','2026-02-01',now())`, [invoice, customer, subscription, order])
     })
-    const attempt = await createPaymentAttempt(pool, { order_id: order, customer_id: customer, adapter, allowedOrigin: 'https://nasq.test', return_path: '/subscription' })
+    const attempt = await createPaymentAttempt(pool, { order_id: order, customer_id: customer, adapter, allowedOrigin: 'https://webvue.test', return_path: '/subscription' })
     await pool.query("UPDATE payment_attempts SET created_at=$2,updated_at=$2 WHERE id=$1", [attempt.id, new Date(now.getTime() - 600_000)])
     return { adapter, attempt, order, invoice }
   }

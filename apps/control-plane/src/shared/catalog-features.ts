@@ -1,6 +1,6 @@
 /** Thin control-plane adapter: the descriptor grammar lives only in
- * @nasq/commercial-contracts (commercial/feature-descriptor.ts). */
-import { deriveCatalogFeatures, deriveCatalogPolicy, type FeatureValue, type ParsedFeature } from '@nasq/commercial-contracts'
+ * @webvue/commercial-contracts (commercial/feature-descriptor.ts). */
+import { deriveCatalogFeatures, deriveCatalogPolicy, type FeatureValue, type ParsedFeature } from '@webvue/commercial-contracts'
 
 export type CatalogTierLike = { id: string; features: string[] }
 export type CatalogLike = { schema_version?: number; tiers: CatalogTierLike[] }

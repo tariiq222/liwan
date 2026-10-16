@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCalendarDate, formatNasqDateTime, formatNasqTime, toCalendarDate } from '../calendarDate'
+import { formatCalendarDate, formatWebVueDateTime, formatWebVueTime, toCalendarDate } from '../calendarDate'
 
 describe('calendarDate', () => {
   it('round-trips YYYY-MM-DD without timezone drift', () => {
@@ -15,9 +15,9 @@ describe('calendarDate', () => {
   })
 
   it('formats instants with a shared Gregorian helper', () => {
-    expect(formatNasqDateTime(null, 'en')).toBe('—')
-    expect(formatNasqTime('', 'en')).toBe('—')
-    expect(formatNasqDateTime('not-a-date', 'en')).toBe('not-a-date')
-    expect(formatNasqDateTime(new Date('2026-03-15T12:00:00Z'), 'en')).toMatch(/^\u2066\d{2}\/03\/2026 \d{2}:\d{2}\u2069$/)
+    expect(formatWebVueDateTime(null, 'en')).toBe('—')
+    expect(formatWebVueTime('', 'en')).toBe('—')
+    expect(formatWebVueDateTime('not-a-date', 'en')).toBe('not-a-date')
+    expect(formatWebVueDateTime(new Date('2026-03-15T12:00:00Z'), 'en')).toMatch(/^\u2066\d{2}\/03\/2026 \d{2}:\d{2}\u2069$/)
   })
 })

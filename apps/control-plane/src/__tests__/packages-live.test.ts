@@ -13,7 +13,7 @@ import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 const sourceOptions={repositoryRoot:fileURLToPath(new URL('../../../..',import.meta.url))}
 const url=process.env.CONTROL_TEST_DATABASE_URL
-if(url){const p=new URL(url);if(!['127.0.0.1','localhost','::1'].includes(p.hostname)||!/^nasq_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1)))throw Error('scratch control DB required')}
+if(url){const p=new URL(url);if(!['127.0.0.1','localhost','::1'].includes(p.hostname)||!/^webvue_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1)))throw Error('scratch control DB required')}
 const suite=url?describe:describe.skip
 suite('package immutable lifecycle and enrollment authority SQL',()=>{
  const pool=new Pool({connectionString:url,max:5})
@@ -47,7 +47,7 @@ suite('package immutable lifecycle and enrollment authority SQL',()=>{
   }finally{await client.query('ROLLBACK');client.release()}
   await expect(transaction(pool,c=>resolvePackageAuthority(c,published.id,true,sourceOptions))).rejects.toThrow('package_unavailable')
   expect(await transaction(pool,c=>resolvePackageAuthority(c,published.id))).toEqual(authority)
-  const slug=`t${tenant.replaceAll('-','')}`, database=`nasq_scratch_${tenant.replaceAll('-','')}`
+  const slug=`t${tenant.replaceAll('-','')}`, database=`webvue_scratch_${tenant.replaceAll('-','')}`
   // A queued job references the durable registry binding, not tenants directly.
   // This policy-only fixture keeps the route disabled and creates no database.
   await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',[tenant,slug,`${slug}.packages.test`,database])

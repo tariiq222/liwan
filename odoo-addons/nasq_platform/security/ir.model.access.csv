@@ -1,3 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_nasq_tenant_profile_system,nasq.tenant.profile.system,model_nasq_tenant_profile,base.group_system,1,1,1,0
-access_nasq_tenant_branch_user,nasq.tenant.branch.user,model_nasq_tenant_branch,base.group_user,1,0,0,0

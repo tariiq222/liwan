@@ -80,8 +80,8 @@ export const ProjectPatchSchema = z.object({
   name: z.string().min(1).optional(), description: z.string().optional(), user_id: z.number().int().nullable().optional(),
   privacy_visibility: VisibilitySchema.optional(), allow_task_dependencies: z.boolean().optional(), date_start: z.string().nullable().optional(), date: z.string().nullable().optional(),
   tag_ids: z.array(z.number().int()).optional(),
-  nasq_completion_approval: ProjectCompletionApprovalSchema.optional(),
-  nasq_completion_approver_id: z.number().int().positive().nullable().optional(),
+  webvue_completion_approval: ProjectCompletionApprovalSchema.optional(),
+  webvue_completion_approver_id: z.number().int().positive().nullable().optional(),
   charter: ProjectCharterWriteSchema.optional(),
   expected_updated_at: z.string().regex(/^v\d+$/).optional(),
 }).strict().superRefine((value, ctx) => {

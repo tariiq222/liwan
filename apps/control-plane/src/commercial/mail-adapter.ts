@@ -64,7 +64,7 @@ export function buildMimeMessage(
   msg: MailMessage,
   from: string,
   now: Date = new Date(),
-  boundary = `nasq_${randomUUID().replace(/-/g, "")}`,
+  boundary = `webvue_${randomUUID().replace(/-/g, "")}`,
 ): string {
   assertNoCrlf(msg.to, "to");
   assertNoCrlf(from, "from");
@@ -186,7 +186,7 @@ export class SmtpMailAdapter implements MailAdapter {
       if (!ok.includes(r.code)) throw new MailError("mail_smtp_rejected", `${r.code} ${r.lines[r.lines.length - 1]?.slice(4) ?? ""}`);
       return r;
     };
-    const ehloName = "nasq.local";
+    const ehloName = "webvue.local";
 
     try {
       await new Promise<void>((res, rej) => {
@@ -261,19 +261,19 @@ class DisabledMailAdapter implements MailAdapter {
 }
 
 export function mailAdapterFromEnv(env: Record<string, string | undefined>): MailAdapter {
-  const mode = env.NASQ_MAIL_MODE ?? "smtp";
+  const mode = env.WEBVUE_MAIL_MODE ?? "smtp";
   if (mode === "disabled") return new DisabledMailAdapter();
-  if (mode !== "smtp") throw new MailError("mail_not_configured", "unknown NASQ_MAIL_MODE");
-  const host = env.NASQ_MAIL_SMTP_HOST;
-  const portRaw = env.NASQ_MAIL_SMTP_PORT;
-  const from = env.NASQ_MAIL_FROM;
+  if (mode !== "smtp") throw new MailError("mail_not_configured", "unknown WEBVUE_MAIL_MODE");
+  const host = env.WEBVUE_MAIL_SMTP_HOST;
+  const portRaw = env.WEBVUE_MAIL_SMTP_PORT;
+  const from = env.WEBVUE_MAIL_FROM;
   if (!host || !portRaw || !from) throw new MailError("mail_not_configured");
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new MailError("mail_not_configured", "invalid port");
-  const tlsRaw = env.NASQ_MAIL_REQUIRE_TLS;
+  const tlsRaw = env.WEBVUE_MAIL_REQUIRE_TLS;
   const requireTls = tlsRaw === undefined || tlsRaw === "" ? !isLocalCapture(host) : !/^(0|false|no)$/i.test(tlsRaw);
-  const user = env.NASQ_MAIL_SMTP_USER || undefined;
-  const password = env.NASQ_MAIL_SMTP_PASSWORD || undefined;
+  const user = env.WEBVUE_MAIL_SMTP_USER || undefined;
+  const password = env.WEBVUE_MAIL_SMTP_PASSWORD || undefined;
   if ((user && !password) || (!user && password)) throw new MailError("mail_not_configured", "incomplete credentials");
   return new SmtpMailAdapter({ host, port, user, password, from, requireTls });
 }

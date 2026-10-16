@@ -8,7 +8,7 @@
 
 **Tech Stack:** Nuxt 4.6, Nuxt UI 4.11.1 (`UCommandPalette`, `UModal`, `UKbd`, `UTooltip`), reka-ui Listbox/Dialog, Tailwind 4.3, Storybook 10.6, Playwright 1.62, Vitest 4, `@tanstack/vue-query`, Python policy checks in `tools/`.
 
-**Spec:** `docs/superpowers/specs/2026-10-11-nasq-tasmim-design.md` (§5 command palette and shortcuts table, §6 product contracts, §10 phase 3, §11, §13 "Arabic shortcut layouts")
+**Spec:** `docs/superpowers/specs/2026-10-11-webvue-tasmim-design.md` (§5 command palette and shortcuts table, §6 product contracts, §10 phase 3, §11, §13 "Arabic shortcut layouts")
 
 ## Owner amendments (2026-10-13, CP2 decisions — binding, override any task text below)
 
@@ -21,7 +21,7 @@
 
 Spec §5 names `defineShortcuts` with `layoutIndependent: true` and asks for verification against Nuxt UI 4.11.1 in phase 3 (§13). The source shows it cannot carry the shortcut table:
 
-| Evidence (`node_modules/@nuxt/ui/dist/runtime/…`) | Consequence for Nasq |
+| Evidence (`node_modules/@nuxt/ui/dist/runtime/…`) | Consequence for WebVue |
 |---|---|
 | `composables/defineShortcuts.js:7-30` `convertKeyToCode` maps only letters, digits, F-keys and nine named keys. `:194-198` passes the base key through it, and `:109-112` compares `e.code !== shortcut.key`. | `/` (`Slash`), `?` (`Shift`+`Slash`) and `[` (`BracketLeft`) can never match in layout-independent mode. Without that mode, `:118` compares `e.key`, which is «ظ», «؟» and «ج» on an Arabic layout. |
 | `:152-160` `usingInput` reads only `activeElement` `INPUT`/`TEXTAREA`/`contenteditable="true"\|"plaintext-only"`. | It misses `<select>` and `contenteditable=""`, and ignores open menus and dialogs. `isEditableKeyTarget` and `overlayOwnsEscape` (`composables/useEscapeBack.ts:17-34`) already cover these. |
@@ -212,7 +212,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Modify: `apps/web/i18n/locales/ar/common.json:37`, `apps/web/i18n/locales/en/common.json:37` (`nav.consoleBadge`)
 - Modify: `apps/web/e2e/storybook-shell.spec.ts:139-142`
 - Modify: `apps/web/stories/shell/ShellHeader.stories.ts:19` (story display name only; the id stays `shell-shellheader--console`)
-- Modify: `DESIGN.md:113` («شارة «وحدة إدارة نسق»» → «شارة «الكونسول»»)
+- Modify: `DESIGN.md:113` («شارة «وحدة إدارة ويب فيو»» → «شارة «الكونسول»»)
 - Regenerate: the 12 PNGs `apps/web/e2e/storybook-visual.spec.ts-snapshots/shell-shellframe--console-*` (8, including mobile) and `shell-shellheader--console-*` (4)
 
 **Interfaces:** none.
@@ -235,14 +235,14 @@ cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 npm run build-storybook >/dev/null && npx playwright test e2e/storybook-shell.spec.ts -g 'vendor console shows its badge' --reporter=line
 ```
 
-Expected: FAIL. The received text is `وحدة إدارة نسق`.
+Expected: FAIL. The received text is `وحدة إدارة ويب فيو`.
 
 - [ ] **Step 2: Change the strings**
 
 - `ar/common.json`: `"consoleBadge": "الكونسول",`
 - `en/common.json`: `"consoleBadge": "Console",`
-- `ShellHeader.stories.ts:19`: `name: 'وحدة إدارة نسق'` → `name: 'الكونسول'`
-- `DESIGN.md:113`: in the sentence about `/vendor/*`, the badge name «وحدة إدارة نسق» → «الكونسول».
+- `ShellHeader.stories.ts:19`: `name: 'وحدة إدارة ويب فيو'` → `name: 'الكونسول'`
+- `DESIGN.md:113`: in the sentence about `/vendor/*`, the badge name «وحدة إدارة ويب فيو» → «الكونسول».
 
 - [ ] **Step 3: Run, then re-baseline exactly the console stories**
 
@@ -253,7 +253,7 @@ npx playwright test e2e/storybook-shell.spec.ts --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts --reporter=line 2>&1 | grep -E "✘|failed" | head -20
 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-shellframe--console|shell-shellheader--console' --update-snapshots --reporter=line
 git status --short e2e/storybook-visual.spec.ts-snapshots | wc -l
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line | tail -3
 ```
 
 Expected:
@@ -978,7 +978,7 @@ In `apps/web/i18n/locales/en/common.json`:
 
 ```ts
   commands: [
-    { id: 'chat.new-conversation', labelKey: 'nav.newConversation', icon: 'i-lucide-message-circle', to: '/chat/new', capability: 'nasq.internal' },
+    { id: 'chat.new-conversation', labelKey: 'nav.newConversation', icon: 'i-lucide-message-circle', to: '/chat/new', capability: 'webvue.internal' },
   ],
 ```
 
@@ -1473,7 +1473,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Interfaces:**
 - Consumes: everything Task 4 produced; `matchShortcut`, `IDLE_SHORTCUTS`, `isApplePlatform` (Task 3); `overlayOwnsEscape`; `useAppSearch`; `useNav`.
 - Produces:
-  - `usePalette(): { open: WritableComputedRef<boolean>; view: WritableComputedRef<PaletteView>; term: WritableComputedRef<string>; show(view?: PaletteView, term?: string): void; close(): void; toggle(): void }`, with `type PaletteView = 'main' | 'shortcuts'`. State key: `useState('nasq-palette')`.
+  - `usePalette(): { open: WritableComputedRef<boolean>; view: WritableComputedRef<PaletteView>; term: WritableComputedRef<string>; show(view?: PaletteView, term?: string): void; close(): void; toggle(): void }`, with `type PaletteView = 'main' | 'shortcuts'`. State key: `useState('webvue-palette')`.
   - `useShellShortcuts(handlers?: ShortcutHandlers): void`, with `type ShortcutHandlers = { [K in ShortcutAction['kind']]?: (action: Extract<ShortcutAction, { kind: K }>) => boolean }`. Built in: `palette` (toggle) and `help` (show `shortcuts`).
   - `keyboard_layer_errors(current: dict[str, str]) -> list[str]` (Python).
   - testids: `global-search-trigger`, `command-palette` (with `data-view="main|shortcuts"`), `palette-back`, `palette-footer`.
@@ -1546,7 +1546,7 @@ interface PaletteState { open: boolean; view: PaletteView; term: string }
  * layer and stories. `useState` keeps one state per request on the server and one per app on the client.
  */
 export function usePalette() {
-  const state = useState<PaletteState>('nasq-palette', () => ({ open: false, view: 'main', term: '' }))
+  const state = useState<PaletteState>('webvue-palette', () => ({ open: false, view: 'main', term: '' }))
   function show(view: PaletteView = 'main', term = '') {
     state.value = { open: true, view, term }
   }
@@ -1731,20 +1731,20 @@ const groups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
     :title="t('app.search')"
     :description="t('search.description')"
     :content="{ onCloseAutoFocus }"
-    :ui="{ content: 'nasq-search-dialog max-w-2xl max-h-[min(620px,calc(100dvh-2rem))] gap-0 divide-y-0 overflow-hidden rounded-xl p-0', overlay: 'nasq-search-overlay' }"
+    :ui="{ content: 'webvue-search-dialog max-w-2xl max-h-[min(620px,calc(100dvh-2rem))] gap-0 divide-y-0 overflow-hidden rounded-xl p-0', overlay: 'webvue-search-overlay' }"
   >
     <UButton
       :aria-label="t('app.search')"
       aria-keyshortcuts="Meta+K Control+K"
       color="neutral"
       variant="outline"
-      class="nasq-search-trigger"
+      class="webvue-search-trigger"
       data-testid="global-search-trigger"
       :disabled="!hydrated"
     >
       <span class="flex min-w-0 items-center gap-2">
         <UIcon name="i-lucide-search" class="size-4 shrink-0" aria-hidden="true" />
-        <span data-slot="label" class="nasq-search-trigger-label truncate">{{ t('app.search') }}</span>
+        <span data-slot="label" class="webvue-search-trigger-label truncate">{{ t('app.search') }}</span>
       </span>
       <UKbd dir="ltr">{{ metaKey }}K</UKbd>
     </UButton>
@@ -1840,7 +1840,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const context = storyContext('apps/web/app/components/shell/ShellHeader.vue:52')
-const template = '<div class="nasq-shell-header-actions"><GlobalSearch /></div>'
+const template = '<div class="webvue-shell-header-actions"><GlobalSearch /></div>'
 /** The palette already open: the state is set in setup, after the global loader resets the shim state. */
 const opened = (view: PaletteView = 'main', term = '') => () => ({
   components: { GlobalSearch },
@@ -2026,7 +2026,7 @@ Confirm nothing else asserts the old dialog DOM:
 
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
-rg -n "name: 'بحث', exact: true \}\)" e2e -l | xargs rg -n "dialog\.getByRole\('(link|button)'|nasq-search-dialog|global-search-input"
+rg -n "name: 'بحث', exact: true \}\)" e2e -l | xargs rg -n "dialog\.getByRole\('(link|button)'|webvue-search-dialog|global-search-input"
 ```
 
 Expected: no output.
@@ -2042,7 +2042,7 @@ cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-shell.spec.ts e2e/storybook-smoke.spec.ts --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-globalsearch' --update-snapshots=missing --reporter=line
 git status --short e2e/storybook-visual.spec.ts-snapshots
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts --reporter=line | tail -3
 ```
 
 Expected:
@@ -2062,7 +2062,7 @@ Then run the mock-stack specs that open the palette:
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 SCRATCH=$(mktemp -d)
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498 node e2e/internal-ui-audit-mock.mjs > "$SCRATCH/mock.log" 2>&1 & MOCK_PID=$!
-NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
+NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
 for i in $(seq 1 120); do curl -sf -o /dev/null http://localhost:4097/login && break; sleep 2; done
 E2E_BASE_URL=http://localhost:4097 npx playwright test e2e/command-menu.spec.ts e2e/header-overlays.spec.ts e2e/internal-pages.spec.ts e2e/shell-tasmim.spec.ts --reporter=line
 kill "$NUXT_PID" "$MOCK_PID"; while kill -0 "$NUXT_PID" 2>/dev/null || kill -0 "$MOCK_PID" 2>/dev/null; do sleep 1; done
@@ -2272,7 +2272,7 @@ In `ContextSidebar.vue:42-55`, change the create loop to index the first action 
                 square
                 size="sm"
                 icon="i-lucide-plus"
-                class="nasq-context-create-icon"
+                class="webvue-context-create-icon"
                 :data-active="link.active"
                 :aria-current="link.active ? 'page' : undefined"
                 :aria-label="t(link.labelKey)"
@@ -2405,7 +2405,7 @@ cd /Users/tariq/code/nasq/.worktrees/tasmim
 python3 -B tools/ui_policy.py --refresh-story-context && node tools/ui_catalog.mjs
 npm -w apps/web run lint && npm test 2>&1 | tail -3 && python3 -B tools/ui_policy.py && python3 -B tools/arch_policy.py
 cd apps/web && npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-shell.spec.ts e2e/storybook-visual.spec.ts --reporter=line | tail -3
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-shell.spec.ts e2e/storybook-visual.spec.ts --reporter=line | tail -3
 ```
 
 Expected: everything passes with no visual diff.
@@ -2650,7 +2650,7 @@ node tools/ui_catalog.mjs && npm -w apps/web run lint && npm test 2>&1 | tail -3
 cd apps/web && npm run build-storybook >/dev/null
 npx playwright test e2e/storybook-shell.spec.ts -g 'row navigation' --reporter=line
 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-rownavigation' --update-snapshots=missing --reporter=line
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-rownavigation' --reporter=line
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts -g 'shell-rownavigation' --reporter=line
 cd .. && cd .. && git add apps/web docs/design-system/catalog.json
 git commit -m "feat(web): add the J and K row navigation contract
 
@@ -2733,7 +2733,7 @@ In `docs/design-system/nuxt-ui-reference.md`, append this paragraph to `## ال�
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim
 node tools/ui_catalog.mjs && python3 -B tools/ui_policy.py && npm test 2>&1 | tail -3
-rg -n "لوحة الأوامر في الخطة 3|وحدة إدارة نسق»" DESIGN.md
+rg -n "لوحة الأوامر في الخطة 3|وحدة إدارة ويب فيو»" DESIGN.md
 git add DESIGN.md docs/design-system
 git commit -m "docs(web): document the command palette and keyboard shortcuts
 
@@ -2755,7 +2755,7 @@ Expected: the policy and tests pass, and the `rg` prints nothing.
 ```bash
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 npm run build-storybook >/dev/null
-NASQ_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-shell.spec.ts --reporter=line 2>&1 | tail -15
+WEBVUE_REQUIRE_STORYBOOK=1 npx playwright test e2e/storybook-visual.spec.ts e2e/storybook-density.spec.ts e2e/storybook-smoke.spec.ts e2e/storybook-shell.spec.ts --reporter=line 2>&1 | tail -15
 ```
 
 Expected: everything passes with no skipped describe. The one exception is the known pre-existing `shared-createpanel--form` smoke failure (Plan 2 ruling; tracked for Plan 4). Any visual diff is unexpected: Tasks 2, 5 and 7 baselined their own stories. Investigate it before running `--update-snapshots`, and list any re-baselined family in the CP3 note.
@@ -2781,7 +2781,7 @@ Expected: all exit 0, and `git status` shows a clean tree.
 cd /Users/tariq/code/nasq/.worktrees/tasmim/apps/web
 SCRATCH=$(mktemp -d)
 PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=4498 node e2e/internal-ui-audit-mock.mjs > "$SCRATCH/mock.log" 2>&1 & MOCK_PID=$!
-NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
+NUXT_ODOO_URL=http://127.0.0.1:4498 NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:4498/websocket npx nuxt dev --port 4097 > "$SCRATCH/nuxt.log" 2>&1 & NUXT_PID=$!
 for i in $(seq 1 120); do curl -sf -o /dev/null http://localhost:4097/login && break; sleep 2; done
 FORCE_COLOR=0 E2E_BASE_URL=http://localhost:4097 E2E_PROJECT_POPUPS=1 npx playwright test --reporter=line > "$SCRATCH/cp3-e2e.log" 2>&1 || true
 awk '/^ +[0-9]+ failed$/{f=1;next} f && /^ +[0-9]+ (flaky|passed|skipped|interrupted|did not run)/{f=0} f' "$SCRATCH/cp3-e2e.log" > ../../.superpowers/tasmim-shared/e2e-cp3-failures.txt
@@ -2833,7 +2833,7 @@ const base = 'http://localhost:4097'
       viewport: { width: 1440, height: 900 }, locale: 'ar-SA', reducedMotion: 'reduce',
       ...(record ? { recordVideo: { dir: out, size: { width: 1440, height: 900 } } } : {}),
     })
-    await context.addCookies([{ name: 'nasq-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
+    await context.addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), url: base }])
     const page = await context.newPage()
     await page.goto(`${base}/tasks`)
     await page.locator('[data-testid="global-search-trigger"]:not([disabled])').waitFor()

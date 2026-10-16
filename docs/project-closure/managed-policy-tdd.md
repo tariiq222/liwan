@@ -11,7 +11,7 @@ The operator's journey is to submit the worker-generated policy for one publishe
 catalog composition and receive either that validated policy or a safe refusal
 before any provisioning effect. Only these three new files are owned here:
 
-- `tools/nasq_cli/managed_policy.py`
+- `tools/webvue_cli/managed_policy.py`
 - `tools/test_managed_policy.py`
 - `docs/project-closure/managed-policy-tdd.md`
 
@@ -22,7 +22,7 @@ Other concurrent authors' untracked acceptance/probe tests were left untouched.
 ## API and integration contract
 
 ```python
-from nasq_cli.managed_policy import PolicyError, parse_create_policy
+from webvue_cli.managed_policy import PolicyError, parse_create_policy
 
 policy = parse_create_policy(
     raw,
@@ -67,7 +67,7 @@ Source alignment: `apps/control-plane/src/worker.ts:policyForCreate` supplies
 the two baseline limits then selected-tier descriptors. The scratch operator's
 `_catalog_composition` obtains defaults through core tier descriptors instead;
 this new managed validator follows the worker and does not modify scratch code.
-The catalog determines module lists, not a fixed set of all Nasq pillars.
+The catalog determines module lists, not a fixed set of all WebVue pillars.
 Consumed catalog fields are checked defensively; this does not replace the
 publisher's complete catalog schema/manifest/feature-registry validation gate.
 
@@ -97,7 +97,7 @@ The identical command then returned **39 tests, OK, exit 0**
 ### Lint and behavior-preserving cleanup
 
 ```sh
-ruff check --no-cache tools/nasq_cli/managed_policy.py tools/test_managed_policy.py
+ruff check --no-cache tools/webvue_cli/managed_policy.py tools/test_managed_policy.py
 ```
 
 First result: exit 1, 15 `raw-string-in-exception` findings. A small typed `_fail`
@@ -119,7 +119,7 @@ The catalog-read boundary then normalized `ValueError` alongside `OSError` into
 ### Final GREEN and lint
 
 ```sh
-PYTHONPATH=tools python3 -B -m unittest tools.test_managed_policy -v && ruff check --no-cache tools/nasq_cli/managed_policy.py tools/test_managed_policy.py
+PYTHONPATH=tools python3 -B -m unittest tools.test_managed_policy -v && ruff check --no-cache tools/webvue_cli/managed_policy.py tools/test_managed_policy.py
 ```
 
 Actual result: **40 tests, OK, exit 0** (`Ran 40 tests in 0.016s`), followed by

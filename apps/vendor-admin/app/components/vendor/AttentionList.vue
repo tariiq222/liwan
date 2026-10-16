@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AttentionItem } from '@nasq/commercial-contracts'
+import type { AttentionItem } from '@webvue/commercial-contracts'
 import { attentionMessage, attentionPresentation } from '@/utils/vendorAttention'
 const props = defineProps<{ items: readonly AttentionItem[], now: Date }>()
 const { t, te } = useI18n()

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import type { AppearanceMode } from '@/utils/appearance'
 import { createBrandTheme } from '@/utils/brandTheme'
-import { DARK_SURFACES } from '@/utils/nasqPalette'
+import { DARK_SURFACES } from '@/utils/webvuePalette'
 
 const props = defineProps<{
   name: string
@@ -121,7 +121,7 @@ const previewStyle = computed(() => {
       </div>
     </template>
     <div class="overflow-hidden rounded-lg ring ring-default bg-muted" data-testid="branding-preview-app">
-      <div class="flex items-center gap-3 bg-[var(--nasq-rail)] px-3 py-2 text-white">
+      <div class="flex items-center gap-3 bg-[var(--webvue-rail)] px-3 py-2 text-white">
         <img v-if="logoUrl" :src="logoUrl" alt="" class="size-7 rounded-md object-contain bg-white/80">
         <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ name }}</span>
         <span class="size-6 rounded-full bg-white/20" aria-hidden="true" />

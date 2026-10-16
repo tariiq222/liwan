@@ -1,4 +1,4 @@
-# خريطة مساحة عمل نسق
+# خريطة مساحة عمل ويب فيو
 
 مرجع الواجهة الوحيد هو [DESIGN.md](../DESIGN.md)، ومنه [فهرس المكونات](design-system/components.md) و[مرجع Nuxt UI](design-system/nuxt-ui-reference.md). هذا الملف يحدد مكان العمل والاسترداد، ولا يضيف سياسة تصميم.
 
@@ -27,7 +27,7 @@ git branch --show-current
 
 أزيلت خمس نسخ عمل منتهية وخمسة فروع محلية بعد أرشفتها والتحقق من عدم استخدامها. بقيت نسخة `/Users/tariq/code/nasq` ونسخة العمل الجارية `.worktrees/phase-1-isolation`؛ لم تتغير فروع GitHub أو الوسوم أو الخدمات أو قواعد البيانات. تفاصيل الجرد والحفظ وحدود التحقق في [تقرير التنظيف](verification/2026-09-20-workspace-cleanup.md).
 
-نسخة الاسترداد: `/Users/tariq/Archives/nasq/2026-10-04/nasq-cleanup-20260920-211532` (نُقلت كاملة من مسارها السابق في `code` يوم 2026-10-04)؛ تحتوي Git bundle كاملًا وأرشيف النسخ الخمس، بما فيها الملفات المتجاهلة، وجرد SHA-256 وإرشادات الاستعادة. تحقق المحتوى والروابط شمل 51,850 عنصرًا. لا تُحذف ضمن تنظيف لاحق ولا تُرفع إلى GitHub؛ قد تحتوي مواد محلية حساسة.
+نسخة الاسترداد: `/Users/tariq/Archives/webvue/2026-10-04/webvue-cleanup-20260920-211532` (نُقلت كاملة من مسارها السابق في `code` يوم 2026-10-04)؛ تحتوي Git bundle كاملًا وأرشيف النسخ الخمس، بما فيها الملفات المتجاهلة، وجرد SHA-256 وإرشادات الاستعادة. تحقق المحتوى والروابط شمل 51,850 عنصرًا. لا تُحذف ضمن تنظيف لاحق ولا تُرفع إلى GitHub؛ قد تحتوي مواد محلية حساسة.
 
 ## أدلة التسليم والاسترداد
 
@@ -38,9 +38,9 @@ git branch --show-current
 - [تنظيف الفروع ونسخ العمل وتحديث الحالة](verification/2026-09-20-workspace-cleanup.md).
 - [دمج الواجهة والتنظيف والتحقق الجديد](verification/2026-09-12-main-integration-cleanup.md).
 - [تطبيق الواجهة الجديدة](reports/ui-redesign-2026-09-12.md)، [اللون الرئيسي فقط](reports/ui-primary-color-review-2026-09-12.md)، [تنظيف المراجع](verification/2026-09-12-ui-documentation-cleanup.md): تقارير تسليم بتاريخها، وليست سياسات إضافية أو الحالة الحية.
-- [خطة موثوقية Phase 0](superpowers/plans/2026-09-19-phase-0-reliability.md) و[مواصفة نماذج التوزيع](superpowers/specs/2026-09-19-nasq-distribution-models-design.md): تنفيذ الموثوقية مدمج في `main` عبر PR #3 عند `1b0394c9`. توجد وظائف CI الست وأدوات البناء والترقية والاسترجاع في المصدر. نتائج GitHub Actions لم تُتحقق في مراجعة 2026-09-20؛ لا يُستنتج من الدمج وحده اكتمال بوابات المرحلة أو نشر إنتاجي. طبقة `nasq-cli` ليست ضمن هذا التسليم.
-- [خطة عزل Phase 1](superpowers/plans/2026-09-20-phase-1-isolation.md): `nasq_platform` و`root_company_id` وعزل الشركة، مدمجة في `main` عبر `5fbeca27` و`fe10a669` و`de312f16`. CI أخضر بالوظائف الست على الدفعتين، ومجموعة Odoo `610` اختبارًا نظيفة في ثلاثة تشغيلات متتالية.
-- نسخة حفظ العمل قبل هذا الدمج: `/Users/tariq/Archives/nasq/2026-10-04/nasq-merge-20260912-artifacts`؛ نُقلت كاملة من `code` يوم 2026-10-04، وتحتوي Git bundle وملفات المصدر وجرد الفروق وسجلات الاختبارات. لا تُحذف ضمن تنظيف نسخ المهام.
+- [خطة موثوقية Phase 0](superpowers/plans/2026-09-19-phase-0-reliability.md) و[مواصفة نماذج التوزيع](superpowers/specs/2026-09-19-webvue-distribution-models-design.md): تنفيذ الموثوقية مدمج في `main` عبر PR #3 عند `1b0394c9`. توجد وظائف CI الست وأدوات البناء والترقية والاسترجاع في المصدر. نتائج GitHub Actions لم تُتحقق في مراجعة 2026-09-20؛ لا يُستنتج من الدمج وحده اكتمال بوابات المرحلة أو نشر إنتاجي. طبقة `webvue-cli` ليست ضمن هذا التسليم.
+- [خطة عزل Phase 1](superpowers/plans/2026-09-20-phase-1-isolation.md): `webvue_platform` و`root_company_id` وعزل الشركة، مدمجة في `main` عبر `5fbeca27` و`fe10a669` و`de312f16`. CI أخضر بالوظائف الست على الدفعتين، ومجموعة Odoo `610` اختبارًا نظيفة في ثلاثة تشغيلات متتالية.
+- نسخة حفظ العمل قبل هذا الدمج: `/Users/tariq/Archives/webvue/2026-10-04/webvue-merge-20260912-artifacts`؛ نُقلت كاملة من `code` يوم 2026-10-04، وتحتوي Git bundle وملفات المصدر وجرد الفروق وسجلات الاختبارات. لا تُحذف ضمن تنظيف نسخ المهام.
 - `/Users/tariq/code/nasq-security-evidence-20260909` يحتوي بيئة يستخدمها Odoo المحلي؛ لا تحذفه على أنه مجلد أدلة زائد.
 - [أرشيف الواجهة](archive/ui/README.md) و[خريطة العمل السابقة كاملة](archive/ui/workspace-before-2026-09-12.md) يحفظان التاريخ. تقارير قديمة قد تشير إلى فروع ومنافذ وملفات أزيلت؛ تحقق قبل استعادتها أو حذف غيرها.
 
@@ -72,7 +72,7 @@ TRUNCATE the same tables.
 
 ## Vendor workspace local integration — 2026-09-23 (historical, superseded)
 
-Superseded on 2026-10-15 by the [vendor administration separation](superpowers/specs/2026-10-15-nasq-vendor-admin-separation-design.md):
+Superseded on 2026-10-15 by the [vendor administration separation](superpowers/specs/2026-10-15-webvue-vendor-admin-separation-design.md):
 the `/vendor` pages no longer exist in `apps/web`, and the flags below were removed with them. The paragraph records its own
 checkpoint only.
 
@@ -121,7 +121,7 @@ Local Caddy/TLS/image/browser acceptance for two tenants passed 9/9 on the
 committed configuration. Evidence: [shared live acceptance](verification/shared-live-acceptance.md).
 This is local only: no push, no deployment, no public TLS, no DNS, 2 tenants
 not 10, no MFA/websocket/filestore restore. F2b (initial policy grant missing
-from provisioning) and F5 (nasq_odoo zone exhaustible by ordinary traffic)
+from provisioning) and F5 (webvue_odoo zone exhaustible by ordinary traffic)
 remain open (superseded below: fixed in source and verified live in r3).
 Readiness stays `not ready`.
 
@@ -132,7 +132,7 @@ F2b and F5 are fixed in source on `codex/integration-f2b-f5-gate`, based on loca
 tenant policy (server-derived catalog policy, `initial_policy` activation gate,
 revision >= 1, carried through backup/restore), and the edge no longer counts the
 `get_session_info` page-load probe against the shared auth rate limit (it moves
-into `nasq_odoo` by exact path, with image bytes in a new `nasq_odoo_image`
+into `webvue_odoo` by exact path, with image bytes in a new `webvue_odoo_image`
 zone). Seven pre-existing local scratch control databases had been dropped by
 pattern with no backup, so the evidence they backed was regenerated at current
 HEAD on fresh scratch databases: [regenerated gate evidence](verification/2026-09-30-regenerated-gate-evidence.md).
@@ -167,13 +167,13 @@ Local only: no push and no deployment. `main` (`4eab6fd7`) includes
 حُفظت التغييرات المحلية العشرون غير المرتبطة بالتجميع. الخرائط المؤرخة أعلاه
 سجلات تاريخية؛ المرجع الحالي هو هذا القسم وأدلة الإغلاق المحلية.
 
-أُزيلت نسخ `nasq-pmo-docker-acceptance` و`saas-commercial`
+أُزيلت نسخ `webvue-pmo-docker-acceptance` و`saas-commercial`
 و`saas-lifecycle-integration` و`saas-real-lifecycle` ومجلداتها الحاضنة بعد
 التحقق من الحفظ وعدم استخدامها؛ وكانت نسخة HR للمستأجر الأول قد أُزيلت سابقًا.
-بقي المرشح المؤقت `/tmp/nasq-consolidation-20261004/remaining` لنقل تحديث هذه
+بقي المرشح المؤقت `/tmp/webvue-consolidation-20261004/remaining` لنقل تحديث هذه
 الوثيقة إلى `main` ثم إزالته بواسطة منسق الدمج. سيُسجّل التزام الوثيقة النهائي
 والتحقق من بقاء نسخة `main` وحدها في
-`/Users/tariq/Archives/nasq/2026-10-04/nasq-preservation-20261003-220705/remaining-20261004-141720/FINAL-STATUS.md`؛
+`/Users/tariq/Archives/webvue/2026-10-04/webvue-preservation-20261003-220705/remaining-20261004-141720/FINAL-STATUS.md`؛
 لا يُعدّ إنجاز هاتين الخطوتين مثبتًا هنا مسبقًا.
 
 أُوقفت 21 حاوية قبول محلي وعُطّل إعادة تشغيلها التلقائي، مع إبقائها للاسترداد.
@@ -182,7 +182,7 @@ Local only: no push and no deployment. `main` (`4eab6fd7`) includes
 إحالات bind إلى النسخ القديمة في الحاويات العاملة. الحاويات الموقوفة تحتفظ
 بإعدادات الربط القديمة، ولذلك يلزم استرداد مسارات المصدر قبل استخدامها مجددًا.
 
-مواد الاسترداد محفوظة تحت `/Users/tariq/Archives/nasq/2026-10-04/nasq-preservation-20261003-220705` بعد نقل الأرشيف يوم 2026-10-04.
+مواد الاسترداد محفوظة تحت `/Users/tariq/Archives/webvue/2026-10-04/webvue-preservation-20261003-220705` بعد نقل الأرشيف يوم 2026-10-04.
 طابق الجرد الحديث 216,179 عنصرًا من النسخ الأربع مع الأرشيفات الأساسية المتحقق
 من استعادتها وفهارس Git وبيانات الجرد الحديثة. وتحقّق Git bundle جديد حجمه نحو
 55 MB يشمل التزام `main` المحلي؛ لا يشمل هذا الادعاء التغييرات غير الملتزمة
@@ -215,10 +215,10 @@ Local only: no push and no deployment. `main` (`4eab6fd7`) includes
 مع المزود الحقيقي وقياس الاستخدام والسعة والتعافي ما زالت تحتاج أدلتها.
 
 نُقلت ثمانية مجلدات حفظ وأدلة كاملة، بأسمائها الأصلية، إلى
-`/Users/tariq/Archives/nasq/2026-10-04` بصلاحية خاصة. التفاصيل الحالية في
+`/Users/tariq/Archives/webvue/2026-10-04` بصلاحية خاصة. التفاصيل الحالية في
 `README.md` وخريطة المسارات في `RELOCATION-MAP.json` هناك. بقيت التقارير
 والسكربتات التاريخية دون إعادة كتابة؛ ترجم مساراتها المطلقة القديمة بالخريطة
-ولا تشغّل سكربتات التنظيف القديمة. بقي مجلد `nasq-security-evidence-20260909`
+ولا تشغّل سكربتات التنظيف القديمة. بقي مجلد `webvue-security-evidence-20260909`
 في مكانه لأنه يحتوي بيئة Odoo ومواد استرداد قواعد وملفات خاصة.
 
 أُزيلت عشر نسخ مفتوحة في `restore-rehearsal` فقط، بعد مطابقتها حديثًا مع
@@ -262,14 +262,14 @@ PITR، لا موقع ثانٍ) في [تقرير التمرين](verification/202
 بيانات صغير لكل مستأجر) في [تقرير التمرين](verification/2026-10-09-real-odoo-isolation-matrix.md).
 لا commit أو push ضمن هذا التمرين.
 
-2026-10-16: أُضيفت أدوات تطبيق لوحة المزوّد `apps/vendor-admin` (قاعدة `VA1` وخطوة CI وصورة Docker وقوالب البيئة وكتلة الحافة)؛ حُذفت لاحقًا حزم القبول القديمة (انظر «فصل لوحة تحكم نسق» أدناه).
+2026-10-16: أُضيفت أدوات تطبيق لوحة المزوّد `apps/vendor-admin` (قاعدة `VA1` وخطوة CI وصورة Docker وقوالب البيئة وكتلة الحافة)؛ حُذفت لاحقًا حزم القبول القديمة (انظر «فصل لوحة تحكم ويب فيو» أدناه).
 
 ## تحسين تجربة المشاريع — 2026-10-16
 
 حزمة تجربة المشاريع واختصار قائمتها محفوظة في `codex/pmo-projects-ux` بالكومتين `1ac2b4b0` و`37025d22`. أُعدت نسخة دمج مستقلة من main عند `0733a750` واجتازت 2334 اختبار واجهة و202 اختبار عقود وفحوص الأنواع والسياسات. وجهة التكامل المصرح بها هي main المحلي فقط. [سجل تحقق الدمج وحفظ الأعمال الأخرى](verification/2026-10-16-projects-ux-integration.md) و[قبول الرحلات وحدوده](verification/2026-10-16-projects-ux.md). النسخة التجريبية على 4410 تبقى معزولة؛ لا push أو نشر أو تنظيف للنسخ ضمن هذا التفويض.
 
-## فصل لوحة تحكم نسق — 2026-10-16
+## فصل لوحة تحكم ويب فيو — 2026-10-16
 
-المراحل 1 إلى 3 (طبقتا `packages/ui` و`packages/commercial-ui`، وهوية المزوّد في خدمة التحكم، وتطبيق `apps/vendor-admin` مع إزالة لوحة المزوّد من `apps/web`) مدموجة في main المحلي عند `d2d1894a`. لا push ولا نشر ولا DNS. [المواصفة](superpowers/specs/2026-10-15-nasq-vendor-admin-separation-design.md) و[خطة المرحلة 3](superpowers/plans/2026-10-16-vendor-admin-p3-app.md)، و[مقترح تعديل طبقات المعمارية](superpowers/plans/2026-10-16-vendor-admin-p4-arch-layers-proposal.md) ينتظر المالك.
+المراحل 1 إلى 3 (طبقتا `packages/ui` و`packages/commercial-ui`، وهوية المزوّد في خدمة التحكم، وتطبيق `apps/vendor-admin` مع إزالة لوحة المزوّد من `apps/web`) مدموجة في main المحلي عند `d2d1894a`. لا push ولا نشر ولا DNS. [المواصفة](superpowers/specs/2026-10-15-webvue-vendor-admin-separation-design.md) و[خطة المرحلة 3](superpowers/plans/2026-10-16-vendor-admin-p3-app.md)، و[مقترح تعديل طبقات المعمارية](superpowers/plans/2026-10-16-vendor-admin-p4-arch-layers-proposal.md) ينتظر المالك.
 
 حُذفت حزم القبول المكسورة لأنها كانت تخدم `apps/web` مضيفًا للمزوّد وتستعمل أمر `admin -- grant` المحذوف: `tools/saas_commercial_acceptance` (الكومت `b6325908`) ومشروع compose والمواصفات في `tools/shared_saas_lifecycle` (الكومت `c44107a7`؛ بقيت وحدات الأثر واختباراتها لأن عامل خدمة التحكم يشغّلها). التغطية المفقودة حاليًا: تجهيز Odoo الفعلي بعامل من المتصفح، ونسخ واستعادة قاعدة البيانات وfilestore لمستأجرين مع عزل المضيف المستعاد، وعزل المضيفات الأربعة، واختبارات الأعطال (قتل العامل وإيقاف قاعدة التحكم)، والرحلة التجارية الكاملة E04-E12، وعزل العميل E13، والصفحات E15، ومشغّل المصفوفة E01-E16. الوصفات محفوظة في تاريخ Git قبل هذين الكومتين. الدليل الحي الوحيد الباقي للوحة المزوّد هو `node tools/vendor_admin_local_check.mjs` (الدخول والتسجيل وإدارة الفريق فقط).

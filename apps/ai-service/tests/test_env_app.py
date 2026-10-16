@@ -3,9 +3,9 @@ import logging
 
 import httpx
 
-from nasq_ai_service import service
-from nasq_ai_service.service import EnvApp
-from nasq_ai_service.store import MemoryRunStore
+from webvue_ai_service import service
+from webvue_ai_service.service import EnvApp
+from webvue_ai_service.store import MemoryRunStore
 
 
 async def test_env_app_runs_its_lifespan_and_serves(monkeypatch):
@@ -81,7 +81,7 @@ async def test_startup_failure_names_only_the_error_class_and_closes_the_pool(mo
 
 
 async def test_cleanup_failure_prints_only_the_error_class(monkeypatch, capsys):
-    from nasq_ai_service import cleanup
+    from webvue_ai_service import cleanup
 
     async def failing_open_state(_url):
         raise RuntimeError("could not connect postgresql://u:pw@h/db sk-secret")
@@ -96,8 +96,8 @@ async def test_cleanup_failure_prints_only_the_error_class(monkeypatch, capsys):
 
 
 async def test_shutdown_waits_for_the_persist_tasks_before_closing_the_pool(monkeypatch):
-    from nasq_ai_service.store import MemoryRunStore
     from tests.fakes import ScriptedChatModel
+    from webvue_ai_service.store import MemoryRunStore
 
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
@@ -156,7 +156,7 @@ async def test_boot_without_a_database_fails_unless_memory_state_is_allowed(monk
 
 
 async def test_memory_boot_warns_once_about_state_and_about_the_missing_token_without_secrets(monkeypatch, caplog):
-    caplog.set_level(logging.WARNING, logger="nasq_ai_service")
+    caplog.set_level(logging.WARNING, logger="webvue_ai_service")
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
@@ -168,7 +168,7 @@ async def test_memory_boot_warns_once_about_state_and_about_the_missing_token_wi
 
 
 async def test_a_database_and_a_token_boot_without_warnings(monkeypatch, caplog):
-    caplog.set_level(logging.WARNING, logger="nasq_ai_service")
+    caplog.set_level(logging.WARNING, logger="webvue_ai_service")
     monkeypatch.setenv("AI_PROVIDER", "ollama")
     monkeypatch.setenv("AI_MODEL", "m")
     monkeypatch.setenv("AI_DATABASE_URL", "postgresql://u:pw@h/db")

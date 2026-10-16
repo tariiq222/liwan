@@ -4,7 +4,7 @@
 
 Parent-authorized narrow task: replace unsafe unbounded secret-file reading with
 `resolve_secret(handle) -> str`, implemented only in the new
-`tools/nasq_cli/managed_secrets.py` and its new `tools/test_managed_secrets.py` tests.
+`tools/webvue_cli/managed_secrets.py` and its new `tools/test_managed_secrets.py` tests.
 Runtime wiring remains parent-owned. This document is the third owned output.
 No runtime, worker, credential, or other existing implementation file was edited.
 

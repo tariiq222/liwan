@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import MetricTile from '@nasq/ui/app/components/shared/data/MetricTile.vue'
+import MetricTile from '@webvue/ui/app/components/shared/data/MetricTile.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

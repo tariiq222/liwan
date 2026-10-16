@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import RouteTabs from '@nasq/ui/app/components/shared/layout/RouteTabs.vue'
+import RouteTabs from '@webvue/ui/app/components/shared/layout/RouteTabs.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

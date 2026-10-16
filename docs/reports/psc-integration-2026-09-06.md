@@ -17,14 +17,14 @@ Canonical `/Users/tariq/code/nasq` still `07fed61` with dirty `apps/web/nuxt.con
 
 | Role | Database | Port |
 | --- | --- | --- |
-| unit | `nasq_psc_scratch_integration_unit_20260906` | 9791 |
-| e2e | `nasq_psc_scratch_integration_e2e_20260906` | Odoo 9792 / Nuxt 3792 |
-| upgrade (failed modules list) | `nasq_psc_scratch_integration_upgrade_20260906` | 9793 |
-| upgrade (tests during -u) | `nasq_psc_scratch_integration_upgrade_20260906b` | 9793 |
-| upgrade (PASS) | `nasq_psc_scratch_integration_upgrade_20260906c` | 9793 |
-| race | `nasq_psc_scratch_integration_race_20260906` | 9794 |
+| unit | `webvue_psc_scratch_integration_unit_20260906` | 9791 |
+| e2e | `webvue_psc_scratch_integration_e2e_20260906` | Odoo 9792 / Nuxt 3792 |
+| upgrade (failed modules list) | `webvue_psc_scratch_integration_upgrade_20260906` | 9793 |
+| upgrade (tests during -u) | `webvue_psc_scratch_integration_upgrade_20260906b` | 9793 |
+| upgrade (PASS) | `webvue_psc_scratch_integration_upgrade_20260906c` | 9793 |
+| race | `webvue_psc_scratch_integration_race_20260906` | 9794 |
 
-PG catalog before start had no `nasq_psc_scratch_integration_*` names. Existing unrelated scratches `nasq_fixes_scratch_*` were not reused.
+PG catalog before start had no `webvue_psc_scratch_integration_*` names. Existing unrelated scratches `webvue_fixes_scratch_*` were not reused.
 
 ## Checks
 
@@ -36,7 +36,7 @@ Logs under `.agent/tasks/psc-integration-evidence/current/logs/wp3/` (untracked)
 - Race exit 0: concurrent accept one `ok` and one `422`; digest workers both `DIGEST_WORKER_OK`.
 - Quality: lint 0; contracts 86; web 305; build 0; unittest 39 OK; ruff r2 0; pycompile 0.
 
-Generated build still proxies `/web/**` and `/odoo/**` to `http://127.0.0.1:9792`; `wsUrl`/`odooUrl`/`odooDb` match the e2e scratch. `/api/v1/**` is the Nitro handler using that odooUrl. Direct and Nuxt-proxied `/web/session/authenticate` returned db `nasq_psc_scratch_integration_e2e_20260906`.
+Generated build still proxies `/web/**` and `/odoo/**` to `http://127.0.0.1:9792`; `wsUrl`/`odooUrl`/`odooDb` match the e2e scratch. `/api/v1/**` is the Nitro handler using that odooUrl. Direct and Nuxt-proxied `/web/session/authenticate` returned db `webvue_psc_scratch_integration_e2e_20260906`.
 
 ## Limitations
 

@@ -15,14 +15,14 @@ The chat module reuses native Odoo Discuss channels, messages, memberships
 and attachment access. It adds routed chat pages, member and attachment
 information, recipients, messaging, unread state and polling. Current sidebar
 settings placement, charter contracts and existing runtime proxy changes are
-preserved. New provisioned installations include `nasq_chat`; this operation
+preserved. New provisioned installations include `webvue_chat`; this operation
 does not deploy or upgrade `odoo19`.
 
 Final candidate gates passed on the integrated source:
 
 - 102 contract tests, 347 web unit tests, 39 operations tests.
 - 370 Odoo tests, zero failures/errors, on fresh isolated database
-  `nasq_psc_scratch_chatmerge_final_20260907`.
+  `webvue_psc_scratch_chatmerge_final_20260907`.
 - 135 browser tests in 3 minutes against isolated Odoo 9892 / web 3892,
   including chat delivery, focused short-thread read receipts, attachments,
   membership security, current project/HR flows and fresh PSC fixtures.

@@ -41,7 +41,7 @@ const tableHost = ref<HTMLElement | null>(null)
 useRowNavigation(body)
 
 const tableColumns = computed<TableColumn<T>[]>(() => props.selectable
-  ? [{ id: 'select', enableSorting: false, enableHiding: false, meta: { class: { td: 'nasq-select-cell' } } }, ...props.columns]
+  ? [{ id: 'select', enableSorting: false, enableHiding: false, meta: { class: { td: 'webvue-select-cell' } } }, ...props.columns]
   : props.columns)
 const rowId = (row: T) => String(dataRowKey(row, props.rowKey))
 const rowSelection = computed({

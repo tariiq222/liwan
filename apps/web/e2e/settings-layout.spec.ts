@@ -16,7 +16,7 @@ for (const width of [1440, 390]) {
     await expect(page).toHaveURL(/\/settings\/branding$/)
     await expect(page.getByTestId('branding-color')).toBeVisible()
     await expect(page.getByTestId('settings-branding-tab')).toBeVisible()
-    await expect(page.locator('.nasq-settings-nav a[href="/settings/branding"]')).toHaveCount(0)
+    await expect(page.locator('.webvue-settings-nav a[href="/settings/branding"]')).toHaveCount(0)
     await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
 
     const rolesResponse = await page.request.get('/api/v1/admin/roles')
@@ -35,7 +35,7 @@ for (const width of [1440, 390]) {
       await expect(page.locator('h1')).not.toBeEmpty()
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
       expect(overflow, `${path} must not scroll horizontally as a page`).toBe(false)
-      const filters = page.locator('.nasq-settings-filters')
+      const filters = page.locator('.webvue-settings-filters')
       if (await filters.count()) {
         const controls = filters.locator('input, select')
         await expect(controls.first()).toBeVisible()

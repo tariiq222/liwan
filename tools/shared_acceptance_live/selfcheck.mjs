@@ -13,7 +13,7 @@ const REPO_ROOT = resolve(__dirname, '../..')
 const { validateRegistry, readTenantRegistry } = await import(resolve(REPO_ROOT, 'apps/web/server/utils/tenantRegistry.ts'))
 const { sessionCodec } = await import(resolve(REPO_ROOT, 'deploy/shared/guard.mjs'))
 
-const TMPDIR = resolve('/tmp', `nasq-selfcheck-${Date.now()}`)
+const TMPDIR = resolve('/tmp', `webvue-selfcheck-${Date.now()}`)
 mkdirSync(TMPDIR, { recursive: true })
 
 let failures = 0
@@ -35,18 +35,18 @@ const validRegistry = {
   snapshotRevision: 1,
   targets: [
     {
-      host: 'a.accept.nasq.test',
+      host: 'a.accept.webvue.test',
       tenantId: 'accept-a',
-      database: 'nasq_accept_a',
-      filestore: 'nasq_accept_a',
+      database: 'webvue_accept_a',
+      filestore: 'webvue_accept_a',
       enabled: true,
       registryRevision: 1,
     },
     {
-      host: 'b.accept.nasq.test',
+      host: 'b.accept.webvue.test',
       tenantId: 'accept-b',
-      database: 'nasq_accept_b',
-      filestore: 'nasq_accept_b',
+      database: 'webvue_accept_b',
+      filestore: 'webvue_accept_b',
       enabled: true,
       registryRevision: 1,
     },

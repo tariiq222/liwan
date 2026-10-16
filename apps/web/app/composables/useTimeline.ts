@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ThreadTaskListSchema, TimelineEntrySchema, type TimelineEntry } from '@nasq/contracts'
+import { ThreadTaskListSchema, TimelineEntrySchema, type TimelineEntry } from '@webvue/contracts'
 import { taskKeys } from './useTasks'
 
 const TimelineListSchema = TimelineEntrySchema.array()

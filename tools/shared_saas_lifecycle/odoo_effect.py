@@ -17,15 +17,15 @@ import subprocess
 import sys
 import threading
 
-from tools.nasq_cli.managed_verify import ERROR_CODES, VerificationError, build_policy_script, build_snapshot_script, parse_snapshot
+from tools.webvue_cli.managed_verify import ERROR_CODES, VerificationError, build_policy_script, build_snapshot_script, parse_snapshot
 from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resolve_catalog_path
-from tools.nasq_cli.managed_credentials import build_credentials_script, parse_credentials
-from tools.nasq_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
+from tools.webvue_cli.managed_credentials import build_credentials_script, parse_credentials
+from tools.webvue_cli.managed_policy import POLICY_ERROR_CODES, PolicyError, parse_create_policy, parse_package_create_policy
 
 from tools.catalog_check import TEST_ONLY_MODULES
-from tools.nasq_cli.module_closure import REPO_ADDONS
+from tools.webvue_cli.module_closure import REPO_ADDONS
 
-MODULE_ID = re.compile(r'(?:nasq|customer)_[a-z0-9_]+')
+MODULE_ID = re.compile(r'(?:webvue|customer)_[a-z0-9_]+')
 MAX_OUTPUT = 65536
 
 class EffectError(ValueError):
@@ -37,13 +37,13 @@ OBSERVE_CONTAINER = re.compile(r'-effect-[a-f0-9]{8}-(?:observe|snapshot|read-ad
 
 
 def validate_database(value):
-    if not isinstance(value, str) or not re.fullmatch(r'nasq_scratch_[a-f0-9]{32}', value):
+    if not isinstance(value, str) or not re.fullmatch(r'webvue_scratch_[a-f0-9]{32}', value):
         raise EffectError('database_invalid')
     return value
 
 
 def validate_modules(value):
-    """A non-empty list of distinct Nasq or customer addons shipped in this repository.
+    """A non-empty list of distinct WebVue or customer addons shipped in this repository.
 
     Which modules a policy installs comes from the trusted catalog; this only refuses
     names that cannot be an addon of this release (including test-only addons), so a new application needs no edit.
@@ -145,7 +145,7 @@ class Runner:
         config = self.config
         if (set(config) != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
                 or config['schemaVersion'] != 1
-                or not re.fullmatch(r'nasq-(?:saas|shared)-[a-z0-9-]{3,48}', config['projectName'])):
+                or not re.fullmatch(r'webvue-(?:saas|shared)-[a-z0-9-]{3,48}', config['projectName'])):
             raise EffectError('runtime_invalid')
         for key in ('composeFile', 'envFile', 'stateDir'):
             no_symlink(config[key])
@@ -264,8 +264,8 @@ class Runner:
         name = self.config['projectName'] + '-effect-' + attempt[:8] + '-' + suffix
         self.current_container = name
         args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', name,
-            '-e', 'NASQ_COMMERCIAL_CONFIG=/run/nasq-runtime/classifications/' + self.database + '.json',
-            '--entrypoint', '/usr/local/bin/nasq-odoo', 'odoo', 'shell', '-c', '/etc/odoo/odoo.conf',
+            '-e', 'WEBVUE_COMMERCIAL_CONFIG=/run/webvue-runtime/classifications/' + self.database + '.json',
+            '--entrypoint', '/usr/local/bin/webvue-odoo', 'odoo', 'shell', '-c', '/etc/odoo/odoo.conf',
             '-d', self.database, '--no-http']
         try:
             return self.command(args, stdin=script, timeout=180)
@@ -315,14 +315,14 @@ class Runner:
         self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-install'
         try:
             self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
-                '-e', 'NASQ_COMMERCIAL_CONFIG=/run/nasq-runtime/classifications/' + self.database + '.json',
-                '--entrypoint', '/usr/local/bin/nasq-odoo', 'odoo', '-c', '/etc/odoo/odoo.conf', '-d', self.database,
+                '-e', 'WEBVUE_COMMERCIAL_CONFIG=/run/webvue-runtime/classifications/' + self.database + '.json',
+                '--entrypoint', '/usr/local/bin/webvue-odoo', 'odoo', '-c', '/etc/odoo/odoo.conf', '-d', self.database,
                 '-i', ','.join(self.request['job']['policy']['modules']), '--without-demo=all', '--stop-after-init', '--no-http'], timeout=1500)
         finally:
             self.current_container = None
         policy = self.request['job']['policy']
         parse_snapshot(self.shell(build_policy_script(policy, self.database), 'policy', mutate=True), policy, self.database)
-        credentials_script = 'import os\nos.environ["NASQ_ADMIN_PASSWORD"] = ' + repr(secret) + '\n' + build_credentials_script(self.database)
+        credentials_script = 'import os\nos.environ["WEBVUE_ADMIN_PASSWORD"] = ' + repr(secret) + '\n' + build_credentials_script(self.database)
         parse_credentials(self.shell(credentials_script, 'password', mutate=True), self.database)
         output = self.shell(self.admin_script(secret, snapshot=False), 'admin', mutate=True)
         self.parse_admin(output)
@@ -342,44 +342,44 @@ try:
         env.cr.execute('SET TRANSACTION READ ONLY')
         env.invalidate_all(flush=False)
     assert env.cr.dbname == values['database'] and env.su and env.uid == 1
-    profile = env['nasq.tenant.profile'].search([], limit=2)
+    profile = env['webvue.tenant.profile'].search([], limit=2)
     assert len(profile) == 1 and profile.policy_revision == 1
     admin = env.ref('base.user_admin')
     assert admin.id != 1 and admin.active and admin.company_id == profile.root_company_id
     # Every application is installed; the applied policy decides the roles.
-    keys = env['nasq.entitlement.service']._nasq_entitled_admin_roles()
+    keys = env['webvue.entitlement.service']._webvue_entitled_admin_roles()
     if not snapshot:
         assert admin.login == 'admin'
-        admin._nasq_access_write({'login': values['login'], 'name': values['name']}, 'access.users.update')
+        admin._webvue_access_write({'login': values['login'], 'name': values['name']}, 'access.users.update')
         profile.root_company_id.write({'name': values['companyName']})
         for key in keys:
-            role = env['nasq.access.role'].search([('key', '=', key)], limit=1)
+            role = env['webvue.access.role'].search([('key', '=', key)], limit=1)
             assert role
-            assignment = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('role_id', '=', role.id), ('company_id', '=', profile.root_company_id.id)])
+            assignment = env['webvue.access.assignment'].search([('user_id', '=', admin.id), ('role_id', '=', role.id), ('company_id', '=', profile.root_company_id.id)])
             if not assignment:
-                env['nasq.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})
-        # The stock nasq install seeds admin as vendor support. The first
+                env['webvue.access.assignment'].create({'user_id': admin.id, 'role_id': role.id, 'company_id': profile.root_company_id.id})
+        # The stock webvue install seeds admin as vendor support. The first
         # administrator of a shared SaaS tenant is always the customer's own
         # (package or catalog provisioning alike), so it is counted against
         # users.limit and is not vendor support.
-        support = env.ref('nasq_core.group_vendor_support')
-        admin._nasq_access_write({'group_ids': [(3, support.id, 0)]}, 'access.users.assign_roles')
+        support = env.ref('webvue_core.group_vendor_support')
+        admin._webvue_access_write({'group_ids': [(3, support.id, 0)]}, 'access.users.assign_roles')
         # Role creation above may have synced support's wildcard grants.
         # Re-derive permission groups from retained customer assignments;
         # the existing service preserves unrelated explicit groups.
-        admin._nasq_sync_capability_groups()
+        admin._webvue_sync_capability_groups()
         env.flush_all()
-    service = env['nasq.entitlement.service']
-    assert not admin.share and not admin.has_group('nasq_core.group_vendor_support')
-    assert admin.id not in service._nasq_excluded_user_ids()
+    service = env['webvue.entitlement.service']
+    assert not admin.share and not admin.has_group('webvue_core.group_vendor_support')
+    assert admin.id not in service._webvue_excluded_user_ids()
     # Removing support is not a quota claim, so check the applied limit here:
     # a tenant must not be born over its own users.limit.
-    users = service._nasq_count_users()
-    limit = service._nasq_limit_value('users.limit')
+    users = service._webvue_count_users()
+    limit = service._webvue_limit_value('users.limit')
     assert users >= 1 and (limit is None or users <= limit)
     assert admin.login == values['login'] and admin.name == values['name']
     assert profile.root_company_id.name == values['companyName']
-    assigned = env['nasq.access.assignment'].search([('user_id', '=', admin.id), ('company_id', '=', profile.root_company_id.id)]).mapped('role_id.key')
+    assigned = env['webvue.access.assignment'].search([('user_id', '=', admin.id), ('company_id', '=', profile.root_company_id.id)]).mapped('role_id.key')
     assert set(keys) <= set(assigned)
     env.cr.execute('SELECT password FROM res_users WHERE id=%s', [admin.id])
     hashed = env.cr.fetchone()[0]
@@ -393,11 +393,11 @@ except Exception:
     env.cr.rollback()
 finally:
     secret = None
-print('NASQ_SHARED_ADMIN:' + json.dumps(result))
+print('WEBVUE_SHARED_ADMIN:' + json.dumps(result))
 '''
 
     def parse_admin(self, output):
-        rows = [line[len('NASQ_SHARED_ADMIN:'):] for line in output.splitlines() if line.startswith('NASQ_SHARED_ADMIN:')]
+        rows = [line[len('WEBVUE_SHARED_ADMIN:'):] for line in output.splitlines() if line.startswith('WEBVUE_SHARED_ADMIN:')]
         if len(rows) != 1:
             raise EffectError('admin_unverified')
         value = json.loads(rows[0])

@@ -95,7 +95,7 @@ async function save() {
       <SharedUnsavedChanges :dirty="dirty" />
       <p v-if="editorContext" class="rounded-lg bg-elevated/50 p-3 text-sm">{{ t('meetingsUx.recommendationEditorContext', { name: query.data.value.name }) }}</p>
       <SharedFormSection :title="t('meetingsUi.resolutions')">
-        <div class="nasq-form-grid">
+        <div class="webvue-form-grid">
           <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
             <UInput id="res-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
           </UFormField>

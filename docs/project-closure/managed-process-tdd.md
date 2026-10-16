@@ -4,7 +4,7 @@
 
 Worktree `/Users/tariq/code/nasq-managed-saas-acceptance`, branch
 `codex/managed-saas-acceptance`. This follow-up owns only new
-`tools/nasq_cli/managed_process.py`, `tools/test_managed_process.py`, and this
+`tools/webvue_cli/managed_process.py`, `tools/test_managed_process.py`, and this
 report. Runtime integration remains parent-owned. No real Docker invocation,
 DB access, install, commit, merge, deployment or existing-resource action was
 performed. Tests execute only short-lived Python child processes, injected
@@ -13,7 +13,7 @@ Docker result fixtures and filesystem-stat mocks.
 ## API
 
 ```python
-from nasq_cli.managed_process import run, local_docker_runner, ProcessError
+from webvue_cli.managed_process import run, local_docker_runner, ProcessError
 
 run(argv, env=None, stdin_text=None, *, timeout=1800, output_limit=65536)
 # -> (exit_code, stdout, '')
@@ -92,7 +92,7 @@ ordinary concurrent Docker context switches from redirecting the operation.
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=tools python3 -B -m unittest tools/test_managed_process.py
-python3 -B -m ruff check --no-cache tools/nasq_cli/managed_process.py tools/test_managed_process.py
+python3 -B -m ruff check --no-cache tools/webvue_cli/managed_process.py tools/test_managed_process.py
 ```
 
 - Initial RED: 13 failures, explicit missing module, exit 1.

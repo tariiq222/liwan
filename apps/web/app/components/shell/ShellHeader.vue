@@ -3,14 +3,14 @@ import { useMediaQuery } from '@vueuse/core'
 import AppAccountMenu from '@/components/shell/AppAccountMenu.vue'
 import GlobalSearch from '@/components/shell/GlobalSearch.vue'
 import MobileNavigation from '@/components/shell/MobileNavigation.vue'
-import ShellBreadcrumb from '@nasq/ui/app/components/shell/ShellBreadcrumb.vue'
+import ShellBreadcrumb from '@webvue/ui/app/components/shell/ShellBreadcrumb.vue'
 import NotificationCenter from '@/components/notifications/NotificationCenter.vue'
 import { shellBreadcrumb } from '@/composables/nav/breadcrumb'
 import { goKeyTargets } from '@/composables/nav/paletteModel'
 import { useNav, type ShellContextLink } from '@/composables/nav/shellModules'
 import { sidebarModel } from '@/composables/nav/sidebarModel'
 import { clickPageCreate, createShortcutTarget, focusListSearch } from '@/composables/shortcuts/targets'
-import { usePageHeaderTitle } from '@nasq/ui/app/composables/usePageHeader'
+import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
 import { useShellModel } from '@/composables/useShellModel'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
@@ -28,7 +28,7 @@ const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLink
 const { expanded } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 // The tenant's own mark: its logo, else its initials on the primary colour. A tenant without a
-// name or logo shows nothing here, because the rail already carries the Nasq wordmark.
+// name or logo shows nothing here, because the rail already carries the WebVue wordmark.
 const tenantName = computed(() => branding.value?.name?.trim() ?? '')
 const tenantInitials = computed(() => tenantName.value.split(/\s+/).filter(Boolean).slice(0, 2).map(word => Array.from(word)[0]!).join('').toLocaleUpperCase())
 const showTenantMark = computed(() => !!branding.value?.logo_url || !!tenantName.value)
@@ -64,8 +64,8 @@ useShellShortcuts({
 </script>
 
 <template>
-  <header data-testid="shell-header" class="nasq-shell-header" :aria-label="t('nav.header')">
-    <div class="nasq-shell-header-start">
+  <header data-testid="shell-header" class="webvue-shell-header" :aria-label="t('nav.header')">
+    <div class="webvue-shell-header-start">
       <MobileNavigation
         v-model:open="mobileOpen"
         :modules="rail.all"
@@ -74,17 +74,17 @@ useShellShortcuts({
         :create-links="mobileCreateLinks"
         :sections="mobile.sections"
       />
-      <NuxtLink v-if="showTenantMark" :to="homePath" class="nasq-shell-brand" :aria-label="`${tenantName || t('app.productName')} — ${t('nav.home')}`">
-        <img v-if="branding?.logo_url" :src="branding.logo_url" alt="" class="nasq-shell-brand-logo">
-        <span v-else class="nasq-shell-brand-mark bg-primary! text-inverted!" aria-hidden="true">{{ tenantInitials }}</span>
-        <span v-if="tenantName" class="nasq-shell-brand-name">{{ tenantName }}</span>
+      <NuxtLink v-if="showTenantMark" :to="homePath" class="webvue-shell-brand" :aria-label="`${tenantName || t('app.productName')} — ${t('nav.home')}`">
+        <img v-if="branding?.logo_url" :src="branding.logo_url" alt="" class="webvue-shell-brand-logo">
+        <span v-else class="webvue-shell-brand-mark bg-primary! text-inverted!" aria-hidden="true">{{ tenantInitials }}</span>
+        <span v-if="tenantName" class="webvue-shell-brand-name">{{ tenantName }}</span>
       </NuxtLink>
-      <span v-if="showTenantMark && crumbs.length" class="nasq-shell-header-divider" aria-hidden="true" />
+      <span v-if="showTenantMark && crumbs.length" class="webvue-shell-header-divider" aria-hidden="true" />
       <ShellBreadcrumb :items="crumbs" />
     </div>
-    <div class="nasq-shell-header-actions">
+    <div class="webvue-shell-header-actions">
       <GlobalSearch />
-      <NotificationCenter v-if="can('nasq.notifications')" />
+      <NotificationCenter v-if="can('webvue.notifications')" />
       <AppAccountMenu />
     </div>
   </header>

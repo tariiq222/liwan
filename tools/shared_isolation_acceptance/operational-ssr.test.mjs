@@ -9,11 +9,11 @@ import { test } from 'node:test'
 import { chromium } from '@playwright/test'
 
 const root = new URL('../../', import.meta.url).pathname
-const artifact = resolve(process.env.NASQ_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output'))
+const artifact = resolve(process.env.WEBVUE_ACCEPTANCE_ARTIFACT ?? join(root, 'apps/web/.output'))
 test('built authenticated SSR separates concurrent and alternating tenant payloads', { timeout: 45000 }, async () => {
   const token = 'operational-synthetic-private-token-0000000'
   const tenants = ['a', 'b'].map((id, index) => ({ host: `${id}.operational.invalid`, tenantId: id, database: `synthetic_${id}`, filestore: `synthetic_${id}`, enabled: true, registryRevision: 1, uid: 101 + index, marker: `TENANT_${id.toUpperCase()}_ONLY` }))
-  const directory = await mkdtemp(join(tmpdir(), 'nasq-operational-ssr-'))
+  const directory = await mkdtemp(join(tmpdir(), 'webvue-operational-ssr-'))
   const registry = join(directory, 'registry.json')
   await writeFile(registry, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: tenants.map(({ uid, marker, ...target }) => target) }))
   const revokedProjects = new Set()
@@ -24,8 +24,8 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
   const mock = http.createServer((req, res) => {
     const tenant = tenants.find(t => t.host === req.headers.host)
     res.setHeader('content-type', 'application/json')
-    if (!tenant || req.headers['x-nasq-proxy-token'] !== token || req.headers['x-nasq-tenant-revision'] !== '1') { res.writeHead(403); res.end('{}'); return }
-    calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, token: req.headers['x-nasq-proxy-token'], revision: req.headers['x-nasq-tenant-revision'] })
+    if (!tenant || req.headers['x-webvue-proxy-token'] !== token || req.headers['x-webvue-tenant-revision'] !== '1') { res.writeHead(403); res.end('{}'); return }
+    calls.push({ path: req.url, host: req.headers.host, cookie: req.headers.cookie, token: req.headers['x-webvue-proxy-token'], revision: req.headers['x-webvue-tenant-revision'] })
     if (req.url === '/api/v1/abort-probe') { res.once('close', notifyAbortClosed); notifyAbortSeen(); return }
     if (req.url === '/api/v1/partial') {
       if (req.headers.range !== 'bytes=1-2') { res.writeHead(416); res.end(); return }
@@ -46,13 +46,13 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
   await new Promise(r => mock.listen(0, '127.0.0.1', r))
   let child, exited, timer, stderr = ''
   try {
-    child = spawn(process.execPath, ['--import', join(root, 'tools/shared_isolation_acceptance/t17-ssr-probe.mjs'), join(artifact, 'server/index.mjs')], { env: { PATH: process.env.PATH, NODE_ENV: 'production', NASQ_TENANCY_MODE: 'shared', NASQ_SHARED_PROXY_TOKEN: token, NASQ_TENANT_REGISTRY_PATH: registry, NUXT_ODOO_URL: `http://127.0.0.1:${mock.address().port}`, T17_ALLOWED_PORT: String(mock.address().port) }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
+    child = spawn(process.execPath, ['--import', join(root, 'tools/shared_isolation_acceptance/t17-ssr-probe.mjs'), join(artifact, 'server/index.mjs')], { env: { PATH: process.env.PATH, NODE_ENV: 'production', WEBVUE_TENANCY_MODE: 'shared', WEBVUE_SHARED_PROXY_TOKEN: token, WEBVUE_TENANT_REGISTRY_PATH: registry, NUXT_ODOO_URL: `http://127.0.0.1:${mock.address().port}`, T17_ALLOWED_PORT: String(mock.address().port) }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
     child.stdout.resume(); child.stderr.on('data', c => { stderr += c })
     exited = once(child, 'exit')
     const address = await Promise.race([new Promise(r => child.on('message', m => m.bound && r(m.bound))), new Promise((_, reject) => { timer = setTimeout(() => reject(Error('startup_timeout')), 15000) }), exited.then(() => { throw Error(stderr) })])
     clearTimeout(timer)
     const request = (tenant, path = '/account', extraHeaders = {}) => new Promise((resolveRequest, reject) => {
-      const req = http.get({ host: '127.0.0.1', port: address.port, path, headers: { ...extraHeaders, host: tenant.host, cookie: `session_id=${tenant.tenantId}`, 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1' }, timeout: 10000 }, res => { let text = ''; res.on('data', c => { text += c }); res.on('end', () => resolveRequest({ status: res.statusCode, text, headers: res.headers })) })
+      const req = http.get({ host: '127.0.0.1', port: address.port, path, headers: { ...extraHeaders, host: tenant.host, cookie: `session_id=${tenant.tenantId}`, 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }, timeout: 10000 }, res => { let text = ''; res.on('data', c => { text += c }); res.on('end', () => resolveRequest({ status: res.statusCode, text, headers: res.headers })) })
       req.on('error', reject); req.on('timeout', () => req.destroy(Error('request_timeout')))
     })
     const verify = (response, tenant) => {
@@ -61,7 +61,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
       assert.ok(!response.text.includes(tenants.find(t => t !== tenant).marker), 'foreign identity leaked')
       const payload = response.text.match(/<script[^>]+id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)?.[1]
       assert.ok(payload?.includes(tenant.marker), 'own identity missing from serialized payload')
-      assert.ok(!response.text.includes(token)); assert.ok(!response.text.includes('x-nasq-proxy-token'))
+      assert.ok(!response.text.includes(token)); assert.ok(!response.text.includes('x-webvue-proxy-token'))
     }
     await Promise.all(Array.from({ length: 12 }, async (_, i) => { const tenant = tenants[i % 2]; verify(await request(tenant), tenant) }))
     for (let i = 0; i < 6; i++) for (const tenant of tenants) verify(await request(tenant), tenant)
@@ -90,7 +90,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
         const url = new URL(route.request().url())
         if (!url.hostname.endsWith('.operational.invalid')) return route.abort()
         const tenant = tenants.find(t => t.host === url.hostname)
-        const headers = { ...route.request().headers(), 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1' }
+        const headers = { ...route.request().headers(), 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }
         if (tenant) headers.cookie = `session_id=${tenant.tenantId}`
         visits.push({ host: url.hostname, path: url.pathname, cookie: headers.cookie })
         try {
@@ -134,7 +134,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
     assert.ok(!revoked.text.includes(`PROJECT_${tenants[0].marker}`), 'revoked request reused prior query data')
     assert.equal(projectCallsA(), beforeRevocation, 'disabled query still reached upstream')
     verifyQuery(stillAllowed, tenants[1])
-    const aborted = http.get({ host: '127.0.0.1', port: address.port, path: '/api/v1/abort-probe', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1' } })
+    const aborted = http.get({ host: '127.0.0.1', port: address.port, path: '/api/v1/abort-probe', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' } })
     aborted.on('error', () => {})
     await abortSeen
     aborted.destroy()
@@ -143,7 +143,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
     finally { clearTimeout(abortTimer) }
     verify(await request(tenants[1]), tenants[1])
     const oversized = await new Promise((resolveUpload, reject) => {
-      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/upload-probe', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1', 'content-type': 'application/json' }, timeout: 10000 }, res => { res.resume(); res.on('end', () => resolveUpload(res.statusCode)) })
+      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/upload-probe', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', 'content-type': 'application/json' }, timeout: 10000 }, res => { res.resume(); res.on('end', () => resolveUpload(res.statusCode)) })
       req.on('error', reject); req.on('timeout', () => req.destroy(Error('upload_timeout')))
       req.end(Buffer.alloc(16 * 1024 * 1024 + 1, 65))
     })
@@ -155,7 +155,7 @@ test('built authenticated SSR separates concurrent and alternating tenant payloa
       let finished = false
       let drip, deadline
       const finish = value => { if (finished) return; finished = true; clearInterval(drip); clearTimeout(deadline); resolveSlow(value) }
-      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/slow-upload', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1', 'content-type': 'application/json' } }, res => { res.resume(); res.on('end', () => finish(`status:${res.statusCode}`)) })
+      const req = http.request({ host: '127.0.0.1', port: address.port, method: 'POST', path: '/api/v1/slow-upload', headers: { host: tenants[0].host, cookie: 'session_id=a', 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1', 'content-type': 'application/json' } }, res => { res.resume(); res.on('end', () => finish(`status:${res.statusCode}`)) })
       req.on('error', error => finish(error.code ?? error.message))
       req.write('{')
       drip = setInterval(() => req.write(' '), 1000)

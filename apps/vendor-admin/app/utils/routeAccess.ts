@@ -1,4 +1,4 @@
-import { normalizePath, safeSameAppPath } from '@nasq/ui/app/utils/safeReturnTo'
+import { normalizePath, safeSameAppPath } from '@webvue/ui/app/utils/safeReturnTo'
 import { AUTH_PATHS } from './authPaths'
 
 export type RouteAccess =

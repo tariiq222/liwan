@@ -41,16 +41,16 @@ DOCKER_PY = r'''import json, sys
 from pathlib import Path
 args = sys.argv[1:]
 container_id = 'c0ffee'
-container = {'Id': container_id, 'Name': '/nasq-saas-control-local-control-db-1',
+container = {'Id': container_id, 'Name': '/webvue-saas-control-local-control-db-1',
     'Image': 'sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5',
-    'Config': {'Labels': {'com.docker.compose.project': 'nasq-saas-control-local',
+    'Config': {'Labels': {'com.docker.compose.project': 'webvue-saas-control-local',
         'com.docker.compose.service': 'control-db',
         'com.docker.compose.config-hash': 'eefc5a8aaa1f419dbc3c6be5b81fc07a767399f6ad5ba0813af0f663086d2e56',
-        'com.docker.compose.project.config_files': __import__('os').environ['NASQ_TEST_COMPOSE'],
-        'com.docker.compose.project.working_dir': __import__('os').environ['NASQ_TEST_WORKDIR']}},
+        'com.docker.compose.project.config_files': __import__('os').environ['WEBVUE_TEST_COMPOSE'],
+        'com.docker.compose.project.working_dir': __import__('os').environ['WEBVUE_TEST_WORKDIR']}},
     'HostConfig': {'PortBindings': {'5432/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '55432'}]}},
-    'Mounts': [{'Name': 'nasq-saas-control-local-db', 'Destination': '/var/lib/postgresql/data', 'Type': 'volume'}],
-    'NetworkSettings': {'Networks': {'nasq-saas-control-local-private': {}}},
+    'Mounts': [{'Name': 'webvue-saas-control-local-db', 'Destination': '/var/lib/postgresql/data', 'Type': 'volume'}],
+    'NetworkSettings': {'Networks': {'webvue-saas-control-local-private': {}}},
     'State': {'Status': 'running', 'Health': {'Status': 'healthy'}}}
 if args[:1] == ['ps']:
     print(container_id)
@@ -59,12 +59,12 @@ elif args[:1] == ['inspect'] and '--format' in args:
 elif args[:1] == ['inspect']:
     print(json.dumps([container]))
 elif args[:2] == ['volume', 'inspect']:
-    print(json.dumps([{'Name': 'nasq-saas-control-local-db',
-        'Labels': {'com.docker.compose.project': 'nasq-saas-control-local',
+    print(json.dumps([{'Name': 'webvue-saas-control-local-db',
+        'Labels': {'com.docker.compose.project': 'webvue-saas-control-local',
                    'com.docker.compose.volume': 'control_db_data'}}]))
 elif args[:2] == ['network', 'inspect']:
-    print(json.dumps([{'Name': 'nasq-saas-control-local-private',
-        'Labels': {'com.docker.compose.project': 'nasq-saas-control-local',
+    print(json.dumps([{'Name': 'webvue-saas-control-local-private',
+        'Labels': {'com.docker.compose.project': 'webvue-saas-control-local',
                    'com.docker.compose.network': 'control-private'}}]))
 elif args[:1] == ['exec']:
     sys.exit(0)
@@ -74,12 +74,12 @@ else:
 
 ENTRY_MJS = r'''import fs from 'node:fs';
 import process from 'node:process';
-const home = process.env.NASQ_CONTROL_HOME;
+const home = process.env.WEBVUE_CONTROL_HOME;
 const entry = (process.argv[2] || 'unknown');
 const name = entry.includes('worker') ? 'worker' : 'api';
 fs.writeFileSync(`${home}/entry-${name}.json`, JSON.stringify({
   pid: process.pid, ppid: process.ppid, argv: process.argv,
-  lock_var: process.env.NASQ_PROCESS_LOCK_FD ?? null,
+  lock_var: process.env.WEBVUE_PROCESS_LOCK_FD ?? null,
   fds: fs.readdirSync('/dev/fd').sort((a, b) => Number(a) - Number(b)),
 }));
 setInterval(() => {}, 1000);
@@ -90,7 +90,7 @@ class ActualRuntimeLifecycle(unittest.TestCase):
     maxDiff = None
 
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix='nasq-actual-lifecycle-')
+        self.tmp = tempfile.TemporaryDirectory(prefix='webvue-actual-lifecycle-')
         # run-local.sh derives and exports its own ROOT with `pwd -P`, so the
         # fixture must use the canonical path for every root-relative value.
         self.base = Path(self.tmp.name).resolve()
@@ -168,13 +168,13 @@ class ActualRuntimeLifecycle(unittest.TestCase):
 
     def env(self):
         env = {**os.environ,
-               'NASQ_CONTROL_HOME': str(self.home),
-               'NASQ_REPOSITORY_ROOT': str(self.root),
-               'NASQ_NODE_BIN': str(self.bin),
-               'NASQ_TEST_COMPOSE': str((HERE / 'compose.yml').resolve()),
-               'NASQ_TEST_WORKDIR': str(HERE.resolve()),
+               'WEBVUE_CONTROL_HOME': str(self.home),
+               'WEBVUE_REPOSITORY_ROOT': str(self.root),
+               'WEBVUE_NODE_BIN': str(self.bin),
+               'WEBVUE_TEST_COMPOSE': str((HERE / 'compose.yml').resolve()),
+               'WEBVUE_TEST_WORKDIR': str(HERE.resolve()),
                'PATH': f'{self.bin}:{os.environ["PATH"]}'}
-        env.pop('NASQ_PROCESS_LOCK_FD', None)
+        env.pop('WEBVUE_PROCESS_LOCK_FD', None)
         return env
 
     def spawn(self, argv, **kwargs):

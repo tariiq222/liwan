@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AdminUserDetail, CapabilitySource, EffectiveCapability, PermissionDefinition, RoleSummary } from '@nasq/contracts'
+import type { AdminUserDetail, CapabilitySource, EffectiveCapability, PermissionDefinition, RoleSummary } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminRoleDetails } from '@/composables/useAdminRoles'
 import { useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
@@ -113,7 +113,7 @@ async function save() {
 </script>
 
 <template>
-  <form class="nasq-form" @submit.prevent="save">
+  <form class="webvue-form" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <fieldset :disabled="!canEdit || update.isPending.value" class="space-y-5">
       <legend class="sr-only">{{ t('access.users.rolesTitle') }}</legend>

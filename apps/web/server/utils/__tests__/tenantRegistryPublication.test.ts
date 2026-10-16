@@ -11,7 +11,7 @@ const snapshot = { schemaVersion: 1, snapshotRevision: 1, targets: [{
 
 describe('registry publication interruption boundary', () => {
   it('rejects a dangling publication marker and resumes only the current snapshot', () => {
-    const directory = mkdtempSync(join(tmpdir(), 'nasq-registry-reader-'))
+    const directory = mkdtempSync(join(tmpdir(), 'webvue-registry-reader-'))
     const path = join(directory, 'registry.json')
     writeFileSync(path, JSON.stringify(snapshot))
     symlinkSync(join(directory, 'missing-marker-target'), `${path}.pending`)
@@ -24,7 +24,7 @@ describe('registry publication interruption boundary', () => {
     expect(readTenantRegistry(path)).toEqual(disabled)
   })
   it('refuses the old enabled snapshot while durable publication is pending', () => {
-    const directory = mkdtempSync(join(tmpdir(), 'nasq-registry-reader-'))
+    const directory = mkdtempSync(join(tmpdir(), 'webvue-registry-reader-'))
     const path = join(directory, 'registry.json')
     writeFileSync(path, JSON.stringify(snapshot))
     expect(readTenantRegistry(path)).toEqual(snapshot)
@@ -32,7 +32,7 @@ describe('registry publication interruption boundary', () => {
     expect(() => readTenantRegistry(path)).toThrow('tenant_registry_unavailable')
   })
   it('does not interpret an empty pending marker as permission to serve', () => {
-    const directory = mkdtempSync(join(tmpdir(), 'nasq-registry-reader-'))
+    const directory = mkdtempSync(join(tmpdir(), 'webvue-registry-reader-'))
     const path = join(directory, 'registry.json')
     writeFileSync(path, JSON.stringify(snapshot))
     writeFileSync(`${path}.pending`, '')

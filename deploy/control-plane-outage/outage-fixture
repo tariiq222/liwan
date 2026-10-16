@@ -7,11 +7,11 @@ set -euo pipefail
 ROOT="$(git -C "$(dirname "$0")/../.." rev-parse --show-toplevel)"
 FIXTURE="$ROOT/deploy/control-plane-outage"
 STATE="$FIXTURE/state"
-PROJECT=nasq-saas-outage-fixture
+PROJECT=webvue-saas-outage-fixture
 SERVICE=postgres
-CONTAINER=nasq-saas-outage-fixture-postgres
+CONTAINER=webvue-saas-outage-fixture-postgres
 POSTGRES_IMAGE=postgres@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
-DB=nasq_scratch_p1outage
+DB=webvue_scratch_p1outage
 ODOO_PORT=18179
 WEB_PORT=13109
 PG_PORT=55439
@@ -20,7 +20,7 @@ PYTHON="$ODOO_ROOT/.venv/bin/python"
 ODOO_BIN="$ODOO_ROOT/odoo-bin"
 STOCK_ADDONS="$ODOO_ROOT/addons"
 ADDONS="$ROOT/odoo-addons"
-MODULES=nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai
+MODULES=webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai
 
 fail() { printf 'fixture stopped: %s\n' "$1" >&2; exit 1; }
 
@@ -32,9 +32,9 @@ port_free() {
 }
 
 check_identity() {
-  [[ "$ROOT" == /Users/tariq/code/nasq-saas-outage-fixture ]] || fail 'unexpected worktree root'
+  [[ "$ROOT" == /Users/tariq/code/webvue-saas-outage-fixture ]] || fail 'unexpected worktree root'
   [[ "$(git -C "$ROOT" branch --show-current)" == codex/saas-outage-fixture ]] || fail 'wrong task branch'
-  [[ -x "$PYTHON" && -f "$ODOO_BIN" && -d "$STOCK_ADDONS/project" && -d "$ADDONS/nasq_hr" ]] || fail 'required Odoo/worktree paths missing'
+  [[ -x "$PYTHON" && -f "$ODOO_BIN" && -d "$STOCK_ADDONS/project" && -d "$ADDONS/webvue_hr" ]] || fail 'required Odoo/worktree paths missing'
   local py_major node_major
   py_major=$("$PYTHON" -c 'import sys;print(sys.version_info.major,sys.version_info.minor)')
   node_major=$(PATH="/opt/homebrew/opt/node@22/bin:$PATH" node -p 'process.versions.node.split(".").slice(0,2).join(".")')
@@ -58,7 +58,7 @@ path = Path(sys.argv[1])
 password = secrets.token_urlsafe(36)
 admin = secrets.token_urlsafe(28)
 marker = 'OUTAGE-FIXTURE-' + secrets.token_hex(16)
-path.write_text(f'FIXTURE_PG_PASSWORD={password}\nNASQ_FIXTURE_ADMIN_LOGIN=outage_fixture_admin\nNASQ_FIXTURE_ADMIN_PASSWORD={admin}\nNASQ_FIXTURE_MARKER={marker}\n', encoding='utf-8')
+path.write_text(f'FIXTURE_PG_PASSWORD={password}\nWEBVUE_FIXTURE_ADMIN_LOGIN=outage_fixture_admin\nWEBVUE_FIXTURE_ADMIN_PASSWORD={admin}\nWEBVUE_FIXTURE_MARKER={marker}\n', encoding='utf-8')
 path.chmod(0o600)
 PY
 }
@@ -78,7 +78,7 @@ workers = 0
 max_cron_threads = 0
 db_host = 127.0.0.1
 db_port = $PG_PORT
-db_user = nasq_fixture
+db_user = webvue_fixture
 db_password = ${FIXTURE_DB_PASSWORD}
 dbfilter = ^${DB}$
 data_dir = $STATE/odoo-data
@@ -109,7 +109,7 @@ prepare() {
   printf '%s\n' "$FIXTURE_DB_PASSWORD" > "$STATE/pg-password"
   chmod 600 "$STATE/pg-password"
   # Ensure project name has no preexisting container/volume to avoid data reuse.
-  if docker volume ls --format '{{.Name}}' | grep -Fx 'nasq-saas-outage-fixture_outage_pg' >/dev/null; then
+  if docker volume ls --format '{{.Name}}' | grep -Fx 'webvue-saas-outage-fixture_outage_pg' >/dev/null; then
     fail 'fixture volume already exists; preserve and inspect manually, do not reuse'
   fi
   if docker inspect "$CONTAINER" >/dev/null 2>&1; then
@@ -124,14 +124,14 @@ prepare() {
     docker start "$CONTAINER"
   fi
   for _ in $(seq 1 60); do
-    if compose exec -T "$SERVICE" pg_isready -U nasq_fixture -d postgres >/dev/null 2>&1; then break; fi
+    if compose exec -T "$SERVICE" pg_isready -U webvue_fixture -d postgres >/dev/null 2>&1; then break; fi
     sleep 1
   done
-  compose exec -T "$SERVICE" pg_isready -U nasq_fixture -d postgres >/dev/null || fail 'dedicated fixture PostgreSQL did not become ready'
-  if compose exec -T "$SERVICE" psql -U nasq_fixture -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -qx 1; then
+  compose exec -T "$SERVICE" pg_isready -U webvue_fixture -d postgres >/dev/null || fail 'dedicated fixture PostgreSQL did not become ready'
+  if compose exec -T "$SERVICE" psql -U webvue_fixture -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -qx 1; then
     fail 'scratch DB already exists; refuse to touch it'
   fi
-  compose exec -T "$SERVICE" createdb -U nasq_fixture -T template0 "$DB"
+  compose exec -T "$SERVICE" createdb -U webvue_fixture -T template0 "$DB"
   printf 'created isolated fixture state; DB=%s PG=%s Odoo=%s Nuxt=%s\n' "$DB" "$PG_PORT" "$ODOO_PORT" "$WEB_PORT"
 }
 
@@ -142,7 +142,7 @@ runtime_args() {
 odoo_runtime() {
   # wrapper is used for strict path/db/loopback validation; PG password is provided
   # only in environment, not command args or printed output.
-  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=nasq_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
+  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=webvue_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
     "$PYTHON" "$ROOT/deploy/check_isolated.py" runtime \
     --worktree "$ROOT" --addons-path "$ADDONS" --stock-addons "$STOCK_ADDONS" \
     --python "$PYTHON" --odoo-bin "$ODOO_BIN" --odoo-conf "$STATE/odoo.conf" \
@@ -159,11 +159,11 @@ EOF
 install_modules() {
   load_fixture_secrets
   write_classification
-  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=nasq_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
-  NASQ_COMMERCIAL_CONFIG="$STATE/classification.json" \
+  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=webvue_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
+  WEBVUE_COMMERCIAL_CONFIG="$STATE/classification.json" \
     "$PYTHON" "$ODOO_BIN" -c "$STATE/odoo.conf" \
     --addons-path="$ODOO_ROOT/odoo/addons,$STOCK_ADDONS,$ADDONS" \
-    --db_host=127.0.0.1 --db_port="$PG_PORT" --db_user=nasq_fixture \
+    --db_host=127.0.0.1 --db_port="$PG_PORT" --db_user=webvue_fixture \
     -d "$DB" --db-filter="^$DB$" --data-dir="$STATE/odoo-data" \
     --logfile="$STATE/logs/install.log" --http-interface=127.0.0.1 --http-port="$ODOO_PORT" \
     --workers=0 --max-cron-threads=0 --without-demo=all -i "$MODULES" --stop-after-init
@@ -198,13 +198,13 @@ bootstrap() {
   # shellcheck disable=SC1090
   source "$STATE/secrets.env"
   set +a
-  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=nasq_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
-    NASQ_FIXTURE_ADMIN_LOGIN="$NASQ_FIXTURE_ADMIN_LOGIN" \
-    NASQ_FIXTURE_ADMIN_PASSWORD="$NASQ_FIXTURE_ADMIN_PASSWORD" \
-    NASQ_FIXTURE_MARKER="$NASQ_FIXTURE_MARKER" \
+  PGHOST=127.0.0.1 PGPORT="$PG_PORT" PGUSER=webvue_fixture PGPASSWORD="$(<"$STATE/pg-password")" \
+    WEBVUE_FIXTURE_ADMIN_LOGIN="$WEBVUE_FIXTURE_ADMIN_LOGIN" \
+    WEBVUE_FIXTURE_ADMIN_PASSWORD="$WEBVUE_FIXTURE_ADMIN_PASSWORD" \
+    WEBVUE_FIXTURE_MARKER="$WEBVUE_FIXTURE_MARKER" \
     "$PYTHON" "$ODOO_BIN" shell -c "$STATE/odoo.conf" \
     --addons-path="$ODOO_ROOT/odoo/addons,$STOCK_ADDONS,$ADDONS" \
-    --db_host=127.0.0.1 --db_port="$PG_PORT" --db_user=nasq_fixture \
+    --db_host=127.0.0.1 --db_port="$PG_PORT" --db_user=webvue_fixture \
     -d "$DB" --db-filter="^$DB$" --data-dir="$STATE/odoo-data" \
     --logfile="$STATE/logs/bootstrap.log" --http-interface=127.0.0.1 --http-port="$ODOO_PORT" \
     --workers=0 --max-cron-threads=0 --no-http < "$FIXTURE/bootstrap.py" > "$STATE/logs/bootstrap.stdout" 2>&1

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import InlineConfirm from '@nasq/ui/app/components/shared/form/InlineConfirm.vue'
+import InlineConfirm from '@webvue/ui/app/components/shared/form/InlineConfirm.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

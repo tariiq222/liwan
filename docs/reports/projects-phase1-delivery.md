@@ -31,9 +31,9 @@ All logs are in `/Users/tariq/code/nasq-phase1-artifacts`.
 | Existing project regression sample | 27 passed; 3 other failures explained below | e2e-project-regressions.log |
 | Diff whitespace | passed | final git diff --check |
 
-The full Odoo run installed nasq_core, nasq_api, nasq_pmo and nasq_hr from this explicit worktree into fresh scratch DB `nasq_phase1_full_20260907` with a separate data directory. The added archived-task regression ran afterwards against the earlier owned scratch DB. Odoo `odoo19` was never a test target. Final formatting-only edits do not change tested backend behavior.
+The full Odoo run installed webvue_core, webvue_api, webvue_pmo and webvue_hr from this explicit worktree into fresh scratch DB `webvue_phase1_full_20260907` with a separate data directory. The added archived-task regression ran afterwards against the earlier owned scratch DB. Odoo `odoo19` was never a test target. Final formatting-only edits do not change tested backend behavior.
 
-The nine browser tests used the built Node/Nitro output, real authenticated APIs and scratch DB `nasq_phase1_20260907`. They cover template editing/application, repeated independent projects, pending-save controls, reference cleanup, 51-template pagination, warm project-picker cache refresh; schedule save/reload/clear/date errors/failed drafts/mobile/milestone alignment; stakeholder CRUD, RACI duplicate-A rejection and inline deletion; register CRUD/score/filters/failed drafts/mobile; 201 stakeholders, 51 tasks, matrix assignment and viewport refresh/back. Deliberate 503 interception is limited to failed-save guard tests; successful flows persist actual Odoo records. Final Arabic Gantt, matrix, template editor and mobile register screenshots were visually inspected and copied to artifacts/screenshots.
+The nine browser tests used the built Node/Nitro output, real authenticated APIs and scratch DB `webvue_phase1_20260907`. They cover template editing/application, repeated independent projects, pending-save controls, reference cleanup, 51-template pagination, warm project-picker cache refresh; schedule save/reload/clear/date errors/failed drafts/mobile/milestone alignment; stakeholder CRUD, RACI duplicate-A rejection and inline deletion; register CRUD/score/filters/failed drafts/mobile; 201 stakeholders, 51 tasks, matrix assignment and viewport refresh/back. Deliberate 503 interception is limited to failed-save guard tests; successful flows persist actual Odoo records. Final Arabic Gantt, matrix, template editor and mobile register screenshots were visually inspected and copied to artifacts/screenshots.
 
 ## Independent review
 
@@ -51,8 +51,8 @@ Two failures in the existing settings role-form unsaved-navigation test reproduc
 
 - Integration source: `/Users/tariq/code/nasq-projects-phase1` / `codex/projects-phase1`.
 - Preview: http://127.0.0.1:3869/projects ; built Nuxt on 3869, Odoo on 9869.
-- Preview database: `nasq_phase1_20260907`; deliberately contains acceptance-test records. Default scratch administrator login is admin/admin.
-- Full-test database: `nasq_phase1_full_20260907`; retained separately.
+- Preview database: `webvue_phase1_20260907`; deliberately contains acceptance-test records. Default scratch administrator login is admin/admin.
+- Full-test database: `webvue_phase1_full_20260907`; retained separately.
 - Worker source trees: `/Users/tariq/code/nasq-phase1-schedule`, `/Users/tariq/code/nasq-phase1-governance`, `/Users/tariq/code/nasq-phase1-templates`.
 - Design and checked plan: docs/superpowers/specs/2026-09-07-projects-phase1-design.md and docs/superpowers/plans/2026-09-07-projects-phase1.md.
 

@@ -6,7 +6,7 @@ import { useProjectFinanceList } from '@/composables/useProjectFinance'
 import { useProject } from '@/composables/useProjects'
 import FinanceEntryTable from '@/components/pmo/projects/finance/FinanceEntryTable.vue'
 import FinanceSummaryCards from '@/components/pmo/projects/finance/FinanceSummaryCards.vue'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import {
   FINANCE_PAGE,
   parseFinanceKind,
@@ -18,7 +18,7 @@ import {
   type FinanceListRouteState,
 } from '@/utils/projectFinance'
 import { parsePositiveId } from '@/utils/routeParams'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,7 +43,7 @@ const listPath = () => `/projects/${projectId.value}/finance`
 // Auth publishes the router's actual target before awaiting identity refresh.
 // Track even a newer list/query navigation: an older cancelled record must not
 // resume a debounce writer while that newer navigation is still pending.
-const stopNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => {
+const stopNavigationStart = useNuxtApp().hook('webvue:navigation:start', to => {
   pendingDeparture = to
   if (pendingOwnQuery && !pendingOwnQuery.navigation && to.fullPath === pendingOwnQuery.target) pendingOwnQuery.navigation = to
 })

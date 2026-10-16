@@ -38,7 +38,7 @@ test('pure registry, forged headers/selectors, session expiry/key rotation and r
     const bad = snapshot(); bad.targets[1][field] = bad.targets[0][field]; assert.throws(() => validateRegistry(bad))
   }
   for (const host of ['unknown.test', `${a.host}:443`, `${a.host}.`, `${a.host},evil.test`, 'acceptance_0']) assert.throws(() => requestPlan(req(a, '/api/v1/me', { host }), r, token, codec))
-  for (const name of ['x-forwarded-host', 'x-forwarded-proto', 'forwarded', 'x-odoo-database', 'x-openerp-session-id', 'x-nasq-tenant-revision']) assert.throws(() => requestPlan(req(a, '/api/v1/me', { [name]: 'forged' }), r, token, codec))
+  for (const name of ['x-forwarded-host', 'x-forwarded-proto', 'forwarded', 'x-odoo-database', 'x-openerp-session-id', 'x-webvue-tenant-revision']) assert.throws(() => requestPlan(req(a, '/api/v1/me', { [name]: 'forged' }), r, token, codec))
   for (const path of ['/api/v1/me?db=x', '/api/v1/me?%64atabase=x', '/web/database/list', '/jsonrpc', '/web/session/authenticate', '/report/pdf/x']) assert.throws(() => requestPlan(req(a, path), r, token, codec))
   for (const value of ['raw_sid', cookie(a).slice(11) + 'x']) assert.throws(() => requestPlan(req(a, '/api/v1/me', { cookie: `session_id=${value}` }), r, token, codec))
   assert.throws(() => requestPlan(req(a, '/api/v1/me', { cookie: `${cookie(a)}; ${cookie(a)}` }), r, token, codec))
@@ -50,11 +50,11 @@ test('pure registry, forged headers/selectors, session expiry/key rotation and r
 
 test('configuration replay: dedicated proxies remain frozen when runtime env changes (finding)', () => {
   const source = readFileSync(new URL('../../apps/web/nuxt.config.ts', import.meta.url), 'utf8').replace('export default defineNuxtConfig(', 'globalThis.result = defineNuxtConfig(')
-  const context = { process: { env: { NASQ_TENANCY_MODE: 'dedicated', NUXT_ODOO_URL: 'http://synthetic-odoo:8069' } }, defineNuxtConfig: x => x }
+  const context = { process: { env: { WEBVUE_TENANCY_MODE: 'dedicated', NUXT_ODOO_URL: 'http://synthetic-odoo:8069' } }, defineNuxtConfig: x => x }
   vm.runInNewContext(source, context)
-  context.process.env.NASQ_TENANCY_MODE = 'shared'
+  context.process.env.WEBVUE_TENANCY_MODE = 'shared'
   assert.equal(context.result.routeRules['/web/**'].proxy.to, 'http://synthetic-odoo:8069/web/**')
-  const shared = { process: { env: { NASQ_TENANCY_MODE: 'shared' } }, defineNuxtConfig: x => x }
+  const shared = { process: { env: { WEBVUE_TENANCY_MODE: 'shared' } }, defineNuxtConfig: x => x }
   vm.runInNewContext(source, shared); assert.deepEqual(Object.keys(shared.result.routeRules), [])
 })
 
@@ -113,7 +113,7 @@ test('HTTP/WS mock matrix: each surface has 10 positives and 90 rejected foreign
       assert.equal(upstreamHits, before)
     }
     for (const selector of ['db', 'database', 'sid', 'session_id']) assert.equal((await call(base, targets[0], '/api/v1/tasks/1', 'PATCH', JSON.stringify({ nested: { [selector]: targets[1].database } }))).status, 400)
-    const internal = { 'x-nasq-proxy-token': token, 'x-nasq-tenant-revision': '1' }
+    const internal = { 'x-webvue-proxy-token': token, 'x-webvue-tenant-revision': '1' }
     assert.equal((await call(base, targets[0], '/web/session/authenticate', 'POST', JSON.stringify({ params: { db: targets[0].database } }), internal)).status, 200)
     assert.equal((await call(base, targets[0], '/web/session/authenticate', 'POST', JSON.stringify({ params: { db: targets[1].database } }), internal)).status, 400)
     assert.equal((await call(base, targets[0], '/web/session/destroy', 'POST', '{}', internal)).status, 200)

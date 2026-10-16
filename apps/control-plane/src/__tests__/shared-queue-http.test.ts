@@ -21,7 +21,7 @@ const pool={connect:async()=>client} as unknown as Pool
 const server=createApp(pool,config)
 let origin:string
 beforeAll(async()=>{
-  vi.stubEnv('NASQ_TENANCY_MODE','shared')
+  vi.stubEnv('WEBVUE_TENANCY_MODE','shared')
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve))
   const address=server.address();if(!address||typeof address==='string')throw Error('missing address')
   origin=`http://127.0.0.1:${address.port}`

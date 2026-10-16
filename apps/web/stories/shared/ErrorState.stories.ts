@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { fn } from 'storybook/test'
-import ErrorState from '@nasq/ui/app/components/shared/feedback/ErrorState.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import ErrorState from '@webvue/ui/app/components/shared/feedback/ErrorState.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -12,7 +12,7 @@ const meta = {
   render: args => ({
     components: { ErrorState, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="nasq-shell-main"><PageContainer width="list"><ErrorState v-bind="args" /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="list"><ErrorState v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof ErrorState>
 export default meta

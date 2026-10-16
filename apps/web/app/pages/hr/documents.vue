@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import { useHrDocuments, type HrDocument } from '@/composables/useHrDocuments'
 import { useHrDepartments } from '@/composables/useHrDepartments'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
 import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSearch'
 
@@ -57,7 +57,7 @@ let writesInFlight = 0
 let lastWrite = 0
 let disposed = false
 function isCurrentList() { return (router.currentRoute.value.path.replace(/\/+$/, '') || '/') === '/hr/documents' }
-const stopNavigationStart = useNuxtApp().hook('nasq:navigation:start', to => { pendingNavigation = to })
+const stopNavigationStart = useNuxtApp().hook('webvue:navigation:start', to => { pendingNavigation = to })
 function settleNavigation(to: RouteLocationNormalized) {
   if (to !== pendingNavigation) return
   pendingNavigation = null

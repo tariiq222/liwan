@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { branchBillingCounts, type Branch, type BranchSummary } from '@nasq/commercial-contracts'
+import { branchBillingCounts, type Branch, type BranchSummary } from '@webvue/commercial-contracts'
 import { CommercialHttpError, iso } from './lifecycle.js'
 
 type Db = Pool | PoolClient

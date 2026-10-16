@@ -19,13 +19,13 @@ export const MeAppearancePatchSchema = z.object({
   message: 'mode or font_size is required',
 })
 
-/** An installed application module: a product addon `nasq_*` or a customer overlay `customer_*`. */
-export const NASQ_MODULE_ID_PATTERN = /^(nasq|customer)_[a-z0-9_]+$/
+/** An installed application module: a product addon `webvue_*` or a customer overlay `customer_*`. */
+export const WEBVUE_MODULE_ID_PATTERN = /^(webvue|customer)_[a-z0-9_]+$/
 /** The application modules of today's product, for typed code; a newer application's id is accepted too. */
-export const KNOWN_NASQ_MODULE_IDS = ['nasq_chat', 'nasq_hr', 'nasq_meetings', 'nasq_pmo'] as const
-export type KnownNasqModuleId = typeof KNOWN_NASQ_MODULE_IDS[number]
-export type NasqModuleId = KnownNasqModuleId | (string & {})
-export const NasqModuleIdSchema = z.string().regex(NASQ_MODULE_ID_PATTERN)
+export const KNOWN_WEBVUE_MODULE_IDS = ['webvue_chat', 'webvue_hr', 'webvue_meetings', 'webvue_pmo'] as const
+export type KnownWebVueModuleId = typeof KNOWN_WEBVUE_MODULE_IDS[number]
+export type WebVueModuleId = KnownWebVueModuleId | (string & {})
+export const WebVueModuleIdSchema = z.string().regex(WEBVUE_MODULE_ID_PATTERN)
 export const TenantStateSchema = z.enum(['active', 'suspended', 'expired'])
 export const MePlatformSchema = z.object({
   schema_version: z.literal(1),
@@ -63,7 +63,7 @@ export const MeSchema = z.object({
   access_policy_version: z.number().int().nonnegative().optional().default(0),
   company: z.object({ id: z.number().int().positive(), name: z.string() }),
   appearance: MeAppearanceSchema.optional(),
-  modules: z.array(NasqModuleIdSchema).optional().default([]),
+  modules: z.array(WebVueModuleIdSchema).optional().default([]),
   entitlements: z.record(z.string(), z.union([z.boolean(), z.number().int().nonnegative().nullable()])).optional().default({}),
   platform: MePlatformSchema.optional(),
   commercial: MeCommercialSchema.optional(),

@@ -36,8 +36,8 @@ and contracts are in `AGENTS.md`.
   semantics, keyboard behavior and public props/slots; shared composite
   components are documented in `docs/design-system/components.md`.
 - Contracts accept any well-formed capability key (`<app>.<resource>.<action>`),
-  module id (`nasq_*`, `customer_*`) and permission domain; `KNOWN_CAPABILITIES`,
-  `KNOWN_NASQ_MODULE_IDS` and `KNOWN_PERMISSION_DOMAINS` keep today's values for
+  module id (`webvue_*`, `customer_*`) and permission domain; `KNOWN_CAPABILITIES`,
+  `KNOWN_WEBVUE_MODULE_IDS` and `KNOWN_PERMISSION_DOMAINS` keep today's values for
   typed code. On the client a capability's feature is `<first segment>.enabled`
   and it is a write unless its last segment is `read` (`app/modules/registry.ts`;
   exceptions are listed there). A bell kind the build does not know renders as a
@@ -55,8 +55,8 @@ and contracts are in `AGENTS.md`.
   `/api/v1`, `/web/content`, and `/websocket`. Session cookies are used; no CORS or bearer tokens for browser flows.
 
 - `apps/vendor-admin` is the vendor staff console, a separate Nuxt application served on its own `admin` host. It follows
-  DESIGN.md and uses the same layers as `apps/web` (`@nasq/ui`, plus `@nasq/commercial-ui` for the shared billing
+  DESIGN.md and uses the same layers as `apps/web` (`@webvue/ui`, plus `@webvue/commercial-ui` for the shared billing
   presentation); there is no `/vendor` page prefix. Its server routes are a BFF that signs calls to the control plane
-  with `@nasq/commercial-contracts` and overwrites `x-nasq-client-ip`. It imports nothing from `apps/web`, `odoo-addons`,
-  `@nasq/contracts` or the control plane and calls no Odoo route, and `apps/web` never imports it (hard rule `VA1` in
+  with `@webvue/commercial-contracts` and overwrites `x-webvue-client-ip`. It imports nothing from `apps/web`, `odoo-addons`,
+  `@webvue/contracts` or the control plane and calls no Odoo route, and `apps/web` never imports it (hard rule `VA1` in
   `tools/arch_policy.py`, never baselined). See `apps/vendor-admin/README.md`.

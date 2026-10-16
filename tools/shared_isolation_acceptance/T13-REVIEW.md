@@ -37,7 +37,7 @@ Independent matrix retained all prior assertions: read/write/files/session/WS ea
 
 ## SSR/useFetch/client artifact limits
 
-useApi uses bare `$fetch`; useMe and useBranding use `useFetch`. Inspected installed `node_modules/nuxt/dist/app/composables/fetch.js:105-115`: local relative paths on server select `useRequestFetch()`, unlike bare useApi. This source difference must not be mislabeled as a confirmed useMe/branding failure. Actual merged header behavior/tenant SSR in compiled Nitro remains NOT RUN. Search existing shared artifact public output for x-nasq-proxy-token/x-nasq-tenant-revision/NASQ_SHARED_PROXY_TOKEN returned no matches, but that artifact may predate repair: NOT final client bundle security proof. No synthetic or real secrets embedded in committed source by this task.
+useApi uses bare `$fetch`; useMe and useBranding use `useFetch`. Inspected installed `node_modules/nuxt/dist/app/composables/fetch.js:105-115`: local relative paths on server select `useRequestFetch()`, unlike bare useApi. This source difference must not be mislabeled as a confirmed useMe/branding failure. Actual merged header behavior/tenant SSR in compiled Nitro remains NOT RUN. Search existing shared artifact public output for x-webvue-proxy-token/x-webvue-tenant-revision/WEBVUE_SHARED_PROXY_TOKEN returned no matches, but that artifact may predate repair: NOT final client bundle security proof. No synthetic or real secrets embedded in committed source by this task.
 
 ## Remaining stage gates
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PermissionDefinition, RoleDetail } from '@nasq/contracts'
+import type { PermissionDefinition, RoleDetail } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useUpdateAdminRole } from '@/composables/useAdminRoles'
 import { permissionDomainLabel, builtinRoleDescription } from '@/utils/labelFallback'
@@ -85,10 +85,10 @@ async function save() {
 </script>
 
 <template>
-  <UForm :state="{ nameAr, nameEn, description }" class="nasq-form min-w-0" method="post" @submit="save">
+  <UForm :state="{ nameAr, nameEn, description }" class="webvue-form min-w-0" method="post" @submit="save">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedFormSection :title="t('access.roles.details')" class="space-y-4">
-      <div class="nasq-form-grid">
+      <div class="webvue-form-grid">
         <UFormField :label="t('access.roles.nameArabic')" name="nameAr"><UInput v-model="nameAr" class="w-full" :disabled="!canEdit" /></UFormField>
         <UFormField :label="t('access.roles.nameEnglish')" name="nameEn"><UInput v-model="nameEn" dir="ltr" class="w-full" :disabled="!canEdit" /></UFormField>
       </div>

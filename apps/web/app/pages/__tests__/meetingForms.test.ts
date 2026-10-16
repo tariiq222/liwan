@@ -1,7 +1,7 @@
 import * as meetingEditorContext from '../../utils/meetingEditorContext'
 import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import { firstQuery } from '../../utils/routeQuery'
-import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'

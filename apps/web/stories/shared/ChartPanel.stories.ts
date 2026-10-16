@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import ChartPanel from '@nasq/ui/app/components/shared/data/ChartPanel.vue'
+import ChartPanel from '@webvue/ui/app/components/shared/data/ChartPanel.vue'
 import DashboardChart from '../../app/components/shared/data/DashboardChart.client.vue'
 import { dashboardCharts } from '../fixtures/projectReports'
 import { storyContext } from '../support/context'

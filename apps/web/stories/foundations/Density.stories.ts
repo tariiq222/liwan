@@ -15,7 +15,7 @@ export const Controls: StoryObj = {
         <UInput data-testid="density-input" placeholder="بحث" />
         <USelect :items="['أ', 'ب']" model-value="أ" aria-label="الخيار" />
         <UBadge data-testid="density-badge">قيد التنفيذ</UBadge>
-        <span class="inline-flex items-center rounded-md bg-nasq-lime px-2 text-xs font-medium text-nasq-lime-foreground" data-testid="density-lime">جديد</span>
+        <span class="inline-flex items-center rounded-md bg-webvue-lime px-2 text-xs font-medium text-webvue-lime-foreground" data-testid="density-lime">جديد</span>
       </div>`,
   }),
 }

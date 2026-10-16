@@ -19,7 +19,7 @@ function loadWordmark(): Vue.Component {
     if (path === 'vue') return Vue
     throw new Error(`Unhandled component dependency ${path}`)
   }
-  const useI18n = () => ({ t: (key: string) => ({ 'brand.name': 'نَسَق' }[key] ?? key) })
+  const useI18n = () => ({ t: (key: string) => ({ 'brand.name': 'ويب فيو' }[key] ?? key) })
   new Function('require', 'exports', 'ref', 'computed', 'useI18n', code)(require, exports, Vue.ref, Vue.computed, useI18n)
   return exports.default!
 }
@@ -32,10 +32,10 @@ async function render(props: Record<string, unknown> = {}) {
 describe('BrandWordmark', () => {
   it('renders the product name and a decorative lime dot', async () => {
     const html = await render()
-    expect(html.replace(/<[^>]+>/g, '').trim()).toBe('نَسَق')
+    expect(html.replace(/<[^>]+>/g, '').trim()).toBe('ويب فيو')
     const dot = html.match(/<span[^>]*data-slot="dot"[^>]*>/)?.[0] ?? ''
     expect(dot).toContain('aria-hidden="true"')
-    expect(dot).toContain('bg-nasq-lime')
+    expect(dot).toContain('bg-webvue-lime')
   })
 
   it('uses white text when inverted', async () => {

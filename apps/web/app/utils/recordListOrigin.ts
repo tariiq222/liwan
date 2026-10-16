@@ -1,10 +1,10 @@
 import type { LocationQuery, LocationQueryRaw, RouteLocationRaw } from 'vue-router'
-import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 export function recordListOrigin(value: unknown, paths: readonly string[]): string | undefined {
   const safe = safeReturnTo(value, '', paths)
   if (!safe) return undefined
-  const url = new URL(safe, 'http://nasq.local')
+  const url = new URL(safe, 'http://webvue.local')
   if (!paths.includes(url.pathname)) return undefined
   // Context never recursively contains another navigation context.
   for (const key of ['returnTo', 'listOrigin']) {
@@ -16,7 +16,7 @@ export function recordListOrigin(value: unknown, paths: readonly string[]): stri
 export function recordEntryOrigin(value: unknown, parentPath: string, paths: readonly string[]): string | undefined {
   const safe = safeReturnTo(value, '', [parentPath])
   if (!safe) return undefined
-  const parent = new URL(safe, 'http://nasq.local')
+  const parent = new URL(safe, 'http://webvue.local')
   if (parent.pathname !== parentPath) return undefined
   const origins = parent.searchParams.getAll('returnTo')
   const origin = origins.length === 1 ? recordListOrigin(origins[0], paths) : undefined

@@ -1,6 +1,6 @@
-# Company workspace and Nasq vendor administration
+# Company workspace and WebVue vendor administration
 
-> Superseded on 2026-10-15 by the [vendor administration separation design](2026-10-15-nasq-vendor-admin-separation-design.md):
+> Superseded on 2026-10-15 by the [vendor administration separation design](2026-10-15-webvue-vendor-admin-separation-design.md):
 > vendor administration is the separate `apps/vendor-admin` application and no longer a section of a company
 > workspace. The content below is kept as the historical record of the earlier decision.
 
@@ -14,14 +14,14 @@ or implementing every Odoo application without a defined scope.
 ## Existing source
 
 - One product, database per tenant; PMO/HR/chat/meetings implemented.
-- CRM is not an implemented Nasq pillar. Stock Odoo crm may be extended later; do not recreate it.
+- CRM is not an implemented WebVue pillar. Stock Odoo crm may be extended later; do not recreate it.
 - `/odoo` is the existing support console, not a multi-customer control plane.
 - `role=vendor` currently means Odoo support; it must not become a global commercial grant.
 - SaaS/non_saas classification is independent of hosting and company identity.
 
 ## Recommended composition
 
-The vendor company has its own ordinary Nasq installation and business database.
+The vendor company has its own ordinary WebVue installation and business database.
 Employees use existing project/HR/meeting/chat modules in the normal shell.
 A new explicitly configured vendor-administration module exposes control-plane pages
 in that same shell for separately granted operators only. Ordinary customer installations

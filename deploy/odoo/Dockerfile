@@ -20,16 +20,16 @@ RUN python -m venv /opt/venv && /opt/venv/bin/pip install -r /tmp/requirements.t
 
 FROM base
 ARG ODOO_COMMIT
-ARG NASQ_REVISION=unknown
-LABEL sa.nasq.revision=$NASQ_REVISION sa.nasq.odoo-commit=$ODOO_COMMIT
+ARG WEBVUE_REVISION=unknown
+LABEL sa.webvue.revision=$WEBVUE_REVISION sa.webvue.odoo-commit=$ODOO_COMMIT
 COPY --from=build /opt/odoo /opt/odoo
 COPY --from=build /opt/venv /opt/venv
-COPY odoo-addons /opt/nasq/addons
-COPY deploy/security/odoo_secure.py /opt/nasq/odoo_secure.py
-COPY deploy/odoo/entrypoint.sh /usr/local/bin/nasq-odoo
-RUN chmod 0755 /usr/local/bin/nasq-odoo \
+COPY odoo-addons /opt/webvue/addons
+COPY deploy/security/odoo_secure.py /opt/webvue/odoo_secure.py
+COPY deploy/odoo/entrypoint.sh /usr/local/bin/webvue-odoo
+RUN chmod 0755 /usr/local/bin/webvue-odoo \
     && useradd --system --uid 10001 --home-dir /var/lib/odoo --create-home odoo \
-    && chmod -R a-w /opt/odoo /opt/nasq
+    && chmod -R a-w /opt/odoo /opt/webvue
 ARG TARGETARCH
 COPY deploy/odoo/vendor/wkhtmltox_0.12.6.1-3.bookworm_${TARGETARCH}.deb /tmp/wkhtmltox/
 COPY deploy/odoo/vendor/SHA256SUMS /tmp/wkhtmltox/
@@ -42,4 +42,4 @@ RUN cd /tmp/wkhtmltox \
 USER odoo
 VOLUME /var/lib/odoo
 EXPOSE 8069 8072
-ENTRYPOINT ["nasq-odoo"]
+ENTRYPOINT ["webvue-odoo"]

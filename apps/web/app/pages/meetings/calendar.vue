@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
+import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useMeetings } from '@/composables/useMeetings'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
-import { formatCalendarDate, formatNasqTime, isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { formatCalendarDate, formatWebVueTime, isCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
@@ -164,7 +164,7 @@ function localTime(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return formatLocalDateTime(value)
-  return hydrated.value ? formatNasqTime(parsed, locale.value) : ''
+  return hydrated.value ? formatWebVueTime(parsed, locale.value) : ''
 }
 
 function localDate(value: string | null) {

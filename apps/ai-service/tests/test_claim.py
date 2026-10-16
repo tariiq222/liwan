@@ -6,15 +6,15 @@ import httpx
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
-from nasq_ai_service.service import create_app
-from nasq_ai_service.store import MemoryRunStore
 from tests.fakes import ScriptedChatModel, ai_text, ai_tool_call
 from tests.test_recovery import age
 from tests.test_service import BODY, HEADERS, RESUME_C1, SETTINGS, parse_sse
+from webvue_ai_service.service import create_app
+from webvue_ai_service.store import MemoryRunStore
 
 DRAFT = "pmo__draft_project"
 CLAIM_C1 = {"call_id": "c_1"}
-OTHER = {"X-Nasq-Tenant": "t1", "X-Nasq-User": "43"}
+OTHER = {"X-WebVue-Tenant": "t1", "X-WebVue-User": "43"}
 
 
 def make_client(responses, store=None):

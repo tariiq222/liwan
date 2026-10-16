@@ -12,7 +12,7 @@ home = Path(sys.argv[1])
 state = home / 'processes'
 if state.is_symlink() or not state.is_dir():
     raise SystemExit('invalid_process_directory')
-fd_text = os.environ.get('NASQ_PROCESS_LOCK_FD')
+fd_text = os.environ.get('WEBVUE_PROCESS_LOCK_FD')
 if fd_text is None:
     raise SystemExit('missing_lifecycle_lock_capability')
 try:
@@ -35,7 +35,7 @@ except (OSError, ValueError):
 entries = list(state.iterdir())
 if entries and (state / 'generation').exists():
     if len(entries) == 1 and entries[0].name == 'generation' and not entries[0].is_symlink() and entries[0].is_file():
-        root_text, node_text = os.environ.get('NASQ_REPOSITORY_ROOT'), os.environ.get('NASQ_NODE_BIN')
+        root_text, node_text = os.environ.get('WEBVUE_REPOSITORY_ROOT'), os.environ.get('WEBVUE_NODE_BIN')
         if not root_text or not node_text:
             raise SystemExit('reservation_runtime_identity_unavailable')
         recover_reservation(state, home, Path(root_text).resolve(), Path(node_text).resolve(), os.getpid())

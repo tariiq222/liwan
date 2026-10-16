@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CALL_TIMEOUT_MS = 180_000
 const REPOSITORY_CONTEXT = [
-  'Nasq: Odoo 19 Community addons (odoo-addons/nasq_*) as the engine and a Nuxt 4 customer UI (apps/web),',
+  'WebVue: Odoo 19 Community addons (odoo-addons/webvue_*) as the engine and a Nuxt 4 customer UI (apps/web),',
   'zod contracts in packages/contracts. Rules live in AGENTS.md: architecture R1-R10 (applications never import',
   'each other, bridges link them), API routes are json2 + auth=user + api_handler with serializer whitelists and',
   '{items, total} list envelopes, no sudo() outside documented cases, Arabic/RTL-first UI through $t(),',
@@ -146,7 +146,7 @@ function callJevReview(input, apiKey) {
     send({
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'nasq-jev-review', version: '1' } },
+      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'webvue-jev-review', version: '1' } },
     })
   })
 }

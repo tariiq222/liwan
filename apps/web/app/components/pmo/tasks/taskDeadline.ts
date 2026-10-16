@@ -1,4 +1,4 @@
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 
 // Calendar days from today to the deadline, both read in the viewer's local zone - the same zone the
 // Deadline property prints its date in. The server's `days_remaining` counts UTC dates, so around

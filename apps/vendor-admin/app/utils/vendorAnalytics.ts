@@ -1,5 +1,5 @@
-import { ANALYTICS_MAX_DAYS, type AnalyticsFigure, type AnalyticsFigures, type Money } from '@nasq/commercial-contracts'
-import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { ANALYTICS_MAX_DAYS, type AnalyticsFigure, type AnalyticsFigures, type Money } from '@webvue/commercial-contracts'
+import { formatCommercialMoney } from '@webvue/commercial-ui/app/utils/commercial'
 
 export const PERIOD_PRESETS = ['month', 'quarter', 'year', 'custom'] as const
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number]

@@ -1,4 +1,4 @@
-import { MeSchema, PersonRefSchema, ProjectDetailSchema, ProjectRefSchema, ProjectSchema, TagSchema, TaskDetailSchema, TaskSchema, type Task } from '@nasq/contracts'
+import { MeSchema, PersonRefSchema, ProjectDetailSchema, ProjectRefSchema, ProjectSchema, TagSchema, TaskDetailSchema, TaskSchema, type Task } from '@webvue/contracts'
 
 export const tags = TagSchema.array().parse([
   { id: 1, name: 'عاجل', color: 1 },
@@ -74,7 +74,7 @@ export const projectRefs = ProjectRefSchema.array().parse([
 
 export const me = MeSchema.parse({
   id: 2, name: 'Admin', login: 'admin', email: 'admin@example.com', lang: 'ar_001', tz: 'Asia/Riyadh',
-  role: 'admin', roles: [], capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'نسق' },
+  role: 'admin', roles: [], capabilities: ['pmo.projects.read'], access_policy_version: 1, company: { id: 1, name: 'ويب فيو' },
 })
 
 // Charter wizard: the classification catalog decides which steps a charter walks.

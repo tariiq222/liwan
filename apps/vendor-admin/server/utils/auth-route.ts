@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { z } from 'zod'
-import { adminAuthFields, adminAuthResults, adminErrorBodySchema, adminMeSchema, adminSessionResultSchema } from '@nasq/commercial-contracts'
+import { adminAuthFields, adminAuthResults, adminErrorBodySchema, adminMeSchema, adminSessionResultSchema } from '@webvue/commercial-contracts'
 import { AUTH_INVALID, readJsonObject } from './body'
 import { bffConfig, devLoginEnabled } from './config'
 import { controlCall, type ControlResult } from './control'

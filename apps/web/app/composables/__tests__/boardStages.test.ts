@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Task } from '@nasq/contracts'
+import type { Task } from '@webvue/contracts'
 import { moveTo, stageOf } from '../boardStages'
 
 const task = {

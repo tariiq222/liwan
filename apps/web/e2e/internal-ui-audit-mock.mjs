@@ -9,7 +9,7 @@ import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
 const PORT = Number(process.env.MOCK_PORT || 4388)
-const SESSION = 'nasq-ui-mock'
+const SESSION = 'webvue-ui-mock'
 const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 // Deterministic local asset for the two employee records in the screenshot fixture.
 const HR_FIXTURE_AVATAR = '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><rect width="128" height="128" rx="64" fill="#e2e8f0"/><circle cx="64" cy="46" r="22" fill="#64748b"/><path d="M24 120c0-27 18-44 40-44s40 17 40 44" fill="#64748b"/></svg>'
@@ -29,8 +29,8 @@ const ME = {
   role: 'admin',
   roles: [{ id: 1, key: 'admin', name: { ar: 'مدير', en: 'Admin' }, type: 'built_in', protected: true, source: 'assignment' }],
   capabilities: CAPABILITIES, access_policy_version: 1,
-  company: { id: 1, name: 'Nasq' },
-  modules: ['nasq_chat', 'nasq_hr', 'nasq_pmo'],
+  company: { id: 1, name: 'WebVue' },
+  modules: ['webvue_chat', 'webvue_hr', 'webvue_pmo'],
   entitlements: {
     'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
@@ -44,7 +44,7 @@ const ME = {
 }
 
 const BRANDING = {
-  name: 'نَسَق',
+  name: 'ويب فيو',
   logo_url: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="#13234a"/></svg>'),
   primary_color: process.env.PREVIEW_PRIMARY_COLOR || '#13234a',
   font: 'IBM Plex Sans Arabic',
@@ -87,7 +87,7 @@ const PROJECTS = [
 ]
 
 const COPIES = []
-// Rows the Nasq AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
+// Rows the WebVue AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
 const AI_AUDIT = []
 // The web gate for /ai checks this alias capability literally (apps/web/app/modules/ai/manifest.ts).
 const AI_USE = 'ai.use'
@@ -135,7 +135,7 @@ const PHASE_OF = new Map()
 const phaseOf = p => PHASE_OF.get(p.id) ?? (PROJECTS.includes(p) ? 'planning' : 'initiating')
 const listItem = p => ({ ...p, charter_state: stateOf(p).charter.state, phase: phaseOf(p) })
 
-// Mirrors Project._nasq_phase_state: only the gate into planning has a check today.
+// Mirrors Project._webvue_phase_state: only the gate into planning has a check today.
 function phaseState(p) {
   const index = PHASES.indexOf(phaseOf(p))
   const next = PHASES[index + 1] ?? null
@@ -302,7 +302,7 @@ async function handle(req, res) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const params = body.params || {}
-    if (params.db !== 'nasq_ui_mock_only' || params.login !== 'admin' || params.password !== 'admin') {
+    if (params.db !== 'webvue_ui_mock_only' || params.login !== 'admin' || params.password !== 'admin') {
       return json(res, 200, { jsonrpc: '2.0', id: body.id ?? null, error: { code: 100, message: 'Access Denied' } })
     }
     return json(res, 200, { jsonrpc: '2.0', id: body.id ?? null, result: { uid: 2, username: 'admin', is_admin: true } }, {

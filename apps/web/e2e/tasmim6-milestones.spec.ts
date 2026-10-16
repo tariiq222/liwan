@@ -78,7 +78,7 @@ test.describe('Plan 6a: milestones', () => {
       await open(page, '/projects/2/milestones/13/edit')
       for (const fontSize of [14, 16, 18]) {
         await page.evaluate(value => { document.documentElement.style.fontSize = `${value}px` }, fontSize)
-        const metrics = await page.locator('.nasq-page-width-form').last().evaluate(el => ({
+        const metrics = await page.locator('.webvue-page-width-form').last().evaluate(el => ({
           width: el.getBoundingClientRect().width,
           font: parseFloat(getComputedStyle(document.documentElement).fontSize),
           maxWidth: parseFloat(getComputedStyle(el).maxWidth),

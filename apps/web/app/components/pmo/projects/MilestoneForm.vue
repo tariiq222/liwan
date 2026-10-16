@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Milestone } from '@nasq/contracts'
+import type { Milestone } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useCreateMilestone, useUpdateMilestone } from '@/composables/useMilestones'
 import { isDirtySnapshot } from '@/lib/formDirty'

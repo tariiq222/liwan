@@ -1164,13 +1164,13 @@
           "name": "initialDraft",
           "type": "{ name: string; description?: string | undefined; date_start?: string | undefined; date_end?: string | undefined; charter?: { rationale?: string | undefined; objectives?: string[] | undefined; scope?: string | undefined; exclusions?: string | undefined; success?: string | undefined; assumptions?: string | undefined; constraints?: string | undefined; } | undefined; } | null",
           "required": false,
-          "description": "A Nasq AI draft: applied once, after the create defaults, before the baseline snapshot."
+          "description": "A WebVue AI draft: applied once, after the create defaults, before the baseline snapshot."
         },
         {
           "name": "attestRequired",
           "type": "boolean",
           "required": false,
-          "description": "The final create needs the user's attestation (a draft prepared by Nasq AI)."
+          "description": "The final create needs the user's attestation (a draft prepared by WebVue AI)."
         }
       ],
       "events": [
@@ -1222,7 +1222,7 @@
         },
         {
           "id": "AiDraft",
-          "name": "مسودة من Nasq AI",
+          "name": "مسودة من WebVue AI",
           "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68"
         }
       ]
@@ -5061,8 +5061,8 @@
           "name": "الأسطح والنص والحدود"
         },
         {
-          "id": "Nasq",
-          "name": "هوية نسق"
+          "id": "WebVue",
+          "name": "هوية ويب فيو"
         },
         {
           "id": "Brand",
@@ -5153,7 +5153,7 @@
     {
       "title": "Nuxt UI/Overlays",
       "story": "apps/web/stories/nuxt-ui/Overlays.stories.ts",
-      "description": "وصفات `dropdownMenu` و`tooltip` و`popover` و`slideover` و`modal` وطبقاتها `--nasq-ui-z-menu` و`--nasq-ui-z-sheet`.",
+      "description": "وصفات `dropdownMenu` و`tooltip` و`popover` و`slideover` و`modal` وطبقاتها `--webvue-ui-z-menu` و`--webvue-ui-z-sheet`.",
       "stories": [
         {
           "id": "Menus",

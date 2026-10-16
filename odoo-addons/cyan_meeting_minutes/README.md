@@ -1,6 +1,6 @@
 # Cyan Meeting Minutes
 
-Vendor module (Cyan, LGPL-3) with Nasq hardening. See `PROVENANCE.md`.
+Vendor module (Cyan, LGPL-3) with WebVue hardening. See `PROVENANCE.md`.
 
 Internal meeting minutes, resolutions, calendar link, and activities.
 

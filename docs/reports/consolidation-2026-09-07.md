@@ -1,4 +1,4 @@
-# Nasq consolidation — 2026-09-07
+# WebVue consolidation — 2026-09-07
 
 > تاريخي. السياسة: [DESIGN.md](../../DESIGN.md). ليس تعليمات واجهة.
 
@@ -76,7 +76,7 @@ retain staged/uncommitted source and interrupted merge states.
 The retained working set is:
 
 - `/Users/tariq/code/nasq` — `main`.
-- The original `nasq-chat-workspace` — `codex/chat-workspace`, excluded.
+- The original `webvue-chat-workspace` — `codex/chat-workspace`, excluded.
 - The original Cyan meetings trial — `codex/cyan-meetings-trial`, excluded.
 
 The temporary integration worktree is archived after this closure record is

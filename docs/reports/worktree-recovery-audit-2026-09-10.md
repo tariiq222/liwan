@@ -10,11 +10,11 @@
 
 | النسخة / الفرع | الحالة عند الجرد | القرار والنتيجة |
 | --- | --- | --- |
-| `nasq` / `main` | fce4561 مع 22 ملفًا لإزالة بوابة التحديث | محفوظة ومضمنة في 0d67389؛ نسخة التطوير الرئيسية |
-| `nasq-github-update-scope` | نفس HEAD و22 تعديلًا مطابقًا لـmain | نسخة مكررة؛ نُقلت كاملة إلى retired وأزيل الفرع والتسجيل |
-| `nasq-integrate-font-scale` | 1cea240، متأخرة بكومِتين، ونفس تعديلات الهوك | الخط مدمج؛ حُفظت النسخة كاملة وأزيل الفرع والتسجيل |
-| `nasq-project-font-scale` | 1cea240، متأخرة بكومِتين، ونفس تعديلات الهوك | الخط مدمج؛ حُفظت النسخة كاملة وأزيل الفرع والتسجيل |
-| `nasq-nuxt-ui-reference` | fce4561 مع 72 مسارًا معدلًا/جديدًا/محذوفًا | حُفظت أثناء الجرد في 0d67389؛ تطابقت اللقطة حرفيًا مع الكومِت، ثم اختُبرت ودُمجت وحُفظت النسخة كاملة وأزيل الفرع والتسجيل |
+| `webvue` / `main` | fce4561 مع 22 ملفًا لإزالة بوابة التحديث | محفوظة ومضمنة في 0d67389؛ نسخة التطوير الرئيسية |
+| `webvue-github-update-scope` | نفس HEAD و22 تعديلًا مطابقًا لـmain | نسخة مكررة؛ نُقلت كاملة إلى retired وأزيل الفرع والتسجيل |
+| `webvue-integrate-font-scale` | 1cea240، متأخرة بكومِتين، ونفس تعديلات الهوك | الخط مدمج؛ حُفظت النسخة كاملة وأزيل الفرع والتسجيل |
+| `webvue-project-font-scale` | 1cea240، متأخرة بكومِتين، ونفس تعديلات الهوك | الخط مدمج؛ حُفظت النسخة كاملة وأزيل الفرع والتسجيل |
+| `webvue-nuxt-ui-reference` | fce4561 مع 72 مسارًا معدلًا/جديدًا/محذوفًا | حُفظت أثناء الجرد في 0d67389؛ تطابقت اللقطة حرفيًا مع الكومِت، ثم اختُبرت ودُمجت وحُفظت النسخة كاملة وأزيل الفرع والتسجيل |
 | `.claude/worktrees/gracious-mclean-4d4d22` | d5448eb، متأخرة بأربعة كومِتات؛ نفس تعديلات الهوك | العمل مدمج؛ حُفظت النسخة كاملة وأزيل الفرع والتسجيل |
 | `.claude/worktrees/user-experience-analysis-997c7f` | fce4561 مع نفس تعديلات الهوك؛ جلسة Claude Desktop وأدواتها تستخدم المسار | محفوظة في مكانها حتى انتهاء الجلسة؛ لا كود منتج فريد غير مدمج عند الفحص |
 
@@ -50,23 +50,23 @@
 
 | المجلد | الحجم MiB | المحتوى والتفسير |
 | --- | ---: | --- |
-| [nasq-project-recovery-20260909](/Users/tariq/code/nasq-project-recovery-20260909) | 106.4 | أربع نسخ مشاريع: التبويبات واللوحات والإنشاء السريع وفحص الأساس؛ الحالة النهائية 42ff366 مدمجة. |
-| [nasq-recovery-all-20260908-131821](/Users/tariq/code/nasq-recovery-all-20260908-131821) | 216.5 | دمج شامل سابق: 18 نسخة مصدر، لقطات غير محفوظة، اختبارات وقرارات التوفيق. بعض رؤوس الأرشيف قديمة ومستبدلة؛ لا تُعاد فوق main. |
-| [nasq-recovery-branch-cleanup-20260909-131830](/Users/tariq/code/nasq-recovery-branch-cleanup-20260909-131830) | 7.6 | حفظ فروع الاجتماعات وفصل الهوية عن المظهر. 21e4862 ليس سلفًا لكن git cherry يثبت وجود تغيير مكافئ في main. |
-| [nasq-recovery-final-20260908](/Users/tariq/code/nasq-recovery-final-20260908) | 43.4 | نسخ التنقل وحركة القائمة والإشعارات والإضافة. الإغلاق c643fe2 مدمج. |
-| [nasq-recovery-font-scale-20260910](/Users/tariq/code/nasq-recovery-font-scale-20260910) | 0.0 | patch فقط؛ ليست نسخة Git مستقلة. تغيير تصغير الخط محفوظ في 1cea240 الموجود في main. |
-| [nasq-recovery-meeting-filters-20260909](/Users/tariq/code/nasq-recovery-meeting-filters-20260909) | 53.8 | التبويبات والفلاتر؛ يحتوي أيضًا scratch.dump وfilestore. إغلاق 5665902 مدمج؛ نسخة قاعدة اختبار وليست backup شاملًا لـodoo19. |
-| [nasq-recovery-meetings-20260908](/Users/tariq/code/nasq-recovery-meetings-20260908) | 36.1 | ثلاث نسخ إصلاح الاجتماعات مع Git وسجلات التحقق؛ إغلاق 851bd7e مدمج. |
-| [nasq-recovery-meetings-ux-20260909](/Users/tariq/code/nasq-recovery-meetings-ux-20260909) | 117.8 | إصلاح تجربة الاجتماعات ولقطة main الأصلية وعشر نسخ مصدر؛ dump وfilestore لقاعدة اختبار؛ e7811fa مدمج. |
-| [nasq-recovery-merge-20260908-110608](/Users/tariq/code/nasq-recovery-merge-20260908-110608) | 22.9 | دمج سابق لواجهات المشاريع والنماذج والإعدادات؛ Git ولقطات ستة مسارات وسجل تنظيف وتشغيل. |
-| [nasq-recovery-merge-20260909-174608](/Users/tariq/code/nasq-recovery-merge-20260909-174608) | 236.5 | دمج الأعمال المتبقية والأمان؛ عبارة security pending تاريخية: الكومِت الأمني 7aeb5db موجود الآن في main. |
-| [nasq-recovery-module-ui-20260910](/Users/tariq/code/nasq-recovery-module-ui-20260910) | 1420.0 | أحدث توحيد للوحدات غير المحادثات؛ خمس نسخ كاملة متقاعدة مع اعتماديات ومخرجات وسجلات؛ fce4561 هو أساس هذه الجولة. |
-| [nasq-recovery-seven-branches-20260909-133646](/Users/tariq/code/nasq-recovery-seven-branches-20260909-133646) | 28.5 | لقطة أولية لسبعة فروع مع أرشيفين فقط؛ يكملها مجلد seven-merge اللاحق. لا تعتبر النسختين متطابقتين بالكامل دون مقارنة كل ملف. |
-| [nasq-recovery-seven-merge-20260909-133831](/Users/tariq/code/nasq-recovery-seven-merge-20260909-133831) | 260.3 | لقطة لاحقة مكتملة للسبعة: tar لكل عمل، manifests وقرارات مقارنة؛ الإغلاق 005c721 مدمج. |
-| [nasq-recovery-ui-20260909-224801](/Users/tariq/code/nasq-recovery-ui-20260909-224801) | 1358.2 | توحيد المشاريع والمحادثات؛ نسخ كاملة متقاعدة تشمل اعتماديات ومخرجات، مع Git ولقطات main؛ d5448eb مدمج. |
-| [nasq-runtime-backups](/Users/tariq/code/nasq-runtime-backups) | 290.5 | ثلاث مجموعات نسخ تشغيل سابقة؛ منفصلة عن Git. لم تُستعد إلى قاعدة بيانات ولم تُحذف. |
-| [nasq-update-gate-recovery-20260909-134003](/Users/tariq/code/nasq-update-gate-recovery-20260909-134003) | 16.9 | نسخة بوابة الموافقات القديمة؛ الكود التاريخي مدمج ثم أزيل بطلب المستخدم. للاسترجاع التاريخي فقط؛ لا تعني وجوب إعادة الهوك. |
-| [nasq-update-hook-backup-20260910T114106718102Z](/Users/tariq/code/nasq-update-hook-backup-20260910T114106718102Z) | 1.2 | نسخ الملفات قبل إزالة الهوك من سبع نسخ عمل، مع manifest يربط كل رقم بمساره؛ قرار الإزالة محفوظ في الدمج الحالي. |
+| [webvue-project-recovery-20260909](/Users/tariq/code/nasq-project-recovery-20260909) | 106.4 | أربع نسخ مشاريع: التبويبات واللوحات والإنشاء السريع وفحص الأساس؛ الحالة النهائية 42ff366 مدمجة. |
+| [webvue-recovery-all-20260908-131821](/Users/tariq/code/nasq-recovery-all-20260908-131821) | 216.5 | دمج شامل سابق: 18 نسخة مصدر، لقطات غير محفوظة، اختبارات وقرارات التوفيق. بعض رؤوس الأرشيف قديمة ومستبدلة؛ لا تُعاد فوق main. |
+| [webvue-recovery-branch-cleanup-20260909-131830](/Users/tariq/code/nasq-recovery-branch-cleanup-20260909-131830) | 7.6 | حفظ فروع الاجتماعات وفصل الهوية عن المظهر. 21e4862 ليس سلفًا لكن git cherry يثبت وجود تغيير مكافئ في main. |
+| [webvue-recovery-final-20260908](/Users/tariq/code/nasq-recovery-final-20260908) | 43.4 | نسخ التنقل وحركة القائمة والإشعارات والإضافة. الإغلاق c643fe2 مدمج. |
+| [webvue-recovery-font-scale-20260910](/Users/tariq/code/nasq-recovery-font-scale-20260910) | 0.0 | patch فقط؛ ليست نسخة Git مستقلة. تغيير تصغير الخط محفوظ في 1cea240 الموجود في main. |
+| [webvue-recovery-meeting-filters-20260909](/Users/tariq/code/nasq-recovery-meeting-filters-20260909) | 53.8 | التبويبات والفلاتر؛ يحتوي أيضًا scratch.dump وfilestore. إغلاق 5665902 مدمج؛ نسخة قاعدة اختبار وليست backup شاملًا لـodoo19. |
+| [webvue-recovery-meetings-20260908](/Users/tariq/code/nasq-recovery-meetings-20260908) | 36.1 | ثلاث نسخ إصلاح الاجتماعات مع Git وسجلات التحقق؛ إغلاق 851bd7e مدمج. |
+| [webvue-recovery-meetings-ux-20260909](/Users/tariq/code/nasq-recovery-meetings-ux-20260909) | 117.8 | إصلاح تجربة الاجتماعات ولقطة main الأصلية وعشر نسخ مصدر؛ dump وfilestore لقاعدة اختبار؛ e7811fa مدمج. |
+| [webvue-recovery-merge-20260908-110608](/Users/tariq/code/nasq-recovery-merge-20260908-110608) | 22.9 | دمج سابق لواجهات المشاريع والنماذج والإعدادات؛ Git ولقطات ستة مسارات وسجل تنظيف وتشغيل. |
+| [webvue-recovery-merge-20260909-174608](/Users/tariq/code/nasq-recovery-merge-20260909-174608) | 236.5 | دمج الأعمال المتبقية والأمان؛ عبارة security pending تاريخية: الكومِت الأمني 7aeb5db موجود الآن في main. |
+| [webvue-recovery-module-ui-20260910](/Users/tariq/code/nasq-recovery-module-ui-20260910) | 1420.0 | أحدث توحيد للوحدات غير المحادثات؛ خمس نسخ كاملة متقاعدة مع اعتماديات ومخرجات وسجلات؛ fce4561 هو أساس هذه الجولة. |
+| [webvue-recovery-seven-branches-20260909-133646](/Users/tariq/code/nasq-recovery-seven-branches-20260909-133646) | 28.5 | لقطة أولية لسبعة فروع مع أرشيفين فقط؛ يكملها مجلد seven-merge اللاحق. لا تعتبر النسختين متطابقتين بالكامل دون مقارنة كل ملف. |
+| [webvue-recovery-seven-merge-20260909-133831](/Users/tariq/code/nasq-recovery-seven-merge-20260909-133831) | 260.3 | لقطة لاحقة مكتملة للسبعة: tar لكل عمل، manifests وقرارات مقارنة؛ الإغلاق 005c721 مدمج. |
+| [webvue-recovery-ui-20260909-224801](/Users/tariq/code/nasq-recovery-ui-20260909-224801) | 1358.2 | توحيد المشاريع والمحادثات؛ نسخ كاملة متقاعدة تشمل اعتماديات ومخرجات، مع Git ولقطات main؛ d5448eb مدمج. |
+| [webvue-runtime-backups](/Users/tariq/code/nasq-runtime-backups) | 290.5 | ثلاث مجموعات نسخ تشغيل سابقة؛ منفصلة عن Git. لم تُستعد إلى قاعدة بيانات ولم تُحذف. |
+| [webvue-update-gate-recovery-20260909-134003](/Users/tariq/code/nasq-update-gate-recovery-20260909-134003) | 16.9 | نسخة بوابة الموافقات القديمة؛ الكود التاريخي مدمج ثم أزيل بطلب المستخدم. للاسترجاع التاريخي فقط؛ لا تعني وجوب إعادة الهوك. |
+| [webvue-update-hook-backup-20260910T114106718102Z](/Users/tariq/code/nasq-update-hook-backup-20260910T114106718102Z) | 1.2 | نسخ الملفات قبل إزالة الهوك من سبع نسخ عمل، مع manifest يربط كل رقم بمساره؛ قرار الإزالة محفوظ في الدمج الحالي. |
 
 ## سلامة الأرشيف وحدود الاسترجاع
 

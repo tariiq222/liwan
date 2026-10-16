@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AuditAction } from '@nasq/contracts'
+import type { AuditAction } from '@webvue/contracts'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
 const { t } = useI18n()

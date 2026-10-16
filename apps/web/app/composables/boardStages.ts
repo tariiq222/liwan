@@ -1,4 +1,4 @@
-import type { Task, TaskPatch } from '@nasq/contracts'
+import type { Task, TaskPatch } from '@webvue/contracts'
 import type { Resolved } from './useTasks'
 
 // A board column source. مهامي groups by the user's personal stages

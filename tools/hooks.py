@@ -26,7 +26,7 @@ from git_policy import check_subject
 UI_SOURCE_ROOTS = ('apps/web/', 'apps/vendor-admin/', 'packages/ui/', 'packages/commercial-ui/')
 
 REPO = Path(__file__).resolve().parents[1]
-MARKER = '# nasq-hook'
+MARKER = '# webvue-hook'
 HOOKS = ('pre-commit', 'commit-msg')
 AUTOSQUASH = ('fixup!', 'squash!', 'amend!', 'Squashed commit')
 STUB = """#!/bin/sh

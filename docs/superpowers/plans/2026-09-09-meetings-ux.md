@@ -3,7 +3,7 @@
 # Meetings UX repair implementation plan
 
 Goal: implement the user-approved meetings audit corrections while preserving the current approved UI and business policies.
-Architecture: extend Nasq PMO and its strict contracts, keep one task per recommendation, use routed Nuxt workflows and existing shared presentation. Freeze historical content at existing complete transition; legacy history remains explicitly unavailable.
+Architecture: extend WebVue PMO and its strict contracts, keep one task per recommendation, use routed Nuxt workflows and existing shared presentation. Freeze historical content at existing complete transition; legacy history remains explicitly unavailable.
 Spec: preceding user-approved audit and external context.md. User requested Luna High agents; three parallel implementers maximum. No commits or main integration authorized.
 
 ## Global constraints

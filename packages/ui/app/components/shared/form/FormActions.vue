@@ -5,7 +5,7 @@ const panel = inject(FORM_ACTIONS_HOST, null)
 const element = ref<HTMLElement | null>(null)
 const owner = shallowRef<HTMLFormElement | null>(null)
 const registered = ref(false)
-const formId = `nasq-form-${useId()}`
+const formId = `webvue-form-${useId()}`
 const target = computed(() => registered.value ? panel?.target.value : null)
 
 // Moving the action region must preserve the browser's native form owner.
@@ -32,6 +32,6 @@ onBeforeUnmount(() => { if (registered.value && panel) panel.active.value-- })
 
 <template>
   <Teleport :to="target || 'body'" :disabled="!target">
-    <div ref="element" class="nasq-form-footer" :data-panel="registered || undefined" data-slot="form-actions"><slot /></div>
+    <div ref="element" class="webvue-form-footer" :data-panel="registered || undefined" data-slot="form-actions"><slot /></div>
   </Teleport>
 </template>

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import LoadingSkeleton from '@nasq/ui/app/components/shared/feedback/LoadingSkeleton.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import LoadingSkeleton from '@webvue/ui/app/components/shared/feedback/LoadingSkeleton.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
@@ -11,7 +11,7 @@ const meta = {
   render: args => ({
     components: { LoadingSkeleton, PageContainer },
     setup: () => ({ args }),
-    template: '<main class="nasq-shell-main"><PageContainer width="list"><LoadingSkeleton v-bind="args" /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="list"><LoadingSkeleton v-bind="args" /></PageContainer></main>',
   }),
 } satisfies Meta<typeof LoadingSkeleton>
 export default meta

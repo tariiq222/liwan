@@ -228,7 +228,7 @@ test('prev/next is live on a direct /tasks/{id} load', async ({ page }) => {
   // Seed a bounded persisted filter without visiting the table. The detail
   // route must fetch its own list on this cold navigation, even when the
   // database contains more than one page of higher-priority tasks.
-  await page.evaluate(q => localStorage.setItem('nasq.tasks.filters', JSON.stringify({ closed: false, q })), prefix)
+  await page.evaluate(q => localStorage.setItem('webvue.tasks.filters', JSON.stringify({ closed: false, q })), prefix)
 
   await page.goto(`/tasks/${idB}`)
   const detail = page.getByTestId('task-detail-page')

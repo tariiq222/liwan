@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
-import RecordSection from '@nasq/ui/app/components/shared/layout/RecordSection.vue'
+import RecordSection from '@webvue/ui/app/components/shared/layout/RecordSection.vue'
 import { storyContext } from '../support/context'
 
 const meta = {

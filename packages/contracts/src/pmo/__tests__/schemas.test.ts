@@ -6,7 +6,7 @@ import {
   MilestoneSchema, MilestoneBodySchema, MilestonePatchSchema, ProjectUpdateSchema, ProjectSettingsSchema, StageOrderBodySchema,
 } from '../index'
 
-// The literal below matches TASK_KEYS in odoo-addons/nasq_pmo/tests/test_tasks.py exactly —
+// The literal below matches TASK_KEYS in odoo-addons/webvue_pmo/tests/test_tasks.py exactly —
 // dump_task()'s key set is the contract this schema mirrors.
 const TASK_JSON = {
   id: 12, name: 'Overdue task', project: { id: 3, name: 'Erada Portal' }, state: 'in_progress',

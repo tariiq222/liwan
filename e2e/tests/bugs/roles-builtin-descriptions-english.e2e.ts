@@ -2,9 +2,9 @@ import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
 
 /**
- * Bug-bash repro (severity low, apps/web + nasq_core data, /settings/roles):
+ * Bug-bash repro (severity low, apps/web + webvue_core data, /settings/roles):
  * built-in role descriptions are the English strings from
- * odoo-addons/nasq_core/data/access_roles.xml, shown unchanged in the Arabic UI
+ * odoo-addons/webvue_core/data/access_roles.xml, shown unchanged in the Arabic UI
  * next to Arabic role names. Expected: Arabic description in the Arabic locale.
  * Skipped until fixed; run with E2E_BUGS=1 on `npm run e2e:odoo`.
  */

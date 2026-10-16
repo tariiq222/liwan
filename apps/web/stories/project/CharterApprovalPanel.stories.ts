@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import type { ProjectDetail } from '@nasq/contracts'
+import type { ProjectDetail } from '@webvue/contracts'
 import CharterApprovalPanel from '../../app/components/pmo/projects/CharterApprovalPanel.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { projectDetail } from '../fixtures/pmo'
 import { storyContext } from '../support/context'
 
@@ -21,7 +21,7 @@ const meta = {
   render: args => ({
     components: { CharterApprovalPanel, PageContainer },
     setup: () => ({ args }),
-    template: `<main class="nasq-shell-main"><PageContainer width="list"><CharterApprovalPanel v-bind="args" /></PageContainer></main>`,
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><CharterApprovalPanel v-bind="args" /></PageContainer></main>`,
   }),
 } satisfies Meta<typeof CharterApprovalPanel>
 export default meta

@@ -2,11 +2,11 @@ import { chromium } from '@playwright/test'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { DependencyCandidateListSchema, PersonRefSchema, TaskAttachmentListSchema, TaskDetailSchema, TaskListSchema } from '@nasq/contracts'
+import { DependencyCandidateListSchema, PersonRefSchema, TaskAttachmentListSchema, TaskDetailSchema, TaskListSchema } from '@webvue/contracts'
 
 // An isolated copy can be supplied for patch review. Normal unit runs use the
 // actual mock module; every child binds port 0 and is stopped by this harness.
-const mockSource = process.env.NASQ_SYNTHETIC_MOCK_SOURCE
+const mockSource = process.env.WEBVUE_SYNTHETIC_MOCK_SOURCE
   ?? resolve(import.meta.dirname, '../../../e2e/internal-ui-audit-mock.mjs')
 const children: ChildProcess[] = []
 const bootstrap = `
@@ -20,12 +20,12 @@ http.Server.prototype.listen = function(port, host, callback) {
     callback?.call(server);
   });
 };
-await import(pathToFileURL(process.env.NASQ_SYNTHETIC_MOCK_SOURCE).href);
+await import(pathToFileURL(process.env.WEBVUE_SYNTHETIC_MOCK_SOURCE).href);
 `
 
 async function start(modulePreview = '1') {
   const child = spawn(process.execPath, ['--input-type=module', '-e', bootstrap], {
-    env: { ...process.env, NASQ_SYNTHETIC_MOCK_SOURCE: mockSource, MOCK_PORT: '0', PROJECTS_UI_PREVIEW: '1', MODULE_UI_PREVIEW: modulePreview },
+    env: { ...process.env, WEBVUE_SYNTHETIC_MOCK_SOURCE: mockSource, MOCK_PORT: '0', PROJECTS_UI_PREVIEW: '1', MODULE_UI_PREVIEW: modulePreview },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   children.push(child)
@@ -42,7 +42,7 @@ async function start(modulePreview = '1') {
   })
   const auth = await fetch(`${base}/web/session/authenticate`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ params: { db: 'nasq_ui_mock_only', login: 'admin', password: 'admin' } }),
+    body: JSON.stringify({ params: { db: 'webvue_ui_mock_only', login: 'admin', password: 'admin' } }),
   })
   const cookie = auth.headers.get('set-cookie')!.split(';')[0]!
   return { base, cookie, get: (path: string) => fetch(`${base}${path}`, { headers: { cookie } }) }

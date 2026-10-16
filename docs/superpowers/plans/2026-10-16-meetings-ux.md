@@ -4,7 +4,7 @@
 
 **Goal:** رحلة اجتماعات واضحة من العثور والتجهيز إلى المحضر والتوصيات والإنهاء والمتابعة، مع حفظ السياق والمسودة والصلاحيات.
 
-**Architecture:** تحديث الصفحات والمكونات القائمة في موضعها، باستخدام Nuxt UI وقوالب Storybook المعتمدة. صفحة متابعة واحدة جديدة تستخدم قراءة خادمية في `nasq_meetings`، وربط PMO يبقى في `nasq_meetings_pmo`؛ لا نماذج أو حقول مخزنة جديدة.
+**Architecture:** تحديث الصفحات والمكونات القائمة في موضعها، باستخدام Nuxt UI وقوالب Storybook المعتمدة. صفحة متابعة واحدة جديدة تستخدم قراءة خادمية في `webvue_meetings`، وربط PMO يبقى في `webvue_meetings_pmo`؛ لا نماذج أو حقول مخزنة جديدة.
 
 **Tech Stack:** Nuxt 4 / Vue 3، Nuxt UI، TanStack Vue Query، Zod، Odoo 19 Community، Vitest وPlaywright واختبارات Odoo في scratch فقط.
 
@@ -13,13 +13,13 @@
 ## Global Constraints
 
 - التنفيذ بعد اعتماد المستخدم فقط، من أحدث `main` في worktree مستقل `codex/meetings-ux`؛ هذه الخطة مبنية على `03f0da9b` وتُراجع مقابل فرق main عند التنفيذ.
-- `DESIGN.md` هو سياسة الواجهة؛ `/new` في `SharedCreatePanel` والتعديل صفحة، وثيم نسق وتوكناته وقصصه هي المصدر. لا نسخة مكوّن محلية ولا نافذة أعمال متراكبة.
+- `DESIGN.md` هو سياسة الواجهة؛ `/new` في `SharedCreatePanel` والتعديل صفحة، وثيم ويب فيو وتوكناته وقصصه هي المصدر. لا نسخة مكوّن محلية ولا نافذة أعمال متراكبة.
 - العربية RTL والإنجليزية LTR، فاتح/داكن، أحجام الخط14/16/18 بالعربية؛ قياسات قبول390/768/1440px.
 - حالات الاجتماع تبقى `draft | confirmed | done | cancelled`. أسماء المعتمد والتوقيع بيانات مستند، لا محرك موافقات.
 - `minutes_form` للمحضر المنظم، `agenda` لجدول الأعمال، `minutes` للملاحظات الإضافية الموجودة؛ لا حذف بيانات أو حقول ولا نسخ متوازية أو ترحيل تلقائي للمحتوى.
 - حماية المسودة و`write_date` للسجل، والنسخ التاريخية، والمصدر والفلاتر وhash والروابط المباشرة تبقى. لا توسيع allowlist بلا صلاحية ولا اعتماد على history.
 - API جلسة cookie، `json2`، `auth=user`، `api_handler`، ميزة التطبيق والقدرات والشركة وقواعد السجل؛ الغلاف `{items, total}`. لا `sudo()` جديد.
-- استقلال الاجتماعات عن المشاريع إلزامي. لا تعديلات في Odoo upstream أو `nasq_pmo` أو تفاصيل المهام لتسهيل الواجهة.
+- استقلال الاجتماعات عن المشاريع إلزامي. لا تعديلات في Odoo upstream أو `webvue_pmo` أو تفاصيل المهام لتسهيل الواجهة.
 - لا تشغيل اختبارات على `odoo19`. dependencies و`.nuxt` والقاعدة والمنافذ مستقلة؛ لا symlinks. لا commit/merge/push/deploy أو حذف مواد دون إذن مستقل.
 
 ## Review Focus
@@ -85,21 +85,21 @@
 - [ ] حرّر agenda من edit فقط؛ في minutes اعرض مقتطفًا مقروءًا ورابط تعديل محمي بالمسودة. احذف agenda من payload حفظ المحضر. أعد ترتيب النموذج المنظم، وسمّ minutes «ملاحظات إضافية»، قابلة للطي لكن ظاهرة إن كان فيها نص. لا تحويل بيانات ولا تغيير عقد اكتمال الخادم.
 - [ ] استخدم تحققًا بعد المحاولة للنماذج، مع أسماء أخطاء ومواضع تركيز فعلية، وloading على الحفظ. لا تعطّل الحفظ بسبب خطأ غير ظاهر؛ التعطيل عند عدم التغيير/عدم الصلاحية/الطلب يوضح سببه. طبّق `UFormField` على حقول المحضر بدل labels المتفرقة.
 - [ ] ابنِ عرض المحضر للشاشة بمواضيع مقروءة، وبقي جدول الطباعة من المصدر نفسه. لا تجلب أسماء مشاريع محجوبة؛ غياب الاسم لا يبرر كشف رقم داخلي للمستخدم. إذا لم يوفر العقد اسم الموضوع استخدم «مشروع مرتبط»؛ الاسم المتاح يظل مع التوصية التابعة.
-- [ ] قبل complete اعرض نواقص بداية/نهاية/محتوى وفق شرط `_nasq_completion_gap` الحالي وروابط إصلاحها، ثم التأكيد والتثبيت. لا تضف شرط اكتمال توقيع أو جميع التوصيات. تبقى سلطة القبول للخادم؛ عرض خطأ الانتقال في سياقه مع إمكان إعادة المحاولة بدل فقده في toast.
+- [ ] قبل complete اعرض نواقص بداية/نهاية/محتوى وفق شرط `_webvue_completion_gap` الحالي وروابط إصلاحها، ثم التأكيد والتثبيت. لا تضف شرط اكتمال توقيع أو جميع التوصيات. تبقى سلطة القبول للخادم؛ عرض خطأ الانتقال في سياقه مع إمكان إعادة المحاولة بدل فقده في toast.
 - [ ] الإجراء الرئيسي: draft «تأكيد الاجتماع» للمحرّر؛ confirmed في المحضر «تحرير المحضر» للمحرّر و«إنهاء الاجتماع» كإجراء ثانوي للمدير، وفي النظرة العامة يبرز «إنهاء الاجتماع» للمدير بعد الجاهزية؛ done معاينة المحضر، وإعادة الفتح إجراء ثانوي للمخوّل. لا يظهر إجراء أعلى من `can_edit/can_manage/allowed_actions`.
 - [ ] Run: `npm -w apps/web run test -- app/pages/__tests__/meetingEditors.test.ts app/pages/__tests__/meetingForms.test.ts app/pages/__tests__/meetingPrint.test.ts app/utils/__tests__/meetingEditorContext.test.ts app/composables/__tests__/useMeetingTransitions.test.ts`؛ تحقق حي على scratch من حفظ/تعارض/إنهاء/إعادة فتح/نسخة قديمة. الناتج A3 وA4 وA5.
 
 ## المرحلة 4: المتابعة العامة ودلالة الحالة
 
-**Files — Modify:** `odoo-addons/nasq_meetings/controllers/meeting_workspace.py`، `models/meeting_links.py`؛ `odoo-addons/nasq_meetings_pmo/models/meeting_links_pmo.py`؛ `packages/contracts/src/meetings/index.ts`؛ `apps/web/app/composables/useMeetingWorkspace.ts` و`meetingKeys.ts`؛ `app/modules/meetings/manifest.ts`، `app/pages/meetings/series/[id].vue`؛ locales.
-**Create:** `apps/web/app/pages/meetings/follow-up.vue`؛ `odoo-addons/nasq_meetings/tests/test_meeting_followup.py`، `odoo-addons/nasq_meetings_pmo/tests/test_meeting_followup_pmo.py` وتسجيلهما في `tests/__init__.py`؛ `packages/contracts/src/meetings/__tests__/followup.test.ts`؛ `apps/web/app/composables/__tests__/useMeetingFollowup.test.ts`.
+**Files — Modify:** `odoo-addons/webvue_meetings/controllers/meeting_workspace.py`، `models/meeting_links.py`؛ `odoo-addons/webvue_meetings_pmo/models/meeting_links_pmo.py`؛ `packages/contracts/src/meetings/index.ts`؛ `apps/web/app/composables/useMeetingWorkspace.ts` و`meetingKeys.ts`؛ `app/modules/meetings/manifest.ts`، `app/pages/meetings/series/[id].vue`؛ locales.
+**Create:** `apps/web/app/pages/meetings/follow-up.vue`؛ `odoo-addons/webvue_meetings/tests/test_meeting_followup.py`، `odoo-addons/webvue_meetings_pmo/tests/test_meeting_followup_pmo.py` وتسجيلهما في `tests/__init__.py`؛ `packages/contracts/src/meetings/__tests__/followup.test.ts`؛ `apps/web/app/composables/__tests__/useMeetingFollowup.test.ts`.
 
-**Prerequisite:** قبل كود Odoo نفّذ `odoo-workflow` ومرجع19، وحدّث Context Brief من المصدر الفعلي. أهم مواضع البدء الحالية: `_nasq_meeting_access_domain` في `meeting_access.py:9`، `series_resolutions` في `meeting_workspace.py:89`، `dump_resolution` في `serializers/meeting.py:160`، و`_nasq_readable_links` في bridge. لا تغيير لـCyan أو قواعد الرؤية لمجرد إظهار مزيد من النتائج.
+**Prerequisite:** قبل كود Odoo نفّذ `odoo-workflow` ومرجع19، وحدّث Context Brief من المصدر الفعلي. أهم مواضع البدء الحالية: `_webvue_meeting_access_domain` في `meeting_access.py:9`، `series_resolutions` في `meeting_workspace.py:89`، `dump_resolution` في `serializers/meeting.py:160`، و`_webvue_readable_links` في bridge. لا تغيير لـCyan أو قواعد الرؤية لمجرد إظهار مزيد من النتائج.
 
 **Interfaces:**
 - `MeetingFollowupListSchema = {items: MeetingPreviousResolutionSchema[], total: number}`؛ قراءة `GET /api/v1/meetings/resolutions` بعقد القسم7 من التصور. اسم Zod جديد للوجهة، مع إعادة استعمال schema العنصر القائم دون نسخه.
 - `useMeetingFollowup(params: MaybeRefOrGetter<{q?: string; mine?: boolean; state?: 'active'|'overdue'|'open'|'in_progress'|'done'|'cancelled'; limit?: number; offset?: number}>)` يعيد Vue Query المعتاد، ويستخدم مفتاحًا يضم جميع الفلاتر.
-- hook جديد في `nasq.meeting.links`: `_nasq_resolution_execution_domain(states: tuple[str, ...]) -> list` يعيد domain على التوصيات مطابقًا لحالة serializer الحالية. الأساسي يستخدم state؛ bridge يطابق حالات المهام المقروءة فقط، ويستثني هذه الروابط من فرع state الأساسي. قيد التأخر يضاف إلى deadline بعد domain الحالة. لا filter/count بعد pagination.
+- hook جديد في `webvue.meeting.links`: `_webvue_resolution_execution_domain(states: tuple[str, ...]) -> list` يعيد domain على التوصيات مطابقًا لحالة serializer الحالية. الأساسي يستخدم state؛ bridge يطابق حالات المهام المقروءة فقط، ويستثني هذه الروابط من فرع state الأساسي. قيد التأخر يضاف إلى deadline بعد domain الحالة. لا filter/count بعد pagination.
 
 - [ ] اكتب اختبارات فشل للعقد والعدد والصفحات:25 عنصرًا، أكثر من100، mine، invalid state422، لا قدرة403، شركة أخرى، مشارك/كاتب/مدير، ومسؤول غير مشارك لا يكتسب رؤية جديدة. كل سجل في total يطابق نفس مجال items.
 - [ ] اختبر بدون PMO، ثم مع مهمة انتهت وتوصية state قديمة، ومهمة غير مقروءة ومؤرشفة. فلتر active/overdue والدوري والعام يطابق الشارة المصَفّاة، ولا يعرض task_id أو حالة مخفية من bridge. حافظ على behavior serializer الحالي عند غياب رابط مقروء.
@@ -118,7 +118,7 @@
 - [ ] اختبر عرض سجل النسخ وصفحة الطباعة: الاسم ورقم النسخة والتاريخ، اختيار نسخة قديمة بعد إعادة الفتح، عدم مزج حالة تنفيذ حية داخل مستند تاريخي؛ preview ورقي طويل عربي/إنجليزي دون قص التوصيات. أزرار الطباعة والرجوع لا تظهر على الورق.
 - [ ] حدّث قصص المكونات والفهرس/الكتالوج فقط إن تغيرت واجهاتها: `node tools/ui_catalog.mjs`؛ لا تغييرات مولدة لا تتعلق بالحزمة.
 - [ ] نفّذ رحلات A1–A8، مرة كمدير ومرة كمحرّر ومشارك ومستخدم دون قدرة الاجتماعات، وبـPMO مفعّل ومعطّل. browser mocks لفشل الشبكة، وOdoo scratch للكتابة والحالة والربط والعزل. لا تعاود التحقق نفسه بلا تغيير أو فشل.
-- [ ] المنسق وحده يجري دفعة الختام: `npm test`، `npm -w apps/web run lint`، `ruff check odoo-addons/nasq_meetings odoo-addons/nasq_meetings_pmo`، `python3 -B tools/arch_policy.py --base main`، ومراجعة مستقلة للكود/العقود تشمل Odoo. جولات Playwright: `E2E_BASE_URL="$MEETINGS_UX_URL" npm -w apps/web run test:e2e -- e2e/meetings-ux.spec.ts` بعد تعريف `MEETINGS_UX_URL` من رابط خادم هذه المهمة المسجل والتحقق من أنه غير فارغ، واختبارات الحالة في scratch المسمّاة صراحةً.
+- [ ] المنسق وحده يجري دفعة الختام: `npm test`، `npm -w apps/web run lint`، `ruff check odoo-addons/webvue_meetings odoo-addons/webvue_meetings_pmo`، `python3 -B tools/arch_policy.py --base main`، ومراجعة مستقلة للكود/العقود تشمل Odoo. جولات Playwright: `E2E_BASE_URL="$MEETINGS_UX_URL" npm -w apps/web run test:e2e -- e2e/meetings-ux.spec.ts` بعد تعريف `MEETINGS_UX_URL` من رابط خادم هذه المهمة المسجل والتحقق من أنه غير فارغ، واختبارات الحالة في scratch المسمّاة صراحةً.
 - [ ] وثّق في `docs/verification/2026-10-16-meetings-ux.md` ما تحقق ولقطات الرحلات وحدود mock/Odoo والنتائج والمخاطر؛ حدّث تاريخ الوثيقة إن بدأ التنفيذ لاحقًا. سلّم النسخة للتجربة دون commit/merge. إذا طُلب الدمج لاحقًا تُطبّق قواعد التكامل كاملة مع أحدث main.
 
 ## مراجعة الخطة الحالية

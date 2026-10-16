@@ -1,14 +1,14 @@
-import type { Branch, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@nasq/commercial-contracts'
+import type { Branch, BranchSummary, Invoice, PaymentAttempt, Quote, SubscriptionView, UsageSnapshot } from '@webvue/commercial-contracts'
 import { deriveCustomerCapabilities } from '@/utils/customerCapabilities'
 import { forgetIdempotencyKey, idempotencyKey, safePaymentRedirect, sanitizeBody } from '@/utils/subscription'
 
 export type SubscriptionList<T> = { items: T[]; total: number }
 export type CustomerCatalog = { plans: Array<Record<string, any>>; bundles: Array<Record<string, any>>; release?: Record<string, any> | null }
 export type CustomerOrderResult = { order: NonNullable<SubscriptionView['pending_order']> }
-const CSRF_COOKIE = 'nasq_csrf'
+const CSRF_COOKIE = 'webvue_csrf'
 
 export function useSubscriptionApi() {
-  const headers = import.meta.server ? useRequestHeaders(['cookie', 'host', 'x-nasq-proxy-token', 'x-nasq-tenant-revision']) : undefined
+  const headers = import.meta.server ? useRequestHeaders(['cookie', 'host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision']) : undefined
   const csrf = useCookie(CSRF_COOKIE)
   async function request<T>(path: string, options: { method?: string; body?: unknown; query?: Record<string, unknown> } = {}): Promise<T> {
     const mutation = (options.method ?? 'GET') !== 'GET'
@@ -16,7 +16,7 @@ export function useSubscriptionApi() {
       method: (options.method ?? 'GET') as any,
       body: options.body ? sanitizeBody(options.body as Record<string, unknown>) as any : undefined,
       query: options.query,
-      headers: { ...(headers ?? {}), ...(mutation && csrf.value ? { 'x-nasq-csrf': csrf.value } : {}) },
+      headers: { ...(headers ?? {}), ...(mutation && csrf.value ? { 'x-webvue-csrf': csrf.value } : {}) },
     }) as T
   }
   const store = (): Storage | null => (import.meta.client ? window.sessionStorage : null)

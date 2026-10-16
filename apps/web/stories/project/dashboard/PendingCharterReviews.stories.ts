@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { http, HttpResponse } from 'msw'
 import PendingCharterReviews from '../../../app/components/pmo/projects/dashboard/PendingCharterReviews.vue'
-import PageContainer from '@nasq/ui/app/components/shared/layout/PageContainer.vue'
+import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import { project } from '../../fixtures/pmo'
 import { storyContext } from '../../support/context'
 
@@ -17,7 +17,7 @@ const meta = {
   parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/dashboard.vue:165') },
   render: () => ({
     components: { PageContainer, PendingCharterReviews },
-    template: '<main class="nasq-shell-main"><PageContainer width="list"><PendingCharterReviews /></PageContainer></main>',
+    template: '<main class="webvue-shell-main"><PageContainer width="list"><PendingCharterReviews /></PageContainer></main>',
   }),
 } satisfies Meta<typeof PendingCharterReviews>
 export default meta

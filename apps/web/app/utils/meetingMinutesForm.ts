@@ -96,15 +96,15 @@ export function normalizeMeetingMinutesText(value: string, maxLength = 50000) {
   return value.replace(/\r\n?/g, '\n').slice(0, maxLength)
 }
 
-import { formatNasqDate, formatNasqTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatWebVueDate, formatWebVueTime } from '@webvue/ui/app/composables/calendarDate'
 
 export function formatMeetingDate(value: string | null | undefined, locale: string) {
   if (!value) return '—'
-  return formatNasqDate(`${value.slice(0, 10)}T00:00:00`, locale)
+  return formatWebVueDate(`${value.slice(0, 10)}T00:00:00`, locale)
 }
 
 export function formatMeetingTime(value: string | null | undefined, locale: string) {
-  return formatNasqTime(value, locale)
+  return formatWebVueTime(value, locale)
 }
 
 export function validateMeetingMinutesForm(value: MeetingMinutesFormValue, recommendations: MeetingMinutesRecommendation[] = []) {

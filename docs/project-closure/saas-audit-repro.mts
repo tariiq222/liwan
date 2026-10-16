@@ -16,7 +16,7 @@ import { executeClaimed } from '../../apps/control-plane/src/worker.ts'
 import { signServiceRequest } from '../../packages/commercial-contracts/src/server.ts'
 
 const repo = resolve(fileURLToPath(new URL('../..', import.meta.url)))
-const root = await mkdtemp(join(tmpdir(), 'nasq-readonly-audit-'))
+const root = await mkdtemp(join(tmpdir(), 'webvue-readonly-audit-'))
 const target = 'tgt_audit_only'
 const tenantId = randomUUID()
 const requestId = randomUUID()
@@ -37,7 +37,7 @@ try {
   await mkdir(stateDir, { mode: 0o700 })
   const descriptor: any = {
     adapter: { kind: 'compose-local', version: 1 }, commercial_mode: 'saas', environment_id: 'audit-local',
-    resource_refs: { project: 'nasq-audit-local', compose_file: composeFile, db_name: 'nasq_scratch_audit_only', data_dir: join(root, 'data'), backup_root: join(root, 'backups'), ports: { db: 25131, odoo: 25132, web: 25133 } },
+    resource_refs: { project: 'webvue-audit-local', compose_file: composeFile, db_name: 'webvue_scratch_audit_only', data_dir: join(root, 'data'), backup_root: join(root, 'backups'), ports: { db: 25131, odoo: 25132, web: 25133 } },
     secret_refs: { db_password: 'not-resolved-db', admin_password: 'not-resolved-admin' },
     release_ref: { catalog_version: 'audit-v1', catalog_sha256: `sha256:${catalogHash}`, identity_kind: 'image_id', odoo_image: `sha256:${'a'.repeat(64)}`, web_image: `sha256:${'b'.repeat(64)}`, proxy_image: `sha256:${'c'.repeat(64)}` },
     allowed_operations: ['tenant.create', 'tenant.inspect', 'health'], revision: 1,
@@ -99,7 +99,7 @@ try {
   }
 
   // Real Python refusal with injected port occupancy; no executable Docker seam.
-  const python = `import json,sys\nfrom nasq_cli.managed_runtime import managed_adapter\nfields=json.loads(sys.argv[1])\ndef forbidden(*args,**kwargs):\n raise AssertionError('effects and secrets forbidden in audit')\ndef probe(kind,value):\n if kind=='catalog_sha256': return sys.argv[2]\n if kind=='image_identity': return value\n if kind=='compose_file': return True\n if kind=='port_in_use': return True\n if kind in ('database_exists','project_exists','volume_exists','network_exists'): return False\n raise AssertionError(kind)\ncode,receipt=managed_adapter(fields,runner=forbidden,probe=probe,resolver=forbidden)\nprint(json.dumps({'code':code,'receipt':receipt}))\n`
+  const python = `import json,sys\nfrom webvue_cli.managed_runtime import managed_adapter\nfields=json.loads(sys.argv[1])\ndef forbidden(*args,**kwargs):\n raise AssertionError('effects and secrets forbidden in audit')\ndef probe(kind,value):\n if kind=='catalog_sha256': return sys.argv[2]\n if kind=='image_identity': return value\n if kind=='compose_file': return True\n if kind=='port_in_use': return True\n if kind in ('database_exists','project_exists','volume_exists','network_exists'): return False\n raise AssertionError(kind)\ncode,receipt=managed_adapter(fields,runner=forbidden,probe=probe,resolver=forbidden)\nprint(json.dumps({'code':code,'receipt':receipt}))\n`
   const createConfig = { ...config, invokeAdapter: async (invocation: any) => {
     const fields = { operation: 'tenant.create', target, request_id: requestId, policy_file: invocation.args[invocation.args.indexOf('--policy-file') + 1] }
     const child = spawnSync('python3', ['-B', '-c', python, JSON.stringify(fields), `sha256:${catalogHash}`], { cwd: repo, env: invocation.env, encoding: 'utf8', timeout: 10000 })

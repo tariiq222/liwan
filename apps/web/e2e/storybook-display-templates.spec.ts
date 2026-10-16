@@ -52,14 +52,14 @@ test.describe('Tasmim standalone page and print sheet', () => {
   for (const appearance of ['light', 'dark'] as const) {
     test(`print drops the shell and prints the page black on white (${appearance})`, async ({ page }) => {
       await open(page, 'shared-standalonepage--print-in-shell', `locale:ar;appearance:${appearance}`)
-      const sheet = page.locator('.nasq-print')
+      const sheet = page.locator('.webvue-print')
       await expect(page.getByTestId('shell-header')).toBeVisible()
       await expect(page.getByTestId('module-rail')).toBeVisible()
       if (appearance === 'dark') await expect(sheet).not.toHaveCSS('color', 'rgb(0, 0, 0)')
 
       await page.emulateMedia({ media: 'print' })
       for (const id of ['shell-header', 'module-rail', 'context-sidebar']) await expect(page.getByTestId(id)).toBeHidden()
-      await expect(sheet.locator('.nasq-print-hide')).toBeHidden()
+      await expect(sheet.locator('.webvue-print-hide')).toBeHidden()
       await expect(sheet).toHaveCSS('color', 'rgb(0, 0, 0)')
       await expect(sheet).toHaveCSS('background-color', 'rgb(255, 255, 255)')
       await expect(sheet.getByRole('heading', { level: 1 })).toHaveCSS('color', 'rgb(0, 0, 0)')

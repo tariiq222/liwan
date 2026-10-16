@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { OperationProcess, OperationProcessBody } from '@nasq/contracts'
+import type { OperationProcess, OperationProcessBody } from '@webvue/contracts'
 import { createOperationSubmitGuard, operationErrorKey, processFormErrors } from '@/composables/operations/forms'
 import { useOperationExecutionKinds } from '@/composables/operations/useOperations'
 

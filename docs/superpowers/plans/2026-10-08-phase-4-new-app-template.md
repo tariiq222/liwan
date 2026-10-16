@@ -3,8 +3,8 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Tasks are dispatched to
 > Sonnet/Haiku agents, each in its own worktree branched from the integration branch `codex/tools-new-app`.
 
-**Goal:** a new application (`nasq_<app>`) is added by creating files inside its own folders plus three registration
-edits, without touching any foundation file, and an agent can do it right the first time with the `nasq-new-app` skill.
+**Goal:** a new application (`webvue_<app>`) is added by creating files inside its own folders plus three registration
+edits, without touching any foundation file, and an agent can do it right the first time with the `webvue-new-app` skill.
 
 **Architecture:** the web shell stops hardcoding the four applications: each application ships an `AppManifest`
 in `apps/web/app/modules/<app>/manifest.ts`, discovered with `import.meta.glob`, and the registry, access policy,
@@ -19,10 +19,10 @@ residual list in the same file ("باقٍ عمداً خارج هذا الشرط"
 
 - Allowed registration edits for a new app (and nothing else outside its own folders):
   1. `tools/arch_layers.json` — `ranks` entry (rank 4) and `web_apps` entry.
-  2. `deploy/catalog/solutions/platform_v3.json` — one tier `{"id","name","modules":["nasq_<app>"],"features":["boolean:<app>.enabled"]}`.
+  2. `deploy/catalog/solutions/platform_v3.json` — one tier `{"id","name","modules":["webvue_<app>"],"features":["boolean:<app>.enabled"]}`.
   3. `packages/contracts/src/index.ts` — one `export * from './<app>'` line.
   Plus files rewritten mechanically by `python3 -B tools/catalog_check.py --sync-release-copies` (Task 2).
-- App-owned folders: `odoo-addons/nasq_<app>/`, `packages/contracts/src/<app>/`, `apps/web/app/modules/<app>/`,
+- App-owned folders: `odoo-addons/webvue_<app>/`, `packages/contracts/src/<app>/`, `apps/web/app/modules/<app>/`,
   `apps/web/app/pages/<app>/`, `apps/web/app/components/<app>/`, `apps/web/i18n/locales/{ar,en}/<app>.json`,
   `apps/web/stories/<app>/`.
 - Behaviour of the four existing apps must not change: same nav items and order, same shortcuts, same route gates,
@@ -33,7 +33,7 @@ residual list in the same file ("باقٍ عمداً خارج هذا الشرط"
   `Architecture-approved-by:` trailer.
 - Commits: `type(scope): imperative subject` ≤72 chars, scopes from `core platform api pmo hr chat meetings web cp
   deploy tools docs ci`; body ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Use two `-m` flags.
-- Do not run anything against the `odoo19` database; Odoo checks use scratch DBs `nasq_scratch_*` only, from
+- Do not run anything against the `odoo19` database; Odoo checks use scratch DBs `webvue_scratch_*` only, from
   `/Users/tariq/code/odoo` (read-only checkout) with the worktree's explicit addons path. Never edit `~/.npmrc`.
 - Worktrees install with `npm ci --ignore-scripts`; type-check with `cd apps/web && npm run lint`.
 
@@ -65,7 +65,7 @@ export interface AppManifest {
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
   routeCapabilities?: Array<{ pattern: RegExp; capability: string }>
   landing?: Array<{ path: string; capability: string }>          // firstAllowedPath order within the app
-  capabilityAliases?: Record<string, string>                      // chat: { 'nasq.internal': 'chat.enabled' }
+  capabilityAliases?: Record<string, string>                      // chat: { 'webvue.internal': 'chat.enabled' }
   bell?: { capabilities: string[]; kinds?: AppBellKind[] }
   search?: AppSearchProvider[]
 }
@@ -87,11 +87,11 @@ vendor remain foundation entries in `shellModules.ts` after the apps.
 `modules/__tests__/manifests.test.ts`; modify `modules/registry.ts`, `utils/accessPolicy.ts` and their tests.
 
 - Move every app-specific literal from `registry.ts` (`KNOWN_FEATURE_KEYS` stays as the typed list but
-  `MODULE_FEATURES` app entries, `featureForPath`, `CAPABILITY_FEATURES`, the `nasq.notifications` rule) and from
+  `MODULE_FEATURES` app entries, `featureForPath`, `CAPABILITY_FEATURES`, the `webvue.notifications` rule) and from
   `accessPolicy.ts` (`destinations`, `NOTIFICATION_ACCESS` capability list, `isNavPathActive` app branches,
   `requiredCapabilityForPath` app rules, the `/chat` and `/archived-tasks` return-to allowlist) into the four manifests.
-- `featureForPath(path)` = `manifestForPath(path)?.feature ?? null`. `canUse(identity,'nasq.notifications')` = any
-  manifest with `bell` whose feature is on. `hasCapability(...,'nasq.notifications')` = any manifest `bell.capabilities`
+- `featureForPath(path)` = `manifestForPath(path)?.feature ?? null`. `canUse(identity,'webvue.notifications')` = any
+  manifest with `bell` whose feature is on. `hasCapability(...,'webvue.notifications')` = any manifest `bell.capabilities`
   present. `destinations` = manifests' `landing` in rail order followed by the foundation destinations, keeping today's
   exact order (`/projects/dashboard, /tasks, /projects, /project-templates, /reports, /meetings, ...`). Settings,
   vendor, subscription remain in the foundation files.
@@ -105,7 +105,7 @@ vendor remain foundation entries in `shellModules.ts` after the apps.
 ### Task 2: Derive release lists, git areas and app tokens in tools — `codex/tools-release-derivation` (Sonnet)
 
 **Files:** `tools/catalog_check.py`, `tools/git_policy.py`, `tools/arch_policy.py`, `tools/api_surface.py`,
-`tools/nasq_cli/catalog_source.py`, `tools/nasq_cli/operator.py`, `tools/check_cp1_scratch.py`, `deploy/provision.sh`,
+`tools/webvue_cli/catalog_source.py`, `tools/webvue_cli/operator.py`, `tools/check_cp1_scratch.py`, `deploy/provision.sh`,
 `deploy/woodpecker/image.yml`, `deploy/check_isolated.py`, `deploy/verification-checks.json`,
 `deploy/control-plane-outage/outage-fixture`, `deploy/OPERATIONS.md`, `tools/shared_acceptance_live/up.sh`,
 `apps/control-plane/src/shared/catalog-source.ts`, `packages/commercial-contracts/src/commercial/catalog.ts`, and tests
@@ -120,7 +120,7 @@ vendor remain foundation entries in `shellModules.ts` after the apps.
   `deploy/test_operations.py` tuple) with invariants: release = base modules then tier closures in tier order; and a
   new `catalog_check` rule `release_app_missing`: every rank-4 addon in `arch_layers.json` is in exactly one tier of the
   current release and every tier module of rank 4 is registered. Keep a pin of the base three modules.
-- `git_policy.AREAS` = fixed non-app areas + app areas derived from `arch_layers.json` rank-4 names without `nasq_`
+- `git_policy.AREAS` = fixed non-app areas + app areas derived from `arch_layers.json` rank-4 names without `webvue_`
   (today `pmo hr chat meetings`, so the set is unchanged). `arch_policy.STATIC_APP_TOKENS` shrinks to the tokens not
   derivable (`project`, `cyan_meeting_minutes`) if tests still pass. `arch_policy` R3 web check also covers
   `apps/web/app/modules/<app>/` (manifest folder = app id key in `web_apps`; a manifest may not import another app's
@@ -128,7 +128,7 @@ vendor remain foundation entries in `shellModules.ts` after the apps.
 - `KNOWN_SOURCES` (Python and TS) glob `deploy/catalog/solutions/platform*.json` in name order, or keep the literal and
   add a parity test — pick the glob only if both runtimes can read the directory; otherwise parity test.
 - `ENFORCEMENT` in `catalog.ts`: a `<app>.enabled` key without an explicit entry derives
-  `nasq_api.requires_feature:<app>.enabled`; existing entries unchanged; test it.
+  `webvue_api.requires_feature:<app>.enabled`; existing entries unchanged; test it.
 - Gates: `python3 -B -m unittest discover -s tools -p 'test_*.py'`, `python3 -B tools/catalog_check.py`,
   `python3 -B tools/arch_policy.py --base main`, `python3 -B tools/git_policy.py --base main`, `python3 -B -m pytest
   deploy/test_operations.py` (or unittest), `npm test`, `npm -w apps/control-plane run build` if it exists.
@@ -136,20 +136,20 @@ vendor remain foundation entries in `shellModules.ts` after the apps.
 
 ### Task 3: Bring the reviewer and existing skills up to R1–R10 — `codex/docs-reviewer-rules` (Haiku)
 
-**Files:** `.claude/agents/odoo-reviewer.md`, `.claude/skills/nasq-api-endpoint/SKILL.md`,
-`.claude/skills/nasq-odoo-test/SKILL.md`.
+**Files:** `.claude/agents/odoo-reviewer.md`, `.claude/skills/webvue-api-endpoint/SKILL.md`,
+`.claude/skills/webvue-odoo-test/SKILL.md`.
 
-- odoo-reviewer: scope = all `nasq_*` addons, bridges, contracts, web composables; add an "Architecture (R1–R10)"
+- odoo-reviewer: scope = all `webvue_*` addons, bridges, contracts, web composables; add an "Architecture (R1–R10)"
   checklist mirroring CLAUDE.md lines verbatim in short form (R1 core generic, R2 app-owned groups, R3 bridges
-  `nasq_<a>_<b>` auto_install and web folder isolation, R4 dependency direction and `arch_layers.json` registration,
+  `webvue_<a>_<b>` auto_install and web folder isolation, R4 dependency direction and `arch_layers.json` registration,
   R5 no control-plane import, R6 no customer conditions, R7 sudo only in documented cases, R8 saas/non_saas, R9 public
   extension points, R10 feature registry with owner and per-route `requires_feature`/`requires_registered_feature`);
-  remove `nasq_core.group_*` as an app group check; commit format `type(scope): subject`; run `arch_policy` and
+  remove `webvue_core.group_*` as an app group check; commit format `type(scope): subject`; run `arch_policy` and
   `git_policy --base main`.
-- nasq-api-endpoint: the endpoint lives in the owning addon (not `nasq_api` unless shared plumbing); every route gets
+- webvue-api-endpoint: the endpoint lives in the owning addon (not `webvue_api` unless shared plumbing); every route gets
   `@requires_feature('<app>.enabled', operation=...)` or `requires_registered_feature` for rank-3 services; sudo rule
   per R7; R8; Done-when adds `arch_policy`, `git_policy`.
-- nasq-odoo-test: replace hardcoded module lists with `$(python3 -B tools/catalog_check.py --release-modules)` and
+- webvue-odoo-test: replace hardcoded module lists with `$(python3 -B tools/catalog_check.py --release-modules)` and
   derived test tags, as `.woodpecker.yml` does.
 - Commit: `docs(docs): align reviewer and skills with R1-R10`.
 
@@ -195,13 +195,13 @@ vendor remain foundation entries in `shellModules.ts` after the apps.
 **Files:** `tools/new_app.py`, `tools/new_app_templates/**`, `tools/test_new_app.py`.
 
 - `python3 -B tools/new_app.py <app> --name-ar <ar> --name-en <en> [--dry-run]` creates, refusing if any exists:
-  - `odoo-addons/nasq_<app>/` copied from nasq_hr's smallest shape: `__init__.py`, `__manifest__.py` (LGPL-3,
-    19.0.1.0.0, author Tariq Alwalidi, depends `nasq_api`), `models/feature_registry.py` (`<app>.enabled`, owner,
+  - `odoo-addons/webvue_<app>/` copied from webvue_hr's smallest shape: `__init__.py`, `__manifest__.py` (LGPL-3,
+    19.0.1.0.0, author Tariq Alwalidi, depends `webvue_api`), `models/feature_registry.py` (`<app>.enabled`, owner,
     module), `models/access_service.py` (`<app>.records.read`, `<app>.records.manage`, role grants),
     `security/<app>_capability_groups.xml`, `data/<app>_access_permissions.xml` (+ role `role_<app>_manager`),
-    `security/ir.model.access.csv`, a minimal `nasq.<app>.record` model with company rule, `controllers/` with one
+    `security/ir.model.access.csv`, a minimal `webvue.<app>.record` model with company rule, `controllers/` with one
     `GET /api/v1/<app>/records` route (`json2`, `auth='user'`, `api_handler`, `requires_feature`), a serializer, and
-    `tests/` (`common.py` extending `NasqApiCase`, access-composition test, route test, feature-closed test).
+    `tests/` (`common.py` extending `WebVueApiCase`, access-composition test, route test, feature-closed test).
   - `packages/contracts/src/<app>/index.ts` with a zod schema; `apps/web/app/modules/<app>/manifest.ts`;
     `apps/web/app/pages/<app>/index.vue` (list page using the shared page components per DESIGN.md);
     `apps/web/i18n/locales/{ar,en}/<app>.json`.
@@ -214,13 +214,13 @@ vendor remain foundation entries in `shellModules.ts` after the apps.
 
 ### Wave 3
 
-### Task 8: `nasq-new-app` skill and docs — `codex/docs-new-app-skill` (Sonnet)
+### Task 8: `webvue-new-app` skill and docs — `codex/docs-new-app-skill` (Sonnet)
 
-**Files:** `.claude/skills/nasq-new-app/SKILL.md`, `CLAUDE.md` (check command uses `--release-modules`; one line in the
+**Files:** `.claude/skills/webvue-new-app/SKILL.md`, `CLAUDE.md` (check command uses `--release-modules`; one line in the
 Odoo addon rules pointing to the skill; frontend rules: "a new application adds its own manifest" replacing the
 "(Phase 4)" note), `docs/parallel-work.md` if it lists apps, roadmap row 3 → merged `c7115a77`, row 4 → this plan.
 
-- Skill frontmatter: `name: nasq-new-app`, one-line `description` ending with "Use when …". Steps: choose id; run the
+- Skill frontmatter: `name: webvue-new-app`, one-line `description` ending with "Use when …". Steps: choose id; run the
   scaffold; fill model/serializer/contract; capabilities and roles; manifest nav/rail/landing; locale labels; tests;
   gates (`npm test`, lint, `arch_policy --base main`, `git_policy --base main`, `catalog_check`, scratch Odoo install
   with `--release-modules`); review with `odoo-reviewer`; the allowed-files rule. ≤120 lines.
@@ -230,7 +230,7 @@ Odoo addon rules pointing to the skill; frontend rules: "a new application adds 
 - From the integration branch after Tasks 1–8: run the skill end to end for `sample` («تجريبي» / Sample).
 - Evidence: `git diff --stat codex/tools-new-app` lists only app-owned paths, the three registration files and
   sync-written copies; `npm test`, lint, `arch_policy --base codex/tools-new-app`, `catalog_check`, scratch Odoo install
-  + tests for the release modules incl. `nasq_sample` all pass; mock UI shows the Sample rail entry gated by
+  + tests for the release modules incl. `webvue_sample` all pass; mock UI shows the Sample rail entry gated by
   `sample.enabled` (screenshot optional).
 - Write `docs/reports/2026-10-08-new-app-template-proof.md` on the integration branch (separate commit, scope docs)
   with the commands and results. Tag the spike `archive/new-app-proof` is NOT needed; the branch is deleted after.

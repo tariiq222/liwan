@@ -1,4 +1,4 @@
-import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@nasq/contracts'
+import { ProjectNotificationKindSchema, TaskNotificationKindSchema } from '@webvue/contracts'
 import type { AppManifest } from '../types'
 import { projectsSearch, tasksSearch } from './search'
 

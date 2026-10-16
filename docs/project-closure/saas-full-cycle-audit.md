@@ -1,6 +1,6 @@
-# إعادة تدقيق دورة SaaS كاملة — نسق
+# إعادة تدقيق دورة SaaS كاملة — ويب فيو
 
-> **تقرير نقطة زمنية لا قائمة عيوب حية:** SAAS-01–04 وملاحظات الأزرار/الاستطلاع أدناه كانت نتائج تدقيق 2026-09-27. يسجل [تقدم الدورة اللاحق](saas-cycle-progress.md) إصلاحات محدودة واختبارات مصدر، لا قبول متصفح/موارد حية. الهدف الأحدث SaaS ذاتي الخدمة بخدمات مشتركة وله [عقد قبول منفصل](../superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md). لا يُعاد فتح العيوب القديمة تلقائيًا ولا تُعد مغلقة إنتاجيًا دون إثبات جديد.
+> **تقرير نقطة زمنية لا قائمة عيوب حية:** SAAS-01–04 وملاحظات الأزرار/الاستطلاع أدناه كانت نتائج تدقيق 2026-09-27. يسجل [تقدم الدورة اللاحق](saas-cycle-progress.md) إصلاحات محدودة واختبارات مصدر، لا قبول متصفح/موارد حية. الهدف الأحدث SaaS ذاتي الخدمة بخدمات مشتركة وله [عقد قبول منفصل](../superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md). لا يُعاد فتح العيوب القديمة تلقائيًا ولا تُعد مغلقة إنتاجيًا دون إثبات جديد.
 
 **تاريخ جمع الأدلة:** 2026-09-27، الفحوص في هذه الجلسة، وختم Git عند `2026-09-27T12:54:16Z`.
 
@@ -31,7 +31,7 @@ readiness_state: not ready
 | القبول السابق | إنشاء حقيقي جديد عبر **المحوّل مباشرة**، تركيب people، قراءة سياسة مستقلة، تهيئة hash مسؤول، صحة عند الإنشاء، replay/refusal |
 | غير مثبت سابقًا | UI→BFF→خدمة control-plane وقاعدتها→worker→Docker→تسجيل دخول عميل حقيقي؛ ولا العمليات اللاحقة |
 
-المرجع التاريخي الصحيح للشريحة: `managed-saas-acceptance.md:5-37,56-76` و`managed-saas-receipt.json`. الهدف الناجح كان `tgt_local_54b24f06`، و`nasq_scratch_54b24f06`، وواجهة loopback على المنفذ53019. **لم أُعد تشغيل القبول المنشئ للموارد ولا فحص حالته الحية في هذا التدقيق**؛ الإيصال يثبت ما حدث عند الإنشاء لا صحة مستمرة الآن.
+المرجع التاريخي الصحيح للشريحة: `managed-saas-acceptance.md:5-37,56-76` و`managed-saas-receipt.json`. الهدف الناجح كان `tgt_local_54b24f06`، و`webvue_scratch_54b24f06`، وواجهة loopback على المنفذ53019. **لم أُعد تشغيل القبول المنشئ للموارد ولا فحص حالته الحية في هذا التدقيق**؛ الإيصال يثبت ما حدث عند الإنشاء لا صحة مستمرة الآن.
 
 التقارير القديمة في `docs/verification/` و`docs/operations/saas-runtime.md` تحوي حدودًا تاريخية مثل `deployment_ready:false`. لا نستخدمها لنفي نجاح الإنشاء الجديد؛ المصدر الحالي والتحقق السابق الصحيح يسمحان بـ`deployment_ready=true` بعد الإثبات. وبالمقابل لا نحول نجاح المحوّل إلى نجاح رحلة واجهة لم تُنفذ.
 
@@ -43,15 +43,15 @@ readiness_state: not ready
 | عرض الكتالوج ونشره | نسخة منشورة وtier ووحدات وميزات، validate/publish وaudit؛ الاستيراد عبر CLI | موجود، bootstrap يدوي؛ ليس نظام تسعير/فوترة | `deploy/catalog/solutions/platform.json:5-40`؛ `apps/web/app/pages/vendor/catalog.vue`؛ `apps/control-plane/src/admin.ts:43-53` |
 | اختيار الهدف وتسجيل العميل | واجهة ونقطة API تعملان على مخزون v2 | **محجوب لأهداف managed v3** — SAAS-01 | `apps/control-plane/src/http.ts:218-238`؛ `apps/web/app/pages/vendor/tenants/new.vue:5,19,33-37` |
 | enqueue والتنفيذ | طلب create مستقل، قفل/lease، سياسة مشتقة من الكتالوج، تحقق إيصال دائم قبل active | موجود إذا أُعطي العامل tenant صالحًا؛ طريق التسجيل الطبيعي لا يوصله بهدف v3 | `apps/control-plane/src/http.ts:148-194`؛ `apps/control-plane/src/worker.ts:83-110,122-136,254-325` |
-| الإنشاء المحلي نفسه | موارد معزولة، preflight، صور مثبتة، modules/policy/readback/credentials/health ثم receipt | **مثبت للشريحة المحلية**؛ ليس اختبار UI E2E | `tools/nasq_cli/managed_runtime.py:612-740`؛ تقرير القبول السابق |
-| دخول العميل ووحداته | شاشة login وMFA، `/me` بقدرات وميزات، حراسة تنقل وAPI | الكود موجود؛ الدخول الفعلي بعد الإنشاء والدور العادي لم يُثبتا | `apps/web/app/pages/login.vue:42-73`؛ `server/api/auth/login.post.ts:1-35`؛ `odoo-addons/nasq_api/serializers/user.py:35-95`؛ `apps/web/app/modules/registry.ts:43-85` |
-| تسليم العميل | تهيئة كلمة مرور `base.user_admin` فقط، لا سر في الإيصال | لا رحلة حساب عميل/دعوة/رابط دخول وتسليم آمن متصلة — SAAS-07 | `tools/nasq_cli/managed_credentials.py:86-118`؛ صفحات tenant/operation وعقودهما |
+| الإنشاء المحلي نفسه | موارد معزولة، preflight، صور مثبتة، modules/policy/readback/credentials/health ثم receipt | **مثبت للشريحة المحلية**؛ ليس اختبار UI E2E | `tools/webvue_cli/managed_runtime.py:612-740`؛ تقرير القبول السابق |
+| دخول العميل ووحداته | شاشة login وMFA، `/me` بقدرات وميزات، حراسة تنقل وAPI | الكود موجود؛ الدخول الفعلي بعد الإنشاء والدور العادي لم يُثبتا | `apps/web/app/pages/login.vue:42-73`؛ `server/api/auth/login.post.ts:1-35`؛ `odoo-addons/webvue_api/serializers/user.py:35-95`؛ `apps/web/app/modules/registry.ts:43-85` |
+| تسليم العميل | تهيئة كلمة مرور `base.user_admin` فقط، لا سر في الإيصال | لا رحلة حساب عميل/دعوة/رابط دخول وتسليم آمن متصلة — SAAS-07 | `tools/webvue_cli/managed_credentials.py:86-118`؛ صفحات tenant/operation وعقودهما |
 | تقدم العملية | events ونتيجة وتحديث آلي مؤقت ثم زر تحديث يدوي | جزئي؛ التحديث الآلي يتوقف بعد24 مرة، والفشل قد يترك tenant في provisioning | `apps/web/app/pages/vendor/operations/[id].vue:31-58,81-125`؛ SAAS-04 |
 | inspect | المحوّل يعيد metadata فقط، العامل يشترط profile | **يفشل عبر control-plane** — SAAS-02 | `managed_runtime.py:743-755`؛ `worker.ts:300-305` |
 | health لاحقة | صحة قوية داخل create؛ الأمر المستقل يعيد health_unverified | **غير موصول** — SAAS-03 | `managed_runtime.py:748-753`؛ `managed_health.py:192-213` |
 | المصالحة والاسترداد من الفشل | حجر يمنع إعادة mutation غير المؤكدة، status تاريخي read-only | حماية موجودة لكن لا مسار تشغيلي لإغلاق التدخل — SAAS-06 | `managed_runtime.py:764-770`؛ `http.ts:164,289-297` |
 | تعديل الميزات/الاشتراك | واجهة entitle وعقد API ومحرك Odoo للحالات والحصص | managed entitle مرفوض؛ لا رحلة تغيير tier/تجديد/تعليق متصلة — SAAS-05 | `http.ts:169`؛ `worker.ts:208-217`؛ `managed_runtime.py:891-897` |
-| backup/restore/upgrade | أدوات scratch موجودة وبعض أدوات deploy منفصلة | **غير متاحة لمسار العميل managed**، ولا recovery-ready مثبت — SAAS-05 | `http.ts:169`؛ `tools/nasq_cli/operator.py:692-765` |
+| backup/restore/upgrade | أدوات scratch موجودة وبعض أدوات deploy منفصلة | **غير متاحة لمسار العميل managed**، ولا recovery-ready مثبت — SAAS-05 | `http.ts:169`؛ `tools/webvue_cli/operator.py:692-765` |
 | الإصدار/الإنتاج | بنية محلية وCI في المصدر | غير مدمج، لا اعتماد نشر، مشكلة صورة proxy السابقة لم تُغلق | `deploy/proxy/Dockerfile:6-13`؛ تقرير القبول:73-76 |
 
 ## 4. النتائج مرتبة حسب الأولوية
@@ -122,7 +122,7 @@ readiness_state: not ready
 
 ### SAAS-07 — مرتفعة: تسليم العميل ليس رحلة مكتملة
 
-المحوّل يهيئ كلمة مرور فعلية لـ`base.user_admin` ويتحقق من hash. ليس صحيحًا «لا توجد تهيئة دخول» مطلقًا. لكن ذلك الحساب مضاف إلى vendor support (`odoo-addons/nasq_core/data/res_users_data.xml:3-5`)؛ ليس إنشاء مسؤول عميل محدود الصلاحيات ثم دعوته.
+المحوّل يهيئ كلمة مرور فعلية لـ`base.user_admin` ويتحقق من hash. ليس صحيحًا «لا توجد تهيئة دخول» مطلقًا. لكن ذلك الحساب مضاف إلى vendor support (`odoo-addons/webvue_core/data/res_users_data.xml:3-5`)؛ ليس إنشاء مسؤول عميل محدود الصلاحيات ثم دعوته.
 
 عقود tenant/operation والصفحات لا تعطي customer URL/domain أو دعوة/تفعيل/تسليم اعتماد آمن وخطوة «ابدأ الاستخدام» (`commercial-contracts/src/index.ts:38-49`؛ `tenants/[id].vue:106-167`؛ `operations/[id].vue:122-127`). إخفاء السر من الإيصال صحيح أمنيًا؛ لا يُصلح بإظهاره في JSON.
 
@@ -139,7 +139,7 @@ readiness_state: not ready
 | الأمر | النتيجة الجديدة | حدود الإثبات |
 |---|---|---|
 | `PYTHONPATH=tools python3 -B -m unittest discover -s tools -p 'test_managed*.py'` |246 نجاحًا|helpers/runtime/journal مع doubles وfixtures، ليس إنشاء Docker جديدًا|
-| `PYTHONPATH=tools python3 -B -m unittest test_nasq_cli_operator test_nasq_cli_scratch_guards` |56 نجاحًا|scratch guards، لا عمليات عميل managed|
+| `PYTHONPATH=tools python3 -B -m unittest test_webvue_cli_operator test_webvue_cli_scratch_guards` |56 نجاحًا|scratch guards، لا عمليات عميل managed|
 | `env -u CONTROL_TEST_DATABASE_URL npm -w apps/control-plane test` |95 نجاحًا،7 ملفات؛ `service.test.ts` متخطى|تجنّب متعمد لأي DB غير مأذونة؛ mocks/subprocess بما فيه Docker stub|
 | `npm -w apps/control-plane run build` |نجاح|`tsc --noEmit`|
 | `npm -w packages/commercial-contracts test` |4 نجاحات|schemas/signature، ليس خدمة كاملة|
@@ -150,7 +150,7 @@ readiness_state: not ready
 | `npm -w packages/contracts test` |178 نجاحًا في28 ملفًا|عقود المشتركات/الأعمال|
 | `python3 -B tools/catalog_check.py` |`CATALOG_OK solutions=1`|صحة بنية الكتالوج لا دورة اشتراكات|
 | `python3 -B tools/ui_policy.py` |PASS|الفحص نفسه يذكر أن المراجعة البصرية والسلوكية لازمة|
-| `ruff check --no-cache tools/nasq_cli/managed_*.py tools/test_managed*.py tools/managed_local_acceptance.py` |نجاح|static scope محدد|
+| `ruff check --no-cache tools/webvue_cli/managed_*.py tools/test_managed*.py tools/managed_local_acceptance.py` |نجاح|static scope محدد|
 | `git diff --check` |نجاح|سلامة whitespace في tracked diff|
 | `node_modules/.bin/tsx docs/project-closure/saas-audit-repro.mts` |الخروج0؛ **أُعيد إنتاج أربع فجوات**|ليس قبولًا أخضر؛ يؤكد السلوك الناقص الحالي مع SQL recorder، HTTP handler بلا socket وPython adapter فعلي، وأثر create ممنوع|
 
@@ -175,7 +175,7 @@ readiness_state: not ready
 
 ## 6. قيمة الشريحة السابقة التي تبقى صحيحة
 
-- التركيب يعتمد على كتالوج حقيقي؛ لا fallback ثابت ينصب جميع ركائز Nasq.
+- التركيب يعتمد على كتالوج حقيقي؛ لا fallback ثابت ينصب جميع ركائز WebVue.
 - التحقق قبل الأثر، ربط المدخلات والمنافذ والصور والأسرار، وحجر النتيجة غير المؤكدة.
 - تطبيق ثم قراءة مستقلة للسياسة، وتحقق hash فعلي غير افتراضي، ثم صحة هوية الحاويات والمسارات.
 - replay لنفس الطلب دون إعادة التنفيذ ورفض اختلاف البايتات.

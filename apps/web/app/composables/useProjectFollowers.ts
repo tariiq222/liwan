@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { UserRefSchema } from '@nasq/contracts'
+import { UserRefSchema } from '@webvue/contracts'
 import { projectKeys } from './projectKeys'
 
 const FollowerListSchema = UserRefSchema.array()

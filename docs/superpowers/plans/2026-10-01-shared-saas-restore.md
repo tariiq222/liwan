@@ -9,7 +9,7 @@
 
 ## Global Constraints
 
-- Local synthetic Docker resources only, project nasq-saas-life-1790879392; never odoo19 or the PMO stack.
+- Local synthetic Docker resources only, project webvue-saas-life-1790879392; never odoo19 or the PMO stack.
 - Preserve milestone-one work and original tenant bindings/data. No commit, merge, push, deployment or deletion.
 - Restore targets are new database + filestore only. Never reclaim an unknown effect on lease expiry.
 - No credentials, cookies, private artifact paths or raw process output in HTTP responses/evidence.
@@ -39,7 +39,7 @@
 ### Task 2: Isolated restore runtime (coordinator; independent after fixed names)
 
 **Files:** compose.yml, Caddyfile, lifecycle.py, prepare_restore.py, README.md.
-**Interfaces:** Fixed services from Task 1; restore-db has its own PG volume, restore-odoo its own files volume and stateDir/restore-odoo.conf; original stateDir mount remains /run/nasq-runtime. Separate networks and session/proxy secrets. Restore host r<approval UUID hex>.restore.saas.accept.nasq.test.
+**Interfaces:** Fixed services from Task 1; restore-db has its own PG volume, restore-odoo its own files volume and stateDir/restore-odoo.conf; original stateDir mount remains /run/webvue-runtime. Separate networks and session/proxy secrets. Restore host r<approval UUID hex>.restore.saas.accept.webvue.test.
 
 - [x] Extend optional restore profile with four services and distinct networks/volumes.
 - [x] Add replay-safe preparation that verifies existing state and never replaces secrets; generate restore edge include from current shared ingress policy.

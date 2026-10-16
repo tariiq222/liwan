@@ -40,7 +40,7 @@ describe('usage collection budget', () => {
   it('passes the budget derived from the effective (clamped) interval to the collector', async () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {})
     const pool = { connect: async () => ({ query: async () => ({ rows: [{ ok: true }] }), release() {} }), query: async () => ({ rows: [], rowCount: 0 }) }
-    for (const [env, expected] of [[{}, 240_000], [{ NASQ_COMMERCIAL_USAGE_INTERVAL_SEC: '100' }, 80_000], [{ NASQ_COMMERCIAL_USAGE_INTERVAL_SEC: '99999' }, 400_000]] as const) {
+    for (const [env, expected] of [[{}, 240_000], [{ WEBVUE_COMMERCIAL_USAGE_INTERVAL_SEC: '100' }, 80_000], [{ WEBVUE_COMMERCIAL_USAGE_INTERVAL_SEC: '99999' }, 400_000]] as const) {
       collect.mockClear()
       const scheduler = createCommercialScheduler({ pool: pool as never, config: {} as never, env, log: () => {}, usageRunner: async () => null })
       await scheduler.tick(); await scheduler.usageIdle()

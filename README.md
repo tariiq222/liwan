@@ -1,15 +1,15 @@
-# nasq
+# webvue
 
 **تعليمات ومراجع الواجهة: ابدأ من [DESIGN.md](DESIGN.md).** التنفيذ في `apps/web/app` باستخدام Nuxt UI.
 
 هذه نسخة عمل؛ راجع [خريطة مساحة العمل](docs/WORKSPACE.md) قبل مقارنتها بـ`main` أو بمهمة أخرى.
 
-**نَسَق منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
+**ويب فيو منصة عربية موحّدة لتشغيل الشركات، تكون الأساس المشترك لجميع تطبيقاتها،
 وتربط بياناتها وإجراءاتها وصلاحياتها في نظام واحد.** تستهدف الرؤية الشركات بمختلف
 أنشطتها؛ بدل اشتراكات متعددة في أنظمة معزولة، تبدأ الشركة بما تحتاجه وتتوسع
 تدريجيًا، بهدف خفض التكلفة الإجمالية للاشتراكات والتكامل والتشغيل.
 
-Nasq's product vision is a unified business platform spanning company functions,
+WebVue's product vision is a unified business platform spanning company functions,
 comparable in breadth of ambition to Odoo. Projects, tasks, and HR are initial
 applications, not the limit of the product. Sales, finance, purchasing,
 inventory, and other business applications belong to the broader vision;
@@ -18,10 +18,10 @@ Lower total cost is a product objective, not a measured savings claim.
 See [the product definition](apps/web/PRODUCT.md).
 
 Odoo 19 Community is the business engine and Nuxt 4 is the customer UI, under
-Nasq's own identity and experience. The primary hosting target is self-service
+WebVue's own identity and experience. The primary hosting target is self-service
 SaaS with shared application services and a separate database and filestore per
 customer. Dedicated and customer-hosted deployments are separate options.
-See [the hosting contract](docs/superpowers/specs/nasq-shared-saas-and-sovereign-deployment.md)
+See [the hosting contract](docs/superpowers/specs/webvue-shared-saas-and-sovereign-deployment.md)
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
@@ -56,7 +56,7 @@ historical evidence, not UI policy.
 
 The canonical checkout is `/Users/tariq/code/nasq`. A
 temporary worktree may be used for a bounded task. Always point the Odoo
-addons path at that chosen Nasq worktree; `/Users/tariq/code/odoo` is the
+addons path at that chosen WebVue worktree; `/Users/tariq/code/odoo` is the
 read-only Odoo 19 upstream source checkout. Authorized commands may use an
 explicitly isolated scratch database; do not operate on arbitrary databases.
 
@@ -66,13 +66,13 @@ Run the two services with isolated values for each worktree:
 # Odoo, from the read-only upstream checkout
 cd /Users/tariq/code/odoo
 .venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
-  --addons-path=/Users/tariq/code/odoo/addons,/path/to/nasq-worktree/odoo-addons \
-  -d nasq_scratch --http-port=8169
+  --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons \
+  -d webvue_scratch --http-port=8169
 
-# Nuxt, from the selected Nasq worktree
-cd /path/to/nasq-worktree
+# Nuxt, from the selected WebVue worktree
+cd /path/to/webvue-worktree
 NUXT_ODOO_URL=http://127.0.0.1:8169 \
-NUXT_ODOO_DB=nasq_scratch \
+NUXT_ODOO_DB=webvue_scratch \
 NUXT_PUBLIC_WS_URL=ws://localhost:8169/websocket \
 npm -w apps/web run dev -- --port 3100
 ```
@@ -96,14 +96,14 @@ No production deployment or DNS cutover is implied by this repository.
 - `packages/contracts` contains the Zod wire contracts. Shared contracts live
   under `src/common`; PMO contracts under `src/pmo`; HR contracts under
   `src/hr`.
-- `odoo-addons/nasq_core` depends on `base` only and owns the access service,
+- `odoo-addons/webvue_core` depends on `base` only and owns the access service,
   the system capabilities and branding defaults; each application owns its own
   capabilities, groups and roles;
-  `nasq_api` owns shared API plumbing; the shared services `nasq_notify` (the
-  notification bell) and `nasq_directory` (the user-id people picker) know no
-  application; `nasq_pmo` owns projects/tasks; `nasq_meetings` owns meetings,
-  series and minutes, and the bridge `nasq_meetings_pmo` links them to projects
-  and tasks; `nasq_hr` owns HR routes, documents, and employee directory
+  `webvue_api` owns shared API plumbing; the shared services `webvue_notify` (the
+  notification bell) and `webvue_directory` (the user-id people picker) know no
+  application; `webvue_pmo` owns projects/tasks; `webvue_meetings` owns meetings,
+  series and minutes, and the bridge `webvue_meetings_pmo` links them to projects
+  and tasks; `webvue_hr` owns HR routes, documents, and employee directory
   behavior.
 - `deploy` contains per-customer provisioning and reverse-proxy templates.
 

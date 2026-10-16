@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { invoiceSchema, TAX_LABEL, type Invoice, type Money, type Quote } from '@nasq/commercial-contracts'
+import { invoiceSchema, TAX_LABEL, type Invoice, type Money, type Quote } from '@webvue/commercial-contracts'
 
 export type InvoiceView = Invoice
 /** Vendor-console view: the customer-facing invoice plus the customer's name (never sent to customers). */

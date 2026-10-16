@@ -1,4 +1,4 @@
-import { PROJECT_STATUSES, type FinanceEntry, type FinanceEntryCreate, type FinanceEntryPatch, type FinanceKind, type ProjectStatus } from '@nasq/contracts'
+import { PROJECT_STATUSES, type FinanceEntry, type FinanceEntryCreate, type FinanceEntryPatch, type FinanceKind, type ProjectStatus } from '@webvue/contracts'
 import { ApiError } from '../composables/useApi'
 import { parseOffset } from './routeQuery'
 

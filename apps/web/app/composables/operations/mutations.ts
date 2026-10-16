@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/vue-query'
 import type { ZodType } from 'zod'
-import { OperationProcessSchema, OperationRequestSchema, type OperationAction, type OperationProcess, type OperationProcessBody, type OperationRequest } from '@nasq/contracts'
+import { OperationProcessSchema, OperationRequestSchema, type OperationAction, type OperationProcess, type OperationProcessBody, type OperationRequest } from '@webvue/contracts'
 
 export type OperationApi = <T>(path: string, options: { method?: string; body?: unknown; query?: Record<string, unknown>; schema?: ZodType<T> }) => Promise<T>
 export type RequestMutation =

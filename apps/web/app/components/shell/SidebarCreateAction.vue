@@ -16,7 +16,7 @@ withDefaults(defineProps<{
     :to="to"
     color="primary"
     variant="solid"
-    class="nasq-context-link nasq-context-create"
+    class="webvue-context-link webvue-context-create"
     :data-active="active"
     :active="active"
     :aria-current="active ? 'page' : undefined"
@@ -26,7 +26,7 @@ withDefaults(defineProps<{
     :label="label"
   >
     <template #leading>
-      <UIcon name="i-lucide-plus" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+      <UIcon name="i-lucide-plus" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
     </template>
   </UButton>
 </template>

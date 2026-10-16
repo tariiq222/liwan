@@ -5,7 +5,7 @@ import * as Vue from 'vue'
 import { createMemoryHistory, createRouter, RouterView, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
 import { createHooks } from 'hookable'
-import { PROJECT_STATUSES } from '@nasq/contracts'
+import { PROJECT_STATUSES } from '@webvue/contracts'
 import { expect, it } from 'vitest'
 import { parseReportStatus } from '../../utils/projectFinance'
 
@@ -18,7 +18,7 @@ function gate() {
   return { release, started, async hold() { entered(); return pending } }
 }
 async function mountDashboard(auth: (to: RouteLocationNormalized) => unknown | Promise<unknown>) {
-  const hooks = createHooks<{ 'nasq:navigation:start': (to: RouteLocationNormalized) => void }>()
+  const hooks = createHooks<{ 'webvue:navigation:start': (to: RouteLocationNormalized) => void }>()
   const filename = new URL('../projects/dashboard.vue', import.meta.url).pathname
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'dashboard-departure' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
@@ -57,7 +57,7 @@ async function mountDashboard(auth: (to: RouteLocationNormalized) => unknown | P
   router.beforeEach(async to => {
     started.push(to)
     // Actual auth publishes the exact router target before awaiting identity readiness/refresh.
-    await hooks.callHook('nasq:navigation:start', to)
+    await hooks.callHook('webvue:navigation:start', to)
     return await auth(to) as any
   })
   return { router, state, started, close: () => app.unmount() }

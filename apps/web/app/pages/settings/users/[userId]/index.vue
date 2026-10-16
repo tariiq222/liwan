@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { accessBadge } from '@/components/access/accessBadge'
-import type { PermissionDefinition } from '@nasq/contracts'
+import type { PermissionDefinition } from '@webvue/contracts'
 import { adminListQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
 const router = useRouter()

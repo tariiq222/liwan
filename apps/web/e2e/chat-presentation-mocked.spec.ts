@@ -67,7 +67,7 @@ test.describe('touch', () => {
   test('message actions remain visible without hover', async ({ page }) => {
     await setup(page)
     await page.goto('/chat/42')
-    const actions = page.locator('.nasq-chat-msg-actions').first()
+    const actions = page.locator('.webvue-chat-msg-actions').first()
     await expect(actions).toBeVisible()
     await expect(actions).toHaveCSS('opacity', '1')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

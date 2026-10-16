@@ -5,7 +5,7 @@ import {
   HrDocumentListSchema,
   HrDocumentSchema,
   type HrDocument,
-} from '@nasq/contracts'
+} from '@webvue/contracts'
 import {
   documentListQueryKey,
   invalidateDocumentLists,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CatalogRelease } from '@nasq/commercial-contracts'
+import type { CatalogRelease } from '@webvue/commercial-contracts'
 import { bundleCreatePayload, commercialErrorKey, commercialReturnTo, type BundleDraft, type BundleView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.catalog.manage' })

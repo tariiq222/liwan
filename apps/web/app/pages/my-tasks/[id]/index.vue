@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { StatusTone } from '@nasq/ui/app/utils/statusTone'
-import type { PersonalTask } from '@nasq/contracts'
+import type { StatusTone } from '@webvue/ui/app/utils/statusTone'
+import type { PersonalTask } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
-import { formatCalendarDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
+import { formatCalendarDate, formatWebVueDateTime } from '@webvue/ui/app/composables/calendarDate'
 import { useMyTask, useMyTaskTransition, type MyTaskTransition } from '@/composables/useMyTasks'
 import ConvertToProject from '@/components/personal-tasks/ConvertToProject.vue'
 import MyTaskAttachments from '@/components/personal-tasks/MyTaskAttachments.vue'
@@ -59,7 +59,7 @@ const returnTo = computed(() => {
   return recordEntryOrigin(route.query.returnTo, parentPath, sourcePaths.value) ?? fallback
 })
 const backLabel = computed(() => {
-  const source = new URL(returnTo.value, 'http://nasq.local').pathname
+  const source = new URL(returnTo.value, 'http://webvue.local').pathname
   if (task.value?.parent && source === `/my-tasks/${task.value.parent.id}`) return t('myTasks.detail.backToParent', { name: task.value.parent.name })
   return source === '/my-tasks' ? t('myTasks.detail.back') : t('myTasks.detail.backToSource')
 })
@@ -189,8 +189,8 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
       <SharedRecordSection :title="t('myTasks.detail.info')">
         <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('myTasks.detail.creator')" :value="task.creator.name" />
-        <SharedPropertyRow :label="t('myTasks.detail.createdAt')" :value="formatNasqDateTime(task.created_at, locale)" />
-        <SharedPropertyRow :label="t('myTasks.detail.updatedAt')" :value="formatNasqDateTime(task.updated_at, locale)" />
+        <SharedPropertyRow :label="t('myTasks.detail.createdAt')" :value="formatWebVueDateTime(task.created_at, locale)" />
+        <SharedPropertyRow :label="t('myTasks.detail.updatedAt')" :value="formatWebVueDateTime(task.updated_at, locale)" />
         </SharedPropertiesPanel>
       </SharedRecordSection>
     </template>

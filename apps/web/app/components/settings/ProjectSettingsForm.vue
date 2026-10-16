@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectSettings } from '@nasq/contracts'
+import type { ProjectSettings } from '@webvue/contracts'
 import StageListEditor from '@/components/pmo/projects/StageListEditor.vue'
 import { saveErrorMessage } from '@/utils/formFeedback'
 import { useProjectSettings, useUpdateProjectSettings } from '@/composables/useProjectSettings'
@@ -112,7 +112,7 @@ function onDeleteStage(id: number | string) {
 </script>
 
 <template>
-  <div class="nasq-form nasq-project-settings-form">
+  <div class="webvue-form webvue-project-settings-form">
     <SharedUnsavedChanges :dirty="saveState === 'saving' || saveState === 'error'" />
     <p v-if="saveState === 'saving' || saveState === 'saved'" role="status" data-testid="settings-save-feedback" class="text-sm text-muted">{{ t(saveState === 'saving' ? 'app.saving' : 'app.saved') }}</p>
     <UAlert v-else-if="saveState === 'error'" role="alert" color="error" variant="subtle" :title="saveError" data-testid="settings-save-feedback">
@@ -123,7 +123,7 @@ function onDeleteStage(id: number | string) {
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
 
     <template v-else-if="settings">
-      <SharedFormSection id="project-creation" :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="nasq-settings-anchor space-y-4">
+      <SharedFormSection id="project-creation" :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="webvue-settings-anchor space-y-4">
         <UFormField id="project-creators" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
           <URadioGroup
             :model-value="settings.project_creators"
@@ -140,7 +140,7 @@ function onDeleteStage(id: number | string) {
         </UFormField>
       </SharedFormSection>
 
-      <SharedFormSection id="project-defaults" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="nasq-settings-anchor space-y-4">
+      <SharedFormSection id="project-defaults" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="webvue-settings-anchor space-y-4">
         <UFormField id="project-stages" :label="t('settings.projects.defaultStages.label')" :description="t('settings.projects.defaultStages.hint')">
           <StageListEditor :stages="rows" :busy="isPending" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
         </UFormField>
@@ -162,7 +162,7 @@ function onDeleteStage(id: number | string) {
         />
       </SharedFormSection>
 
-      <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="nasq-settings-anchor space-y-3">
+      <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="webvue-settings-anchor space-y-3">
         <USwitch
           id="settings-deadline-reminders" :model-value="settings.deadline_reminders_enabled"
           :label="t('settings.projects.reminders.enabled')"

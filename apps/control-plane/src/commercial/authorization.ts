@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CUSTOMER_CAPABILITIES, principalSchema, type Principal } from '@nasq/commercial-contracts'
+import { CUSTOMER_CAPABILITIES, principalSchema, type Principal } from '@webvue/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 
 export function requireCapability(principal: Pick<Principal, 'capabilities'>, ...capabilities: string[]) {

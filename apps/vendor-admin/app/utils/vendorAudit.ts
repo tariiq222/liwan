@@ -1,5 +1,5 @@
 import type { RouteLocationRaw } from 'vue-router'
-import { AUDIT_PAGE_SIZE, auditListQuerySchema, type AuditEvent, type AuditListQuery } from '@nasq/commercial-contracts'
+import { AUDIT_PAGE_SIZE, auditListQuerySchema, type AuditEvent, type AuditListQuery } from '@webvue/commercial-contracts'
 
 /** The action families offered by the audit filter; `action` also accepts any exact action from a link. */
 export const AUDIT_CATEGORIES = ['auth', 'account', 'tenant', 'operation', 'catalog', 'catalog_release', 'plan', 'bundle', 'order', 'invoice', 'payment', 'customer_terms'] as const

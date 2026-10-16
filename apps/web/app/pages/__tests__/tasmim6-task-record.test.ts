@@ -8,7 +8,7 @@ describe('the task record is a record page', () => {
   it('the panel owns a record page with a back slot, an actions group and a properties aside', () => {
     const panel = read('components/pmo/tasks/TaskDetailPanel.vue')
     for (const needle of ['<SharedRecordPage', '#back', 'data-testid="task-detail-back"', 'data-testid="task-detail-menu"', '<TaskProperties']) expect(panel).toContain(needle)
-    for (const gone of ['<USkeleton', 'nasq-page-width-detail', '<UCard']) expect(panel).not.toContain(gone)
+    for (const gone of ['<USkeleton', 'webvue-page-width-detail', '<UCard']) expect(panel).not.toContain(gone)
     const page = read('components/pmo/tasks/TaskDetailPage.vue')
     expect(page).not.toContain('<SharedPageHeader')
     expect(page).not.toContain('<SharedPageContainer')

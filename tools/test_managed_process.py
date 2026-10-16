@@ -12,10 +12,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-if importlib.util.find_spec('nasq_cli.managed_process') is None:
+if importlib.util.find_spec('webvue_cli.managed_process') is None:
     process = None
 else:
-    from nasq_cli import managed_process as process
+    from webvue_cli import managed_process as process
 
 
 class BoundedProcessCase(unittest.TestCase):
@@ -26,7 +26,7 @@ class BoundedProcessCase(unittest.TestCase):
         return process.run([sys.executable, '-B', '-c', script], **kwargs)
 
     def test_success_strict_utf8_and_stdin(self):
-        self.assertEqual(self.python('import sys; print(sys.stdin.read())', stdin_text='نَسَق'), (0, 'نَسَق\n', ''))
+        self.assertEqual(self.python('import sys; print(sys.stdin.read())', stdin_text='ويب فيو'), (0, 'ويب فيو\n', ''))
 
     def test_nonzero_stderr_and_invalid_encoding_reveal_no_output(self):
         for script in ["import sys; print('SECRET'); print('SECRET', file=sys.stderr); sys.exit(3)",

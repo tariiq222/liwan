@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod'
 import { saveErrorMessage } from '../utils/formFeedback'
-import { ApiErrorSchema } from '@nasq/contracts'
+import { ApiErrorSchema } from '@webvue/contracts'
 
 export class ApiError extends Error {
   constructor(
@@ -22,7 +22,7 @@ export function useApi() {
   // Only middleware-validated server events may supply private hop identity.
   // This stays in the SSR closure, never in returned data or the client payload.
   const trustedHeaders = import.meta.server && useRequestEvent()?.context.tenant
-    ? useRequestHeaders(['host', 'x-nasq-proxy-token', 'x-nasq-tenant-revision'])
+    ? useRequestHeaders(['host', 'x-webvue-proxy-token', 'x-webvue-tenant-revision'])
     : {}
 
   async function $api<T>(

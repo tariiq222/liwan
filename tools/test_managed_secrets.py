@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-if importlib.util.find_spec('nasq_cli.managed_secrets'):
-    from nasq_cli import managed_secrets as secrets
+if importlib.util.find_spec('webvue_cli.managed_secrets'):
+    from webvue_cli import managed_secrets as secrets
 else:
     secrets = None
 

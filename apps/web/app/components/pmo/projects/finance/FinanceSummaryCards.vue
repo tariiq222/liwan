@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { FinanceSummary } from '@nasq/contracts'
+import type { FinanceSummary } from '@webvue/contracts'
 import { budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization } from '@/utils/projectFinance'
-import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
+import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const props = defineProps<{ projectId: number; summary: FinanceSummary; canManage?: boolean }>()
 const { t } = useI18n()

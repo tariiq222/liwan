@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move Nasq's visual identity and presentational building blocks out of `apps/web` into a Nuxt layer `packages/ui`, so a second app (`apps/vendor-admin`, phase 3) can look identical without copying code, while `apps/web` stays visually and behaviourally unchanged.
+**Goal:** Move WebVue's visual identity and presentational building blocks out of `apps/web` into a Nuxt layer `packages/ui`, so a second app (`apps/vendor-admin`, phase 3) can look identical without copying code, while `apps/web` stays visually and behaviourally unchanged.
 
 **Architecture:** `packages/ui` is a Nuxt 4 layer (its own `nuxt.config.ts`, `app/` srcDir, `public/`, `i18n/`) that `apps/web` consumes with `extends`. A unit moves only if it is presentational: no API call, no `useMe`, no customer capability, no app-namespace i18n key. Moves are mechanical (`git mv`, import updates); no behaviour change. Before/after screenshots and the existing test suites prove the customer app did not change.
 
 **Tech Stack:** Nuxt 4 layers, `@nuxt/ui` v4, `@nuxtjs/i18n`, Vitest, Storybook (`@storybook/vue3-vite`, custom config in `apps/web/.storybook`), Playwright on the isolated mock stack, Python policy tools in `tools/`.
 
-**Spec:** [`docs/superpowers/specs/2026-10-15-nasq-vendor-admin-separation-design.md`](../specs/2026-10-15-nasq-vendor-admin-separation-design.md) — section "Shared design layer (`packages/ui`)". Master plan: [`2026-10-15-vendor-admin-separation-master.md`](2026-10-15-vendor-admin-separation-master.md).
+**Spec:** [`docs/superpowers/specs/2026-10-15-webvue-vendor-admin-separation-design.md`](../specs/2026-10-15-webvue-vendor-admin-separation-design.md) — section "Shared design layer (`packages/ui`)". Master plan: [`2026-10-15-vendor-admin-separation-master.md`](2026-10-15-vendor-admin-separation-master.md).
 
 ## Global Constraints
 
@@ -60,7 +60,7 @@ i18n: the moved components read root keys `app.*`, `states.*`, `filterCard.*`, `
 **Interfaces:**
 - Produces: `node tools/ui_layer_baseline.mjs --base-url <url> --out <dir>` writes PNGs named `<route-slug>__<lang>__<theme>__<width>.png` for the route list below, and `node tools/ui_layer_baseline.mjs --compare <dirA> <dirB>` exits 0 when every pair is pixel-identical (or within 0.1% differing pixels, reported per file), 1 otherwise.
 
-- [ ] **Step 1: Start the isolated mock stack on free ports** (never :3000/:8069): from the worktree's `apps/web`, `PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=<mock> node e2e/internal-ui-audit-mock.mjs` and `NUXT_ODOO_URL=http://127.0.0.1:<mock> NUXT_ODOO_DB=nasq_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:<mock>/websocket npx nuxt dev --port <nuxt>`. Log in with the mock fixture user `admin`/`admin` in the script.
+- [ ] **Step 1: Start the isolated mock stack on free ports** (never :3000/:8069): from the worktree's `apps/web`, `PROJECTS_UI_PREVIEW=1 MODULE_UI_PREVIEW=1 MOCK_PORT=<mock> node e2e/internal-ui-audit-mock.mjs` and `NUXT_ODOO_URL=http://127.0.0.1:<mock> NUXT_ODOO_DB=webvue_ui_mock_only NUXT_PUBLIC_WS_URL=ws://127.0.0.1:<mock>/websocket npx nuxt dev --port <nuxt>`. Log in with the mock fixture user `admin`/`admin` in the script.
 - [ ] **Step 2: Write the script.** Routes: `/projects/dashboard`, `/projects`, `/tasks`, `/my-tasks`, `/meetings`, `/hr`, `/operations`, `/settings`, `/subscription`, `/login` (logged out). For each: `lang` ar and en (switch through the app's language setting or the i18n cookie the app uses — read `apps/web/app` to find it), theme light and dark (the app's appearance mechanism, `useAppearance`), widths 390/768/1440, full-page screenshot after network idle, animations disabled (`reducedMotion: 'reduce'`). Comparison uses `pixelmatch` only if already in the lockfile; otherwise compare raw PNG bytes and report differing files (no new dependency).
 - [ ] **Step 3: Capture** to `<worktree>/.superpowers/ui-baseline/before/` (git-ignored scratch). Also record: `npm test` summary, `npm -w apps/web run lint` result, and the mock e2e failing-title set (`E2E_BASE_URL=http://localhost:<nuxt> E2E_PROJECT_POPUPS=1 npx playwright test` from `apps/web`, titles of failures sorted) into `.superpowers/ui-baseline/before/results.txt`.
 - [ ] **Step 4: Run the comparator against itself** (`--compare before before`) → exit 0.
@@ -73,11 +73,11 @@ i18n: the moved components read root keys `app.*`, `states.*`, `filterCard.*`, `
 **Files:**
 - Create: `packages/ui/package.json`, `packages/ui/nuxt.config.ts`, `packages/ui/tsconfig.json`
 - Move: `apps/web/app/assets/css/{main,tokens,components,shell}.css` → `packages/ui/app/assets/css/`; `apps/web/app/app.config.ts` → `packages/ui/app/app.config.ts`; `apps/web/public/fonts/*` → `packages/ui/public/fonts/`
-- Modify: `apps/web/nuxt.config.ts` (`extends`, remove the moved `css` entry), `apps/web/package.json` (dependency `"@nasq/ui": "0.1.0"`), `tools/ui_policy.py` (paths at lines ~86-97, ~505-569), `tools/ui_inventory.py` if it lists these files
+- Modify: `apps/web/nuxt.config.ts` (`extends`, remove the moved `css` entry), `apps/web/package.json` (dependency `"@webvue/ui": "0.1.0"`), `tools/ui_policy.py` (paths at lines ~86-97, ~505-569), `tools/ui_inventory.py` if it lists these files
 - Test: `tools/test_ui_policy.py` (existing, must stay green), new `packages/ui/test/layer.test.ts`
 
 **Interfaces:**
-- Produces: workspace package `@nasq/ui` (private, version `0.1.0`), consumed as `extends: ['@nasq/ui']` (or the relative path `'../../packages/ui'` if the package name does not resolve in Nuxt's layer loader — pick one, use it everywhere, say which in the report).
+- Produces: workspace package `@webvue/ui` (private, version `0.1.0`), consumed as `extends: ['@webvue/ui']` (or the relative path `'../../packages/ui'` if the package name does not resolve in Nuxt's layer loader — pick one, use it everywhere, say which in the report).
 
 - [ ] **Step 1: Write the failing test** `packages/ui/test/layer.test.ts` (Vitest, Node environment): it reads `packages/ui/nuxt.config.ts` with `defineNuxtConfig` stubbed as identity and asserts `css` contains the absolute path of `app/assets/css/main.css`, that file exists, and `packages/ui/public/fonts/IBMPlexSansArabic-Regular.woff2` exists. Add `"test": "vitest run"` to `packages/ui/package.json` and run `npm -w packages/ui test` → FAIL.
 - [ ] **Step 2: Create the layer**
@@ -114,7 +114,7 @@ export default defineNuxtConfig({
 **Interfaces:**
 - Produces: auto-imported names unchanged: `Shared<Name>` for every moved shared component (`SharedDataTable`, `SharedPageState`, `SharedListPage`, …); composables `useHydrated`, `usePageHeader`, `useEscapeBack`, `useRowNavigation`, `useNavigationFocus` auto-imported from the layer.
 
-- [ ] **Step 1: Before moving, check each file's imports** against the presentational rule (no `$fetch`, `useMe`, `useApi`, `/api/`, `@nasq/contracts`, app-namespace i18n keys other than those listed in the i18n row). A file that fails stays in `apps/web`; list it in the report.
+- [ ] **Step 1: Before moving, check each file's imports** against the presentational rule (no `$fetch`, `useMe`, `useApi`, `/api/`, `@webvue/contracts`, app-namespace i18n keys other than those listed in the i18n row). A file that fails stays in `apps/web`; list it in the report.
 - [ ] **Step 2: Write the failing test** `packages/ui/test/components.test.ts`: it globs `packages/ui/app/**/*.{vue,ts}` (excluding tests) and asserts no file contains `from '@/`, `from '~/`, `apps/web`, `$fetch(`, `useMe(`, `/api/`; and that `packages/ui/nuxt.config.ts` registers `app/components/shared/{feedback,data,form,layout}` with `prefix: 'Shared'` and `pathPrefix: false`. Run → FAIL (files not moved yet).
 - [ ] **Step 3: Move with `git mv`.** Inside moved files convert `@/…` imports to relative paths. Add to `packages/ui/nuxt.config.ts`:
 

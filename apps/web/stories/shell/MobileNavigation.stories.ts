@@ -20,6 +20,6 @@ export const Open: Story = {
   render: args => ({
     components: { MobileNavigation },
     setup: () => ({ args, open: ref(true), t: useI18n().t }),
-    template: '<div class="nasq-shell min-h-svh"><MobileNavigation v-bind="args" v-model:open="open" :title="t(\'nav.projects\')" /></div>',
+    template: '<div class="webvue-shell min-h-svh"><MobileNavigation v-bind="args" v-model:open="open" :title="t(\'nav.projects\')" /></div>',
   }),
 }

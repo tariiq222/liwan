@@ -33,7 +33,7 @@ describe('project record header and list contracts', () => {
   })
 
   it('does not repeat the charter sub-tab name as a heading', () => {
-    expect(read('pages/projects/[id]/charter.vue')).toMatch(/<SharedPageHeader class="nasq-print-hide" hide-title/)
+    expect(read('pages/projects/[id]/charter.vue')).toMatch(/<SharedPageHeader class="webvue-print-hide" hide-title/)
   })
 
   it('gives every project row an action control', () => {

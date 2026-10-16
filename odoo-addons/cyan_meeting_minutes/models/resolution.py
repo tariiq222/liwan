@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-# Original author: Cyan (vendor 19.0.1.3.0). Nasq hardening 19.0.1.3.1.
+# Original author: Cyan (vendor 19.0.1.3.0). WebVue hardening 19.0.1.3.1.
 # SPDX-License-Identifier: LGPL-3
 from datetime import timedelta
 

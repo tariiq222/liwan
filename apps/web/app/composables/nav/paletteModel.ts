@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { canReach, canReachPath, type AccessIdentity } from '../../utils/accessPolicy'
 import { appCommands } from '../../modules/surfaces'
 import type { AppCommand, AppSearchRow } from '../../modules/types'
-import { CHORD_START_KEY } from '@nasq/ui/app/composables/shortcuts/keymap'
+import { CHORD_START_KEY } from '@webvue/ui/app/composables/shortcuts/keymap'
 import type { NavItem } from './shellModules'
 
 interface ShortcutHelpEntry { id: string; labelKey: string; kbds: readonly string[] }

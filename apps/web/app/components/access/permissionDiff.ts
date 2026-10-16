@@ -1,4 +1,4 @@
-import type { EffectiveCapability } from '@nasq/contracts'
+import type { EffectiveCapability } from '@webvue/contracts'
 
 export type PermissionDiff = {
   added: EffectiveCapability[]

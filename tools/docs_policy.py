@@ -6,7 +6,7 @@ instruction documents listed in DOCS. Placeholders, globs, routes, URLs and
 commands are ignored; only tokens that look like repository files are checked.
 A trailing `:<line>` or `:<line>-<line>` is ignored. A code span broken across
 two lines is not checked. A bare file name such as `common.py` is only looked up
-relative to the document; the addon shorthand needs a slash (`nasq_hr/x.py`).
+relative to the document; the addon shorthand needs a slash (`webvue_hr/x.py`).
 """
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def _known_paths(root: Path) -> set[str]:
 def _exists(token: str, base: str, known: set[str]) -> bool:
     if token in known or posixpath.normpath(posixpath.join(base, token)) in known:
         return True
-    # Shorthand relative to an addon or package, e.g. `nasq_hr/tests/x.py`.
+    # Shorthand relative to an addon or package, e.g. `webvue_hr/tests/x.py`.
     return '/' in token and any(path.endswith('/' + token) for path in known)
 
 

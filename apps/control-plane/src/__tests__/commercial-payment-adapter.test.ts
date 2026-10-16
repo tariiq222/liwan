@@ -4,7 +4,7 @@ import { PaymentError, paymentAdapterFromEnv, assertReturnUrl } from '../commerc
 import { MoyasarAdapter, confirmEvent } from '../commercial/moyasar-adapter.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 
-const ORIGIN = 'https://app.nasq.test'
+const ORIGIN = 'https://app.webvue.test'
 const enc = (o: unknown) => new TextEncoder().encode(JSON.stringify(o))
 type Call = { url: string; init: any }
 function mock(responses: any[]) {
@@ -120,14 +120,14 @@ describe('MoyasarAdapter', () => {
 describe('paymentAdapterFromEnv', () => {
   it('requires config, never falls back', () => {
     expect(() => paymentAdapterFromEnv({})).toThrow(/provider_not_configured/)
-    expect(() => paymentAdapterFromEnv({ NASQ_PAYMENT_PROVIDER: 'moyasar' })).toThrow(/provider_not_configured/)
-    const full = { NASQ_PAYMENT_PROVIDER: 'moyasar', MOYASAR_SECRET_KEY: 'sk_test_a', MOYASAR_WEBHOOK_SECRET: 'w', MOYASAR_ACCOUNT_NAME: 'acme', MOYASAR_MODE: 'test', NASQ_PAYMENT_RETURN_ORIGINS: ORIGIN }
+    expect(() => paymentAdapterFromEnv({ WEBVUE_PAYMENT_PROVIDER: 'moyasar' })).toThrow(/provider_not_configured/)
+    const full = { WEBVUE_PAYMENT_PROVIDER: 'moyasar', MOYASAR_SECRET_KEY: 'sk_test_a', MOYASAR_WEBHOOK_SECRET: 'w', MOYASAR_ACCOUNT_NAME: 'acme', MOYASAR_MODE: 'test', WEBVUE_PAYMENT_RETURN_ORIGINS: ORIGIN }
     expect(paymentAdapterFromEnv(full).mode).toBe('test')
     expect(() => paymentAdapterFromEnv({ ...full, MOYASAR_WEBHOOK_SECRET: undefined })).toThrow(/provider_not_configured/)
   })
   it('simulator never in production', () => {
-    expect(paymentAdapterFromEnv({ NASQ_PAYMENT_PROVIDER: 'simulator' }).mode).toBe('simulator')
-    expect(() => paymentAdapterFromEnv({ NASQ_PAYMENT_PROVIDER: 'simulator', NODE_ENV: 'production' })).toThrow(/provider_forbidden/)
+    expect(paymentAdapterFromEnv({ WEBVUE_PAYMENT_PROVIDER: 'simulator' }).mode).toBe('simulator')
+    expect(() => paymentAdapterFromEnv({ WEBVUE_PAYMENT_PROVIDER: 'simulator', NODE_ENV: 'production' })).toThrow(/provider_forbidden/)
     expect(() => new SimulatorAdapter({ env: {}, live: true })).toThrow(/provider_forbidden/)
   })
   it('simulator references stay unique across instances (process restarts)', async () => {

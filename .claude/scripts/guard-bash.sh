@@ -11,7 +11,7 @@ cwd=$(printf '%s' "$input" | python3 -c 'import json,sys; d=json.load(sys.stdin)
 ODOO=/Users/tariq/code/odoo
 # --- rule 2: tests against odoo19 -------------------------------------------------------
 if printf '%s' "$cmd" | grep -qE -- '-d[= ]+odoo19\b' && printf '%s' "$cmd" | grep -qE -- '--test-(tags|enable|file)|(^|\s)-i[= ]'; then
-  echo "BLOCKED: odoo19 is the dev database. Run tests/installs against nasq_test (see /nasq-odoo-test); use '-d odoo19 -u <addon> --no-http --stop-after-init' only to load changes." >&2
+  echo "BLOCKED: odoo19 is the dev database. Run tests/installs against webvue_test (see /webvue-odoo-test); use '-d odoo19 -u <addon> --no-http --stop-after-init' only to load changes." >&2
   exit 2
 fi
 # --- rule 1: mutating git in the Odoo checkout ------------------------------------------
@@ -22,7 +22,7 @@ if printf '%s' "$cmd" | grep -qE '(^|[;&|]\s*|\s)git\s+(-C\s+\S+\s+)?(add|commit
   case "$cwd" in "$ODOO"|"$ODOO"/*) target_is_odoo=1;; esac
   printf '%s' "$cmd" | grep -qE "cd\s+(~|/Users/tariq)/code/odoo(\s|;|&|$)" && target_is_odoo=1
   printf '%s' "$cmd" | grep -qE "git\s+-C\s+(~|/Users/tariq)/code/odoo(\s|/)" && target_is_odoo=1
-  printf '%s' "$cmd" | grep -qE "cd\s+(~|/Users/tariq)/code/nasq" && target_is_odoo=0
+  printf '%s' "$cmd" | grep -qE "cd\s+(~|/Users/tariq)/code/webvue" && target_is_odoo=0
   if [ "$target_is_odoo" = 1 ]; then
     echo "BLOCKED: ~/code/odoo is the upstream Odoo checkout and must stay untouched. Product work lives in /Users/tariq/code/nasq — run git there (cd /Users/tariq/code/nasq && git ... or git -C /Users/tariq/code/nasq ...)." >&2
     exit 2

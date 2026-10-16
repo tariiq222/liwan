@@ -53,7 +53,7 @@ Endpoints (backend worker owns contracts):
 - GET `/api/v1/meeting-series/:id/resolutions?limit=25&offset=0&q=&state=`: `{items: MeetingPreviousResolution[],total:number}` each has original meeting_id/meeting_name, same resolution ID, state projections and project permissions. No N+1 front-end requests. Filter BEFORE pagination; no cap masquerading as total.
 Parent supplies new `app/composables/useMeetingWorkspace.ts` exports `useMeetingEvents(id, params?, series=false)`, `useMeetingVersions(id,params?)`, `useMeetingSeriesResolutions(id,params)`; params MaybeRefOrGetter<{limit?,offset?,q?,state?}>. Existing usePatchMeeting picks additive contract.
 Shared presentational components owned minutes-ui: `MeetingEventList.vue` props `{events, loading?, error?, total?, page?, pageSize?}`, emits retry/page; and `MeetingVersionList.vue` props `{versions,loading?,error?,total?,page?,pageSize?}`, emits retry/page. series worker imports EventList; dependency fixed interface so work can proceed independently.
-Translations: DO NOT edit common.json. Write exact JSON objects to `/tmp/nasq-meeting-workspace/<package>-ar.json` and `<package>-en.json` to merge under unique namespace `meetingTimeline` (timeline), `meetingMinutesForm` (minutes-ui). Parent owns locale merge.
+Translations: DO NOT edit common.json. Write exact JSON objects to `/tmp/webvue-meeting-workspace/<package>-ar.json` and `<package>-en.json` to merge under unique namespace `meetingTimeline` (timeline), `meetingMinutesForm` (minutes-ui). Parent owns locale merge.
 
 ## Final reconciliation
 - Recommendation requires a deadline OR nonblank execution_period; responsible remains mandatory.

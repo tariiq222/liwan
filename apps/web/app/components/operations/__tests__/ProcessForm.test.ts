@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { compileScript, parse } from '@vue/compiler-sfc'
-import { OperationProcessSchema } from '@nasq/contracts'
+import { OperationProcessSchema } from '@webvue/contracts'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'

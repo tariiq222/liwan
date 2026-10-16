@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AiRecordRef } from '@nasq/contracts'
+import type { AiRecordRef } from '@webvue/contracts'
 
 const props = defineProps<{ records: AiRecordRef[] }>()
 const { t } = useI18n()

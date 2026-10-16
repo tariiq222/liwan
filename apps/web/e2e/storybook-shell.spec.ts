@@ -94,12 +94,12 @@ test.describe('Tasmim shell (desktop)', () => {
     await expect(link).toHaveAccessibleName('مهامي')
     const counter = page.locator(`[id="${await link.getAttribute('aria-describedby')}"]`)
     await expect(counter).toHaveText('7')
-    await expect(page.locator('.nasq-context-section-title')).toHaveCount(0)
+    await expect(page.locator('.webvue-context-section-title')).toHaveCount(0)
   })
 
   test('section headings render when links declare them', async ({ page }) => {
     await open(page, 'shell-contextsidebar--with-sections', 'locale:ar;appearance:light')
-    await expect(page.locator('.nasq-context-section-title')).toHaveText(['إدارة النظام', 'هوية الجهة'])
+    await expect(page.locator('.webvue-context-section-title')).toHaveText(['إدارة النظام', 'هوية الجهة'])
   })
 
   test('[ toggles the sidebar by physical key, also on an Arabic layout, but not while typing or with a modifier', async ({ page }) => {

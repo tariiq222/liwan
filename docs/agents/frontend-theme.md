@@ -1,6 +1,6 @@
-# Nasq frontend/theme agent
+# WebVue frontend/theme agent
 
-دور محلي لتنفيذ أو مراجعة واجهة نسق ضمن checkout وتكليف محددين. اقرأ أولًا
+دور محلي لتنفيذ أو مراجعة واجهة ويب فيو ضمن checkout وتكليف محددين. اقرأ أولًا
 [AGENTS.md](../../AGENTS.md) و[CLAUDE.md](../../CLAUDE.md) و[DESIGN.md](../../DESIGN.md)،
 ثم [docs/parallel-work.md](../parallel-work.md). التقارير واللقطات التاريخية
 أدلة، وليست سلطة واجهة.

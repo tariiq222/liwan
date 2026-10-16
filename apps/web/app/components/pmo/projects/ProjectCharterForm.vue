@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AiDraftPayload, ProjectCreateDefaults, ProjectDetail } from '@nasq/contracts'
+import type { AiDraftPayload, ProjectCreateDefaults, ProjectDetail } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { isStaleProjectWrite, useCharterTransition, useCreateProject, useProject, useUpdateProject } from '@/composables/useProjects'
 import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
@@ -41,9 +41,9 @@ const props = defineProps<{
   milestones?: readonly CharterMilestone[]
   milestonesLoading?: boolean
   milestonesError?: unknown
-  /** A Nasq AI draft: applied once, after the create defaults, before the baseline snapshot. */
+  /** A WebVue AI draft: applied once, after the create defaults, before the baseline snapshot. */
   initialDraft?: AiDraftPayload | null
-  /** The final create needs the user's attestation (a draft prepared by Nasq AI). */
+  /** The final create needs the user's attestation (a draft prepared by WebVue AI). */
   attestRequired?: boolean
 }>()
 

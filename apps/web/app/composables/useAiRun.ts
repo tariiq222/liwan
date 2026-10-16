@@ -1,5 +1,5 @@
 import { getCurrentScope, onScopeDispose, ref } from 'vue'
-import { AiEventSchema, AiRunStatusSchema, type AiEvent, type AiRecordRef, type AiRunStatus, type AiRunStatusValue } from '@nasq/contracts'
+import { AiEventSchema, AiRunStatusSchema, type AiEvent, type AiRecordRef, type AiRunStatus, type AiRunStatusValue } from '@webvue/contracts'
 
 export type AiThreadItem =
   | { kind: 'user'; text: string }

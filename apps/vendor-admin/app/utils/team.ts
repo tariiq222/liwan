@@ -1,6 +1,6 @@
 // The team page's vocabulary: the roles and account shapes come from the contracts package,
 // and this adds the mapping from a failed call to the locale key shown to the person.
-import { VENDOR_ROLES, type AdminAccountItem, type AdminAccountStatus, type VendorRole } from '@nasq/commercial-contracts'
+import { VENDOR_ROLES, type AdminAccountItem, type AdminAccountStatus, type VendorRole } from '@webvue/commercial-contracts'
 import { StepUpCancelled } from '../composables/useStepUp'
 
 export type TeamRole = VendorRole

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { accessBadge } from '@/components/access/accessBadge'
 import type { TableColumn } from '@nuxt/ui'
-import type { RoleSummary } from '@nasq/contracts'
+import type { RoleSummary } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
-import RecordNumber from '@nasq/ui/app/components/shared/data/RecordNumber.vue'
-import type { RowAction } from '@nasq/ui/app/components/shared/data/RowActions.vue'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
+import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import { builtinRoleDescription } from '@/utils/labelFallback'
 
 // The roles table on SharedDataTable. A row opens the role through `toFor`; clone is the page's call.

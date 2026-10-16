@@ -13,20 +13,20 @@ const NAMES: Record<string, [string, string]> = {
   messaging: ['المحادثات', 'Messaging'],
 }
 const ENFORCEMENT: Record<string, string[]> = {
-  'users.limit': ['nasq_platform.res_users.users.limit'],
-  'storage.limit_mb': ['nasq_platform.ir_attachment.storage.limit_mb'],
-  'branches.extra_limit': ['nasq_platform.tenant_profile._nasq_apply_branches'],
-  'pmo.enabled': ['nasq_api.requires_feature:pmo.enabled'],
-  'meetings.enabled': ['nasq_api.requires_feature:meetings.enabled'],
-  'projects.max_projects': ['nasq_pmo.project_project._nasq_claim_projects'],
-  'hr.enabled': ['nasq_api.requires_feature:hr.enabled'],
-  'chat.enabled': ['nasq_api.requires_feature:chat.enabled'],
+  'users.limit': ['webvue_platform.res_users.users.limit'],
+  'storage.limit_mb': ['webvue_platform.ir_attachment.storage.limit_mb'],
+  'branches.extra_limit': ['webvue_platform.tenant_profile._webvue_apply_branches'],
+  'pmo.enabled': ['webvue_api.requires_feature:pmo.enabled'],
+  'meetings.enabled': ['webvue_api.requires_feature:meetings.enabled'],
+  'projects.max_projects': ['webvue_pmo.project_project._webvue_claim_projects'],
+  'hr.enabled': ['webvue_api.requires_feature:hr.enabled'],
+  'chat.enabled': ['webvue_api.requires_feature:chat.enabled'],
 }
 /** An application's `<app>.enabled` key is gated by the shared feature check unless an entry above says otherwise. */
 export function enforcementRefs(key: string): string[] {
   const explicit = ENFORCEMENT[key]
   if (explicit) return explicit
-  return /^[a-z][a-z0-9_]*\.enabled$/.test(key) ? [`nasq_api.requires_feature:${key}`] : []
+  return /^[a-z][a-z0-9_]*\.enabled$/.test(key) ? [`webvue_api.requires_feature:${key}`] : []
 }
 const PLATFORM_EXTRA = ['branches.extra_limit']
 

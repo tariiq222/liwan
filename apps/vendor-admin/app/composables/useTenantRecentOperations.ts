@@ -1,5 +1,5 @@
 import type { MaybeRefOrGetter } from 'vue'
-import type { OperationFeed } from '@nasq/commercial-contracts'
+import type { OperationFeed } from '@webvue/commercial-contracts'
 
 const RECENT_OPERATIONS = 5
 

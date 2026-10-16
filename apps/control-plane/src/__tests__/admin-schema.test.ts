@@ -14,11 +14,11 @@ else describe('admin schema', () => {
   })
   it('stores emails case-insensitively unique', async () => {
     await pool.query("TRUNCATE vendor_accounts CASCADE")
-    await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('a@nasq.sa','A')")
-    await expect(pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('A@NASQ.SA','B')")).rejects.toThrow()
+    await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('a@webvue.sa','A')")
+    await expect(pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('A@WEBVUE.SA','B')")).rejects.toThrow()
   })
   it('rejects unknown role keys', async () => {
-    const a = await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('r@nasq.sa','R') RETURNING id")
+    const a = await pool.query("INSERT INTO vendor_accounts(email,display_name) VALUES('r@webvue.sa','R') RETURNING id")
     await expect(pool.query("INSERT INTO vendor_account_roles(account_id,role) VALUES($1,'god')", [a.rows[0].id])).rejects.toThrow()
   })
 })
