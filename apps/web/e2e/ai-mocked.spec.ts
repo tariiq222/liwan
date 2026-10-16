@@ -79,6 +79,137 @@ test.describe('Nasq AI on the mock stack', () => {
     expect(resumes[0]).toMatchObject({ decision: 'rejected' })
   })
 
+  test('lists my conversations, starts a new one and reopens an old one', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await ask(page, 'وش مهامي؟')
+    await expect(page.getByText(/عندك \d+ مهمة/)).toBeVisible()
+    await expect(page).toHaveURL(/\/ai\?run=r_/)
+    const firstRun = runIdOf(page)
+    const items = page.getByTestId('ai-run-item')
+    const firstItem = page.locator(`[data-testid="ai-run-item"][href="/ai?run=${firstRun}"]`)
+    await expect(firstItem).toContainText('ملخص المهام') // named by the service after its first answer
+    await expect(firstItem).toHaveAttribute('aria-current', 'page')
+
+    await page.getByTestId('ai-new-run').click()
+    await expect(page).toHaveURL(/\/ai$/)
+    await expect(page.getByTestId('ai-empty')).toBeVisible()
+    await page.getByTestId('ai-composer').fill('أبغى مشروع جديد')
+    await page.getByTestId('ai-send').click()
+    await expect(page.getByTestId('ai-draft')).toBeVisible()
+    await expect(items.first()).toContainText('أبغى مشروع جديد')
+    await expect(items.first()).toContainText('بانتظار قرارك')
+
+    await firstItem.click()
+    await expect(page).toHaveURL(new RegExp(`/ai\\?run=${firstRun}$`))
+    await expect(page.getByText(/عندك \d+ مهمة/)).toBeVisible()
+    await expect(page.getByTestId('ai-draft')).toHaveCount(0)
+  })
+
+  test('renames a conversation in place, archives it and brings it back', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await ask(page, 'وش مهامي؟')
+    await expect(page.getByText(/عندك \d+ مهمة/)).toBeVisible()
+    await expect(page).toHaveURL(/\/ai\?run=r_/)
+    const runId = runIdOf(page)
+    const item = page.locator(`[data-testid="ai-run-item"][href="/ai?run=${runId}"]`)
+    const list = page.getByTestId('ai-run-list')
+
+    await list.getByRole('button', { name: /خيارات المحادثة/ }).first().click()
+    await page.getByRole('menuitem', { name: 'تغيير الاسم' }).click()
+    const input = page.getByTestId('ai-run-rename-input')
+    await expect(input).toBeFocused()
+    await input.fill('   ')
+    await input.press('Enter')
+    await expect(page.getByTestId('ai-run-rename-error')).toBeVisible()
+    await input.press('Escape')
+    await expect(item).toContainText('ملخص المهام')
+
+    await list.getByRole('button', { name: /خيارات المحادثة/ }).first().click()
+    await page.getByRole('menuitem', { name: 'تغيير الاسم' }).click()
+    await input.fill('مهامي المتأخرة')
+    await input.press('Enter')
+    await expect(item).toContainText('مهامي المتأخرة')
+    await page.reload()
+    await expect(item).toContainText('مهامي المتأخرة')
+
+    await list.getByRole('button', { name: /خيارات المحادثة/ }).first().click()
+    await page.getByRole('menuitem', { name: 'أرشفة' }).click()
+    await expect(item).toHaveCount(0)
+    await expect(page).toHaveURL(new RegExp(`/ai\\?run=${runId}$`)) // the open conversation stays open
+    await expect(page.getByText(/عندك \d+ مهمة/)).toBeVisible()
+
+    await page.getByTestId('ai-view-archived').click()
+    await expect(item).toContainText('مهامي المتأخرة')
+    await list.getByRole('button', { name: /خيارات المحادثة/ }).first().click()
+    await page.getByRole('menuitem', { name: 'إلغاء الأرشفة' }).click()
+    await expect(page.getByText('لا محادثات مؤرشفة')).toBeVisible()
+    await page.getByTestId('ai-view-active').click()
+    await expect(item).toContainText('مهامي المتأخرة')
+  })
+
+  test('on a phone the conversations sit in an inline disclosure: open, start a new one, reopen an old one', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    const noSidewaysScroll = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    const toggle = page.getByTestId('ai-history-toggle')
+    const body = page.getByTestId('ai-run-list-body')
+    await ask(page, 'وش مهامي؟')
+    await expect(page.getByText(/عندك \d+ مهمة/)).toBeVisible()
+    await expect(page).toHaveURL(/\/ai\?run=r_/)
+    const firstRun = runIdOf(page)
+
+    // Closed by default; the shell sidebar copy of the list is not rendered below 768px.
+    await expect(toggle).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(body).toHaveCount(0)
+    await expect(page.getByTestId('ai-run-list')).toHaveCount(1)
+
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const firstItem = page.locator(`[data-testid="ai-run-item"][href="/ai?run=${firstRun}"]`)
+    await expect(firstItem).toContainText('ملخص المهام')
+    await expect(firstItem).toHaveAttribute('aria-current', 'page')
+    expect(await noSidewaysScroll()).toBe(true)
+    // Touch targets: the toggle, "new", both view buttons, the rows and their menu buttons are at least 44px tall.
+    for (const target of [toggle, page.getByTestId('ai-new-run'), page.getByTestId('ai-view-active'), page.getByTestId('ai-view-archived'), firstItem, body.getByRole('button', { name: /خيارات المحادثة/ }).first()]) {
+      const box = (await target.boundingBox())!
+      expect(box.height, await target.evaluate(el => el.outerHTML.slice(0, 120))).toBeGreaterThanOrEqual(44)
+    }
+    if (process.env.AI_SHOTS_DIR) await page.screenshot({ path: `${process.env.AI_SHOTS_DIR}/ai-history-375-open.png`, fullPage: true })
+
+    // "New conversation" closes the disclosure and shows the empty thread.
+    await page.getByTestId('ai-new-run').click()
+    await expect(page).toHaveURL(/\/ai$/)
+    await expect(page.getByTestId('ai-empty')).toBeVisible()
+    await expect(body).toHaveCount(0)
+    await page.getByTestId('ai-composer').fill('أبغى مشروع جديد')
+    await page.getByTestId('ai-send').click()
+    await expect(page.getByTestId('ai-draft')).toBeVisible()
+    await expect(page).toHaveURL(/\/ai\?run=r_/)
+
+    // Picking the old conversation opens it and closes the disclosure; back returns to the other one.
+    const secondUrl = page.url()
+    await toggle.click()
+    await expect(page.getByTestId('ai-run-item').first()).toContainText('أبغى مشروع جديد')
+    await firstItem.click()
+    await expect(page).toHaveURL(new RegExp(`/ai\\?run=${firstRun}$`))
+    await expect(page.getByText(/عندك \d+ مهمة/)).toBeVisible()
+    await expect(page.getByTestId('ai-draft')).toHaveCount(0)
+    await expect(body).toHaveCount(0)
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(await noSidewaysScroll()).toBe(true)
+    await page.goBack()
+    await expect(page).toHaveURL(secondUrl)
+    await expect(page.getByTestId('ai-draft')).toBeVisible()
+  })
+
+  test('on a desktop width there is no disclosure and the sidebar list stays', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await ask(page, 'وش مهامي؟')
+    await expect(page.getByText(/عندك \d+ مهمة/)).toBeVisible()
+    await expect(page.getByTestId('ai-history-toggle')).toHaveCount(0)
+    await expect(page.getByTestId('ai-run-item').first()).toBeVisible()
+  })
+
   test('a reader never gets the draft tool and the assistant answers in plain text', async ({ page }) => {
     await page.context().addCookies([{ name: 'mock_caps', value: 'reader', url: new URL(page.url()).origin }])
     const before = (await allAudit(page)).length

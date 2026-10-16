@@ -55,7 +55,31 @@
     "history": {
       "title": "Recent conversations",
       "new": "New conversation",
-      "empty": "No conversations yet"
+      "empty": "No conversations yet",
+      "waiting": "Waiting for you",
+      "failed": "Could not finish",
+      "untitled": "Untitled conversation",
+      "emptyArchived": "No archived conversations",
+      "views": {
+        "label": "Conversation view",
+        "active": "Conversations",
+        "archived": "Archived"
+      },
+      "actions": {
+        "menu": "Conversation options: {title}",
+        "rename": "Rename",
+        "archive": "Archive",
+        "unarchive": "Unarchive"
+      },
+      "rename": {
+        "label": "Conversation name",
+        "invalid": "The name is 1 to {max} characters with no line breaks."
+      },
+      "announce": {
+        "renamed": "Conversation renamed",
+        "archived": "Conversation archived",
+        "unarchived": "Conversation restored from the archive"
+      }
     }
   }
 }

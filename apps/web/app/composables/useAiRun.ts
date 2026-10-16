@@ -86,8 +86,8 @@ export function useAiRun() {
   const unavailable = ref(false)
   const { t } = useI18n()
 
-  // One controller owns every request of this composable; leaving the page cancels them.
-  const lifecycle = new AbortController()
+  // One controller owns every request of the open conversation; leaving the page or switching conversation cancels them.
+  let lifecycle = new AbortController()
   if (getCurrentScope()) onScopeDispose(() => lifecycle.abort())
   let busy = false
   const deciding = new Set<string>()
@@ -145,9 +145,10 @@ export function useAiRun() {
   /** True when the server took the request (even if the stream broke later); false when it never got there. */
   async function post(url: string, body: unknown): Promise<boolean> {
     busy = true
+    const { signal } = lifecycle
     let accepted = false
     try {
-      const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: lifecycle.signal })
+      const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal })
       if (!response.ok || !response.body) {
         await refuse(response)
         return false
@@ -156,11 +157,11 @@ export function useAiRun() {
       await consume(response.body)
       return true
     } catch {
-      if (lifecycle.signal.aborted) return true
+      if (signal.aborted) return true
       fail(t('errors.generic'))
       return accepted
     } finally {
-      busy = false
+      if (!signal.aborted) busy = false
     }
   }
 
@@ -210,8 +211,9 @@ export function useAiRun() {
   }
 
   async function load(id: string) {
+    const { signal } = lifecycle
     try {
-      const response = await fetch(`/api/ai/runs/${encodeURIComponent(id)}`, { signal: lifecycle.signal })
+      const response = await fetch(`/api/ai/runs/${encodeURIComponent(id)}`, { signal })
       if (!response.ok) return await refuse(response)
       const run = AiRunStatusSchema.parse(await response.json())
       runId.value = run.run_id
@@ -224,9 +226,22 @@ export function useAiRun() {
       if (run.pending?.kind === 'write_light' && run.status === 'executing') rebuilt = rebuilt.map(item => item.kind === 'confirm' && item.callId === run.pending!.call_id ? { ...item, busy: true } : item)
       items.value = rebuilt
     } catch {
-      if (!lifecycle.signal.aborted) fail(t('errors.generic'))
+      if (!signal.aborted) fail(t('errors.generic'))
     }
   }
 
-  return { runId, status, items, limit, error, unavailable, send, decide, load }
+  /** A fresh conversation: cancels whatever the open one still has in flight and forgets its thread. */
+  function reset() {
+    lifecycle.abort()
+    lifecycle = new AbortController()
+    busy = false
+    deciding.clear()
+    runId.value = null
+    status.value = 'idle'
+    items.value = []
+    limit.value = null
+    error.value = null
+  }
+
+  return { runId, status, items, limit, error, unavailable, send, decide, load, reset }
 }

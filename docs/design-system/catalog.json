@@ -4960,6 +4960,48 @@
       ]
     },
     {
+      "title": "Ai/RunList",
+      "story": "apps/web/stories/ai/AiRunList.stories.ts",
+      "stories": [
+        {
+          "id": "History",
+          "name": "سجل المحادثات"
+        },
+        {
+          "id": "Empty",
+          "name": "لا محادثات بعد"
+        },
+        {
+          "id": "Loading",
+          "name": "يُحمَّل"
+        },
+        {
+          "id": "Failed",
+          "name": "تعذّر التحميل"
+        },
+        {
+          "id": "Archived",
+          "name": "المحادثات المؤرشفة"
+        },
+        {
+          "id": "NoArchived",
+          "name": "لا مؤرشفة"
+        },
+        {
+          "id": "Renaming",
+          "name": "تغيير الاسم في مكانه"
+        },
+        {
+          "id": "RenameRefused",
+          "name": "رفض الاسم الجديد"
+        },
+        {
+          "id": "MobileDisclosure",
+          "name": "قائمة قابلة للطي على الجوال"
+        }
+      ]
+    },
+    {
       "title": "Ai/Thread",
       "story": "apps/web/stories/ai/AiThread.stories.ts",
       "stories": [

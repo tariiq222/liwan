@@ -117,8 +117,9 @@ scripted stand-in for the AI service (no model; port `AI_MOCK_PORT`, 4499 in CI)
 `/ai` and is read at runtime, so the build needs none (CI builds without it on purpose). The audit mock serves `GET /api/v1/ai/tools` (the catalog: the draft tool is omitted for a
 `mock_caps=reader` user) and records `POST /api/v1/ai/audit` rows, which the spec reads from
 `GET /__mock/ai-audit`. The unavailable state is checked by answering 503 `ai_unavailable` from the browser
-side (`page.route`), not by stopping the service. Set `AI_SHOTS_DIR` to also save Arabic and English
-desktop and mobile screenshots of `/ai`.
+side (`page.route`), not by stopping the service. The 375px case checks the conversations disclosure below 768px
+(toggle, new conversation, reopening, touch targets, no sideways scroll). Set `AI_SHOTS_DIR` to also save Arabic and English
+desktop and mobile screenshots of `/ai` and the open disclosure at 375px.
 
 ### Running the my-tasks specs
 

@@ -136,6 +136,33 @@ describe('useAiRun', () => {
     expect(ai.status.value).toBe('failed')
   })
 
+  describe('reset', () => {
+    it('forgets the open conversation and cancels its request, so a late answer cannot reappear', async () => {
+      let aborted = false
+      fetchMock.mockImplementationOnce((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        init.signal!.addEventListener('abort', () => { aborted = true; reject(new DOMException('aborted', 'AbortError')) })
+      }))
+      const ai = useAiRun()
+      const pending = ai.send('هلا')
+      ai.reset()
+      await pending
+      expect(aborted).toBe(true)
+      expect([ai.runId.value, ai.status.value, ai.items.value, ai.error.value, ai.limit.value]).toEqual([null, 'idle', [], null, null])
+    })
+
+    it('starts the next conversation fresh: the new send carries no run id and is not blocked', async () => {
+      fetchMock.mockResolvedValueOnce(streamResponse(sse(['run', { run_id: 'r_1' }], ['answer', { text: 'أ', records: [] }], ['done', { status: 'done' }])))
+      const ai = useAiRun()
+      await ai.send('الأولى')
+      ai.reset()
+      fetchMock.mockResolvedValueOnce(streamResponse(sse(['run', { run_id: 'r_2' }], ['answer', { text: 'ب', records: [] }], ['done', { status: 'done' }])))
+      await ai.send('الثانية')
+      expect(JSON.parse(fetchMock.mock.calls[1]![1].body).run_id).toBeUndefined()
+      expect(ai.runId.value).toBe('r_2')
+      expect(ai.items.value).toEqual([{ kind: 'user', text: 'الثانية' }, { kind: 'assistant', text: 'ب', records: [], streaming: false }])
+    })
+  })
+
   it('load() rebuilds messages and a pending card whose summary falls back to the tool name', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, {
       run_id: 'r_9', status: 'waiting_user',

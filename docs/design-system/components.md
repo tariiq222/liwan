@@ -94,7 +94,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 
 | السطح | المكونات الفعلية | المسؤولية الحالية |
 | --- | --- | --- |
-| صفحة `/ai` | `apps/web/app/components/ai/AiMessage.vue`, `apps/web/app/components/ai/AiRecordCards.vue`, `apps/web/app/components/ai/AiToolTrace.vue`, `apps/web/app/components/ai/AiConfirmCard.vue` (تأكيد مضمّن عبر `SharedInlineConfirm`), `apps/web/app/components/ai/AiDraftCard.vue`, `apps/web/app/components/ai/AiLimitNotice.vue`, `apps/web/app/components/ai/AiComposer.vue` (قصص: `apps/web/stories/ai/AiThread.stories.ts`, `apps/web/stories/ai/AiCards.stories.ts`) | محادثة المساعد: الرسائل وبطاقات السجلات وأثر الأدوات وبطاقات التأكيد والمسودة وإشعار الحدود ومربع الكتابة |
+| صفحة `/ai` | `apps/web/app/components/ai/AiMessage.vue`, `apps/web/app/components/ai/AiRecordCards.vue`, `apps/web/app/components/ai/AiToolTrace.vue`, `apps/web/app/components/ai/AiConfirmCard.vue` (تأكيد مضمّن عبر `SharedInlineConfirm`), `apps/web/app/components/ai/AiDraftCard.vue`, `apps/web/app/components/ai/AiLimitNotice.vue`, `apps/web/app/components/ai/AiComposer.vue`, `apps/web/app/components/ai/AiRunList.vue` (لوحة الشريط الجانبي: محادثات المستخدم السابقة، مع تغيير الاسم في مكانه والأرشفة وعرض المؤرشفة؛ وتحت 768px تعرضها صفحة `/ai` بالخاصية `disclosure` قسمًا قابلًا للطي) (قصص: `apps/web/stories/ai/AiThread.stories.ts`, `apps/web/stories/ai/AiCards.stories.ts`, `apps/web/stories/ai/AiRunList.stories.ts`) | محادثة المساعد: الرسائل وبطاقات السجلات وأثر الأدوات وبطاقات التأكيد والمسودة وإشعار الحدود ومربع الكتابة وسجل المحادثات |
 
 ## المؤسسة والوصول والحساب
 

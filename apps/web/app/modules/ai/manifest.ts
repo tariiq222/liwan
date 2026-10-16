@@ -10,6 +10,7 @@ const manifest: AppManifest = {
   nav: [
     { to: '/ai', labelKey: 'nav.ai', icon: 'i-lucide-sparkles', shortcut: 'q', goKey: 'i', capability: 'ai.use' },
   ],
+  sidebarPanel: { module: 'ai', width: 'default', load: () => import('../../components/ai/AiRunList.vue') },
   landing: [{ path: '/ai', capability: 'ai.use', late: true }],
   returnToPaths: ['/ai'],
 }

@@ -1,13 +1,17 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
+import { useQueryClient } from '@tanstack/vue-query'
 import { AiDraftHandoffSchema, AiDraftPayloadSchema } from '@nasq/contracts'
 import AiComposer from '@/components/ai/AiComposer.vue'
 import AiConfirmCard from '@/components/ai/AiConfirmCard.vue'
 import AiDraftCard from '@/components/ai/AiDraftCard.vue'
+import AiRunList from '@/components/ai/AiRunList.vue'
 import AiLimitNotice from '@/components/ai/AiLimitNotice.vue'
 import AiMessage from '@/components/ai/AiMessage.vue'
 import AiRecordCards from '@/components/ai/AiRecordCards.vue'
 import AiToolTrace from '@/components/ai/AiToolTrace.vue'
 import { useAiRun } from '@/composables/useAiRun'
+import { aiRunKeys } from '@/composables/useAiRuns'
 import { forgetCreatedId, parseCreatedId, readCreatedId, rememberCreatedId } from '@/utils/aiDraft'
 
 const route = useRoute()
@@ -15,10 +19,14 @@ const router = useRouter()
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const config = useRuntimeConfig()
-const { runId, status, items, limit, error, unavailable, send, decide, load } = useAiRun()
+const { runId, status, items, limit, error, unavailable, send, decide, load, reset } = useAiRun()
+const queryClient = useQueryClient()
 
 const disabledByConfig = computed(() => !config.public.aiEnabled)
 const showUnavailable = computed(() => disabledByConfig.value || unavailable.value)
+
+// Below 768px the shell drops the sidebar panel, so the same AiRunList is offered here as an inline disclosure.
+const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
 
 // `?context=project:12` comes from the page the user opened the assistant from.
 const context = computed(() => {
@@ -81,13 +89,31 @@ function openDraft(item: { callId: string; tool: string; payload: Record<string,
 
 async function onSend(text: string) {
   await send(text, context.value)
-  if (runId.value && route.query.run !== runId.value) await router.replace({ path: '/ai', query: { ...route.query, run: runId.value } })
 }
+
+// The address follows the conversation as soon as the service names it, so a new-conversation click always changes the route.
+watch(runId, async (id) => {
+  if (id && route.query.run !== id) await router.replace({ path: '/ai', query: { ...route.query, run: id } })
+})
+
+// The history list opens another conversation or starts a new one by changing `?run=` (back/forward do the same).
+watch(() => route.query.run, async (value) => {
+  const id = typeof value === 'string' ? value : null
+  if (id === runId.value) return
+  reset()
+  if (id) await load(id)
+})
+
+// A conversation that was created, answered or decided changes the history list: fetch it again once the stream settles.
+watch(status, (now, before) => {
+  if (before === 'streaming' && now !== 'streaming') void queryClient.invalidateQueries({ queryKey: aiRunKeys.all })
+})
 </script>
 
 <template>
   <SharedPageContainer width="detail" data-template="ai-conversation">
     <SharedPageHeader :title="t('ai.title')" :description="t('ai.tagline')" />
+    <AiRunList v-if="!showUnavailable && !isDesktop" disclosure />
     <SharedEmptyState v-if="showUnavailable" :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
     <section v-else class="flex min-h-[60svh] flex-col gap-4" :aria-label="t('ai.title')">
       <div class="flex flex-1 flex-col gap-4" role="log" aria-live="polite">

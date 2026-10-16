@@ -6,6 +6,13 @@ import http from 'node:http'
 
 const PORT = Number(process.env.AI_MOCK_PORT ?? 4499)
 const runs = new Map()
+let clock = 0
+const TITLE_MAX = 60
+const titleOf = message => { const text = message.split(/\s+/).filter(Boolean).join(' '); return text.length <= TITLE_MAX ? text : `${text.slice(0, TITLE_MAX - 1)}…` }
+// The real service asks the model for a title after the first answer; the mock names a conversation by what it answered.
+const generatedTitle = message => (/مشروع/.test(message) ? 'مسودة مشروع' : 'ملخص المهام')
+const summary = (run_id, run) => ({ run_id, title: run.title, status: run.status, updated_at: run.updatedAt, archived: run.archived })
+const touch = run => { run.updatedAt = new Date(Date.UTC(2026, 9, 16, 8, 0, ++clock)).toISOString() }
 
 function sse(res, events) {
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' })
@@ -23,6 +30,8 @@ function finish(run, text, records) {
   run.pending = null
   run.status = 'done'
   run.messages.push({ role: 'assistant', content: text })
+  const users = run.messages.filter(message => message.role === 'user')
+  if (users.length === 1 && !run.titleLocked) run.title = generatedTitle(users[0].content)
   return [['token', { text: text.slice(0, 5) }], ['answer', { text, records }], ['done', { status: 'done' }]]
 }
 
@@ -56,8 +65,9 @@ http.createServer(async (req, res) => {
   const body = JSON.parse((await readBody(req)) || '{}')
   if (req.method === 'POST' && url.pathname === '/v1/runs') {
     const id = body.run_id ?? `r_${runs.size + 1}`
-    const run = runs.get(id) ?? { owner: owner(req), messages: [], pending: null, status: 'running', tools: [] }
+    const run = runs.get(id) ?? { owner: owner(req), title: titleOf(body.message), titleLocked: false, archived: false, messages: [], pending: null, status: 'running', tools: [] }
     runs.set(id, run)
+    touch(run)
     run.tools = body.tools ?? run.tools
     run.messages.push({ role: 'user', content: body.message })
     return sse(res, start(run, id, body.message))
@@ -69,7 +79,22 @@ http.createServer(async (req, res) => {
     if (!run.pending || run.pending.call_id !== body.call_id) return reply(res, 409, {})
     return sse(res, resume(run, resumeMatch[1], body.result))
   }
+  if (req.method === 'GET' && url.pathname === '/v1/runs') {
+    const archived = url.searchParams.get('archived') === 'true'
+    const mine = [...runs.entries()].filter(([, run]) => run.owner === owner(req) && run.archived === archived).sort(([, a], [, b]) => b.updatedAt.localeCompare(a.updatedAt))
+    const items = mine.map(([run_id, run]) => summary(run_id, run))
+    return reply(res, 200, { items, total: items.length })
+  }
   const get = url.pathname.match(/^\/v1\/runs\/([^/]+)$/)
+  if (req.method === 'PATCH' && get) {
+    const run = runs.get(get[1])
+    if (!run || run.owner !== owner(req)) return reply(res, 404, {})
+    const title = typeof body.title === 'string' ? body.title.trim() : undefined
+    if ((title === undefined && body.archived === undefined) || (title !== undefined && (title.length < 1 || title.length > 80))) return reply(res, 422, {})
+    if (title !== undefined) Object.assign(run, { title, titleLocked: true })
+    if (body.archived !== undefined) run.archived = body.archived
+    return reply(res, 200, summary(get[1], run))
+  }
   if (req.method === 'GET' && get) {
     const run = runs.get(get[1])
     if (!run || run.owner !== owner(req)) return reply(res, 404, {})
