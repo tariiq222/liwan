@@ -82,7 +82,6 @@
       "confirmDisable": "Disable operations for this installation?",
       "viewOperations": "View operations",
       "healthChecked": "Last health check",
-      "grantTitle": "Operations access",
       "grantHint": "This setting controls operational access only. It does not grant billing authority.",
       "policyTitle": "Configuration",
       "policyHint": "Desired and observed configuration reported by the service.",
@@ -117,6 +116,15 @@
           "active": "Workspace ready",
           "needs_intervention": "Needs attention",
           "pending": "Setup is in progress"
+        },
+        "progress": "Workspace provisioning stages",
+        "none": "No provisioning in progress",
+        "noneHint": "Provisioning stages show here when a new shared workspace is created.",
+        "state": {
+          "done": "Done",
+          "current": "Current stage",
+          "failed": "Needs attention",
+          "pending": "Not started"
         }
       },
       "plan": {
@@ -126,7 +134,19 @@
         "none": "No published plans. Publish a plan first.",
         "forbidden": "Creating a tenant from a plan requires subscription management access."
       },
-      "recentOperations": "Latest operations"
+      "recentOperations": "Latest operations",
+      "policyEmpty": "No settings recorded yet.",
+      "policyDiffers": "{count} settings are not applied to the workspace yet.",
+      "policyMatches": "The observed settings match the requested ones.",
+      "policyFeature": "Setting",
+      "policySame": "Matches",
+      "policyNotApplied": "Not applied yet",
+      "operationsOn": "Operations enabled",
+      "operationsOff": "Operations disabled",
+      "dangerTitle": "Sensitive area: operations permission",
+      "confirmEnqueue": "Queue \"{type}\"?",
+      "confirmEnqueueHint": "The service runs the operation on this customer's workspace after checking it, and records it under your name with the reason.",
+      "workspaceDetails": "Workspace details"
     },
     "catalog": {
       "title": "Legacy packages",
@@ -714,7 +734,8 @@
         "autoRenew": "Auto-renew",
         "trialEnds": "Trial ends",
         "graceEnds": "Grace ends",
-        "pendingOrder": "Order in progress"
+        "pendingOrder": "Order in progress",
+        "periodRange": "{from} to {to}"
       },
       "target": {
         "target_pending": "Requested change not applied yet",
@@ -808,7 +829,69 @@
       "noWorkspace": "No workspace",
       "noCommercial": "No commercial record",
       "noWorkspaceYet": "No workspace has been set up yet",
-      "pendingPlan": "{plan} · awaiting activation"
+      "pendingPlan": "{plan} · awaiting activation",
+      "openWorkspace": "Open workspace",
+      "noWorkspaceHint": "The workspace is created once the subscription is activated. Provisioning and operations show here then.",
+      "changeBlocked": "The subscription cannot be changed while an order is pending. Finish or cancel the order first.",
+      "allInvoices": "All invoices of this customer",
+      "glance": {
+        "issuesTitle": "Needs attention: {count}",
+        "noIssues": "No open issues",
+        "view": "View",
+        "renewal": "Next renewal",
+        "renewalIn": "In {days} days",
+        "renewalToday": "Today",
+        "renewalLate": "{days} days overdue",
+        "autoRenewOn": "Auto-renews",
+        "autoRenewOff": "Manual renewal",
+        "noRenewal": "No renewal scheduled",
+        "lastInvoice": "Last invoice",
+        "noInvoices": "No invoices yet",
+        "issues": {
+          "setup": "This customer has no commercial plan yet.",
+          "orderFailed": "The pending order failed and needs review.",
+          "stalled": "Order activation has been stalled for more than 24 hours.",
+          "pastDue": "The subscription is past due.",
+          "provisioning": "Workspace provisioning needs attention.",
+          "operation": "A recent operation on the workspace failed."
+        }
+      },
+      "order": {
+        "kind": {
+          "new": "New subscription",
+          "change": "Change",
+          "renewal": "Renewal",
+          "branch_add": "Branch added",
+          "branch_archive": "Branch archived"
+        },
+        "due": "Due now",
+        "created": "Ordered on"
+      },
+      "history": {
+        "title": "Subscription stages",
+        "hint": "Newest first, as recorded by the control plane.",
+        "whoHint": "Who made each change, and why, is in the audit log.",
+        "empty": "No stages recorded yet.",
+        "applied": "Applied subscription (revision {revision})",
+        "target": "Requested change not applied (revision {revision})",
+        "order": "{kind} order",
+        "termsCustom": "With custom customer terms",
+        "termsPlan": "With plan terms"
+      },
+      "newPage": {
+        "legacyDescription": "Register a customer instance from a published catalog.",
+        "customerTitle": "Customer and administrator",
+        "customerHint": "The customer name and its first administrator in the workspace.",
+        "planTitle": "Plan and billing",
+        "price": "Price per cycle by plan",
+        "legacyTitle": "Legacy catalog path",
+        "legacyHint": "This deployment has no shared workspaces, so the customer is registered as a standalone instance of a published catalog instead of a plan.",
+        "hostingTitle": "Environment and hosting",
+        "catalogTitle": "Catalog",
+        "nameTitle": "Customer",
+        "planHint": "Choose the plan the customer subscribes to and its billing cycle."
+      },
+      "pendingActivation": "Awaiting activation"
     },
     "invoices": {
       "title": "Invoices and collection",

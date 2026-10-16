@@ -21,7 +21,8 @@ describe('workspace panels shared by the customer page and the workspace page', 
     expect(operations).not.toContain('SharedUnsavedChanges')
   })
   it('lists the latest operations of the workspace and links to the filtered operations list', () => {
-    expect(operations).toMatch(/query: \{ source: 'all', tenant_id: tenantId\.value \}/)
+    expect(operations).toContain('useTenantRecentOperations(tenantId)')
+    expect(read('app/composables/useTenantRecentOperations.ts')).toMatch(/query: \{ source: 'all', tenant_id: toValue\(id\) \}/)
     expect(operations).toContain("path: '/operations', query: { tenant_id: tenantId }")
   })
   it('polls provisioning from one composable and shows only the open-workspace link it publishes', () => {

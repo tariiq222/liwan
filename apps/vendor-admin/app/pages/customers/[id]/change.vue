@@ -9,7 +9,7 @@ definePageMeta({ capability: 'vendor.subscriptions.manage' })
 const { t } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorSubscriptions(); const catalog = useVendorCommercial(); const hydrated = useHydrated()
 const id = computed(() => String(route.params.id))
 const backTo = computed(() => customersReturnTo(route.query.returnTo))
-const detailTo = computed(() => ({ path: `/customers/${encodeURIComponent(id.value)}`, query: { returnTo: backTo.value } }))
+const detailTo = computed(() => ({ path: `/customers/${encodeURIComponent(id.value)}`, query: { tab: 'subscription', returnTo: backTo.value } }))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:change:${id.value}`, async () => {
   const customer = await api.customer(id.value)
   const sub = customer?.subscription ? await api.subscription(customer.subscription.id) : null
