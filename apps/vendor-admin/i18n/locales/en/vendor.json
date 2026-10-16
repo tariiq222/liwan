@@ -69,6 +69,7 @@
         "stalled_waiting": "Activation stalled for {duration}",
         "operation_failed": "Operation failed: {operation}",
         "setup_required": "Needs commercial setup",
+        "renewal_missed": "Renewal date passed {duration} ago and not renewed",
         "renewal_soon": "Renews within {duration}"
       },
       "actions": {
@@ -76,6 +77,7 @@
         "stalled_activation": "Open the workspace",
         "operation_failed": "Open the operation",
         "setup_required": "Open the subscription",
+        "renewal_missed": "Open the subscription",
         "renewal_soon": "Open the subscription"
       },
       "statusTitle": "Overall status",
@@ -90,7 +92,7 @@
         "pastDue": "Past due",
         "stalled": "Stalled activations",
         "setupRequired": "Customers needing setup",
-        "renewals": "Renewals in 7 days"
+        "renewals": "Renewals due in 7 days or missed"
       },
       "statusHint": "Counted from customer and subscription records; not collected revenue. Shared and dedicated operations are included, once per operation.",
       "lastHealth": "Last health check"

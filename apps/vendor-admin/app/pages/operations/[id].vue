@@ -12,7 +12,7 @@ const route = useRoute()
 const { request } = useVendorApi()
 const id = computed(() => String(route.params.id))
 const source = computed(() => route.query.source === undefined ? 'legacy' : String(route.query.source))
-const backTo = computed(() => safeReturnTo(route.query.returnTo, '/operations', ['/operations']))
+const backTo = computed(() => safeReturnTo(route.query.returnTo, '/operations', ['/operations', '/overview']))
 const { data, error, pending, refresh } = await useAsyncData(
   () => `vendor:operation:${source.value}:${id.value}`,
   () => request<Operation>(`operations/${encodeURIComponent(id.value)}`, { query: { source: source.value } }),

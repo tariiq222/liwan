@@ -69,6 +69,7 @@
         "stalled_waiting": "التفعيل متعثر منذ {duration}",
         "operation_failed": "فشلت عملية: {operation}",
         "setup_required": "يحتاج إعدادًا تجاريًا",
+        "renewal_missed": "تاريخ التجديد مضى منذ {duration} ولم يتجدد",
         "renewal_soon": "يتجدد خلال {duration}"
       },
       "actions": {
@@ -76,6 +77,7 @@
         "stalled_activation": "افتح مساحة العمل",
         "operation_failed": "افتح العملية",
         "setup_required": "افتح الاشتراك",
+        "renewal_missed": "افتح الاشتراك",
         "renewal_soon": "افتح الاشتراك"
       },
       "statusTitle": "الحالة العامة",
@@ -90,7 +92,7 @@
         "pastDue": "متأخرة السداد",
         "stalled": "تفعيلات متعثرة",
         "setupRequired": "عملاء يحتاجون إعدادًا",
-        "renewals": "تجديدات خلال 7 أيام"
+        "renewals": "تجديدات خلال 7 أيام أو فائتة"
       },
       "statusHint": "الأعداد محسوبة من سجلات العملاء والاشتراكات، وليست إيرادًا محصّلًا. تشمل العمليات المشتركة والمخصصة، وتُحسب كل عملية مرة واحدة.",
       "lastHealth": "آخر فحص للصحة"
