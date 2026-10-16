@@ -38,7 +38,7 @@ export default defineNuxtConfig({
   },
   i18n: {
     locales: [
-      { code: 'ar', language: 'ar-SA', dir: 'rtl', name: 'العربية', files: localeFiles.ar },
+      { code: 'ar', language: 'ar', dir: 'rtl', name: 'العربية', files: localeFiles.ar },
       { code: 'en', language: 'en', dir: 'ltr', name: 'English', files: localeFiles.en },
     ],
     defaultLocale: 'ar',
