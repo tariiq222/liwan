@@ -26,7 +26,7 @@ function callApi(page: Page) {
     const root = document.querySelector('#__nuxt') as unknown as { __vue_app__: { config: { globalProperties: { $nuxt: { runWithContext: <T>(fn: () => T) => T } } } } }
     const { useAdminApi } = await import('/_nuxt/composables/useAdminApi.ts')
     try {
-      await root.__vue_app__.config.globalProperties.$nuxt.runWithContext(() => useAdminApi().request('/admin/accounts', { method: 'POST', body: { email: 'new@example.test' } }))
+      await root.__vue_app__.config.globalProperties.$nuxt.runWithContext(() => useAdminApi().request('/admin/accounts', { method: 'POST', body: { email: 'new@example.test', display_name: 'New', roles: ['support'], reason: 'step-up check' } }))
       return 'ok'
     } catch (error) {
       return (error as Error).name

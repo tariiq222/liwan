@@ -1,0 +1,122 @@
+<script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import { formatDateTime } from '@nasq/ui/app/utils/formatDate'
+import { useAdminAccounts } from '@/composables/useAdminAccounts'
+import { useTeamActions } from '@/composables/useTeamActions'
+import type { TeamAccount, TeamAccountStatus } from '@/utils/team'
+
+definePageMeta({ capability: 'vendor.accounts.manage' })
+const { t } = useI18n()
+const accounts = useAdminAccounts()
+const { me, can } = useAdminSession()
+const hydrated = useHydrated()
+const { data, error, pending, refresh } = await useAsyncData('vendor:team', () => accounts.list())
+const team = useTeamActions(refresh)
+const { panel, busy, errorKey, notice, invitation } = team
+const items = computed<TeamAccount[]>(() => data.value?.items ?? [])
+const allowed = computed(() => can('vendor.accounts.manage'))
+
+const TONES: Record<TeamAccountStatus, 'success' | 'warning' | 'neutral'> = { active: 'success', enrolling: 'warning', disabled: 'neutral' }
+const ICONS = { roles: 'i-lucide-shield-check', reset: 'i-lucide-key-round', disable: 'i-lucide-user-x' } as const
+const isMe = (account: TeamAccount) => account.id === me.value?.id
+const rolesText = (account: TeamAccount) => account.roles.map(role => t(`team.roles.${role}`)).join('، ')
+const lastSeen = (account: TeamAccount) => (account.last_seen_at ? formatDateTime(account.last_seen_at) : t('team.neverSeen'))
+const panelFor = computed(() => (panel.value && panel.value.kind !== 'invite' ? panel.value : null))
+
+// A disabled account cannot be changed; a pending invitation can get a new link (reset) or be disabled.
+const actionsOf = (account: TeamAccount) => (account.status === 'disabled'
+  ? []
+  : (['roles', 'reset', 'disable'] as const).map(kind => ({ kind, label: t(`team.actions.${kind}`), icon: ICONS[kind] })))
+
+const columns = computed<TableColumn<TeamAccount>[]>(() => [
+  { id: 'person', header: t('team.columns.person') },
+  { id: 'roles', header: t('team.columns.roles') },
+  { id: 'status', header: t('team.columns.status') },
+  { id: 'lastSeen', header: t('team.columns.lastSeen') },
+  { id: 'actions', header: t('team.columns.actions') },
+])
+</script>
+
+<template>
+  <SharedListPage :title="t('team.title')" :description="t('team.description')">
+    <template v-if="allowed" #actions>
+      <UButton icon="i-lucide-user-plus" :disabled="!hydrated" :label="t('team.invite')" data-testid="team-invite" @click="team.open({ kind: 'invite' })" />
+    </template>
+
+    <TeamInvitationLink v-if="invitation" v-bind="invitation" @dismiss="team.dismissInvitation" />
+    <UAlert v-if="notice" role="status" color="success" variant="subtle" icon="i-lucide-check" :title="t(notice.key, { name: notice.name })" data-testid="team-notice" />
+
+    <TeamAccountForm v-if="panel?.kind === 'invite'" :busy="busy" :error-key="errorKey" @submit="team.invite" @cancel="team.close" />
+    <TeamAccountAction v-else-if="panelFor" :key="`${panelFor.kind}:${panelFor.account.id}`" :kind="panelFor.kind" :account="panelFor.account" :busy="busy" :error-key="errorKey" @confirm="team.confirm" @cancel="team.close" />
+
+    <SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="pending" :error="error" :empty-text="t('team.empty')" :caption="t('team.title')" @retry="refresh">
+      <template #person-cell="{ row: { original: account } }">
+        <div class="min-w-0">
+          <p class="font-medium text-highlighted">
+            {{ account.display_name }}<span v-if="isMe(account)" class="ms-2 text-xs font-normal text-muted">({{ t('team.you') }})</span>
+          </p>
+          <p class="text-sm text-muted" dir="ltr">
+            {{ account.email }}
+          </p>
+        </div>
+      </template>
+      <template #roles-cell="{ row: { original: account } }">
+        {{ rolesText(account) }}
+      </template>
+      <template #status-cell="{ row: { original: account } }">
+        <SharedStatusBadge :tone="TONES[account.status]" :label="t(`team.status.${account.status}`)" />
+      </template>
+      <template #lastSeen-cell="{ row: { original: account } }">
+        {{ lastSeen(account) }}
+      </template>
+      <template #actions-cell="{ row: { original: account } }">
+        <div class="flex flex-wrap gap-1" role="group" :aria-label="t('team.actions.label', { name: account.display_name })">
+          <UButton
+            v-for="action in actionsOf(account)"
+            :key="action.kind"
+            type="button"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            :icon="action.icon"
+            :label="action.label"
+            :disabled="!hydrated"
+            :data-testid="`team-${action.kind}`"
+            @click="team.open({ kind: action.kind, account })"
+          />
+        </div>
+      </template>
+      <template #mobile-row="{ row: account }">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">
+              {{ account.display_name }}<span v-if="isMe(account)" class="ms-2 text-xs font-normal text-muted">({{ t('team.you') }})</span>
+            </h2>
+            <p class="text-sm text-muted" dir="ltr">
+              {{ account.email }}
+            </p>
+          </div>
+          <SharedStatusBadge :tone="TONES[account.status]" :label="t(`team.status.${account.status}`)" />
+        </div>
+        <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div><dt class="text-muted">{{ t('team.columns.roles') }}</dt><dd>{{ rolesText(account) }}</dd></div>
+          <div><dt class="text-muted">{{ t('team.columns.lastSeen') }}</dt><dd>{{ lastSeen(account) }}</dd></div>
+        </dl>
+        <div class="mt-3 flex flex-wrap gap-1" role="group" :aria-label="t('team.actions.label', { name: account.display_name })">
+          <UButton
+            v-for="action in actionsOf(account)"
+            :key="action.kind"
+            type="button"
+            size="sm"
+            color="neutral"
+            variant="outline"
+            :icon="action.icon"
+            :label="action.label"
+            :disabled="!hydrated"
+            @click="team.open({ kind: action.kind, account })"
+          />
+        </div>
+      </template>
+    </SharedDataTable>
+  </SharedListPage>
+</template>
