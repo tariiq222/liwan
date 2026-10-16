@@ -1,3 +1,7 @@
+// NOT RUN since the vendor console moved to apps/vendor-admin (decision D2: no /vendor page prefix; the BFF API stays /api/vendor/v1/...).
+// Now needs: a bootstrapped vendor owner (`npm -w apps/control-plane run admin -- bootstrap-owner ...`, link `<admin origin>/enroll#...`),
+// a virtual WebAuthn authenticator in the browser context, and the vendor host serving apps/vendor-admin. The shared `login()` helper
+// (username/password on /login) still targets the customer form and must be replaced for the vendor host before this spec can run.
 // Captures/restores through the real signed queue. Local operator publishes only verified targets.
 import { test, expect } from '@playwright/test'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'

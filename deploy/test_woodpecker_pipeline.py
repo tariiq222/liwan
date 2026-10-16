@@ -53,5 +53,15 @@ class TestWoodpeckerOdooSteps(unittest.TestCase):
             self.assertIn('--stop-after-init', script)
 
 
+class TestWoodpeckerVendorAdminStep(unittest.TestCase):
+    def test_vendor_admin_step_prepares_lints_tests_and_builds(self):
+        text = (ROOT / '.woodpecker.yml').read_text().split('\nsteps:\n', 1)[1]
+        blocks = {block.split('\n', 1)[0].strip(): block for block in re.split(r'^  - name: ', text, flags=re.M)[1:]}
+        script = blocks['vendor-admin']
+        order = [script.index(command) for command in ('npx nuxt prepare', 'npm run lint', 'npm run test', 'npm run build')]
+        self.assertEqual(order, sorted(order))
+        self.assertIn('cd apps/vendor-admin', script)
+
+
 if __name__ == '__main__':
     unittest.main()

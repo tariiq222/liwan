@@ -9,7 +9,7 @@
 # undefined name becomes empty), so a shell brace expansion is written with a doubled dollar sign;
 # braced CI_-prefixed names are Woodpecker's own.
 #
-# Steps: static, control-plane, odoo, odoo-tasks-standalone, odoo-tasks-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories.
+# Steps: static, control-plane, vendor-admin, odoo, odoo-tasks-standalone, odoo-tasks-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories.
 #
 # The control-plane live-PG suites run serially by design (apps/control-plane `test`
 # sets --no-file-parallelism and a 60s hook timeout); parallel runs conflict because
@@ -51,6 +51,20 @@ steps:
       # Creates the three scratch databases the live suites pin by name, runs them in
       # two groups, builds, and drops the databases (see the script header).
       - PGUSER=nasq_test PGPASSWORD=odoo deploy/control-plane/ci-test.sh
+
+  # The vendor admin app (apps/vendor-admin, port 3100): type check, unit tests and a production build. It is a separate
+  # Nuxt application with its own layers (packages/ui, packages/commercial-ui), so the web steps do not cover it.
+  - name: vendor-admin
+    image: bash
+    commands:
+      - set -euo pipefail
+      - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+      - npm ci --ignore-scripts
+      - cd apps/vendor-admin
+      - npx nuxt prepare
+      - npm run lint
+      - npm run test
+      - npm run build
 
   - name: odoo
     image: bash

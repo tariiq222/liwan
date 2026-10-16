@@ -1,3 +1,7 @@
+// NOT RUN since the vendor console moved to apps/vendor-admin (decision D2: no /vendor page prefix; the BFF API stays /api/vendor/v1/...).
+// Now needs: a bootstrapped vendor owner (`npm -w apps/control-plane run admin -- bootstrap-owner ...`, link `<admin origin>/enroll#...`),
+// a virtual WebAuthn authenticator in the browser context, and the vendor host serving apps/vendor-admin. The shared `login()` helper
+// (username/password on /login) still targets the customer form and must be replaced for the vendor host before this spec can run.
 // E15 live HTTP statuses, explicit application locale switch, both companies at 390/1440.
 import { test, expect } from '@playwright/test'
 import { readFile,writeFile,mkdir } from 'node:fs/promises'
@@ -6,7 +10,7 @@ import { promisify } from 'node:util'
 import { execFile } from 'node:child_process'
 import { state,here,login } from './browser-helpers.mjs'
 const RUN=process.env.NASQ_SCA_RUN_ID, OUT=join(here,'.evidence',RUN,'pages'),exec=promisify(execFile),root=resolve(here,'../..');await mkdir(OUT,{recursive:true,mode:0o700})
-const paths={vendor:['/vendor/overview','/vendor/customers','/vendor/bundles','/vendor/bundles/new','/vendor/plans','/vendor/plans/new','/vendor/catalog','/vendor/invoices','/vendor/tenants','/vendor/operations','/vendor/audit'],customer:['/subscription','/subscription/status','/subscription/change','/subscription/branches','/subscription/branches/new','/subscription/invoices']}
+const paths={vendor:['/overview','/customers','/bundles','/bundles/new','/plans','/plans/new','/catalog','/invoices','/tenants','/operations','/audit'],customer:['/subscription','/subscription/status','/subscription/change','/subscription/branches','/subscription/branches/new','/subscription/invoices']}
 const results=[],failures=[]
 async function switchLocale(page,code){await page.waitForFunction(()=>!!document.querySelector('#__nuxt')?.__vue_app__?.$nuxt?.$i18n);await page.evaluate(async c=>{await document.querySelector('#__nuxt').__vue_app__.$nuxt.$i18n.setLocale(c)},code);await expect.poll(()=>page.locator('html').getAttribute('lang')).toMatch(code==='en'?/^en/:/^ar/);expect(await page.locator('html').getAttribute('dir')).toBe(code==='en'?'ltr':'rtl')}
 test('E15 both companies vendor ar/en 390/1440',async({browser})=>{test.setTimeout(900000);let fixtures;try{fixtures=JSON.parse(await readFile(join(here,'.evidence',RUN,'fixtures.json'),'utf8'))}catch{fixtures={}}

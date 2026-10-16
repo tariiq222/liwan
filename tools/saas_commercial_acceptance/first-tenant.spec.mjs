@@ -1,3 +1,7 @@
+// NOT RUN since the vendor console moved to apps/vendor-admin (decision D2: no /vendor page prefix; the BFF API stays /api/vendor/v1/...).
+// Now needs: a bootstrapped vendor owner (`npm -w apps/control-plane run admin -- bootstrap-owner ...`, link `<admin origin>/enroll#...`),
+// a virtual WebAuthn authenticator in the browser context, and the vendor host serving apps/vendor-admin. The shared `login()` helper
+// (username/password on /login) still targets the customer form and must be replaced for the vendor host before this spec can run.
 // Real browser acceptance: no route mocks, seeded customer DB, or password logs.
 import { test, expect } from '@playwright/test'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
@@ -34,7 +38,7 @@ test('vendor creates a real Odoo tenant, whose administrator creates data and an
   try {
     const vendor = JSON.parse(await readFile(join(state.stateDir, 'vendor-admin.json'), 'utf8'))
     await login(page, 'https://vendor.saas.commercial.nasq.test', vendor)
-    await page.goto('https://vendor.saas.commercial.nasq.test/vendor/tenants/new')
+    await page.goto('https://vendor.saas.commercial.nasq.test/tenants/new')
     await expect(page.getByRole('dialog')).toBeVisible()
     await page.getByLabel('اسم العميل', { exact: true }).fill(`عميل قبول ${run}`)
     await select(page, 'إصدار الكتالوج', 'lifecycle-3899a095')
@@ -51,7 +55,7 @@ test('vendor creates a real Odoo tenant, whose administrator creates data and an
     expect(tenant.job_id).toMatch(/^[a-f0-9-]{36}$/)
     proof.tenant = tenant
     await checkpoint('vendor-browser-create', { tenantId: tenant.tenant_id, jobId: tenant.job_id, host: tenant.host })
-    await expect(page).toHaveURL(new RegExp(`/vendor/tenants/${tenant.tenant_id}$`))
+    await expect(page).toHaveURL(new RegExp(`/tenants/${tenant.tenant_id}$`))
     const ready = page.getByRole('link', { name: 'فتح مساحة عمل العميل', exact: true })
     await expect(ready).toBeVisible({ timeout: 240_000 })
     await expect(ready).toHaveAttribute('href', `https://${tenant.host}/login`)

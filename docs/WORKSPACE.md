@@ -48,8 +48,8 @@ git branch --show-current
 ## CI — Woodpecker (2026-09-29)
 
 CI is Woodpecker, defined in [`.woodpecker.yml`](../.woodpecker.yml); GitHub
-Actions was removed from the project. The main pipeline runs ten steps on the
-local instance (`static`, `control-plane`, `odoo`, `odoo-tasks-standalone`,
+Actions was removed from the project. The main pipeline runs eleven steps on the
+local instance (`static`, `control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`,
 `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock`,
 `rtl-stories`) and is portable to any Woodpecker deployment with
 a Docker backend. The Docker image gate lives in
@@ -256,3 +256,5 @@ PITR، لا موقع ثانٍ) في [تقرير التمرين](verification/202
 متبقية). التفاصيل والحدود الصريحة (لا SSR حقيقي، لا MFA، لا TLS/Caddy، حجم
 بيانات صغير لكل مستأجر) في [تقرير التمرين](verification/2026-10-09-real-odoo-isolation-matrix.md).
 لا commit أو push ضمن هذا التمرين.
+
+2026-10-16: أُضيفت أدوات تطبيق لوحة المزوّد `apps/vendor-admin` (قاعدة `VA1` وخطوة CI وصورة Docker وقوالب البيئة وكتلة الحافة)؛ لم تُشغَّل مواصفات القبول بعد تحديثها، وتحتاج مالكًا مُهيّأً ومصادقًا افتراضيًا لـ WebAuthn.
