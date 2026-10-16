@@ -230,7 +230,7 @@ for DBT in "${TENANT_DATABASES[@]}"; do
     --entrypoint /usr/local/bin/nasq-odoo odoo \
     server -c /etc/odoo/odoo.conf \
     -d "$DBT" --db-filter="^${DBT}\$" \
-    -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo \
+    -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai \
     --stop-after-init --no-http
 done
 echo "Addons installed."

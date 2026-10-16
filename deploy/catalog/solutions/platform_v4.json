@@ -79,6 +79,19 @@
       "features": [
         "boolean:operations.enabled"
       ]
+    },
+    {
+      "id": "assistant",
+      "name": "Nasq AI",
+      "description": "The Nasq AI assistant: tool registry, audit log and message limits.",
+      "modules": [
+        "nasq_ai"
+      ],
+      "features": [
+        "boolean:ai.enabled",
+        "limit:ai.messages.monthly",
+        "limit:ai.tool_calls.per_run"
+      ]
     }
   ]
 }

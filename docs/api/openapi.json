@@ -22044,6 +22044,86 @@
         }
       }
     },
+    "/api/v1/ai/audit": {
+      "post": {
+        "operationId": "nasq_ai.AiController.record_audit.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "record_audit",
+        "tags": [
+          "nasq_ai"
+        ],
+        "x-nasq": {
+          "addon": "nasq_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiController",
+          "feature_keys": [
+            "registry:nasq.ai.tool.registry"
+          ],
+          "feature_operation": "write",
+          "handler": "record_audit",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/ai/tools": {
+      "get": {
+        "operationId": "nasq_ai.AiController.list_tools.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_tools",
+        "tags": [
+          "nasq_ai"
+        ],
+        "x-nasq": {
+          "addon": "nasq_ai",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "AiController",
+          "feature_keys": [
+            "registry:nasq.ai.tool.registry"
+          ],
+          "feature_operation": "read",
+          "handler": "list_tools",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/auth/totp": {
       "post": {
         "operationId": "nasq_api.AuthController.totp.post",
@@ -31015,6 +31095,7 @@
     }
   ],
   "tags": [
+    "nasq_ai",
     "nasq_api",
     "nasq_chat",
     "nasq_directory",
