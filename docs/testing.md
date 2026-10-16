@@ -54,7 +54,7 @@ local policy runs in AGENTS.md stay the binding gate.
 
 CI is Woodpecker (`.woodpecker.yml`, with the image gate in
 `deploy/woodpecker/image.yml`); GitHub
-Actions is not used. The main pipeline has ten steps—`static`,
+Actions is not used. The main pipeline has eleven steps—`static`, `ai-service`,
 `control-plane`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`,
 `e2e-mock`, and `rtl-stories`—and each is
 runnable locally with the same command block in that file: static checks, the
@@ -66,7 +66,10 @@ the tasks application's non-release configurations with hard-coded module lists,
 and HTTP ports 8193/8194. The
 control-plane live suites run serially by design: its `test` script sets
 `--no-file-parallelism --hookTimeout=60000` because they share one scratch
-control database and TRUNCATE the same tables. The `image` step
+control database and TRUNCATE the same tables. `ai-service` installs `apps/ai-service` into a venv, lints it with ruff and runs its pytest
+suite against a throwaway Postgres database (`nasq_ai_ci_<pipeline number>`, created and dropped in the step
+like the control-plane suites); locally the scripted-model suite runs without a database and the Postgres
+tests run only when `AI_TEST_DATABASE_URL` is set. The `image` step
 needs a Docker daemon on the agent; `deploy/woodpecker/image.yml` is the separate opt-in pipeline for
 agents whose engine can start a privileged dind service. The
 migration policy is [`docs/migrations.md`](migrations.md), and the pinned
