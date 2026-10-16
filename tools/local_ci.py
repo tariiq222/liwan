@@ -78,6 +78,7 @@ def preflight(base, commit, env):
     match = re.search(r'(?:PostgreSQL\)?\s+)(\d+)', version)
     if not match or int(match[1]) < 16:
         fail('PostgreSQL client tools version 16 or newer are required')
+    output(['docker', 'compose', 'version'], env=env)
     return upstream, python
 
 

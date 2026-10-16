@@ -16,7 +16,8 @@ function rendered(shared: boolean) {
   if (shared) args.push('-f', 'deploy/docker-compose.shared.yml')
   args.push('config', '--format', 'json')
   return JSON.parse(execFileSync('docker', args, { cwd: root, encoding: 'utf8', env: {
-    PATH: process.env.PATH, HOME: process.env.HOME, WEBVUE_IMAGE_TAG: 'synthetic', DOMAIN: 'tenant.invalid',
+    PATH: process.env.PATH, HOME: process.env.HOME, DOCKER_CONFIG: process.env.DOCKER_CONFIG,
+    WEBVUE_IMAGE_TAG: 'synthetic', DOMAIN: 'tenant.invalid',
     ODOO_COMMIT: 'synthetic', DB_NAME: 'synthetic', DB_PASSWORD: 'synthetic-not-secret',
     WEBVUE_SHARED_PROXY_TOKEN: 'synthetic-not-a-real-token', WEBVUE_SESSION_KEYS: '{}', WEBVUE_SESSION_ACTIVE_KID: 'test',
     WEBVUE_TENANT_REGISTRY_DIR: '/synthetic/registry', WEBVUE_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',

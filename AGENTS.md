@@ -175,8 +175,7 @@ another application) needs the owner's approval, recorded by the owner as an
 - Merging is the orchestrator's job and needs the owner's authorization for that integration. Before
   merging: merge current `main` into the task branch (never rebase a branch another worker owns); the
   focused checks and `npm test` pass; `python3 -B tools/git_policy.py --base main` and
-  `python3 -B tools/arch_policy.py --base main` pass (this local run is the binding gate; CI repeats it
-  on push); addon or contract changes are reviewed by the `odoo-reviewer` agent; the working tree is
+  `python3 -B tools/arch_policy.py --base main` pass (the local merge gate runs these before accepting main); addon or contract changes are reviewed by the `odoo-reviewer` agent; the working tree is
   clean. Manual integration uses `git merge --no-ff`. The local checked entrypoint is
   `npm run merge:main -- codex/<area>-<slug>`: it creates the no-ff merge commit in an
   isolated candidate, runs all twelve checks, then fast-forwards `main` to that exact

@@ -62,6 +62,7 @@ if sys.argv[1] == 'ps':
  print(run[run.index('--name')+1])
 if sys.argv[1] == 'rm' and len(sys.argv[1:]) != 3: sys.exit(1)
 if Path(MODE).read_text() == 'docker-failure' and sys.argv[1] == 'info': sys.exit(7)
+if Path(MODE).read_text() == 'compose-failure' and sys.argv[1:3] == ['compose','version']: sys.exit(9)
 ''')
         self.executable('woodpecker-cli', '''import json,os,pathlib,sys
 args=sys.argv[1:]
@@ -159,6 +160,13 @@ if Path(MODE).read_text() == 'cli-failure': sys.exit(4)
         result = self.run_ci(FAKE_MODE='docker-failure')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.receipt()['status'], 'failed')
+
+    def test_missing_compose_fails_before_any_resources_or_skipped_topology_tests(self):
+        result = self.run_ci(FAKE_MODE='compose-failure')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.receipt()['status'], 'failed')
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
+        self.assertFalse(any(call[0] == 'run' for call in calls))
 
     def test_rejects_wrong_odoo_pin_before_starting_resources(self):
         (self.repo / 'deploy/odoo/ODOO_COMMIT').write_text('0' * 40)

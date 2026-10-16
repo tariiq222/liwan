@@ -85,7 +85,7 @@ npm run check:local -- --base <main-sha> --commit <candidate-sha> --report-dir <
 ```
 
 The runner requires the local Woodpecker CLI, Node matching `.nvmrc`, Python and the
-pinned Odoo checkout with its Python environment, PostgreSQL client tools, Docker and
+pinned Odoo checkout with its Python environment, PostgreSQL client tools, Docker with Compose and
 the pipeline's linters. Docker must already be running; the runner does not start or
 reconfigure it. Dependency installation and image building need network access when
 caches are absent. A missing tool, service failure, failed stage or missing completion

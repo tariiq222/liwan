@@ -10,7 +10,7 @@ Owner-approved in chat, 2026-10-16: one local merge command prepares an isolated
 - Merge CLI: `npm run merge:main -- codex/<area>-<slug>`. A local branch, clean incoming worktree and tracked-clean main are required. Preserve non-colliding untracked main files; refuse collisions (including ignored files and symlink parents).
 - Fetch/compare origin if configured. Reject main behind/diverged from origin/main. Record exact base/source SHAs. One shared flock coordinates gate invocations; recheck both SHAs and cleanliness before promotion.
 - Create the actual no-fast-forward merge commit in a detached candidate worktree. Verify that exact commit. Promote with ff-only to that existing tested merge commit: no new merge calculation can introduce an untested tree. This preserves no-ff merge history and avoids reset/update-ref/force operations. Document this explicit gate path alongside the existing manual no-ff workflow.
-- Failure, conflict, interrupted verifier, main/source movement, unavailable tooling or a failed check must never advance main. Preserve the failed candidate and logs for review; no implicit worktree/branch cleanup.
+- Failure, conflict, interrupted verifier, main/source movement, unavailable tooling or a failed check before promotion must never advance main. Interruption during promotion records the actual main ref without resetting other work. Preserve the failed candidate and logs for review; no implicit worktree/branch cleanup.
 - A direct git command outside this tool can bypass it; this is the approved local merge entrypoint, not server protection. No claim that all manual Git operations are technically forbidden.
 
 ## Review focus
