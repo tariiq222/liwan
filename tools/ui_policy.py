@@ -20,13 +20,17 @@ BASELINE = 'fce4561330200947e4db88b508285fecf9bb05a5'
 APP = 'apps/web/app/'
 UI = 'packages/ui/app/'
 COMMERCIAL = 'packages/commercial-ui/app/'
-APP_SOURCES = (APP, UI, COMMERCIAL)
+VENDOR_ADMIN = 'apps/vendor-admin/app/'
+# Each Nuxt app auto-imports its own sources and those of the layers it extends: names must be unique per scope.
+NUXT_SCOPES = ((APP, UI, COMMERCIAL), (VENDOR_ADMIN, UI, COMMERCIAL))
+APP_SOURCES = (APP, UI, COMMERCIAL, VENDOR_ADMIN)
 PREVIEW = 'apps/web/design-preview/app/'
 SOURCE_ROOTS = (*APP_SOURCES, PREVIEW)
 LEGACY = APP + 'components/ui/'
 CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
-MANIFESTS = ('package.json', 'apps/web/package.json', 'packages/ui/package.json', 'packages/commercial-ui/package.json')
+MANIFESTS = ('package.json', 'apps/web/package.json', 'packages/ui/package.json', 'packages/commercial-ui/package.json',
+             'apps/vendor-admin/package.json')
 STORIES = 'apps/web/stories/'
 STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
@@ -34,7 +38,8 @@ STORY_SUFFIXES = {'.vue', '.ts', '.mjs', '.mdx'}
 COMPONENTS = APP + 'components/'
 UI_COMPONENTS = UI + 'components/'
 COMMERCIAL_COMPONENTS = COMMERCIAL + 'components/'
-COMPONENT_ROOTS = (COMPONENTS, UI_COMPONENTS, COMMERCIAL_COMPONENTS)
+VENDOR_ADMIN_COMPONENTS = VENDOR_ADMIN + 'components/'
+COMPONENT_ROOTS = (COMPONENTS, UI_COMPONENTS, COMMERCIAL_COMPONENTS, VENDOR_ADMIN_COMPONENTS)
 # Presentational components that live in the @nasq/ui layer (relative to components/); every other
 # component listed below stays in apps/web.
 LAYER_COMPONENTS = frozenset(
@@ -71,7 +76,7 @@ COMPONENT_PREFIXES = {
 }
 PAGES = APP + 'pages/'
 LAYOUTS = APP + 'layouts/'
-LOCALES = 'apps/web/i18n/locales/'
+LOCALE_ROOTS = ('apps/web/i18n/locales/', 'apps/vendor-admin/i18n/locales/')
 # Reused building blocks that must each have a story (spec §1). Add a path here when a
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
@@ -113,7 +118,7 @@ STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
 DEFAULT_VUE_IMPORT = re.compile(r'''^\s*import\s+(\w+)\s+from\s+(['"])([^'"]+\.vue)\2''', re.M)
 SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for root in STORY_ROOTS),
-         LOCALES.rstrip('/'), *MANIFESTS, CATALOG)
+         *(root.rstrip('/') for root in LOCALE_ROOTS), *MANIFESTS, CATALOG)
 THEME_OWNERS = {
     UI + 'assets/css/main.css',
     UI + 'assets/css/tokens.css',
@@ -151,8 +156,9 @@ REVIEWED_E2E_TOOLING = {
     '@ai-sdk/openai', '@ai-sdk/openai-compatible', '@e2e-dev/web', 'ai', 'e2e', 'playwright',
 }
 
-# Test-only SFC compilation and server rendering used by the layer's unit tests (no runtime import).
-REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescript'}
+# Test-only SFC compilation and server rendering used by the layer's unit tests (no runtime import);
+# jiti loads the TypeScript contracts into the vendor admin's mock control service (e2e only).
+REVIEWED_TEST_TOOLING = {'@vue/compiler-sfc', '@vue/server-renderer', 'typescript', 'jiti'}
 
 
 def source_file(path: str) -> bool:
@@ -161,7 +167,7 @@ def source_file(path: str) -> bool:
 
 
 def locale_file(path: str) -> bool:
-    return path.startswith(LOCALES) and path.endswith('.json')
+    return path.startswith(LOCALE_ROOTS) and path.endswith('.json')
 
 
 def story_file(path: str) -> bool:
@@ -425,7 +431,6 @@ DECLARATION = re.compile(
     re.M)
 NAMED_BLOCK = re.compile(r'^export\s+(?:type\s+)?\{([^}]*)\}', re.M)
 IDENTIFIER = re.compile(r'^[A-Za-z_$][\w$]*$')
-AUTO_IMPORT_ROOTS = tuple(root + folder for root in APP_SOURCES for folder in ('composables/', 'utils/'))
 
 
 def exported_names(source: str) -> list[str]:
@@ -440,25 +445,28 @@ def exported_names(source: str) -> list[str]:
 
 
 def auto_import_errors(current: dict[str, str]) -> list[str]:
-    owners: dict[str, set[str]] = {}
-    for path, source in sorted(current.items()):
-        if path.startswith(AUTO_IMPORT_ROOTS) and path.endswith('.ts'):
-            for name in exported_names(source):
-                owners.setdefault(name, set()).add(path)
-    errors = [f'{name}: auto-imported name has {len(files)} owners ({" + ".join(sorted(files))}); '
-              'rename it, or give it one owner and import it explicitly'
-              for name, files in sorted(owners.items()) if len(files) > 1]
-    components: dict[str, list[str]] = {}
-    for path in sorted(current):
-        if path.startswith(COMPONENT_ROOTS) and path.endswith(('.vue', '.ts')):
-            # Nuxt joins the directory segments and the basename, ignoring case.
-            root = next(root for root in COMPONENT_ROOTS if path.startswith(root))
-            stem = nuxt_relative(path[len(root):]).rsplit('.', 1)[0]
-            components.setdefault(stem.replace('/', '-').lower(), []).append(path)
-    errors.extend(f'{name}: component name is claimed by {" + ".join(sorted(files))}; '
-                  'a non-component helper belongs in app/utils'
-                  for name, files in sorted(components.items()) if len(files) > 1)
-    return errors
+    errors = []
+    for scope in NUXT_SCOPES:
+        owners: dict[str, set[str]] = {}
+        for path, source in sorted(current.items()):
+            if path.startswith(tuple(root + folder for root in scope for folder in ('composables/', 'utils/'))) and path.endswith('.ts'):
+                for name in exported_names(source):
+                    owners.setdefault(name, set()).add(path)
+        errors.extend(f'{name}: auto-imported name has {len(files)} owners ({" + ".join(sorted(files))}); '
+                      'rename it, or give it one owner and import it explicitly'
+                      for name, files in sorted(owners.items()) if len(files) > 1)
+        components: dict[str, list[str]] = {}
+        for path in sorted(current):
+            root = next((root + 'components/' for root in scope if path.startswith(root + 'components/')), None)
+            if root and path.endswith(('.vue', '.ts')):
+                # Nuxt joins the directory segments and the basename, ignoring case.
+                stem = nuxt_relative(path[len(root):]).rsplit('.', 1)[0]
+                components.setdefault(stem.replace('/', '-').lower(), []).append(path)
+        errors.extend(f'{name}: component name is claimed by {" + ".join(sorted(files))}; '
+                      'a non-component helper belongs in app/utils'
+                      for name, files in sorted(components.items()) if len(files) > 1)
+    # The layers belong to both scopes, so a clash inside a layer is found once per scope.
+    return list(dict.fromkeys(errors))
 
 
 # DESIGN.md: a record or a form is a routed page. The header search is the one
@@ -712,7 +720,8 @@ def locale_parity_errors(current: dict[str, str]) -> list[str]:
     for path, source in sorted(current.items()):
         if not locale_file(path):
             continue
-        locale, _, name = path[len(LOCALES):].partition('/')
+        root = next(root for root in LOCALE_ROOTS if path.startswith(root))
+        locale, _, name = path[len(root):].partition('/')
         if locale not in ('ar', 'en') or '/' in name:
             continue
         try:
@@ -721,16 +730,16 @@ def locale_parity_errors(current: dict[str, str]) -> list[str]:
         except json.JSONDecodeError as exc:
             errors.append(f'{path}: invalid JSON ({exc.msg} at line {exc.lineno})')
             continue
-        catalogs.setdefault(name, {})[locale] = keys
-    for name, by_locale in sorted(catalogs.items()):
+        catalogs.setdefault((root, name), {})[locale] = keys
+    for (root, name), by_locale in sorted(catalogs.items()):
         arabic, english = by_locale.get('ar'), by_locale.get('en')
         if arabic is None or english is None:
-            errors.append(f'{LOCALES}{name}: needs both an ar and an en catalogue')
+            errors.append(f'{root}{name}: needs both an ar and an en catalogue')
             continue
         for key in sorted(arabic - english):
-            errors.append(f'{LOCALES}en/{name}: missing key {key}')
+            errors.append(f'{root}en/{name}: missing key {key}')
         for key in sorted(english - arabic):
-            errors.append(f'{LOCALES}ar/{name}: missing key {key}')
+            errors.append(f'{root}ar/{name}: missing key {key}')
     return errors
 
 
@@ -890,6 +899,8 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         '@nasq/ui',
         # The billing presentation layer, which itself extends @nasq/ui.
         '@nasq/commercial-ui',
+        # Browser half of WebAuthn for the vendor admin sign-in: calls navigator.credentials, renders nothing.
+        '@simplewebauthn/browser',
     }
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source

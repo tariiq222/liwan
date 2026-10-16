@@ -11,6 +11,8 @@ from ui_policy import check, main, story_errors, story_warnings
 
 APP = "apps/web/app/"
 UI = "packages/ui/app/"
+VENDOR = "apps/vendor-admin/app/"
+VENDOR_LOCALES = "apps/vendor-admin/i18n/locales/"
 PAGE = APP + "pages/tasks.vue"
 COMPONENT = APP + "components/shared/Example.vue"
 MANIFEST = "apps/web/package.json"
@@ -164,6 +166,28 @@ class UiPolicyTest(unittest.TestCase):
         self.assertTrue(self.errors(changes))
         changes[CATALOG] = f'| `{COMPONENT}` | Shared action, form recipe, UButton |'
         self.assertEqual(self.errors(changes), [])
+
+    def test_vendor_admin_app_is_scanned_like_the_other_sources(self):
+        page = VENDOR + "pages/plans.vue"
+        self.assertIn(VENDOR, policy.APP_SOURCES)
+        self.assertIn("apps/vendor-admin/package.json", policy.MANIFESTS)
+        self.assertTrue(self.errors({page: '<style>.x { color: #123456; }</style>'}))
+        self.assertTrue(self.errors({page: '<div class="bg-red-500"/>'}))
+        self.assertEqual(self.errors({page: '<div class="bg-primary text-start ps-2"/>'}), [])
+
+    def test_vendor_admin_component_needs_a_catalog_entry(self):
+        component = VENDOR + "components/StepUpPanel.vue"
+        self.assertIn(VENDOR + "components/", policy.COMPONENT_ROOTS)
+        self.assertTrue(self.errors({component: "<template><p /></template>"}))
+        self.assertEqual(self.errors({component: "<template><p /></template>",
+                                      CATALOG: f"`{component}` | Inline panel, UButton |"}), [])
+
+    def test_vendor_admin_dependencies_are_reviewed_like_the_others(self):
+        vendor = "apps/vendor-admin/package.json"
+        reviewed = {"dependencies": {"@simplewebauthn/browser": "14.0.0"}, "devDependencies": {"jiti": "2.7.0"}}
+        self.assertEqual(self.errors({vendor: json.dumps(reviewed)}), [])
+        unknown = {"dependencies": {"left-pad": "1.0.0"}}
+        self.assertIn("dependency needs review: left-pad", self.errors({vendor: json.dumps(unknown)}))
 
     def test_theme_literals_and_local_roots_fail_but_tokens_pass(self):
         for source in ('<style>.x { color: #123456; }</style>',
@@ -430,6 +454,19 @@ class StaticGateTest(unittest.TestCase):
             APP + "utils/thing.ts": "export const other = 1",
         }), [])
 
+    def test_auto_import_names_are_unique_per_nuxt_app_not_across_apps(self):
+        same_name = "export function useThing() {}"
+        self.assertEqual(policy.auto_import_errors({
+            APP + "composables/useThing.ts": same_name, VENDOR + "composables/useThing.ts": same_name}), [])
+        self.assertEqual(len(policy.auto_import_errors({
+            VENDOR + "composables/useThing.ts": same_name, UI + "composables/useThing.ts": same_name})), 1)
+        self.assertEqual(len(policy.auto_import_errors({
+            VENDOR + "composables/useThing.ts": same_name, VENDOR + "utils/thing.ts": same_name})), 1)
+        self.assertEqual(policy.auto_import_errors({
+            APP + "components/Same.vue": "", VENDOR + "components/Same.vue": ""}), [])
+        self.assertEqual(len(policy.auto_import_errors({
+            VENDOR + "components/Same.vue": "", UI + "components/Same.vue": ""})), 1)
+
     def test_renamed_export_publishes_the_new_name_only(self):
         # `export { a as b }` publishes b, so b is what may collide.
         self.assertEqual(
@@ -635,6 +672,15 @@ class StaticGateTest(unittest.TestCase):
             self.LOCALES + "ar/x.json": '{"n": {"one": "1", "two": "2", "few": "3", "many": "4", "other": "n"}}',
             self.LOCALES + "en/x.json": '{"n": {"one": "1", "other": "n"}}',
         }), [])
+
+    def test_vendor_admin_locales_must_match_between_ar_and_en(self):
+        gap = policy.locale_parity_errors({
+            VENDOR_LOCALES + "ar/vendor.json": '{"a": {"b": "x"}}',
+            VENDOR_LOCALES + "en/vendor.json": '{"a": {}}',
+            self.LOCALES + "ar/vendor.json": '{"c": 1}',
+            self.LOCALES + "en/vendor.json": '{"c": 1}',
+        })
+        self.assertEqual(gap, [VENDOR_LOCALES + "en/vendor.json: missing key a.b"])
 
     def test_a_catalogue_without_a_counterpart_is_reported(self):
         self.assertTrue(policy.locale_parity_errors({self.LOCALES + "ar/only.json": '{"a": 1}'}))
