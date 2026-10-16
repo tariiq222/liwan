@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatNotificationTimestamp,
   genericNotificationText,
+  isUserWrittenNotificationKind,
   notificationPreviewCaptionKey,
   parseNotificationDate,
 } from '../notificationPresentation'
@@ -42,6 +43,22 @@ describe('notification presentation', () => {
     expect(notificationPreviewCaptionKey('deadline')).toBe('notifications.preview.deadline')
     expect(notificationPreviewCaptionKey('meeting_invite')).toBe('meetingsUi.notify.meeting_invite')
     expect(notificationPreviewCaptionKey('overdue_digest')).toBe('tasks.digest.kind')
+  })
+  it('never shows the server body of a charter row (English text; the return note is not separable)', () => {
+    expect(isUserWrittenNotificationKind('comment')).toBe(true)
+    expect(isUserWrittenNotificationKind('mention')).toBe(true)
+    for (const kind of ['charter_review', 'charter_approved', 'charter_returned', 'assignment']) {
+      expect(isUserWrittenNotificationKind(kind), kind).toBe(false)
+    }
+  })
+  it('captions the charter kinds with their own preview label in both locales', () => {
+    for (const kind of ['charter_review', 'charter_approved', 'charter_returned'] as const) {
+      expect(notificationPreviewCaptionKey(kind)).toBe(`notifications.preview.${kind}`)
+      for (const locale of ['ar', 'en']) {
+        const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../i18n/locales/${locale}/notifications.json`), 'utf8'))
+        expect(messages.notifications.preview[kind], `${locale} ${kind}`).toBeTruthy()
+      }
+    }
   })
   it('preserves preview captions for the new meeting lifecycle notifications', () => {
     for (const kind of ['meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue'] as const) {
