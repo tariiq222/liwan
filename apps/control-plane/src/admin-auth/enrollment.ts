@@ -2,7 +2,7 @@ import type { PoolClient } from 'pg'
 import { hashToken, newRecoveryCodes, newToken, open, totpBoxAad } from './crypto.js'
 import { checkTotp } from './totp.js'
 import { hashPassword, passwordAcceptable } from './passwords.js'
-import { actorName, AdminAuthError, audit, normalizeEmail, setRoles } from './accounts.js'
+import { actorName, AdminAuthError, audit, lockOwners, normalizeEmail, setRoles } from './accounts.js'
 import type { VendorRole } from '@nasq/commercial-contracts'
 
 const DAY = 24 * 3600_000
@@ -27,6 +27,12 @@ export async function inviteAccount(client: PoolClient, actor: { id: number } | 
  * token then finishes the enrolment once (completeEnrollment consumes it); a second wipe needs a new reset.
  */
 export async function issueReset(client: PoolClient, actor: { id: number } | 'operator', accountId: number, reason: string, now: Date) {
+  // The last active owner cannot reset itself: it would leave no owner able to sign in. The operator CLI
+  // (`admin reset-account`) is the recovery path for a lost owner. Owner lock first, then the account (the usual order).
+  if (actor !== 'operator' && Number(actor.id) === Number(accountId)) {
+    const owners = await lockOwners(client)
+    if (owners.includes(Number(accountId)) && owners.length <= 1) throw new AdminAuthError(409, 'last_owner')
+  }
   const account = await client.query('SELECT status FROM vendor_accounts WHERE id=$1 FOR UPDATE', [accountId])
   if (!account.rowCount) throw new AdminAuthError(404, 'not_found')
   if (account.rows[0].status === 'disabled') throw new AdminAuthError(422, 'invalid')

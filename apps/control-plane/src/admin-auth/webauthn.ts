@@ -77,6 +77,10 @@ export async function finishAuthentication(client: PoolClient, lib: WebAuthnLib,
   const c = consumed
   const id = (response as { id?: unknown })?.id
   if (typeof id !== 'string' || id.length > 1024) fail()
+  // Account first (shared), then the credential row: the order reset, disable and completion use, so none can deadlock a sign-in.
+  const owner = await client.query('SELECT account_id FROM vendor_passkeys WHERE credential_id=$1', [id])
+  if (!owner.rowCount) fail()
+  await client.query("SELECT 1 FROM vendor_accounts WHERE id=$1 AND status='active' FOR SHARE", [owner.rows[0].account_id])
   const row = await client.query(
     "SELECT p.credential_id, p.account_id, p.public_key, p.counter, p.transports FROM vendor_passkeys p JOIN vendor_accounts a ON a.id=p.account_id WHERE p.credential_id=$1 AND a.status='active' FOR UPDATE OF p",
     [id],
