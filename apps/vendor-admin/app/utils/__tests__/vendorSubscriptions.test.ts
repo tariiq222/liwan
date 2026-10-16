@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice, Order, SubscriptionView } from '@nasq/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isOverdue, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
+  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
   type VendorCustomer,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
@@ -107,16 +107,6 @@ describe('usageMetricLabel', () => {
     expect(usageMetricLabel({ key: 'users.limit', unit: 'count' }, t, te)).toBe('Users')
     expect(usageMetricLabel({ key: 'other.limit', unit: 'count' }, t, te)).toBe('Usage')
     expect(usageMetricLabel({ key: 'other.limit', unit: 'users' }, t, te)).toBe('Other limit')
-  })
-})
-
-describe('isOverdue', () => {
-  const now = Date.parse('2026-10-16T00:00:00Z')
-  it('is true only for issued invoices past their due date', () => {
-    expect(isOverdue({ status: 'issued', due_at: '2026-10-01T00:00:00Z' }, now)).toBe(true)
-    expect(isOverdue({ status: 'issued', due_at: '2026-11-01T00:00:00Z' }, now)).toBe(false)
-    expect(isOverdue({ status: 'paid', due_at: '2026-10-01T00:00:00Z' }, now)).toBe(false)
-    expect(isOverdue({ status: 'issued', due_at: null }, now)).toBe(false)
   })
 })
 

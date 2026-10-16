@@ -2,7 +2,7 @@
 import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
 import { paymentAttemptBadge } from '@/utils/vendorBadges'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
-import { invoicesReturnTo, isCreditRelated, isNotAvailable, isOverdue, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
+import { invoicesReturnTo, isCreditRelated, isNotAvailable, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatNasqDate, formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 definePageMeta({ capability: 'vendor.billing.manage' })
@@ -36,7 +36,7 @@ const notOfficial = computed(() => `${t('vendor.invoices.notOfficial')} — ${t(
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
         <SharedMetricTile :label="t('vendor.invoices.total')" :value="money(data.total)" icon="i-lucide-receipt" value-dir="ltr" />
-        <SharedMetricTile :label="t('vendor.invoices.dueAt')" :value="date(data.due_at)" icon="i-lucide-calendar-clock" :hint="isOverdue(data) ? t('vendor.invoices.overdue') : undefined" />
+        <SharedMetricTile :label="t('vendor.invoices.dueAt')" :value="date(data.due_at)" icon="i-lucide-calendar-clock" />
       </div>
     </div>
   </template>

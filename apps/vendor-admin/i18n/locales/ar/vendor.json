@@ -1047,10 +1047,11 @@
       "details": "فاتورة",
       "draftNumber": "مسودة بلا رقم",
       "allCustomers": "كل العملاء",
-      "overdue": "متأخرة",
+      "customerSearch": "ابحث عن عميل",
+      "customersRetry": "إعادة المحاولة",
+      "customersLoadFailed": "تعذّر تحميل العملاء",
       "summary": {
-        "outstanding": "المستحق غير المسدّد",
-        "overdue": "فواتير متأخرة"
+        "outstanding": "المستحق غير المسدّد"
       },
       "customerFilter": "عميل محدد",
       "period": "الفترة",

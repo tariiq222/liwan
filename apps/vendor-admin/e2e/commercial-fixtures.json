@@ -1430,7 +1430,6 @@
     "sub-alpha": {
       "id": "sub-alpha",
       "customer_id": "cust-alpha",
-        "customer_name": "شركة ألفا",
       "tenant_id": "tenant-1",
       "state": "active",
       "applied": {
@@ -1438,7 +1437,6 @@
         "subscription_id": "sub-alpha",
         "revision": 1,
         "customer_id": "cust-alpha",
-        "customer_name": "شركة ألفا",
         "tenant_id": "tenant-1",
         "plan_revision_id": "00000000-0000-4000-8000-000000000010",
         "bundle_revision_ids": [
@@ -1478,7 +1476,6 @@
         "subscription_id": "sub-alpha",
         "revision": 1,
         "customer_id": "cust-alpha",
-        "customer_name": "شركة ألفا",
         "tenant_id": "tenant-1",
         "plan_revision_id": "00000000-0000-4000-8000-000000000010",
         "bundle_revision_ids": [
@@ -1527,7 +1524,6 @@
     "sub-beta": {
       "id": "sub-beta",
       "customer_id": "cust-beta",
-        "customer_name": "شركة بيتا",
       "tenant_id": null,
       "state": "pending",
       "applied": null,
@@ -1536,7 +1532,6 @@
         "subscription_id": "sub-beta",
         "revision": 1,
         "customer_id": "cust-beta",
-        "customer_name": "شركة بيتا",
         "tenant_id": "tenant-2",
         "plan_revision_id": "00000000-0000-4000-8000-000000000010",
         "bundle_revision_ids": [
@@ -1574,7 +1569,6 @@
       "pending_order": {
         "id": "order-beta",
         "customer_id": "cust-beta",
-        "customer_name": "شركة بيتا",
         "subscription_id": "sub-beta",
         "kind": "new",
         "quote_id": "quote-sub-beta",

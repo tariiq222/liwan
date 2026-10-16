@@ -36,13 +36,13 @@ suite('vendor invoice list and detail', () => {
     const r = (await call(`/invoices?customer_id=${a}`))!.data as any
     expect(r.total).toBe(3)
     expect(r.items.every((i: any) => i.customer_name === `Invoice ${tag} 0`)).toBe(true)
-    expect(r.summary).toEqual({ outstanding: [{ currency: 'SAR', exponent: 2, minor: 1500 }], overdue_count: 1 })
+    expect(r.summary).toEqual({ outstanding: [{ currency: 'SAR', exponent: 2, minor: 1500 }] })
   })
   it('filters by status and pages in SQL while the summary ignores the status filter', async () => {
     const r = (await call(`/invoices?customer_id=${a}&status=paid&limit=1`))!.data as any
     expect(r.total).toBe(1)
     expect(r.items).toHaveLength(1)
-    expect(r.summary.overdue_count).toBe(1)
+    expect(r.summary.outstanding).toEqual([{ currency: 'SAR', exponent: 2, minor: 1500 }])
     expect(((await call(`/invoices?customer_id=${a}&limit=2&offset=2`))!.data as any).items).toHaveLength(1)
   })
   it('returns the name on detail and rejects bad filters and missing capability', async () => {
