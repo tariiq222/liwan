@@ -154,9 +154,10 @@ def error(status: int, message: str, param: str | None = None, code: str | None 
 
 
 def create_fake_openai(scenario: list[dict[str, Any]]) -> FastAPI:
-    """The server app. ``app.state.requests`` keeps every accepted request body, ``app.state.rejected`` every 400 message."""
+    """The server app. ``app.state.requests`` keeps every accepted request body, ``app.state.headers`` the headers of each (same order), ``app.state.rejected`` every 400 message."""
     app = FastAPI(docs_url=None, redoc_url=None)
     app.state.requests = []
+    app.state.headers = []
     app.state.rejected = []
     turns = list(scenario)
 
@@ -176,6 +177,7 @@ def create_fake_openai(scenario: list[dict[str, Any]]) -> FastAPI:
             app.state.rejected.append(str(problem))
             return error(400, str(problem), problem.param)
         app.state.requests.append(body)
+        app.state.headers.append(dict(request.headers))
         if not turns:
             return error(500, "the fake's scenario is exhausted", code="server_error")
         turn = turns.pop(0)

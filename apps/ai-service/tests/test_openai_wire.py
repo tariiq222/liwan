@@ -45,8 +45,8 @@ def serve_fake():
         thread.join(timeout=10)
 
 
-def service_client(base_url):
-    settings = Settings.from_env({"AI_PROVIDER": "openai", "AI_MODEL": "gpt-test", "AI_API_KEY": "sk-test", "AI_BASE_URL": base_url, "AI_ALLOW_MEMORY_STATE": "true"})
+def service_client(base_url, provider="openai", **extra):
+    settings = Settings.from_env({"AI_PROVIDER": provider, "AI_MODEL": "gpt-test", "AI_API_KEY": "sk-test", "AI_BASE_URL": base_url, "AI_ALLOW_MEMORY_STATE": "true", **extra})
     app = create_app(build_chat_model(settings), MemoryRunStore(), InMemorySaver(), settings)
     return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai")
 
@@ -93,6 +93,24 @@ async def test_a_continuation_after_the_tool_limit_passes_the_providers_message_
     assert fake.state.rejected == []
     roles = [m["role"] for m in fake.state.requests[-1]["messages"]]
     assert roles == ["system", "user", "assistant", "tool", "assistant", "tool", "assistant", "tool", "user"]
+
+
+async def test_openrouter_sends_the_bearer_legal_tool_names_and_attribution_headers(serve_fake):
+    fake, base_url = serve_fake([tool_turn("pmo__list_my_tasks", {"limit": 5}, "call_a1")])
+    async with service_client(base_url, "openrouter", AI_OPENROUTER_REFERER="https://nasq.example", AI_OPENROUTER_TITLE="Nasq") as client:
+        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+    assert fake.state.rejected == [] and events[-1][1] == {"status": "waiting_tool"}
+    assert tool_names(fake.state.requests[0]) == ["pmo__list_my_tasks", "pmo__draft_project"]
+    headers = fake.state.headers[0]
+    assert headers["authorization"] == "Bearer sk-test"
+    assert headers["http-referer"] == "https://nasq.example" and headers["x-title"] == "Nasq"
+
+
+async def test_openrouter_without_attribution_variables_sends_neither_header(serve_fake):
+    fake, base_url = serve_fake([text_turn("تمام")])
+    async with service_client(base_url, "openrouter") as client:
+        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+    assert fake.state.rejected == [] and "http-referer" not in fake.state.headers[0] and "x-title" not in fake.state.headers[0]
 
 
 async def test_every_tool_name_the_service_sends_is_legal(serve_fake):

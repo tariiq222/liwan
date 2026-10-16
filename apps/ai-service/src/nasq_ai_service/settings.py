@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal
 
-Provider = Literal["anthropic", "openai", "ollama"]
-PROVIDERS: tuple[Provider, ...] = ("anthropic", "openai", "ollama")
-CLOUD_PROVIDERS = {"anthropic", "openai"}
+from nasq_ai_service.provider_registry import REGISTRY
 
 
 class SettingsError(ValueError):
@@ -58,26 +55,28 @@ class CleanupSettings:
 
 @dataclass(frozen=True)
 class Settings:
-    provider: Provider
+    provider: str
     model: str
     api_key: str | None
     base_url: str | None
     database_url: str | None
     default_timeout_seconds: int
     service_token: str | None = None
+    openrouter_referer: str | None = None
+    openrouter_title: str | None = None
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Settings:
         provider = environ.get("AI_PROVIDER", "")
-        if provider not in PROVIDERS:
-            msg = f"AI_PROVIDER must be one of {PROVIDERS}, got {provider!r}"
+        if provider not in REGISTRY:
+            msg = f"AI_PROVIDER must be one of {', '.join(REGISTRY)}, got {provider!r}"
             raise SettingsError("AI_PROVIDER", msg)
         model = environ.get("AI_MODEL", "").strip()
         if not model:
             msg = "AI_MODEL is required"
             raise SettingsError("AI_MODEL", msg)
         api_key = environ.get("AI_API_KEY") or None
-        if provider in CLOUD_PROVIDERS and not api_key:
+        if REGISTRY[provider].needs_api_key and not api_key:
             msg = f"AI_API_KEY is required for provider {provider}"
             raise SettingsError("AI_API_KEY", msg)
         database_url = environ.get("AI_DATABASE_URL", "").strip() or None
@@ -85,11 +84,13 @@ class Settings:
             msg = "AI_DATABASE_URL is required (set AI_ALLOW_MEMORY_STATE=true only for local development)"
             raise SettingsError("AI_DATABASE_URL", msg)
         return cls(
-            provider=provider,  # type: ignore[arg-type]
+            provider=provider,
             model=model,
             api_key=api_key,
             base_url=environ.get("AI_BASE_URL") or None,
             database_url=database_url,
             default_timeout_seconds=int(environ.get("AI_DEFAULT_TIMEOUT_SECONDS", "120")),
             service_token=_service_token(environ),
+            openrouter_referer=environ.get("AI_OPENROUTER_REFERER") or None,
+            openrouter_title=environ.get("AI_OPENROUTER_TITLE") or None,
         )
