@@ -1,1 +1,74 @@
-{}
+{
+  "adminAuth": {
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Nasq administration",
+      "passkey": "Sign in with a passkey",
+      "passkeyHint": "Confirm it is you with your fingerprint, face or device lock.",
+      "lostDevice": "Lost your device?",
+      "useRecoveryCode": "Use a recovery code",
+      "backToPasskey": "Back to passkey sign-in",
+      "fallbackTitle": "Sign in with password and authenticator code",
+      "fallbackHint": "Enter your email and password, then the 6-digit code from your authenticator app.",
+      "recoveryTitle": "Sign in with a recovery code",
+      "recoveryHint": "Enter your email, your password and one of the recovery codes you saved. Each code works once.",
+      "email": "Email",
+      "password": "Password",
+      "totpCode": "Authenticator code",
+      "recoveryCode": "Recovery code",
+      "submit": "Sign in"
+    },
+    "enroll": {
+      "title": "Activate your account",
+      "subtitle": "Nasq administration",
+      "stepOf": "Step {current} of {total}",
+      "checking": "Checking the invitation…",
+      "invalidTitle": "This invitation link is not valid",
+      "invalidHint": "The link may have expired or been used already. Ask an owner for a new invitation.",
+      "accountFor": "Account: {email}",
+      "passkeyTitle": "Add a passkey",
+      "passkeyLead": "A passkey is how you normally sign in. Your browser will ask for your fingerprint, face or device lock.",
+      "deviceLabel": "Device name",
+      "deviceLabelHint": "Optional, for example: Work laptop",
+      "registerPasskey": "Add the passkey",
+      "totpTitle": "Set up your authenticator and password",
+      "totpLead": "This is the backup way in if you lose your device. Add the account to an authenticator app, then choose a password.",
+      "setupKey": "Setup key",
+      "setupKeyHint": "Type it into your authenticator app if you cannot open the link.",
+      "openLink": "Open in authenticator app",
+      "totpLoading": "Preparing the setup key…",
+      "password": "Password",
+      "passwordHint": "At least 12 characters.",
+      "confirm": "Confirm password",
+      "totpCode": "Authenticator code",
+      "totpCodeHint": "The 6-digit code shown in the app.",
+      "complete": "Finish activation",
+      "recoveryTitle": "Save your recovery codes",
+      "recoveryLead": "These codes are shown only once. Each works once if you lose both your device and your authenticator app.",
+      "recoveryWarning": "Copy them to a safe place now. We cannot show them again.",
+      "saved": "I saved the codes in a safe place",
+      "continue": "Continue to the admin",
+      "errors": {
+        "passwordShort": "The password must be at least 12 characters.",
+        "passwordMismatch": "The two passwords do not match."
+      },
+      "retry": "Try again"
+    },
+    "stepUp": {
+      "title": "Confirm with your passkey",
+      "lead": "This action is sensitive. Confirm it is you in the browser prompt to continue.",
+      "retry": "Try again",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "failed": "Sign-in failed. Check your details and try again.",
+      "rateLimited": "Too many attempts. Wait a little and try again.",
+      "unavailable": "The service is unavailable right now. Try again shortly.",
+      "invalid": "Some details are not valid. Check them and try again.",
+      "generic": "Something went wrong. Try again.",
+      "passkeyCancelled": "The passkey request was cancelled or timed out. Try again.",
+      "passkeyExists": "This passkey is already registered on the account.",
+      "passkeyUnsupported": "This browser or device does not support passkeys."
+    }
+  }
+}

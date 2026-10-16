@@ -46,6 +46,16 @@ describe('createAdminApi', () => {
     expect(fetcher).toHaveBeenLastCalledWith('/api/vendor/v1/x', { method: 'POST', body: { a: 1 } })
   })
 
+  it('runs the unauthorized handler and rethrows when the repeated request is answered 401', async () => {
+    const onUnauthorized = vi.fn()
+    const fetcher = vi.fn()
+      .mockRejectedValueOnce(failure(403, { code: 'step_up_required' }))
+      .mockRejectedValueOnce(failure(401, { code: 'unauthorized' }))
+    const api = createAdminApi({ fetcher, onUnauthorized, onStepUpRequired: retry => retry() })
+    await expect(api.request('/x', { method: 'POST' })).rejects.toMatchObject({ statusCode: 401 })
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+
   it('does not treat other 403 codes as step-up', async () => {
     const onStepUpRequired = vi.fn()
     const fetcher = vi.fn().mockRejectedValue(failure(403, { code: 'forbidden' }))
@@ -64,18 +74,48 @@ describe('createAdminApi', () => {
 describe('useAdminApi', () => {
   const me = ref<unknown>({ id: 7 })
   const navigateTo = vi.fn()
+  const run = vi.fn(<T>(retry: () => Promise<T>) => retry())
   beforeEach(() => {
     me.value = { id: 7 }
     vi.stubGlobal('useAdminMe', () => me)
     vi.stubGlobal('useRoute', () => ({ fullPath: '/customers?q=a b' }))
+    vi.stubGlobal('useSessionEnded', () => () => { me.value = null; return navigateTo({ path: '/login', query: { next: '/customers?q=a b' } }) })
+    vi.stubGlobal('useStepUp', () => ({ run }))
     vi.stubGlobal('navigateTo', navigateTo)
     vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(failure(401)))
   })
-  afterEach(() => { vi.unstubAllGlobals(); navigateTo.mockReset() })
+  afterEach(() => { vi.unstubAllGlobals(); navigateTo.mockReset(); run.mockClear() })
 
   it('clears the session and goes to /login with the encoded current path on 401', async () => {
     await expect(useAdminApi().request('/customers')).rejects.toMatchObject({ statusCode: 401 })
     expect(me.value).toBeNull()
     expect(navigateTo).toHaveBeenCalledWith({ path: '/login', query: { next: '/customers?q=a b' } })
+  })
+
+  it('runs a step_up_required response through the step-up flow and repeats the request once', async () => {
+    const fetcher = vi.fn()
+      .mockRejectedValueOnce(failure(403, { code: 'step_up_required' }))
+      .mockResolvedValueOnce({ id: 3 })
+    vi.stubGlobal('$fetch', fetcher)
+    await expect(useAdminApi().request('/admin/accounts', { method: 'POST' })).resolves.toEqual({ id: 3 })
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not repeat the request when the step-up is cancelled', async () => {
+    const cancelled = new Error('step_up_cancelled')
+    run.mockRejectedValueOnce(cancelled)
+    const fetcher = vi.fn().mockRejectedValue(failure(403, { code: 'step_up_required' }))
+    vi.stubGlobal('$fetch', fetcher)
+    await expect(useAdminApi().request('/admin/accounts', { method: 'POST' })).rejects.toBe(cancelled)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not step up a second time when the repeated request is refused again', async () => {
+    const fetcher = vi.fn().mockRejectedValue(failure(403, { code: 'step_up_required' }))
+    vi.stubGlobal('$fetch', fetcher)
+    await expect(useAdminApi().request('/admin/accounts', { method: 'POST' })).rejects.toMatchObject({ statusCode: 403 })
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(fetcher).toHaveBeenCalledTimes(2)
   })
 })
