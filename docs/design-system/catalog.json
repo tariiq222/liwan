@@ -4982,6 +4982,22 @@
         {
           "id": "MonthlyLimit",
           "name": "بلوغ حد الرسائل"
+        },
+        {
+          "id": "MarkdownArabic",
+          "name": "جواب بتنسيق: عربي"
+        },
+        {
+          "id": "MarkdownEnglish",
+          "name": "جواب بتنسيق: إنجليزي"
+        },
+        {
+          "id": "MarkdownCodeBlock",
+          "name": "جواب فيه كتلة شيفرة"
+        },
+        {
+          "id": "MarkdownStreaming",
+          "name": "جواب يُبث بتنسيق ناقص"
         }
       ]
     },
