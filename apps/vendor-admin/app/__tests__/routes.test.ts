@@ -15,6 +15,22 @@ function sources(dir: string): string[] {
 const pageFiles = sources(join(appRoot, 'pages')).filter(file => file.endsWith('.vue'))
 const allFiles = ['pages', 'components', 'composables', 'utils'].flatMap(dir => sources(join(appRoot, dir)))
 
+// Every page needs vendor.read unless it is listed here. team/index.vue belongs to the team page slice.
+const STRICTER: Record<string, string> = {
+  'audit.vue': 'vendor.audit.read',
+  'bundles/[id]/edit.vue': 'vendor.catalog.manage',
+  'bundles/new.vue': 'vendor.catalog.manage',
+  'customers/[id]/change.vue': 'vendor.subscriptions.manage',
+  'customers/[id]/terms/new.vue': 'vendor.pricing.manage',
+  'invoices.vue': 'vendor.billing.manage',
+  'invoices/[id].vue': 'vendor.billing.manage',
+  'invoices/index.vue': 'vendor.billing.manage',
+  'plans/[id]/edit.vue': 'vendor.catalog.manage',
+  'plans/new.vue': 'vendor.catalog.manage',
+  'team/index.vue': 'vendor.accounts.manage',
+  'tenants/new.vue': 'vendor.tenants.manage',
+}
+
 describe('vendor admin routes', () => {
   it('finds the moved pages', () => {
     expect(pageFiles.length).toBeGreaterThan(20)
@@ -31,6 +47,17 @@ describe('vendor admin routes', () => {
       return !/definePageMeta\(\{[^}]*\b(capability: '[a-z.]+'|public: true)/.test(source)
     })
     expect(missing).toEqual([])
+  })
+
+  it('requires the expected capability on each page', () => {
+    const pagesRoot = join(appRoot, 'pages')
+    const actual = Object.fromEntries(pageFiles.map((file) => {
+      const name = file.slice(pagesRoot.length + 1)
+      return [name, /definePageMeta\(\{[^}]*\bcapability: '([a-z.]+)'/.exec(readFileSync(file, 'utf8'))?.[1]]
+    }))
+    const expected = Object.fromEntries(Object.keys(actual).map(name => [name, STRICTER[name] ?? 'vendor.read']))
+    expect(actual).toEqual(expected)
+    expect(Object.keys(STRICTER).filter(name => !(name in actual) && name !== 'team/index.vue')).toEqual([])
   })
 
   it('has no leftover vendor middleware meta', () => {
