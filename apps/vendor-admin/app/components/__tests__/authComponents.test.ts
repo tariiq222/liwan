@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { describe, expect, it } from 'vitest'
+import { totpQr } from '../../utils/totpQr'
 import { renderSfc } from '../../../test/helpers/renderSfc'
 
 describe('PasskeyButton', () => {
@@ -27,6 +28,23 @@ describe('TotpSetup', () => {
     expect(html).toMatch(/<code dir="ltr"/)
     expect(html).toContain(`href="${uri.replace('&', '&amp;')}"`)
     expect(html).toContain('فتح في تطبيق المصادقة')
+  })
+
+  it('draws the QR code with an accessible label after hydration, next to the key and the link', async () => {
+    const html = await renderSfc('components/TotpSetup.vue', { uri, secret: 'JBSW Y3DP EHPK 3PXP' }, {}, {})
+    expect(html).toMatch(/<svg[^>]*role="img"[^>]*aria-label="رمز QR لإضافة الحساب إلى تطبيق المصادقة"/)
+    expect(html).toContain('امسح الرمز بتطبيق المصادقة')
+    expect(html).toContain(`d="${totpQr(uri).path}"`)
+  })
+
+  it('leaves the secret out of server-rendered markup: no QR before hydration', async () => {
+    const html = await renderSfc('components/TotpSetup.vue', { uri, secret: 'JBSW Y3DP EHPK 3PXP' }, {}, { hydrated: false })
+    expect(html).not.toContain('<svg')
+  })
+
+  it('offers no QR or link for anything but an otpauth link', async () => {
+    const html = await renderSfc('components/TotpSetup.vue', { uri: 'javascript:alert(1)', secret: null }, {}, {})
+    expect(html).not.toContain('<svg')
   })
 
   it('offers no link for anything but an otpauth link', async () => {

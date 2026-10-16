@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineComponent, h, reactive, type Component, type VNode } from 'vue'
+import { totpQr } from '../../app/utils/totpQr'
 import { DEFAULT_STUBS, loadShared, renderShared, type SharedRenderOptions } from '../../../../packages/ui/test/helpers/renderShared'
 
 const appRoot = fileURLToPath(new URL('../../', import.meta.url))
@@ -73,7 +74,7 @@ const noop = () => undefined
 const unit = (options: RenderSfcOptions): SharedRenderOptions => ({
   ...options,
   messages: { ...localeMessages(options.lang ?? 'ar'), ...options.messages },
-  globals: { reactive, definePageMeta: noop, useHead: noop, ...options.globals },
+  globals: { reactive, totpQr, definePageMeta: noop, useHead: noop, ...options.globals },
   stubs: { ...FORM_STUBS, ...options.stubs },
 })
 
