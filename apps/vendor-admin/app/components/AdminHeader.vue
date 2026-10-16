@@ -76,7 +76,7 @@ const menu = computed<MenuItem[][]>(() => [
     <div class="nasq-shell-header-start">
       <AdminMobileNav :items="props.items" :active-id="props.activeId" />
       <ShellBreadcrumb :items="crumbs" />
-      <UBadge color="neutral" variant="subtle" size="sm" class="nasq-shell-console-badge" data-testid="vendor-console-badge">
+      <UBadge color="neutral" variant="subtle" size="sm" class="min-w-0 shrink grow-0 overflow-hidden whitespace-nowrap" data-testid="vendor-console-badge">
         {{ t('app.shell.consoleBadge') }}
       </UBadge>
     </div>

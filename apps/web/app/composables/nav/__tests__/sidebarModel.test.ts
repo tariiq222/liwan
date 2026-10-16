@@ -15,7 +15,6 @@ describe('rail model', () => {
     expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'projects'])
     expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])
     expect(rail.utility.map(item => item.id)).toEqual(['settings'])
-    expect(rail.all.some(item => item.external)).toBe(false)
   })
 })
 

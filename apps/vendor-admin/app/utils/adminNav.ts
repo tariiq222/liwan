@@ -20,7 +20,7 @@ const ENTRIES: readonly AdminNavEntry[] = [
 export function adminNav(capabilities: readonly string[]): ShellRailItem[] {
   return ENTRIES
     .filter(entry => capabilities.includes(entry.capability))
-    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: `/${entry.id}`, external: false }))
+    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: `/${entry.id}` }))
 }
 
 /** The id of the item whose section contains `path`; the root belongs to the overview. */

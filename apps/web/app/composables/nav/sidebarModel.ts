@@ -10,7 +10,7 @@ const UTILITY_MODULES: ReadonlySet<string> = new Set(['settings'])
 
 /** Rail entries in rail order; settings sits in the utility slot at the bottom. */
 export function railModel(modules: readonly ShellModuleDefinition[]): { all: ShellRailItem[]; primary: ShellRailItem[]; utility: ShellRailItem[] } {
-  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, external: false }))
+  const all = modules.map(module => ({ id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to }))
   return { all, primary: all.filter(item => !UTILITY_MODULES.has(item.id)), utility: all.filter(item => UTILITY_MODULES.has(item.id)) }
 }
 

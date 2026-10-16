@@ -34,7 +34,7 @@ function closeIfCurrent(to: RouteLocationRaw) {
 }
 
 function onModuleActivate(item: ShellRailItem) {
-  if (item.external || router.resolve(item.to).fullPath === route.fullPath) open.value = false
+  if (router.resolve(item.to).fullPath === route.fullPath) open.value = false
 }
 </script>
 
@@ -69,10 +69,7 @@ function onModuleActivate(item: ShellRailItem) {
         <UButton
           v-for="item in props.modules"
           :key="item.id"
-          :to="item.external ? undefined : item.to"
-          :href="item.external ? item.to : undefined"
-          :target="item.external ? '_blank' : undefined"
-          :rel="item.external ? 'noopener' : undefined"
+          :to="item.to"
           color="neutral"
           variant="ghost"
           class="nasq-context-link"

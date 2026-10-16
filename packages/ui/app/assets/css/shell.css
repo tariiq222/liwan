@@ -104,7 +104,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .nasq-shell-breadcrumb { min-width: 0; flex: 0 1 auto; overflow: hidden; font-size: .8125rem; }
 .nasq-shell-breadcrumb ol { flex-wrap: nowrap; }
 .nasq-shell-breadcrumb li { min-width: 0; white-space: nowrap; }
-.nasq-shell-console-badge { min-width: 0; flex: 0 1 auto; overflow: hidden; white-space: nowrap; }
 .nasq-shell-header-actions { display: flex; flex: none; align-items: center; gap: 4px; }
 .nasq-shell-header .nasq-search-trigger { width: 15rem; min-width: 0; justify-content: space-between; color: var(--ui-text-muted); }
 .nasq-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 8px; padding-inline: 6px; text-align: start; }
