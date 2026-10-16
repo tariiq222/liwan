@@ -51,8 +51,9 @@ limits describe implementation stages, not permanent product exclusions.
   serializers/controllers, `/api/v1/hr/*` (employee ids are
   `hr.employee` ids), and the eight `hr.*` capabilities, their groups and the
   `hr_manager` role.
-- `odoo-addons/cyan_meeting_minutes` provides the preserved LGPL meeting engine.
-- `odoo-addons/webvue_meetings` (application, rank 4) extends it: the meeting,
+- `odoo-addons/webvue_meetings` (application, rank 4) owns the meeting engine
+  (`webvue.meeting.minute`, `webvue.meeting.resolution`; LGPL, vendored from Cyan,
+  see `odoo-addons/webvue_meetings/PROVENANCE.md`) and the meeting,
   series, minutes and recommendation routes (`/api/v1/meetings`,
   `/api/v1/meeting-series`), their serializers, the seven meeting notification
   kinds, `meetings.enabled`, the three `meetings.*` capabilities, their groups

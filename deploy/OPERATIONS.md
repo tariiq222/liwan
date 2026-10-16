@@ -284,10 +284,6 @@ python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db webvue_
 After the drill, drop the three scratch databases created above and remove only
 the temporary `$WORK` directory. Never reuse an existing database or filestore.
 
-## Upgrade recovery: meetings split
-
-If the `webvue_meetings` install fails in the same upgrade run after `webvue_pmo` reached 19.0.1.4.0, recover with `-i webvue_meetings,webvue_meetings_pmo`; a plain `-u` will not re-mark them.
-
 ## Unresolved (do not invent answers)
 
 | Topic | Status |
