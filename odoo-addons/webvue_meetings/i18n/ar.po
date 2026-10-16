@@ -146,11 +146,6 @@ msgid "Confirmed"
 msgstr "مؤكد"
 
 #. module: webvue_meetings
-#: model_terms:ir.actions.act_window,help:webvue_meetings.action_meeting_minute
-msgid "Create internal meeting minutes"
-msgstr "أنشئ محضر اجتماع داخلي"
-
-#. module: webvue_meetings
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__create_uid
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_resolution__create_uid
 msgid "Created by"
@@ -301,11 +296,6 @@ msgid "Meeting Minutes"
 msgstr "محاضر الاجتماعات"
 
 #. module: webvue_meetings
-#: model:ir.actions.server,name:webvue_meetings.ir_cron_resolution_escalation_ir_actions_server
-msgid "Meeting Minutes: Check overdue resolution escalation"
-msgstr "محاضر الاجتماعات: فحص تصعيد التوصيات المتأخرة"
-
-#. module: webvue_meetings
 #: model:ir.model,name:webvue_meetings.model_webvue_meeting_resolution
 msgid "Meeting Resolution"
 msgstr "توصية اجتماع"
@@ -355,11 +345,6 @@ msgstr "يجب أن تبدأ الاجتماعات الجديدة كمسودة."
 #. odoo-python
 msgid "New resolutions must start open."
 msgstr "يجب أن تبدأ التوصيات الجديدة مفتوحة."
-
-#. module: webvue_meetings
-#: model_terms:ir.actions.act_window,help:webvue_meetings.action_management_followup
-msgid "No unresolved meeting actions require follow-up"
-msgstr "لا توجد إجراءات اجتماع غير محلولة تحتاج متابعة"
 
 #. module: webvue_meetings
 #: model:ir.model.fields.selection,name:webvue_meetings.selection__webvue_meeting_resolution__priority__0
@@ -670,11 +655,6 @@ msgid "This resolution state change is not allowed."
 msgstr "تغيير حالة التوصية هذا غير مسموح."
 
 #. module: webvue_meetings
-#: model_terms:ir.actions.act_window,help:webvue_meetings.action_meeting_resolution
-msgid "Track meeting resolutions and action items"
-msgstr "تتبع توصيات الاجتماع وإجراءاتها"
-
-#. module: webvue_meetings
 #: code:addons/webvue_meetings/models/calendar_event.py:0
 #. odoo-python
 msgid "Unlink the meeting minutes before deleting this calendar event."
@@ -742,11 +722,6 @@ msgstr "لا يمكن تعيين حقول الاجتماع الداخلية."
 #. odoo-python
 msgid "You cannot set internal resolution fields."
 msgstr "لا يمكن تعيين حقول التوصية الداخلية."
-
-#. module: webvue_meetings
-#: model_terms:ir.actions.act_window,help:webvue_meetings.action_my_meeting_resolution
-msgid "Your active meeting resolutions will appear here"
-msgstr "ستظهر توصياتك النشطة هنا"
 
 
 #. module: webvue_meetings

@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 # Original author: Cyan (cyan_meeting_minutes 19.0.1.3.0, LGPL-3), absorbed into webvue_meetings.
 # See PROVENANCE.md.
+# SPDX-License-Identifier: LGPL-3
 
 from markupsafe import Markup
 

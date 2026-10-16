@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 # Original author: Cyan (cyan_meeting_minutes 19.0.1.3.0, LGPL-3), absorbed into webvue_meetings.
 # See PROVENANCE.md.
+# SPDX-License-Identifier: LGPL-3
 from psycopg2 import IntegrityError
 
 from odoo import _, fields, models
@@ -101,9 +102,12 @@ class CalendarEvent(models.Model):
         result = super().write(vals)
         schedule_fields = {"name", "start", "stop", "allday", "location", "user_id", "partner_ids"}
         if schedule_fields.intersection(vals):
-            for meeting in self._webvue_linked_minutes():
+            linked = {meeting.calendar_event_id.id: meeting for meeting in self._webvue_linked_minutes()}
+            for event in self.filtered(lambda event: event.id in linked):
+                meeting = linked[event.id]
+                # The schedule comes from the caller's event; only the meeting lookup was elevated.
                 meeting.with_env(self.env)._webvue_write_calendar_schedule(
-                    meeting.calendar_event_id._webvue_meeting_schedule_values(
+                    event._webvue_meeting_schedule_values(
                         company=meeting.company_id,
                         fallback_organizer=meeting.organizer_id,
                     ),
