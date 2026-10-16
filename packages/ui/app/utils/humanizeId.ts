@@ -1,5 +1,5 @@
 /**
- * Readable text for an id that has no translation yet, so the console shows `Sales`, never
+ * Readable text for an id that has no translation yet, so a screen shows `Sales`, never
  * `nasq_sales` or an i18n key.
  */
 export function humanizeId(id: string): string {
