@@ -25,7 +25,7 @@ const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1',
 const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }] }
 const attempt = { id: 'attempt1', order_id: order.id, invoice_id: invoice.id, status: 'pending', amount: money, created_at: '2026-10-04T12:34:00Z', provider_ref: 'private-provider-reference', redirect_url: 'https://private.example/pay' }
 
-async function page(name: string, options: { path?: string; grants?: string[]; subscription?: any; orderId?: string | null; attempts?: any[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean } = {}) {
+async function page(name: string, options: { path?: string; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean } = {}) {
   const filename = resolve(import.meta.dirname, '..', name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'admin-repairs' }).content).replaceAll('import.meta.client', 'false').replace('export default', 'return')
@@ -42,7 +42,7 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
     cancelOrder: vi.fn(async () => { calls.push('cancel'); current = { ...current, pending_order: null }; return order }),
   }
   const hydrated = Vue.ref(options.hydrated ?? true)
-  const slots = new Map<string, any>()
+  const slots = new Map<string, unknown>()
   const bindings = {
     formatNasqDate, formatNasqDateTime,
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
@@ -50,7 +50,7 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),
     definePageMeta: () => {}, useHydrated: () => hydrated,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
-    useRoute: () => ({ params: { id: 'customer1' }, path: options.path ?? '/customers/customer1', query: { returnTo: '/customers?state=active' }, fullPath: '/customers/customer1?returnTo=%2Fvendor%2Fcustomers' }),
+    useRoute: () => ({ params: { id: 'customer1' }, path: options.path ?? '/customers/customer1', query: { returnTo: '/customers?state=active' }, fullPath: '/customers/customer1?returnTo=%2Fcustomers' }),
     useVendorContext: () => ({ sharedOnboardingEnabled: Vue.ref(false), can: (grant: string) => (options.grants ?? ['vendor.read', 'vendor.billing.manage', 'vendor.subscriptions.manage']).includes(grant) }),
     useVendorSubscriptions: () => api,
     useVendorCommercial: () => ({ listPlans: async () => ({ items: [plan] }), releases: async () => [] }),
@@ -59,7 +59,7 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
     createError: (error: unknown) => error,
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
       const name = typeof key === 'function' ? key() : key
-      const data = Vue.ref<any>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
+      const data = Vue.ref<unknown>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
       const refresh = vi.fn(async () => { pending.value = true; try { data.value = await fn(); error.value = null } catch (e) { error.value = e } finally { pending.value = false } })
       await refresh()
       if (name.includes('attempt') && options.attemptsLoading) pending.value = true
@@ -72,7 +72,7 @@ async function page(name: string, options: { path?: string; grants?: string[]; s
   const template = compileTemplate({ source: descriptor.template!.content, filename, id: 'admin-repairs', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] } })
   const render = new Function('Vue', transpile(template.code))(Vue)
   async function rendered() {
-    const captured: { name: string; props: Record<string, any> }[] = []
+    const captured: { name: string; props: Record<string, unknown> }[] = []
     const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))), render }))
     for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(m => m[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
       return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'NuxtPage' ? 'NESTED PAGE' : null, attrs.title as string, attrs.description as string, name === 'SharedStatusBadge' ? attrs.label as string : null, name === 'SharedPageState' && (attrs.loading || attrs.error) ? (attrs.loading ? 'LOADING' : 'ERROR') : slots.default?.(), slots.header?.(), slots.actions?.(), name === 'SharedRecordPage' ? slots.aside?.() : null]) }
@@ -227,7 +227,7 @@ describe('invoice payment attempts', () => {
     const { html, captured } = await failed.rendered()
     expect(html).toContain('ERROR'); expect(html).not.toContain('vendor.invoices.attemptsNone')
     const retry = captured.find(c => c.name === 'SharedPageState' && c.props.error)?.props.onRetry
-    expect(retry).toBeTypeOf('function'); await retry(); expect(failed.api.paymentAttempts).toHaveBeenCalledTimes(2)
+    expect(retry).toBeTypeOf('function'); await (retry as () => Promise<void>)(); expect(failed.api.paymentAttempts).toHaveBeenCalledTimes(2)
   })
   it.each([{ orderId: null }, { grants: ['vendor.read'] }])('does not query attempts without an order or grant: %j', async options => {
     const p = await page('invoices/[id].vue', options)

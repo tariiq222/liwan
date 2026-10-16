@@ -9,6 +9,8 @@ const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artif
   { id: 'people', name_ar: 'ب', name_en: 'People', modules: [], requires_apps: ['payroll'], conflicts_with_apps: ['projects'], selectable: true, features: [] },
 ] }
 
+type ErrorMessages = { vendor: { pricing: { errors: Record<string, string> } } }
+
 describe('money', () => {
   it('parses SAR to halalas without float error and rejects bad input', () => {
     expect(parseVendorMoneyInput('12.5')).toBe(1250)
@@ -140,7 +142,7 @@ describe('quote request', () => {
 describe('error codes', () => {
   it('has ar and en strings for every known code', async () => {
     const { COMMERCIAL_ERROR_CODES } = await import('../vendorCommercial')
-    const ar = (await import('../../../i18n/locales/ar/vendor.json')).default as any, en = (await import('../../../i18n/locales/en/vendor.json')).default as any
+    const ar = (await import('../../../i18n/locales/ar/vendor.json')).default as ErrorMessages, en = (await import('../../../i18n/locales/en/vendor.json')).default as ErrorMessages
     for (const code of COMMERCIAL_ERROR_CODES) { expect(ar.vendor.pricing.errors[code], code).toBeTruthy(); expect(en.vendor.pricing.errors[code], code).toBeTruthy(); expect(commercialErrorKey({ code })).toBe(`vendor.pricing.errors.${code}`) }
   })
   it('shows an application that only registered its keys and got a catalog tier (spec 3.6 acceptance 4)', () => {

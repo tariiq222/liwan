@@ -19,7 +19,7 @@ async function page(name: string, data: unknown, source?: string) {
   const request = vi.fn(async () => data)
   const keys: string[] = []
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
-  const t = (key: string) => key.split('.').reduce((obj: any, key) => obj?.[key], messages) ?? key
+  const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
     formatNasqDateTime,
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
@@ -38,7 +38,7 @@ async function page(name: string, data: unknown, source?: string) {
   const state = await scope.run(() => component.setup({}, { expose: () => {} }))
   const template = compileTemplate({ source: descriptor.template!.content, filename, id: 'operation-feed', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] } })
   const render = new Function('Vue', transpile(template.code))(Vue)
-  const captured: { name: string, props: Record<string, any> }[] = []
+  const captured: { name: string, props: Record<string, unknown> }[] = []
   const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))), render }))
   for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(m => m[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
     return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'SharedPageState' && attrs.empty ? 'Empty' : slots.default?.(), slots.header?.(), slots.actions?.(), name === 'SharedRecordPage' ? slots.aside?.() : null, slots.search?.()]) }
@@ -65,7 +65,7 @@ it.each(['verified','needs_intervention'])('loads shared %s detail explicitly, t
   expect(detail.state.canRetry.value).toBe(false); expect(detail.state.isActive.value).toBe(false)
   expect(detail.html).not.toContain('shared_execution_verified'); expect(detail.html).not.toContain('Retry operation')
   expect(detail.captured.find(c => c.name === 'SharedPropertyRow' && c.props.label === 'Operation')?.props.value).toContain('Set up customer workspace')
-  expect(detail.captured.find(node => node.name === 'UAlert' && node.props.description?.includes('readiness'))).toBeDefined()
+  expect(detail.captured.find(node => node.name === 'UAlert' && String(node.props.description).includes('readiness'))).toBeDefined()
 })
 it('preserves legacy failed read-operation retry and active polling', async () => {
   const legacy = await page('operations/[id].vue', { ...operation, source: undefined, type: 'health', status: 'failed' })
