@@ -7,6 +7,7 @@ import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { entitledSelections } from '@/utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
+import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 import { CUSTOMER_TABS, clientTab, clientTabItems, type ClientTab } from '@/utils/vendorClients'
 definePageMeta({ capability: 'vendor.read' })
 const { t, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorSubscriptions()
@@ -61,10 +62,19 @@ const tabTo = (key: ClientTab) => ({ path: route.path, query: { ...route.query, 
 // The workspace of this customer (none without one): its state heads the page and feeds the summary.
 const tenantId = computed(() => customer.value?.tenant_id ?? '')
 const hasWorkspace = computed(() => Boolean(tenantId.value))
-const { data: tenant } = await useVendorTenant(tenantId)
-const { data: recentOperations } = await useTenantRecentOperations(tenantId)
-const { provisioning, loginUrl, failed: provisioningFailed } = useWorkspaceProvisioning(tenantId)
-const workspaceBadge = computed(() => (hasWorkspace.value ? operationStatusBadge(provisioning.value?.status ?? tenant.value?.status ?? 'registered') : null))
+const { data: tenant, error: tenantError, pending: tenantPending, refresh: refreshTenant } = await useVendorTenant(tenantId)
+const { data: recentOperations, error: recentError, refresh: refreshRecent } = await useTenantRecentOperations(tenantId)
+// The only owner of the provisioning poll: the summary and the workspace tab need it, the other tabs and the child pages do not.
+const progress = useWorkspaceProvisioning(tenantId, () => !isChild.value && (tab.value === 'summary' || tab.value === 'workspace'))
+const workspaceUnreadable = computed(() => hasWorkspace.value && Boolean(tenantError.value || recentError.value || progress.error))
+const UNKNOWN_WORKSPACE_BADGE: StatusBadgeEntry = { tone: 'neutral', labelKey: 'vendor.customers.workspaceUnknown' }
+const workspaceStatus = computed(() => progress.provisioning?.status ?? tenant.value?.status)
+const workspaceBadge = computed(() => {
+  if (!hasWorkspace.value) return null
+  if (workspaceStatus.value) return operationStatusBadge(workspaceStatus.value)
+  return workspaceUnreadable.value ? UNKNOWN_WORKSPACE_BADGE : operationStatusBadge('registered')
+})
+const retryWorkspaceState = () => Promise.all([refreshTenant(), refreshRecent(), progress.refreshNow()])
 const operationFailed = computed(() => Boolean(recentOperations.value?.some(op => op.status === 'failed' || op.status === 'needs_intervention')))
 const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
 const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(view.value) && !view.value?.pending_order)
@@ -97,7 +107,7 @@ async function cancelPendingOrder() {
 
     <SharedRecordPage v-else :title="customer?.name ?? t('vendor.customers.details')" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
       <template #actions>
-        <UButton v-if="customer && loginUrl" :to="loginUrl" external target="_blank" rel="noopener noreferrer" icon="i-lucide-external-link">{{ t('vendor.customers.openWorkspace') }}</UButton>
+        <UButton v-if="customer && progress.loginUrl" :to="progress.loginUrl" external target="_blank" rel="noopener noreferrer" icon="i-lucide-external-link">{{ t('vendor.customers.openWorkspace') }}</UButton>
       </template>
       <template v-if="customer" #summary>
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2" data-testid="customer-badges">
@@ -119,7 +129,7 @@ async function cancelPendingOrder() {
       <div v-if="customer" class="space-y-6">
         <template v-if="tab === 'summary'">
           <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
-          <VendorCustomerGlance :setup-required="customer.commercial_setup_required" :subscription="view" :plan-name="planNameOf(view?.applied?.plan_revision_id) ?? pendingPlanName" :plan-pending="!view?.applied && Boolean(pendingPlanName)" :invoices="glanceInvoices" :has-workspace="hasWorkspace" :workspace-badge="workspaceBadge" :provisioning-failed="provisioningFailed" :operation-failed="operationFailed" :login-url="loginUrl" :tab-to="tabTo" />
+          <VendorCustomerGlance :setup-required="customer.commercial_setup_required" :subscription="view" :plan-name="planNameOf(view?.applied?.plan_revision_id) ?? pendingPlanName" :plan-pending="!view?.applied && Boolean(pendingPlanName)" :invoices="glanceInvoices" :has-workspace="hasWorkspace" :workspace-badge="workspaceBadge" :provisioning-failed="progress.failed" :operation-failed="operationFailed" :workspace-unreadable="workspaceUnreadable" :invoices-offered="canBilling" :login-url="progress.loginUrl" :tab-to="tabTo" @retry="retryWorkspaceState" />
         </template>
 
         <template v-else-if="tab === 'subscription'">
@@ -187,10 +197,12 @@ async function cancelPendingOrder() {
 
         <template v-else-if="tab === 'workspace' || tab === 'operations'">
           <SharedEmptyState v-if="!customer.tenant_id" :title="t('vendor.customers.noWorkspaceYet')" :description="t('vendor.customers.noWorkspaceHint')" />
-          <div v-else-if="tab === 'workspace'" class="space-y-6">
-            <VendorTenantProperties :tenant-id="customer.tenant_id" hide-open />
-            <VendorWorkspacePanel :tenant-id="customer.tenant_id" />
-          </div>
+          <SharedPageState v-else-if="tab === 'workspace'" :loading="tenantPending && !tenant" :error="tenantError" @retry="refreshTenant">
+            <div v-if="tenant" class="space-y-6">
+              <VendorTenantProperties :tenant="tenant" :progress="progress" hide-open />
+              <VendorWorkspacePanel :tenant="tenant" :progress="progress" />
+            </div>
+          </SharedPageState>
           <VendorTenantOperationsPanel v-else v-model:dirty="operationsDirty" :tenant-id="customer.tenant_id" />
         </template>
 

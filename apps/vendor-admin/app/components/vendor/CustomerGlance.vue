@@ -23,9 +23,14 @@ const props = defineProps<{
   workspaceBadge: StatusBadgeEntry | null
   provisioningFailed: boolean
   operationFailed: boolean
+  /** The workspace, its provisioning or its recent operations could not be read: nothing is claimed about open issues. */
+  workspaceUnreadable: boolean
+  /** The invoices tab is offered (billing grant): the past-due issue links there only then. */
+  invoicesOffered: boolean
   loginUrl: string | null
   tabTo: (tab: ClientTab) => RouteLocationRaw
 }>()
+const emit = defineEmits<{ retry: [] }>()
 const { t, locale } = useI18n()
 
 const sub = computed(() => props.subscription)
@@ -39,14 +44,14 @@ const renewal = computed(() => {
 })
 const lastInvoice = computed(() => props.invoices?.[0] ?? null)
 
-// Open issues, most urgent first; each one points to the tab where it is handled.
+// Open issues, most urgent first; each one points to the tab where it is handled (when that tab is offered).
 const issues = computed(() => {
-  const list: { key: string; text: string; tab: ClientTab }[] = []
+  const list: { key: string; text: string; tab?: ClientTab }[] = []
   const view = sub.value
   if (props.setupRequired) list.push({ key: 'setup', text: t('vendor.customers.glance.issues.setup'), tab: 'subscription' })
   if (view?.pending_order && ['failed', 'needs_intervention'].includes(view.pending_order.fulfillment_state)) list.push({ key: 'orderFailed', text: t('vendor.customers.glance.issues.orderFailed'), tab: 'subscription' })
   else if (view && isStalled(view.pending_order, new Date())) list.push({ key: 'stalled', text: t('vendor.customers.glance.issues.stalled'), tab: 'subscription' })
-  if (view?.state === 'past_due') list.push({ key: 'pastDue', text: t('vendor.customers.glance.issues.pastDue'), tab: 'invoices' })
+  if (view?.state === 'past_due') list.push({ key: 'pastDue', text: t('vendor.customers.glance.issues.pastDue'), tab: props.invoicesOffered ? 'invoices' : undefined })
   if (props.hasWorkspace && props.provisioningFailed) list.push({ key: 'provisioning', text: t('vendor.customers.glance.issues.provisioning'), tab: 'workspace' })
   if (props.operationFailed) list.push({ key: 'operation', text: t('vendor.customers.glance.issues.operation'), tab: 'operations' })
   return list
@@ -55,17 +60,21 @@ const issues = computed(() => {
 
 <template>
   <div class="space-y-6" data-slot="customer-glance">
-    <section class="rounded-lg p-4 ring" :class="issues.length ? 'bg-warning/5 ring-warning/40' : 'bg-default ring-default'" aria-labelledby="glance-issues-title" data-testid="glance-issues">
+    <section class="rounded-lg p-4 ring" :class="issues.length || workspaceUnreadable ? 'bg-warning/5 ring-warning/40' : 'bg-default ring-default'" aria-labelledby="glance-issues-title" data-testid="glance-issues">
       <h2 id="glance-issues-title" class="flex items-center gap-2 text-sm font-semibold text-highlighted">
-        <UIcon :name="issues.length ? 'i-lucide-triangle-alert' : 'i-lucide-circle-check'" class="size-4" :class="issues.length ? 'text-warning' : 'text-success'" aria-hidden="true" />
-        {{ issues.length ? t('vendor.customers.glance.issuesTitle', { count: issues.length }) : t('vendor.customers.glance.noIssues') }}
+        <UIcon :name="issues.length || workspaceUnreadable ? 'i-lucide-triangle-alert' : 'i-lucide-circle-check'" class="size-4" :class="issues.length || workspaceUnreadable ? 'text-warning' : 'text-success'" aria-hidden="true" />
+        {{ issues.length ? t('vendor.customers.glance.issuesTitle', { count: issues.length }) : workspaceUnreadable ? t('vendor.customers.glance.unreadable') : t('vendor.customers.glance.noIssues') }}
       </h2>
       <ul v-if="issues.length" class="mt-3 divide-y divide-default">
         <li v-for="issue in issues" :key="issue.key" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm" :data-issue="issue.key">
           <span>{{ issue.text }}</span>
-          <UButton :to="tabTo(issue.tab)" color="neutral" variant="link" size="sm" trailing-icon="i-lucide-arrow-left">{{ t(`vendor.clientTabs.${issue.tab}`) }}</UButton>
+          <UButton v-if="issue.tab" :to="tabTo(issue.tab)" color="neutral" variant="link" size="sm" trailing-icon="i-lucide-arrow-left">{{ t(`vendor.clientTabs.${issue.tab}`) }}</UButton>
         </li>
       </ul>
+      <div v-if="workspaceUnreadable" class="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-sm" data-testid="glance-unreadable">
+        <span class="text-muted">{{ t('vendor.customers.glance.unreadableHint') }}</span>
+        <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-refresh-cw" @click="emit('retry')">{{ t('app.retry') }}</UButton>
+      </div>
     </section>
 
     <div class="grid gap-4 sm:grid-cols-2">

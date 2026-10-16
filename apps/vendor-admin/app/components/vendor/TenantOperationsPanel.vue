@@ -114,7 +114,8 @@ const operationLabels: Record<TenantOperation, string> = {
 const operationTypes = computed(() => availableOperations.value.map(value => ({ value, label: t(operationLabels[value]) })))
 const pickedLabel = computed(() => operationTypes.value.find(operation => operation.value === actionType.value)?.label ?? '')
 const canEnqueue = computed(() => Boolean(reason.value.trim()) && !(actionType.value === 'tenant.entitle' && expectedRevision.value === null))
-watch([actionType, reason], () => { confirmEnqueue.value = false })
+// Anything the confirmation names (type, reason, limits, switches) closes it when it changes.
+watch([actionType, reason, edits], () => { confirmEnqueue.value = false }, { deep: true })
 const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.operations_enabled))
 const operationTime = (op: OperationFeed) => formatNasqDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at, locale.value)
 </script>
