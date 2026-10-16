@@ -34,6 +34,7 @@ describe('team error messages', () => {
   it('maps the other control-plane answers', () => {
     expect(teamErrorKey(failure(422, 'invalid'))).toBe('team.errors.invalid')
     expect(teamErrorKey(failure(403))).toBe('team.errors.forbidden')
+    expect(teamErrorKey(failure(403, 'step_up_required'))).toBe('team.errors.stepUpRequired')
     expect(teamErrorKey(failure(429, 'rate_limited'))).toBe('team.errors.rateLimited')
     expect(teamErrorKey(failure(503, 'vendor_unavailable'))).toBe('team.errors.unavailable')
     expect(teamErrorKey(new Error('boom'))).toBe('team.errors.generic')

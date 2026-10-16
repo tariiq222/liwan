@@ -21,12 +21,12 @@ const ICONS = { roles: 'i-lucide-shield-check', reset: 'i-lucide-key-round', dis
 const isMe = (account: TeamAccount) => account.id === me.value?.id
 const rolesText = (account: TeamAccount) => account.roles.map(role => t(`team.roles.${role}`)).join('، ')
 const lastSeen = (account: TeamAccount) => (account.last_seen_at ? formatDateTime(account.last_seen_at) : t('team.neverSeen'))
-const panelFor = computed(() => (panel.value && panel.value.kind !== 'invite' ? panel.value : null))
 
 // A disabled account cannot be changed; a pending invitation can get a new link (reset) or be disabled.
+// Nobody disables or re-enrolls their own account here: that would end their own session.
 const actionsOf = (account: TeamAccount) => (account.status === 'disabled'
   ? []
-  : (['roles', 'reset', 'disable'] as const).map(kind => ({ kind, label: t(`team.actions.${kind}`), icon: ICONS[kind] })))
+  : (isMe(account) ? ['roles'] as const : ['roles', 'reset', 'disable'] as const).map(kind => ({ kind, label: t(`team.actions.${kind}`), icon: ICONS[kind] })))
 
 const columns = computed<TableColumn<TeamAccount>[]>(() => [
   { id: 'person', header: t('team.columns.person') },
@@ -38,16 +38,11 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
 </script>
 
 <template>
-  <SharedListPage :title="t('team.title')" :description="t('team.description')">
-    <template v-if="allowed" #actions>
-      <UButton icon="i-lucide-user-plus" :disabled="!hydrated" :label="t('team.invite')" data-testid="team-invite" @click="team.open({ kind: 'invite' })" />
-    </template>
-
-    <TeamInvitationLink v-if="invitation" v-bind="invitation" @dismiss="team.dismissInvitation" />
+  <SharedListPage :title="t('team.title')" :description="t('team.description')" :create-to="allowed ? '/team/new' : undefined" :create-label="t('team.invite')" create-test-id="team-invite">
+    <TeamInvitationLink v-if="invitation" :key="invitation.link" v-bind="invitation" @dismiss="team.dismissInvitation" />
     <UAlert v-if="notice" role="status" color="success" variant="subtle" icon="i-lucide-check" :title="t(notice.key, { name: notice.name })" data-testid="team-notice" />
 
-    <TeamAccountForm v-if="panel?.kind === 'invite'" :busy="busy" :error-key="errorKey" @submit="team.invite" @cancel="team.close" />
-    <TeamAccountAction v-else-if="panelFor" :key="`${panelFor.kind}:${panelFor.account.id}`" :kind="panelFor.kind" :account="panelFor.account" :busy="busy" :error-key="errorKey" @confirm="team.confirm" @cancel="team.close" />
+    <TeamAccountAction v-if="panel" :key="`${panel.kind}:${panel.account.id}`" :kind="panel.kind" :account="panel.account" :busy="busy" :error-key="errorKey" @confirm="team.confirm" @cancel="team.close" />
 
     <SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="pending" :error="error" :empty-text="t('team.empty')" :caption="t('team.title')" @retry="refresh">
       <template #person-cell="{ row: { original: account } }">
@@ -80,10 +75,13 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
             variant="ghost"
             :icon="action.icon"
             :label="action.label"
-            :disabled="!hydrated"
+            :disabled="!hydrated || busy"
             :data-testid="`team-${action.kind}`"
             @click="team.open({ kind: action.kind, account })"
           />
+          <p v-if="isMe(account) && account.status !== 'disabled'" class="basis-full text-xs text-muted">
+            {{ t('team.actions.selfHint') }}
+          </p>
         </div>
       </template>
       <template #mobile-row="{ row: account }">
@@ -112,9 +110,12 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
             variant="outline"
             :icon="action.icon"
             :label="action.label"
-            :disabled="!hydrated"
+            :disabled="!hydrated || busy"
             @click="team.open({ kind: action.kind, account })"
           />
+          <p v-if="isMe(account) && account.status !== 'disabled'" class="basis-full text-xs text-muted">
+            {{ t('team.actions.selfHint') }}
+          </p>
         </div>
       </template>
     </SharedDataTable>

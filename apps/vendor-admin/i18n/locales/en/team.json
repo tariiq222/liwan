@@ -42,6 +42,7 @@
       "roles": "Change roles",
       "disable": "Disable",
       "reset": "Re-enroll",
+      "selfHint": "You cannot disable or re-enroll your own account here.",
       "label": "Actions for {name}"
     },
     "roleEdit": {
@@ -78,6 +79,7 @@
       "forbidden": "You are not allowed to do this. You must be an active owner.",
       "rateLimited": "Too many attempts. Wait a moment and try again.",
       "unavailable": "The control service is unavailable. Try again shortly.",
+      "stepUpRequired": "The passkey confirmation did not complete. Try again and confirm when asked.",
       "stepUpCancelled": "The passkey confirmation was cancelled; nothing was changed.",
       "generic": "The action failed. Try again."
     },

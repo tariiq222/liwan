@@ -9,6 +9,7 @@ const hydrated = useHydrated()
 
 const draft = reactive<{ email: string, displayName: string, roles: TeamRole[], reason: string }>({ email: '', displayName: '', roles: [], reason: '' })
 const attempted = ref(false)
+const dirty = computed(() => Boolean(draft.email || draft.displayName || draft.roles.length || draft.reason))
 const errors = computed(() => ({
   email: /^[^@\s]+@[^@\s]+$/.test(draft.email.trim()) && draft.email.trim().length <= 254 ? undefined : t('team.form.emailInvalid'),
   displayName: draft.displayName.trim().length >= 1 && draft.displayName.trim().length <= 120 ? undefined : t('team.form.nameInvalid'),
@@ -26,9 +27,7 @@ function submit() {
 
 <template>
   <form class="grid gap-4" novalidate data-slot="account-form" :aria-label="t('team.form.title')" @submit.prevent="submit">
-    <h2 class="text-base font-semibold text-highlighted">
-      {{ t('team.form.title') }}
-    </h2>
+    <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <UAlert v-if="props.errorKey" role="alert" color="error" variant="subtle" :title="t(props.errorKey)" data-testid="team-error" />
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField :label="t('team.form.email')" :error="show('email')" required>

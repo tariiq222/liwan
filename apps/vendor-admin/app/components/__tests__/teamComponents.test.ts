@@ -15,6 +15,7 @@ const options = {
   messages,
   modules: {
     '../../utils/team': team,
+    '@/composables/useCopyLink': { useCopyLink: () => ({ copy: () => undefined, outcomeFor: () => null }) },
     '@nasq/ui/app/utils/formatDate': { formatDateTime: (value: string) => `at ${value}` },
   },
   components: {
@@ -22,6 +23,7 @@ const options = {
     SharedInlineConfirm: '../../../packages/ui/app/components/shared/form/InlineConfirm.vue',
   },
   stubs: {
+    SharedUnsavedChanges: defineComponent({ props: { dirty: Boolean }, setup: () => () => null }),
     UAlert: defineComponent({
       inheritAttrs: false,
       props: { title: String, description: String },

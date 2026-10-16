@@ -27,8 +27,6 @@ export interface TeamInvitation {
 export const REASON_MIN = 3
 export const REASON_MAX = 1000
 
-export const isRole = (value: unknown): value is TeamRole => TEAM_ROLES.includes(value as TeamRole)
-
 /** Roles in the canonical order, without duplicates or unknown names. */
 export const sortedRoles = (roles: readonly string[]): TeamRole[] => TEAM_ROLES.filter(role => roles.includes(role))
 
@@ -45,6 +43,7 @@ const CODE_KEYS: Record<string, string> = {
   conflict: 'team.errors.conflict',
   invalid: 'team.errors.invalid',
   forbidden: 'team.errors.forbidden',
+  step_up_required: 'team.errors.stepUpRequired',
   rate_limited: 'team.errors.rateLimited',
   vendor_unavailable: 'team.errors.unavailable',
   admin_unavailable: 'team.errors.unavailable',

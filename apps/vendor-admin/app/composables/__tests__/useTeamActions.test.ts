@@ -21,11 +21,9 @@ function setup(overrides: Partial<Record<'invite' | 'setRoles' | 'disable' | 're
 describe('team actions', () => {
   it('sends the reason with an invitation and shows the link once', async () => {
     const { team, accounts, changed } = setup()
-    team.open({ kind: 'invite' })
     await team.invite({ email: 'new@x.test', displayName: 'New', roles: ['finance'], reason: 'hiring' })
     expect(accounts.invite).toHaveBeenCalledWith({ email: 'new@x.test', displayName: 'New', roles: ['finance'], reason: 'hiring' })
     expect(team.invitation.value).toEqual({ name: 'New', link: 'https://admin.example.test/enroll#secret-token', expiresAt: '2026-10-17T00:00:00.000Z' })
-    expect(team.panel.value).toBeNull()
     expect(changed).toHaveBeenCalledOnce()
     team.dismissInvitation()
     expect(team.invitation.value).toBeNull()
@@ -57,7 +55,6 @@ describe('team actions', () => {
 
   it('shows the duplicate-email message and no link when the invitation is refused', async () => {
     const { team } = setup({ invite: vi.fn().mockRejectedValue({ statusCode: 409, data: { code: 'conflict' } }) })
-    team.open({ kind: 'invite' })
     await team.invite({ email: 'dup@x.test', displayName: 'Dup', roles: ['support'], reason: 'again' })
     expect(team.errorKey.value).toBe('team.errors.conflict')
     expect(team.invitation.value).toBeNull()
@@ -80,6 +77,17 @@ describe('team actions', () => {
     release()
     await first
     expect(accounts.disable).toHaveBeenCalledOnce()
+  })
+
+  it('ignores a new panel while a call is running', async () => {
+    let release!: () => void
+    const { team } = setup({ disable: vi.fn(() => new Promise<void>((resolve) => { release = resolve })) })
+    team.open({ kind: 'disable', account })
+    const pending = team.confirm('first')
+    team.open({ kind: 'roles', account })
+    expect(team.panel.value).toMatchObject({ kind: 'disable' })
+    release()
+    await pending
   })
 
   it('clears an old failure when another panel opens', async () => {

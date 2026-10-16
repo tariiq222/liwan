@@ -63,6 +63,7 @@ describe('activeNavId', () => {
     expect(activeNavId(items, '/customers')).toBe('customers')
     expect(activeNavId(items, '/customers/12/change')).toBe('customers')
     expect(activeNavId(items, '/plans/new')).toBe('plans')
+    expect(activeNavId(items, '/team/new')).toBe('team')
   })
 
   it('does not match a path that only shares a prefix', () => {

@@ -4,9 +4,7 @@ import { useAdminAccounts, type createAdminAccounts } from './useAdminAccounts'
 
 type Accounts = ReturnType<typeof createAdminAccounts>
 
-export type TeamPanel =
-  | { kind: 'invite' }
-  | { kind: 'roles' | 'disable' | 'reset', account: TeamAccount }
+export interface TeamPanel { kind: 'roles' | 'disable' | 'reset', account: TeamAccount }
 
 export interface InviteDraft { email: string, displayName: string, roles: TeamRole[], reason: string }
 
@@ -32,6 +30,7 @@ export function createTeamActions({ accounts, origin, changed }: TeamActionsDeps
   const invitation = ref<ShownInvitation | null>(null)
 
   function open(next: TeamPanel) {
+    if (busy.value) return
     panel.value = next
     errorKey.value = null
     notice.value = null
@@ -74,7 +73,7 @@ export function createTeamActions({ accounts, origin, changed }: TeamActionsDeps
   /** Confirms the open role, disable or reset panel with the reason (and the chosen roles, for roles). */
   function confirm(reason: string, roles: TeamRole[] = []): Promise<void> {
     const current = panel.value
-    if (!current || current.kind === 'invite') return Promise.resolve()
+    if (!current) return Promise.resolve()
     const { account } = current
     const name = account.display_name
     return perform(async () => {
@@ -94,6 +93,7 @@ export function createTeamActions({ accounts, origin, changed }: TeamActionsDeps
   return { panel, busy, errorKey, notice, invitation, open, close, dismissInvitation, invite, confirm }
 }
 
+/** The page's calls; `changed` runs after a change the list must show. */
 export function useTeamActions(changed: () => unknown) {
   return createTeamActions({ accounts: useAdminAccounts(), origin: () => window.location.origin, changed })
 }

@@ -7,6 +7,9 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 
 const reason = ref('')
+const reasonField = ref<{ inputRef?: HTMLInputElement | null } | null>(null)
+// The panel opens at the reason field: the one thing every action needs.
+onMounted(() => nextTick(() => reasonField.value?.inputRef?.focus()))
 const roles = ref<TeamRole[]>([...props.account.roles])
 const attempted = ref(false)
 const reasonError = computed(() => (attempted.value && !reasonValid(reason.value) ? t('team.reason.invalid') : undefined))
@@ -28,7 +31,7 @@ function confirm() {
     <UAlert v-if="props.errorKey" role="alert" color="error" variant="subtle" :title="t(props.errorKey)" data-testid="team-error" />
     <TeamRolePicker v-model="roles" :disabled="!hydrated || props.busy" :error="rolesError" />
     <UFormField :label="t('team.reason.label')" :hint="t('team.reason.hint')" :error="reasonError" required>
-      <UInput v-model="reason" :maxlength="REASON_MAX" class="w-full" :disabled="!hydrated || props.busy" data-testid="action-reason" />
+      <UInput ref="reasonField" v-model="reason" :maxlength="REASON_MAX" class="w-full" :disabled="!hydrated || props.busy" data-testid="action-reason" />
     </UFormField>
     <div class="flex flex-wrap justify-end gap-2">
       <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || props.busy" :label="t('team.roleEdit.cancel')" @click="emit('cancel')" />
@@ -48,7 +51,7 @@ function confirm() {
       @cancel="emit('cancel')"
     >
       <UFormField class="mt-3" :label="t('team.reason.label')" :hint="t('team.reason.hint')" :error="reasonError" required>
-        <UInput v-model="reason" :maxlength="REASON_MAX" class="w-full" :disabled="!hydrated || props.busy" data-testid="action-reason" />
+        <UInput ref="reasonField" v-model="reason" :maxlength="REASON_MAX" class="w-full" :disabled="!hydrated || props.busy" data-testid="action-reason" />
       </UFormField>
     </SharedInlineConfirm>
   </div>
