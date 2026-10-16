@@ -11,7 +11,7 @@ export async function mock<T = unknown>(path: string, method: 'GET' | 'POST' = '
 
 export const ageStepUp = () => mock('/__mock/age-step-up')
 export const resetMock = () => mock('/__mock/reset')
-export const mintInvitation = () => mock<{ token: string, email: string }>('/__mock/invitations').then(value => value!)
+export const mintInvitation = (roles?: string[]) => mock<{ token: string, email: string }>('/__mock/invitations', 'POST', { roles }).then(value => value!)
 export const mockStats = () => mock<{ anonymous: number, numeric: number, rejected: number, lastClientIp: string | null, sessions: number }>('/__mock/stats', 'GET').then(value => value!)
 
 /** A CTAP2 platform authenticator with resident keys and user verification, answering every prompt. */

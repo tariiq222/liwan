@@ -244,10 +244,10 @@ export function createMockControl() {
   const controls = {
     'POST /__mock/reset': (_ctx, res) => { reset(); json(res, 204) },
     'POST /__mock/config': ({ body }, res) => { Object.assign(config, body); json(res, 200, config) },
-    'POST /__mock/invitations': (_ctx, res) => {
+    'POST /__mock/invitations': ({ body }, res) => {
       const id = Math.max(...accounts.keys()) + 1
       const token = b64url(32)
-      accounts.set(id, { id, email: `invitee${id}@example.test`, display_name: `Invitee ${id}`, roles: ['support'], password: null, passkeys: new Set(), recovery: new Set(), active: false })
+      accounts.set(id, { id, email: `invitee${id}@example.test`, display_name: `Invitee ${id}`, roles: body.roles ?? ['support'], password: null, passkeys: new Set(), recovery: new Set(), active: false, disabled: false })
       invitations.set(token, { accountId: id })
       json(res, 200, { token, email: `invitee${id}@example.test` })
     },

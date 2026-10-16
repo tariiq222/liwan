@@ -11,7 +11,7 @@ const panel = (page: Page) => page.locator('[data-slot="step-up-panel"]')
 
 async function signedInWithStepUpDue(page: Page, context: BrowserContext) {
   const authenticator = await addVirtualAuthenticator(context, page)
-  const { token } = await mintInvitation()
+  const { token } = await mintInvitation(['owner'])
   await openInvitation(page, token)
   await completeEnrollment(page)
   await leaveRecoveryCodes(page)
