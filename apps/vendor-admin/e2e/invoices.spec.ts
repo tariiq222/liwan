@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectNoSecondH1, fitsWidth, login, mobileRows, navigateClient, open, rows } from './commercial-helpers'
+import { expectNoSecondH1, fitsWidth, login, mobileRows, navigateClient, open, RESTRICTED_EMAIL, rows } from './commercial-helpers'
 test.beforeEach(async ({ page }) => { await login(page) })
 
 test('the list is the list template; rows, filter, record link and no create button', async ({ page }) => {
@@ -29,10 +29,9 @@ test('a free quantity never lowers the paid cell (owner decision)', async ({ pag
  await expect(line.locator('td').nth(1)).toContainText('1')
 })
 test('a vendor without the billing grant never reaches the invoice list', async ({ page }) => {
- await open(page, '/overview'); let intercepted = 0
- await page.route('**/api/vendor/v1/context', route => { intercepted++; return route.fulfill({ json: { enabled: true, capabilities: ['vendor.read'] } }) })
+ await login(page, RESTRICTED_EMAIL)
+ await open(page, '/overview')
  await navigateClient(page, '/invoices')
- await expect.poll(() => intercepted).toBeGreaterThan(0)
  await expect(page.locator('[data-slot="data-table"]')).toHaveCount(0)
  await expect(page).toHaveURL(/\/overview$/)
  await expect(page.getByRole('heading',{level:1})).toHaveText('إدارة نسق')
