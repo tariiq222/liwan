@@ -41,10 +41,9 @@ it('expires leases before selecting eligible work and delegates trusted adapter'
     expect(sql).toContain("'database',binding.database_name")
     expect(sql).toContain("'filestore',binding.filestore")
     expect(sql).toContain("'registryRevision',binding.registry_revision")
-    expect(sql).toContain('membership.revoked_at IS NULL')
-    expect(sql).toContain("'vendor.operations.run'=ANY(membership.capabilities)")
-    expect(sql).toContain('membership.issuer=queued.issuer')
-    expect(sql).toContain('membership.actor_uid=queued.actor_uid')
+    expect(sql).toContain("r.role = ANY(ARRAY['owner','operations']::text[])")
+    expect(sql).toContain("queued.issuer LIKE '%:vendor-account'")
+    expect(sql).toContain("a.status='active'")
     expect(sql).toContain('NOT EXISTS')
     expect(sql).toContain("'needs_intervention'")
     return {rows:[{id:'job-id'}]}

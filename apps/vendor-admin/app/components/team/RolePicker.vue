@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { TEAM_ROLES, type TeamRole } from '../../utils/team'
+import { VENDOR_ROLES } from '@nasq/commercial-contracts'
+import type { TeamRole } from '../../utils/team'
 
 const props = defineProps<{ modelValue: TeamRole[], disabled?: boolean, error?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [roles: TeamRole[]] }>()
@@ -8,7 +9,7 @@ const hintId = useId()
 
 function toggle(role: TeamRole, selected: boolean) {
   const next = selected ? [...props.modelValue, role] : props.modelValue.filter(item => item !== role)
-  emit('update:modelValue', TEAM_ROLES.filter(item => next.includes(item)))
+  emit('update:modelValue', VENDOR_ROLES.filter(item => next.includes(item)))
 }
 </script>
 
@@ -22,7 +23,7 @@ function toggle(role: TeamRole, selected: boolean) {
     </p>
     <div class="grid gap-2 sm:grid-cols-2">
       <UCheckbox
-        v-for="role in TEAM_ROLES"
+        v-for="role in VENDOR_ROLES"
         :key="role"
         :model-value="props.modelValue.includes(role)"
         :label="t(`team.roles.${role}`)"

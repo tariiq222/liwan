@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { Pool, PoolClient } from 'pg'
 import type { Config } from '../config.js'
 import { executeClaimed, type Claimed } from '../worker.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const repo = join(import.meta.dirname, '../../../../')
 const target = 'tgt_worker_e2e'
@@ -90,7 +91,7 @@ function claim(type: string, payload: Record<string, unknown> = {}): Claimed {
   const client = { query: async () => ({ rowCount: 1, rows: [] }), release: () => undefined } as unknown as PoolClient
   return {
     client, lockKey: target,
-    operation: { id: randomUUID(), tenant_id: tenantId, actor_uid: 7, issuer: 'worker-e2e', type, request_id: requestId, reason: 'isolated test', payload, status: 'running' },
+    operation: { id: randomUUID(), tenant_id: tenantId, actor_uid: 7, issuer: vendorActorIssuer('worker-e2e'), type, request_id: requestId, reason: 'isolated test', payload, status: 'running' },
     tenant: { id: tenantId, inventory_target: target, commercial_mode: 'saas', catalog_version: null, catalog_tier: null },
   }
 }
@@ -112,7 +113,8 @@ function fakePool(tenant: Claimed['tenant'], publishedCatalog?: { solution: unkn
   }
   const pool = {
     query: async (sql: string) => {
-      if (sql.includes('vendor_memberships')) return { rowCount: 1, rows: [{}] }
+      if (sql.includes('FROM vendor_accounts WHERE id')) return { rowCount: 1, rows: [{}] }
+    if (sql.includes('FROM vendor_account_roles')) return { rowCount: 1, rows: [{ role: 'operations' }] }
       if (sql.includes('SELECT inventory_target,commercial_mode,operations_enabled')) return { rowCount: 1, rows: [{ inventory_target: tenant.inventory_target, commercial_mode: tenant.commercial_mode, operations_enabled: true }] }
       if (sql.includes('catalog_entries')) return publishedCatalog ? { rowCount: 1, rows: [publishedCatalog] } : { rowCount: 0, rows: [] }
       if (sql.includes("status='needs_intervention'")) return { rowCount: 0, rows: [] }

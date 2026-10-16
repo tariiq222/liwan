@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { CommercialError } from '@nasq/commercial-contracts/server'
 import { canonicalJson, type CommercialIssue } from '@nasq/commercial-contracts'
 import { transaction } from '../db.js'
+import { actorLabel } from '../admin-auth/grants.js'
 
 export type CommercialActor = { issuer: string; actorUid: number }
 export class CommercialHttpError extends Error {
@@ -18,7 +19,7 @@ export function isoRow(row: Record<string, unknown>) { return Object.fromEntries
 
 export async function audit(client: PoolClient, actor: CommercialActor, action: string, subject: string, reason: string, metadata: unknown) {
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-    [randomUUID(), `${actor.issuer}:${actor.actorUid}`, action, subject, reason, JSON.stringify(metadata)])
+    [randomUUID(), actorLabel(actor), action, subject, reason, JSON.stringify(metadata)])
 }
 
 export type Kind = { table: 'bundle_revisions' | 'plan_revisions'; parent: 'commercial_bundles' | 'commercial_plans'; parentCol: 'bundle_id' | 'plan_id'; label: 'bundle' | 'plan' }

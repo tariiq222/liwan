@@ -13,7 +13,15 @@ export function parseSession(value: unknown): { accountId: number; token: string
   const accountId = Number(match[1])
   return Number.isSafeInteger(accountId) ? { accountId, token: match[2] } : null
 }
+// Rows that can never be accepted again: dead sessions, spent or expired invitations, used recovery codes.
+// Run on every sign-in so the tables stay the size of the live state without a separate job.
+export async function pruneAuthState(client: PoolClient, now: Date) {
+  await client.query('DELETE FROM vendor_sessions WHERE expires_at <= $1 OR revoked_at IS NOT NULL', [now])
+  await client.query('DELETE FROM vendor_invitations WHERE expires_at <= $1 OR consumed_at IS NOT NULL', [now])
+  await client.query('DELETE FROM vendor_recovery_codes WHERE used_at IS NOT NULL')
+}
 export async function createSession(client: PoolClient, accountId: number, now: Date, stepUp: boolean) {
+  await pruneAuthState(client, now)
   const token = newToken()
   const expiresAt = new Date(now.getTime() + ABSOLUTE_MS)
   await client.query('INSERT INTO vendor_sessions(token_hash,account_id,created_at,last_seen_at,expires_at,step_up_at) VALUES($1,$2,$3,$3,$4,$5)', [hashToken(token), accountId, now, expiresAt, stepUp ? now : null])

@@ -5,7 +5,7 @@ import { signServiceRequest } from '@nasq/commercial-contracts/server'
 import { migrate } from '../db.js'
 import { createApp } from '../http.js'
 import { client as commercialClient, money, monthly, setup } from './commercial-helpers.js'
-import { TEST_KEY as key, vendorSession } from './helpers/vendor-session.js'
+import { TEST_KEY as key, replaceRoles, vendorSession } from './helpers/vendor-session.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
@@ -38,7 +38,7 @@ else describe('session authorization', () => {
   }
 
   it('rejects requests without a session, with a forged actor, or for a disabled account', async () => {
-    const s = await vendorSession(pool, issuer, ['vendor.read'])
+    const s = await vendorSession(pool, issuer, ['support'])
     const noSession = s.headers('GET', '/v1/context'); delete noSession['x-nasq-session']
     expect((await call('GET', '/v1/context', noSession)).status).toBe(401)
     const forged = signServiceRequest({ method: 'GET', path: '/v1/context', actor: s.accountId + 1, issuer, key })
@@ -49,7 +49,7 @@ else describe('session authorization', () => {
   })
 
   it('asks for step-up before operations but not before reads', async () => {
-    const s = await vendorSession(pool, issuer, ['vendor.read', 'vendor.tenants.manage', 'vendor.operations.run'], { stepUp: false })
+    const s = await vendorSession(pool, issuer, ['customer_success', 'operations'], { stepUp: false })
     const body = { request_id: randomUUID(), type: 'health' }
     const path = `/v1/tenants/${randomUUID()}/operations`
     const r = await call('POST', path, s.headers('POST', path, JSON.stringify(body)), body)
@@ -58,7 +58,7 @@ else describe('session authorization', () => {
   })
 
   it('asks for step-up before publishing a catalog entry and pricing mutations', async () => {
-    const s = await vendorSession(pool, issuer, ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'], { stepUp: false })
+    const s = await vendorSession(pool, issuer, ['product'], { stepUp: false })
     const body = { reason: 'Publish it now' }
     const path = `/v1/catalog/${randomUUID()}/publish`
     const r = await call('POST', path, s.headers('POST', path, JSON.stringify(body)), body)
@@ -75,7 +75,7 @@ else describe('session authorization', () => {
   }
 
   it('requires step-up for customer terms, registry publication and catalog releases', async () => {
-    const s = await vendorSession(pool, issuer, ['vendor.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.tenants.manage', 'vendor.catalog.manage'], { stepUp: false })
+    const s = await vendorSession(pool, issuer, ['product', 'customer_success'], { stepUp: false })
     await expectStepUp(s, 'POST', '/v1/commercial/customer-terms', {})
     await expectStepUp(s, 'POST', '/v1/registry/mutations', {})
     await expectStepUp(s, 'POST', '/v1/registry/recover', {})
@@ -92,7 +92,7 @@ else describe('session authorization', () => {
       selections: [{ app_id: app.id, feature_keys: [app.features.find((f: any) => f.selectable).key] }], domain_limits: {}, prices: [{ cadence: monthly, amount: money(0) }], ...over })
     const created = await api('POST', '/bundles', body())
     expect(created.status).toBe(201)
-    const s = await vendorSession(pool, issuer, ['vendor.read', 'vendor.catalog.manage', 'vendor.pricing.manage'], { stepUp: false })
+    const s = await vendorSession(pool, issuer, ['product'], { stepUp: false })
     const path = `/v1/commercial/bundles/${created.body.id}`
     await expectStepUp(s, 'PATCH', path, { ...body({ prices: [{ cadence: monthly, amount: money(500) }] }), edit_revision: 1, reason })
     const rename = { ...body({ name: 'Renamed only', prices: created.body.prices }), edit_revision: 1, reason }
@@ -101,14 +101,14 @@ else describe('session authorization', () => {
   })
 
   it('lets a billing reader without fresh step-up list invoices', async () => {
-    const s = await vendorSession(pool, issuer, ['vendor.billing.manage'], { stepUp: false })
+    const s = await vendorSession(pool, issuer, ['finance'], { stepUp: false })
     expect((await call('GET', '/v1/commercial/invoices', s.headers('GET', '/v1/commercial/invoices'))).status).toBe(200)
   })
 
   it('applies a role revocation on the next request', async () => {
-    const s = await vendorSession(pool, issuer, ['vendor.read', 'vendor.audit.read'])
+    const s = await vendorSession(pool, issuer, ['support'])
     expect((await call('GET', '/v1/audit', s.headers('GET', '/v1/audit'))).status).toBe(200)
-    await pool.query("UPDATE vendor_memberships SET capabilities=ARRAY['vendor.read'] WHERE actor_uid=$1", [s.accountId])
+    await replaceRoles(pool, s.accountId, ['finance'])
     expect((await call('GET', '/v1/audit', s.headers('GET', '/v1/audit'))).status).toBe(403)
   })
 })

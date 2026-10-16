@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { TEAM_ROLES } from '../utils/team'
+import { VENDOR_ROLES } from '@nasq/commercial-contracts'
 
 const appDir = fileURLToPath(new URL('..', import.meta.url))
 const localesDir = join(appDir, '../i18n/locales')
@@ -44,7 +44,7 @@ describe('team messages', () => {
   })
 
   it('names all six roles and every account state in both languages', () => {
-    for (const role of TEAM_ROLES) expect(ar[`team.roles.${role}`] && en[`team.roles.${role}`], role).toBeTruthy()
+    for (const role of VENDOR_ROLES) expect(ar[`team.roles.${role}`] && en[`team.roles.${role}`], role).toBeTruthy()
     for (const status of ['enrolling', 'active', 'disabled']) expect(ar[`team.status.${status}`] && en[`team.status.${status}`], status).toBeTruthy()
   })
 

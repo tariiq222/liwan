@@ -3,15 +3,19 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 export const newToken = (): string => randomBytes(32).toString('base64url')
 export const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex')
 const boxKey = (key: Buffer) => createHash('sha256').update(key).digest()
-export function seal(key: Buffer, plain: Buffer): Buffer {
+/** What a sealed TOTP secret is bound to: opening it for another account fails, so a box cannot be replayed across accounts. */
+export const totpBoxAad = (accountId: number): Buffer => Buffer.from(`totp|account:${accountId}`)
+export function seal(key: Buffer, plain: Buffer, aad: Buffer): Buffer {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', boxKey(key), iv, { authTagLength: 16 })
+  cipher.setAAD(aad)
   const body = Buffer.concat([cipher.update(plain), cipher.final()])
   return Buffer.concat([iv, cipher.getAuthTag(), body])
 }
-export function open(key: Buffer, box: Buffer): Buffer {
+export function open(key: Buffer, box: Buffer, aad: Buffer): Buffer {
   if (box.length < 28) throw new Error('sealed box too short')
   const decipher = createDecipheriv('aes-256-gcm', boxKey(key), box.subarray(0, 12), { authTagLength: 16 })
+  decipher.setAAD(aad)
   decipher.setAuthTag(box.subarray(12, 28))
   return Buffer.concat([decipher.update(box.subarray(28)), decipher.final()])
 }

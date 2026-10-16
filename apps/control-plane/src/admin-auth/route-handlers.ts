@@ -1,10 +1,11 @@
 import type { IncomingHttpHeaders } from 'node:http'
 import type { Pool, PoolClient } from 'pg'
+import { adminChallengeResultSchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@nasq/commercial-contracts'
 import type { AdminConfig, Config } from '../config.js'
 import { transaction } from '../db.js'
 import { AdminAuthError, audit, normalizeEmail } from './accounts.js'
 import { recordSuccess, reserveAttempt } from './attempts.js'
-import { hashToken, open, seal } from './crypto.js'
+import { hashToken, open, seal, totpBoxAad } from './crypto.js'
 import { completeEnrollment, openInvitation } from './enrollment.js'
 import { hashPassword, verifyPassword } from './passwords.js'
 import { createSession, markStepUp, resolveSession, revokeSession } from './sessions.js'
@@ -20,7 +21,8 @@ export class CountedFailure extends AdminAuthError {
 const counted = (scopes: string[], reason: string): AdminAuthError => new CountedFailure(scopes, reason)
 
 const authFailed = () => new AdminAuthError(401, 'auth_failed')
-const sessionBody = (s: { session: string; expiresAt: Date; idleExpiresAt: Date }) => ({ session: s.session, expires_at: s.expiresAt.toISOString(), idle_expires_at: s.idleExpiresAt.toISOString() })
+const sessionBody = (s: { session: string; expiresAt: Date; idleExpiresAt: Date }, recoveryCodes?: string[]) =>
+  adminSessionResultSchema.parse({ session: s.session, expires_at: s.expiresAt.toISOString(), idle_expires_at: s.idleExpiresAt.toISOString(), ...(recoveryCodes ? { recovery_codes: recoveryCodes } : {}) })
 const tx = <T>(ctx: AuthContext, action: (client: PoolClient) => Promise<T>) => transaction(ctx.pool, action)
 
 // Verified once so unknown emails cost the same as wrong passwords.
@@ -51,25 +53,20 @@ async function finishSignIn(ctx: AuthContext, client: PoolClient, accountId: num
 export const handlers = {
   async invitation(ctx: AuthContext, body: { token: string }): Promise<Result> {
     const inv = await tx(ctx, (c) => openInvitation(c, body.token, ctx.now))
-    return { status: 200, data: { email: inv.email, purpose: inv.purpose } }
+    return { status: 200, data: adminInvitationInfoSchema.parse({ email: inv.email, purpose: inv.purpose }) }
   },
   async enrollPasskeyOptions(ctx: AuthContext, body: { token: string }): Promise<Result> {
     return tx(ctx, async (c) => {
       const inv = await openInvitation(c, body.token, ctx.now)
       const name = (await c.query('SELECT display_name FROM vendor_accounts WHERE id=$1', [inv.accountId])).rows[0].display_name as string
       const { challengeId, options } = await registrationOptions(c, ctx.lib, ctx.admin, { id: inv.accountId, email: inv.email, displayName: name }, ctx.now)
-      return { status: 200, data: { challenge_id: challengeId, options } }
+      return { status: 200, data: adminChallengeResultSchema.parse({ challenge_id: challengeId, options }) }
     })
   },
   async enrollPasskeyVerify(ctx: AuthContext, body: { token: string; challenge_id: string; response: unknown; label: string }): Promise<Result> {
     const consumed = await consumeChallenge(ctx.pool, body.challenge_id, 'register', ctx.now)
     return tx(ctx, async (c) => {
       const inv = await openInvitation(c, body.token, ctx.now)
-      if (inv.purpose === 'reset') {
-        for (const table of ['vendor_passkeys', 'vendor_totp', 'vendor_recovery_codes']) await c.query(`DELETE FROM ${table} WHERE account_id=$1`, [inv.accountId])
-        await c.query('UPDATE vendor_sessions SET revoked_at=$2 WHERE account_id=$1 AND revoked_at IS NULL', [inv.accountId, ctx.now])
-        await audit(c, `account:${inv.accountId}`, 'account.reset_started', `account:${inv.accountId}`, 'reset')
-      }
       await finishRegistration(c, ctx.lib, ctx.admin, inv.accountId, consumed, body.response, body.label, ctx.now)
       await audit(c, `account:${inv.accountId}`, 'auth.passkey_registered', `account:${inv.accountId}`, inv.purpose)
       return { status: 204 }
@@ -78,21 +75,21 @@ export const handlers = {
   async enrollTotp(ctx: AuthContext, body: { token: string }): Promise<Result> {
     const inv = await tx(ctx, (c) => openInvitation(c, body.token, ctx.now))
     const secret = newTotpSecret()
-    return { status: 200, data: { totp_uri: totpUri(secret, inv.email), totp_box: seal(ctx.admin.secretKey, secret).toString('base64') } }
+    return { status: 200, data: adminTotpEnrollmentSchema.parse({ totp_uri: totpUri(secret, inv.email), totp_box: seal(ctx.admin.secretKey, secret, totpBoxAad(inv.accountId)).toString('base64') }) }
   },
   async enrollComplete(ctx: AuthContext, body: { token: string; password: string; totp_code: string; totp_box: string }): Promise<Result> {
     return tx(ctx, async (c) => {
       const inv = await openInvitation(c, body.token, ctx.now)
       // Derived from the database, never from the request: a passkey registered during this invitation.
       const registered = await c.query('SELECT 1 FROM vendor_passkeys p JOIN vendor_invitations i ON i.token_hash=$2 WHERE p.account_id=$1 AND p.created_at >= i.created_at LIMIT 1', [inv.accountId, hashToken(body.token)])
-      const done = await completeEnrollment(c, ctx.config.installationId, body.token, { password: body.password, totpCode: body.totp_code, totpSecretBox: Buffer.from(body.totp_box, 'base64'), passkeyRegistered: Boolean(registered.rowCount) }, ctx.admin.secretKey, ctx.now)
+      const done = await completeEnrollment(c, body.token, { password: body.password, totpCode: body.totp_code, totpSecretBox: Buffer.from(body.totp_box, 'base64'), passkeyRegistered: Boolean(registered.rowCount) }, ctx.admin.secretKey, ctx.now)
       const session = await createSession(c, done.accountId, ctx.now, true)
-      return { status: 200, data: { recovery_codes: done.recoveryCodes, ...sessionBody(session) } }
+      return { status: 200, data: sessionBody(session, done.recoveryCodes) }
     })
   },
   async passkeyOptions(ctx: AuthContext): Promise<Result> {
     const { challengeId, options } = await tx(ctx, (c) => authenticationOptions(c, ctx.lib, ctx.admin, 'login', null, ctx.now))
-    return { status: 200, data: { challenge_id: challengeId, options } }
+    return { status: 200, data: adminChallengeResultSchema.parse({ challenge_id: challengeId, options }) }
   },
   async passkeyVerify(ctx: AuthContext, body: { challenge_id: string; response: unknown }): Promise<Result> {
     const scopes = [`ip:${ctx.ip}`]
@@ -117,7 +114,7 @@ export const handlers = {
       const { id } = await passwordLogin(ctx, c, scopes, body.email, body.password, 'fallback')
       // Row lock: two concurrent uses of one code cannot both pass the last_step check.
       const totp = (await c.query('SELECT secret_box, last_step FROM vendor_totp WHERE account_id=$1 FOR UPDATE', [id])).rows[0]
-      const step = totp ? checkTotp(open(ctx.admin.secretKey, totp.secret_box), body.totp_code, ctx.now.getTime(), Number(totp.last_step)) : null
+      const step = totp ? checkTotp(open(ctx.admin.secretKey, totp.secret_box, totpBoxAad(id)), body.totp_code, ctx.now.getTime(), Number(totp.last_step)) : null
       if (step === null) throw counted(scopes, 'fallback')
       await c.query('UPDATE vendor_totp SET last_step=$2 WHERE account_id=$1', [id, step])
       return finishSignIn(ctx, c, id, scopes, 'fallback')
@@ -138,7 +135,7 @@ export const handlers = {
     return tx(ctx, async (c) => {
       const session = await resolveSession(c, value, ctx.now)
       const { challengeId, options } = await authenticationOptions(c, ctx.lib, ctx.admin, 'step_up', session.accountId, ctx.now)
-      return { status: 200, data: { challenge_id: challengeId, options } }
+      return { status: 200, data: adminChallengeResultSchema.parse({ challenge_id: challengeId, options }) }
     })
   },
   async stepUpVerify(ctx: AuthContext, body: { challenge_id: string; response: unknown }): Promise<Result> {

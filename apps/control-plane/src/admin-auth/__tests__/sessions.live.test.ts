@@ -11,13 +11,27 @@ else describe('sessions', () => {
   beforeEach(async () => {
     await migrate(pool)
     await pool.query('TRUNCATE vendor_accounts CASCADE')
-    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('s@nasq.sa','S','active') RETURNING id")).rows[0].id)
+    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('s@nasq.sa','S','active','x') RETURNING id")).rows[0].id)
   })
   afterAll(async () => { await pool.end() })
 
   it('parses only well-formed values', () => {
     expect(parseSession('12.' + 'a'.repeat(43))).toEqual({ accountId: 12, token: 'a'.repeat(43) })
     for (const bad of [undefined, '', '0.' + 'a'.repeat(43), '12', '12.short', 'x.' + 'a'.repeat(43), ['12.' + 'a'.repeat(43)]]) expect(parseSession(bad)).toBeNull()
+  })
+  it('prunes dead sessions, spent invitations and used recovery codes on sign-in', async () => {
+    const t0 = new Date('2026-11-01T10:00:00Z')
+    await transaction(pool, (c) => createSession(c, accountId, t0, false))
+    await transaction(pool, (c) => createSession(c, accountId, t0, false))
+    await pool.query("UPDATE vendor_sessions SET revoked_at=$1 WHERE token_hash=(SELECT token_hash FROM vendor_sessions WHERE revoked_at IS NULL ORDER BY created_at DESC, token_hash LIMIT 1)", [t0])
+    const later = new Date(t0.getTime() + ABSOLUTE_MS + 1000)
+    await pool.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at) VALUES('expired',$1,'enroll','operator',$2),('spent',$1,'enroll','operator',$3),('live',$1,'enroll','operator',$3)", [accountId, t0, new Date(later.getTime() + 3600_000)])
+    await pool.query("UPDATE vendor_invitations SET consumed_at=$1 WHERE token_hash='spent'", [t0])
+    await pool.query("INSERT INTO vendor_recovery_codes(account_id,code_hash,used_at) VALUES($1,'used',$2),($1,'fresh',NULL)", [accountId, t0])
+    await transaction(pool, (c) => createSession(c, accountId, later, false))
+    expect((await pool.query('SELECT count(*)::int AS n FROM vendor_sessions')).rows[0].n).toBe(1)
+    expect((await pool.query('SELECT token_hash FROM vendor_invitations')).rows).toEqual([{ token_hash: 'live' }])
+    expect((await pool.query('SELECT code_hash FROM vendor_recovery_codes')).rows).toEqual([{ code_hash: 'fresh' }])
   })
   it('expires on idle and on absolute lifetime', async () => {
     const t0 = new Date('2026-11-01T10:00:00Z')

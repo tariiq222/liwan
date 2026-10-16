@@ -1,22 +1,15 @@
-// The team page's vocabulary: the six roles the control plane knows, the account shapes it returns,
-// and the mapping from a failed call to the locale key shown to the person.
+// The team page's vocabulary: the roles and account shapes come from the contracts package,
+// and this adds the mapping from a failed call to the locale key shown to the person.
+import { VENDOR_ROLES, type AdminAccountItem, type AdminAccountStatus, type VendorRole } from '@nasq/commercial-contracts'
 import { StepUpCancelled } from '../composables/useStepUp'
 
-export const TEAM_ROLES = ['owner', 'customer_success', 'finance', 'product', 'operations', 'support'] as const
-export type TeamRole = typeof TEAM_ROLES[number]
+export type TeamRole = VendorRole
 
 /** The control plane's account states: `enrolling` is an invitation not yet accepted. */
-export type TeamAccountStatus = 'enrolling' | 'active' | 'disabled'
+export type TeamAccountStatus = AdminAccountStatus
 
-export interface TeamAccount {
-  id: number
-  email: string
-  display_name: string
-  status: TeamAccountStatus
-  roles: TeamRole[]
-  passkeys: number
-  last_seen_at: string | null
-}
+/** One row of the account list, exactly as the control plane's contract names it. */
+export type TeamAccount = AdminAccountItem
 
 export interface TeamInvitation {
   /** The one-time secret; it is shown once and never kept anywhere else. */
@@ -28,7 +21,7 @@ export const REASON_MIN = 3
 export const REASON_MAX = 1000
 
 /** Roles in the canonical order, without duplicates or unknown names. */
-export const sortedRoles = (roles: readonly string[]): TeamRole[] => TEAM_ROLES.filter(role => roles.includes(role))
+export const sortedRoles = (roles: readonly string[]): TeamRole[] => VENDOR_ROLES.filter(role => roles.includes(role))
 
 export const reasonValid = (reason: string): boolean => {
   const length = reason.trim().length

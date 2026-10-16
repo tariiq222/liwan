@@ -1,7 +1,5 @@
 import { z } from 'zod'
 
-export const vendorCapabilitySchema = z.enum(['vendor.read', 'vendor.tenants.manage', 'vendor.catalog.manage', 'vendor.operations.run', 'vendor.audit.read', 'vendor.pricing.manage', 'vendor.subscriptions.manage', 'vendor.billing.manage', 'vendor.accounts.manage'])
-export type VendorCapability = z.infer<typeof vendorCapabilitySchema>
 export const commercialModeSchema = z.enum(['saas', 'non_saas'])
 export const hostingModelSchema = z.enum(['managed', 'customer_hosted'])
 export const tenantStatusSchema = z.enum(['registered', 'provisioning', 'active', 'needs_intervention'])
@@ -56,6 +54,7 @@ export type OperationRequest = z.infer<typeof operationRequestSchema>
 // Shared multi-tenant provisioning contracts (t3). Subpath `@nasq/commercial-contracts/shared`
 // is the canonical import; this barrel re-export keeps root-package consumers working.
 export * from './shared/provisioning.js'
+export * from './admin.js'
 
 export const sharedOnboardingRequestSchema = z.strictObject({
   request_id: z.uuid(), name: z.string().trim().min(1).max(200),

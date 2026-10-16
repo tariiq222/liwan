@@ -8,6 +8,8 @@ import { resolvePackageAuthority, resolvePackageJobAuthority } from '../packages
 import { seedPublishedPackage } from './package-fixtures.js'
 import { bindJob, payloadDigest, businessKey } from '../shared/provisioning.js'
 import { migrateLegacyToSaas, effectivePolicyHashes, tenantRowSnapshot, uuidv5 } from '../commercial/legacy-mapping.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) { const p = new URL(url); if (!['127.0.0.1', 'localhost', '::1'].includes(p.hostname) || !/^nasq_control_scratch_[a-z0-9]+$/.test(p.pathname.slice(1))) throw Error('scratch control DB required') }
@@ -18,7 +20,7 @@ const COMMERCIAL_ZERO = ['orders', 'invoices', 'invoice_lines', 'payment_attempt
 
 suite('legacy → SaaS commercial migration (C1)', () => {
   const pool = new Pool({ connectionString: url, max: 6 })
-  const actor = { issuer: `c1-${randomUUID()}`, actorUid: 7 }
+  const actor = { issuer: vendorActorIssuer(`c1-${randomUUID()}`), actorUid: 7 }
   const reason = 'Legacy migration fixture'
   const T = { catalogOnly: randomUUID(), pkg: randomUUID(), nonSaas: randomUUID(), noBilling: randomUUID(), zero: randomUUID(), commercial: randomUUID(), enrolling: randomUUID() }
   const commercialCustomers = { bound: randomUUID(), enrolling: randomUUID() }
@@ -52,7 +54,7 @@ suite('legacy → SaaS commercial migration (C1)', () => {
     const raw = await readFile(new URL('../../../../deploy/catalog/solutions/platform.json', import.meta.url))
     version = `c1-${randomUUID()}`
     await pool.query("INSERT INTO catalog_entries(id,version,status,solution,source_sha256) VALUES($1,$2,'published',$3,$4)", [randomUUID(), version, JSON.parse(raw.toString()), createHash('sha256').update(raw).digest('hex')])
-    await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,ARRAY['vendor.read','vendor.catalog.manage','vendor.tenants.manage','vendor.operations.run'])", [actor.issuer])
+    await vendorAccount(pool, ['product', 'customer_success', 'operations'], 7)
 
     // real published package (seeded with its exact digest) pinned by a tenant, then withdrawn
     const input = { name: 'Legacy projects', description: 'pinned', catalog_version: version, catalog_tier: 'projects', limits: { 'users.limit': 3, 'storage.limit_mb': 2, 'projects.max_projects': 1 } }

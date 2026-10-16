@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
+import { adminChallengeResultSchema, adminErrorBodySchema, adminInvitationInfoSchema, adminSessionResultSchema, adminTotpEnrollmentSchema } from '@nasq/commercial-contracts'
 import { signServiceRequest } from '@nasq/commercial-contracts/server'
 import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
 import { inviteAccount, issueReset } from '../enrollment.js'
-import { open } from '../crypto.js'
+import { open, totpBoxAad } from '../crypto.js'
 import { createSession, resolveSession } from '../sessions.js'
 import { totpAt, totpStep } from '../totp.js'
 import type { WebAuthnLib } from '../webauthn.js'
@@ -74,7 +75,7 @@ else describe('admin auth routes', () => {
     expect(verified.text).toBe('')
     const totp = await post('/v1/admin/auth/enroll/totp', { token })
     expect(totp.status).toBe(200)
-    const secret = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'))
+    const secret = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'), totpBoxAad(Number((await pool.query('SELECT id FROM vendor_accounts WHERE email=$1', [accountEmail])).rows[0].id)))
     const complete = await post('/v1/admin/auth/enroll/complete', { token, password, totp_code: totpAt(secret, totpStep(Date.now())), totp_box: totp.body.totp_box })
     return { id, secret, totp, complete, accountEmail }
   }
@@ -87,8 +88,8 @@ else describe('admin auth routes', () => {
   const fallback = async (over: Record<string, unknown> = {}, extra: Record<string, string> = {}) => post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: await freshCode(), ...over }, extra)
 
   beforeEach(async () => {
-    await pool.query('TRUNCATE vendor_accounts, vendor_memberships, vendor_auth_attempts, vendor_auth_challenges, service_nonces, audit_events CASCADE')
-    const { token } = await transaction(pool, (c) => inviteAccount(c, baseConfig.installationId, 'operator', { email: 'Owner@Nasq.sa', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, new Date()))
+    await pool.query('TRUNCATE vendor_accounts, vendor_auth_attempts, vendor_auth_challenges, service_nonces, audit_events CASCADE')
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'Owner@Nasq.sa', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, new Date()))
     const done = await enrollVia(token, 'owner@nasq.sa')
     expect(done.complete.status).toBe(200)
     accountId = Number((await pool.query("SELECT id FROM vendor_accounts WHERE email='owner@nasq.sa'")).rows[0].id)
@@ -105,16 +106,16 @@ else describe('admin auth routes', () => {
     const row = await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
     expect(row.rows[0].status).toBe('active')
     expect((await resolve(session)).stepUpFresh).toBe(true)
-    const { token } = await transaction(pool, (c) => inviteAccount(c, baseConfig.installationId, 'operator', { email: 'new@nasq.sa', displayName: 'New', roles: ['support'], reason: 'support' }, new Date()))
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'new@nasq.sa', displayName: 'New', roles: ['support'], reason: 'support' }, new Date()))
     const opened = await post('/v1/admin/auth/invitation', { token })
     expect(opened).toMatchObject({ status: 200, body: { email: 'new@nasq.sa', purpose: 'enroll' } })
     const bad = await post('/v1/admin/auth/invitation', { token: 'A'.repeat(43) })
     expect([bad.status, bad.body]).toEqual([401, { code: 'auth_failed' }])
   })
   it('derives the passkey requirement from the database, not the request', async () => {
-    const { token } = await transaction(pool, (c) => inviteAccount(c, baseConfig.installationId, 'operator', { email: 'nopass@nasq.sa', displayName: 'N', roles: ['support'], reason: 'support' }, new Date()))
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'nopass@nasq.sa', displayName: 'N', roles: ['support'], reason: 'support' }, new Date()))
     const totp = await post('/v1/admin/auth/enroll/totp', { token })
-    const s = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'))
+    const s = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'), totpBoxAad(Number((await pool.query("SELECT id FROM vendor_accounts WHERE email='nopass@nasq.sa'")).rows[0].id)))
     const body = { token, password: PASSWORD, totp_code: totpAt(s, totpStep(Date.now())), totp_box: totp.body.totp_box }
     const forged = await post('/v1/admin/auth/enroll/complete', { ...body, passkey_registered: true })
     expect([forged.status, forged.body]).toEqual([422, { code: 'invalid' }])
@@ -155,6 +156,41 @@ else describe('admin auth routes', () => {
     expect(scopes).toContain('ip:203.0.113.9')
     expect(scopes.filter((s) => s.startsWith('ip:') && s !== 'ip:203.0.113.9')).toHaveLength(1)
     expect(scopes.some((s) => s.includes('DROP'))).toBe(false)
+  })
+  it('counts an IPv6 client by its /64, so rotating the host part does not reset the limit', async () => {
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-nasq-client-ip': '2001:db8:0:1::1' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-nasq-client-ip': '2001:db8:0:1:ffff::9' })
+    await fallback({ password: 'wrong wrong wrong' }, { 'x-nasq-client-ip': '2001:db8:0:2::1' })
+    const rows = (await attempts()).filter((r) => String(r.scope).startsWith('ip:'))
+    expect(rows).toEqual([{ scope: 'ip:2001:db8:0:1::/64', failures: 2 }, { scope: 'ip:2001:db8:0:2::/64', failures: 1 }])
+  })
+  it('lets exactly one of two parallel sign-ins with the same TOTP code through', async () => {
+    const code = await freshCode()
+    const results = await Promise.all([0, 1].map(() => post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: code })))
+    expect(results.map((r) => r.status).sort()).toEqual([200, 401])
+  })
+  it('answers 503 admin_unavailable, not a credential verdict, when storage fails', async () => {
+    const broken = new Pool({ connectionString: url })
+    await broken.end()
+    const { s, origin: brokenOrigin } = await listen(createApp(broken, { ...baseConfig, admin }, { webauthn: lib }))
+    try {
+      const res = await post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: '123456' }, {}, brokenOrigin)
+      expect([res.status, res.body]).toEqual([503, { code: 'admin_unavailable' }])
+    } finally { await new Promise<void>((resolve) => s.close(() => resolve())) }
+  })
+  it('answers in the shapes of the shared contract, strictly', async () => {
+    expect(adminSessionResultSchema.parse(await freshCode().then((totp_code) => post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code })).then((r) => r.body))).toBeDefined()
+    expect(adminSessionResultSchema.parse({ session, ...(await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[0] })).body })).toBeDefined()
+    expect(adminChallengeResultSchema.parse((await post('/v1/admin/auth/passkey/options', {})).body)).toBeDefined()
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'shape@nasq.sa', displayName: 'S', roles: ['support'], reason: 'support' }, new Date()))
+    expect(adminInvitationInfoSchema.parse((await post('/v1/admin/auth/invitation', { token })).body)).toEqual({ email: 'shape@nasq.sa', purpose: 'enroll' })
+    expect(adminTotpEnrollmentSchema.parse((await post('/v1/admin/auth/enroll/totp', { token })).body)).toBeDefined()
+    const done = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'shape', new Date()))
+    const enrolled = await enrollVia(done.token, 'owner@nasq.sa', 'a brand new password')
+    expect(adminSessionResultSchema.parse(enrolled.complete.body).recovery_codes).toHaveLength(10)
+    for (const failed of [await post('/v1/admin/auth/fallback', { email: 'nobody@nasq.sa', password: PASSWORD, totp_code: '123456' }), await post('/v1/admin/auth/fallback', {}), await post('/v1/admin/auth/passkey/options', {}, {}, bareOrigin)]) {
+      expect(adminErrorBodySchema.parse(failed.body)).toEqual(failed.body)
+    }
   })
   it('uses a recovery code once', async () => {
     const first = await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[0] })
@@ -222,7 +258,7 @@ else describe('admin auth routes', () => {
     expect((await resolve(s)).stepUpFresh).toBe(true)
   })
   it('refuses a step-up challenge of another account', async () => {
-    const b = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('b@nasq.sa','B','active') RETURNING id")).rows[0].id)
+    const b = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@nasq.sa','B','active','x') RETURNING id")).rows[0].id)
     await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES('cred-b',$1,'\\x01')", [b])
     const bSession = await transaction(pool, (c) => createSession(c, b, new Date(), false))
     const foreign = await post('/v1/admin/auth/step-up/options', {}, signed(bSession.session))
@@ -263,20 +299,57 @@ else describe('admin auth routes', () => {
     const big = await post('/v1/admin/auth/passkey/verify', { challenge_id: crypto.randomUUID(), response: { id: 'x'.repeat(20000) } })
     expect([big.status, big.body]).toEqual([422, { code: 'invalid' }])
   })
-  it('wipes old credentials and sessions on a reset and keeps the account', async () => {
+  const passkeyLogin = async (id: string) => {
+    const options = await post('/v1/admin/auth/passkey/options', {})
+    return post('/v1/admin/auth/passkey/verify', { challenge_id: options.body.challenge_id, response: { id } })
+  }
+  it('makes every old credential unusable the moment a reset is issued', async () => {
     const { token } = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'lost device', new Date()))
     const opened = await post('/v1/admin/auth/invitation', { token })
     expect(opened.body.purpose).toBe('reset')
+    expect((await pool.query('SELECT status, password_hash FROM vendor_accounts WHERE id=$1', [accountId])).rows[0]).toEqual({ status: 'enrolling', password_hash: null })
+    for (const table of ['vendor_passkeys', 'vendor_totp', 'vendor_recovery_codes']) expect((await pool.query(`SELECT 1 FROM ${table} WHERE account_id=$1`, [accountId])).rowCount).toBe(0)
+    await expect(resolve(session)).rejects.toMatchObject({ code: 'auth_failed' })
+    expect((await fallback()).status).toBe(401)
+    await pool.query('TRUNCATE vendor_auth_attempts')
+    expect((await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[0] })).status).toBe(401)
+    expect((await passkeyLogin(passkey)).status).toBe(401)
+  })
+  it('refuses every sign-in for a half-finished reset', async () => {
+    const { token } = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'lost device', new Date()))
+    const options = await post('/v1/admin/auth/enroll/passkey/options', { token })
+    const fresh = credId()
+    expect((await post('/v1/admin/auth/enroll/passkey/verify', { token, challenge_id: options.body.challenge_id, response: { id: fresh }, label: 'New' })).status).toBe(204)
+    expect((await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])).rows[0].status).toBe('enrolling')
+    expect((await passkeyLogin(fresh)).status).toBe(401)
+    expect((await fallback()).status).toBe(401)
+    expect((await post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[0] })).status).toBe(401)
+    // The same token keeps working to finish the enrolment: nothing was consumed or wiped by the half step.
+    const totp = await post('/v1/admin/auth/enroll/totp', { token })
+    const secretNow = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'), totpBoxAad(accountId))
+    expect((await post('/v1/admin/auth/enroll/complete', { token, password: 'a brand new password', totp_code: totpAt(secretNow, totpStep(Date.now())), totp_box: totp.body.totp_box })).status).toBe(200)
+  })
+  it('finishes a reset once and keeps the new credentials when the token is replayed', async () => {
+    const { token } = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'lost device', new Date()))
     const done = await enrollVia(token, 'owner@nasq.sa', 'a brand new password')
     expect(done.complete.status).toBe(200)
     const passkeys = await pool.query('SELECT credential_id FROM vendor_passkeys WHERE account_id=$1', [accountId])
     expect(passkeys.rows.map((r) => r.credential_id)).toEqual([done.id])
-    const started = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='account.reset_started'")
-    expect(started.rows).toEqual([{ actor: `account:${accountId}`, subject: `account:${accountId}`, reason: 'reset' }])
-    expect((await pool.query("SELECT reason FROM audit_events WHERE action='auth.passkey_registered' ORDER BY created_at DESC LIMIT 1")).rows[0].reason).toBe('reset')
-    await expect(resolve(session)).rejects.toMatchObject({ code: 'auth_failed' })
     expect((await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])).rows[0].status).toBe('active')
     expect((await pool.query('SELECT count(*)::int AS n FROM vendor_accounts')).rows[0].n).toBe(1)
+    const issued = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='account.reset_issued'")
+    expect(issued.rows).toEqual([{ actor: 'operator', subject: `account:${accountId}`, reason: 'lost device' }])
+    const completed = await pool.query("SELECT actor, subject, reason FROM audit_events WHERE action='account.reset_completed'")
+    expect(completed.rows).toEqual([{ actor: `account:${accountId}`, subject: `account:${accountId}`, reason: 'reset' }])
+    // Replays of the spent token change nothing.
+    const reopen = await post('/v1/admin/auth/enroll/passkey/options', { token })
+    expect([reopen.status, reopen.body]).toEqual([401, { code: 'auth_failed' }])
+    const again = await post('/v1/admin/auth/enroll/passkey/verify', { token, challenge_id: crypto.randomUUID(), response: { id: credId() }, label: 'Replay' })
+    expect(again.status).toBe(401)
+    const secondTotp = await post('/v1/admin/auth/enroll/totp', { token })
+    expect(secondTotp.status).toBe(401)
+    expect((await post('/v1/admin/auth/enroll/complete', { token, password: 'another password!!', totp_code: totpAt(done.secret, totpStep(Date.now())), totp_box: done.totp.body.totp_box })).status).toBe(401)
+    expect((await pool.query('SELECT credential_id FROM vendor_passkeys WHERE account_id=$1', [accountId])).rows.map((r) => r.credential_id)).toEqual([done.id])
     secret = done.secret
     expect((await fallback({ password: PASSWORD })).status).toBe(401)
     await pool.query('TRUNCATE vendor_auth_attempts')

@@ -4,6 +4,7 @@ CREATE TABLE vendor_accounts (
   display_name text NOT NULL CHECK (length(btrim(display_name)) BETWEEN 1 AND 120),
   status text NOT NULL DEFAULT 'enrolling' CHECK (status IN ('enrolling','active','disabled')),
   password_hash text,
+  CHECK (status <> 'active' OR password_hash IS NOT NULL),
   created_at timestamptz NOT NULL DEFAULT now(),
   disabled_at timestamptz
 );
@@ -27,7 +28,7 @@ CREATE TABLE vendor_totp (
   account_id bigint PRIMARY KEY REFERENCES vendor_accounts(id) ON DELETE CASCADE,
   secret_box bytea NOT NULL,
   last_step bigint NOT NULL DEFAULT 0,
-  confirmed_at timestamptz
+  confirmed_at timestamptz NOT NULL
 );
 CREATE TABLE vendor_recovery_codes (
   account_id bigint NOT NULL REFERENCES vendor_accounts(id) ON DELETE CASCADE,
@@ -69,5 +70,13 @@ CREATE TABLE vendor_auth_attempts (
   PRIMARY KEY (scope)
 );
 
--- Legacy memberships were keyed by Odoo uid; only vendor accounts may hold active memberships now.
-UPDATE vendor_memberships SET revoked_at = now() WHERE revoked_at IS NULL;
+-- A vendor's authority is computed from vendor_account_roles and vendor_accounts.status; the table that
+-- copied it (keyed by Odoo uid) is gone. Rows that recorded an Odoo uid as their actor keep their issuer,
+-- which is never the vendor-account issuer, so no grant check can match them to an account.
+DROP TABLE vendor_memberships;
+-- Audit actors of a vendor account are written as account:<id>. Older rows named an Odoo uid (a bare
+-- number, or issuer:uid); they are tagged so a filter on account:<id> never returns another person's work.
+-- System actors (legacy-migration:1, <installation>:commercial-fulfillment:1) already have their final form.
+UPDATE audit_events SET actor = 'legacy-uid:' || actor WHERE actor ~ '^[0-9]+$';
+UPDATE audit_events SET actor = 'legacy-uid:' || actor
+  WHERE actor ~ '^.+:[0-9]+$' AND actor NOT LIKE 'account:%' AND actor NOT LIKE 'legacy-uid:%' AND actor NOT LIKE 'legacy-migration:%' AND actor NOT LIKE '%:commercial-fulfillment:%';

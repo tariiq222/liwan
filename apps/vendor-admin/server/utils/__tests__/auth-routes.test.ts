@@ -36,8 +36,17 @@ describe('auth routes', () => {
   beforeEach(() => stubConfig())
   afterEach(() => vi.unstubAllGlobals())
 
+  // What the control plane answers per route, in the shapes of the contracts package.
+  const answers: Record<string, unknown> = {
+    '/v1/admin/auth/passkey/options': { challenge_id: CHALLENGE, options: {} },
+    '/v1/admin/auth/step-up/options': { challenge_id: CHALLENGE, options: {} },
+    '/v1/admin/auth/enroll/passkey/options': { challenge_id: CHALLENGE, options: {} },
+    '/v1/admin/auth/invitation': { email: 'a@example.test', purpose: 'enroll' },
+    '/v1/admin/auth/enroll/totp': { totp_uri: 'otpauth://totp/x', totp_box: 'QUJD' },
+  }
+
   it.each(cases)('$name relays to the control plane path and body', async ({ handler, path, upstream, body, sessionCookie }) => {
-    const calls = stubUpstream(() => json(200, { ok: true, ...signedIn }))
+    const calls = stubUpstream(() => json(200, answers[upstream] ?? signedIn))
     const headers = sessionCookie ? cookieHeader() : undefined
     const result = await send(handler, path, { body, headers })
     expect(at(calls, 0).url.pathname).toBe(upstream)
@@ -109,6 +118,15 @@ describe('auth routes', () => {
     expect((await send(passkeyVerify, '/api/auth/passkey-verify', { body: at(cases, 1).body })).status).toBe(503)
   })
 
+  it('an answer that leaves the contract is a vendor outage, whether it adds or drops a field', async () => {
+    stubUpstream(() => json(200, { ...signedIn, added_by_the_control_plane: 1 }))
+    expect(await send(fallback, '/api/auth/fallback', { body: at(cases, 2).body })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => json(200, { challenge_id: CHALLENGE }))
+    expect(await send(passkeyOptions, '/api/auth/passkey-options', { body: {} })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => json(401, { code: 'auth_failed', stack: 'secret' }))
+    expect(await send(fallback, '/api/auth/fallback', { body: at(cases, 2).body })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+  })
+
   it('a failed sign-in sets no cookie', async () => {
     stubUpstream(() => json(401, { code: 'auth_failed' }))
     const result = await send(fallback, '/api/auth/fallback', { body: at(cases, 2).body })
@@ -154,6 +172,14 @@ describe('GET /api/auth/session', () => {
     expect(result).toMatchObject({ status: 200, body: me })
     expect(at(calls, 0).url.pathname).toBe('/v1/admin/me')
     expect(at(calls, 0).method).toBe('GET')
+  })
+
+  it('is a vendor outage when the profile leaves the contract', async () => {
+    stubUpstream(() => json(200, { ...me, added_by_the_control_plane: 1 }))
+    expect(await send(session, '/api/auth/session', { method: 'GET', headers: cookieHeader() })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    const { display_name: _dropped, ...renamed } = me
+    stubUpstream(() => json(200, { ...renamed, name: 'A' }))
+    expect((await send(session, '/api/auth/session', { method: 'GET', headers: cookieHeader() })).status).toBe(503)
   })
 
   it('is 401 auth_failed and clears the cookie when the control plane rejects the session', async () => {

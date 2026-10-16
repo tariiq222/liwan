@@ -14,6 +14,8 @@ import type { ObserveRunner } from '../shared/subscription-reconcile.js'
 import type { Pool, PoolClient } from 'pg'
 import type { SharedJob } from '@nasq/commercial-contracts/shared'
 import * as backup from '../shared/shared-backup.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const tenant = 'ad03d956-efef-4f80-baf3-9c23ea46e945'
 const job: Extract<SharedJob, {operation:'restore'}> = {
@@ -40,13 +42,13 @@ const url = source ? (() => { const u = new URL(source); if (!['localhost','127.
 
 describe.skipIf(!url)('commercial restore publication (live PG, fake physical receipts)', () => {
   const pool = new PgPool({ connectionString: url, max: 10 })
-  const issuer = `restore-commercial-${randomUUID()}`, actor = { issuer, actorUid: 7 }
+  const issuer = vendorActorIssuer(`restore-commercial-${randomUUID()}`), actor = { issuer, actorUid: 7 }
   let root = '', runtime: SharedRuntimeConfig
   beforeAll(async () => {
     await migrate(pool)
     root = await realpath(await mkdtemp(join(tmpdir(), 'nasq-restore-commercial-')))
     runtime = { schemaVersion: 1, projectName: 'nasq-restore-commercial', composeFile: join(root,'compose.yml'), envFile: join(root,'env'), stateDir: root, domainSuffix: 'restore.invalid' }
-    await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,ARRAY['vendor.operations.run','vendor.tenants.manage'])", [issuer])
+    await vendorAccount(pool, ['customer_success', 'operations'], 7)
   })
   afterAll(async () => { await pool.end(); if (root) await rm(root, { recursive: true, force: true }) })
 

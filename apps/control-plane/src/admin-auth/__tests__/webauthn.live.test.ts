@@ -33,8 +33,8 @@ else describe('webauthn', () => {
   beforeEach(async () => {
     await migrate(pool)
     await pool.query('TRUNCATE vendor_accounts CASCADE')
-    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('a@nasq.sa','A','active') RETURNING id")).rows[0].id)
-    otherAccountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('b@nasq.sa','B','active') RETURNING id")).rows[0].id)
+    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('a@nasq.sa','A','active','x') RETURNING id")).rows[0].id)
+    otherAccountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@nasq.sa','B','active','x') RETURNING id")).rows[0].id)
   })
   afterAll(async () => { await pool.end() })
 
