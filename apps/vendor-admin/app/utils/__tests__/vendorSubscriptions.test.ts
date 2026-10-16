@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice, Order, SubscriptionView } from '@nasq/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isOverdue, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
+  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isOverdue, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
   type VendorCustomer,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
@@ -117,5 +117,20 @@ describe('isOverdue', () => {
     expect(isOverdue({ status: 'issued', due_at: '2026-11-01T00:00:00Z' }, now)).toBe(false)
     expect(isOverdue({ status: 'paid', due_at: '2026-10-01T00:00:00Z' }, now)).toBe(false)
     expect(isOverdue({ status: 'issued', due_at: null }, now)).toBe(false)
+  })
+})
+
+describe('customer glance helpers', () => {
+  const now = new Date('2026-10-16T10:00:00Z')
+  const order = (o: Partial<Order>) => ({ fulfillment_state: 'queued', created_at: '2026-10-16T09:00:00Z', ...o }) as Order
+  it('counts calendar days to a date', () => {
+    expect(daysUntilDate('2026-10-20', now)).toBe(4)
+    expect(daysUntilDate('2026-10-16', now)).toBe(0)
+  })
+  it('flags failed orders and queued ones older than a day', () => {
+    expect(isStalled(order({ fulfillment_state: 'failed' }), now)).toBe(true)
+    expect(isStalled(order({ created_at: '2026-10-14T00:00:00Z' }), now)).toBe(true)
+    expect(isStalled(order({}), now)).toBe(false)
+    expect(isStalled(null, now)).toBe(false)
   })
 })

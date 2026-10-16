@@ -54,6 +54,22 @@ export function orderFulfillmentBadge(order: Pick<Order, 'fulfillment_state'>): 
 }
 
 // ---- Branches / usage ----
+// ---- Customer glance: renewal countdown and stalled activation, matching the control plane's 24-hour threshold ----
+export const STALLED_HOURS = 24
+export function daysUntilDate(isoDate: string, now: Date): number {
+  const [y, m, d] = isoDate.split('-').map(Number)
+  return Math.round((Date.UTC(y!, m! - 1, d!) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000)
+}
+export function isStalled(order: Order | null, now: Date): boolean {
+  if (!order) return false
+  if (order.fulfillment_state === 'failed' || order.fulfillment_state === 'needs_intervention') return true
+  if (order.fulfillment_state === 'queued' || order.fulfillment_state === 'applying') {
+    const created = Date.parse(order.created_at)
+    return Number.isFinite(created) && now.getTime() - created > STALLED_HOURS * 3_600_000
+  }
+  return false
+}
+
 export function branchSummaryText(s: { free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null }) {
   return { hq: 1, freeUsed: s.free_extra_used, freeAllowed: s.free_extra_allowed, paid: s.paid, limit: s.limit }
 }

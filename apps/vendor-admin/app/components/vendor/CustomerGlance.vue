@@ -7,7 +7,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { ClientTab } from '@/utils/vendorClients'
 import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 import { customerDisplayBadge } from '@/utils/vendorBadges'
-import { daysUntil, isStalled, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
+import { daysUntilDate, isStalled, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 
 // The customer at a glance: plan, renewal, last invoice, workspace, and what needs attention, each linking to its tab.
 const props = defineProps<{
@@ -33,7 +33,7 @@ const display = computed(() => (sub.value ? subscriptionDisplayState(sub.value) 
 const renewal = computed(() => {
   const at = sub.value?.renewal_at
   if (!at || ['cancelled', 'suspended'].includes(sub.value?.state ?? '')) return null
-  const days = daysUntil(at, new Date())
+  const days = daysUntilDate(at, new Date())
   const hint = days > 0 ? t('vendor.customers.glance.renewalIn', { days }) : days === 0 ? t('vendor.customers.glance.renewalToday') : t('vendor.customers.glance.renewalLate', { days: -days })
   return { date: formatNasqDate(at, locale.value), hint: `${hint} · ${t(sub.value?.auto_renew.enabled ? 'vendor.customers.glance.autoRenewOn' : 'vendor.customers.glance.autoRenewOff')}` }
 })
