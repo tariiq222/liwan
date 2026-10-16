@@ -1,4 +1,4 @@
-import { actorHolds } from './admin-auth/grants.js'
+import { actorHolds, actorLabel } from './admin-auth/grants.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -261,7 +261,7 @@ export async function finishClaim(pool: Pool, claimed: Claimed, status: 'succeed
     if (status === 'needs_intervention' && type === 'tenant.create' && typeof result.policy_revision === 'number') await client.query('UPDATE tenants SET policy_revision=$1,health_checked_at=now() WHERE id=$2', [result.policy_revision, op.tenant_id])
     if (status === 'failed' && type === 'tenant.create' && result.deployment_ready !== false) await client.query("UPDATE tenants SET status='registered' WHERE id=$1", [op.tenant_id])
     if (status === 'needs_intervention' && (MUTATIONS.has(type) || (type === 'create' && result.deployment_ready !== true))) await client.query("UPDATE tenants SET status='needs_intervention' WHERE id=$1", [op.tenant_id])
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),String(op.actor_uid),`operation.${type}.${status}`,String(op.tenant_id),String(op.reason)])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actorLabel({ issuer: String(op.issuer), actorUid: Number(op.actor_uid) }),`operation.${type}.${status}`,String(op.tenant_id),String(op.reason)])
     return true
   })
 }

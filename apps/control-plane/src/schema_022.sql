@@ -74,3 +74,9 @@ CREATE TABLE vendor_auth_attempts (
 -- copied it (keyed by Odoo uid) is gone. Rows that recorded an Odoo uid as their actor keep their issuer,
 -- which is never the vendor-account issuer, so no grant check can match them to an account.
 DROP TABLE vendor_memberships;
+-- Audit actors of a vendor account are written as account:<id>. Older rows named an Odoo uid (a bare
+-- number, or issuer:uid); they are tagged so a filter on account:<id> never returns another person's work.
+-- System actors (legacy-migration:1, <installation>:commercial-fulfillment:1) already have their final form.
+UPDATE audit_events SET actor = 'legacy-uid:' || actor WHERE actor ~ '^[0-9]+$';
+UPDATE audit_events SET actor = 'legacy-uid:' || actor
+  WHERE actor ~ '^.+:[0-9]+$' AND actor NOT LIKE 'account:%' AND actor NOT LIKE 'legacy-uid:%' AND actor NOT LIKE 'legacy-migration:%' AND actor NOT LIKE '%:commercial-fulfillment:%';

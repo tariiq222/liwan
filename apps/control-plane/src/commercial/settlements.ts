@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
 import { audit, type CommercialActor } from './lifecycle.js'
 import type { PaymentAdapter } from './payment-adapter.js'
+import { actorLabel } from '../admin-auth/grants.js'
 
 /** Late payment is a manual credit review, never an automatic provider refund. */
 export async function processRefundOutbox(pool: Pool, _adapter?: PaymentAdapter): Promise<number> {
@@ -36,7 +37,7 @@ export async function recordFulfillmentFailure(client: PoolClient, { order_id, r
     await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by)
       VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending',$8)`,
     [id,invoice.id,invoice.customer_id,reason,invoice.total_minor,invoice.currency,invoice.exponent,
-      typeof actor === 'string' ? actor : `${actor.issuer}:${actor.actorUid}`])
+      typeof actor === 'string' ? actor : actorLabel(actor)])
     ids.push(id)
   }
   if (ids.length && typeof actor !== 'string') await audit(client, actor, 'invoice.credit_pending', order_id, reason, { adjustment_ids: ids })

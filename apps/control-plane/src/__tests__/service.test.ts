@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { replaceRoles, vendorSession } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 import { migrate } from '../db.js'
 import { createApp } from '../http.js'
 import { claimNext, executeClaimed, expireLeases, finishClaim } from '../worker.js'
@@ -27,9 +28,11 @@ else describe('control-plane PostgreSQL integration', () => {
   let fixtureDir: string
   let s7: Awaited<ReturnType<typeof vendorSession>>
   let s8: Awaited<ReturnType<typeof vendorSession>>
+  let startedAt: Date
 
   beforeAll(async () => {
     await migrate(pool)
+    startedAt = (await pool.query('SELECT clock_timestamp() AS now')).rows[0].now
     await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
     await pool.query('TRUNCATE vendor_accounts CASCADE')
     fixtureDir = await mkdtemp(join(tmpdir(), 'nasq-control-test-'))
@@ -166,7 +169,7 @@ else describe('control-plane PostgreSQL integration', () => {
     expect(tenant.rowCount).toBe(1)
     await pool.query(`INSERT INTO operations(id,tenant_id,actor_uid,issuer,type,request_id,reason,payload,payload_digest,status,stage,result)
       VALUES($1,$2,$6,$3,'tenant.create',$4,'Markerless incomplete create','{}','markerless-fixture','needs_intervention','deployment_incomplete',$5)`, [
-      crypto.randomUUID(), tenant.rows[0].id, config.installationId, crypto.randomUUID(),
+      crypto.randomUUID(), tenant.rows[0].id, vendorActorIssuer(config.installationId), crypto.randomUUID(),
       {status:'ok',policy_verified:true,deployment_ready:false}, s7.accountId,
     ])
 
@@ -191,5 +194,14 @@ else describe('control-plane PostgreSQL integration', () => {
     const prior = await pool.query("SELECT request_id FROM operations WHERE tenant_id<>$1 ORDER BY created_at LIMIT 1",[tenant.id])
     expect((await call('POST',`/v1/tenants/${tenant.id}/operations`,JSON.stringify({type:'backup',request_id:prior.rows[0].request_id,reason:'Cross tenant request'}))).status).toBe(409)
     expect((await call('POST',`/v1/tenants/${tenant.id}/operations`,JSON.stringify({type:'backup',request_id:crypto.randomUUID(),reason:'Known database-ready state'}))).status).toBe(202)
+  })
+  it('writes every audit actor of a vendor account as account:<id>, so one filter finds all its actions', async () => {
+    const own = await pool.query('SELECT action FROM audit_events WHERE actor=$1 ORDER BY created_at', [`account:${s7.accountId}`])
+    const actions = own.rows.map((r) => r.action as string)
+    expect(actions).toEqual(expect.arrayContaining(['tenant.registered', 'operation.tenant.create.queued']))
+    const actors = (await pool.query('SELECT DISTINCT actor FROM audit_events WHERE created_at >= $1', [startedAt])).rows.map((r) => r.actor as string)
+    expect(actors.filter((actor) => !/^(account:[1-9][0-9]*|operator|anonymous)$/.test(actor))).toEqual([])
+    const worker = await pool.query("SELECT actor FROM audit_events WHERE action LIKE 'operation.%.failed' OR action LIKE 'operation.%.succeeded'")
+    expect(worker.rows.every((r) => r.actor === `account:${s7.accountId}`)).toBe(true)
   })
 })

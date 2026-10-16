@@ -1,4 +1,3 @@
-import { actorHolds } from '../admin-auth/grants.js'
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
 import { resolvePackageAuthority } from '../packages.js'
 import { randomUUID } from 'node:crypto'
@@ -11,6 +10,7 @@ import { resolveRegistryBinding, type RegistryActor } from './registry-store.js'
 import { bindJob, businessKey, payloadDigest, assertSameBinding } from './provisioning.js'
 import type { TenantStorage } from './fenced-adapter.js'
 import { assertRestoreTargetInspectable, assertRestoreTargetUnreserved } from './shared-backup.js'
+import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 /** Restore enqueues may carry the caller's tenant-database connector so the
  * approved target can be inspected before anything is queued. */
@@ -119,7 +119,7 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
     if (existing.rowCount) {
       if (existing.rows[0].issuer !== actor.issuer || Number(existing.rows[0].actor_uid) !== actor.actorUid) throw new Error('shared_replay_forbidden')
       if (existing.rows[0].payload_digest !== digest) throw new Error('idempotency_conflict')
-      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actor.issuer+':'+actor.actorUid,'shared_job.replayed',existing.rows[0].id,reason])
+      await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actorLabel(actor),'shared_job.replayed',existing.rows[0].id,reason])
       return { id: existing.rows[0].id as string, state: existing.rows[0].state as string, replay: true }
     }
     // Consumption/expiry prohibit a NEW effect, not an authenticated exact
@@ -155,7 +155,7 @@ export async function enqueueSharedJob(pool: Pool, controlTenantId: string, acto
     const id = randomUUID()
     await client.query('INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1,$2,$3,$4,$5,$6,$7,$8)', [id,controlTenantId,key,job,digest,actor.issuer,actor.actorUid,reason])
     if (job.operation === 'provision') await client.query("UPDATE shared_onboardings SET job_id=$1,job_digest=$2,stage='queued',error_code=NULL WHERE control_tenant_id=$3 AND request_id=$4 AND issuer=$5 AND actor_uid=$6 AND job_id IS NULL", [id,digest,controlTenantId,job.requestId,actor.issuer,actor.actorUid])
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actor.issuer+':'+actor.actorUid,'shared_job.queued',id,reason])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actorLabel(actor),'shared_job.queued',id,reason])
     return { id, state: 'queued', replay: false }
   })
 }

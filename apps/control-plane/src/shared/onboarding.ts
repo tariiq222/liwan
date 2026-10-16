@@ -1,4 +1,3 @@
-import { actorHolds } from '../admin-auth/grants.js'
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
 import { PackageError } from '../packages.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -12,6 +11,7 @@ import { loadSharedRuntimeConfig } from './runtime-config.js'
 import { publishRegistryMutation, recoverRegistry, resolveRegistryBinding, type RegistryActor } from './registry-store.js'
 import { deriveSharedPolicy, enqueueSharedJob } from './job-store.js'
 import { payloadDigest } from './provisioning.js'
+import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 export function onboardingIdentity(value:unknown,domainSuffix:string){
   const input=sharedOnboardingRequestSchema.parse(value)
@@ -57,7 +57,7 @@ export async function onboardSharedTenant(pool:Pool,config:Config,actor:Registry
     deriveSharedPolicy(catalog.rows[0].solution,tier)
     await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled,status) VALUES($1,$2,'saas','managed',$3,$4,$5,NULL,true,'provisioning')",[identity.tenantId,input.name,`shared-${identity.slug}`,version,tier])
     await client.query('INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,host,tenant_slug,database_name) VALUES($1,$1,$2,$3,$4,$5,$6,$7,$8,$9)',[input.request_id,actor.issuer,actor.actorUid,identity.digest,input.admin_name,input.admin_login,identity.host,identity.slug,identity.database])
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),`${actor.issuer}:${actor.actorUid}`,'shared_onboarding.reserved',identity.tenantId,input.reason])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_onboarding.reserved',identity.tenantId,input.reason])
     return false
   })
   try{

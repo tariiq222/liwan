@@ -1,9 +1,9 @@
-import { actorHolds } from '../admin-auth/grants.js'
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { withPublicationLock, beginPublication, completePublication } from './registry-publisher.js'
 import { prepareCommercialRestorePublication, revalidateCommercialRestorePublication, type CommercialRestoreRunner } from './shared-backup.js'
+import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 const revision = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1)
 const resource = z.string().regex(/^[a-z][a-z0-9_]{0,62}$/)
@@ -119,7 +119,7 @@ export async function recoverRegistry(pool: Pool, path: string, actor: RegistryA
     const activating = await client.query("SELECT o.control_tenant_id FROM shared_onboardings o JOIN shared_registry_bindings b ON b.control_tenant_id=o.control_tenant_id WHERE b.enabled=true AND o.stage<>'active' FOR SHARE OF o")
     for (const row of activating.rows) await requireOnboardingPublicationAuthority(client, row.control_tenant_id, actor)
     const current = await snapshot(client)
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5)', [actor.issuer + ':' + actor.actorUid,'registry.recovery_requested','shared-registry',reason,{ snapshotRevision: current.snapshotRevision }])
+    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5)', [actorLabel(actor),'registry.recovery_requested','shared-registry',reason,{ snapshotRevision: current.snapshotRevision }])
     await client.query('COMMIT')
     // Recovery requires an existing barrier; it cannot overwrite a healthy publication.
     await completePublication(path, current)
