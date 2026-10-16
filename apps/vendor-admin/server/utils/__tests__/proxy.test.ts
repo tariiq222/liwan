@@ -43,6 +43,13 @@ describe('vendor API proxy', () => {
     expect(await post('/commercial/plans')).toMatchObject({ status: 403, body: { code: 'step_up_required' } })
   })
 
+  it('passes an upstream 403 forbidden through and keeps the session', async () => {
+    stubUpstream(() => json(403, { code: 'forbidden' }))
+    const result = await post('/commercial/orders')
+    expect(result).toMatchObject({ status: 403, body: { code: 'forbidden' } })
+    expect(result.headers.get('set-cookie')).toBeNull()
+  })
+
   it('passes other upstream 4xx through, with a generic code when the body is not JSON', async () => {
     stubUpstream(() => json(409, { code: 'conflict' }))
     expect(await post('/commercial/plans')).toMatchObject({ status: 409, body: { code: 'conflict' } })
