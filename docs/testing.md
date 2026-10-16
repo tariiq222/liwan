@@ -195,6 +195,10 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
     Tests must use unique names (timestamps), because the database persists between runs.
   - Ports: Odoo 43369 (`E2E_ODOO_PORT`), Nuxt 43300 (`E2E_NUXT_PORT`); 3000 and 8069 are
     refused. Odoo logs: `.e2e/odoo/logs/odoo.log` (server), `prepare.log` (create/seed).
+- The default agent's judge is Jev (TypeSafe System One, `e2e/jev-judge.ts`): it gives the `assert` and `waitFor`
+  verdicts from the text observation; `extract` and screenshot-only judgments fall back to `google/gemini-3.7-flash`.
+  The key comes from `JEV_API_KEY` or `~/.config/jev-review/api-key`; the instruction and the accessibility tree of the
+  page go to `api.typesafe.ai`, so test data only.
 - `npm run e2e:dev` runs the runner directly against an already-running dev server. Use
   it only deliberately and never for state-changing tests.
 

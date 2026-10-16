@@ -1,6 +1,7 @@
 import type { E2EConfig } from 'e2e';
 import { web } from '@e2e-dev/web';
 import { chatgpt } from 'e2e/oauth/chatgpt';
+import { jevJudge } from './e2e/jev-judge.ts';
 import { models } from './e2e/models.ts';
 
 export default {
@@ -57,7 +58,10 @@ export default {
       model: models.xkiro.chatModel(
         process.env.E2E_DEFAULT_MODEL ?? 'moonshotai/kimi-k3-agent',
       ),
-      judge: models.xkiro.chatModel('z-ai/glm-5.3'),
+      // Jev (TypeSafe System One) gives the assert/waitFor verdicts from the
+      // text observation; extract and screenshot-only judgments fall back to
+      // gemini-3.7-flash. Needs JEV_API_KEY or ~/.config/jev-review/api-key.
+      judge: jevJudge({ fallback: models.xkiro.chatModel('google/gemini-3.7-flash') }),
     },
     fast: {
       model: models.xkiro.chatModel('z-ai/glm-5.3-flash'),
