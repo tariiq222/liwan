@@ -1,17 +1,14 @@
 export type AppearanceMode = 'light' | 'dark'
 
-/**
- * The console's display mode. A cookie keeps the choice and renders it on the server before the
- * first paint; the layer's tokens switch on the `dark` class of <html>.
- */
+/** The console's display mode, kept in a cookie so the server renders it before the first paint. */
 export function useAppearance() {
-  const cookie = useCookie<AppearanceMode>('nasq-admin-mode', {
-    default: () => 'light',
-    path: '/',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 365,
-  })
+  const cookie = usePreferenceCookie<AppearanceMode>('nasq-admin-mode', 'light')
   const mode = computed<AppearanceMode>(() => (cookie.value === 'dark' ? 'dark' : 'light'))
-  useHead(() => ({ htmlAttrs: { class: mode.value === 'dark' ? 'dark' : '' } }))
   return { mode, setMode: (value: AppearanceMode) => { cookie.value = value } }
+}
+
+/** Puts the mode on <html> (the layer's tokens switch on its `dark` class). Called once, from app.vue, so error.vue honours it too. */
+export function useAppearanceHtmlClass() {
+  const { mode } = useAppearance()
+  useHead(() => ({ htmlAttrs: { class: mode.value === 'dark' ? 'dark' : '' } }))
 }

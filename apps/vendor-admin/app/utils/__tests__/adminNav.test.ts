@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { activeNavId, adminNav, splitRail } from '../adminNav'
 
 // The role table of the vendor admin separation spec (capabilities listed without the `vendor.` prefix).
+// Mirrors ROLE_CAPABILITIES in apps/control-plane/src/admin-auth/roles.ts, which no shared contract exports;
+// the app must not import the control plane, so a role change there needs this table updated by hand.
 const READ = ['read']
 const ROLES: Record<string, string[]> = {
   owner: ['read', 'tenants.manage', 'subscriptions.manage', 'billing.manage', 'catalog.manage', 'pricing.manage', 'operations.run', 'audit.read', 'accounts.manage'],

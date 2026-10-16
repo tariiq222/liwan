@@ -3,6 +3,7 @@ import { ar, en } from '@nuxt/ui/locale'
 import { htmlAttrsFor } from '@/utils/htmlAttrs'
 
 const { locale } = useI18n()
+useAppearanceHtmlClass()
 // @nuxtjs/i18n only computes <html lang/dir>; applying them is left to the app.
 const i18nHead = useLocaleHead({ seo: false })
 useHead(() => ({

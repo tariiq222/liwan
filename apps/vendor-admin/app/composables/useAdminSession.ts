@@ -45,11 +45,8 @@ export function useAdminSession() {
   }
 
   async function signOut(): Promise<void> {
-    try {
-      await $fetch('/api/auth/logout', { method: 'POST', body: {} })
-    } finally {
-      me.value = null
-    }
+    await $fetch('/api/auth/logout', { method: 'POST', body: {} })
+    me.value = null
     await navigateTo('/login')
   }
 

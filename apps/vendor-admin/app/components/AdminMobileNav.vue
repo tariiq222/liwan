@@ -32,7 +32,6 @@ watch(() => route.fullPath, () => { open.value = false })
       variant="ghost"
       square
       data-testid="mobile-navigation-trigger"
-      aria-controls="admin-mobile-navigation"
       :aria-expanded="open"
       :aria-label="t('app.shell.openMenu')"
       :disabled="!hydrated"
@@ -54,6 +53,7 @@ watch(() => route.fullPath, () => { open.value = false })
           :data-active="props.activeId === item.id"
           :active="props.activeId === item.id"
           :aria-current="props.activeId === item.id ? 'page' : undefined"
+          @click="open = false"
         >
           <template #leading>
             <UIcon :name="item.icon" class="nasq-shell-icon size-4.5 shrink-0" aria-hidden="true" />

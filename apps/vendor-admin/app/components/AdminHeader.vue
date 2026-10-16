@@ -1,21 +1,19 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { ShellRailItem } from '@nasq/ui/app/types/shell'
-import type { AppearanceMode } from '@/composables/useAppearance'
 import { usePageHeaderTitle } from '@nasq/ui/app/composables/usePageHeader'
-import { isLocaleCode, LOCALE_COOKIE, LOCALE_COOKIE_OPTIONS } from '@/utils/localePreference'
 
 // The 48px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
 // vendor console, and the account menu (language, appearance, sign-out).
-const props = defineProps<{ items: ShellRailItem[], activeId: string | null, mode: AppearanceMode }>()
-const emit = defineEmits<{ 'update:mode': [mode: AppearanceMode] }>()
-const { t, te, locale, setLocale } = useI18n()
+const props = defineProps<{ items: ShellRailItem[], activeId: string | null }>()
+const { t, te, locale, locales } = useI18n()
 const { me, signOut } = useAdminSession()
 const hydrated = useHydrated()
 const pageTitle = usePageHeaderTitle()
-const localeCookie = useCookie<string | null>(LOCALE_COOKIE, { default: () => null, ...LOCALE_COOKIE_OPTIONS })
+const { choose } = useLocalePreference()
+const { mode, setMode } = useAppearance()
+const toast = useToast()
 
-const languages = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: 'English' }] as const
 const modes = [{ value: 'light', icon: 'i-lucide-sun' }, { value: 'dark', icon: 'i-lucide-moon' }] as const
 type MenuItem = DropdownMenuItem & { nasqIcon?: string }
 
@@ -32,6 +30,14 @@ const crumbs = computed(() => {
   return trail.map((crumb, index) => ({ ...crumb, active: index === trail.length - 1 }))
 })
 
+async function leave() {
+  try {
+    await signOut()
+  } catch {
+    toast.add({ title: t('app.shell.signOutFailed'), color: 'error' })
+  }
+}
+
 const iconOf = (item: DropdownMenuItem) => (item as MenuItem).nasqIcon
 const menu = computed<MenuItem[][]>(() => [
   [
@@ -40,29 +46,27 @@ const menu = computed<MenuItem[][]>(() => [
   ],
   [
     { type: 'label' as const, label: t('app.shell.language') },
-    ...languages.map(language => ({
+    ...locales.value.map(language => ({
       type: 'checkbox' as const,
-      label: language.name,
+      label: language.name ?? language.code,
       checked: locale.value === language.code,
       onUpdateChecked: (checked: boolean) => {
-        if (!checked || !isLocaleCode(language.code)) return
-        localeCookie.value = language.code
-        void setLocale(language.code)
+        if (checked) void choose(language.code)
       },
     })),
   ],
   [
     { type: 'label' as const, label: t('app.shell.appearance') },
-    ...modes.map(mode => ({
+    ...modes.map(item => ({
       type: 'checkbox' as const,
-      label: t(`app.shell.${mode.value}`),
-      nasqIcon: mode.icon,
-      checked: props.mode === mode.value,
-      onUpdateChecked: (checked: boolean) => { if (checked) emit('update:mode', mode.value) },
+      label: t(`app.shell.${item.value}`),
+      nasqIcon: item.icon,
+      checked: mode.value === item.value,
+      onUpdateChecked: (checked: boolean) => { if (checked) setMode(item.value) },
     })),
   ],
   [
-    { label: t('app.shell.signOut'), color: 'error' as const, nasqIcon: 'i-lucide-log-out', onSelect: () => { void signOut() } },
+    { label: t('app.shell.signOut'), color: 'error' as const, nasqIcon: 'i-lucide-log-out', onSelect: () => { void leave() } },
   ],
 ])
 </script>
