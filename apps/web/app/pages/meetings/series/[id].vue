@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import { meetingCreateRoute } from '@/utils/meetingRoutes'
+import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { SERIES_LIST_PATHS } from '@/modules/meetings/navigation'
 import FilterBar from '@nasq/ui/app/components/shared/data/FilterBar.vue'
 import MeetingEventList from '@/components/meetings/MeetingEventList.vue'
@@ -196,7 +198,7 @@ function setHistoryPage(page: number) {
   >
     <template #actions>
       <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
-      <UButton v-if="canAddOccurrence" :disabled="!hydrated" :to="{ path: '/meetings/new', query: { series_id: String(id) } }" :label="t('meetingsUi.addOccurrence')" />
+      <UButton v-if="canAddOccurrence" :disabled="!hydrated" :to="meetingCreateRoute(route.fullPath, query.data.value?.project?.id, id ?? undefined)" :label="t('meetingsUi.addOccurrence')" />
     </template>
     <template #tabs>
       <SharedRouteTabs data-testid="meeting-series-tabs" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
@@ -225,7 +227,7 @@ function setHistoryPage(page: number) {
                 <div class="rounded-lg p-3 ring ring-default">
                   <p class="text-sm text-muted">{{ t('meetingsUi.nextMeeting') }}</p>
                   <div v-if="upcoming" class="mt-1 grid gap-1">
-                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="`/meetings/${upcoming.id}`">{{ upcoming.name }}</UButton>
+                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${upcoming.id}`, query: returnToQuery(route.fullPath) }">{{ upcoming.name }}</UButton>
                     <span class="text-sm text-muted">{{ occurrenceLabel(upcoming) }}</span>
                   </div>
                   <p v-else class="mt-1 text-sm text-muted">{{ t('meetingsUx.noNextMeeting') }}</p>
@@ -233,7 +235,7 @@ function setHistoryPage(page: number) {
                 <div class="rounded-lg p-3 ring ring-default">
                   <p class="text-sm text-muted">{{ t('meetingTimeline.lastCompleted') }}</p>
                   <div v-if="previous" class="mt-1 grid gap-1">
-                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="`/meetings/${previous.id}`">{{ previous.name }}</UButton>
+                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${previous.id}`, query: returnToQuery(route.fullPath) }">{{ previous.name }}</UButton>
                     <span class="text-sm text-muted">{{ occurrenceLabel(previous) }}</span>
                   </div>
                   <p v-else class="mt-1 text-sm text-muted">{{ t('meetingTimeline.noCompletedMeeting') }}</p>
@@ -291,7 +293,7 @@ function setHistoryPage(page: number) {
             <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 p-4">
               <div class="flex flex-wrap items-start justify-between gap-2">
                 <div class="grid min-w-0 gap-0.5">
-                  <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${item.meeting_id}`, query: { tab: 'resolutions' } }">{{ item.name }}</UButton>
+                  <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${item.meeting_id}`, query: { ...returnToQuery(route.fullPath), tab: 'resolutions' } }">{{ item.name }}</UButton>
                   <p class="text-xs text-muted">{{ item.meeting_name }}</p>
                 </div>
                 <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.execution_state || item.state, t, followupStateLabel(item.execution_state || item.state))" />
@@ -303,7 +305,7 @@ function setHistoryPage(page: number) {
               </div>
               <p v-if="item.responsible" class="text-sm text-muted">{{ t('meetingsUi.responsible') }}: {{ item.responsible.name }}</p>
               <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
-              <UButton v-if="resolutionTaskId(item)" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${resolutionTaskId(item)}`" :label="t('meetingsUi.openTask')" />
+              <UButton v-if="resolutionTaskId(item)" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${resolutionTaskId(item)}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
             </li>
           </ul>
         </SharedPageState>

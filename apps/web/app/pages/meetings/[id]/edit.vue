@@ -109,8 +109,11 @@ const known = computed(() => {
   return [meeting.organizer, meeting.secretary, ...meeting.attendees].filter(Boolean) as { id: number; name: string }[]
 })
 
+const formElement = ref<HTMLFormElement | null>(null)
+const { attemptedSubmit, visibleErrors, validate } = useMeetingFormFeedback(formErrors, formElement)
+
 async function save() {
-  if (id.value === null || !hydrated.value || isPending.value || !canEdit.value || Object.keys(formErrors.value).length) return
+  if (id.value === null || !hydrated.value || isPending.value || !canEdit.value || !validate()) return
   const body: MeetingPatch = {
     name: name.value.trim(),
     location: location.value,
@@ -136,8 +139,9 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
+      <form ref="formElement" novalidate v-if="query.data.value" class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
+      <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.editForbidden')" />
         <p v-if="context.series || context.project" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
         <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
@@ -147,26 +151,26 @@ async function save() {
       <p class="text-xs text-muted">{{ t('meetingsUx.browserTimeZone', { zone: browserTimeZone }) }}</p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
         <div class="nasq-form-grid">
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined)">
-            <UInput id="edit-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.name" required />
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
+            <UInput id="edit-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>
-          <UFormField :label="t('meetingsUi.date')" name="date" required :error="serverErrors.date || (formErrors.date ? t(`meetingsUx.errors.${formErrors.date}`) : undefined)">
-            <SharedDateField id="edit-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.date" aria-required="true" />
+          <UFormField :label="t('meetingsUi.date')" name="date" required :error="serverErrors.date || (visibleErrors.date ? t(`meetingsUx.errors.${visibleErrors.date}`) : undefined)">
+            <SharedDateField id="edit-date" v-model="meetingDateField" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.date" aria-required="true" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.start')" name="start" :error="serverErrors.start || (formErrors.start ? t(`meetingsUx.errors.${formErrors.start}`) : undefined)">
-            <UInput id="edit-start" v-model="start" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.start" />
+          <UFormField :label="t('meetingsUi.start')" name="start" :error="serverErrors.start || (visibleErrors.start ? t(`meetingsUx.errors.${visibleErrors.start}`) : undefined)">
+            <UInput id="edit-start" v-model="start" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.start" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.end')" name="end" :error="serverErrors.end || (formErrors.end ? t(`meetingsUx.errors.${formErrors.end}`) : undefined)">
-            <UInput id="edit-end" v-model="end" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.end" />
+          <UFormField :label="t('meetingsUi.end')" name="end" :error="serverErrors.end || (visibleErrors.end ? t(`meetingsUx.errors.${visibleErrors.end}`) : undefined)">
+            <UInput id="edit-end" v-model="end" type="time" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.end" />
           </UFormField>
-          <UFormField v-if="end" :label="t('meetingsUx.endDate')" name="endDate" :error="formErrors.endDate ? t(`meetingsUx.errors.${formErrors.endDate}`) : undefined">
-            <SharedDateField id="edit-end-date" v-model="endDateField" :min-value="meetingDate || null" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.endDate" />
+          <UFormField v-if="end" :label="t('meetingsUx.endDate')" name="endDate" :error="visibleErrors.endDate ? t(`meetingsUx.errors.${visibleErrors.endDate}`) : undefined">
+            <SharedDateField id="edit-end-date" v-model="endDateField" :min-value="meetingDate || null" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.endDate" />
           </UFormField>
           <UFormField :label="t('meetingsUi.location')" name="location" :error="serverErrors.location">
             <UInput id="edit-location" v-model="location" class="w-full" :disabled="!hydrated || isPending || !canEdit" />
           </UFormField>
-          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (formErrors.meetingUrl ? t(`meetingsUx.errors.${formErrors.meetingUrl}`) : undefined)">
-            <UInput id="edit-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.meetingUrl" />
+          <UFormField class="sm:col-span-2" :label="t('meetingsUi.url')" name="meetingUrl" :error="serverErrors.meetingUrl || (visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined)">
+            <UInput id="edit-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.meetingUrl" />
           </UFormField>
           <UFormField v-if="query.data.value.series_id" :label="t('meetingsUi.scope')" name="scope">
             <USelect
@@ -190,7 +194,7 @@ async function save() {
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
       <SharedFormActions class="justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || Object.keys(formErrors).length > 0" :label="t('app.save')" />
+        <UButton type="submit" :disabled="!hydrated || isPending || !canEdit" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
       </SharedFormActions>
     </form>
     </SharedPageState>

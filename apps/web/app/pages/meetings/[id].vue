@@ -7,16 +7,16 @@ import MeetingMinutesDocument from '@/components/meetings/MeetingMinutesDocument
 import MeetingRecordTabs from '@/components/meetings/MeetingRecordTabs.vue'
 import MeetingResolutionsTab from '@/components/meetings/MeetingResolutionsTab.vue'
 import MeetingVersionList from '@/components/meetings/MeetingVersionList.vue'
-import { formatMeetingDate, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/utils/meetingMinutesForm'
+import { formatMeetingDate, formatMeetingTime, plainTextFromHtml, type MeetingMinutesFormValue, type MeetingMinutesRecommendation } from '@/utils/meetingMinutesForm'
+import { formatDate, formatDateTime } from '@nasq/ui/app/utils/formatDate'
 import { ApiError } from '@/composables/useApi'
 import { useMeeting } from '@/composables/useMeetings'
 import { useMeetingEvents, useMeetingVersions } from '@/composables/useMeetingWorkspace'
 import { useMeetingTransitions } from '@/composables/useMeetingTransitions'
-import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps, resolutionStateBadgeProps } from '@/utils/meetingStatus'
 import { richTextHasContent } from '@/utils/richText'
 import { parsePositiveId } from '@/utils/routeParams'
-import { meetingTabFromRoute, meetingTabQuery, type MeetingTab } from '@/utils/meetingTabs'
+import { meetingTabFromRoute, meetingTabQuery, meetingHistoryViewFromRoute, type MeetingTab } from '@/utils/meetingTabs'
 
 const route = useRoute()
 const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
@@ -28,7 +28,26 @@ const isDetail = computed(() => route.path === `/meetings/${route.params.id}` ||
 const query = useMeeting(computed(() => isDetail.value ? id.value : null))
 // An invalid id has no record to load and uses the same not-found state as an unknown positive id.
 const pageError = computed(() => query.error.value ?? (id.value === null ? new ApiError(404, 'not_found', t('errors.generic')) : null))
-const { pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning } = useMeetingTransitions({ meetingId: id, meeting: query.data, hydrated })
+const { actionError, pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning } = useMeetingTransitions({ meetingId: id, meeting: query.data, hydrated })
+const completionGaps = computed(() => {
+  const meeting = query.data.value
+  if (!meeting) return []
+  const gaps: Array<'schedule' | 'minutes'> = []
+  if (!meeting.start_datetime || !meeting.end_datetime) gaps.push('schedule')
+  const form = meeting.minutes_form
+  if (!plainTextFromHtml(meeting.minutes) && !(form && (form.opening.trim() || form.closing.trim() || form.topics.length))) gaps.push('minutes')
+  return gaps
+})
+function prepareComplete() {
+  requestMeetingAction('complete')
+}
+const meetingEndLabel = computed(() => {
+  const meeting = query.data.value
+  if (!meeting?.end_datetime) return '—'
+  return formatDate(meeting.start_datetime) === formatDate(meeting.end_datetime)
+    ? formatMeetingTime(meeting.end_datetime, locale.value)
+    : formatDateTime(meeting.end_datetime)
+})
 const attachmentCount = ref(0)
 const resolutionsBusy = ref(false)
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
@@ -36,14 +55,17 @@ function childTo(path: string, query = route.query) {
   return recordChildTo(path, query, sourcePaths.value, route.hash)
 }
 const activeTab = computed<MeetingTab>(() => isCreateResolution.value ? 'resolutions' : meetingTabFromRoute(route.query.tab, hydrated.value ? route.hash : undefined))
+const historyView = computed(() => meetingHistoryViewFromRoute(route.query.tab, hydrated.value ? route.hash : undefined, route.query.history_view))
+const historyLinks = computed(() => [
+  { key: 'meeting-history-events', label: t('meetingsUx.activity'), to: { query: { ...route.query, tab: 'history', history_view: 'events' }, hash: '' }, active: historyView.value === 'events' },
+  { key: 'meeting-history-versions', label: t('meetingMinutesForm.versions'), to: { query: { ...route.query, tab: 'history', history_view: 'versions' }, hash: '' }, active: historyView.value === 'versions' },
+])
 const meetingTabs = computed(() => [
   { label: t('meetingsUi.summary'), value: 'summary' },
-  { label: t('meetingsUi.agenda'), value: 'agenda' },
   { label: t('meetingsUi.minutes'), value: 'minutes' },
   { label: `${t('meetingsUi.resolutions')} (${query.data.value?.resolutions.length ?? 0})`, value: 'resolutions' },
   { label: `${t('meetingsUi.attachmentsTitle')} (${attachmentCount.value})`, value: 'attachments' },
   { label: t('meetingMinutesForm.history'), value: 'history' },
-  { label: t('meetingMinutesForm.versions'), value: 'versions' },
 ] satisfies { label: string; value: MeetingTab }[])
 // Tabs are links: they keep every other query key (returnTo), clear the legacy hash, and work before hydration.
 const tabLinks = computed(() => meetingTabs.value.map(tab => ({
@@ -74,11 +96,11 @@ const versionPage = ref(1)
 const selectedVersionId = ref<number | null>(null)
 const workspacePageSize = 25
 const eventQuery = useMeetingEvents(
-  computed(() => activeTab.value === 'history' && isDetail.value ? id.value : null),
+  computed(() => activeTab.value === 'history' && historyView.value === 'events' && isDetail.value ? id.value : null),
   computed(() => ({ limit: workspacePageSize, offset: (eventPage.value - 1) * workspacePageSize })),
 )
 const versionQuery = useMeetingVersions(
-  computed(() => activeTab.value === 'versions' && isDetail.value ? id.value : null),
+  computed(() => activeTab.value === 'history' && historyView.value === 'versions' && isDetail.value ? id.value : null),
   computed(() => ({ limit: workspacePageSize, offset: (versionPage.value - 1) * workspacePageSize })),
 )
 type VersionSnapshot = {
@@ -110,6 +132,12 @@ watch(versionRows, rows => {
   if (first && !rows.some(row => row.id === selectedVersionId.value)) selectedVersionId.value = first.id
 }, { immediate: true })
 
+watch(() => [route.query.tab, route.hash, hydrated.value], async () => {
+  if (!hydrated.value || (route.query.tab !== 'agenda' && route.hash !== '#meeting-agenda')) return
+  await nextTick()
+  if (typeof document !== 'undefined') document.getElementById('meeting-agenda')?.scrollIntoView({ block: 'start' })
+}, { immediate: true, flush: 'post' })
+
 function displayValue(value: string | null | undefined) {
   return value || '—'
 }
@@ -125,9 +153,10 @@ function displayValue(value: string | null | undefined) {
     @retry="query.refetch()"
   >
     <template #actions>
+      <UButton v-if="activeTab === 'minutes' && query.data.value?.can_edit && !resolutionsBusy" :color="query.data.value.state === 'draft' ? 'neutral' : 'primary'" :variant="query.data.value.state === 'draft' ? 'outline' : 'solid'" :to="childTo(`/meetings/${id}/minutes`)" :label="t('meetingsUx.editMinutes')" />
       <UButton v-if="query.data.value?.can_edit && !resolutionsBusy" color="neutral" variant="outline" :to="childTo(`/meetings/${id}/edit`)" :label="t('app.edit')" />
       <UButton v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="requestMeetingAction('confirm')" />
-      <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.complete')" @click="requestMeetingAction('complete')" />
+      <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :color="activeTab === 'summary' ? undefined : 'neutral'" :variant="activeTab === 'summary' ? 'solid' : 'outline'" :label="t('meetingsUi.complete')" @click="prepareComplete" />
       <UButton v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" color="neutral" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.reopen')" @click="requestMeetingAction('reopen')" />
       <!-- Secondary and destructive actions live in one menu; cancelling still asks inline below the header. -->
       <UDropdownMenu :items="moreActions" :content="{ align: 'end' }">
@@ -139,8 +168,16 @@ function displayValue(value: string | null | undefined) {
     </template>
 
     <div v-if="query.data.value" class="grid min-w-0 gap-4">
+      <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" />
+      <UCard v-if="pendingMeetingAction?.action === 'complete' && completionGaps.length">
+        <div class="grid gap-3">
+          <p class="font-medium">{{ t('meetingsUx.completionReview') }}</p>
+          <UButton v-for="gap in completionGaps" :key="gap" color="neutral" variant="outline" class="w-fit" :to="childTo(`/meetings/${id}/${gap === 'schedule' ? 'edit' : 'minutes'}`)" :label="t(`meetingsUx.completionGaps.${gap}`)" />
+          <UButton color="neutral" variant="ghost" class="w-fit" :label="t('app.cancel')" @click="pendingMeetingAction = null" />
+        </div>
+      </UCard>
       <SharedInlineConfirm
-        v-if="pendingMeetingAction && meetingActionConfirm"
+        v-if="pendingMeetingAction && meetingActionConfirm && !(pendingMeetingAction.action === 'complete' && completionGaps.length)"
         :color="meetingActionConfirm.color"
         :title="meetingActionConfirm.title"
         :confirm-label="meetingActionConfirm.label"
@@ -152,39 +189,15 @@ function displayValue(value: string | null | undefined) {
       </SharedInlineConfirm>
 
       <template v-if="activeTab === 'summary'">
-        <section id="meeting-summary" aria-labelledby="meeting-summary-title">
-          <h2 id="meeting-summary-title" class="sr-only">{{ t('meetingsUi.summary') }}</h2>
-          <UCard class="min-w-0">
-            <div class="grid min-w-0 gap-6 lg:grid-cols-2">
-              <section class="grid min-w-0 content-start gap-3">
-                <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.sectionSchedule') }}</h3>
-                <dl class="grid gap-4 sm:grid-cols-2">
-                  <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.date') }}</dt><dd class="text-highlighted">{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</dd></div>
-                  <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.start') }}</dt><dd class="text-highlighted">{{ hydrated ? displayValue(formatLocalDateTime(query.data.value.start_datetime)) : '—' }}</dd></div>
-                  <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.end') }}</dt><dd class="text-highlighted">{{ hydrated ? displayValue(formatLocalDateTime(query.data.value.end_datetime)) : '—' }}</dd></div>
-                  <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.location') }}</dt><dd class="break-words text-highlighted">{{ displayValue(query.data.value.location) }}</dd></div>
-                  <div v-if="query.data.value.meeting_url" class="min-w-0 sm:col-span-2"><dt class="text-sm text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
-                </dl>
-              </section>
-              <section class="grid min-w-0 content-start gap-3">
-                <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.sectionPeople') }}</h3>
-                <dl class="grid gap-4 sm:grid-cols-2">
-                  <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="break-words text-highlighted">{{ displayValue(query.data.value.organizer?.name) }}</dd></div>
-                  <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</dt><dd class="break-words text-highlighted">{{ displayValue(query.data.value.secretary?.name) }}</dd></div>
-                </dl>
-                <div class="grid gap-2 border-t border-default pt-4">
-                  <h4 class="text-sm text-muted">{{ t('meetingsUi.attendees') }}</h4>
-                  <ul v-if="query.data.value.attendees.length" class="flex min-w-0 flex-wrap gap-2">
-                    <li v-for="person in query.data.value.attendees" :key="person.id" class="min-w-0 max-w-full"><UBadge color="neutral" variant="subtle" class="max-w-full whitespace-normal break-words text-start">{{ person.name }}</UBadge></li>
-                  </ul>
-                  <SharedEmptyState v-else :title="t('meetingsUi.emptyAttendees')" />
-                </div>
-              </section>
+        <SharedRecordSection id="meeting-summary" :title="t('meetingsUi.sectionPeople')" panel>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div><p class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</p><p class="text-highlighted">{{ displayValue(query.data.value.secretary?.name) }}</p></div>
+            <div><p class="mb-2 text-sm text-muted">{{ t('meetingsUi.attendees') }}</p>
+              <ul v-if="query.data.value.attendees.length" class="flex min-w-0 flex-wrap gap-2"><li v-for="person in query.data.value.attendees" :key="person.id"><UBadge color="neutral" variant="subtle" class="whitespace-normal text-start">{{ person.name }}</UBadge></li></ul>
+              <p v-else class="text-sm text-muted">{{ t('meetingsUi.emptyAttendees') }}</p>
             </div>
-          </UCard>
-        </section>
-      </template>
-      <template v-else-if="activeTab === 'agenda'">
+          </div>
+        </SharedRecordSection>
         <section id="meeting-agenda" aria-labelledby="meeting-agenda-title" class="space-y-3">
           <h2 id="meeting-agenda-title" class="sr-only">{{ t('meetingsUi.agenda') }}</h2>
           <p v-if="historicalSnapshot" class="text-sm text-muted">{{ t('meetingsUx.historicalMinutesTitle') }}</p>
@@ -196,10 +209,10 @@ function displayValue(value: string | null | undefined) {
         </section>
       </template>
       <template v-else-if="activeTab === 'minutes'">
-        <div v-if="!historicalSnapshot && query.data.value.can_edit && !resolutionsBusy" class="flex flex-wrap items-center justify-end gap-2"><UButton size="sm" :to="childTo(`/meetings/${id}/minutes`)" :label="t('meetingsUx.editMinutes')" /></div>
-        <MeetingMinutesDocument
+                <MeetingMinutesDocument
           v-if="historicalSnapshot || currentMinutesForm"
           :meeting="query.data.value"
+          :compact="!historicalSnapshot"
           :snapshot="historicalSnapshot"
           :form="historicalSnapshot ? historicalMinutesForm : currentMinutesForm"
           :recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
@@ -233,7 +246,8 @@ function displayValue(value: string | null | undefined) {
         </SharedRecordSection>
       </template>
       <template v-else-if="activeTab === 'history'">
-        <MeetingEventList
+        <SharedRouteTabs :items="historyLinks" :ariaLabel="t('meetingMinutesForm.history')" />
+        <MeetingEventList v-if="historyView === 'events'"
           :events="eventRows"
           :loading="eventQuery.isLoading.value"
           :error="eventQuery.error.value"
@@ -243,8 +257,7 @@ function displayValue(value: string | null | undefined) {
           @retry="eventQuery.refetch"
           @page="eventPage = $event"
         />
-      </template>
-      <template v-else-if="activeTab === 'versions'">
+        <div v-if="historyView === 'versions'" class="grid min-w-0 gap-4">
         <MeetingVersionList
           :versions="versionRows"
           :loading="versionQuery.isLoading.value"
@@ -271,24 +284,30 @@ function displayValue(value: string | null | undefined) {
           :legacy-recommendations="selectedVersion.snapshot.resolutions || []"
           :title="t('meetingMinutesForm.versionDocumentTitle', { number: selectedVersion.number })"
         />
+        </div>
       </template>
       <!-- Stays mounted so its filters, pending confirmations and in-flight state survive tab switches. -->
-      <MeetingResolutionsTab v-show="activeTab === 'resolutions'" :meeting="query.data.value" :meeting-id="query.data.value.id" @update:busy="resolutionsBusy = $event" />
+      <div v-show="activeTab === 'resolutions'" class="grid min-w-0 gap-4">
+        <MeetingResolutionsTab :meeting="query.data.value" :meeting-id="query.data.value.id" @update:busy="resolutionsBusy = $event" />
+      </div>
       <!-- Stays mounted so the tab label always shows the attachment count. -->
       <MeetingAttachmentsTab v-show="activeTab === 'attachments'" :meeting-id="query.data.value.id" :can-edit="query.data.value.can_edit" @count="attachmentCount = $event" />
     </div>
 
     <template v-if="query.data.value" #summary>
+      <div class="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 rounded-lg bg-default p-4 ring ring-default">
+        <SharedStatusBadge v-bind="meetingStateBadgeProps(query.data.value.state, t)" data-testid="meeting-state-badge" />
+        <span class="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-highlighted"><span>{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</span><span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime, locale)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span></span>
+        <span class="text-sm text-muted">{{ t('meetingsUi.organizer') }}: {{ displayValue(query.data.value.organizer?.name) }}</span>
+        <span v-if="query.data.value.location" class="text-sm text-muted">{{ query.data.value.location }}</span>
+        <UButton v-if="query.data.value.meeting_url" color="neutral" variant="outline" size="sm" icon="i-lucide-video" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
+      </div>
+    </template>
+    <template v-if="query.data.value" #aside>
       <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('meetingsUi.stateLabel')">
-          <SharedStatusBadge v-bind="meetingStateBadgeProps(query.data.value.state, t)" data-testid="meeting-state-badge" />
-        </SharedPropertyRow>
         <SharedPropertyRow :label="t('app.recordNumber')"><SharedRecordNumber :value="query.data.value.reference" /></SharedPropertyRow>
-        <SharedPropertyRow v-if="query.data.value.series" :label="t('meetingsUi.series')">
-          <UButton color="primary" variant="link" class="p-0 whitespace-normal text-start" :to="`/meetings/series/${query.data.value.series.id}`">{{ query.data.value.series.name }}</UButton>
-        </SharedPropertyRow>
-        <SharedPropertyRow v-else :label="t('meetingsUi.series')" />
-        <SharedPropertyRow :label="t('meetingsUi.project')" :value="query.data.value.project?.name" />
+        <SharedPropertyRow v-if="query.data.value.series" :label="t('meetingsUi.series')"><UButton color="primary" variant="link" class="p-0 whitespace-normal text-start" :to="`/meetings/series/${query.data.value.series.id}`">{{ query.data.value.series.name }}</UButton></SharedPropertyRow>
+        <SharedPropertyRow v-if="query.data.value.project" :label="t('meetingsUi.project')" :value="query.data.value.project.name" />
         <SharedPropertyRow :label="t('meetingsUi.resolutions')" :value="t('meetingsUi.openCount', { count: query.data.value.open_resolution_count }, query.data.value.open_resolution_count)" />
       </SharedPropertiesPanel>
     </template>

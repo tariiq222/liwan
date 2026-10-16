@@ -1,3 +1,4 @@
+import { meetingViewRoute, meetingViewOptions } from '../../utils/meetingRoutes'
 import { readFileSync } from 'node:fs'
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
@@ -30,7 +31,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'meeting-list-departure' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
-  const bindings = {
+  const bindings = { meetingViewRoute, meetingViewOptions,
     ...filters, parseOffset, _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
     useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, returnToQuery,

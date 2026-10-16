@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { parsePositiveId } from '@/utils/routeParams'
+import { cleanMeetingEditorQuery, meetingMinutesEditorTo, parseMeetingEditorContext } from '@/utils/meetingEditorContext'
 import { recordParentTo } from '@/utils/recordListOrigin'
 import { MEETING_LIST_PATHS } from '@/modules/meetings/navigation'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { useCreateResolution, useMeeting } from '@/composables/useMeetings'
 
 const route = useRoute()
+const router = useRouter()
 const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -12,7 +15,14 @@ const id = computed(() => Number(route.params.id))
 const query = useMeeting(id)
 const { mutateAsync, isPending, error } = useCreateResolution()
 // Child pages always return to their current record; only normalized list context follows.
-const backTo = computed(() => recordParentTo(`/meetings/${id.value}`, route.query, sourcePaths.value, route.hash))
+const editorContext = computed(() => parseMeetingEditorContext(route.query))
+const backTo = computed(() => editorContext.value ? meetingMinutesEditorTo(id.value, route.query, sourcePaths.value) : recordParentTo(`/meetings/${id.value}`, { ...cleanMeetingEditorQuery(route.query), tab: 'resolutions' }, sourcePaths.value, route.hash))
+const createdResolutionId = ref<number | null>(null)
+const receiptId = computed(() => {
+  const candidate = parsePositiveId(route.query.created_resolution_id)
+  return candidate && query.data.value?.resolutions.some(item => item.id === candidate) ? candidate : null
+})
+const hasReceipt = computed(() => Boolean(createdResolutionId.value || route.query.created_resolution_id))
 const canCreate = computed(() => query.data.value?.can_edit === true && !['done', 'cancelled'].includes(query.data.value.state))
 const knownPeople = computed(() => {
   const meeting = query.data.value
@@ -36,44 +46,60 @@ function snapshot() {
 }
 const baseline = ref(snapshot())
 const dirty = computed(() => snapshot() !== baseline.value)
-const validationMessage = computed(() => {
-  if (!name.value.trim()) return t('meetingsUx.validation.resolutionName')
-  if (!responsibleId.value) return t('meetingsUx.validation.responsible')
-  if (!deadline.value && !executionPeriod.value.trim()) return t('meetingMinutesForm.validation.deadlineOrPeriod')
-  return ''
-})
+const formErrors = computed(() => ({
+  ...(!name.value.trim() ? { name: t('meetingsUx.validation.resolutionName') } : {}),
+  ...(!responsibleId.value ? { responsible: t('meetingsUx.validation.responsible') } : {}),
+  ...(!deadline.value && !executionPeriod.value.trim() ? { deadline: t('meetingMinutesForm.validation.deadlineOrPeriod') } : {}),
+}))
+const formElement = ref<HTMLFormElement | null>(null)
+const { attemptedSubmit, visibleErrors, validate } = useMeetingFormFeedback(formErrors, formElement)
 
+async function returnAfterCreate(createdId: number) {
+  await navigateTo(editorContext.value ? meetingMinutesEditorTo(id.value, route.query, sourcePaths.value, createdId) : backTo.value, { replace: true })
+}
 async function save() {
-  if (!hydrated.value || !canCreate.value || !name.value.trim() || !responsibleId.value || (!deadline.value && !executionPeriod.value.trim())) return
-  await mutateAsync({
+  if (!hydrated.value || !canCreate.value || isPending.value) return
+  const completed = createdResolutionId.value ?? receiptId.value
+  if (completed) { await returnAfterCreate(completed); return }
+  // A receipt must resolve to this readable meeting before any recovery action.
+  if (hasReceipt.value || !validate()) return
+  const created = await mutateAsync({
     meetingId: id.value,
     body: {
-      name: name.value.trim(),
-      responsible_id: Number(responsibleId.value),
-      deadline: deadline.value || undefined,
-      execution_period: executionPeriod.value.trim() || undefined,
-      project_id: projectId.value ?? null,
-      priority: priority.value,
+      name: name.value.trim(), responsible_id: Number(responsibleId.value),
+      deadline: deadline.value || undefined, execution_period: executionPeriod.value.trim() || undefined,
+      project_id: projectId.value ?? null, priority: priority.value,
     },
   })
+  createdResolutionId.value = created.id
   baseline.value = snapshot()
   await nextTick()
-  await navigateTo(backTo.value)
+  // Record success on the current route before attempting departure. Refresh of
+  // an aborted departure resolves this ID from the meeting instead of posting again.
+  await router.replace({ path: route.path, query: { ...route.query, created_resolution_id: String(created.id) } })
+  await returnAfterCreate(created.id)
 }
+
 </script>
 
 <template>
   <SharedCreatePanel :title="t('meetingsUi.newResolution')" :back-to="backTo">
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <UAlert v-if="query.data.value && !canCreate" color="neutral" variant="subtle" :title="t('meetingMinutesForm.readOnlyMeeting')" />
-    <form v-else-if="query.data.value" class="space-y-8" @submit.prevent="save">
+    <div v-else-if="hasReceipt" class="grid gap-4">
+      <UAlert :color="createdResolutionId || receiptId ? 'success' : 'warning'" :title="t(createdResolutionId || receiptId ? 'meetingsUx.recommendationCreated' : 'meetingsUx.recommendationReturn.unavailable')" />
+      <UButton v-if="createdResolutionId || receiptId" type="button" class="w-fit" :disabled="!hydrated" :label="t('meetingsUx.returnAfterRecommendation')" @click="save" />
+      <UButton v-else color="neutral" :to="backTo" :label="t('app.back')" />
+    </div>
+    <form ref="formElement" novalidate v-else-if="query.data.value" class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
+      <p v-if="editorContext" class="rounded-lg bg-elevated/50 p-3 text-sm">{{ t('meetingsUx.recommendationEditorContext', { name: query.data.value.name }) }}</p>
       <SharedFormSection :title="t('meetingsUi.resolutions')">
         <div class="nasq-form-grid">
-          <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required>
-            <UInput id="res-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" required />
+          <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
+            <UInput id="res-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
           </UFormField>
-          <UFormField :label="t('meetingsUi.responsible')" name="responsible" required>
+          <UFormField :label="t('meetingsUi.responsible')" name="responsible" required :error="visibleErrors.responsible">
             <SharedPersonPicker
               id="res-user"
               :model-value="responsibleId || null"
@@ -84,7 +110,7 @@ async function save() {
               @update:model-value="responsibleId = typeof $event === 'number' ? $event : ''"
             />
           </UFormField>
-          <UFormField :label="t('meetingsUi.deadline')" name="deadline" :help="t('meetingMinutesForm.deadlineOrPeriodHint')">
+          <UFormField :label="t('meetingsUi.deadline')" name="deadline" :error="visibleErrors.deadline" :help="t('meetingMinutesForm.deadlineOrPeriodHint')">
             <SharedDateField id="res-deadline" v-model="deadlineField" class="w-full" :disabled="!hydrated || isPending" />
           </UFormField>
           <UFormField :label="t('meetingMinutesForm.executionPeriod')" name="executionPeriod">
@@ -104,11 +130,11 @@ async function save() {
           </UFormField>
         </div>
       </SharedFormSection>
-      <p v-if="validationMessage" class="text-sm text-muted" aria-live="polite">{{ validationMessage }}</p>
+      <UAlert v-if="attemptedSubmit && Object.keys(formErrors).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.keys(formErrors).length })" />
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
       <SharedFormActions class="justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || !canCreate || isPending || Boolean(validationMessage)" :label="t('app.create')" />
+        <UButton type="submit" :disabled="!hydrated || !canCreate || isPending" :loading="isPending" :label="t('meetingsUx.createRecommendation')" />
       </SharedFormActions>
     </form>
     </SharedPageState>

@@ -71,3 +71,8 @@ class NasqMeetingLinks(models.AbstractModel):
     def _nasq_readable_links(self, resolutions):
         """``{resolution_id: {'task_id', 'state', 'company_id', 'project_id'}}`` of links the caller can read now."""
         return {}
+
+    @api.model
+    def _nasq_resolution_execution_domain(self, states):
+        """Resolution domain matching the serializer's execution projection."""
+        return [('state', 'in', states)]

@@ -67,7 +67,7 @@ describe('access policy navigation', () => {
     expect(requiredCapabilityForPath('/meetings/series/new')).toBe('meetings.create')
     expect(postLoginPath({ capabilities: ['meetings.read'] }, '/meetings/series/new')).toBe('/')
     expect(postLoginPath({ capabilities: ['meetings.read', 'meetings.create'] }, '/meetings/series/new')).toBe('/meetings/series/new')
-    expect(isNavPathActive('/meetings/calendar', '/meetings')).toBe(false)
+    expect(isNavPathActive('/meetings/calendar', '/meetings')).toBe(true)
     expect(isNavPathActive('/meetings/calendar', '/meetings/calendar')).toBe(true)
     expect(requiredCapabilityForPath('/account')).toBe(null)
     expect(requiredCapabilityForPath('/projects/settings')).toBe('pmo.settings.manage')

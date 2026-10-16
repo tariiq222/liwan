@@ -6,6 +6,8 @@ import MeetingPeopleFields from '@/components/meetings/MeetingPeopleFields.vue'
 import { useCreateMeeting } from '@/composables/useMeetings'
 import { useMeetingSeries } from '@/composables/useMeetings'
 import { buildMeetingSchedulePayload } from '@/utils/meetingDateTime'
+import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
+import { firstQuery } from '@/utils/routeQuery'
 import { getMeetingFormErrors } from '@/utils/meetingForm'
 import { useSsrQuerySeed } from '@/lib/vueQuerySsr'
 
@@ -15,7 +17,8 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const name = ref('')
-const meetingDate = ref('')
+const initialDate = firstQuery(route.query.date) ?? ''
+const meetingDate = ref(isCalendarDate(initialDate) ? initialDate : '')
 const start = ref('')
 const end = ref('')
 const endDate = ref('')
@@ -109,7 +112,6 @@ const scheduleDate = computed(() => meetingDate.value || (/^\d{4}-\d{2}-\d{2}T/.
 const scheduleEndDate = computed(() => endDate.value || (/^\d{4}-\d{2}-\d{2}T/.test(end.value) ? end.value.slice(0, 10) : ''))
 // Validation starts after the first save attempt: an untouched form must not
 // open covered in "required" errors.
-const attemptedSubmit = ref(false)
 const formErrors = computed(() => getMeetingFormErrors({
   name: name.value,
   date: scheduleDate.value,
@@ -118,11 +120,11 @@ const formErrors = computed(() => getMeetingFormErrors({
   endDate: scheduleEndDate.value,
   meetingUrl: meetingUrl.value,
 }))
-const visibleErrors = computed(() => attemptedSubmit.value ? formErrors.value : {} as typeof formErrors.value)
+const formElement = ref<HTMLFormElement | null>(null)
+const { attemptedSubmit, visibleErrors, validate } = useMeetingFormFeedback(formErrors, formElement)
 
 async function save() {
-  attemptedSubmit.value = true
-  if (!hydrated.value || !can('meetings.create') || Object.keys(formErrors.value).length || seriesDefaultsLoading.value || seriesDefaultsError.value) return
+  if (!hydrated.value || isPending.value || !can('meetings.create') || !validate() || seriesDefaultsLoading.value || seriesDefaultsError.value) return
   const schedule = buildMeetingSchedulePayload({
     date: scheduleDate.value,
     start: start.value.includes('T') ? start.value.slice(11, 16) : start.value,
@@ -149,8 +151,9 @@ async function save() {
 
 <template>
   <SharedCreatePanel :title="t('meetingsUi.new')" :back-to="backTo">
-    <form class="space-y-8" novalidate @submit.prevent="save">
+    <form ref="formElement" novalidate class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
+      <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <p v-if="context.series || context.project" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
         <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
         <span v-if="context.series && context.project"> · </span>
@@ -193,7 +196,7 @@ async function save() {
       <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
       <SharedFormActions class="justify-end">
         <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError" :label="t('app.create')" />
+        <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError" :loading="isPending" :label="t('meetingsUx.createMeeting')" />
       </SharedFormActions>
     </form>
   </SharedCreatePanel>

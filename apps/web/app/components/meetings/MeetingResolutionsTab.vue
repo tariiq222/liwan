@@ -19,6 +19,7 @@ const props = defineProps<{ meeting: MeetingDetail; meetingId: number }>()
 const emit = defineEmits<{ 'update:busy': [busy: boolean] }>()
 
 const route = useRoute()
+const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
@@ -28,6 +29,9 @@ const { data: projects } = projectQuery
 const { mutateAsync: convert, isPending: converting } = useConvertResolution()
 const { mutateAsync: runResolution } = useResolutionAction()
 const conversionError = ref('')
+const convertedResolutions = ref(new Set<number>())
+// A successful conversion blocks another submit only until the next server projection.
+watch(() => props.meeting.resolutions, () => { convertedResolutions.value = new Set() })
 const projectByResolution = ref<Record<number, number>>({})
 const projectSearch = ref<Record<number, string>>({})
 const pendingResolutionAction = ref<{ resolutionId: number; action: ResolutionAction } | null>(null)
@@ -51,7 +55,7 @@ const pendingResolutionName = computed(() => {
 watch(() => pendingResolutionIds.value.size > 0, busy => emit('update:busy', busy))
 
 function childTo(path: string, query = route.query) {
-  return recordChildTo(path, query, MEETING_LIST_PATHS, route.hash)
+  return recordChildTo(path, query, sourcePaths.value, route.hash)
 }
 
 function resolutionProjection(resolution: Resolution) {
@@ -59,7 +63,7 @@ function resolutionProjection(resolution: Resolution) {
 }
 
 function taskLinked(resolution: Resolution) {
-  return Boolean(resolution.task_id || resolution.task_linked)
+  return Boolean(resolution.task_id || resolution.task_linked || convertedResolutions.value.has(resolution.id))
 }
 
 function actionsFor(resolution: Resolution) {
@@ -88,7 +92,7 @@ function setResolutionPending(resolutionId: number, pending: boolean) {
 
 async function convertResolution(resolutionId: number) {
   const projectId = projectByResolution.value[resolutionId]
-  if (!hydrated.value || !canConvert.value || !projectId || pendingResolutionIds.value.has(resolutionId)) return
+  if (!hydrated.value || !canConvert.value || !projectId || pendingResolutionIds.value.has(resolutionId) || convertedResolutions.value.has(resolutionId)) return
   if (!(projects.value ?? []).some(project => project.id === projectId)) {
     projectByResolution.value = { ...projectByResolution.value, [resolutionId]: 0 }
     return
@@ -96,8 +100,11 @@ async function convertResolution(resolutionId: number) {
   conversionError.value = ''
   setResolutionPending(resolutionId, true)
   try {
-    const task = await convert({ meetingId: props.meetingId, resolutionId, projectId })
-    await navigateTo(`/tasks/${task.id}`)
+    await convert({ meetingId: props.meetingId, resolutionId, projectId })
+    const current = props.meeting.resolutions.find(item => item.id === resolutionId)
+    if (current && !current.task_linked && !current.task_id) {
+      convertedResolutions.value = new Set([...convertedResolutions.value, resolutionId])
+    }
   } catch (error) {
     conversionError.value = error instanceof ApiError ? error.message : t('meetingsUi.convertError')
   } finally {
@@ -176,7 +183,7 @@ async function confirmResolutionAction() {
                 <UButton v-if="actionsFor(item).includes('complete')" size="sm" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.complete')" @click="requestResolutionAction(item.id, 'complete')" />
                 <UButton v-if="actionsFor(item).includes('cancel')" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.cancelMeeting')" @click="requestResolutionAction(item.id, 'cancel')" />
               </template>
-              <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
+              <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="p-0" :to="`/tasks/${item.task_id}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
               <span v-else-if="taskLinked(item)" class="text-xs text-muted">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
               <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="neutral" variant="outline" size="sm" :to="childTo(`/meetings/${meetingId}/resolutions/${item.id}/edit`)" :label="t('meetingsUi.editResolution')" />
               <UButton v-if="resolutionCanReopen(item)" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
@@ -223,7 +230,7 @@ async function confirmResolutionAction() {
             <span class="text-muted">{{ formatMeetingDate(item.deadline, locale) }}</span>
           </div>
           <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
-          <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${item.task_id}`" :label="t('meetingsUi.openTask')" />
+          <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${item.task_id}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
         </li>
       </ul>
     </UCard>

@@ -36,7 +36,7 @@ const meta = {
   title: 'Meetings/MeetingMinutesDocument',
   component: MeetingMinutesDocument,
   parameters: { layout: 'fullscreen' },
-  args: { meeting, form, recommendations, legacyRecommendations: recommendations, legacyAgenda: '', legacyMinutes: '', snapshot: null, title: 'محضر الاجتماع' },
+  args: { meeting, form, recommendations, legacyRecommendations: recommendations, legacyAgenda: '', legacyMinutes: '', snapshot: null, title: 'محضر الاجتماع', compact: false },
 } satisfies Meta<typeof MeetingMinutesDocument>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -64,5 +64,12 @@ export const Empty: Story = {
   name: 'بلا مواضيع',
   parameters: storyContext('apps/web/app/pages/meetings/[id].vue:200'),
   args: { form: { ...form, topics: [] }, recommendations: [], legacyRecommendations: [] },
+  render,
+}
+
+export const Compact: Story = {
+  name: 'قراءة المحضر داخل الاجتماع',
+  args: { compact: true },
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:211'),
   render,
 }

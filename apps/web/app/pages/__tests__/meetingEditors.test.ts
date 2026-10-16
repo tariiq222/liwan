@@ -1,10 +1,12 @@
+import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
+import * as meetingEditorContext from '../../utils/meetingEditorContext'
 import * as recordNavigation from './helpers/recordNavigation'
 import { meetingTabFromRoute, meetingTabQuery, isMeetingTab } from '../../utils/meetingTabs'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch, reactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { createMeetingMinutesForm, validateMeetingMinutesForm } from '../../utils/meetingMinutesForm'
 import { parsePositiveId } from '../../utils/routeParams'
@@ -35,7 +37,7 @@ function evaluatedDetailPage() {
   const pendingRequest = new Promise<void>(resolveRequest => { release = resolveRequest })
   const runResolution = vi.fn(() => pendingRequest)
   const scope = {
-    ...recordNavigation,
+    ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback,
     onBeforeUnmount: () => {},
     defineProps: () => ({ meeting: meeting.value, meetingId: 7 }),
     defineEmits: () => vi.fn(),
@@ -107,7 +109,7 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
   const meeting = ref({ id: 7, name: 'Operations review', state, can_edit: canEdit, can_manage: canManage, agenda: '<p>Agenda</p>', minutes: '<p>Minutes</p>', write_date: '2026-09-07T10:00:00Z' })
   const navigateTo = vi.fn(async () => {})
   const scope = {
-    ...recordNavigation,
+    ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback,
     ref,
     computed,
     watch,
@@ -129,12 +131,26 @@ function evaluatedMinutesPage(mutation = deferredMutation(), state = 'confirmed'
   return { ...pageState, meeting, route, navigateTo, ...mutation }
 }
 
+function evaluatedRecommendationPage(query: Record<string, string> = {}): Record<string, any> {
+  const route = reactive({ params: { id: '7' }, path: '/meetings/7/resolutions/new', query })
+  const meeting = ref({ id: 7, state: 'confirmed', can_edit: true, organizer: { id: 3, name: 'Organizer' }, secretary: null, attendees: [], resolutions: [{ id: 9, name: 'Created once' }] })
+  const mutateAsync = vi.fn(async () => ({ id: 9 }))
+  const navigateTo = vi.fn(async () => false)
+  const replace = vi.fn(async (target: { query: Record<string, string> }) => { route.query = target.query })
+  const scope = { ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback, parsePositiveId,
+    ref, computed, watch, nextTick, useRoute: () => route, useRouter: () => ({ replace }),
+    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => ref(true),
+    useMeeting: () => ({ data: meeting }), useCreateResolution: () => ({ mutateAsync, isPending: ref(false), error: ref(null) }), navigateTo,
+  }
+  return { ...editorScript('[id]/resolutions/new.vue', scope, '{ save, name, responsibleId, executionPeriod, createdResolutionId }'), route, mutateAsync, navigateTo, replace }
+}
+
 function evaluatedSeriesSettingsPage(mutation = deferredMutation()): Record<string, any> {
   const route = { params: { id: '12' }, query: { returnTo: '/meetings/series?q=weekly' }, fullPath: '/meetings/series/12/edit' }
   const series = ref({ id: 12, name: 'Weekly operations', can_edit: true, location: 'Room 1', meeting_url: 'https://meet.example.test/old', secretary: null, attendees: [], organizer: { id: 3, name: 'Tariq' }, recurrence: 'weekly', until_count: 4, until_date: null })
   const navigateTo = vi.fn(async () => {})
   const scope = {
-    ...recordNavigation,
+    ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback,
     ref,
     computed,
     watch,
@@ -176,7 +192,7 @@ function evaluatedGeneralEditPage(canEdit = true): Record<string, any> {
   const mutateAsync = vi.fn(async () => ({}))
   const navigateTo = vi.fn(async () => {})
   const scope = {
-    ...recordNavigation,
+    ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback,
     ref,
     computed,
     watch,
@@ -225,13 +241,13 @@ describe('meeting editor routes and guards', () => {
   it('keeps a minutes draft dirty on error and blocks deferred duplicate saves', async () => {
     const mutation = deferredMutation({}, true)
     const editor = evaluatedMinutesPage(mutation)
-    editor.agenda.value = '<p>Updated agenda</p>'
+    editor.minutes.value = '<p>Updated minutes</p>'
     const first = editor.save()
     await nextTick()
     const second = editor.save()
     expect(editor.mutateAsync).toHaveBeenCalledTimes(1)
     editor.release()
-    await expect(first).rejects.toThrow('save failed')
+    await expect(first).resolves.toBeUndefined()
     await second
     expect(editor.dirty.value).toBe(true)
     expect(editor.navigateTo).not.toHaveBeenCalled()
@@ -245,17 +261,17 @@ describe('meeting editor routes and guards', () => {
     await nextTick()
     editor.release()
     await save
-    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { agenda: '<p>Agenda</p>', minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), write_date: '2026-09-07T10:00:00Z', scope: 'this' } })
+    expect(editor.mutateAsync).toHaveBeenCalledWith({ id: 7, body: { minutes: '<p>Final minutes</p>', minutes_form: expect.any(Object), write_date: '2026-09-07T10:00:00Z', scope: 'this' } })
     // The route carries ?returnTo=/meetings?q=review. The minutes editor
     // belongs to one meeting, so that is where saving lands, and the referrer
     // is dropped instead of being copied onto the destination.
-    expect(editor.navigateTo).toHaveBeenCalledWith({ path: '/meetings/7', query: {} })
+    expect(editor.navigateTo).toHaveBeenCalledWith({ path: '/meetings/7', query: { tab: 'minutes' } })
   })
 
   it('saves the complete minutes draft before opening a new recommendation', async () => {
     const mutation = deferredMutation({})
     const editor = evaluatedMinutesPage(mutation)
-    editor.agenda.value = '<p>Updated agenda</p>'
+    editor.agenda.value = '<p>Agenda stays in its own editor</p>'
     editor.minutes.value = '<p>Updated minutes</p>'
     editor.minutesForm.value = createMeetingMinutesForm({
       opening: 'Opening',
@@ -273,7 +289,6 @@ describe('meeting editor routes and guards', () => {
     expect(editor.mutateAsync).toHaveBeenCalledWith({
       id: 7,
       body: {
-        agenda: '<p>Updated agenda</p>',
         minutes: '<p>Updated minutes</p>',
         minutes_form: editor.minutesForm.value,
         write_date: '2026-09-07T10:00:00Z',
@@ -282,7 +297,7 @@ describe('meeting editor routes and guards', () => {
     })
     // The new resolution hangs off the same meeting; it needs no referrer to
     // find its way back, and one here would ride onto the meeting URL.
-    expect(editor.navigateTo).toHaveBeenCalledWith('/meetings/7/resolutions/new')
+    expect(editor.navigateTo).toHaveBeenCalledWith({ path: '/meetings/7/resolutions/new', query: { tab: 'minutes', editor: 'minutes' } })
   })
 
   it('explains the reopen requirement to an authorized manager while denying a non-editor', () => {
@@ -292,6 +307,30 @@ describe('meeting editor routes and guards', () => {
     expect(manager.canEdit.value).toBe(false)
     expect(reader.lifecycleLocked.value).toBe(true)
     expect(reader.canEdit.value).toBe(false)
+  })
+
+  it('keeps the new revision after a successful save when departure is aborted', async () => {
+    const mutation = deferredMutation({ write_date: '2026-09-07T11:00:00Z' })
+    const editor = evaluatedMinutesPage(mutation)
+    editor.minutes.value = '<p>New draft</p>'
+    const first = editor.save(true)
+    editor.release()
+    await first
+    await editor.save(true)
+    expect(editor.mutateAsync.mock.calls[1][0].body.write_date).toBe('2026-09-07T11:00:00Z')
+  })
+
+  it('persists successful recommendation identity before departure and refresh never posts it twice', async () => {
+    const editor = evaluatedRecommendationPage({ editor: 'minutes', topic_key: 'topic-1' })
+    editor.name.value = 'Created once'
+    editor.responsibleId.value = 3
+    editor.executionPeriod.value = 'A week'
+    await editor.save()
+    expect(editor.route.query.created_resolution_id).toBe('9')
+    const refreshed = evaluatedRecommendationPage(editor.route.query)
+    await refreshed.save()
+    expect(refreshed.mutateAsync).not.toHaveBeenCalled()
+    expect(refreshed.navigateTo).toHaveBeenCalled()
   })
 
   it('saves series settings once and returns to its own series', async () => {

@@ -1,3 +1,5 @@
+import * as editorContext from '../../utils/meetingEditorContext'
+import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -30,7 +32,7 @@ async function load(file: string, url: RouteLocationRaw) {
   const code = compileScript(descriptor, { id: 'return-chain' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', 'false').replace('export default', 'return')
   const js = ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
   const navigate = vi.fn(async (_to: RouteLocationRaw) => {})
-  const bindings: Record<string, unknown> = {
+  const bindings: Record<string, unknown> = { ...editorContext, useMeetingFormFeedback,
     ...recordNavigation,
     // Namespace metadata such as Node's `module.exports` is not a Function parameter.
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick,
@@ -47,7 +49,10 @@ async function load(file: string, url: RouteLocationRaw) {
     const scope = Vue.effectScope()
     try {
       const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
-      const state = scope.run(() => component.setup({ employees: [], params: {}, departments: [] }, { expose: () => {}, emit: vi.fn() }))
+      const props = file === resolutionsTab
+        ? { meetingId: 7, meeting: { id: 7, can_edit: true, resolutions: [], previous_resolutions: [] } }
+        : { employees: [], params: {}, departments: [] }
+      const state = scope.run(() => component.setup(props, { expose: () => {}, emit: vi.fn() }))
       return { state, router, navigate, file, stop: () => scope.stop() }
     } catch (error) {
       scope.stop()
@@ -163,7 +168,7 @@ describe('meeting and employee owning-list return context', () => {
 
   it.each([['/meetings', '/meetings/calendar'], '/meetings/88', '//evil.test'])('rejects ambiguous or non-owning child list context %j', async listOrigin => {
     const edit = await load('pages/meetings/[id]/minutes.vue', { path: '/meetings/7/minutes', query: { listOrigin, q: 'review' } })
-    expect(target(edit).fullPath).toBe('/meetings/7?q=review')
+    expect(target(edit).fullPath).toBe('/meetings/7?q=review&tab=minutes')
     edit.stop()
   })
 

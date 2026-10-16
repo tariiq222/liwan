@@ -20,7 +20,7 @@ describe('module registry', () => {
   it('hides withdrawn project navigation while keeping meetings', () => {
     expect(hasFeature(withdrawnPmo, 'pmo.enabled')).toBe(false)
     expect(useNav(withdrawnPmo).map(item => item.to)).toEqual([
-      '/', '/meetings', '/meetings/calendar', '/meetings/series', '/hr',
+      '/', '/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series', '/hr',
     ])
     expect(firstAllowedPath(withdrawnPmo)).toBe('/meetings')
     expect(postLoginPath(withdrawnPmo, '/projects')).toBe('/')

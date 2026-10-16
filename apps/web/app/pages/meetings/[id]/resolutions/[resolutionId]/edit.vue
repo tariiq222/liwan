@@ -66,16 +66,16 @@ watch(resolution, seedResolution, { immediate: true })
 useSsrQuerySeed({ data: resolution }, seedResolution)
 
 const dirty = computed(() => loaded.value && snapshot() !== baseline.value)
-const validationMessage = computed(() => {
-  if (!canEditDecision.value) return ''
-  if (!name.value.trim()) return t('meetingsUx.validation.resolutionName')
-  if (!responsibleId.value) return t('meetingsUx.validation.responsible')
-  if (!deadline.value && !executionPeriod.value.trim()) return t('meetingMinutesForm.validation.deadlineOrPeriod')
-  return ''
-})
+const formErrors = computed(() => ({
+  ...(!name.value.trim() ? { name: t('meetingsUx.validation.resolutionName') } : {}),
+  ...(!responsibleId.value ? { responsible: t('meetingsUx.validation.responsible') } : {}),
+  ...(!deadline.value && !executionPeriod.value.trim() ? { deadline: t('meetingMinutesForm.validation.deadlineOrPeriod') } : {}),
+}))
+const formElement = ref<HTMLFormElement | null>(null)
+const { attemptedSubmit, visibleErrors, validate } = useMeetingFormFeedback(formErrors, formElement)
 
 async function save() {
-  if (!canSave.value || !dirty.value || (canEditDecision.value && (!name.value.trim() || !responsibleId.value || (!deadline.value && !executionPeriod.value.trim())))) return
+  if (!canSave.value || isPending.value || !dirty.value || (canEditDecision.value && !validate())) return
   const body: Record<string, unknown> = {}
   if (canEditDecision.value) {
     body.name = name.value.trim()
@@ -102,14 +102,14 @@ async function save() {
     <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
       <UAlert v-if="resolution && !canEditDecision && !canEditResult" color="neutral" variant="subtle" :title="t('meetingsUi.resolutionReadOnly')" />
-      <form v-else-if="resolution" class="space-y-8" @submit.prevent="save">
+      <form ref="formElement" novalidate v-else-if="resolution" class="space-y-8" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
         <SharedFormSection v-if="canEditDecision" :title="t('meetingsUi.resolutions')">
           <div class="nasq-form-grid">
-            <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required>
-              <UInput id="resolution-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" required />
+            <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
+              <UInput id="resolution-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
             </UFormField>
-            <UFormField :label="t('meetingsUi.responsible')" name="responsible" required>
+            <UFormField :label="t('meetingsUi.responsible')" name="responsible" required :error="visibleErrors.responsible">
               <SharedPersonPicker
                 id="resolution-user"
                 :model-value="responsibleId || null"
@@ -120,7 +120,7 @@ async function save() {
                 @update:model-value="responsibleId = typeof $event === 'number' ? $event : ''"
               />
             </UFormField>
-            <UFormField :label="t('meetingsUi.deadline')" name="deadline" :help="t('meetingMinutesForm.deadlineOrPeriodHint')">
+            <UFormField :label="t('meetingsUi.deadline')" name="deadline" :error="visibleErrors.deadline" :help="t('meetingMinutesForm.deadlineOrPeriodHint')">
               <SharedDateField id="resolution-deadline" v-model="deadlineField" class="w-full" :disabled="!hydrated || isPending" />
             </UFormField>
             <UFormField :label="t('meetingMinutesForm.executionPeriod')" name="executionPeriod">
@@ -145,11 +145,12 @@ async function save() {
             <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" :aria-label="t('meetingsUx.completionNotes')" @draft="result = $event.html" />
           </ClientOnly>
         </SharedFormSection>
-        <p v-if="validationMessage" class="text-sm text-muted" aria-live="polite">{{ validationMessage }}</p>
+        <UAlert v-if="attemptedSubmit && Object.keys(formErrors).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.keys(formErrors).length })" />
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
+        <p v-if="loaded && !dirty" class="text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
         <SharedFormActions class="justify-end">
           <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-          <UButton type="submit" :disabled="!canSave || isPending || !dirty || Boolean(validationMessage)" :label="t('app.save')" />
+          <UButton type="submit" :disabled="!canSave || isPending || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
         </SharedFormActions>
       </form>
     </SharedPageState>

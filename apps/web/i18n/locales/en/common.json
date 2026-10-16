@@ -75,7 +75,9 @@
     "language": "Language",
     "goToShowAll": "Show all pages ({count})",
     "goToShowLess": "Show fewer",
-    "notificationsFilters": "Filter notifications"
+    "notificationsFilters": "Filter notifications",
+    "meetingFollowup": "Follow-up",
+    "meetingSeriesShort": "Recurring"
   },
   "auth": {
     "username": "Username",

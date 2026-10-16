@@ -1,3 +1,4 @@
+import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -19,7 +20,7 @@ function editPage(routeId: string) {
   const script = parse(sourceOf('[id]/edit.vue')).descriptor.scriptSetup!.content.replace(/^import .*$/gm, '')
   const meeting = ref(null)
   const useMeeting = vi.fn(() => ({ data: meeting, error: ref(null) }))
-  const scope = { ...recordNavigation, computed, ref, watch, nextTick, parsePositiveId, ApiError, useMeeting,
+  const scope = { useMeetingFormFeedback, ...recordNavigation, computed, ref, watch, nextTick, parsePositiveId, ApiError, useMeeting,
     useRoute: () => ({ params: { id: routeId }, query: {}, hash: '' }),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => ref(true), useSsrQuerySeed: () => {},
     useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),

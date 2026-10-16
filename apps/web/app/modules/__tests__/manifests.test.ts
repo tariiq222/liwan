@@ -67,7 +67,7 @@ describe('app manifests', () => {
 
   it.each([
     ['/projects/dashboard', '/projects', false], ['/projects/settings/x', '/projects', false], ['/projects/5', '/projects', true],
-    ['/meetings/calendar', '/meetings', false], ['/meetings/calendar', '/meetings/calendar', true],
+    ['/meetings/calendar', '/meetings', true], ['/meetings/calendar', '/meetings/calendar', true],
     ['/meetings/series/3', '/meetings/series', true], ['/hr/employees/7/edit', '/hr', true], ['/hr/documents', '/hr', false],
     ['/hr/departments/7/documents/2', '/hr/departments', false], ['/hr/departments/7/documents/2', '/hr/documents', true],
   ])('nav active %s vs %s -> %s', (path, target, active) => {

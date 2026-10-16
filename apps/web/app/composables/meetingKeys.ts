@@ -4,6 +4,7 @@
 // refresh both roots without hand-rolled key literals.
 export const meetingKeys = {
   all: ['meetings'] as const,
+  followup: (params: Record<string, unknown>) => ['meetings', 'follow-up', params] as const,
   list: (params: Record<string, unknown>) => ['meetings', params] as const,
   detail: (id: number | null) => ['meetings', id] as const,
   attachments: (id: number | null) => ['meetings', 'attachments', id] as const,
