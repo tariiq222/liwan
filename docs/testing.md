@@ -186,3 +186,17 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
   either mock routes for that application or a scratch Odoo stack.
 - CI does not run agentic e2e today because it needs model credentials. Tests that use
   only exact steps may join CI later (the cache runs `read-only` in CI).
+
+## 5. Vendor admin app
+
+`apps/vendor-admin` is tested on its own; `npm test` and the web commands above do not cover it. Run `npx nuxt prepare` in
+`apps/vendor-admin` first (the `postinstall` does it after a normal install).
+
+| Command | Proves |
+| --- | --- |
+| `npm -w apps/vendor-admin run lint` | Type check (`vue-tsc --build --noEmit`); CI step `vendor-admin`. |
+| `npm -w apps/vendor-admin run test` | Unit tests (vitest); CI step `vendor-admin`. |
+| `npm -w apps/vendor-admin run e2e` | Playwright against the mock control service in `apps/vendor-admin/e2e`, on a production build; `e2e:dev` runs the `*.dev.spec.ts` specs on `nuxt dev`. Not a CI step. |
+| `PATH=/opt/homebrew/bin:$PATH node tools/vendor_admin_local_check.mjs` | Live proof: sign-in, enrollment and team management against the real control plane with real WebAuthn verification. Needs local Postgres; scratch database `nasq_control_scratch_p3live`. Details in `apps/vendor-admin/README.md`. Not a CI step. |
+
+Local evidence only; it does not establish deployment readiness.
