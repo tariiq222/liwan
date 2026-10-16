@@ -4,7 +4,7 @@ type Fetcher = (url: string, options?: Record<string, unknown>) => Promise<unkno
 
 export interface AdminApiDeps {
   fetcher: Fetcher
-  onUnauthorized: () => void | Promise<void>
+  onUnauthorized: () => unknown
   /** Hook point for the step-up flow: receives a retry of the failed request. Default: rethrow. */
   onStepUpRequired?: <T>(retry: () => Promise<T>, cause: unknown) => Promise<T>
 }

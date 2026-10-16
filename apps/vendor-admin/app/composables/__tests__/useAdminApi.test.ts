@@ -37,7 +37,7 @@ describe('createAdminApi', () => {
     const fetcher = vi.fn()
       .mockRejectedValueOnce(failure(403, { code: 'step_up_required' }))
       .mockResolvedValueOnce({ done: true })
-    const onStepUpRequired = vi.fn((retry: () => Promise<unknown>) => retry())
+    const onStepUpRequired = vi.fn(<T>(retry: () => Promise<T>) => retry())
     const api = createAdminApi({ fetcher, onUnauthorized: vi.fn(), onStepUpRequired })
     await expect(api.request('/x', { method: 'POST', body: { a: 1 } })).resolves.toEqual({ done: true })
     expect(onStepUpRequired).toHaveBeenCalledTimes(1)
