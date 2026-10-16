@@ -1,0 +1,10 @@
+{
+  "app": {
+    "productName": "Nasq",
+    "error": {
+      "notFound": "Page not found",
+      "generic": "Something went wrong",
+      "home": "Back to home"
+    }
+  }
+}
