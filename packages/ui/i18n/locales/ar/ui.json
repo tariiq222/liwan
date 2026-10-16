@@ -37,7 +37,8 @@
     "home": "الرئيسية",
     "modules": "الموديولات",
     "railApps": "التطبيقات",
-    "railAdmin": "الإدارة"
+    "railAdmin": "الإدارة",
+    "breadcrumb": "مسار الصفحة"
   },
   "states": {
     "bulkActions": "إجراءات على الصفوف المحددة",

@@ -588,7 +588,7 @@ class StaticGateTest(unittest.TestCase):
     # --- shell, styles, button ranks ------------------------------------------
 
     def test_breadcrumb_is_owned_by_the_shell(self):
-        owner = APP + 'components/shell/ShellBreadcrumb.vue'
+        owner = UI + 'components/shell/ShellBreadcrumb.vue'
         page = APP + 'pages/tasks.vue'
         trail = '<template><UBreadcrumb :items="items" /></template>'
         self.assertEqual(policy.breadcrumb_errors({owner: trail}), [])
@@ -605,7 +605,11 @@ class StaticGateTest(unittest.TestCase):
                              [page + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)'], tag)
 
     def test_the_header_may_mount_only_shell_breadcrumb(self):
-        header = APP + 'components/shell/ShellHeader.vue'
+        for header in (APP + 'components/shell/ShellHeader.vue', VENDOR + 'components/AdminHeader.vue'):
+            self.assert_header_rejects_raw_breadcrumb(header)
+
+    def assert_header_rejects_raw_breadcrumb(self, header):
+        self.assertEqual(policy.breadcrumb_errors({header: '<template><ShellBreadcrumb :items="items" /></template>'}), [])
         for tag in ('<UBreadcrumb :items="items" />', '<u-breadcrumb />', '<ubreadcrumb />'):
             self.assertEqual(policy.breadcrumb_errors({header: '<template>' + tag + '</template>'}),
                              [header + ': the breadcrumb belongs to shell/ShellBreadcrumb.vue (DESIGN.md)'], tag)

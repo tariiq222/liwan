@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { ShellRailItem } from '@nasq/ui/app/types/shell'
+import type { ShellCrumb, ShellRailItem } from '@nasq/ui/app/types/shell'
 import { usePageHeaderTitle } from '@nasq/ui/app/composables/usePageHeader'
 
 // The 48px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
@@ -24,10 +24,10 @@ const section = computed(() => props.items.find(item => item.id === props.active
 const crumbs = computed(() => {
   const label = section.value ? t(section.value.labelKey) : null
   const title = hydrated.value ? pageTitle.value : null
-  const trail = [] as { label: string, to?: string, active?: boolean }[]
+  const trail: ShellCrumb[] = []
   if (label && section.value) trail.push({ label, to: title && title !== label ? section.value.to : undefined })
   if (title && title !== label) trail.push({ label: title })
-  return trail.map((crumb, index) => ({ ...crumb, active: index === trail.length - 1 }))
+  return trail
 })
 
 async function leave() {
@@ -75,7 +75,7 @@ const menu = computed<MenuItem[][]>(() => [
   <header data-testid="shell-header" class="nasq-shell-header" :aria-label="t('app.shell.header')">
     <div class="nasq-shell-header-start">
       <AdminMobileNav :items="props.items" :active-id="props.activeId" />
-      <UBreadcrumb v-if="crumbs.length" :items="crumbs" :aria-label="t('app.shell.breadcrumb')" data-testid="shell-breadcrumb" class="nasq-shell-breadcrumb" />
+      <ShellBreadcrumb :items="crumbs" />
       <UBadge color="neutral" variant="subtle" size="sm" class="nasq-shell-console-badge" data-testid="vendor-console-badge">
         {{ t('app.shell.consoleBadge') }}
       </UBadge>

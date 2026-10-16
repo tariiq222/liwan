@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import ShellBreadcrumb from '../../app/components/shell/ShellBreadcrumb.vue'
+import ShellBreadcrumb from '@nasq/ui/app/components/shell/ShellBreadcrumb.vue'
 import { storyContext } from '../support/context'
 
 const meta = {
