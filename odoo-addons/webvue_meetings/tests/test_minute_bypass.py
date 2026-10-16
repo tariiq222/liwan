@@ -1,5 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessError, UserError
@@ -249,15 +248,3 @@ class TestBypass(WebVueMeetingEngineCase):
             [("id", "=", meeting_b.id)],
         )
         self.assertEqual(visible, meeting_b)
-
-    def test_open_minutes_requires_event_read(self):
-        start = fields.Datetime.now()
-        event = self.env["calendar.event"].with_user(self.event_owner).create({
-            "name": "Private event",
-            "start": start,
-            "stop": start + timedelta(hours=1),
-            "user_id": self.event_owner.id,
-            "privacy": "private",
-        })
-        with self.assertRaises(AccessError):
-            event.with_user(self.outsider).action_open_meeting_minutes()

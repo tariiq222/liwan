@@ -266,7 +266,6 @@ msgid "Last Updated on"
 msgstr "آخر تحديث في"
 
 #. module: webvue_meetings
-#: code:addons/webvue_meetings/models/calendar_event.py:0
 #: code:addons/webvue_meetings/models/meeting_minute.py:0
 #. odoo-python
 msgid "Linked to Calendar event: %s"
@@ -288,10 +287,8 @@ msgid "Meeting Date"
 msgstr "تاريخ الاجتماع"
 
 #. module: webvue_meetings
-#: code:addons/webvue_meetings/models/calendar_event.py:0
 #: model:ir.actions.report,name:webvue_meetings.action_report_meeting_minutes
 #: model:ir.model.fields,field_description:webvue_meetings.field_webvue_meeting_minute__minutes
-#. odoo-python
 msgid "Meeting Minutes"
 msgstr "محاضر الاجتماعات"
 
@@ -683,12 +680,6 @@ msgstr "مهمة جداً"
 #. odoo-python
 msgid "You cannot add followers who cannot access this record."
 msgstr "لا يمكن إضافة متابعين لا يملكون صلاحية هذا السجل."
-
-#. module: webvue_meetings
-#: code:addons/webvue_meetings/models/calendar_event.py:0
-#. odoo-python
-msgid "You cannot create meeting minutes for this calendar event."
-msgstr "لا يمكنك إنشاء محضر اجتماع لهذا الحدث."
 
 #. module: webvue_meetings
 #: code:addons/webvue_meetings/models/meeting_minute.py:0

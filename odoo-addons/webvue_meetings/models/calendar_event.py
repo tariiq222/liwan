@@ -2,24 +2,13 @@
 # Original author: Cyan (cyan_meeting_minutes 19.0.1.3.0, LGPL-3), absorbed into webvue_meetings.
 # See PROVENANCE.md.
 # SPDX-License-Identifier: LGPL-3
-from psycopg2 import IntegrityError
 
 from odoo import _, fields, models
-from odoo.exceptions import AccessError, UserError
-
-from .meeting_minute import _CALENDAR_IMPORT
+from odoo.exceptions import UserError
 
 
 class CalendarEvent(models.Model):
     _inherit = "calendar.event"
-
-    def _webvue_can_create_minutes(self):
-        self.ensure_one()
-        if self.env.su:
-            return True
-        service = self.env['webvue.access.service']
-        return service._webvue_has_capability(self.env.user, 'meetings.create') and (
-            self.user_id == self.env.user or service._webvue_has_capability(self.env.user, 'meetings.manage'))
 
     def _webvue_internal_attendees(self, company, organizer):
         self.ensure_one()
@@ -52,46 +41,6 @@ class CalendarEvent(models.Model):
             "location": self.location,
             "organizer_id": organizer.id,
             "attendee_ids": [(6, 0, self._webvue_internal_attendees(company, organizer).ids)],
-        }
-
-    def action_open_meeting_minutes(self):
-        # The server-local marker is inaccessible to forged RPC context flags.
-        token = _CALENDAR_IMPORT.set(True)
-        try:
-            return self._webvue_open_meeting_minutes()
-        finally:
-            _CALENDAR_IMPORT.reset(token)
-
-    def _webvue_open_meeting_minutes(self):
-        self.ensure_one()
-        self.check_access("read")
-        meeting = self.env["webvue.meeting.minute"].search([("calendar_event_id", "=", self.id)], limit=1)
-        if meeting:
-            meeting.check_access("read")
-            return self._webvue_open_meeting_action(meeting)
-        if not self._webvue_can_create_minutes():
-            raise AccessError(_("You cannot create meeting minutes for this calendar event."))
-        values = self._webvue_meeting_schedule_values()
-        try:
-            with self.env.cr.savepoint():
-                meeting = self.env["webvue.meeting.minute"].create(values)
-                meeting._webvue_link_calendar_event(self)
-        except IntegrityError as err:
-            raise AccessError(_("You cannot create meeting minutes for this calendar event.")) from err
-        meeting.message_post(
-            body=_("Linked to Calendar event: %s", self.name),
-            subtype_xmlid="mail.mt_note",
-        )
-        return self._webvue_open_meeting_action(meeting)
-
-    def _webvue_open_meeting_action(self, meeting):
-        return {
-            "type": "ir.actions.act_window",
-            "name": _("Meeting Minutes"),
-            "res_model": "webvue.meeting.minute",
-            "res_id": meeting.id,
-            "view_mode": "form",
-            "target": "current",
         }
 
     def _webvue_linked_minutes(self):

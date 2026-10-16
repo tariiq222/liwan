@@ -122,16 +122,6 @@ class TestMeetingLifecycle(TransactionCase):
         self.assertEqual(event.stop, meeting.end_datetime)
         self.assertEqual(event.location, 'New room')
 
-    def test_calendar_import_does_not_create_an_extra_event(self):
-        Event = self.env['calendar.event'].with_user(self.organizer)
-        event = Event.create({'name': 'Import calendar', 'start': '2026-09-08 10:00:00',
-                              'stop': '2026-09-08 11:00:00', 'user_id': self.organizer.id})
-        before = Event.search_count([])
-        action = event.action_open_meeting_minutes()
-        meeting = self.Meeting.browse(action['res_id'])
-        self.assertEqual(meeting.calendar_event_id, event)
-        self.assertEqual(Event.search_count([]), before)
-
     def test_membership_stays_removed_after_rename_and_reschedule(self):
         meeting = self._create_meeting()
         meeting.write({'attendee_ids': [(6, 0, [])]})

@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 from odoo import fields
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import UserError
 
 from .common import WebVueMeetingEngineCase
 
@@ -60,13 +60,6 @@ class TestCalendarSecurity(WebVueMeetingEngineCase):
             meeting.with_user(self.organizer).with_context(webvue_calendar_sync=True).write({
                 "name": "spoofed",
             })
-
-    def test_non_owner_cannot_create_minutes_from_event(self):
-        event = self.env["calendar.event"].with_user(self.event_owner).create(
-            self._event_vals(self.event_owner),
-        )
-        with self.assertRaises(AccessError):
-            event.with_user(self.outsider).action_open_meeting_minutes()
 
     def test_cannot_delete_event_while_meeting_linked(self):
         meeting = self._create_meeting()
