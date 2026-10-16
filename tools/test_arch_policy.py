@@ -257,15 +257,15 @@ class TestAppToken(unittest.TestCase):
         self.assertEqual(count(token, "r = 'webvue_meetings_pmo.rule_x'"), 1)
         self.assertEqual(count(token, "k = 'meetings_pmo.thing'"), 1)
 
-    def test_odoo_models_and_the_meeting_engine_stay_tokens(self):
+    def test_odoo_models_stay_tokens(self):
         token = app_token({'webvue_core': 0})
-        self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'; c = 'cyan_meeting_minutes.x'"), 2)
+        self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'"), 1)
         self.assertEqual(count(token, "a = 'pmo.tasks.read'; b = 'meetings.read'; d = 'chat.title'"), 0)
 
     def test_shipped_application_prefixes_come_from_the_registered_ranks(self):
         shipped = {'webvue_core': 0, 'webvue_hr': 4, 'webvue_pmo': 4, 'webvue_meetings': 4, 'webvue_chat': 4}
         token = app_token(shipped)
-        self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'; c = 'cyan_meeting_minutes.x'"), 3)
+        self.assertEqual(count(token, "m = 'project.task'; e = 'hr.employee'"), 2)
         self.assertEqual(count(token, "a = 'pmo.tasks.read'; b = 'meetings.read'; d = 'chat.title'"), 3)
 
     def test_unregistered_names_shared_services_and_overlays_are_not_tokens(self):

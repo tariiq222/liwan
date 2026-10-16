@@ -97,15 +97,15 @@ class TestAddonTree(TempDirCase):
         (folder / '__manifest__.py').write_text("{'name': '%s', 'depends': %r}" % (name, depends), encoding='utf-8')
 
     def test_known_includes_non_webvue_addons_and_skips_plain_dirs(self):
-        self.addon('cyan_like', ['base'])
-        self.addon('webvue_meetings', ['cyan_like', 'mail'])
+        self.addon('vendor_like', ['base'])
+        self.addon('webvue_meetings', ['vendor_like', 'mail'])
         (self.root / 'no_manifest').mkdir()
         (self.root / 'README').write_text('x', encoding='utf-8')
         known = local_addons(self.root)
-        self.assertEqual(known, {'cyan_like', 'webvue_meetings'})
+        self.assertEqual(known, {'vendor_like', 'webvue_meetings'})
         depends = local_depends(self.root, known)
-        self.assertEqual(depends['webvue_meetings'], ['cyan_like'])
-        self.assertEqual(with_dependents({'cyan_like'}, depends), {'cyan_like', 'webvue_meetings'})
+        self.assertEqual(depends['webvue_meetings'], ['vendor_like'])
+        self.assertEqual(with_dependents({'vendor_like'}, depends), {'vendor_like', 'webvue_meetings'})
 
 
 class TestFilestoreAndPorts(TempDirCase):
