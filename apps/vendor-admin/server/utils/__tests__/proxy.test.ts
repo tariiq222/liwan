@@ -119,6 +119,13 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(allowed.length)
   })
 
+  it('allows only GET on packages', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await post('/packages/00000000-0000-4000-8000-000000000001')).status).toBe(404)
+    expect((await post('/packages')).status).toBe(404)
+    expect(calls).toHaveLength(0)
+  })
+
   it('drops every upstream header, including set-cookie', async () => {
     stubUpstream(() => new Response('{"ok":true}', { status: 200, headers: { 'set-cookie': 'evil=1; Path=/', 'x-powered-by': 'upstream', 'content-type': 'application/json' } }))
     const result = await get('/context')
