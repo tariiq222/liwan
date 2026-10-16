@@ -1322,6 +1322,1243 @@
         ],
         "type": "object"
       },
+      "AiAuditKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "message",
+          "read",
+          "write_light",
+          "draft"
+        ],
+        "type": "string"
+      },
+      "AiAuditReceiptSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "messages_limit": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "messages_used": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "messages_used",
+          "messages_limit"
+        ],
+        "type": "object"
+      },
+      "AiAuditRequestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "approved": {
+            "anyOf": [
+              {
+                "additionalProperties": {},
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attested": {
+            "type": "boolean"
+          },
+          "conversation_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "additionalProperties": {},
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "maximum": 599,
+                "minimum": 100,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input": {
+            "anyOf": [
+              {
+                "additionalProperties": {},
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "enum": [
+              "message",
+              "read",
+              "write_light",
+              "draft"
+            ],
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "ok",
+              "denied",
+              "failed",
+              "proposed",
+              "approved",
+              "rejected"
+            ],
+            "type": "string"
+          },
+          "tool_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "conversation_id",
+          "kind",
+          "tool_name",
+          "input",
+          "result",
+          "http_status",
+          "draft",
+          "approved",
+          "attested"
+        ],
+        "type": "object"
+      },
+      "AiAuditResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "ok",
+          "denied",
+          "failed",
+          "proposed",
+          "approved",
+          "rejected"
+        ],
+        "type": "string"
+      },
+      "AiDoneStatusSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "running",
+          "waiting_tool",
+          "waiting_user",
+          "done",
+          "failed",
+          "limit_reached"
+        ],
+        "type": "string"
+      },
+      "AiDraftHandoffSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": false,
+            "properties": {
+              "charter": {
+                "additionalProperties": false,
+                "properties": {
+                  "assumptions": {
+                    "maxLength": 4000,
+                    "type": "string"
+                  },
+                  "constraints": {
+                    "maxLength": 4000,
+                    "type": "string"
+                  },
+                  "exclusions": {
+                    "maxLength": 4000,
+                    "type": "string"
+                  },
+                  "objectives": {
+                    "items": {
+                      "maxLength": 500,
+                      "type": "string"
+                    },
+                    "maxItems": 10,
+                    "type": "array"
+                  },
+                  "rationale": {
+                    "maxLength": 4000,
+                    "type": "string"
+                  },
+                  "scope": {
+                    "maxLength": 4000,
+                    "type": "string"
+                  },
+                  "success": {
+                    "maxLength": 4000,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "date_end": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              "date_start": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              "description": {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "call_id",
+          "tool",
+          "payload"
+        ],
+        "type": "object"
+      },
+      "AiDraftPayloadSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "charter": {
+            "additionalProperties": false,
+            "properties": {
+              "assumptions": {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              "constraints": {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              "exclusions": {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              "objectives": {
+                "items": {
+                  "maxLength": 500,
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              "rationale": {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              "scope": {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              "success": {
+                "maxLength": 4000,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "date_end": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_start": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "AiEventSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "run_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "run_id"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "run",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "token",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "call_id": {
+                    "type": "string"
+                  },
+                  "input": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": [
+                      "read",
+                      "write_light",
+                      "draft"
+                    ],
+                    "type": "string"
+                  },
+                  "summary_ar": {
+                    "type": "string"
+                  },
+                  "summary_en": {
+                    "type": "string"
+                  },
+                  "tool": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "call_id",
+                  "tool",
+                  "kind",
+                  "input",
+                  "summary_ar",
+                  "summary_en"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "tool_request",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "call_id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "read",
+                      "write_light",
+                      "draft"
+                    ],
+                    "type": "string"
+                  },
+                  "ok": {
+                    "type": "boolean"
+                  },
+                  "summary_ar": {
+                    "type": "string"
+                  },
+                  "summary_en": {
+                    "type": "string"
+                  },
+                  "tool": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "call_id",
+                  "tool",
+                  "kind",
+                  "ok",
+                  "summary_ar",
+                  "summary_en"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "tool_result",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "records": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "id",
+                        "label"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text",
+                  "records"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "answer",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "limit": {
+                    "enum": [
+                      "max_tool_calls",
+                      "max_steps",
+                      "timeout",
+                      "messages_monthly"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "limit"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "limit_reached",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "error",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "running",
+                      "waiting_tool",
+                      "waiting_user",
+                      "done",
+                      "failed",
+                      "limit_reached"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "type": "object"
+              },
+              "event": {
+                "const": "done",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event",
+              "data"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AiLimitsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "messages_monthly": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "messages_used": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tool_calls_per_run": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "tool_calls_per_run",
+          "messages_monthly",
+          "messages_used"
+        ],
+        "type": "object"
+      },
+      "AiRecordRefSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id",
+          "label"
+        ],
+        "type": "object"
+      },
+      "AiRouteSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "method": {
+            "enum": [
+              "GET",
+              "POST",
+              "PATCH"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "format": "starts_with",
+            "pattern": "^\\/api\\/v1\\/.*",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "path"
+        ],
+        "type": "object"
+      },
+      "AiRunStatusSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "messages": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content": {
+                  "type": "string"
+                },
+                "role": {
+                  "enum": [
+                    "user",
+                    "assistant"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "content"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "call_id": {
+                    "type": "string"
+                  },
+                  "input": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "kind": {
+                    "enum": [
+                      "read",
+                      "write_light",
+                      "draft"
+                    ],
+                    "type": "string"
+                  },
+                  "tool": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "call_id",
+                  "tool",
+                  "kind",
+                  "input"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "waiting_tool",
+              "waiting_user",
+              "done",
+              "failed",
+              "limit_reached",
+              "executing"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "messages",
+          "pending"
+        ],
+        "type": "object"
+      },
+      "AiRunStatusValueSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "running",
+          "waiting_tool",
+          "waiting_user",
+          "done",
+          "failed",
+          "limit_reached",
+          "executing"
+        ],
+        "type": "string"
+      },
+      "AiStartRequestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "anyOf": [
+                      {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "page": {
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "page"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "AiToolKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "read",
+          "write_light",
+          "draft"
+        ],
+        "type": "string"
+      },
+      "AiToolRequestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "call_id": {
+            "type": "string"
+          },
+          "input": {
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "kind": {
+            "enum": [
+              "read",
+              "write_light",
+              "draft"
+            ],
+            "type": "string"
+          },
+          "summary_ar": {
+            "type": "string"
+          },
+          "summary_en": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "tool",
+          "kind",
+          "input",
+          "summary_ar",
+          "summary_en"
+        ],
+        "type": "object"
+      },
+      "AiToolSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "additionalProperties": false,
+            "properties": {
+              "ar": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "en": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "ar",
+              "en"
+            ],
+            "type": "object"
+          },
+          "draft_target": {
+            "anyOf": [
+              {
+                "format": "starts_with",
+                "pattern": "^\\/.*",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_map": {
+            "additionalProperties": {
+              "additionalProperties": {},
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "enum": [
+                "path",
+                "query",
+                "body"
+              ],
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "input_schema": {
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "kind": {
+            "enum": [
+              "read",
+              "write_light",
+              "draft"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+            "type": "string"
+          },
+          "result_summary": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PATCH"
+                    ],
+                    "type": "string"
+                  },
+                  "path": {
+                    "format": "starts_with",
+                    "pattern": "^\\/api\\/v1\\/.*",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "method",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "description",
+          "input_schema",
+          "route",
+          "input_map",
+          "result_summary",
+          "draft_target"
+        ],
+        "type": "object"
+      },
+      "AiToolsResponseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "en": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ar",
+                    "en"
+                  ],
+                  "type": "object"
+                },
+                "draft_target": {
+                  "anyOf": [
+                    {
+                      "format": "starts_with",
+                      "pattern": "^\\/.*",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "input_map": {
+                  "additionalProperties": {
+                    "additionalProperties": {},
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "propertyNames": {
+                    "enum": [
+                      "path",
+                      "query",
+                      "body"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "input_schema": {
+                  "additionalProperties": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "kind": {
+                  "enum": [
+                    "read",
+                    "write_light",
+                    "draft"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+                  "type": "string"
+                },
+                "result_summary": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "route": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "method": {
+                          "enum": [
+                            "GET",
+                            "POST",
+                            "PATCH"
+                          ],
+                          "type": "string"
+                        },
+                        "path": {
+                          "format": "starts_with",
+                          "pattern": "^\\/api\\/v1\\/.*",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "method",
+                        "path"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "kind",
+                "description",
+                "input_schema",
+                "route",
+                "input_map",
+                "result_summary",
+                "draft_target"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "limits": {
+            "additionalProperties": false,
+            "properties": {
+              "messages_monthly": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "messages_used": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "tool_calls_per_run": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "tool_calls_per_run",
+              "messages_monthly",
+              "messages_used"
+            ],
+            "type": "object"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limits"
+        ],
+        "type": "object"
+      },
       "ApiErrorSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,

@@ -621,6 +621,18 @@
           "name": "milestonesError",
           "type": "unknown",
           "required": false
+        },
+        {
+          "name": "initialDraft",
+          "type": "{ name: string; description?: string | undefined; date_start?: string | undefined; date_end?: string | undefined; charter?: { rationale?: string | undefined; objectives?: string[] | undefined; scope?: string | undefined; exclusions?: string | undefined; success?: string | undefined; assumptions?: string | undefined; constraints?: string | undefined; } | undefined; } | null",
+          "required": false,
+          "description": "A Nasq AI draft: applied once, after the create defaults, before the baseline snapshot."
+        },
+        {
+          "name": "attestRequired",
+          "type": "boolean",
+          "required": false,
+          "description": "The final create needs the user's attestation (a draft prepared by Nasq AI)."
         }
       ],
       "events": [
@@ -654,19 +666,26 @@
         "actions"
       ],
       "nuxtUi": [
+        "UBadge",
         "UButton",
+        "UCheckbox",
         "UStepper"
       ],
       "stories": [
         {
           "id": "CreateWizard",
           "name": "إنشاء مشروع على خطوات",
-          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68"
         },
         {
           "id": "WaitingForDefaults",
           "name": "قبل تحميل متطلبات الإنشاء",
-          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:62"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68"
+        },
+        {
+          "id": "AiDraft",
+          "name": "مسودة من Nasq AI",
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:68"
         }
       ]
     },
@@ -3164,7 +3183,7 @@
         {
           "id": "Panel",
           "name": "لوحة إعدادات",
-          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:52"
+          "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:58"
         }
       ]
     },
@@ -4915,6 +4934,90 @@
     }
   ],
   "recipes": [
+    {
+      "title": "Ai/Cards",
+      "story": "apps/web/stories/ai/AiCards.stories.ts",
+      "stories": [
+        {
+          "id": "ConfirmPending",
+          "name": "تأكيد: بانتظار القرار"
+        },
+        {
+          "id": "ConfirmApproved",
+          "name": "تأكيد: نُفّذ"
+        },
+        {
+          "id": "ConfirmRejected",
+          "name": "تأكيد: أُلغي"
+        },
+        {
+          "id": "ConfirmExecuting",
+          "name": "تأكيد: يُنفَّذ من طلب سابق"
+        },
+        {
+          "id": "DraftPending",
+          "name": "مسودة: بانتظار المراجعة"
+        },
+        {
+          "id": "DraftApproved",
+          "name": "مسودة: أُرسلت"
+        },
+        {
+          "id": "DraftRejected",
+          "name": "مسودة: تُجوهلت"
+        },
+        {
+          "id": "LimitMonthly",
+          "name": "حد: الرسائل الشهرية"
+        },
+        {
+          "id": "LimitToolCalls",
+          "name": "حد: عدد الأدوات"
+        },
+        {
+          "id": "LimitSteps",
+          "name": "حد: عدد الخطوات"
+        },
+        {
+          "id": "LimitTimeout",
+          "name": "حد: المهلة"
+        },
+        {
+          "id": "RecordCards",
+          "name": "بطاقات السجلات"
+        },
+        {
+          "id": "ToolTraceStates",
+          "name": "أثر الأداة: كل الحالات"
+        }
+      ]
+    },
+    {
+      "title": "Ai/Thread",
+      "story": "apps/web/stories/ai/AiThread.stories.ts",
+      "stories": [
+        {
+          "id": "Conversation",
+          "name": "محادثة كاملة"
+        },
+        {
+          "id": "Streaming",
+          "name": "الجواب يُبث"
+        },
+        {
+          "id": "WaitingConfirm",
+          "name": "بانتظار تأكيد المستخدم"
+        },
+        {
+          "id": "WaitingDraft",
+          "name": "مسودة مشروع جاهزة"
+        },
+        {
+          "id": "MonthlyLimit",
+          "name": "بلوغ حد الرسائل"
+        }
+      ]
+    },
     {
       "title": "Foundations/Colors",
       "story": "apps/web/stories/foundations/Colors.stories.ts",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectCreateDefaults, ProjectDetail } from '@nasq/contracts'
+import type { AiDraftPayload, ProjectCreateDefaults, ProjectDetail } from '@nasq/contracts'
 import { ApiError } from '@/composables/useApi'
 import { isStaleProjectWrite, useCreateProject, useProject, useUpdateProject } from '@/composables/useProjects'
 import { useCharterDefaults } from '@/composables/useProjectCharterCatalogs'
@@ -24,6 +24,7 @@ import {
   stepForField,
   type CharterWizardStep,
 } from '@/utils/charterSteps'
+import { charterDraftFromAi, mayFinalizeCreate } from '@/utils/aiDraft'
 import ProjectCharterFields from '@/components/pmo/projects/ProjectCharterFields.vue'
 import ProjectCharterDisplay from '@/components/pmo/projects/ProjectCharterDisplay.vue'
 
@@ -37,6 +38,10 @@ const props = defineProps<{
   milestones?: readonly CharterMilestone[]
   milestonesLoading?: boolean
   milestonesError?: unknown
+  /** A Nasq AI draft: applied once, after the create defaults, before the baseline snapshot. */
+  initialDraft?: AiDraftPayload | null
+  /** The final create needs the user's attestation (a draft prepared by Nasq AI). */
+  attestRequired?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -73,6 +78,8 @@ const loadedProjectId = ref<number | null>(null)
 const createDefaultsApplied = ref(false)
 const submitted = ref(false)
 const stepNotice = ref<string | null>(null)
+const aiDraftApplied = ref(false)
+const attested = ref(false)
 
 function snapshotDraft(value: CharterDraft): CharterDraft {
   return {
@@ -137,6 +144,7 @@ function onStepperSelect(value: string | number | undefined) {
 const pending = computed(() => !!props.disabled || creating.value || updating.value || projectQuery.isFetching.value)
 const readonly = computed(() => !!props.readonly)
 const canSubmit = computed(() => hydrated.value && !pending.value && !props.readonly && !!draft.value.name.trim())
+const canFinalize = computed(() => canSubmit.value && (!props.attestRequired || attested.value))
 const canOverwrite = computed(() => canOverwriteWithLatest(writeToken.value, serverVersion.value))
 const dirty = computed(() => !submitted.value && isCharterDraftDirty(draft.value, baseline.value))
 const persistedDraft = computed(() => props.project ? draftFromProject(props.project) : draft.value)
@@ -155,6 +163,7 @@ watch(
     if (!createDefaultsApplied.value) {
       createDefaultsApplied.value = true
       draft.value.userId = value.default_manager_id
+      applyAiDraft()
       // Defaults arrive asynchronously and define the initial form state.
       baseline.value = snapshotDraft(draft.value)
     }
@@ -163,6 +172,20 @@ watch(
     }
   },
   { immediate: true, flush: 'sync' },
+)
+
+// The AI draft comes from sessionStorage, so it can land after the defaults
+// (it is read once the page hydrates). It then replaces the still-pristine
+// form and becomes the new baseline; a form the user already edited keeps
+// their work.
+watch(
+  () => props.initialDraft,
+  () => {
+    if (props.mode !== 'create' || !createDefaultsApplied.value || aiDraftApplied.value) return
+    if (isCharterDraftDirty(draft.value, baseline.value)) return
+    if (applyAiDraft()) baseline.value = snapshotDraft(draft.value)
+  },
+  { flush: 'sync' },
 )
 
 watch(
@@ -195,6 +218,13 @@ watch(readonly, (value) => {
   if (!value || props.mode !== 'edit' || !props.project) return
   applyLoadedProject(props.project)
 })
+
+function applyAiDraft(): boolean {
+  if (!props.initialDraft || aiDraftApplied.value) return false
+  aiDraftApplied.value = true
+  draft.value = charterDraftFromAi(props.initialDraft, draft.value)
+  return true
+}
 
 function applyLoadedProject(project: ProjectDetail) {
   const next = draftFromProject(project)
@@ -275,6 +305,7 @@ async function saveDraft() {
 }
 
 async function finalize() {
+  if (!mayFinalizeCreate(props.attestRequired, attested.value)) return
   await submit(writeToken.value, 'final')
 }
 
@@ -361,6 +392,9 @@ function discardToServer() {
       <template #actions><slot name="actions" /></template>
     </ProjectCharterDisplay>
     <form v-else class="grid gap-6" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
+      <div v-if="attestRequired">
+        <UBadge color="primary" variant="subtle" data-testid="project-create-ai-badge">{{ t('projects.create.aiBadge') }}</UBadge>
+      </div>
       <div class="grid gap-3">
         <UStepper
           :model-value="step"
@@ -420,6 +454,11 @@ function discardToServer() {
       </div>
       <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
+      <div v-if="attestRequired && isLastStep" class="rounded-lg border border-default p-3" data-testid="project-create-attest">
+        <UCheckbox v-model="attested" :label="t('projects.create.aiAttest')" :disabled="pending" required />
+        <p v-if="!attested" class="mt-1 text-xs text-muted">{{ t('projects.create.aiAttestRequired') }}</p>
+      </div>
+
       <div class="flex flex-wrap items-center gap-2" data-testid="charter-wizard-actions">
         <UButton type="button" color="neutral" :disabled="pending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
         <div class="ms-auto flex flex-wrap gap-2">
@@ -464,7 +503,7 @@ function discardToServer() {
             v-else
             type="submit"
             data-testid="project-create-submit"
-            :disabled="!canSubmit"
+            :disabled="!canFinalize"
             :label="finalLabel"
           />
         </div>

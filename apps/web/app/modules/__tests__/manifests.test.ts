@@ -24,15 +24,24 @@ describe('app manifests', () => {
   const inOrder = (actual: string[], expected: string[]) => actual.filter(id => expected.includes(id))
   it('discovers today\'s four applications in rail order', () => {
     const ids = appManifests.map(manifest => manifest.id)
-    expect(inOrder(ids, ['pmo', 'meetings', 'chat', 'hr'])).toEqual(['pmo', 'meetings', 'chat', 'hr'])
+    expect(inOrder(ids, ['pmo', 'meetings', 'chat', 'hr', 'ai'])).toEqual(['pmo', 'meetings', 'chat', 'hr', 'ai'])
     expect(new Set(ids).size).toBe(ids.length)
     const rail = appManifests.flatMap(manifest => manifest.rail.map(entry => entry.id))
-    expect(inOrder(rail, ['home', 'projects', 'meetings', 'chat', 'hr'])).toEqual(['home', 'projects', 'meetings', 'chat', 'hr'])
+    expect(inOrder(rail, ['home', 'projects', 'meetings', 'chat', 'hr', 'ai'])).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'ai'])
     expect(new Set(rail).size).toBe(rail.length)
+  })
+  it('opens /ai by the real ai.use capability and the ai.enabled feature, with no alias', () => {
+    expect(appManifests.find(manifest => manifest.id === 'ai')?.capabilityAliases).toBeUndefined()
+    expect(featureForCapability('ai.use')).toBe('ai.enabled')
+    const on = { capabilities: ['ai.use'], platform: { readable_features: ['ai.enabled'], writable_features: ['ai.enabled'] } }
+    const off = { capabilities: ['ai.use'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+    expect(canReach(on, 'ai.use', '/ai')).toBe(true)
+    expect(canReach({ ...on, capabilities: [] }, 'ai.use', '/ai')).toBe(false)
+    expect(canReach(off, 'ai.use', '/ai')).toBe(false)
   })
   it('keeps the module feature map', () => {
     expect(MODULE_FEATURES).toMatchObject({
-      home: 'pmo.enabled', projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled',
+      home: 'pmo.enabled', projects: 'pmo.enabled', meetings: 'meetings.enabled', chat: 'chat.enabled', hr: 'hr.enabled', ai: 'ai.enabled',
       settings: null, vendor: null, management: null,
     })
   })
@@ -151,7 +160,7 @@ describe('app manifests', () => {
 describe('palette declarations', () => {
   it('go keys are single letters, never g, and unique across applications and the foundation', () => {
     expect(goKeyProblems(allNavItems())).toEqual([])
-    expect(allNavItems().flatMap(item => item.goKey ?? []).sort()).toEqual(['c', 'd', 'e', 'h', 'm', 'p', 'r', 't', 'u'])
+    expect(allNavItems().flatMap(item => item.goKey ?? []).sort()).toEqual(['c', 'd', 'e', 'h', 'i', 'm', 'p', 'r', 't', 'u'])
   })
 
   it('commands have unique ids under their manifest, open a path it owns and need that route\'s capability', () => {

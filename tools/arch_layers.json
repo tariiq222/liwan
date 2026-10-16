@@ -24,6 +24,14 @@
     "nasq_registry_probe"
   ],
   "web_apps": {
+    "ai": {
+      "components": [
+        "ai"
+      ],
+      "pages": [
+        "ai"
+      ]
+    },
     "pmo": {
       "components": [
         "pmo"

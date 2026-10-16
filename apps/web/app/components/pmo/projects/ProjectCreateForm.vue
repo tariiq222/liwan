@@ -3,6 +3,7 @@ import { ApiError } from '@/composables/useApi'
 import { useProjectCreateDefaults } from '@/composables/useProjectSettings'
 import ProjectCharterForm from '@/components/pmo/projects/ProjectCharterForm.vue'
 import ProjectCopyForm from '@/components/pmo/projects/ProjectCopyForm.vue'
+import { readAiDraft } from '@/utils/aiDraft'
 import { parsePositiveId } from '@/utils/routeParams'
 import type { CharterWizardStep } from '@/utils/charterSteps'
 
@@ -12,6 +13,11 @@ const route = useRoute()
 const hydrated = useHydrated()
 // A valid `?copyFrom=<id>` turns the panel into "copy this project"; anything else is the normal create form.
 const copyFrom = computed(() => parsePositiveId(route.query.copyFrom))
+// A valid `?aiDraft=<id>` carries a Nasq AI draft; sessionStorage is client-only, so it is read after hydration.
+const aiDraft = computed(() => {
+  const id = route.query.aiDraft
+  return hydrated.value && typeof id === 'string' ? readAiDraft(id) : null
+})
 const { me } = useMe()
 const {
   data: defaults,
@@ -64,6 +70,8 @@ async function retryDefaults() {
         :create-defaults="defaults"
         :default-manager-name="defaultManagerName"
         :disabled="!defaults || forbidden"
+        :initial-draft="aiDraft?.payload ?? null"
+        :attest-required="!!aiDraft"
         @created="emit('created', $event)"
         @drafted="(id, step) => emit('drafted', id, step)"
         @cancel="emit('cancel')"

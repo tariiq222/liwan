@@ -88,6 +88,12 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | المحادثات | `apps/web/app/components/chat/ChatAttachment.vue` (قصة: `apps/web/stories/chat/ChatAttachment.stories.ts`), `apps/web/app/components/chat/ChatInfoPanel.vue` (جسم معلومات المحادثة، يُعرض في لوحة المعلومات بتخطيط المحادثة), `apps/web/app/components/chat/ChatWorkspace.vue`, `apps/web/app/components/chat/ChatSidebarPanel.vue` (لوحة المحادثات في القائمة السياقية عبر `sidebarPanel`), `apps/web/app/components/chat/ConversationList.vue`, `apps/web/app/components/chat/MessageComposer.vue`, `apps/web/app/components/chat/MessageHistory.vue` | مساحة المحادثة والرسائل والمرفقات |
 | الإشعارات | `apps/web/app/components/notifications/NotificationCenter.vue` | مركز الإشعارات |
 
+## مساعد Nasq AI
+
+| السطح | المكونات الفعلية | المسؤولية الحالية |
+| --- | --- | --- |
+| صفحة `/ai` | `apps/web/app/components/ai/AiMessage.vue`, `apps/web/app/components/ai/AiRecordCards.vue`, `apps/web/app/components/ai/AiToolTrace.vue`, `apps/web/app/components/ai/AiConfirmCard.vue` (تأكيد مضمّن عبر `SharedInlineConfirm`), `apps/web/app/components/ai/AiDraftCard.vue`, `apps/web/app/components/ai/AiLimitNotice.vue`, `apps/web/app/components/ai/AiComposer.vue` (قصص: `apps/web/stories/ai/AiThread.stories.ts`, `apps/web/stories/ai/AiCards.stories.ts`) | محادثة المساعد: الرسائل وبطاقات السجلات وأثر الأدوات وبطاقات التأكيد والمسودة وإشعار الحدود ومربع الكتابة |
+
 ## المؤسسة والوصول والحساب
 
 | السطح | المكونات الفعلية | المسؤولية الحالية |

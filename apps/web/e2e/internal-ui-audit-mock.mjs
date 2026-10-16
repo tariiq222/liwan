@@ -21,7 +21,7 @@ const CAPABILITIES = [
   'hr.departments.read', 'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
-  'settings.branding.manage',
+  'settings.branding.manage', 'ai.use',
 ]
 
 const ME = {
@@ -32,13 +32,13 @@ const ME = {
   company: { id: 1, name: 'Nasq' },
   modules: ['nasq_chat', 'nasq_hr', 'nasq_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true,
+    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
-    writable_features: ['chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }
@@ -85,6 +85,10 @@ const PROJECTS = [
 ]
 
 const COPIES = []
+// Rows the Nasq AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
+const AI_AUDIT = []
+// The web gate for /ai checks this alias capability literally (apps/web/app/modules/ai/manifest.ts).
+const AI_USE = 'ai.use'
 
 function projectDetail(p) {
   return {
@@ -270,12 +274,31 @@ async function handle(req, res) {
     return
   }
 
+  if (method === 'GET' && path === '/__mock/ai-audit') return json(res, 200, { items: AI_AUDIT })
+
   if (!path.startsWith('/api/v1/')) return fail(res, 404, 'not_found', `unknown path ${method} ${path}`)
 
   if (!hasSession(req)) return fail(res, 403, 'forbidden', 'not logged in')
 
+  if (method === 'GET' && path === '/api/v1/ai/tools') {
+    // A reader (cookie mock_caps=reader) may not create projects, so Odoo would not offer it the draft tool.
+    const reader = /(?:^|;\s*)mock_caps=reader(?:;|$)/.test(req.headers.cookie ?? '')
+    const canCreate = !reader && capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities).includes('pmo.projects.create')
+    const items = [
+      { name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'يعرض مهامي', en: 'List my tasks' }, input_schema: { type: 'object', properties: { limit: { type: 'integer' } } }, route: { method: 'GET', path: '/api/v1/tasks' }, input_map: { query: { filter: 'mine', limit: '$limit' } }, result_summary: ['items[].id', 'items[].name', 'items[].state', 'total'], draft_target: null },
+      ...(canCreate ? [{ name: 'pmo.draft_project', kind: 'draft', description: { ar: 'مسودة مشروع', en: 'Project draft' }, input_schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] }, route: null, input_map: {}, result_summary: [], draft_target: '/projects/new' }] : []),
+    ]
+    return json(res, 200, { items, total: items.length, limits: { tool_calls_per_run: 8, messages_monthly: 500, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length } })
+  }
+  if (method === 'POST' && path === '/api/v1/ai/audit') {
+    let entry = {}
+    try { entry = JSON.parse(await readBody(req) || '{}') } catch { entry = {} }
+    AI_AUDIT.push(entry)
+    return json(res, 200, { id: AI_AUDIT.length, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, messages_limit: 500 })
+  }
+
   if (process.env.MODULE_UI_PREVIEW === '1' && method === 'GET') {
-    if (path === '/api/v1/me') return json(res, 200, { ...ME, appearance, capabilities: capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities) })
+    if (path === '/api/v1/me') return json(res, 200, { ...ME, appearance, capabilities: [...capabilitiesForRequest(req.headers.cookie, moduleUiCapabilities), AI_USE] })
     const preview = moduleUiPreviewData(path, url)
     if (preview !== undefined) return json(res, 200, preview)
   }
@@ -327,6 +350,15 @@ async function handle(req, res) {
     const p = [...PROJECTS, ...COPIES].find(item => String(item.id) === project.id)
     if (!p) return fail(res, 404, 'not_found', 'project not found')
     return json(res, 200, projectDetail(p))
+  }
+  if (method === 'POST' && path === '/api/v1/projects') {
+    let body = {}
+    try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
+    const name = typeof body.name === 'string' ? body.name.trim() : ''
+    if (!name) return fail(res, 422, 'invalid', 'name is required')
+    const created = { ...PROJECTS[0], id: 900 + COPIES.length, name, status: null, progress: 0, closed_task_count: 0, active: true }
+    COPIES.push(created)
+    return json(res, 201, projectDetail(created))
   }
   const copy = match(path, '/api/v1/projects/:id/copy')
   if (method === 'POST' && copy) {
