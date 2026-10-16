@@ -8,9 +8,9 @@
     },
     "nav": {
       "overview": "Overview",
-      "customers": "Customers",
-      "tenants": "Installations",
-      "operations": "Operations",
+      "customers": "Clients",
+      "tenants": "Tenants",
+      "operations": "Ops",
       "plans": "Plans",
       "bundles": "Bundles",
       "catalog": "Legacy packages",
