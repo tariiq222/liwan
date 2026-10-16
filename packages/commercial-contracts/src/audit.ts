@@ -7,14 +7,14 @@ export const AUDIT_PAGE_SIZE = 25
 
 /**
  * GET /v1/audit query. `action` is an exact action or a family prefix (`order` matches `order.accepted`);
- * `subject` is the exact stored subject; `customer_id` matches the customer and everything owned by it
- * (workspace, subscriptions, orders). `from`/`to` are inclusive UTC calendar days.
+ * `customer_id` matches the customer and everything owned by it (workspace, subscriptions, orders).
+ * `from`/`to` are inclusive calendar days in the business time zone Asia/Riyadh, the zone the console displays.
+ * `q` and `actor` match action, reason, subject and account display names, never account emails.
  */
 export const auditListQuerySchema = z.strictObject({
   q: searchText.optional(),
   action: z.string().regex(/^[a-z][a-z0-9_.]{0,99}$/).optional(),
   actor: searchText.optional(),
-  subject: searchText.optional(),
   customer_id: z.uuid().optional(),
   from: day.optional(),
   to: day.optional(),

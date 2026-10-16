@@ -5,7 +5,7 @@ import { AUDIT_PAGE_SIZE, auditListQuerySchema, type AuditEvent, type AuditListQ
 export const AUDIT_CATEGORIES = ['auth', 'account', 'tenant', 'operation', 'catalog', 'catalog_release', 'plan', 'bundle', 'order', 'invoice', 'payment', 'customer_terms'] as const
 export { AUDIT_PAGE_SIZE }
 
-export type AuditFilters = Omit<AuditListQuery, 'page' | 'subject'>
+export type AuditFilters = Omit<AuditListQuery, 'page'>
 
 const FILTER_KEYS = ['q', 'action', 'actor', 'customer_id', 'from', 'to'] as const
 

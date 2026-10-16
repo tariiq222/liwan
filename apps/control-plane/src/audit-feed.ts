@@ -4,17 +4,20 @@ import { AUDIT_PAGE_SIZE, type AuditEvent, type AuditList, type AuditListQuery, 
 // Read model of audit_events for the vendor console. Every filter is a bound parameter; the SQL text
 // only ever names columns. Subjects are stored as plain strings (a record id or `account:<n>`), so the
 // readable name of each one is resolved for the returned page only.
+// The `from`/`to` days are calendar days in the business time zone, the one the console displays.
+const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ACCOUNT = /^account:(\d{1,18})$/
 const contains = (value: string) => `%${value.replace(/[\\%_]/g, '\\$&')}%`
 
 // Accounts, customers, workspaces, plans and bundles whose name matches, expressed as the subject/actor strings they appear under.
+// Account emails are never matched: vendor.audit.read does not grant reading vendor accounts.
 const NAMED_SUBJECTS = `SELECT id::text FROM customers WHERE name ILIKE $N
   UNION SELECT id::text FROM tenants WHERE name ILIKE $N
   UNION SELECT id::text FROM plan_revisions WHERE name ILIKE $N
   UNION SELECT id::text FROM bundle_revisions WHERE name ILIKE $N
-  UNION SELECT 'account:' || id FROM vendor_accounts WHERE display_name ILIKE $N OR email ILIKE $N`
-const NAMED_ACCOUNTS = `SELECT 'account:' || id FROM vendor_accounts WHERE display_name ILIKE $N OR email ILIKE $N`
+  UNION SELECT 'account:' || id FROM vendor_accounts WHERE display_name ILIKE $N`
+const NAMED_ACCOUNTS = `SELECT 'account:' || id FROM vendor_accounts WHERE display_name ILIKE $N`
 // A customer's records: itself, its workspace, subscriptions, orders and the shared jobs of its workspace.
 const CUSTOMER_SUBJECTS = `SELECT $N::text
   UNION SELECT tenant_id::text FROM customers WHERE id = ($N::text)::uuid AND tenant_id IS NOT NULL
@@ -30,10 +33,9 @@ function filters(query: AuditListQuery): { where: string; params: unknown[] } {
   if (query.q) conditions.push(bind(`(a.action ILIKE $N OR a.actor ILIKE $N OR a.subject ILIKE $N OR a.reason ILIKE $N OR a.subject IN (${NAMED_SUBJECTS}) OR a.actor IN (${NAMED_ACCOUNTS}))`, contains(query.q)))
   if (query.actor) conditions.push(bind(`(a.actor ILIKE $N OR a.actor IN (${NAMED_ACCOUNTS}))`, contains(query.actor)))
   if (query.action) conditions.push(bind(`(a.action = $N OR starts_with(a.action, $N || '.'))`, query.action))
-  if (query.subject) conditions.push(bind('a.subject = $N', query.subject))
   if (query.customer_id) conditions.push(bind(`(a.subject IN (${CUSTOMER_SUBJECTS}) OR a.metadata->>'customer_id' = $N::text)`, query.customer_id))
-  if (query.from) conditions.push(bind(`a.created_at >= ($N::text)::date::timestamp AT TIME ZONE 'UTC'`, query.from))
-  if (query.to) conditions.push(bind(`a.created_at < (($N::text)::date + 1)::timestamp AT TIME ZONE 'UTC'`, query.to))
+  if (query.from) conditions.push(bind(`a.created_at >= ($N::text)::date::timestamp AT TIME ZONE '${BUSINESS_TIME_ZONE}'`, query.from))
+  if (query.to) conditions.push(bind(`a.created_at < (($N::text)::date + 1)::timestamp AT TIME ZONE '${BUSINESS_TIME_ZONE}'`, query.to))
   return { where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', params }
 }
 
@@ -61,12 +63,16 @@ async function resolveSubjects(pool: Pool, subjects: string[], actors: string[])
 
 export async function listAudit(pool: Pool, query: AuditListQuery): Promise<AuditList> {
   const { where, params } = filters(query)
-  const rows = (await pool.query(
-    `SELECT a.id,a.actor,a.action,a.subject,a.reason,a.created_at,count(*) OVER()::int AS total FROM audit_events a ${where}
-     ORDER BY a.created_at DESC,a.id DESC LIMIT ${AUDIT_PAGE_SIZE} OFFSET $${params.length + 1}`, [...params, ((query.page ?? 1) - 1) * AUDIT_PAGE_SIZE])).rows
+  const [page, count] = await Promise.all([
+    pool.query(
+      `SELECT a.id,a.actor,a.action,a.subject,a.reason,a.created_at FROM audit_events a ${where}
+       ORDER BY a.created_at DESC,a.id DESC LIMIT ${AUDIT_PAGE_SIZE} OFFSET $${params.length + 1}`, [...params, ((query.page ?? 1) - 1) * AUDIT_PAGE_SIZE]),
+    pool.query(`SELECT count(*)::int AS total FROM audit_events a ${where}`, params),
+  ])
+  const rows = page.rows
   const { subjectRef, actorName } = await resolveSubjects(pool, rows.map(row => row.subject), rows.map(row => row.actor))
-  const items: AuditEvent[] = rows.map(({ total: _total, created_at, ...row }) => ({
+  const items: AuditEvent[] = rows.map(({ created_at, ...row }) => ({
     ...row, created_at: created_at.toISOString(), actor_name: actorName(row.actor), subject_ref: subjectRef(row.subject),
   }))
-  return { items, total: rows[0]?.total ?? 0 }
+  return { items, total: count.rows[0].total }
 }
