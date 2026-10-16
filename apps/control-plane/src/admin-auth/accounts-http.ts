@@ -68,6 +68,8 @@ export async function accountsHttp(pool: Pool, input: Input): Promise<Result | n
     return { status: 200, data: adminResetResultSchema.parse({ invitation_token: reset.token, expires_at: reset.expiresAt.toISOString() }) }
   } catch (error) {
     if (error instanceof AdminAuthError) throw input.fail(error.status, error.code)
+    // Request bodies are checked with safeParse, so a ZodError here is a response that left the contract: our fault, not the caller's.
+    if (error instanceof z.ZodError) throw input.fail(503, 'admin_unavailable')
     throw error
   }
 }
