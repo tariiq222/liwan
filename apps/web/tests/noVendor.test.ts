@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest'
 const webRoot = fileURLToPath(new URL('..', import.meta.url))
 const SCAN_ROOTS = ['app', 'server', 'i18n', 'nuxt.config.ts']
 const FORBIDDEN = ['vendorWorkspace', 'useVendor', '/api/vendor', 'pages/vendor', 'vendorCapabilit', 'vendorConsole']
-const SELF = join('tests', 'noVendor.test.ts')
 
 function sourceFiles(path: string): string[] {
   if (!statSync(path).isDirectory()) return [path]
@@ -21,7 +20,7 @@ describe('the customer app carries no vendor console', () => {
   })
 
   it.each(FORBIDDEN)('has no %s reference', (needle) => {
-    const hits = files.filter(file => relative(webRoot, file) !== SELF && readFileSync(file, 'utf8').includes(needle))
+    const hits = files.filter(file => readFileSync(file, 'utf8').includes(needle))
     expect(hits.map(file => relative(webRoot, file))).toEqual([])
   })
 
