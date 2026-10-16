@@ -26,21 +26,28 @@ function submit() {
 </script>
 
 <template>
-  <form class="grid gap-4" novalidate data-slot="account-form" :aria-label="t('team.form.title')" @submit.prevent="submit">
+  <form class="grid gap-6" novalidate data-slot="account-form" :aria-label="t('team.form.title')" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <UAlert v-if="props.errorKey" role="alert" color="error" variant="subtle" :title="t(props.errorKey)" data-testid="team-error" />
-    <div class="grid gap-4 sm:grid-cols-2">
-      <UFormField :label="t('team.form.email')" :error="show('email')" required>
-        <UInput v-model="draft.email" type="email" dir="ltr" autocomplete="off" class="w-full" :disabled="!hydrated || props.busy" data-testid="invite-email" />
-      </UFormField>
-      <UFormField :label="t('team.form.name')" :error="show('displayName')" required>
-        <UInput v-model="draft.displayName" autocomplete="off" class="w-full" :disabled="!hydrated || props.busy" data-testid="invite-name" />
-      </UFormField>
-    </div>
-    <TeamRolePicker v-model="draft.roles" :disabled="!hydrated || props.busy" :error="show('roles')" />
-    <UFormField :label="t('team.reason.label')" :hint="t('team.reason.hint')" :error="show('reason')" required>
-      <UInput v-model="draft.reason" :maxlength="REASON_MAX" class="w-full" :disabled="!hydrated || props.busy" data-testid="invite-reason" />
-    </UFormField>
+    <SharedFormSection panel :title="t('team.form.personTitle')" :description="t('team.form.personHint')">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField :label="t('team.form.email')" :error="show('email')" required>
+          <UInput v-model="draft.email" type="email" dir="ltr" autocomplete="off" class="w-full" :disabled="!hydrated || props.busy" data-testid="invite-email" />
+        </UFormField>
+        <UFormField :label="t('team.form.name')" :error="show('displayName')" required>
+          <UInput v-model="draft.displayName" autocomplete="off" class="w-full" :disabled="!hydrated || props.busy" data-testid="invite-name" />
+        </UFormField>
+      </div>
+    </SharedFormSection>
+    <SharedFormSection panel :title="t('team.form.accessTitle')" :description="t('team.form.accessHint')">
+      <div class="grid gap-4">
+        <TeamRolePicker v-model="draft.roles" :disabled="!hydrated || props.busy" :error="show('roles')" />
+        <UFormField :label="t('team.reason.label')" :hint="t('team.reason.hint')" :error="show('reason')" required>
+          <UInput v-model="draft.reason" :maxlength="REASON_MAX" class="w-full" :disabled="!hydrated || props.busy" data-testid="invite-reason" />
+        </UFormField>
+      </div>
+    </SharedFormSection>
+    <p class="text-sm text-muted">{{ t('team.form.nextStep') }}</p>
     <div class="flex flex-wrap justify-end gap-2">
       <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || props.busy" :label="t('team.form.cancel')" @click="emit('cancel')" />
       <UButton type="submit" :loading="props.busy" :disabled="!hydrated" :label="t('team.form.submit')" data-testid="invite-submit" />

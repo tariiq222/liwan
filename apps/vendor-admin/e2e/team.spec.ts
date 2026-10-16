@@ -165,7 +165,8 @@ test('roles: change the roles of a person with a reason', async ({ page, context
   await page.getByTestId('action-submit').click()
   await expect(stepUpPanel(page)).toHaveCount(0)
   await expect(page.getByTestId('team-notice')).toContainText('تم حفظ أدوار')
-  await expect(row).toContainText('المالك، المنتج')
+  await expect(row.getByTestId('team-role-badges')).toContainText('المالك')
+  await expect(row.getByTestId('team-role-badges')).toContainText('المنتج')
 })
 
 test('disable and re-enroll: inline confirmation, a new link, and the last owner is protected', async ({ page, context }) => {

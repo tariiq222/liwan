@@ -141,7 +141,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/analytics/RankedList.vue` | قائمة قصيرة بصفوف وقيم وشريط نسبة اختياري ورابط | `UProgress` |
 | `apps/vendor-admin/app/components/analytics/TrendChart.vue` | منحنى الإيراد الشهري المتكرر لآخر 12 شهرًا بـ SVG، يتبع الوضع الداكن واتجاه RTL | |
 | `apps/vendor-admin/app/components/team/AccountAction.vue` | لوحة إجراء على حساب فريق (سبب وأدوار وتأكيد داخلي) | `SharedInlineConfirm`, `UAlert`, `UButton`, `UFormField`, `UInput` |
-| `apps/vendor-admin/app/components/team/AccountForm.vue` | نموذج دعوة حساب فريق مع حماية المسودة | `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput` |
+| `apps/vendor-admin/app/components/team/AccountForm.vue` | نموذج دعوة حساب فريق مع حماية المسودة | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput` |
 | `apps/vendor-admin/app/components/team/InvitationLink.vue` | رابط الدعوة مع تاريخ انتهائه وزر النسخ | `UButton`, `UFormField`, `UInput` |
 | `apps/vendor-admin/app/components/team/RolePicker.vue` | اختيار أدوار الفريق | `UCheckbox` |
 | `apps/vendor-admin/app/components/vendor/AuditSubject.vue` | موضوع حدث التدقيق: نوع السجل واسمه المحلول من الخادم مع رابط إلى صفحته عند وجودها | `NuxtLink` |
@@ -150,19 +150,23 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/vendor/CatalogFacts.vue` | شريط حقائق سجل الكتالوج تحت العنوان: الحالة ثم السعر والمحتوى والعملاء | |
 | `apps/vendor-admin/app/components/vendor/CatalogTabs.vue` | تبويبات قسم الكتالوج (الباقات والحزم والحزم القديمة) عبر `SharedRouteTabs` | `SharedRouteTabs` |
 | `apps/vendor-admin/app/components/vendor/CapacityLimitsEditor.vue` | محرر حدود السعة | `UFormField`, `VendorLimitControl` |
+| `apps/vendor-admin/app/components/vendor/CustomerGlance.vue` | ملخص العميل في لمحة: الباقة والتجديد وآخر فاتورة والمساحة وما يحتاج متابعة مع رابط لتبويبه | `SharedMetricTile`, `SharedStatusBadge`, `UButton`, `UIcon` |
 | `apps/vendor-admin/app/components/vendor/CustomerTermsForm.vue` | نموذج شروط العميل | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/EntitlementSummary.vue` | ملخص الاستحقاقات: التطبيقات والميزات المختارة والحدود | `UBadge` |
 | `apps/vendor-admin/app/components/vendor/FormSubsection.vue` | عنوان فرعي ووصف وخط فاصل لكتلة داخل بطاقة قسم النموذج | |
 | `apps/vendor-admin/app/components/vendor/LifecyclePanel.vue` | إجراءات دورة حياة الاشتراك بتأكيد داخلي | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/LimitControl.vue` | قائمة نوع الحد وحقل العدد جنبًا إلى جنب | `UInput`, `USelect` |
 | `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة: أربع بطاقات ثم المراجعة، والإجراءات في تذييل اللوحة | `SharedEmptyState`, `SharedFormActions`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea`, `VendorCapacityLimitsEditor`, `VendorFormSubsection`, `VendorLimitControl`, `VendorPriceListEditor` |
+| `apps/vendor-admin/app/components/vendor/PolicyComparison.vue` | مقارنة إعدادات المساحة المطلوبة بالمرصودة صفًا صفًا مع حالة كل صف | `SharedEmptyState`, `SharedStatusBadge` |
 | `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `SharedEmptyState`, `UButton`, `UFormField`, `UInput`, `USelect` |
-| `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
-| `apps/vendor-admin/app/components/vendor/TenantOperationsPanel.vue` | تبويب عمليات مساحة العميل: صلاحية العمليات وإضافة عملية وآخر العمليات | `SharedForbiddenState`, `SharedInlineConfirm`, `SharedPageState`, `SharedRecordSection`, `SharedStatusBadge`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/StatusStrip.vue` | شريط الحالة المضغوط في صفحة اليوم: أعداد تفتح القوائم التي تعدّها | `NuxtLink` |
-| `apps/vendor-admin/app/components/vendor/TenantProperties.vue` | خصائص مساحة العميل في عمود الصفحة الجانبي | `SharedPageState`, `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UButton` |
+| `apps/vendor-admin/app/components/vendor/ProvisioningSteps.vue` | مراحل تجهيز مساحة العمل قائمة مرتبة: منجزة وحالية وقادمة | `UIcon` |
+| `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل والطلب المعلّق ومساحة لإجراءاته | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
+| `apps/vendor-admin/app/components/vendor/SubscriptionTimeline.vue` | خط زمني لمراحل الاشتراك: المطبّق والتغيير المطلوب والطلب المعلّق | `SharedStatusBadge`, `UIcon` |
+| `apps/vendor-admin/app/components/vendor/TenantOperationsPanel.vue` | تبويب عمليات مساحة العميل: إضافة عملية بتأكيد مضمّن وآخر العمليات ومنطقة حساسة لصلاحية العمليات | `SharedForbiddenState`, `SharedInlineConfirm`, `SharedPageState`, `SharedRecordSection`, `SharedStatusBadge`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/TenantProperties.vue` | خصائص مساحة العميل: الحالة والنمط والاستضافة والكتالوج وآخر فحص | `SharedPageState`, `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UButton` |
 | `apps/vendor-admin/app/components/vendor/UsageMeters.vue` | مقاييس الاستهلاك مقابل الحدود | `SharedStatusBadge`, `UProgress` |
-| `apps/vendor-admin/app/components/vendor/WorkspacePanel.vue` | تبويب مساحة العمل: التجهيز وفتح المساحة والإعدادات المطلوبة والمرصودة | `SharedPageState`, `SharedRecordSection`, `UAlert`, `UButton` |
+| `apps/vendor-admin/app/components/vendor/WorkspacePanel.vue` | تبويب مساحة العمل: مراحل التجهيز وفتح المساحة ومقارنة الإعدادات المطلوبة بالمرصودة | `SharedEmptyState`, `SharedPageState`, `SharedRecordSection`, `UAlert`, `UButton`, `VendorPolicyComparison`, `VendorProvisioningSteps` |
 
 ## مكونات العمليات
 

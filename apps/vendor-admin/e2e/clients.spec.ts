@@ -43,8 +43,8 @@ test('the operations tab keeps the allowed operations and revoke confirmation in
  await page.getByRole('button',{name:'تعطيل العمليات'}).click(); await expect(page.getByTestId('inline-confirm')).toBeVisible(); await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
-test('the summary shows the workspace properties', async ({ page }) => {
- await open(page, '/customers/cust-alpha')
+test('the workspace tab shows the workspace properties', async ({ page }) => {
+ await open(page, '/customers/cust-alpha?tab=workspace')
  await expect(page.locator('[data-slot="properties-panel"]').filter({ hasText: 'target-tenant-1' })).toBeVisible()
 })
 

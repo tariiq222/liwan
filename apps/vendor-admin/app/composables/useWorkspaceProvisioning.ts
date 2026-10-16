@@ -5,14 +5,14 @@ const POLL_INTERVAL_MS = 5000
 const POLL_LIMIT = 60
 const PROVISIONING_STAGES = ['reserved', 'queued', 'verifying', 'activating', 'active', 'needs_intervention']
 
-/** Shared-workspace provisioning progress of one tenant, checked every five seconds while it is still in progress. */
+/** Shared-workspace provisioning progress of one tenant (none for an empty id), checked every five seconds while it is still in progress. */
 export function useWorkspaceProvisioning(id: Ref<string>) {
   const { request } = useVendorApi()
   const vendorContext = useVendorContext()
   const { data: provisioning, error, pending, refresh } = useAsyncData(
     () => `vendor:tenant-provisioning:${id.value}`,
     async () => {
-      if (!vendorContext.sharedOnboardingEnabled.value) return null
+      if (!id.value || !vendorContext.sharedOnboardingEnabled.value) return null
       try { return await request<SharedTenantProgress>(`shared/tenants/${encodeURIComponent(id.value)}/provisioning`) }
       catch (cause) {
         const failure = cause as { statusCode?: number; status?: number; response?: { status?: number } }

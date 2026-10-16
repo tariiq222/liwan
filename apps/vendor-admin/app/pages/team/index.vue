@@ -19,7 +19,6 @@ const allowed = computed(() => can('vendor.accounts.manage'))
 const TONES: Record<TeamAccountStatus, 'success' | 'warning' | 'neutral'> = { active: 'success', enrolling: 'warning', disabled: 'neutral' }
 const ICONS = { roles: 'i-lucide-shield-check', reset: 'i-lucide-key-round', disable: 'i-lucide-user-x' } as const
 const isMe = (account: TeamAccount) => account.id === me.value?.id
-const rolesText = (account: TeamAccount) => account.roles.map(role => t(`team.roles.${role}`)).join('، ')
 const lastSeen = (account: TeamAccount) => (account.last_seen_at ? formatDateTime(account.last_seen_at) : t('team.neverSeen'))
 
 // A disabled account cannot be changed; a pending invitation can get a new link (reset) or be disabled.
@@ -56,7 +55,9 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
         </div>
       </template>
       <template #roles-cell="{ row: { original: account } }">
-        {{ rolesText(account) }}
+        <div class="flex flex-wrap gap-1" data-testid="team-role-badges">
+          <SharedStatusBadge v-for="role in account.roles" :key="role" :tone="role === 'owner' ? 'primary' : 'neutral'" :label="t(`team.roles.${role}`)" />
+        </div>
       </template>
       <template #status-cell="{ row: { original: account } }">
         <SharedStatusBadge :tone="TONES[account.status]" :label="t(`team.status.${account.status}`)" />
@@ -97,7 +98,7 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
           <SharedStatusBadge :tone="TONES[account.status]" :label="t(`team.status.${account.status}`)" />
         </div>
         <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-          <div><dt class="text-muted">{{ t('team.columns.roles') }}</dt><dd>{{ rolesText(account) }}</dd></div>
+          <div><dt class="text-muted">{{ t('team.columns.roles') }}</dt><dd class="mt-1 flex flex-wrap gap-1"><SharedStatusBadge v-for="role in account.roles" :key="role" :tone="role === 'owner' ? 'primary' : 'neutral'" :label="t(`team.roles.${role}`)" /></dd></div>
           <div><dt class="text-muted">{{ t('team.columns.lastSeen') }}</dt><dd>{{ lastSeen(account) }}</dd></div>
         </dl>
         <div class="mt-3 flex flex-wrap gap-1" role="group" :aria-label="t('team.actions.label', { name: account.display_name })">

@@ -55,6 +55,8 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     useVendorSubscriptions: () => api,
     useVendorCommercial: () => ({ listPlans: async () => ({ items: [plan] }), releases: async () => [] }),
     useVendorApi: () => ({ request: async (path: string) => path === 'catalog' ? { items: [] } : { tenants: 1, available_operations: [] } }),
+    useTenantRecentOperations: async () => ({ data: Vue.ref([]), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
+    useWorkspaceProvisioning: () => ({ provisioning: Vue.ref(null), loginUrl: Vue.ref(null), failed: Vue.ref(false) }),
     useVendorTenant: async () => ({ data: Vue.ref({ id: options.tenantId ?? 'customer1', name: 'Workspace' }), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
     refreshNuxtData: vi.fn(), navigateTo: vi.fn(),
     createError: (error: unknown) => error,
@@ -76,7 +78,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     const captured: { name: string; props: Record<string, unknown> }[] = []
     const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))), render }))
     for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(m => m[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
-      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'NuxtPage' ? 'NESTED PAGE' : null, attrs.title as string, attrs.description as string, name === 'SharedStatusBadge' ? attrs.label as string : null, name === 'SharedPageState' && (attrs.loading || attrs.error) ? (attrs.loading ? 'LOADING' : 'ERROR') : slots.default?.(), slots.header?.(), slots.actions?.(), name === 'SharedRecordPage' ? slots.aside?.() : null]) }
+      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [name === 'NuxtPage' ? 'NESTED PAGE' : null, attrs.title as string, attrs.description as string, name === 'SharedStatusBadge' ? attrs.label as string : null, name === 'SharedPageState' && (attrs.loading || attrs.error) ? (attrs.loading ? 'LOADING' : 'ERROR') : slots.default?.(), slots.header?.(), slots.actions?.(), slots['order-actions']?.(), name === 'SharedRecordPage' ? slots.aside?.() : null]) }
     } }))
     return { html: await renderToString(app), captured }
   }
@@ -266,8 +268,9 @@ describe('client record tabs', () => {
     expect(workspace.find(c => c.name === 'VendorWorkspacePanel')?.props['tenant-id']).toBe('tenant-9')
     const operations = (await (await page('customers/[id].vue', { tab: 'operations', tenantId: 'tenant-9' })).rendered()).captured
     expect(operations.find(c => c.name === 'VendorTenantOperationsPanel')?.props['tenant-id']).toBe('tenant-9')
+    expect(workspace.find(c => c.name === 'VendorTenantProperties')?.props['tenant-id']).toBe('tenant-9')
     const summary = (await (await page('customers/[id].vue', { tenantId: 'tenant-9' })).rendered()).captured
-    expect(summary.find(c => c.name === 'VendorTenantProperties')?.props['tenant-id']).toBe('tenant-9')
+    expect(summary.find(c => c.name === 'VendorCustomerGlance')?.props['has-workspace']).toBe(true)
   })
   it('guards leaving the page, tab switches included, while a reason is typed on either tab', async () => {
     const p = await page('customers/[id].vue', { tab: 'operations', tenantId: 'tenant-9' })
