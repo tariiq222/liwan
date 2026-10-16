@@ -277,7 +277,8 @@ test('a browser supplied client address is ignored: the attempt scope comes from
   const ipScopes = scopes.filter(row => row.scope.startsWith('ip:'))
   // One ip scope for both requests, and it is a loopback address (the BFF's socket), never the claimed ones.
   expect(ipScopes).toHaveLength(1)
-  expect(['ip:127.0.0.1', 'ip:::1', 'ip:::ffff:127.0.0.1']).toContain(ipScopes[0]!.scope)
+  // IPv4 loopback counts as itself; IPv6 loopback counts as its /64 group.
+  expect(['ip:127.0.0.1', 'ip:0:0:0:0::/64']).toContain(ipScopes[0]!.scope)
   expect(ipScopes[0]!.failures).toBe(2)
   expect(JSON.stringify(scopes)).not.toMatch(/203\.0\.113|198\.51\.100/)
   await client.dispose()
