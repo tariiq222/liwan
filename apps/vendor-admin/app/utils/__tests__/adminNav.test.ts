@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { activeNavId, adminNav, splitRail } from '../adminNav'
+import { CATALOG_TABS } from '../vendorCatalog'
 
 // The role table of the vendor admin separation spec (capabilities listed without the `vendor.` prefix).
 // Mirrors ROLE_CAPABILITIES in apps/control-plane/src/admin-auth/roles.ts, which no shared contract exports;
@@ -79,6 +80,11 @@ describe('activeNavId', () => {
     expect(items.map(item => item.id)).not.toContain('plans')
     expect(items.map(item => item.id)).not.toContain('bundles')
     expect(activeNavId(items, '/catalogx')).toBeNull()
+  })
+
+  it('derives the catalog section from the catalog tabs', () => {
+    expect(items.find(item => item.id === 'catalog')?.to).toBe(CATALOG_TABS[0].to)
+    for (const tab of CATALOG_TABS) expect(activeNavId(items, `${tab.to}/x`), tab.to).toBe('catalog')
   })
 
   it('does not match a path that only shares a prefix', () => {

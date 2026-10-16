@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import type { Quote } from '@nasq/commercial-contracts'
-import { cadenceKey, commercialErrorKey, commercialReturnTo, keyLabel, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
+import { cadenceKey, commercialErrorKey, keyLabel, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
+import { catalogReturn, priceFact } from '@/utils/vendorCatalog'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial(); const hydrated = useHydrated()
 const id = computed(() => String(route.params.id)); const isEdit = computed(() => route.path.replace(/\/+$/, '').endsWith('/edit'))
-const backTo = computed(() => commercialReturnTo(route.query.returnTo, '/plans'))
+const back = computed(() => catalogReturn(route.query.returnTo, 'plans')); const backTo = computed(() => back.value.to)
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:plan:${id.value}`, async () => {
   const view = await api.get<PlanView>('plan', id.value)
   const ids = [...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids]
@@ -43,9 +44,8 @@ const bundleOf = (x: string) => data.value?.bundles.find(b => b.id === x)
 const bundleTo = (x: string) => ({ path: `/bundles/${encodeURIComponent(x)}`, query: { returnTo: route.fullPath } })
 const facts = computed(() => {
   const v = view.value; if (!v) return []
-  const first = v.prices[0]
   return [
-    { key: 'price', label: t('vendor.pricing.sections.prices'), value: first ? `${formatCommercialMoney(first.amount, locale.value)} · ${cadenceLabel(first.cadence, t)}` : t('vendor.pricing.prices.none') },
+    { key: 'price', label: t('vendor.pricing.sections.prices'), value: priceFact(v.prices, price => `${formatCommercialMoney(price.amount, locale.value)} · ${cadenceLabel(price.cadence, t)}`, { none: t('vendor.pricing.prices.none'), more: count => t('vendor.pricing.prices.more', { count }) }) },
     { key: 'bundles', label: t('vendor.pricing.sections.bundles'), value: t('vendor.plans.bundlesCount', { included: v.included_bundle_revision_ids.length, optional: v.optional_bundle_revision_ids.length }) },
     { key: 'customers', label: t('vendor.customers.title'), value: t('vendor.pricing.customers', { count: v.customer_count }, v.customer_count) },
   ]
@@ -56,7 +56,7 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
 <template>
   <NuxtPage v-if="isEdit" />
 
-    <SharedRecordPage v-else :title="view?.name ?? t('vendor.plans.details')" :back-to="backTo" :back-label="t('vendor.plans.title')" :loading="pending" :error="error" @retry="refresh">
+    <SharedRecordPage v-else :title="view?.name ?? t('vendor.plans.details')" :back-to="backTo" :back-label="t(back.labelKey)" :loading="pending" :error="error" @retry="refresh">
       <template #actions><UButton v-if="view && editable" :to="{ path: `/plans/${view.id}/edit`, query: { returnTo: backTo } }" color="neutral" variant="outline">{{ t('vendor.pricing.edit') }}</UButton></template>
 
     <template v-if="view && data">

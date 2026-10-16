@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { ShellCrumb, ShellRailItem } from '@nasq/ui/app/types/shell'
+import type { ShellRailItem } from '@nasq/ui/app/types/shell'
 import { usePageHeaderTitle } from '@nasq/ui/app/composables/usePageHeader'
 
 // The 48px neutral header: mobile menu, breadcrumb, the console badge that marks this as the
@@ -10,7 +10,7 @@ const { t, te, locale, locales } = useI18n()
 const { me, signOut } = useAdminSession()
 const hydrated = useHydrated()
 const pageTitle = usePageHeaderTitle()
-const sectionCrumb = useSectionCrumbState()
+const route = useRoute()
 const { choose } = useLocalePreference()
 const { mode, setMode } = useAppearance()
 const toast = useToast()
@@ -23,15 +23,12 @@ const roleNames = computed(() => (me.value?.roles ?? []).map(role => (te(`app.sh
 const section = computed(() => props.items.find(item => item.id === props.activeId))
 // The page registers its title after the server rendered the header; show it only once hydrated so both renders match.
 const crumbs = computed(() => {
-  const label = section.value ? t(section.value.labelKey) : null
-  const title = hydrated.value ? pageTitle.value : null
-  const tab = hydrated.value ? sectionCrumb.value : null
-  const trail: ShellCrumb[] = []
-  const deeper = Boolean(title && title !== label)
-  if (label && section.value) trail.push({ label, to: deeper ? section.value.to : undefined })
-  if (label && tab) trail.push({ label: tab.label, to: deeper ? tab.to : undefined })
-  if (title && deeper) trail.push({ label: title })
-  return trail
+  const tab = hydrated.value ? catalogTabOf(route.path) : null
+  return adminCrumbs({
+    section: section.value ? { label: t(section.value.labelKey), to: section.value.to } : null,
+    tab: tab ? { label: t(tab.labelKey), to: tab.to } : null,
+    title: hydrated.value ? pageTitle.value : null,
+  })
 })
 
 async function leave() {

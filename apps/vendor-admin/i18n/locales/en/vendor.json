@@ -610,6 +610,7 @@
       "prices": {
         "empty": "No prices added.",
         "none": "No price",
+        "more": "+{count} more",
         "unit": "Unit",
         "count": "Count",
         "amount": "Amount",
