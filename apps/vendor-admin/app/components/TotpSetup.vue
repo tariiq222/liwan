@@ -1,8 +1,11 @@
 <script setup lang="ts">
-// The authenticator setup: the key to type and the otpauth link to open (no QR code, so no extra dependency).
-defineProps<{ uri: string | null, secret: string | null, loading?: boolean }>()
+// The authenticator setup: a QR code to scan, the key to type and the otpauth link to open.
+// The code is drawn in the browser only, after hydration, so the secret never reaches server-rendered markup.
+const props = defineProps<{ uri: string | null, secret: string | null, loading?: boolean }>()
 defineEmits<{ retry: [] }>()
 const { t } = useI18n()
+const hydrated = useHydrated()
+const qr = computed(() => hydrated.value && props.uri?.startsWith('otpauth://') ? totpQr(props.uri) : null)
 </script>
 
 <template>
@@ -11,6 +14,23 @@ const { t } = useI18n()
       {{ t('adminAuth.enroll.totpLoading') }}
     </p>
     <template v-else>
+      <div v-if="qr" class="grid justify-items-center gap-2">
+        <p class="text-sm font-medium text-highlighted">
+          {{ t('adminAuth.enroll.qrLead') }}
+        </p>
+        <svg
+          :viewBox="`0 0 ${qr.size} ${qr.size}`"
+          width="192"
+          height="192"
+          class="rounded-md"
+          role="img"
+          :aria-label="t('adminAuth.enroll.qrLabel')"
+          shape-rendering="crispEdges"
+        >
+          <rect :width="qr.size" :height="qr.size" class="fill-white" />
+          <path :d="qr.path" class="fill-black" />
+        </svg>
+      </div>
       <div class="grid gap-1">
         <p class="text-sm font-medium text-highlighted">
           {{ t('adminAuth.enroll.setupKey') }}

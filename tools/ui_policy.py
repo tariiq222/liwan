@@ -899,6 +899,8 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
         '@nasq/commercial-ui',
         # Browser half of WebAuthn for the vendor admin sign-in: calls navigator.credentials, renders nothing.
         '@simplewebauthn/browser',
+        # Draws the vendor admin TOTP setup QR in the browser: dependency-free, renders no components.
+        'qrcode-generator',
     }
     # The tooling manifest review accepts Storybook's own dev-time packages;
     # app runtime source importing them is still a finding (via allowed_source

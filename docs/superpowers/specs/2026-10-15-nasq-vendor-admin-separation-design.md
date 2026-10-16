@@ -295,4 +295,4 @@ certificates; any change to customer commercial traffic.
 - D2: no `/vendor` route prefix; the whole app is the vendor console, while the BFF keeps the API prefix `/api/vendor/v1/**`.
 - D3: vendor code and config are removed from `apps/web` in phase 3, because `apps/web` cannot build with dangling imports; phase 4 keeps only docs, the `arch_layers.json` gate removal and sign-off.
 - D4: step-up is an inline panel, not a dialog; the browser's own passkey prompt is native UI.
-- D5: TOTP setup shows the setup key and the `otpauth://` link; no QR library is added.
+- D5: TOTP setup shows a QR code (drawn in the browser by `qrcode-generator@2.0.4`, so the secret never leaves the page), the setup key and the `otpauth://` link.

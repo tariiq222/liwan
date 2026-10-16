@@ -184,7 +184,7 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_vendor_admin_dependencies_are_reviewed_like_the_others(self):
         vendor = "apps/vendor-admin/package.json"
-        reviewed = {"dependencies": {"@simplewebauthn/browser": "14.0.0"}, "devDependencies": {"jiti": "2.7.0"}}
+        reviewed = {"dependencies": {"@simplewebauthn/browser": "14.0.0", "qrcode-generator": "2.0.4"}, "devDependencies": {"jiti": "2.7.0"}}
         self.assertEqual(self.errors({vendor: json.dumps(reviewed)}), [])
         unknown = {"dependencies": {"left-pad": "1.0.0"}}
         self.assertIn("dependency needs review: left-pad", self.errors({vendor: json.dumps(unknown)}))
