@@ -19,6 +19,8 @@ TEXT_SUFFIXES = {'.py', '.ts', '.tsx', '.js', '.mjs', '.cjs', '.vue', '.css', '.
 class ProductNamespaceTest(unittest.TestCase):
     def test_guard_rejects_old_identifiers_in_templates_configs_and_diacritic_brand(self):
         cases = {
+            'tools/checkout-path.conf': '/Users/tariq/code/' + PREVIOUS_NAMESPACE + '/odoo-addons',
+            'deploy/repository.conf': 'https://github.com/tariiq222/' + PREVIOUS_NAMESPACE + '.git',
             'tools/new_app_templates/model.py.tmpl': 'from odoo.addons.' + PREVIOUS_NAMESPACE + '_api import common',
             'deploy/Caddyfile': 'header X-' + PREVIOUS_NAMESPACE + '-Service-Token value',
             'apps/web/i18n/locales/ar/common.json': json.dumps({'name': 'نَسَق'}, ensure_ascii=False),
@@ -62,11 +64,6 @@ class ProductNamespaceTest(unittest.TestCase):
                     and not path.read_bytes().startswith(b'#!')):
                 continue
             text = path.read_text(errors='replace')
-            # Existing external repository and active checkout have not been relocated by a code patch.
-            text = re.sub(re.escape('https://github.com/tariiq222/' + PREVIOUS_NAMESPACE) + r'(?=[/\s\x22\x27.]|$)',
-                          'https://github.com/owner/product', text)
-            text = re.sub(re.escape('/Users/tariq/code/' + PREVIOUS_NAMESPACE) + r'(?=[/\s\x22\x27`]|$)',
-                          '/physical/checkout', text)
             text = text.replace('/Users/tariq/Downloads/' + PREVIOUS_NAMESPACE + '-ui', '/physical/reference')
             for number, line in enumerate(text.splitlines(), 1):
                 unvocalized = re.sub(r'[\u064b-\u065f\u0670]', '', line)

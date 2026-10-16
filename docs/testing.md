@@ -49,7 +49,7 @@ backend with no server. Verified for the `static` step (197.6 s, passed):
 
 ```sh
 # 1. a throwaway clone, because the step runs `npm ci` and writes into its workspace
-git clone --local --no-hardlinks /Users/tariq/code/nasq /tmp/webvue-ci && cd /tmp/webvue-ci
+git clone --local --no-hardlinks /Users/tariq/code/webvue /tmp/webvue-ci && cd /tmp/webvue-ci
 # 2. a pipeline file holding only the wanted step (exec cannot select one)
 #    copy `when:` plus the `static` block of .woodpecker.yml into /tmp/static-only.yaml
 woodpecker-cli exec --local --repo-path /tmp/webvue-ci --backend-engine local \

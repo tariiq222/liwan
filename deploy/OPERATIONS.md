@@ -34,7 +34,7 @@ is not a claim that backups, DNS, or a customer deployment are in place.
 
 | Piece | Path / value |
 | --- | --- |
-| WebVue checkout | `/Users/tariq/code/nasq` on `main`; this worktree is `/Users/tariq/code/الاصلاحات` on `codex/الاصلاحات` |
+| WebVue checkout | `/Users/tariq/code/webvue` on `main`; this worktree is `/Users/tariq/code/الاصلاحات` on `codex/الاصلاحات` |
 | Odoo source (read-only) | `/Users/tariq/code/odoo`, `odoo-bin`, `.venv/bin/python` |
 | Core `base` | `/Users/tariq/code/odoo/odoo/addons/base` (next to `odoo-bin`, not under extra `addons/`) |
 | Extra official addons | `/Users/tariq/code/odoo/addons` (`project`, `hr`; no `base` here) |
@@ -217,7 +217,7 @@ directory. Supply absolute paths to the PostgreSQL client tools:
 
 ```sh
 ODOO_ROOT=/Users/tariq/code/odoo
-WORKTREE=/Users/tariq/code/nasq/.worktrees/phase-0-reliability
+WORKTREE=/Users/tariq/code/webvue/.worktrees/phase-0-reliability
 ODOO_CONF=/absolute/path/to/scratch-only.conf
 # Use a separate scratch config, never the live/upstream config. Disable
 # configured tests and log files; CLI flags below override DB, data and ports.
