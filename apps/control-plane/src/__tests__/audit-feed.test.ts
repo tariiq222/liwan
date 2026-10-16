@@ -15,6 +15,7 @@ if (url) {
 
 describe('audit list query contract', () => {
   it('accepts the documented filters and rejects anything else', () => {
+    expect(auditListQuerySchema.safeParse({ subject: 'x' }).success).toBe(false)
     expect(auditListQuerySchema.parse({ q: ' acme ', action: 'order.accepted', from: '2026-10-01', to: '2026-10-02', page: '2' })).toMatchObject({ q: 'acme', page: 2 })
     for (const bad of [{ action: 'Order;DROP' }, { from: '2026-13-40' }, { customer_id: 'x' }, { page: '0' }, { page: 'abc' }, { unknown: '1' }, { from: '2026-10-03', to: '2026-10-02' }, { q: '' }]) {
       expect(auditListQuerySchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false)
@@ -83,12 +84,15 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     expect(await ids({ actor: 'layla' })).toHaveLength(6)
     expect(await ids({ actor: 'legacy-uid' })).toEqual(['unrelated order'])
   })
-  it('filters by exact subject', async () => {
-    expect(await ids({ subject: tenant })).toEqual(['registered workspace'])
-    expect(await ids({ subject: tenant.slice(0, 8) })).toEqual([])
+  it('does not match vendor account emails', async () => {
+    const { rows } = await pool.query('SELECT email FROM vendor_accounts WHERE id=$1', [accountId])
+    const local = rows[0].email.split('@')[0]
+    expect(await ids({ q: local })).toEqual([])
+    expect(await ids({ actor: local })).toEqual([])
   })
-  it('filters by inclusive UTC day range', async () => {
-    expect(await ids({ from: '2026-10-02', to: '2026-10-03' })).toEqual(['imported catalog', 'registered workspace'])
+  it('filters by inclusive Asia/Riyadh day range', async () => {
+    expect(await ids({ from: '2026-10-03', to: '2026-10-03' })).toEqual(['imported catalog', 'registered workspace'])
+    expect(await ids({ from: '2026-10-02', to: '2026-10-02' })).toEqual([])
     expect(await ids({ from: '2026-10-09' })).toEqual(['unrelated order'])
     expect(await ids({ to: '2026-10-01' })).toEqual(['accepted a_b%'])
   })
@@ -104,7 +108,7 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
   it("limits to a customer's own records (customer, workspace, orders, metadata) and combines with other filters", async () => {
     expect(await ids({ customer_id: customer })).toEqual(['terms for the customer', 'registered workspace', 'accepted a_b%'])
     expect(await ids({ customer_id: customer, action: 'tenant' })).toEqual(['registered workspace'])
-    expect(await ids({ customer_id: customer, from: '2026-10-02', to: '2026-10-02' })).toEqual(['registered workspace'])
+    expect(await ids({ customer_id: customer, from: '2026-10-03', to: '2026-10-03' })).toEqual(['registered workspace'])
     expect(await ids({ customer_id: randomUUID() })).toEqual([])
   })
   it('names a plan revision subject', async () => {
@@ -112,11 +116,11 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     expect((await listAudit(pool, { action: 'plan.created' })).items[0]!.subject_ref).toMatchObject({ kind: 'plan', name: 'Gold Plan' })
     expect(await ids({ q: 'gold' })).toEqual(['Plan draft'])
   })
-  it('pages 25 at a time and keeps the total past the last page', async () => {
+  it('pages 25 at a time and keeps the real total past the last page', async () => {
     for (let i = 0; i < 30; i++) await event('operator', 'bulk.event', 'shared-registry', `bulk ${i}`, '2026-11-01T00:00:00Z')
     const first = await listAudit(pool, { action: 'bulk', page: 1 }), second = await listAudit(pool, { action: 'bulk', page: 2 }), beyond = await listAudit(pool, { action: 'bulk', page: 3 })
     expect([first.items.length, second.items.length, first.total, second.total]).toEqual([25, 5, 30, 30])
-    expect(beyond).toEqual({ items: [], total: 0 })
+    expect(beyond).toEqual({ items: [], total: 30 })
   })
   it('serves the filters over HTTP, rejects invalid ones, and keeps the capability gate', async () => {
     const get = (path: string, headers = ownerHeaders) => fetch(origin + path, { headers: headers('GET', path) })

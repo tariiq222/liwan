@@ -46,12 +46,12 @@ function auditEvent(event) {
   return { ...event, actor_name: null, subject_ref: { kind, name: tenant?.name ?? customer?.name ?? null, customer_id: customer?.id ?? null, tenant_id: tenant?.id ?? null } }
 }
 
-/** The audit filters of GET /v1/audit; `from`/`to` are inclusive UTC days, `action` an exact action or a family prefix. */
+/** The audit filters of GET /v1/audit; `from`/`to` are inclusive Asia/Riyadh days, `action` an exact action or a family prefix. */
 function auditMatches(url) {
   const [text, action, actor, from, to, customer] = ['q', 'action', 'actor', 'from', 'to', 'customer_id'].map(name => q(url, name))
   return event => {
     const resolved = auditEvent(event)
-    const day = event.created_at.slice(0, 10)
+    const day = new Date(Date.parse(event.created_at) + 3 * 3600_000).toISOString().slice(0, 10)
     return (!text || [event.action, event.reason, event.subject, resolved.subject_ref.name ?? ''].some(value => value.includes(text)))
       && (!action || event.action === action || event.action.startsWith(`${action}.`))
       && (!actor || event.actor === actor)
