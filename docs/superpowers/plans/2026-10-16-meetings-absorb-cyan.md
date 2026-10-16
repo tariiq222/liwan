@@ -36,7 +36,7 @@ needed for it any more.
 - Replace, do not layer: one `_name` definition per model, no `_inherit` of a model by the addon that defines it, no `cyan` token left anywhere outside `docs/archive`, dated `docs/reports`, `docs/consolidation`, `docs/verification`, older `docs/superpowers/{plans,specs}` and approval JSON (historical records).
 - One schema: no kept or renamed-and-kept columns, tables, groups or xml ids; dropped features leave no column behind.
 - R7: the R7 total in `tools/arch_baseline.json` must not grow (`--write-baseline` refuses growth). Cyan's two calendar `sudo()` calls disappear with the dropped calendar extension; its group lookup is already replaced by the `webvue_meetings` one.
-- Versions: `webvue_meetings` `19.0.1.0.0` → `19.0.1.1.0`; `webvue_meetings_pmo` `19.0.1.0.0` → `19.0.1.1.0`; each bump in the same commit as its `migrations/19.0.1.1.0/` directory.
+- Versions (superseded by the port section above): `webvue_meetings` and `webvue_meetings_pmo` `19.0.1.1.0` → `19.0.1.2.0`, each bump in the same commit as its README-only `migrations/19.0.1.2.0/` directory.
 - Never run tests on `odoo19`; scratch DBs only (`webvue_absorb_fresh`, `webvue_absorb_upgrade`), `--http-port=8179`, addons path = this worktree's `odoo-addons`. Read-only `psql` queries on `odoo19` are allowed for inspection only.
 - Licensing: code derived from upstream `rezachidotnet/meeting_minutes-odoo` (author Cyan, LGPL-3) keeps its `SPDX-License-Identifier: LGPL-3` and `Original author: Cyan` header lines; attribution is recorded in `odoo-addons/webvue_meetings/PROVENANCE.md`. This is a record of declared provenance, not legal advice.
 - No commit, merge, push or tag without the owner's explicit authorization for that action. Work only in this worktree.
