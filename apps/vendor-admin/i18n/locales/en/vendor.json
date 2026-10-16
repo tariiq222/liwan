@@ -1047,10 +1047,11 @@
       "details": "Invoice",
       "draftNumber": "Draft (no number)",
       "allCustomers": "All customers",
-      "overdue": "Overdue",
+      "customerSearch": "Search customers",
+      "customersRetry": "Retry",
+      "customersLoadFailed": "Could not load customers",
       "summary": {
-        "outstanding": "Outstanding balance",
-        "overdue": "Overdue invoices"
+        "outstanding": "Outstanding balance"
       },
       "customerFilter": "Selected customer",
       "period": "Period",

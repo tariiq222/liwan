@@ -60,12 +60,12 @@ function auditMatches(url) {
   }
 }
 
-/** The invoice list summary: issued totals per currency and overdue count, scoped by customer but not by status. */
+/** The invoice list summary: issued totals per currency, scoped by customer but not by status. */
 function invoiceSummary(customerId) {
   const issued = fixtures.invoices.items.filter(i => i.status === 'issued' && (!customerId || i.customer_id === customerId))
   const totals = new Map()
   for (const { total } of issued) totals.set(total.currency, { ...total, minor: (totals.get(total.currency)?.minor ?? 0) + total.minor })
-  return { outstanding: [...totals.values()], overdue_count: issued.filter(i => i.due_at && Date.parse(i.due_at) < Date.now()).length }
+  return { outstanding: [...totals.values()] }
 }
 
 /** The unified client list the control plane serves: every customer with its workspace, then workspaces without a customer. */

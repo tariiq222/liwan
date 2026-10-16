@@ -10,7 +10,7 @@ export type VendorCustomer = { id: string; name: string; tenant_id: string | nul
 export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Vendor invoice views carry the customer's name (joined server-side); the customer-facing invoice contract does not. */
 export type VendorInvoice = Invoice & { customer_name: string }
-export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[]; overdue_count: number } }
+export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
 export const INVOICE_STATUS_FILTERS = ['all', 'draft', 'issued', 'paid', 'void', 'credit_pending'] as const
@@ -210,6 +210,3 @@ export function cancellationErrorKey(cause: unknown): string {
   return ['order_not_cancellable', 'payment_reconciliation_required', 'provider_mismatch', 'reason_required'].includes(code)
     ? `vendor.customers.cancelOrder.errors.${code}` : commercialErrorKey(cause)
 }
-
-/** Issued and past its due date; the server's overdue count uses the same rule. */
-export const isOverdue = (i: Pick<Invoice, 'status' | 'due_at'>, now = Date.now()) => i.status === 'issued' && i.due_at !== null && Date.parse(i.due_at) < now

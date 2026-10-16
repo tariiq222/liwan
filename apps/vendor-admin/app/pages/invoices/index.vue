@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
 import { formatNasqDate } from '@nasq/ui/app/composables/calendarDate'
-import { INVOICE_STATUS_FILTERS, invoiceListQuery, isInvoiceStatusFilter, isNotAvailable, isOverdue } from '@/utils/vendorSubscriptions'
+import { INVOICE_STATUS_FILTERS, invoiceListQuery, isInvoiceStatusFilter, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const api = useVendorSubscriptions()
@@ -13,8 +13,10 @@ const status = computed(() => (isInvoiceStatusFilter(route.query.status) ? route
 const page = computed(() => Math.max(1, Number(route.query.page ?? 1) || 1))
 function patch(change: Record<string, unknown>) { void router.replace({ path: '/invoices', query: { ...route.query, page: undefined, ...change } }) }
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:invoices:${customerId.value}:${status.value}:${page.value}`, () => api.listInvoices(invoiceListQuery({ customerId: customerId.value, status: status.value, page: page.value, pageSize: PAGE })), { watch: [customerId, status, page] })
-// The filter offers the newest page of commercial clients; an invoice's own customer_name labels a filter set from a link.
-const { data: customers } = await useAsyncData('vendor:invoices:customers', () => api.listClients({}))
+// The customer filter searches commercial clients on the server; an invoice's own customer_name labels a filter set from a link.
+const customerSearch = ref('')
+const customerQuery = refDebounced(customerSearch, 250)
+const { data: customers, error: customersError, refresh: refreshCustomers } = await useAsyncData('vendor:invoices:customers', () => api.listClients({ q: customerQuery.value.trim() || undefined }), { watch: [customerQuery] })
 const unavailable = computed(() => isNotAvailable(error.value))
 const items = computed(() => data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / PAGE)))
@@ -44,7 +46,8 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 
 <template #filters><SharedFilterBar :active-count="Number(Boolean(customerId)) + Number(status !== 'all')" @clear="router.replace('/invoices')">
       <SharedFilterField :label="t('vendor.invoices.customer')" for="invoice-customer-filter">
-        <USelectMenu id="invoice-customer-filter" :model-value="customerId" :items="customerItems" value-key="value" :disabled="!hydrated" class="w-56" @update:model-value="patch({ customer_id: $event || undefined })" />
+        <USelectMenu id="invoice-customer-filter" v-model:search-term="customerSearch" :model-value="customerId" :items="customerItems" value-key="value" :ignore-filter="true" :search-input="{ placeholder: t('vendor.invoices.customerSearch') }" :disabled="!hydrated" class="w-56" @update:model-value="patch({ customer_id: $event || undefined })" />
+        <UAlert v-if="customersError" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('vendor.invoices.customersLoadFailed')" :actions="[{ label: t('vendor.invoices.customersRetry'), onClick: () => refreshCustomers() }]" data-testid="invoice-customers-error" />
       </SharedFilterField>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="customerId" :label="customerLabel" @remove="patch({ customer_id: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.invoices.filter.${status}`)" @remove="patch({ status: undefined })" /></template>
@@ -52,16 +55,15 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <p class="text-xs text-muted" data-testid="not-official"><span class="font-medium">{{ t('vendor.invoices.notOfficial') }}</span> — {{ t('vendor.invoices.notOfficialHint') }}</p>
 <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.invoices.notAvailable')" :description="t('vendor.invoices.notAvailableHint')" />
 <template v-else>
-<div v-if="data" class="grid gap-4 sm:grid-cols-2" data-testid="invoices-summary">
+<div v-if="data" data-testid="invoices-summary">
   <SharedMetricTile :label="t('vendor.invoices.summary.outstanding')" :value="outstanding" icon="i-lucide-wallet" value-dir="ltr" data-testid="invoices-outstanding" />
-  <SharedMetricTile :label="t('vendor.invoices.summary.overdue')" :value="data.summary.overdue_count" icon="i-lucide-alarm-clock" data-testid="invoices-overdue" />
 </div>
 <p v-if="data" class="text-sm text-muted" data-testid="invoices-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="i => to(i.id)" :loading="pending" :error="error" :empty-text="t(customerId || status !== 'all' ? 'vendor.invoices.noResults' : 'vendor.invoices.empty')" :caption="t('vendor.invoices.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
   <template #number-cell="{ row: { original: i } }"><NuxtLink :to="to(i.id)" data-testid="invoice-row" class="font-medium hover:underline">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink></template>
   <template #customer-cell="{ row: { original: i } }"><NuxtLink :to="customerTo(i.customer_id)" class="hover:underline">{{ i.customer_name }}</NuxtLink></template>
   <template #status-cell="{ row: { original: i } }"><SharedStatusBadge :tone="badge(i).tone" :label="t(badge(i).labelKey)" /></template>
-  <template #due-cell="{ row: { original: i } }"><span :class="isOverdue(i) ? 'text-error' : ''">{{ date(i.due_at) ?? t('app.notAvailable') }}</span><span v-if="isOverdue(i)" class="ms-2 text-xs text-error">{{ t('vendor.invoices.overdue') }}</span></template>
+  <template #due-cell="{ row: { original: i } }">{{ date(i.due_at) ?? t('app.notAvailable') }}</template>
   <template #vat-cell="{ row: { original: i } }"><bdi dir="ltr">{{ formatCommercialMoney(i.tax, locale) }}</bdi></template>
   <template #total-cell="{ row: { original: i } }"><bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi></template>
   <template #mobile-row="{ row: i }"><div class="flex flex-wrap items-start justify-between gap-4">
@@ -71,7 +73,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
           <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <div><dt class="text-muted">{{ t('vendor.invoices.customer') }}</dt><dd><NuxtLink :to="customerTo(i.customer_id)">{{ i.customer_name }}</NuxtLink></dd></div>
             <div><dt class="text-muted">{{ t('vendor.invoices.period') }}</dt><dd class="tabular-nums"><bdi dir="ltr">{{ i.period_start }} → {{ i.period_end }}</bdi></dd></div>
-            <div><dt class="text-muted">{{ t('vendor.invoices.dueAt') }}</dt><dd :class="isOverdue(i) ? 'text-error' : ''">{{ date(i.due_at) ?? t('app.notAvailable') }}<span v-if="isOverdue(i)" class="ms-2 text-xs">{{ t('vendor.invoices.overdue') }}</span></dd></div>
+            <div><dt class="text-muted">{{ t('vendor.invoices.dueAt') }}</dt><dd>{{ date(i.due_at) ?? t('app.notAvailable') }}</dd></div>
             <div><dt class="text-muted">{{ t('vendor.invoices.total') }}</dt><dd class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</dd></div>
           </dl></template>
 </SharedDataTable>
