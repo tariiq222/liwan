@@ -1,4 +1,5 @@
 import type { ShellRailItem } from '@nasq/ui/app/types/shell'
+import { CATALOG_TABS } from './vendorCatalog'
 
 /** `to`: the section's landing path when it is not `/<id>`; `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, bundles and the retired legacy packages under the catalog). */
 interface AdminNavEntry { id: string, icon: string, capability: string, to?: string, alsoUnder?: readonly string[] }
@@ -8,7 +9,7 @@ const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'overview', icon: 'i-lucide-house', capability: 'vendor.read' },
   { id: 'analytics', icon: 'i-lucide-chart-line', capability: 'vendor.billing.manage' },
   { id: 'customers', icon: 'i-lucide-users', capability: 'vendor.read', alsoUnder: ['/tenants'] },
-  { id: 'catalog', icon: 'i-lucide-boxes', capability: 'vendor.read', to: '/plans', alsoUnder: ['/bundles', '/catalog'] },
+  { id: 'catalog', icon: 'i-lucide-boxes', capability: 'vendor.read', to: CATALOG_TABS[0].to, alsoUnder: CATALOG_TABS.map(tab => tab.to) },
   { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage' },
   { id: 'operations', icon: 'i-lucide-wrench', capability: 'vendor.read' },
   { id: 'audit', icon: 'i-lucide-history', capability: 'vendor.audit.read' },
