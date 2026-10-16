@@ -132,7 +132,9 @@ never add an entry or raise a count to make a check pass.
 - **R4** Dependencies point down only: foundation (`nasq_core` ← `nasq_platform` ← `nasq_api`) ← shared
   services ← applications ← bridges ← `customer_<name>_*`.
 - **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
-  from `apps/control-plane`; no new file references the control plane.
+  from `apps/control-plane`; no new file references the control plane. `apps/vendor-admin` is the only vendor
+  client of the control plane; the customer-commercial paths (`/subscription`, `apps/web/server/api/commercial`,
+  `apps/web/server/utils/customer-commercial.ts`) remain the sole customer-side exception.
 - **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
   entitlements and `customer_<name>_*` addons.
 - **R7** No new `sudo()` outside the documented cases.
@@ -144,6 +146,11 @@ never add an entry or raise a count to make a check pass.
   `nasq.feature.registry` with `owner` set to its addon name, and every route checks its feature. A
   shared service (rank 3) gates its routes with `requires_registered_feature`, whose keys the
   applications register in that service's registry.
+
+- **UI1** The shared UI layers `packages/ui` and `packages/commercial-ui` import no
+  application, addon, app alias, `@nasq/contracts` or control-plane code.
+- **VA1** `apps/vendor-admin` imports only itself, the shared UI layers and `@nasq/commercial-contracts`, calls no
+  Odoo route, and `apps/web` never imports it. UI1 and VA1 are hard rules, never baselined.
 
 A new addon is registered in `tools/arch_layers.json` with its rank (0–2 foundation, 3 shared service,
 4 application, 5 bridge, 6 customer overlay) before it is merged. After removing or moving a violation,
@@ -294,7 +301,7 @@ worktrees only after their content is preserved and no process is using them.
 ## Check commands
 
 The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is Woodpecker
-(`.woodpecker.yml`, ten steps, each runnable locally); its notes and the local `woodpecker-cli exec`
+(`.woodpecker.yml`, eleven steps, each runnable locally); its notes and the local `woodpecker-cli exec`
 recipe are in `docs/testing.md` ("CI pipeline notes"). Fast local loop: `npm run check:fast`,
 `npm run test:odoo`, `npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
 Web checks and general commands:
@@ -310,6 +317,10 @@ Nuxt UI. API tests extend `NasqApiCase` from `nasq_api/tests/common.py` or
 addon `tests/__init__.py`. Loading a code/data change into an authorized
 development database may use `-u <addon> --no-http --stop-after-init`; never
 run tests against the dev `odoo19` database.
+
+`apps/vendor-admin` has its own checks (run `npx nuxt prepare` there first):
+`npm -w apps/vendor-admin run lint` and `npm -w apps/vendor-admin run test`; the live proof
+against the real control plane is in `apps/vendor-admin/README.md` and `docs/testing.md`.
 
 Test layers and the isolated agentic e2e runner (`npm run e2e`) are described in
 [`docs/testing.md`](docs/testing.md).
