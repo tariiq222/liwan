@@ -11,10 +11,7 @@ export class StepUpCancelled extends Error {
   }
 }
 
-export const isStepUpCancelled = (error: unknown): error is StepUpCancelled => error instanceof StepUpCancelled
-
-/** The inline message a form shows when the person did not confirm; null for any other failure. */
-export const stepUpCancelledKey = (error: unknown): string | null => isStepUpCancelled(error) ? 'adminAuth.stepUp.cancelled' : null
+const isStepUpCancelled = (error: unknown): error is StepUpCancelled => error instanceof StepUpCancelled
 
 export interface StepUpDeps {
   post: AuthPost
@@ -63,6 +60,7 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
         await deps.onSessionEnded()
         throw new SessionGone(error)
       })
+    if (cancelled) throw new StepUpCancelled()
     const prompt = deps.authenticate({ optionsJSON: challenge.options })
     // A prompt the person cancelled settles at once, whatever the browser does with it.
     const dismissed = new Promise<never>((_, reject) => { cancelPrompt = () => reject(new StepUpCancelled()) })
@@ -79,6 +77,7 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
         state.error.value = null
         try {
           await assertOnce()
+          if (cancelled) throw new StepUpCancelled()
           return
         } catch (error) {
           if (error instanceof SessionGone) throw error.original
@@ -101,6 +100,8 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
   async function run<T>(fn: () => Promise<T>): Promise<T> {
     ceremony ??= confirm().finally(() => { ceremony = null })
     await ceremony
+    // Cancelled after the confirmation went through: the request must not be sent again.
+    if (cancelled) throw new StepUpCancelled()
     return fn()
   }
 

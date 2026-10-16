@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createStepUp, StepUpCancelled, stepUpCancelledKey, type StepUpDeps } from '../useStepUp'
+import { createStepUp, StepUpCancelled, type StepUpDeps } from '../useStepUp'
 
 const OPTIONS = { challenge: 'abc' }
 const failure = (statusCode: number, code?: string) => Object.assign(new Error('fetch failed'), { statusCode, data: code ? { code } : undefined })
@@ -136,12 +136,49 @@ describe('createStepUp', () => {
     await expect(stepUp.run(() => Promise.reject(error))).rejects.toBe(error)
     expect(stepUp.pending.value).toBe(false)
   })
-})
 
-describe('stepUpCancelledKey', () => {
-  it('names the inline message for a cancelled step-up only', () => {
-    expect(stepUpCancelledKey(new StepUpCancelled())).toBe('adminAuth.stepUp.cancelled')
-    expect(stepUpCancelledKey(new Error('x'))).toBeNull()
-    expect(stepUpCancelledKey(null)).toBeNull()
+  it('rejects and does not repeat the request when cancelled while the verification is in flight', async () => {
+    let finishVerify!: () => void
+    const base = setup()
+    const post = vi.fn(async (path: string) => {
+      if (path.endsWith('verify')) await new Promise<void>((resolve) => { finishVerify = resolve })
+      return path.endsWith('options') ? { challenge_id: 'c'.repeat(36), options: OPTIONS } : undefined
+    })
+    const { stepUp } = setup({ post: post as unknown as StepUpDeps['post'] })
+    const retry = vi.fn()
+    const running = stepUp.run(retry)
+    await tick()
+    await tick()
+    stepUp.cancel()
+    finishVerify()
+    await expect(running).rejects.toBeInstanceOf(StepUpCancelled)
+    expect(retry).not.toHaveBeenCalled()
+    expect(base.stepUp.pending.value).toBe(false)
+  })
+
+  it('does not open the passkey prompt when cancelled while the options are loading', async () => {
+    let finishOptions!: () => void
+    const post = vi.fn(async (path: string) => {
+      if (path.endsWith('options')) await new Promise<void>((resolve) => { finishOptions = resolve })
+      return { challenge_id: 'c'.repeat(36), options: OPTIONS }
+    })
+    const { stepUp, authenticate } = setup({ post: post as unknown as StepUpDeps['post'] })
+    const retry = vi.fn()
+    const running = stepUp.run(retry)
+    await tick()
+    stepUp.cancel()
+    finishOptions()
+    await expect(running).rejects.toBeInstanceOf(StepUpCancelled)
+    expect(authenticate).not.toHaveBeenCalled()
+    expect(retry).not.toHaveBeenCalled()
+  })
+
+  it('never runs the request when the flow was cancelled by the time it finishes', async () => {
+    const { stepUp } = setup()
+    const retry = vi.fn()
+    const running = stepUp.run(retry)
+    stepUp.cancel()
+    await expect(running).rejects.toBeInstanceOf(StepUpCancelled)
+    expect(retry).not.toHaveBeenCalled()
   })
 })

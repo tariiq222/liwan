@@ -18,12 +18,21 @@ export function createAdminApi({ fetcher, onUnauthorized, onStepUpRequired }: Ad
   async function request<T>(path: string, options?: Record<string, unknown>): Promise<T> {
     if (!path.startsWith('/')) throw new Error('invalid_path')
     const send = () => fetcher(`${API_PREFIX}${path}`, options) as Promise<T>
+    // The one repeat after a step-up: a 401 there is still a lost session.
+    const sendOnce = async (): Promise<T> => {
+      try {
+        return await send()
+      } catch (error) {
+        if (failureOf(error).status === 401) await onUnauthorized()
+        throw error
+      }
+    }
     try {
       return await send()
     } catch (error) {
       const { status, code } = failureOf(error)
       if (status === 401) await onUnauthorized()
-      else if (status === 403 && code === 'step_up_required' && onStepUpRequired) return onStepUpRequired(send, error)
+      else if (status === 403 && code === 'step_up_required' && onStepUpRequired) return onStepUpRequired(sendOnce, error)
       throw error
     }
   }

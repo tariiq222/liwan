@@ -46,6 +46,16 @@ describe('createAdminApi', () => {
     expect(fetcher).toHaveBeenLastCalledWith('/api/vendor/v1/x', { method: 'POST', body: { a: 1 } })
   })
 
+  it('runs the unauthorized handler and rethrows when the repeated request is answered 401', async () => {
+    const onUnauthorized = vi.fn()
+    const fetcher = vi.fn()
+      .mockRejectedValueOnce(failure(403, { code: 'step_up_required' }))
+      .mockRejectedValueOnce(failure(401, { code: 'unauthorized' }))
+    const api = createAdminApi({ fetcher, onUnauthorized, onStepUpRequired: retry => retry() })
+    await expect(api.request('/x', { method: 'POST' })).rejects.toMatchObject({ statusCode: 401 })
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+
   it('does not treat other 403 codes as step-up', async () => {
     const onStepUpRequired = vi.fn()
     const fetcher = vi.fn().mockRejectedValue(failure(403, { code: 'forbidden' }))
