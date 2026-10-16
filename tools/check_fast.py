@@ -44,7 +44,9 @@ def plan(changed, base):
         steps.append(('contracts_test', ['npm', '-w', 'packages/contracts', 'run', 'test']))
     if touched('packages/ui/'):
         steps.append(('ui_layer_test', ['npm', '-w', 'packages/ui', 'run', 'test']))
-    if touched('apps/web/', 'packages/contracts/', 'packages/ui/'):
+    if touched('packages/commercial-ui/'):
+        steps.append(('commercial_ui_layer_test', ['npm', '-w', 'packages/commercial-ui', 'run', 'test']))
+    if touched('apps/web/', 'packages/contracts/', 'packages/ui/', 'packages/commercial-ui/'):
         steps.append(('ui_inventory', [PY, '-B', 'tools/ui_inventory.py', '--check']))
         steps.append(('ui_catalog', ['node', 'tools/ui_catalog.mjs', '--check']))
         steps.append(('ui_templates', ['node', 'tools/ui_templates.mjs']))

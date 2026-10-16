@@ -20,6 +20,11 @@ class TestNoExternalRefs(unittest.TestCase):
         self.assertEqual(find_external_refs('packages/ui/app/assets/css/main.css', "@import url('https://fonts.googleapis.com/x.css');"),
                          [('packages/ui/app/assets/css/main.css', 1)])
 
+    def test_scans_the_commercial_ui_layer(self):
+        import no_external_refs
+        for root in ('packages/commercial-ui/app', 'packages/commercial-ui/nuxt.config.ts'):
+            self.assertIn(root, no_external_refs.ROOTS)
+
 
 if __name__ == '__main__':
     unittest.main()

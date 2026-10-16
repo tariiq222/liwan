@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 
-const roots = ['../apps/web/app/', '../packages/ui/app/'].map(root => fileURLToPath(new URL(root, import.meta.url)))
+const roots = ['../apps/web/app/', '../packages/ui/app/', '../packages/commercial-ui/app/'].map(root => fileURLToPath(new URL(root, import.meta.url)))
 function sources(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory()
     ? entry.name === '__tests__' ? [] : sources(path.join(dir, entry.name))

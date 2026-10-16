@@ -302,7 +302,7 @@ class UiPolicyTest(unittest.TestCase):
 
     def test_story_importing_component_outside_components_fails(self):
         errors = story_errors(self.story_snapshot(**{STORY: self.story(target="../../app/pages/example.vue")}))
-        self.assertIn(STORY + ": stories import components only from apps/web/app/components or packages/ui/app/components", errors)
+        self.assertIn(STORY + ": stories import components only from apps/web/app/components, packages/ui/app/components or packages/commercial-ui/app/components", errors)
 
     def test_app_importing_story_fails(self):
         errors = story_errors(self.story_snapshot(**{PAGE: "<script setup>\nimport x from '../../stories/support/context'\n</script>"}))
@@ -586,6 +586,18 @@ class StaticGateTest(unittest.TestCase):
         self.assertTrue(policy.recipe_errors({layer: "<template><div class=\"nasq-ui-card\" /></template>"}))
         self.assertTrue(policy.template_errors({policy.UI_COMPONENTS + "shared/data/OtherBadge.vue": "<template />"}))
         self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@nasq/ui/app/utils/sectionTabs"), UI + "utils/sectionTabs")
+
+    def test_commercial_layer_is_scanned_and_resolved_like_the_ui_layer(self):
+        commercial = "packages/commercial-ui/app/"
+        layer = commercial + "components/shared/data/InvoiceLines.vue"
+        self.assertIn(commercial, policy.APP_SOURCES)
+        self.assertEqual(policy.component_file("shared/data/InvoiceLines.vue"), layer)
+        self.assertEqual(policy.component_file("shared/commerce/PriceBreakdown.vue"), commercial + "components/shared/commerce/PriceBreakdown.vue")
+        self.assertEqual(policy.component_file("shared/data/DataTable.vue"), UI + "components/shared/data/DataTable.vue")
+        self.assertEqual(policy.resolve_specifier(APP + "pages/x.vue", "@nasq/commercial-ui/app/utils/commercial"), commercial + "utils/commercial")
+        self.assertEqual(policy.baseline_path(layer), APP + "components/shared/data/InvoiceLines.vue")
+        self.assertTrue(policy.button_rank_errors({layer: '<UButton color="secondary">Go</UButton>'}))
+        self.assertIn("packages/commercial-ui/package.json", policy.MANIFESTS)
 
     def test_filled_secondary_button_is_reported_and_quiet_variants_are_not(self):
         self.assertTrue(policy.button_rank_errors({
