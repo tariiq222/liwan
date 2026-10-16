@@ -31,6 +31,10 @@ apps/web/127.0.0.1/
 !/.claude/agents/
 /.claude/agents/*
 !/.claude/agents/frontend-theme.md
+!/.claude/scripts/
+/.claude/scripts/*
+!/.claude/scripts/guard-bash.sh
+!/.claude/scripts/use-nvmrc-node.sh
 
 # --- Build and dependency output -------------------------------------------
 .nitro/

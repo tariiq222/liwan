@@ -75,6 +75,13 @@ shared change must state the contract and the single writer before work starts.
 `npm run wt -- new <area>-<slug>` performs the worktree creation, steps 3 and 4 (ports and
 scratch database name go to the git-ignored `.env.worktree`) in one command (`tools/wt.py`).
 
+Task worktrees live in one place only: `<main checkout>/.worktrees/<area>-<slug>` (git-ignored), which is
+where `wt new` creates them, also when run from another worktree. Do not create them under `../nasq-wt/`
+or the Claude app's own worktree folder; `wt status` marks such a worktree with `*`. `npm run wt -- status` answers
+"which worktrees exist, which are merged, which are dirty"; `npm run wt -- gc` lists what is safe to
+remove (merged, clean, behind `main`, no process inside) and `--apply` removes it, which needs the
+owner's authorization.
+
 The Odoo checkout at `/Users/tariq/code/odoo` is upstream and its source,
 configuration, and Git state are read-only. Source inspection and read-only Git
 audits there are allowed. Authorized test or development commands may mutate an

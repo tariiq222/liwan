@@ -9,6 +9,13 @@ nasq has four test layers. Pick the cheapest one that proves the change.
 | 3. Playwright mock specs | Page behaviour against the mock API, no model needed | `cd apps/web && npm run test:e2e` (CI step `e2e-mock`) |
 | 4. Agentic e2e | Whole user journeys through the real UI | `npm run e2e` / `npm run e2e:smoke` |
 
+## Node version
+
+`.nvmrc` pins Node 22, but Homebrew's default `node` may be newer. For Claude Code sessions the
+`SessionStart` hook in `.claude/settings.json` runs `.claude/scripts/use-nvmrc-node.sh`, which puts
+`$(brew --prefix node@<.nvmrc major>)/bin` first on `PATH` (one stderr line if that Node is not installed) for every Bash command, so no manual
+`export PATH=...` is needed. Outside Claude Code, run `export PATH=/opt/homebrew/opt/node@22/bin:$PATH` once per shell.
+
 ## Fast local loop
 
 Use these while iterating; `npm test` and the Odoo/CI gates stay binding before a merge.
@@ -18,6 +25,8 @@ Use these while iterating; `npm test` and the Odoo/CI gates stay binding before 
 | `npm run check:fast` | Policy checks always, plus ruff, tools tests, contracts/web tests and the web type check only for the layers that changed against `main` (`tools/check_fast.py`). |
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
+| `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, plus a summary line (`tools/wt.py`). |
+| `npm run wt -- gc [--apply]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`nasq_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` step. |
 | `npm run review:jev -- --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against `main` (`tools/jev_review.mjs`; `--base <ref>`, `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Never a gate: see `REVIEW.md`. |
 | `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` step. |
