@@ -4,7 +4,7 @@ import type { VendorCapability } from '@nasq/commercial-contracts'
 import { getPackage,listPackages,PackageError } from './packages.js'
 
 /** Returns null only when this route is outside the package resource. */
-export async function packageHttp(pool:Pool,input:{method:string;pathname:string;raw:string;issuer:string;actor:number;capabilities:VendorCapability[];stepUpFresh?:boolean;repositoryRoot:string}) {
+export async function packageHttp(pool:Pool,input:{method:string;pathname:string;raw:string;actor:number;capabilities:VendorCapability[];stepUpFresh?:boolean;repositoryRoot:string}) {
   const match=/^\/v1\/packages(?:\/([0-9a-f-]{36})(?:\/(validate|publish|withdraw|restore|revisions))?)?$/.exec(input.pathname)
   if(!match)return null
   const capability=input.method==='GET'?'vendor.read':'vendor.catalog.manage'

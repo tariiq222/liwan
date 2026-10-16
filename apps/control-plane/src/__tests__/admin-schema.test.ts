@@ -10,7 +10,7 @@ else describe('admin schema', () => {
   afterAll(async () => { await pool.end() })
   it('creates every identity table once', async () => {
     const rows = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'vendor_%' ORDER BY 1")
-    expect(rows.rows.map((r) => r.table_name)).toEqual(['vendor_account_roles','vendor_accounts','vendor_auth_attempts','vendor_auth_challenges','vendor_invitations','vendor_memberships','vendor_passkeys','vendor_recovery_codes','vendor_sessions','vendor_totp'])
+    expect(rows.rows.map((r) => r.table_name)).toEqual(['vendor_account_roles','vendor_accounts','vendor_auth_attempts','vendor_auth_challenges','vendor_invitations','vendor_passkeys','vendor_recovery_codes','vendor_sessions','vendor_totp'])
   })
   it('stores emails case-insensitively unique', async () => {
     await pool.query("TRUNCATE vendor_accounts CASCADE")

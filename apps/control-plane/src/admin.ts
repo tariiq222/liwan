@@ -35,7 +35,7 @@ try {
       await lockOwners(client)
       const existing = await client.query("SELECT 1 FROM vendor_account_roles r JOIN vendor_accounts a ON a.id=r.account_id WHERE r.role='owner' AND a.status<>'disabled'")
       if (existing.rowCount) throw new Error('owner already exists')
-      return inviteAccount(client, config.installationId, 'operator', { email: email ?? '', displayName: displayName ?? '', roles: ['owner'], reason: reason(why) }, new Date())
+      return inviteAccount(client, 'operator', { email: email ?? '', displayName: displayName ?? '', roles: ['owner'], reason: reason(why) }, new Date())
     })
     process.stdout.write(`${admin.origin}/enroll#${token}\n`)
   } else if (command === 'reset-account') {

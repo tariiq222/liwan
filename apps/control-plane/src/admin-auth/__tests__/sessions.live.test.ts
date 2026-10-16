@@ -11,7 +11,7 @@ else describe('sessions', () => {
   beforeEach(async () => {
     await migrate(pool)
     await pool.query('TRUNCATE vendor_accounts CASCADE')
-    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('s@nasq.sa','S','active') RETURNING id")).rows[0].id)
+    accountId = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('s@nasq.sa','S','active','x') RETURNING id")).rows[0].id)
   })
   afterAll(async () => { await pool.end() })
 

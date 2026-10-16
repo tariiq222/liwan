@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PoolClient } from 'pg'
-import { capabilitiesFor, VENDOR_ROLES, type VendorRole } from './roles.js'
+import { VENDOR_ROLES, type VendorRole } from './roles.js'
 
 export class AdminAuthError extends Error {
   constructor(public status: 401 | 403 | 409 | 422 | 429, public code: 'auth_failed' | 'forbidden' | 'conflict' | 'invalid' | 'rate_limited' | 'last_owner' | 'step_up_required', message: string = code) { super(message) }
@@ -26,19 +26,11 @@ export async function lockOwners(client: PoolClient): Promise<number[]> {
   const rows = await client.query("SELECT a.id FROM vendor_accounts a JOIN vendor_account_roles r ON r.account_id=a.id AND r.role='owner' WHERE a.status='active' ORDER BY a.id")
   return rows.rows.map((r) => Number(r.id))
 }
-export async function syncMembership(client: PoolClient, issuer: string, accountId: number): Promise<void> {
-  const account = await client.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
-  if (!account.rowCount) throw new AdminAuthError(422, 'invalid')
-  const roles = (await client.query('SELECT role FROM vendor_account_roles WHERE account_id=$1', [accountId])).rows.map((r) => r.role as VendorRole)
-  const active = account.rows[0].status === 'active'
-  await client.query(`INSERT INTO vendor_memberships(issuer,actor_uid,capabilities,revoked_at) VALUES($1,$2,$3,${active ? 'NULL' : 'now()'})
-    ON CONFLICT(issuer,actor_uid) DO UPDATE SET capabilities=EXCLUDED.capabilities, revoked_at=EXCLUDED.revoked_at`, [issuer, accountId, capabilitiesFor(roles)])
-}
 // A non-operator actor must still be an active owner when the mutation runs (the owner set is locked).
 export function requireActingOwner(actor: { id: number } | 'operator', owners: number[]): void {
   if (actor !== 'operator' && !owners.includes(Number(actor.id))) throw new AdminAuthError(403, 'forbidden')
 }
-export async function setRoles(client: PoolClient, issuer: string, actor: { id: number } | 'operator', accountId: number, roles: VendorRole[], reason: string): Promise<void> {
+export async function setRoles(client: PoolClient, actor: { id: number } | 'operator', accountId: number, roles: VendorRole[], reason: string): Promise<void> {
   const why = requireReason(reason)
   if (!roles.length || roles.some((r) => !VENDOR_ROLES.includes(r)) || new Set(roles).size !== roles.length) throw new AdminAuthError(422, 'invalid')
   const owners = await lockOwners(client)
@@ -49,10 +41,9 @@ export async function setRoles(client: PoolClient, issuer: string, actor: { id: 
   if (actor !== 'operator' && !roles.includes('owner') && Number(actor.id) === Number(accountId) && owners.filter((id) => id !== Number(accountId)).length === 0) throw new AdminAuthError(409, 'last_owner')
   await client.query('DELETE FROM vendor_account_roles WHERE account_id=$1', [accountId])
   for (const role of roles) await client.query('INSERT INTO vendor_account_roles(account_id,role) VALUES($1,$2)', [accountId, role])
-  await syncMembership(client, issuer, accountId)
   await audit(client, actorName(actor), 'account.roles_set', `account:${accountId}`, `${why} [${roles.join(',')}]`)
 }
-export async function disableAccount(client: PoolClient, issuer: string, actor: { id: number } | 'operator', accountId: number, reason: string): Promise<void> {
+export async function disableAccount(client: PoolClient, actor: { id: number } | 'operator', accountId: number, reason: string): Promise<void> {
   const why = requireReason(reason)
   const owners = await lockOwners(client)
   requireActingOwner(actor, owners)
@@ -63,6 +54,5 @@ export async function disableAccount(client: PoolClient, issuer: string, actor: 
   if (!updated.rowCount) throw new AdminAuthError(422, 'invalid')
   await client.query('UPDATE vendor_sessions SET revoked_at=now() WHERE account_id=$1 AND revoked_at IS NULL', [accountId])
   await client.query('UPDATE vendor_invitations SET consumed_at=now() WHERE account_id=$1 AND consumed_at IS NULL', [accountId])
-  await syncMembership(client, issuer, accountId)
   await audit(client, actorName(actor), 'account.disabled', `account:${accountId}`, why)
 }

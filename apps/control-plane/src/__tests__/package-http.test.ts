@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { packageHttp } from '../package-http.js'
 
 const pool = { query: async () => { throw new Error('a retired write must not reach the database') } } as never
-const base = { repositoryRoot: '/repo', raw: '{}', issuer: 'retired-test', actor: 7, stepUpFresh: true }
+const base = { repositoryRoot: '/repo', raw: '{}', actor: 7, stepUpFresh: true }
 
 describe('Track A packages are read-only history (owner decision O1)', () => {
   it.each([

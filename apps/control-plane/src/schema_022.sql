@@ -69,5 +69,7 @@ CREATE TABLE vendor_auth_attempts (
   PRIMARY KEY (scope)
 );
 
--- Legacy memberships were keyed by Odoo uid; only vendor accounts may hold active memberships now.
-UPDATE vendor_memberships SET revoked_at = now() WHERE revoked_at IS NULL;
+-- A vendor's authority is computed from vendor_account_roles and vendor_accounts.status; the table that
+-- copied it (keyed by Odoo uid) is gone. Rows that recorded an Odoo uid as their actor keep their issuer,
+-- which is never the vendor-account issuer, so no grant check can match them to an account.
+DROP TABLE vendor_memberships;

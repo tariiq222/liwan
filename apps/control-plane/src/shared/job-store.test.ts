@@ -4,6 +4,7 @@ import { signMock as signServiceRequest, mockSessionQuery } from '../__tests__/h
 import type { Pool } from 'pg'
 import { enqueueSharedJob, bindQueuedRequest, deriveSharedPolicy } from './job-store.js'
 import { businessKey, payloadDigest } from './provisioning.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 const binding = { tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }
 const request = { schemaVersion: 1, requestId: '687674dc-5789-4a99-b151-12d69f010cc3', operation: 'provision', catalog: { version: 'v1', tier: 'core', sourceSha256: 'a'.repeat(64) }, policy: { schema_version: 1, channel: 'control_plane', modules: ['nasq_core'], features: { 'users.limit': 10, 'storage.limit_mb': 100 } } }
 it('persists one provisioning business key across distinct request IDs', async () => {
@@ -14,7 +15,8 @@ it('persists one provisioning business key across distinct request IDs', async (
   const client={release(){},async query(sql:string,params:any[]=[]){
     const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
     if (['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('SELECT pg_advisory')) return result()
-    if (sql.includes('FROM vendor_memberships')) return result([{}])
+    if (sql.includes('FROM vendor_accounts WHERE id')) return result([{}])
+    if (sql.includes('FROM vendor_account_roles')) return result([{role:'customer_success'},{role:'operations'}])
     if (sql.includes('FROM shared_registry_bindings')) return result([{...binding,host:'a.invalid'}])
     if (sql.includes('FROM tenants')) return result([{id:request.requestId,catalog_version:'v1',catalog_tier:'core'}])
     if (sql.includes('FROM catalog_entries')) return result([{source_sha256:'a'.repeat(64),solution}])
@@ -27,13 +29,13 @@ it('persists one provisioning business key across distinct request IDs', async (
   }}
   const pool={connect:async()=>client} as unknown as Pool
   const input={schemaVersion:1,operation:'provision',requestId:request.requestId}
-  const actor={issuer:'vendor',actorUid:7}
+  const actor={issuer:'vendor:vendor-account',actorUid:7}
   const first=await enqueueSharedJob(pool,request.requestId,actor,input,'Provision fixture')
   const second=await enqueueSharedJob(pool,request.requestId,actor,{...input,requestId:'81e71f13-a412-4d5d-b230-c6cd1dd45d35'},'Retry fixture')
   expect(first.id).toBe(second.id);expect(second.replay).toBe(true);expect(inserts).toBe(1)
   expect(audits).toEqual(['shared_job.queued','shared_job.replayed'])
   await expect(enqueueSharedJob(pool,request.requestId,{...actor,actorUid:8},input,'Other actor replay')).rejects.toThrow('shared_replay_forbidden')
-  await expect(enqueueSharedJob(pool,request.requestId,{...actor,issuer:'other'},input,'Other issuer replay')).rejects.toThrow('shared_replay_forbidden')
+  await expect(enqueueSharedJob(pool,request.requestId,{...actor,issuer:'other:vendor-account'},input,'Other issuer replay')).rejects.toThrow('shared_replay_forbidden')
   await expect(enqueueSharedJob(pool,request.requestId,actor,{...input,policy:request.policy},'Forged policy')).rejects.toThrow()
   // Changed authoritative catalog must not turn the singleton into a new effect.
   solution.base_modules.push('nasq_pmo')
@@ -48,7 +50,8 @@ it('enqueues and replays signed HTTP backup through actual store with registry-o
     if(['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('SELECT pg_advisory')||sql.startsWith('DELETE FROM service_nonces'))return result()
     if(sql.startsWith('INSERT INTO service_nonces'))return result([{nonce:params[1]}])
     const session=mockSessionQuery(sql,params);if(session)return session
-    if(sql.includes('FROM vendor_memberships'))return result([{capabilities:['vendor.operations.run']}])
+    if(sql.includes('FROM vendor_accounts WHERE id'))return result([{}])
+    if(sql.includes('FROM vendor_account_roles'))return result([{role:'operations'}])
     if(sql.includes('FROM tenants'))return result([{}])
     if(sql.includes('FROM shared_registry_bindings'))return result([{...binding,host:'a.invalid'}])
     if(sql.includes("state IN ('running','needs_intervention')"))return result()
@@ -70,7 +73,7 @@ it('enqueues and replays signed HTTP backup through actual store with registry-o
     const second=await send();expect(second.status).toBe(200);expect(await second.json()).toEqual({...accepted,replay:true})
     expect(inserted).toHaveLength(1)
     expect(inserted[0]![3].binding).toEqual({tenantId:'a',database:'db_a',filestore:'db_a',registryRevision:1})
-    expect(inserted[0]!.slice(5,7)).toEqual([issuer,7])
+    expect(inserted[0]!.slice(5,7)).toEqual([vendorActorIssuer(issuer),7])
   } finally {vi.unstubAllEnvs();await new Promise<void>(resolve=>server.close(()=>resolve()))}
 })
 it('rolls back queued insertion when durable audit cannot be written', async () => {
@@ -81,7 +84,8 @@ it('rolls back queued insertion when durable audit cannot be written', async () 
     if(sql==='BEGIN'||sql.startsWith('SELECT pg_advisory'))return result()
     if(sql==='COMMIT'){committed++;return result()}
     if(sql==='ROLLBACK'){rolledBack++;rows.length=0;return result()}
-    if(sql.includes('FROM vendor_memberships')||sql.includes('FROM tenants'))return result([{}])
+    if(sql.includes('FROM vendor_accounts WHERE id')||sql.includes('FROM tenants'))return result([{}])
+    if(sql.includes('FROM vendor_account_roles'))return result([{role:'customer_success'},{role:'operations'}])
     if(sql.includes('FROM shared_registry_bindings'))return result([{...binding,host:'a.invalid'}])
     if(sql.includes('FROM shared_jobs'))return result()
     if(sql.startsWith('INSERT INTO shared_jobs')){rows.push(params);return result()}
@@ -89,7 +93,7 @@ it('rolls back queued insertion when durable audit cannot be written', async () 
     throw Error('unexpected_sql:'+sql)
   }}
   await expect(enqueueSharedJob({connect:async()=>client} as unknown as Pool,request.requestId,
-    {issuer:'vendor',actorUid:7},{schemaVersion:1,operation:'backup',requestId:request.requestId},'Backup audit fault'
+    {issuer:'vendor:vendor-account',actorUid:7},{schemaVersion:1,operation:'backup',requestId:request.requestId},'Backup audit fault'
   )).rejects.toThrow('audit_storage_failure')
   expect(rows).toEqual([]);expect(committed).toBe(0);expect(rolledBack).toBe(1)
 })
@@ -122,7 +126,8 @@ function restoreFixture(approval: Record<string, unknown> | null, flags: { dupli
   const client={release(){},async query(sql:string,params:any[]=[]){
     const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
     if (['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('SELECT pg_advisory')) return result()
-    if (sql.includes('FROM vendor_memberships')) return result([{}])
+    if (sql.includes('FROM vendor_accounts WHERE id')) return result([{}])
+    if (sql.includes('FROM vendor_account_roles')) return result([{role:'customer_success'},{role:'operations'}])
     if (sql.includes('FROM tenants')) return result([{}])
     if (sql.startsWith('SELECT 1 FROM shared_registry_hosts')) return flags.reserved ? result([{ok:1}]) : result()
     if (sql.includes('FROM shared_registry_bindings')) return result([{...binding,host:'a.invalid'}])
@@ -147,7 +152,7 @@ const approvalRow = {
   target_database: 'db_new',
   tenant_id: 'a', database_name: 'db_a', filestore: 'db_a', database_sha256: 'a'.repeat(64), filestore_sha256: 'b'.repeat(64),
 }
-const actor={issuer:'vendor',actorUid:7}
+const actor={issuer:'vendor:vendor-account',actorUid:7}
 it('derives restore payload from the durable approval inside the enqueue transaction', async () => {
   const f=restoreFixture(approvalRow)
   const result=await enqueueSharedJob(f.pool,request.requestId,actor,restoreRequest,'Approved restore')
@@ -210,7 +215,7 @@ it('refuses restore enqueue without a live vendor operations grant', async () =>
   const client={release(){},async query(sql:string){
     const result=(rows:unknown[]=[])=>({rows,rowCount:rows.length})
     if (['BEGIN','COMMIT','ROLLBACK'].includes(sql)) return result()
-    if (sql.includes('FROM vendor_memberships')) return result()
+    if (sql.includes('FROM vendor_accounts WHERE id')) return result()
     if (sql.includes('FROM shared_registry_bindings')) return result([{...binding,host:'a.invalid'}])
     throw Error('unexpected_sql:'+sql)
   }}

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Pool, PoolClient } from 'pg'
 import type { Config } from '../config.js'
 import { executeClaimed, type Claimed, type OperatorInvocation } from '../worker.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const repo = new URL('../../../../', import.meta.url).pathname
 const operationId = `op_${'a'.repeat(32)}`
@@ -40,7 +41,7 @@ async function config(adapter: (invocation: OperatorInvocation) => Promise<{ cod
 function claim(catalogVersion: string): Claimed {
   const client = { query: vi.fn(async () => ({ rowCount: 1, rows: [] })), release: vi.fn() } as unknown as PoolClient
   return { client, lockKey: target,
-    operation: { id: randomUUID(), tenant_id: tenantId, actor_uid: 7, issuer: 'test', type: 'tenant.create', request_id: requestId, reason: 'unit test', payload: {}, status: 'running' },
+    operation: { id: randomUUID(), tenant_id: tenantId, actor_uid: 7, issuer: vendorActorIssuer('test'), type: 'tenant.create', request_id: requestId, reason: 'unit test', payload: {}, status: 'running' },
     tenant: { id: tenantId, inventory_target: target, commercial_mode: 'saas', catalog_version: catalogVersion, catalog_tier: 'core' } }
 }
 
@@ -48,7 +49,8 @@ function pool(claimed: Claimed, catalog: unknown): Pool & { finishQueries: Array
   const finishQueries: Array<{ sql: string; values?: unknown[] }> = []
   const client = { query: vi.fn(async (sql: string, values?: unknown[]) => { finishQueries.push({ sql, values }); return { rowCount: 1, rows: [] } }), release: vi.fn() }
   const query = vi.fn(async (sql: string) => {
-    if (sql.includes('vendor_memberships')) return { rowCount: 1, rows: [{}] }
+    if (sql.includes('FROM vendor_accounts WHERE id')) return { rowCount: 1, rows: [{}] }
+    if (sql.includes('FROM vendor_account_roles')) return { rowCount: 1, rows: [{ role: 'operations' }] }
     if (sql.includes('SELECT inventory_target,commercial_mode,operations_enabled')) return { rowCount: 1, rows: [{ inventory_target: claimed.tenant.inventory_target, commercial_mode: claimed.tenant.commercial_mode, operations_enabled: true }] }
     if (sql.includes('catalog_entries')) return { rowCount: 1, rows: [catalog] }
     if (sql.includes("status='needs_intervention'")) return { rowCount: 0, rows: [] }

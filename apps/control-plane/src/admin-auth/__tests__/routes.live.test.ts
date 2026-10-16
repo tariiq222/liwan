@@ -87,8 +87,8 @@ else describe('admin auth routes', () => {
   const fallback = async (over: Record<string, unknown> = {}, extra: Record<string, string> = {}) => post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: await freshCode(), ...over }, extra)
 
   beforeEach(async () => {
-    await pool.query('TRUNCATE vendor_accounts, vendor_memberships, vendor_auth_attempts, vendor_auth_challenges, service_nonces, audit_events CASCADE')
-    const { token } = await transaction(pool, (c) => inviteAccount(c, baseConfig.installationId, 'operator', { email: 'Owner@Nasq.sa', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, new Date()))
+    await pool.query('TRUNCATE vendor_accounts, vendor_auth_attempts, vendor_auth_challenges, service_nonces, audit_events CASCADE')
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'Owner@Nasq.sa', displayName: 'Owner', roles: ['owner'], reason: 'first owner' }, new Date()))
     const done = await enrollVia(token, 'owner@nasq.sa')
     expect(done.complete.status).toBe(200)
     accountId = Number((await pool.query("SELECT id FROM vendor_accounts WHERE email='owner@nasq.sa'")).rows[0].id)
@@ -105,14 +105,14 @@ else describe('admin auth routes', () => {
     const row = await pool.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
     expect(row.rows[0].status).toBe('active')
     expect((await resolve(session)).stepUpFresh).toBe(true)
-    const { token } = await transaction(pool, (c) => inviteAccount(c, baseConfig.installationId, 'operator', { email: 'new@nasq.sa', displayName: 'New', roles: ['support'], reason: 'support' }, new Date()))
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'new@nasq.sa', displayName: 'New', roles: ['support'], reason: 'support' }, new Date()))
     const opened = await post('/v1/admin/auth/invitation', { token })
     expect(opened).toMatchObject({ status: 200, body: { email: 'new@nasq.sa', purpose: 'enroll' } })
     const bad = await post('/v1/admin/auth/invitation', { token: 'A'.repeat(43) })
     expect([bad.status, bad.body]).toEqual([401, { code: 'auth_failed' }])
   })
   it('derives the passkey requirement from the database, not the request', async () => {
-    const { token } = await transaction(pool, (c) => inviteAccount(c, baseConfig.installationId, 'operator', { email: 'nopass@nasq.sa', displayName: 'N', roles: ['support'], reason: 'support' }, new Date()))
+    const { token } = await transaction(pool, (c) => inviteAccount(c, 'operator', { email: 'nopass@nasq.sa', displayName: 'N', roles: ['support'], reason: 'support' }, new Date()))
     const totp = await post('/v1/admin/auth/enroll/totp', { token })
     const s = open(admin.secretKey, Buffer.from(totp.body.totp_box, 'base64'))
     const body = { token, password: PASSWORD, totp_code: totpAt(s, totpStep(Date.now())), totp_box: totp.body.totp_box }
@@ -222,7 +222,7 @@ else describe('admin auth routes', () => {
     expect((await resolve(s)).stepUpFresh).toBe(true)
   })
   it('refuses a step-up challenge of another account', async () => {
-    const b = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status) VALUES('b@nasq.sa','B','active') RETURNING id")).rows[0].id)
+    const b = Number((await pool.query("INSERT INTO vendor_accounts(email,display_name,status,password_hash) VALUES('b@nasq.sa','B','active','x') RETURNING id")).rows[0].id)
     await pool.query("INSERT INTO vendor_passkeys(credential_id,account_id,public_key) VALUES('cred-b',$1,'\\x01')", [b])
     const bSession = await transaction(pool, (c) => createSession(c, b, new Date(), false))
     const foreign = await post('/v1/admin/auth/step-up/options', {}, signed(bSession.session))

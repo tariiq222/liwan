@@ -5,7 +5,6 @@ import { migrate, transaction } from '../../db.js'
 import { createApp } from '../../http.js'
 import { TEST_KEY as key, vendorSession } from '../../__tests__/helpers/vendor-session.js'
 import { createSession } from '../sessions.js'
-import { syncMembership } from '../accounts.js'
 import { inviteAccount } from '../enrollment.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
@@ -32,7 +31,7 @@ else describe('account management routes', () => {
     if (!address || typeof address === 'string') throw new Error('missing address')
     origin = `http://127.0.0.1:${address.port}`
   })
-  beforeEach(async () => { await pool.query('TRUNCATE vendor_accounts, vendor_memberships, audit_events CASCADE') })
+  beforeEach(async () => { await pool.query('TRUNCATE vendor_accounts, audit_events CASCADE') })
   afterAll(async () => { await new Promise<void>((resolve) => server.close(() => resolve())); await pool.end() })
 
   async function call(method: string, path: string, who: Session, body?: unknown) {
@@ -44,13 +43,12 @@ else describe('account management routes', () => {
   const post = (path: string, body: unknown, who: Session) => call('POST', path, who, body)
   const get = (path: string, who: Session) => call('GET', path, who)
 
-  /** An owner created through inviteAccount('operator') and activated, so roles and membership come from real code. */
+  /** An owner created through inviteAccount('operator') and activated, so the roles come from real code. */
   async function ownerSession(options: { stepUp: boolean }): Promise<Session> {
     return transaction(pool, async (client) => {
-      await inviteAccount(client, issuer, 'operator', { email: `owner-${++seq}@nasq.sa`, displayName: 'Owner', roles: ['owner'], reason: 'test owner' }, new Date())
-      const row = await client.query("UPDATE vendor_accounts SET status='active' WHERE email=$1 RETURNING id", [`owner-${seq}@nasq.sa`])
+      await inviteAccount(client, 'operator', { email: `owner-${++seq}@nasq.sa`, displayName: 'Owner', roles: ['owner'], reason: 'test owner' }, new Date())
+      const row = await client.query("UPDATE vendor_accounts SET status='active', password_hash='x' WHERE email=$1 RETURNING id", [`owner-${seq}@nasq.sa`])
       const accountId = Number(row.rows[0].id)
-      await syncMembership(client, issuer, accountId)
       const { session } = await createSession(client, accountId, new Date(), options.stepUp)
       return { accountId, session, headers: (method, path, body = '') => ({ ...signServiceRequest({ method, path, body, actor: accountId, issuer, key }), 'x-nasq-session': session }) }
     })
@@ -58,7 +56,7 @@ else describe('account management routes', () => {
   const invite = { email: 'n@nasq.sa', display_name: 'N', roles: ['support'], reason: 'new hire' }
 
   it('lets only owners manage accounts, with step-up', async () => {
-    const finance = await vendorSession(pool, issuer, ['vendor.read', 'vendor.billing.manage'])
+    const finance = await vendorSession(pool, issuer, ['finance'])
     expect((await post('/v1/admin/accounts', invite, finance)).status).toBe(403)
     const owner = await ownerSession({ stepUp: false })
     expect((await post('/v1/admin/accounts', invite, owner)).body.code).toBe('step_up_required')
@@ -79,7 +77,7 @@ else describe('account management routes', () => {
   })
   it('disabling revokes the target sessions immediately', async () => {
     const owner = await ownerSession({ stepUp: true })
-    const target = await vendorSession(pool, issuer, ['vendor.read'])
+    const target = await vendorSession(pool, issuer, ['support'])
     expect((await post(`/v1/admin/accounts/${target.accountId}/disable`, { reason: 'left' }, owner)).status).toBe(204)
     expect((await get('/v1/context', target)).status).toBe(401)
   })
@@ -90,10 +88,10 @@ else describe('account management routes', () => {
     expect(me.status).toBe(200)
     expect(me.body).toMatchObject({ id: owner.accountId, roles: ['owner'] })
     expect(me.body.capabilities).toContain('vendor.accounts.manage')
-    const plain = await vendorSession(pool, issuer, ['vendor.read'])
+    const plain = await vendorSession(pool, issuer, ['support'])
     const plainMe = await get('/v1/admin/me', plain)
     expect(plainMe.status).toBe(200)
-    expect(plainMe.body).toMatchObject({ id: plain.accountId, roles: [], capabilities: ['vendor.read'] })
+    expect(plainMe.body).toMatchObject({ id: plain.accountId, roles: ['support'], capabilities: ['vendor.audit.read', 'vendor.read'] })
     expect(created.status).toBe(201)
   })
   it('lists accounts with stale step-up', async () => {
@@ -104,7 +102,7 @@ else describe('account management routes', () => {
     expect(r.body.total).toBe(1)
     expect(r.body.items[0]).toMatchObject({ id: owner.accountId, status: 'active', roles: ['owner'], passkeys: 0 })
     expect(r.body.items[0].last_seen_at).toEqual(expect.any(String))
-    const plain = await vendorSession(pool, issuer, ['vendor.read'])
+    const plain = await vendorSession(pool, issuer, ['support'])
     expect((await get('/v1/admin/accounts', plain)).status).toBe(403)
   })
   it('refuses a demoted owner on its next account mutation', async () => {
@@ -113,8 +111,7 @@ else describe('account management routes', () => {
     expect((await post(`/v1/admin/accounts/${second.accountId}/roles`, { roles: ['support'], reason: 'demote' }, first)).status).toBe(204)
     const r = await post('/v1/admin/accounts', invite, second)
     expect(r.status).toBe(403)
-    // Stale capabilities racing the demotion are still stopped inside the transaction.
-    await pool.query("UPDATE vendor_memberships SET capabilities=ARRAY['vendor.accounts.manage'] WHERE actor_uid=$1", [second.accountId])
+    // The demoted owner has lost the capability itself: authority is read from the roles on every request.
     expect((await post(`/v1/admin/accounts/${first.accountId}/disable`, { reason: 'takeover' }, second)).status).toBe(403)
     expect((await post(`/v1/admin/accounts/${first.accountId}/roles`, { roles: ['support'], reason: 'takeover' }, second)).status).toBe(403)
     expect((await post(`/v1/admin/accounts/${first.accountId}/reset`, { reason: 'takeover' }, second)).status).toBe(403)
@@ -130,7 +127,7 @@ else describe('account management routes', () => {
   })
   it('issues a reset invitation token', async () => {
     const owner = await ownerSession({ stepUp: true })
-    const target = await vendorSession(pool, issuer, ['vendor.read'])
+    const target = await vendorSession(pool, issuer, ['support'])
     const r = await post(`/v1/admin/accounts/${target.accountId}/reset`, { reason: 'lost device' }, owner)
     expect(r.status).toBe(200)
     expect(r.body.invitation_token).toMatch(/^[A-Za-z0-9_-]{43}$/)

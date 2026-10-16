@@ -85,7 +85,7 @@ export const handlers = {
       const inv = await openInvitation(c, body.token, ctx.now)
       // Derived from the database, never from the request: a passkey registered during this invitation.
       const registered = await c.query('SELECT 1 FROM vendor_passkeys p JOIN vendor_invitations i ON i.token_hash=$2 WHERE p.account_id=$1 AND p.created_at >= i.created_at LIMIT 1', [inv.accountId, hashToken(body.token)])
-      const done = await completeEnrollment(c, ctx.config.installationId, body.token, { password: body.password, totpCode: body.totp_code, totpSecretBox: Buffer.from(body.totp_box, 'base64'), passkeyRegistered: Boolean(registered.rowCount) }, ctx.admin.secretKey, ctx.now)
+      const done = await completeEnrollment(c, body.token, { password: body.password, totpCode: body.totp_code, totpSecretBox: Buffer.from(body.totp_box, 'base64'), passkeyRegistered: Boolean(registered.rowCount) }, ctx.admin.secretKey, ctx.now)
       const session = await createSession(c, done.accountId, ctx.now, true)
       return { status: 200, data: { recovery_codes: done.recoveryCodes, ...sessionBody(session) } }
     })

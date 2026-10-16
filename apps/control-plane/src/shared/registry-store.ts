@@ -1,3 +1,4 @@
+import { actorHolds } from '../admin-auth/grants.js'
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
@@ -25,8 +26,7 @@ const fields = 'tenant_id AS "tenantId",host,database_name AS database,filestore
 async function authorize(client: PoolClient, actor: RegistryActor) {
   if(isCommercialEnrollmentActor(actor)){await requireCommercialEnrollmentAuthority(client,actor);return}
   if (!actor.issuer || !Number.isSafeInteger(actor.actorUid) || actor.actorUid < 1) throw new RegistryError('registry_forbidden', 403)
-  const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.tenants.manage'=ANY(capabilities) FOR SHARE", [actor.issuer, actor.actorUid])
-  if (!grant.rowCount) throw new RegistryError('registry_forbidden', 403)
+  if (!await actorHolds(client, actor, ['vendor.tenants.manage'], true)) throw new RegistryError('registry_forbidden', 403)
 }
 /** First activation must retain both the request actor and publishing actor's
  * current grants. All locks live in the publication transaction, including recovery. */
@@ -37,8 +37,7 @@ export async function requireOnboardingPublicationAuthority(client: PoolClient, 
   if (owner.stage !== 'activating') throw new RegistryError('shared_onboarding_readiness_required')
   for (const identity of [actor, {issuer: owner.issuer as string, actorUid: Number(owner.actor_uid)}]) {
     if(isCommercialEnrollmentActor(actor) && identity.issuer===actor.issuer && identity.actorUid===actor.actorUid){await requireCommercialEnrollmentAuthority(client,actor,controlTenantId);continue}
-    const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND capabilities @> ARRAY['vendor.tenants.manage','vendor.operations.run']::text[] FOR SHARE", [identity.issuer, identity.actorUid])
-    if (!grant.rowCount) throw new RegistryError('shared_onboarding_forbidden', 403)
+    if (!await actorHolds(client, identity, ['vendor.tenants.manage', 'vendor.operations.run'], true)) throw new RegistryError('shared_onboarding_forbidden', 403)
   }
   const tenant = await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE", [controlTenantId])
   if (!tenant.rowCount) throw new RegistryError('tenant_operations_unavailable')

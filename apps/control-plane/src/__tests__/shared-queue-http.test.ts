@@ -3,6 +3,7 @@ import type { Pool } from 'pg'
 import { signMock as signServiceRequest, mockSessionQuery } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 vi.mock('../shared/job-store.js', () => ({ enqueueSharedJob: vi.fn() }))
 const key='shared-queue-http-synthetic-key-'.repeat(2)
 const tenant='ad03d956-efef-4f80-baf3-9c23ea46e945'
@@ -10,7 +11,8 @@ const path=`/v1/shared/tenants/${tenant}/jobs`
 const config={installationId:'queue-test',key,inventoryPath:'/unused',stateDir:'/unused',repositoryRoot:'/unused',python:'python3',tenantRegistryPath:'/unused/registry.json'}
 const client={release(){},async query(sql:string,params:unknown[]=[]){
   const session=mockSessionQuery(sql,params);if(session)return session
-  if(sql.startsWith('SELECT capabilities'))return {rows:[{capabilities:['vendor.operations.run']}],rowCount:1}
+  if(sql.startsWith('SELECT 1 FROM vendor_accounts WHERE id'))return {rows:[{}],rowCount:1}
+  if(sql.startsWith('SELECT role FROM vendor_account_roles'))return {rows:[{role:'operations'}],rowCount:1}
   if(sql.startsWith('INSERT INTO service_nonces'))return {rows:[{nonce:'fresh'}],rowCount:1}
   if(['BEGIN','COMMIT','ROLLBACK'].includes(sql)||sql.startsWith('DELETE FROM service_nonces'))return {rows:[],rowCount:0}
   throw Error('unexpected SQL:'+sql)
@@ -37,7 +39,7 @@ it.each([false,true])('forwards signed identity and returns accepted/replay sema
   const response=await post({reason:'Synthetic queue request',job})
   expect(response.status).toBe(replay?200:202)
   expect(await response.json()).toEqual(result)
-  expect(enqueueSharedJob).toHaveBeenCalledWith(pool,tenant,{issuer:'queue-test',actorUid:7},job,'Synthetic queue request')
+  expect(enqueueSharedJob).toHaveBeenCalledWith(pool,tenant,{issuer:vendorActorIssuer('queue-test'),actorUid:7},job,'Synthetic queue request')
 })
 it('maps invalid job contract to422 without leaking validation internals',async()=>{
   const response=await post({reason:'Malformed job',job:{operation:'invalid'}})
@@ -62,7 +64,7 @@ it('accepts restore with only approval id and forwards it to the store',async()=
   const response=await post({reason:'Approved restore',job})
   expect(response.status).toBe(202)
   expect(await response.json()).toEqual(result)
-  expect(enqueueSharedJob).toHaveBeenCalledWith(pool,tenant,{issuer:'queue-test',actorUid:7},job,'Approved restore')
+  expect(enqueueSharedJob).toHaveBeenCalledWith(pool,tenant,{issuer:vendorActorIssuer('queue-test'),actorUid:7},job,'Approved restore')
 })
 it.each([
   {binding:{tenantId:'foreign'}},

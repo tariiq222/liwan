@@ -17,7 +17,8 @@ const client = {
     }
     const session = mockSessionQuery(sql, params)
     if (session) return session
-    if (sql.startsWith('SELECT capabilities FROM vendor_memberships')) return { rowCount: 1, rows: [{ capabilities: params[1] === 7 ? ['vendor.tenants.manage'] : ['vendor.read'] }] }
+    if (sql.startsWith('SELECT 1 FROM vendor_accounts WHERE id')) return { rowCount: 1, rows: [{}] }
+    if (sql.startsWith('SELECT role FROM vendor_account_roles')) return { rowCount: 1, rows: [{ role: params[0] === 7 ? 'customer_success' : 'support' }] }
     throw new Error('unexpected SQL')
   },
   release() {},

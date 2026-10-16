@@ -1,3 +1,4 @@
+import { actorHolds } from '../admin-auth/grants.js'
 // Package-5 backup and restore authority for the shared lane. A backup record
 // exists only after a consistent tenant snapshot was captured in one tenant-DB
 // transaction AND independently verified by readback (database digest and
@@ -210,8 +211,7 @@ export async function approveSharedRestore(pool: Pool, input: { backupId: string
   if (!Number.isSafeInteger(input.ttlSeconds) || input.ttlSeconds < 60 || input.ttlSeconds > 86400) throw new Error('approval_ttl_invalid')
   const approvalId = randomUUID()
   await transaction(pool, async client => {
-    const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.operations.run'=ANY(capabilities) FOR SHARE", [input.actor.issuer, input.actor.actorUid])
-    if (!grant.rowCount) throw new Error('shared_restore_forbidden')
+    if (!await actorHolds(client, input.actor, ['vendor.operations.run'], true)) throw new Error('shared_restore_forbidden')
     const backup = await client.query("SELECT control_tenant_id FROM shared_backups WHERE id=$1 AND consistency='verified'", [input.backupId])
     if (!backup.rowCount || backup.rows[0].control_tenant_id !== input.controlTenantId) throw new Error('backup_unavailable')
     // The target must not be a live tenant database: registry bindings and

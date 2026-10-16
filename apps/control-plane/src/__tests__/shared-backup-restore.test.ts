@@ -21,6 +21,8 @@ import { bindJob, payloadDigest } from '../shared/provisioning.js'
 import { bootstrapFirstAdmin, ensureAdminBindingSchema, inspectTenantReadiness } from '../shared/provision-readiness.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 const scratchDatabases = url ? tenantDatabaseNames(9, url) : []
@@ -41,7 +43,7 @@ else describe('shared backup and restore authority', () => {
   const tenantUrl = (database: string) => { const u = new URL(url); u.pathname = `/${database}`; return u.toString() }
   const connect = async (database: string): Promise<TenantStorage> => ({ pool: new Pool({ connectionString: tenantUrl(database), max: 1 }) })
   const adapter = createFencedStorageAdapter({ controlPool: pool, connect })
-  const issuer = 'live-gate-installation'
+  const issuer = vendorActorIssuer('live-gate-installation')
   const actor = { issuer, actorUid: 7 }
   const tenantId = randomUUID()
   let backupRoot = ''
@@ -57,9 +59,10 @@ else describe('shared backup and restore authority', () => {
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
     await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
-    await pool.query('TRUNCATE vendor_memberships, service_nonces, audit_events, operation_events, operations, restore_approvals')
+    await pool.query('TRUNCATE vendor_accounts CASCADE')
+    await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
-    await pool.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES ($1,7,$2)', [issuer, ['vendor.read','vendor.tenants.manage','vendor.operations.run']])
+    await vendorAccount(pool, ['customer_success', 'operations'], 7)
     await pool.query('INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled) VALUES ($1,$2,\'saas\',\'managed\',$3,\'live-v1\',\'core\',true)',
       [tenantId, 'Backup source', 'backup-source'])
     const source = await readFile(join(repositoryRoot, 'deploy/catalog/solutions/platform.json'))

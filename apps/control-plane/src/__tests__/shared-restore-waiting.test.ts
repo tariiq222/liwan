@@ -9,6 +9,8 @@ import { dispatchSharedOnce } from '../shared/job-dispatcher.js'
 import { commercialRestoreGate } from '../shared/shared-backup.js'
 import type { ObserveRunner } from '../shared/subscription-reconcile.js'
 import { url } from './commercial-helpers.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 // Real scratch control PG; physical restore/reconfigure are fake readback receipts.
 // No tenant database, Docker process, registry file, or production adapter is used.
@@ -18,7 +20,7 @@ if (url) {
 }
 describe.skipIf(!url)('shared restore waiting for commercial reconciliation', () => {
   const pool = new Pool({ connectionString: url, max: 10 })
-  const issuer = `restore-waiting-${randomUUID()}`
+  const issuer = vendorActorIssuer(`restore-waiting-${randomUUID()}`)
   const fixtureTenants: string[] = []
   afterEach(async () => {
     // Failed expected regressions may leave a queued repair; isolate the next
@@ -27,7 +29,7 @@ describe.skipIf(!url)('shared restore waiting for commercial reconciliation', ()
   })
   beforeAll(async () => {
     await migrate(pool)
-    await pool.query("INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES($1,7,ARRAY['vendor.operations.run'])", [issuer])
+    await vendorAccount(pool, ['operations'], 7)
   })
   afterAll(() => pool.end())
 

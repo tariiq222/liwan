@@ -1,3 +1,4 @@
+import { actorHolds } from './admin-auth/grants.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -134,8 +135,7 @@ export async function claimNext(pool: Pool): Promise<Claimed | null> {
 }
 
 async function grantStillActive(pool: Pool, operation: Record<string, unknown>): Promise<boolean> {
-  const check = await pool.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.operations.run'=ANY(capabilities)", [operation.issuer, operation.actor_uid])
-  return Boolean(check.rowCount)
+  return actorHolds(pool, { issuer: String(operation.issuer), actorUid: Number(operation.actor_uid) }, ['vendor.operations.run'])
 }
 
 async function policyForCreate(pool: Pool, tenant: Record<string, unknown>, config: Config): Promise<{ schema_version: number; channel: string; modules: string[]; features: Record<string, boolean | number | null> }> {

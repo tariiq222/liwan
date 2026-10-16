@@ -14,7 +14,7 @@ const rolesBody = z.object({ roles, reason }).strict()
 const reasonBody = z.object({ reason }).strict()
 
 type Auth = { actor: number; capabilities: VendorCapability[]; stepUpFresh: boolean; method: string }
-type Input = { method: string; pathname: string; raw: string; issuer: string; auth: Auth; requireCapability: (auth: Auth, capability: VendorCapability) => void; fail: (status: number, code: string) => Error }
+type Input = { method: string; pathname: string; raw: string; auth: Auth; requireCapability: (auth: Auth, capability: VendorCapability) => void; fail: (status: number, code: string) => Error }
 type Result = { status: number; data?: unknown }
 
 function body<T extends z.ZodType>(schema: T, raw: string, fail: Input['fail']): z.infer<T> {
@@ -54,7 +54,7 @@ export async function accountsHttp(pool: Pool, input: Input): Promise<Result | n
       if (method !== 'POST') throw input.fail(404, 'not_found')
       const b = body(inviteBody, input.raw, input.fail)
       const invited = await transaction(pool, async (c) => {
-        const result = await inviteAccount(c, input.issuer, { id: auth.actor }, { email: b.email, displayName: b.display_name, roles: b.roles, reason: b.reason }, now)
+        const result = await inviteAccount(c, { id: auth.actor }, { email: b.email, displayName: b.display_name, roles: b.roles, reason: b.reason }, now)
         const row = await c.query('SELECT account_id FROM vendor_invitations WHERE token_hash=$1', [hashToken(result.token)])
         return { ...result, accountId: Number(row.rows[0].account_id) }
       })
@@ -64,12 +64,12 @@ export async function accountsHttp(pool: Pool, input: Input): Promise<Result | n
     const id = Number(action![1])
     if (action![2] === 'roles') {
       const b = body(rolesBody, input.raw, input.fail)
-      await transaction(pool, (c) => setRoles(c, input.issuer, { id: auth.actor }, id, b.roles, b.reason))
+      await transaction(pool, (c) => setRoles(c, { id: auth.actor }, id, b.roles, b.reason))
       return { status: 204 }
     }
     if (action![2] === 'disable') {
       const b = body(reasonBody, input.raw, input.fail)
-      await transaction(pool, (c) => disableAccount(c, input.issuer, { id: auth.actor }, id, b.reason))
+      await transaction(pool, (c) => disableAccount(c, { id: auth.actor }, id, b.reason))
       return { status: 204 }
     }
     const b = body(reasonBody, input.raw, input.fail)

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
 import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, type Principal } from '@nasq/commercial-contracts'
@@ -28,7 +29,7 @@ export async function paymentEventsHttp(pool: Pool, input: {method:string;pathna
 }
 export async function routesB(pool: Pool, input: CommercialInput, url: URL, runtime?: PaymentRuntime) {
   const path=input.pathname.slice('/v1/commercial'.length),m=input.method
-  const principal:Principal={actor_id:String(input.actor),kind:'vendor',customer_id:null,tenant_id:null,capabilities:input.capabilities}
+  const principal:Principal={actor_id:actorName({id:input.actor}),kind:'vendor',customer_id:null,tenant_id:null,capabilities:input.capabilities}
   if(path==='/customers'){
     if(m==='GET'){
       need(input,'vendor.read')

@@ -1,3 +1,4 @@
+import { actorHolds } from '../admin-auth/grants.js'
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
 import { PackageError } from '../packages.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -23,8 +24,7 @@ export function assertOnboardingReplay(row:{issuer:string;actor_uid:number|strin
 }
 export async function requireOnboardingAuthority(client:PoolClient,actor:RegistryActor){
   if(isCommercialEnrollmentActor(actor)){await requireCommercialEnrollmentAuthority(client,actor);return}
-  const grant=await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND capabilities @> ARRAY['vendor.tenants.manage','vendor.operations.run']::text[] FOR SHARE",[actor.issuer,actor.actorUid])
-  if(!grant.rowCount)throw Error('shared_onboarding_forbidden')
+  if(!await actorHolds(client,actor,['vendor.tenants.manage','vendor.operations.run'],true))throw Error('shared_onboarding_forbidden')
 }
 export async function sharedOnboardingEnabled(config:Config){
   if(!config.sharedRuntimeConfigPath || !config.tenantRegistryPath || process.env.NASQ_TENANCY_MODE!=='shared')return false

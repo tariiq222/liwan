@@ -1,3 +1,4 @@
+import { actorHolds } from '../admin-auth/grants.js'
 import { isCommercialEnrollmentActor, requireCommercialEnrollmentAuthority } from './commercial-enrollment-authority.js'
 import { resolvePackageAuthority } from '../packages.js'
 import { randomUUID } from 'node:crypto'
@@ -38,8 +39,7 @@ export async function requireJobAuthority(client: PoolClient, controlTenantId: s
   if (!Number.isSafeInteger(actor.actorUid) || actor.actorUid <= 0 || !actor.issuer) throw new Error('shared_job_forbidden')
   if (isCommercialEnrollmentActor(actor)) await requireCommercialEnrollmentAuthority(client, actor, controlTenantId)
   else {
-    const grant = await client.query("SELECT 1 FROM vendor_memberships WHERE issuer=$1 AND actor_uid=$2 AND revoked_at IS NULL AND 'vendor.operations.run'=ANY(capabilities) FOR SHARE", [actor.issuer,actor.actorUid])
-    if (!grant.rowCount) throw new Error('shared_job_forbidden')
+    if (!await actorHolds(client, actor, ['vendor.operations.run'], true)) throw new Error('shared_job_forbidden')
   }
   const tenant = await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE", [controlTenantId])
   if (!tenant.rowCount) throw new Error('tenant_operations_unavailable')

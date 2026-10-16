@@ -13,3 +13,5 @@ const ROLE_CAPABILITIES: Record<VendorRole, VendorCapability[]> = {
 export const capabilitiesFor = (roles: readonly VendorRole[]): VendorCapability[] =>
   [...new Set(roles.flatMap((role) => ROLE_CAPABILITIES[role]))].sort()
 export const STEP_UP_CAPABILITIES: readonly VendorCapability[] = ['vendor.pricing.manage','vendor.billing.manage','vendor.operations.run','vendor.accounts.manage']
+export const rolesGranting = (capability: VendorCapability): VendorRole[] =>
+  VENDOR_ROLES.filter((role) => ROLE_CAPABILITIES[role].includes(capability))

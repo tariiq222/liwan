@@ -31,6 +31,8 @@ import { bindJob, payloadDigest } from '../shared/provisioning.js'
 import { bootstrapFirstAdmin, ensureAdminBindingSchema } from '../shared/provision-readiness.js'
 import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
+import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
+import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 // Indexes 0..9 belong to the other live suites (shared-fenced-adapter and
@@ -69,7 +71,7 @@ else describe('shared restore queue', () => {
   // database against the verified backup digest, applyFenced() delegates to the
   // durable restore authority. This is NOT the production Docker adapter.
   const adapter = createFencedStorageAdapter({ controlPool: pool, connect })
-  const issuer = 'live-restore-queue'
+  const issuer = vendorActorIssuer('live-restore-queue')
   const actor = { issuer, actorUid: 7 }
   const tenantId = randomUUID()
   const otherTenantId = randomUUID()
@@ -152,9 +154,10 @@ else describe('shared restore queue', () => {
     await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings, shared_registry_state CASCADE')
     await pool.query('TRUNCATE shared_payment_events, shared_orders, shared_restore_approvals, shared_backups CASCADE')
     await pool.query('TRUNCATE tenants, package_revisions, commercial_packages, catalog_entries CASCADE')
-    await pool.query('TRUNCATE vendor_memberships, service_nonces, audit_events, operation_events, operations, restore_approvals')
+    await pool.query('TRUNCATE vendor_accounts CASCADE')
+    await pool.query('TRUNCATE service_nonces, audit_events, operation_events, operations, restore_approvals')
     await pool.query('INSERT INTO shared_registry_state(singleton,revision) VALUES(true,0)')
-    await pool.query('INSERT INTO vendor_memberships(issuer,actor_uid,capabilities) VALUES ($1,7,$2)', [issuer, ['vendor.read','vendor.tenants.manage','vendor.operations.run']])
+    await vendorAccount(pool, ['customer_success', 'operations'], 7)
     await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,operations_enabled)
       VALUES ($1,$2,'saas','managed',$3,'live-v1','core',true),($4,$5,'saas','managed',$6,'live-v1','core',true),
              ($7,$8,'saas','managed',$9,'live-v1','core',true),($10,$11,'saas','managed',$12,'live-v1','core',true),
@@ -222,11 +225,11 @@ else describe('shared restore queue', () => {
     await expect(enqueueSharedJob(pool, fabricatedTenantId, actor, { schemaVersion: 1, requestId: randomUUID(), operation: 'restore', approvalId: approvals.main }, 'Cross tenant')).rejects.toThrow('tenant_operations_unavailable')
   })
   it('refuses a restore enqueue without a live vendor operations grant', async () => {
-    await pool.query("UPDATE vendor_memberships SET capabilities=$2 WHERE issuer=$1 AND actor_uid=7", [issuer, ['vendor.read']])
+    await replaceRoles(pool, 7, ['support'])
     try {
       await expect(enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, requestId: randomUUID(), operation: 'restore', approvalId: approvals.main }, 'Revoked grant')).rejects.toThrow('shared_job_forbidden')
     } finally {
-      await pool.query("UPDATE vendor_memberships SET capabilities=$2 WHERE issuer=$1 AND actor_uid=7", [issuer, ['vendor.read','vendor.tenants.manage','vendor.operations.run']])
+      await replaceRoles(pool, 7, ['customer_success', 'operations'])
     }
   })
   it('rejects an approval that belongs to another fully registered tenant', async () => {
@@ -242,11 +245,11 @@ else describe('shared restore queue', () => {
   it('refuses to execute a queued restore after its grant is revoked', async () => {
     const queued = await queueRestore(approvals.revoked)
     expect(await jobState(queued.id)).toBe('queued')
-    await pool.query("UPDATE vendor_memberships SET capabilities=$2 WHERE issuer=$1 AND actor_uid=7", [issuer, ['vendor.read']])
+    await replaceRoles(pool, 7, ['support'])
     try {
       await expect(runSharedJob(pool, queued.id, adapter)).rejects.toThrow('shared_job_forbidden')
     } finally {
-      await pool.query("UPDATE vendor_memberships SET capabilities=$2 WHERE issuer=$1 AND actor_uid=7", [issuer, ['vendor.read','vendor.tenants.manage','vendor.operations.run']])
+      await replaceRoles(pool, 7, ['customer_success', 'operations'])
     }
     // The worker refused before the effect: no consumption, nothing applied.
     expect(await jobState(queued.id)).toBe('queued')
