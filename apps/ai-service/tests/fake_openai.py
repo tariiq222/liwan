@@ -27,10 +27,17 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from nasq_ai_service.titles import TITLE_RULES
+
 LEGAL_NAME = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 ROLES = {"system", "user", "assistant", "tool"}
 API_KEY = "sk-test"
 MODEL = "gpt-test"
+FAKE_TITLE = "مهام مفتوحة"
+
+
+def is_title_request(messages: list[dict[str, Any]]) -> bool:
+    return messages[0].get("role") == "system" and messages[0].get("content") == TITLE_RULES
 
 
 def tool_turn(name: str, args: dict[str, Any], call_id: str) -> dict[str, Any]:
@@ -154,11 +161,12 @@ def error(status: int, message: str, param: str | None = None, code: str | None 
 
 
 def create_fake_openai(scenario: list[dict[str, Any]]) -> FastAPI:
-    """The server app. ``app.state.requests`` keeps every accepted request body, ``app.state.headers`` the headers of each (same order), ``app.state.rejected`` every 400 message."""
+    """The server app. ``app.state.requests`` keeps every accepted turn's request body (``title_requests`` the title ones), ``app.state.headers`` the headers of each (same order), ``app.state.rejected`` every 400 message."""
     app = FastAPI(docs_url=None, redoc_url=None)
     app.state.requests = []
     app.state.headers = []
     app.state.rejected = []
+    app.state.title_requests = []
     turns = list(scenario)
 
     @app.post("/v1/chat/completions", response_model=None)
@@ -176,6 +184,10 @@ def create_fake_openai(scenario: list[dict[str, Any]]) -> FastAPI:
         except Invalid as problem:
             app.state.rejected.append(str(problem))
             return error(400, str(problem), problem.param)
+        usage = bool((body.get("stream_options") or {}).get("include_usage"))
+        if is_title_request(body["messages"]):  # a title request is answered apart: it is not a turn of the scenario
+            app.state.title_requests.append(body)
+            return StreamingResponse(stream_turn(MODEL, text_turn(FAKE_TITLE), usage), media_type="text/event-stream")
         app.state.requests.append(body)
         app.state.headers.append(dict(request.headers))
         if not turns:
@@ -183,7 +195,6 @@ def create_fake_openai(scenario: list[dict[str, Any]]) -> FastAPI:
         turn = turns.pop(0)
         if "tool_call" in turn and turn["tool_call"]["name"] not in names:
             return error(500, f"scripted tool {turn['tool_call']['name']!r} is not among the request's tools {names}", code="server_error")
-        usage = bool((body.get("stream_options") or {}).get("include_usage"))
         return StreamingResponse(stream_turn(MODEL, turn, usage), media_type="text/event-stream")
 
     return app

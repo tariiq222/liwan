@@ -21,6 +21,9 @@ let runStatus = 'waiting_user'
 let resumeMode: 'ok' | 'http500' | 'destroy' | 'slow' = 'ok'
 let resumeStreamFinished = false
 let resumeStreamCancelled = false
+const RUN_LIST = { items: [{ run_id: 'r_1', title: 'هلا', status: 'done', updated_at: '2026-10-16T10:00:00.123456Z', archived: false }], total: 1 }
+let runList: unknown = RUN_LIST
+let patchStatus = 200
 
 const TOOLS = {
   items: [
@@ -85,6 +88,15 @@ beforeAll(async () => {
       setTimeout(() => res.end('event: done\ndata: {"status":"done"}\n\n', () => { resumeStreamFinished = true }), 500)
       return
     }
+    if (req.method === 'PATCH') {
+      res.setHeader('content-type', 'application/json')
+      res.statusCode = patchStatus
+      return res.end(JSON.stringify(patchStatus === 200 ? { ...RUN_LIST.items[0], ...JSON.parse(body) } : { detail: 'x' }))
+    }
+    if (req.method === 'GET' && req.url?.split('?')[0] === '/v1/runs') {
+      res.setHeader('content-type', 'application/json')
+      return res.end(JSON.stringify(runList))
+    }
     if (req.method === 'GET') { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify({ run_id: 'r_1', status: runStatus, messages: [{ role: 'user', content: 'هلا' }], pending })) }
     if (req.url === '/v1/runs') {
       if (scenario === 'abort') { res.writeHead(200, { 'content-type': 'text/event-stream' }); res.write('event: run\ndata: {"run_id":"r_1"}\n\n'); setTimeout(() => res.destroy(), 20); return }
@@ -119,12 +131,14 @@ beforeAll(async () => {
   const start = (await import('../../../api/ai/runs/index.post')).default
   const resume = (await import('../../../api/ai/runs/[id]/resume.post')).default
   const status = (await import('../../../api/ai/runs/[id]/index.get')).default
+  const list = (await import('../../../api/ai/runs/index.get')).default
+  const patch = (await import('../../../api/ai/runs/[id]/index.patch')).default
   const h3app = createApp()
   h3app.use('/api/ai/runs', defineEventHandler((event) => {
     const match = event.path.match(/^\/([^/?]+)(\/resume)?/) // h3 strips the mount prefix
-    if (!match) return start(event)
+    if (!match) return event.method === 'GET' ? list(event) : start(event)
     event.context.params = { id: match[1]! }
-    return match[2] ? resume(event) : status(event)
+    return match[2] ? resume(event) : event.method === 'PATCH' ? patch(event) : status(event)
   }))
   app = http.createServer(toNodeListener(h3app))
   await new Promise<void>(r => app.listen(0, '127.0.0.1', r))
@@ -133,7 +147,7 @@ beforeAll(async () => {
 afterAll(() => { odoo.close(); service.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', input: { task_id: 7, state: 'done' } }
-beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false })
+beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200 })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
   method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify(body),
@@ -350,6 +364,108 @@ describe('resume and status', () => {
     const response = await fetch(`${url}/api/ai/runs/r_1`, { headers: { cookie: 'session_id=s1' } })
     expect((await response.json()).pending.tool).toBe('pmo.draft_project')
     expect(serviceCalls.at(-1)!.headers['x-nasq-user']).toBe('42')
+  })
+})
+
+describe('GET /api/ai/runs', () => {
+  const get = (cookie = 'session_id=s1') => fetch(`${url}/api/ai/runs`, { headers: { cookie } })
+
+  it('lists the caller own runs by asking the service with the caller identity only', async () => {
+    const response = await get()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ total: 1, items: [{ run_id: 'r_1', title: 'هلا', status: 'done' }] })
+    const call = serviceCalls.at(-1)!
+    expect([call.method, call.url, call.headers['x-nasq-tenant'], call.headers['x-nasq-user'], call.headers.cookie]).toEqual(['GET', '/v1/runs', 'x', '42', undefined])
+    expect(odooCalls.map(c => c.url)).toEqual(['/api/v1/me', '/api/v1/ai/tools'])
+  })
+
+  it('forwards an Odoo denial and never reaches the service', async () => {
+    odooToolsStatus = 403
+    expect((await get()).status).toBe(403)
+    expect(serviceCalls).toEqual([])
+  })
+
+  it('answers 503 ai_unavailable when the service is down and refuses a list that breaks the contract', async () => {
+    serviceDown = true
+    const down = await get()
+    expect([down.status, (await down.json()).data.code]).toEqual([503, 'ai_unavailable'])
+    serviceDown = false
+    runList = { items: [{ run_id: 'r_1', title: 'x', status: 'done', updated_at: 'yesterday', archived: false }], total: 1 }
+    expect((await get()).status).toBe(500)
+  })
+})
+
+describe('GET /api/ai/runs?archived=true', () => {
+  const get = (query: string, cookie = 'session_id=s1') => fetch(`${url}/api/ai/runs${query}`, { headers: { cookie } })
+
+  it('asks the service for the archived conversations only when told to', async () => {
+    expect((await get('?archived=true')).status).toBe(200)
+    expect(serviceCalls.at(-1)!.url).toBe('/v1/runs?archived=true')
+    await get('?archived=false')
+    expect(serviceCalls.at(-1)!.url).toBe('/v1/runs')
+    await get('')
+    expect(serviceCalls.at(-1)!.url).toBe('/v1/runs')
+  })
+
+  it('refuses an unknown archived value before calling anything', async () => {
+    const response = await get('?archived=maybe')
+    expect([response.status, (await response.json()).data.code]).toEqual([422, 'invalid'])
+    expect(serviceCalls).toEqual([])
+    expect(odooCalls).toEqual([])
+  })
+})
+
+describe('PATCH /api/ai/runs/{id}', () => {
+  const patch = (body: unknown, extra: Record<string, string> = {}, path = '/api/ai/runs/r_1') => fetch(`${url}${path}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json', cookie: 'session_id=s1', origin: url, 'sec-fetch-site': 'same-origin', ...extra }, body: JSON.stringify(body),
+  })
+
+  it('renames and archives through the service as the caller and returns the updated row', async () => {
+    const response = await patch({ title: '  مشروع البوابة ', archived: true })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ run_id: 'r_1', title: 'مشروع البوابة', archived: true })
+    const call = serviceCalls.at(-1)!
+    expect([call.method, call.url, call.headers['x-nasq-tenant'], call.headers['x-nasq-user'], call.headers.cookie]).toEqual(['PATCH', '/v1/runs/r_1', 'x', '42', undefined])
+    expect(JSON.parse(call.body)).toEqual({ title: 'مشروع البوابة', archived: true })
+  })
+
+  it('sends the service only the fields of the contract', async () => {
+    expect((await patch({ archived: false })).status).toBe(200)
+    expect(JSON.parse(serviceCalls.at(-1)!.body)).toEqual({ archived: false })
+    const bad = await patch({ title: 'ok', owner: 'x' })
+    expect(bad.status).toBe(422)
+  })
+
+  it.each([{}, { title: '' }, { title: '   ' }, { title: 'x'.repeat(81) }, { title: 'a\nb' }, { archived: 'yes' }])('refuses %j before reaching Odoo or the service', async (body) => {
+    const response = await patch(body)
+    expect([response.status, (await response.json()).data.code]).toEqual([422, 'invalid'])
+    expect(serviceCalls).toEqual([])
+    expect(odooCalls).toEqual([])
+  })
+
+  it('refuses a cross-site or non-JSON request', async () => {
+    expect((await patch({ title: 'x' }, { 'sec-fetch-site': 'cross-site' })).status).toBe(403)
+    expect((await patch({ title: 'x' }, { 'content-type': 'text/plain' })).status).toBe(415)
+    expect(serviceCalls).toEqual([])
+  })
+
+  it('answers 404 not_found for a run that is not the caller own and 502 for any other service failure', async () => {
+    patchStatus = 404
+    const missing = await patch({ title: 'x' })
+    expect([missing.status, (await missing.json()).data.code]).toEqual([404, 'not_found'])
+    patchStatus = 500
+    const broken = await patch({ title: 'x' })
+    expect([broken.status, (await broken.json()).data.code]).toEqual([502, 'ai_upstream'])
+  })
+
+  it('forwards an Odoo denial and answers 503 when the service is down', async () => {
+    odooToolsStatus = 403
+    expect((await patch({ title: 'x' })).status).toBe(403)
+    expect(serviceCalls).toEqual([])
+    odooToolsStatus = 200
+    serviceDown = true
+    const down = await patch({ title: 'x' })
+    expect([down.status, (await down.json()).data.code]).toEqual([503, 'ai_unavailable'])
   })
 })
 

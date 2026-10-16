@@ -75,6 +75,29 @@ export const AiRunStatusSchema = z.object({
 }).strict()
 export type AiRunStatus = z.infer<typeof AiRunStatusSchema>
 
+/** One row of the caller's own conversation history (`GET /api/ai/runs`); `title` is null for a run started before titles existed. */
+export const AiRunSummarySchema = z.object({
+  run_id: z.string(),
+  title: z.string().nullable(),
+  status: AiRunStatusValueSchema,
+  updated_at: z.iso.datetime({ offset: true }),
+  archived: z.boolean(),
+}).strict()
+export type AiRunSummary = z.infer<typeof AiRunSummarySchema>
+export const AiRunListSchema = z.object({ items: z.array(AiRunSummarySchema), total: z.number().int().nonnegative() }).strict()
+export type AiRunList = z.infer<typeof AiRunListSchema>
+
+/** `GET /api/ai/runs?archived=true` lists only the archived conversations; without it, only the active ones. */
+export const AiRunListQuerySchema = z.object({ archived: z.enum(['true', 'false']).optional() })
+
+export const AI_RUN_TITLE_MAX_CHARS = 80
+/** `PATCH /api/ai/runs/{id}`: a rename (which the model then never overwrites) and/or an archive flag; at least one of them. */
+export const AiRunPatchSchema = z.object({
+  title: z.string().trim().min(1).max(AI_RUN_TITLE_MAX_CHARS).refine(value => !/[\u0000-\u001f\u007f]/.test(value), 'no control characters').optional(),
+  archived: z.boolean().optional(),
+}).strict().refine(value => value.title !== undefined || value.archived !== undefined, 'send a title, archived, or both')
+export type AiRunPatch = z.infer<typeof AiRunPatchSchema>
+
 /** `POST /api/ai/runs`: `context` is the page the assistant was opened from, `run_id` continues an existing run. */
 export const AiStartRequestSchema = z.object({
   message: z.string().trim().min(1).max(8000),

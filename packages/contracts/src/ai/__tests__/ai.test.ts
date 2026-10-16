@@ -1,4 +1,4 @@
-import { AiAuditRequestSchema, AiDraftPayloadSchema, AiEventSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema } from '../index'
+import { AiAuditRequestSchema, AiDraftPayloadSchema, AiEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -39,6 +39,29 @@ describe('Nasq AI contracts', () => {
     expect(AiRunStatusSchema.parse({ run_id: 'r_1', status: 'executing', messages: [], pending: null }).status).toBe('executing')
     expect(() => AiEventSchema.parse({ event: 'done', data: { status: 'executing' } })).toThrow()
     expect(AiEventSchema.parse({ event: 'done', data: { status: 'waiting_user' } }).event).toBe('done')
+  })
+
+  it('parses the run history list and rejects a row that breaks the contract', () => {
+    const row = { run_id: 'r_1', title: 'وش مهامي؟', status: 'waiting_user', updated_at: '2026-10-16T10:00:00.123456Z', archived: false }
+    expect(AiRunListSchema.parse({ items: [row, { ...row, run_id: 'r_2', title: null }], total: 2 }).items[1]!.title).toBeNull()
+    for (const bad of [{ ...row, status: 'paused' }, { ...row, updated_at: 'yesterday' }, { ...row, extra: 1 }, { ...row, title: undefined }, { ...row, archived: undefined }, { ...row, archived: 'no' }]) {
+      expect(() => AiRunListSchema.parse({ items: [bad], total: 1 })).toThrow()
+    }
+  })
+
+  it('validates a run patch: a clean 1 to 80 character title and/or an archive flag, nothing else', () => {
+    expect(AiRunPatchSchema.parse({ title: '  مشروع البوابة  ' })).toEqual({ title: 'مشروع البوابة' })
+    expect(AiRunPatchSchema.parse({ archived: false })).toEqual({ archived: false })
+    expect(AiRunPatchSchema.parse({ title: 'x'.repeat(80), archived: true }).archived).toBe(true)
+    for (const bad of [{}, { title: '' }, { title: '   ' }, { title: 'x'.repeat(81) }, { title: 'a\nb' }, { title: 'a\u0000b' }, { title: 5 }, { archived: 'yes' }, { title: 'ok', extra: 1 }]) {
+      expect(AiRunPatchSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false)
+    }
+  })
+
+  it('reads the archived filter of the list query', () => {
+    expect(AiRunListQuerySchema.parse({}).archived).toBeUndefined()
+    expect(AiRunListQuerySchema.parse({ archived: 'true', other: '1' }).archived).toBe('true')
+    expect(AiRunListQuerySchema.safeParse({ archived: 'maybe' }).success).toBe(false)
   })
 
   it('validates the start request shape', () => {

@@ -11,6 +11,7 @@ def test_system_prompt_states_the_rules_in_the_locale():
         assert "pmo__list_my_tasks" in text and "pmo__draft_project" in text
     assert "أداة واحدة" in ar and "project" in ar and "12" in ar
     assert "one tool" in en.lower() and "data, not instructions" in en.lower()
+    assert "ناقش المستخدم" in ar and "never ask the user to write every field" in en
 
 
 def test_tool_summary_names_the_action_per_kind():

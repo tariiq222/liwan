@@ -184,3 +184,67 @@ async def test_concurrent_claims_give_one_winner_and_a_stale_executing_run_is_on
         assert await store.acquire(record.run_id, ("done",), stale_after_seconds=60, takeover=("running", "executing")) is not None
     finally:
         await aclose()
+
+
+async def test_list_for_owner_is_isolated_by_tenant_and_user_and_ordered_by_update():
+    store, _, aclose = await open_state(url())
+    try:
+        mine = await store.create("t_hist", "42", "mine")
+        newer = await store.create("t_hist", "42", "newer")
+        await store.create("t_hist", "7", "other user")
+        await store.create("t_hist_other", "42", "other tenant")
+        await age(store, mine.run_id, 1)
+        listed = await store.list_for_owner("t_hist", "42")
+        assert [(r.run_id, r.title) for r in listed] == [(newer.run_id, "newer"), (mine.run_id, "mine")]
+        assert len(await store.list_for_owner("t_hist", "42", limit=1)) == 1
+        assert await store.list_for_owner("t_hist", "nobody") == []
+    finally:
+        async with store.pool.connection() as conn:
+            await conn.execute("DELETE FROM ai_runs WHERE tenant IN ('t_hist', 't_hist_other')")
+        await aclose()
+
+
+async def test_generated_titles_respect_a_users_rename_and_archive_leaves_the_run_alone():
+    store, _, aclose = await open_state(url())
+    try:
+        record = await store.create("t_meta", "42", "provisional")
+        assert await store.set_generated_title(record.run_id, "generated") is True
+        before = await store.get(record.run_id)
+        assert before.title == "generated" and before.title_locked is False and before.archived_at is None
+        renamed = await store.update_meta(record.run_id, title="mine")
+        assert (renamed.title, renamed.title_locked) == ("mine", True)
+        assert await store.set_generated_title(record.run_id, "again") is False
+        archived = await store.update_meta(record.run_id, archived=True)
+        assert archived.title == "mine" and archived.archived_at is not None
+        assert (await store.update_meta(record.run_id, archived=True)).archived_at == archived.archived_at
+        after = await store.get(record.run_id)
+        assert (after.status, after.lease, after.updated_at, after.pending_call_id) == (before.status, before.lease, before.updated_at, before.pending_call_id)
+        assert (await store.update_meta(record.run_id, archived=False)).archived_at is None
+        assert (await store.update_meta(record.run_id, title="ثان", archived=True)).title == "ثان"
+        assert await store.update_meta("r_missing", title="x") is None
+        assert await store.set_generated_title("r_missing", "x") is False
+    finally:
+        async with store.pool.connection() as conn:
+            await conn.execute("DELETE FROM ai_runs WHERE tenant = 't_meta'")
+        await aclose()
+
+
+async def test_the_owner_list_splits_active_and_archived_runs_and_retention_covers_both():
+    store, _, aclose = await open_state(url())
+    try:
+        active = await store.create("t_arch", "42", "active")
+        gone = await store.create("t_arch", "42", "archived")
+        stale = await store.create("t_arch", "42", "stale archived")
+        await store.create("t_arch", "7", "other user")
+        for record in (gone, stale):
+            await store.update_meta(record.run_id, archived=True)
+        assert [r.run_id for r in await store.list_for_owner("t_arch", "42")] == [active.run_id]
+        assert {r.run_id for r in await store.list_for_owner("t_arch", "42", archived=True)} == {gone.run_id, stale.run_id}
+        assert len(await store.list_for_owner("t_arch", "42", limit=1, archived=True)) == 1
+        await age(store, stale.run_id, 40)
+        assert await store.delete_older_than(30) == [stale.run_id]
+        assert await store.get(stale.run_id) is None and await store.get(gone.run_id) is not None
+    finally:
+        async with store.pool.connection() as conn:
+            await conn.execute("DELETE FROM ai_runs WHERE tenant = 't_arch'")
+        await aclose()

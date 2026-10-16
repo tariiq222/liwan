@@ -3,16 +3,18 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime
 from typing import Any, Literal
 
 import jsonschema
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ToolKind = Literal["read", "write_light", "draft"]
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
 PAGE_NAME = r"^[a-z][a-z_-]{0,39}$"
 MAX_TOOLS = 100
 MAX_RESULT_BYTES = 200 * 1024
+RUN_TITLE_MAX_CHARS = 80
 RUN_STATUSES = ("running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached")
 RunStatusValue = Literal["running", "executing", "waiting_tool", "waiting_user", "done", "failed", "limit_reached"]
 
@@ -150,3 +152,41 @@ class RunStatus(Strict):
     status: RunStatusValue
     messages: list[RunMessage]
     pending: PendingCall | None
+
+
+class RunSummary(Strict):
+    run_id: str
+    title: str | None
+    status: RunStatusValue
+    updated_at: datetime
+    archived: bool
+
+
+class RunPatch(Strict):
+    """A user's rename and/or archive flag (``PATCH /v1/runs/{run_id}``)."""
+
+    title: str | None = None
+    archived: bool | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _title_is_one_clean_line(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        text = value.strip()
+        if not 1 <= len(text) <= RUN_TITLE_MAX_CHARS or any(ord(char) < 32 or ord(char) == 127 for char in text):
+            msg = f"title must be 1 to {RUN_TITLE_MAX_CHARS} characters without control characters"
+            raise ValueError(msg)
+        return text
+
+    @model_validator(mode="after")
+    def _changes_something(self) -> RunPatch:
+        if self.title is None and self.archived is None:
+            msg = "send a title, archived, or both"
+            raise ValueError(msg)
+        return self
+
+
+class RunList(Strict):
+    items: list[RunSummary]
+    total: int

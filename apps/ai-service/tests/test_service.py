@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 import logging
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -11,8 +12,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from nasq_ai_service import service
 from nasq_ai_service.service import create_app
 from nasq_ai_service.settings import Settings
-from nasq_ai_service.store import MemoryRunStore
-from tests.fakes import FailingChatModel, ScriptedChatModel, SlowChatModel, ai_blocks, ai_text, ai_tool_call
+from nasq_ai_service.store import EXECUTING, MemoryRunStore
+from tests.fakes import FailingChatModel, RenamingChatModel, ScriptedChatModel, SlowChatModel, SlowTitleChatModel, ai_blocks, ai_text, ai_tool_call
 from tests.test_contracts import DRAFT_TOOL, READ_TOOL
 
 HEADERS = {"X-Nasq-Tenant": "t1", "X-Nasq-User": "42"}
@@ -101,6 +102,43 @@ async def test_another_tenant_or_user_cannot_see_or_resume_the_run(client_factor
         for headers in ({"X-Nasq-Tenant": "t2", "X-Nasq-User": "42"}, {"X-Nasq-Tenant": "t1", "X-Nasq-User": "7"}):
             assert (await client.get(f"/v1/runs/{run_id}", headers=headers)).status_code == 404
             assert (await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=headers)).status_code == 404
+
+
+async def start(client, message, headers=HEADERS):
+    body = {**BODY, "message": message, "tenant": headers["X-Nasq-Tenant"], "user_ref": headers["X-Nasq-User"]}
+    return parse_sse((await client.post("/v1/runs", json=body, headers=headers)).text)[0][1]["run_id"]
+
+
+async def test_the_run_list_is_the_callers_own_newest_first_with_a_title_set_once(client_factory):
+    other_user = {"X-Nasq-Tenant": "t1", "X-Nasq-User": "7"}
+    other_tenant = {"X-Nasq-Tenant": "t2", "X-Nasq-User": "42"}
+    async with client_factory([ai_text("ا")] * 6) as client:
+        older = await start(client, "  أول\n  رسالة  ")
+        newer = await start(client, "ثاني " * 30)
+        await start(client, "لمستخدم آخر", other_user)
+        await start(client, "لمستأجر آخر", other_tenant)
+        await client.post("/v1/runs", json={**BODY, "message": "رد لاحق", "run_id": older}, headers=HEADERS)  # continuing touches it, never retitles it
+        listed = (await client.get("/v1/runs", headers=HEADERS)).json()
+        assert listed["total"] == 2 and [item["run_id"] for item in listed["items"]] == [older, newer]
+        assert listed["items"][0]["title"] == "أول رسالة" and listed["items"][1]["title"].endswith("…") and len(listed["items"][1]["title"]) <= 60
+        assert set(listed["items"][0]) == {"run_id", "title", "status", "updated_at", "archived"} and listed["items"][0]["archived"] is False
+        assert (await client.get("/v1/runs", headers=other_user)).json()["total"] == 1
+        assert (await client.get("/v1/runs", headers={"X-Nasq-Tenant": "t3", "X-Nasq-User": "42"})).json() == {"items": [], "total": 0}
+        assert (await client.get(f"/v1/runs/{newer}", headers=HEADERS)).json()["run_id"] == newer  # the list route does not shadow the item route
+
+
+async def test_the_run_list_needs_the_owner_headers(client_factory):
+    async with client_factory([]) as client:
+        assert (await client.get("/v1/runs")).status_code == 422
+
+
+async def test_a_stale_executing_run_is_listed_as_failed():
+    store = MemoryRunStore()
+    async with make_client(ScriptedChatModel([]), store) as client:
+        record = await store.create("t1", "42", "كتابة")
+        record.status = EXECUTING
+        record.updated_at -= timedelta(seconds=service.STALE_AFTER_SECONDS + 1)
+        assert (await client.get("/v1/runs", headers=HEADERS)).json()["items"][0]["status"] == "failed"
 
 
 async def test_headers_must_match_the_body(client_factory):
@@ -282,3 +320,176 @@ async def test_the_run_timeout_is_a_limit_not_an_error(monkeypatch):
     async with make_client(SlowChatModel([])) as client:
         events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
     assert ("limit_reached", {"limit": "timeout"}) in events and events[-1][1] == {"status": "limit_reached"}
+
+
+async def listed_titles(client, archived=False):
+    return [item["title"] for item in (await client.get("/v1/runs", params={"archived": archived}, headers=HEADERS)).json()["items"]]
+
+
+async def test_the_first_answer_names_the_conversation_before_the_stream_ends():
+    model = ScriptedChatModel([ai_text("عندك مهمة واحدة")], title_responses=[ai_text("«مهامي المفتوحة».")])
+    async with make_client(model) as client:
+        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        assert [name for name, _ in events][-2:] == ["answer", "done"] and events[-1][1] == {"status": "done"}
+        assert await listed_titles(client) == ["مهامي المفتوحة"]  # already there when the page refetches after the stream
+        run_id = events[0][1]["run_id"]
+        thread = (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["messages"]
+        assert [m["role"] for m in thread] == ["user", "assistant"]  # the title exchange is not part of the conversation
+        assert len(model.calls) == 1 and len(model.title_calls) == 1
+        prompt = model.title_calls[0][1].content
+        assert "وش مهامي؟" in prompt and "عندك مهمة واحدة" in prompt
+
+
+async def test_a_run_that_answers_after_a_tool_result_is_named_once_from_its_first_exchange():
+    model = ScriptedChatModel([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم")], title_responses=[ai_text("مهامي")])
+    async with make_client(model) as client:
+        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        assert model.title_calls == [] and await listed_titles(client) == ["وش مهامي؟"]  # no answer yet: the provisional title stays
+        await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)
+        assert await listed_titles(client) == ["مهامي"] and len(model.title_calls) == 1
+
+
+async def test_a_later_turn_never_renames_the_conversation():
+    model = ScriptedChatModel([ai_text("أول"), ai_text("ثان")], title_responses=[ai_text("عنوان أول"), ai_text("عنوان ثان")])
+    async with make_client(model) as client:
+        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        await client.post("/v1/runs", json={**BODY, "run_id": run_id, "message": "كمّل"}, headers=HEADERS)
+        assert await listed_titles(client) == ["عنوان أول"] and len(model.title_calls) == 1
+
+
+async def test_a_title_the_user_set_is_never_overwritten_not_even_while_the_title_is_written():
+    store = MemoryRunStore()
+
+    async def user_renames():
+        record = next(iter(store.records.values()))
+        await store.update_meta(record.run_id, title="عنواني")
+
+    model = RenamingChatModel([ai_text("جواب")], title_responses=[ai_text("عنوان النموذج")], on_title=user_renames)
+    async with make_client(model, store) as client:
+        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        assert await listed_titles(client) == ["عنواني"]
+
+
+async def test_a_title_that_takes_too_long_keeps_the_provisional_title_and_is_logged(monkeypatch, caplog):
+    monkeypatch.setattr(service, "TITLE_TIMEOUT_SECONDS", 0.05)
+    async with make_client(SlowTitleChatModel([ai_text("جواب")])) as client:
+        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        assert dict(events)["answer"]["text"] == "جواب" and events[-1][1] == {"status": "done"}
+        assert await listed_titles(client) == ["وش مهامي؟"]
+    assert "could not be titled: TimeoutError" in caplog.text
+
+
+async def test_a_failing_title_call_keeps_the_provisional_title_and_is_logged_without_secrets(caplog):
+    caplog.set_level(logging.WARNING)
+    async with make_client(ScriptedChatModel([ai_text("جواب")])) as client:  # no title scripted: the title call raises
+        events = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)
+        assert events[-1][1] == {"status": "done"} and await listed_titles(client) == ["وش مهامي؟"]
+    assert "could not be titled: RuntimeError: title script exhausted" in caplog.text
+
+
+@pytest.mark.parametrize("reply", ["  ...  ", "** **"])
+async def test_an_unusable_title_reply_keeps_the_provisional_title_and_is_logged(reply, caplog):
+    caplog.set_level(logging.WARNING)
+    async with make_client(ScriptedChatModel([ai_text("جواب")], title_responses=[ai_text(reply)])) as client:
+        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        assert await listed_titles(client) == ["وش مهامي؟"]
+    assert "no usable title" in caplog.text
+
+
+async def test_a_failed_or_limited_turn_is_not_titled():
+    model = FailingChatModel([], error=RuntimeError("boom"), title_responses=[ai_text("لا")])
+    async with make_client(model) as client:
+        await client.post("/v1/runs", json=BODY, headers=HEADERS)
+        assert await listed_titles(client) == ["وش مهامي؟"] and model.title_calls == []
+
+
+async def test_patch_renames_and_locks_the_title(client_factory):
+    async with client_factory([ai_text("ا")]) as client:
+        run_id = await start(client, "رسالة")
+        response = await client.patch(f"/v1/runs/{run_id}", json={"title": "  مشروع البوابة  "}, headers=HEADERS)
+        assert response.status_code == 200
+        assert response.json() == {**response.json(), "run_id": run_id, "title": "مشروع البوابة", "archived": False, "status": "done"}
+        assert await listed_titles(client) == ["مشروع البوابة"]
+
+
+async def test_patch_archives_and_unarchives_without_touching_the_title(client_factory):
+    async with client_factory([ai_text("ا"), ai_text("ب")]) as client:
+        kept = await start(client, "باقية")
+        gone = await start(client, "مؤرشفة")
+        archived = await client.patch(f"/v1/runs/{gone}", json={"archived": True}, headers=HEADERS)
+        assert archived.status_code == 200 and archived.json()["archived"] is True and archived.json()["title"] == "مؤرشفة"
+        assert await listed_titles(client) == ["باقية"]
+        assert await listed_titles(client, archived=True) == ["مؤرشفة"]
+        listed = (await client.get("/v1/runs", params={"archived": "true"}, headers=HEADERS)).json()
+        assert listed["total"] == 1 and listed["items"][0]["archived"] is True and listed["items"][0]["run_id"] == gone
+        assert (await client.patch(f"/v1/runs/{gone}", json={"archived": False}, headers=HEADERS)).json()["archived"] is False
+        assert sorted(await listed_titles(client)) == ["باقية", "مؤرشفة"] and await listed_titles(client, archived=True) == []
+        assert (await client.get(f"/v1/runs/{kept}", headers=HEADERS)).status_code == 200
+
+
+async def test_an_archived_conversation_still_opens_and_continues(client_factory):
+    async with client_factory([ai_text("ا"), ai_text("ب")]) as client:
+        run_id = await start(client, "رسالة")
+        await client.patch(f"/v1/runs/{run_id}", json={"archived": True}, headers=HEADERS)
+        assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["status"] == "done"
+        again = await client.post("/v1/runs", json={**BODY, "run_id": run_id, "message": "تابع"}, headers=HEADERS)
+        assert parse_sse(again.text)[-1][1] == {"status": "done"}
+
+
+async def test_archiving_a_waiting_run_changes_neither_its_status_nor_its_lease_nor_its_clock(client_factory):
+    store = MemoryRunStore()
+    model = ScriptedChatModel([ai_tool_call("pmo__draft_project", {"name": "بوابة"}, "c_1"), ai_text("ألغيت")])
+    async with make_client(model, store) as client:
+        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        record = store.records[run_id]
+        before = (record.status, record.lease, record.updated_at, record.pending_call_id)
+        assert before[0] == "waiting_user"
+        response = await client.patch(f"/v1/runs/{run_id}", json={"archived": True}, headers=HEADERS)
+        assert response.status_code == 200 and response.json()["status"] == "waiting_user"
+        assert (record.status, record.lease, record.updated_at, record.pending_call_id) == before
+        resumed = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": False, "decision": "rejected"}}, headers=HEADERS)).text)
+        assert resumed[-1][1] == {"status": "done"} and record.archived_at is not None
+
+
+@pytest.mark.parametrize("body", [
+    {}, {"title": None}, {"title": ""}, {"title": "   "}, {"title": "x" * 81}, {"title": "سطر\nثان"}, {"title": "a\x00b"},
+    {"title": 5}, {"archived": "maybe"}, {"title": "ok", "extra": 1},
+])
+async def test_patch_rejects_an_invalid_body_and_changes_nothing(client_factory, body):
+    async with client_factory([ai_text("ا")]) as client:
+        run_id = await start(client, "رسالة")
+        assert (await client.patch(f"/v1/runs/{run_id}", json=body, headers=HEADERS)).status_code == 422
+        assert await listed_titles(client) == ["رسالة"]
+
+
+async def test_patch_accepts_the_longest_title(client_factory):
+    async with client_factory([ai_text("ا")]) as client:
+        run_id = await start(client, "رسالة")
+        assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "x" * 80}, headers=HEADERS)).json()["title"] == "x" * 80
+
+
+async def test_patch_is_for_the_owner_only(client_factory):
+    async with client_factory([ai_text("ا")]) as client:
+        run_id = await start(client, "رسالة")
+        for headers in ({"X-Nasq-Tenant": "t2", "X-Nasq-User": "42"}, {"X-Nasq-Tenant": "t1", "X-Nasq-User": "7"}):
+            assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "مخترق", "archived": True}, headers=headers)).status_code == 404
+        assert (await client.patch("/v1/runs/r_missing", json={"title": "x"}, headers=HEADERS)).status_code == 404
+        assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "x"})).status_code == 422  # owner headers are required
+        assert await listed_titles(client) == ["رسالة"] and await listed_titles(client, archived=True) == []
+
+
+async def test_patch_does_not_shadow_the_other_run_routes(client_factory):
+    async with client_factory([ai_tool_call("pmo__list_my_tasks", {}, "c_1"), ai_text("تم")]) as client:
+        run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
+        assert (await client.patch(f"/v1/runs/{run_id}", json={"title": "اسم"}, headers=HEADERS)).status_code == 200
+        assert (await client.get(f"/v1/runs/{run_id}", headers=HEADERS)).json()["status"] == "waiting_tool"
+        resumed = await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "c_1", "result": {"ok": True, "data": {}}}, headers=HEADERS)
+        assert parse_sse(resumed.text)[-1][1] == {"status": "done"}
+        assert (await client.patch(f"/v1/runs/{run_id}/resume", json={"title": "x"}, headers=HEADERS)).status_code == 405
+
+
+async def test_patch_needs_the_service_token_when_one_is_set():
+    settings = Settings.from_env({"AI_PROVIDER": "ollama", "AI_MODEL": "m", "AI_ALLOW_MEMORY_STATE": "true", "AI_SERVICE_TOKEN": "s" * 32})
+    app = create_app(ScriptedChatModel([]), MemoryRunStore(), InMemorySaver(), settings)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
+        assert (await client.patch("/v1/runs/r_x", json={"title": "x"}, headers=HEADERS)).status_code == 401

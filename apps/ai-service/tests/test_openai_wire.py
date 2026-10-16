@@ -13,7 +13,7 @@ from nasq_ai_service.providers import build_chat_model
 from nasq_ai_service.service import create_app
 from nasq_ai_service.settings import Settings
 from nasq_ai_service.store import MemoryRunStore
-from tests.fake_openai import LEGAL_NAME, create_fake_openai, text_turn, tool_turn
+from tests.fake_openai import FAKE_TITLE, LEGAL_NAME, create_fake_openai, text_turn, tool_turn
 from tests.test_service import BODY, HEADERS, parse_sse
 
 TASKS = {"ok": True, "data": {"items": [{"id": 5, "name": "تقرير"}], "total": 1}}
@@ -71,11 +71,13 @@ async def test_resume_streams_tokens_and_the_answer_string_and_sends_a_valid_fol
     async with service_client(base_url) as client:
         run_id = parse_sse((await client.post("/v1/runs", json=BODY, headers=HEADERS)).text)[0][1]["run_id"]
         events = parse_sse((await client.post(f"/v1/runs/{run_id}/resume", json={"call_id": "call_a1", "result": TASKS}, headers=HEADERS)).text)
+        assert [item["title"] for item in (await client.get("/v1/runs", headers=HEADERS)).json()["items"]] == [FAKE_TITLE]
     tokens = [data["text"] for name, data in events if name == "token"]
     assert len(tokens) > 1 and "".join(tokens) == "عندك مهمة واحدة: تقرير"
     answer = dict(events)["answer"]
     assert isinstance(answer["text"], str) and answer["text"] == "عندك مهمة واحدة: تقرير" and answer["records"] == [{"type": "task", "id": 5, "label": "تقرير"}]
     assert events[-1][1] == {"status": "done"} and fake.state.rejected == []
+    assert len(fake.state.title_requests) == 1  # the real client's title request is legal for the API and is not a turn of the run
     follow_up = fake.state.requests[1]["messages"]
     assert [m["role"] for m in follow_up] == ["system", "user", "assistant", "tool"]
     assert follow_up[2]["tool_calls"][0]["function"]["name"] == "pmo__list_my_tasks" and follow_up[3]["tool_call_id"] == "call_a1"

@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import Command
 
-from nasq_ai_service.contracts import ClaimRequest, PendingCall, ResumeRequest, RunMessage, RunRequest, RunStatus
+from nasq_ai_service.contracts import ClaimRequest, PendingCall, ResumeRequest, RunList, RunMessage, RunPatch, RunRequest, RunStatus, RunSummary
 from nasq_ai_service.errors import client_error, redact
 from nasq_ai_service.graph import build_graph, initial_state, interrupted_replies, request_state, resume_value, run_config, text_of
 from nasq_ai_service.providers import build_chat_model
@@ -23,6 +23,7 @@ from nasq_ai_service.records import records_from_results
 from nasq_ai_service.settings import Settings, SettingsError
 from nasq_ai_service.sse import format_event
 from nasq_ai_service.store import ACTIVE, EXECUTING, RunRecord, RunStore, is_stale, open_state
+from nasq_ai_service.titles import TITLE_TIMEOUT_SECONDS, generate_title, title_from
 
 log = logging.getLogger("nasq_ai_service")
 WAITING = ("waiting_tool", "waiting_user", "executing")  # what a resume may answer: a claimed write call is still waiting for its result
@@ -30,6 +31,7 @@ FINISHED = ("done", "failed", "limit_reached")
 # The longest run timeout (Limits.timeout_seconds) plus a minute: a 'running' run older than this lost its process;
 # an 'executing' one is settled-unknown (its write may have run) and is never retried.
 STALE_AFTER_SECONDS = 600 + 60
+RUN_LIST_LIMIT = 50
 
 
 def waiting_status(kind: str) -> str:
@@ -122,6 +124,23 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
 
     app.state.drain = drain
 
+    async def name_run(run_id: str, messages: list) -> None:
+        """Replace the provisional title with a model-written one after the first answer; best effort, never blocks the run's outcome."""
+        humans = [m for m in messages if isinstance(m, HumanMessage)]
+        answer = next((m for m in reversed(messages) if isinstance(m, AIMessage) and text_of(m.content)), None)
+        record = await store.get(run_id)
+        if len(humans) != 1 or answer is None or record is None or record.title_locked:
+            return
+        try:
+            title = await asyncio.wait_for(generate_title(model, text_of(humans[0].content), text_of(answer.content)), TITLE_TIMEOUT_SECONDS)
+            if title is None:
+                log.warning("run %s: the model returned no usable title; keeping the provisional one", run_id)
+            else:
+                await store.set_generated_title(run_id, title)
+        except Exception as error:  # noqa: BLE001 - a missing title is not a failed run: the provisional title stays, the cause is logged
+            detail = redact(str(error), (settings.api_key, settings.database_url))
+            log.warning("run %s could not be titled: %s: %s", run_id, type(error).__name__, detail)
+
     async def stream(run_id: str, lease: str | None, graph_input: Any, limits: dict[str, int]) -> AsyncIterator[bytes]:
         # ``decided`` is assigned BEFORE the event that announces it is yielded: a client that vanishes while that event is sent
         # closes the generator at the yield, and the run must already carry its outcome.
@@ -152,6 +171,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
                     decided = ("done", None)
                     answer_text = text_of(last.content) if last else ""
                     yield format_event("answer", {"text": answer_text, "records": records_from_results(values["results"], answer_text)})
+                    await name_run(run_id, values["messages"])  # after the answer is on the wire, before the stream ends: the list refetch sees it
         except Exception as error:  # noqa: BLE001 - every failure must reach the client as an event, without its text
             if isinstance(error, TimeoutError) and deadline.expired():  # the run's deadline; a provider's own TimeoutError is a failure
                 decided = ("limit_reached", None)
@@ -187,7 +207,7 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
             replies = interrupted_replies(state.values.get("messages", []))
             graph_input: Any = {"messages": [*replies, HumanMessage(request.message)], **request_state(request)}
         else:
-            record = await store.create(who.tenant, who.user_ref)
+            record = await store.create(who.tenant, who.user_ref, title_from(request.message))
             lease, graph_input = record.lease, initial_state(request)
         return sse(stream(record.run_id, lease, graph_input, request.limits.model_dump()))
 
@@ -219,6 +239,25 @@ def create_app(model, store: RunStore, checkpointer, settings: Settings) -> Fast
         if lease is None:
             raise HTTPException(409, "call is already claimed or answered")
         return {"ok": True}
+
+    def summary_of(record: RunRecord) -> RunSummary:
+        status = "failed" if stale_executing(record) else record.status
+        archived = record.archived_at is not None
+        return RunSummary(run_id=record.run_id, title=record.title, status=status, updated_at=record.updated_at, archived=archived)
+
+    @api.get("/v1/runs")
+    async def list_runs(who: Annotated[Owner, Depends(owner)], archived: bool = False) -> RunList:
+        records = await store.list_for_owner(who.tenant, who.user_ref, RUN_LIST_LIMIT, archived=archived)
+        items = [summary_of(record) for record in records]
+        return RunList(items=items, total=len(items))
+
+    @api.patch("/v1/runs/{run_id}")
+    async def patch_run(run_id: str, body: RunPatch, who: Annotated[Owner, Depends(owner)]) -> RunSummary:
+        record = await owned_run(run_id, who)
+        updated = await store.update_meta(record.run_id, title=body.title, archived=body.archived)
+        if updated is None:  # deleted by the retention cleanup between the ownership check and the write
+            raise HTTPException(404, "run not found")
+        return summary_of(updated)
 
     @api.get("/v1/runs/{run_id}")
     async def get_run(run_id: str, who: Annotated[Owner, Depends(owner)]) -> RunStatus:

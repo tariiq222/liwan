@@ -35,11 +35,26 @@ class RunRecord:
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     lease: str | None = None
     pending_call_id: str | None = None
+    title: str | None = None
+    title_locked: bool = False  # true once the user renamed the conversation: the AI never overwrites it
+    archived_at: datetime | None = None
 
 
 class RunStore(Protocol):
-    async def create(self, tenant: str, user_ref: str) -> RunRecord: ...
+    async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord: ...
     async def get(self, run_id: str) -> RunRecord | None: ...
+    async def list_for_owner(self, tenant: str, user_ref: str, limit: int = 50, *, archived: bool = False) -> list[RunRecord]:
+        """The owner's active runs (or, with ``archived``, only the archived ones), most recently updated first; never another tenant's or user's."""
+        ...
+    async def set_generated_title(self, run_id: str, title: str) -> bool:
+        """Title the run unless the user renamed it; True when the title was written. Touches neither the status nor the lease."""
+        ...
+    async def update_meta(self, run_id: str, *, title: str | None = None, archived: bool | None = None) -> RunRecord | None:
+        """Apply a user's rename (which locks the title) and/or archive flag; returns the run, or None when it is gone.
+
+        Touches neither the status, the lease nor ``updated_at``: archiving a run that is still executing leaves it settle normally.
+        """
+        ...
     async def acquire(
         self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None, to_status: str = "running",
         takeover: tuple[str, ...] = ("running",),
@@ -73,13 +88,37 @@ class MemoryRunStore:
         self.records: dict[str, RunRecord] = {}
         self._lock = asyncio.Lock()
 
-    async def create(self, tenant: str, user_ref: str) -> RunRecord:
-        record = RunRecord(new_run_id(), tenant, user_ref, lease=new_lease())
+    async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord:
+        record = RunRecord(new_run_id(), tenant, user_ref, lease=new_lease(), title=title)
         self.records[record.run_id] = record
         return record
 
     async def get(self, run_id: str) -> RunRecord | None:
         return self.records.get(run_id)
+
+    async def list_for_owner(self, tenant: str, user_ref: str, limit: int = 50, *, archived: bool = False) -> list[RunRecord]:
+        owned = [
+            record for record in self.records.values()
+            if record.tenant == tenant and record.user_ref == user_ref and (record.archived_at is not None) == archived
+        ]
+        return sorted(owned, key=lambda record: record.updated_at, reverse=True)[:limit]
+
+    async def set_generated_title(self, run_id: str, title: str) -> bool:
+        record = self.records.get(run_id)
+        if record is None or record.title_locked:
+            return False
+        record.title = title
+        return True
+
+    async def update_meta(self, run_id: str, *, title: str | None = None, archived: bool | None = None) -> RunRecord | None:
+        record = self.records.get(run_id)
+        if record is None:
+            return None
+        if title is not None:
+            record.title, record.title_locked = title, True
+        if archived is not None:
+            record.archived_at = (record.archived_at or datetime.now(UTC)) if archived else None
+        return record
 
     async def acquire(
         self, run_id: str, allowed: tuple[str, ...], *, stale_after_seconds: float, pending_call_id: str | None = None, to_status: str = "running",
@@ -123,14 +162,26 @@ CREATE TABLE IF NOT EXISTS ai_runs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     lease TEXT,
-    pending_call_id TEXT
+    pending_call_id TEXT,
+    title TEXT,
+    title_locked BOOLEAN NOT NULL DEFAULT false,
+    archived_at TIMESTAMPTZ
 )
 """,
     "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS lease TEXT",
     "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS pending_call_id TEXT",
+    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS title TEXT",
+    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS title_locked BOOLEAN NOT NULL DEFAULT false",
+    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ",
     "CREATE INDEX IF NOT EXISTS ai_runs_updated_at ON ai_runs (updated_at)",
+    "CREATE INDEX IF NOT EXISTS ai_runs_owner_updated_at ON ai_runs (tenant, user_ref, updated_at DESC)",
 )
-CHECKPOINT_TABLES = ("checkpoint_writes", "checkpoint_blobs", "checkpoints")
+_OLD_RUN_IDS = "SELECT run_id FROM ai_runs WHERE updated_at < now() - make_interval(days => %s) FOR UPDATE"
+DELETE_OLD_CHECKPOINTS = (
+    "DELETE FROM checkpoint_writes WHERE thread_id IN (" + _OLD_RUN_IDS + ")",
+    "DELETE FROM checkpoint_blobs WHERE thread_id IN (" + _OLD_RUN_IDS + ")",
+    "DELETE FROM checkpoints WHERE thread_id IN (" + _OLD_RUN_IDS + ")",
+)
 
 
 class PostgresRunStore:
@@ -142,19 +193,48 @@ class PostgresRunStore:
             for statement in CREATE_RUNS:  # one statement per call: the pool prepares every query
                 await conn.execute(statement)
 
-    async def create(self, tenant: str, user_ref: str) -> RunRecord:
-        record = RunRecord(new_run_id(), tenant, user_ref, lease=new_lease())
+    async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord:
+        record = RunRecord(new_run_id(), tenant, user_ref, lease=new_lease(), title=title)
         async with self.pool.connection() as conn:
             await conn.execute(
-                "INSERT INTO ai_runs (run_id, tenant, user_ref, status, created_at, updated_at, lease) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (record.run_id, tenant, user_ref, record.status, record.created_at, record.updated_at, record.lease),
+                "INSERT INTO ai_runs (run_id, tenant, user_ref, status, created_at, updated_at, lease, title)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (record.run_id, tenant, user_ref, record.status, record.created_at, record.updated_at, record.lease, title),
             )
         return record
 
     async def get(self, run_id: str) -> RunRecord | None:
         async with self.pool.connection() as conn:
             row = await (await conn.execute(
-                "SELECT run_id, tenant, user_ref, status, created_at, updated_at, lease, pending_call_id FROM ai_runs WHERE run_id = %s", (run_id,),
+                "SELECT run_id, tenant, user_ref, status, created_at, updated_at, lease, pending_call_id, title, title_locked, archived_at "
+                "FROM ai_runs WHERE run_id = %s", (run_id,),
+            )).fetchone()
+        return RunRecord(*row) if row else None
+
+    async def list_for_owner(self, tenant: str, user_ref: str, limit: int = 50, *, archived: bool = False) -> list[RunRecord]:
+        async with self.pool.connection() as conn:
+            rows = await (await conn.execute(
+                "SELECT run_id, tenant, user_ref, status, created_at, updated_at, lease, pending_call_id, title, title_locked, archived_at "
+                "FROM ai_runs WHERE tenant = %s AND user_ref = %s AND (archived_at IS NOT NULL) = %s ORDER BY updated_at DESC LIMIT %s",
+                (tenant, user_ref, archived, limit),
+            )).fetchall()
+        return [RunRecord(*row) for row in rows]
+
+    async def set_generated_title(self, run_id: str, title: str) -> bool:
+        async with self.pool.connection() as conn:
+            row = await (await conn.execute(
+                "UPDATE ai_runs SET title = %s WHERE run_id = %s AND NOT title_locked RETURNING run_id", (title, run_id),
+            )).fetchone()
+        return row is not None
+
+    async def update_meta(self, run_id: str, *, title: str | None = None, archived: bool | None = None) -> RunRecord | None:
+        async with self.pool.connection() as conn:
+            row = await (await conn.execute(
+                "UPDATE ai_runs SET title = COALESCE(%s::text, title), title_locked = title_locked OR %s::text IS NOT NULL,"
+                " archived_at = CASE WHEN %s::boolean IS NULL THEN archived_at WHEN %s::boolean THEN COALESCE(archived_at, now()) END"
+                " WHERE run_id = %s RETURNING run_id, tenant, user_ref, status, created_at, updated_at, lease, pending_call_id,"
+                " title, title_locked, archived_at",
+                (title, title, archived, archived, run_id),
             )).fetchone()
         return RunRecord(*row) if row else None
 
@@ -185,9 +265,8 @@ class PostgresRunStore:
         _require_window(days)
         async with self.pool.connection() as conn, conn.transaction():
             # Lock the old rows first so a run resumed meanwhile blocks, then finds itself gone (409) instead of losing checkpoints alone.
-            old = "SELECT run_id FROM ai_runs WHERE updated_at < now() - make_interval(days => %s) FOR UPDATE"
-            for table in CHECKPOINT_TABLES:
-                await conn.execute(f"DELETE FROM {table} WHERE thread_id IN ({old})", (days,))  # noqa: S608 - table from a constant tuple
+            for statement in DELETE_OLD_CHECKPOINTS:
+                await conn.execute(statement, (days,))
             rows = await (await conn.execute(
                 "DELETE FROM ai_runs WHERE updated_at < now() - make_interval(days => %s) RETURNING run_id", (days,),
             )).fetchall()

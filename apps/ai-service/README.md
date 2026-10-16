@@ -61,6 +61,30 @@ When `AI_SERVICE_TOKEN` is set, every route except `GET /healthz` requires the h
 (constant-time comparison); anything else answers 401 with a fixed body. Without it the service is open (development only).
 The token is never logged or sent in an event. The Nuxt server sends it from `NUXT_AI_SERVICE_TOKEN`.
 
+## Conversation history
+
+`GET /v1/runs` (owner headers) lists the caller's own runs, newest update first, as
+`{"items": [{run_id, title, status, updated_at, archived}], "total": n}` (at most 50; never another tenant's or user's).
+Archived runs are left out; `?archived=true` lists only the archived ones, in the same envelope. A stale `executing` run is
+listed as `failed`, as in `GET /v1/runs/{run_id}`.
+
+**Title.** A run starts with the first user message as its title (whitespace-collapsed, cut to 60 characters). When the first
+answer of a run completes, the service asks the same configured provider and model for a short title (at most 6 words and
+60 characters, in the language of the conversation) from the first message and the first answer, each cut to 300 characters.
+This happens after the `answer` event and before the stream's `done` event, so the list fetched after the stream already shows it.
+The request is best effort with a 10 second timeout: on failure, timeout or an unusable reply the provisional title stays and the
+cause is logged. The title request is not part of the conversation (it is not in the thread and not a user message), and a run is
+titled at most once: later turns never rename it. A title the user set is never overwritten (`title_locked`).
+
+**Rename and archive.** `PATCH /v1/runs/{run_id}` (owner headers, owner only; another owner's run is 404) with
+`{"title"?: string, "archived"?: boolean}` (at least one). A title is trimmed, 1 to 80 characters, with no control characters;
+setting it locks the title against the model. `archived: true` hides the run from the default list, `false` brings it back.
+The reply is the updated list item. Neither change touches the run's status, lease or `updated_at`, so an executing run can be
+archived and still settles normally, and an archived run can still be opened and continued.
+
+**Retention.** The retention cleanup (`delete_older_than`) works by `updated_at` and deletes archived runs like any other:
+archiving does not keep a conversation.
+
 ## Claiming a write call
 
 `POST /v1/runs/{run_id}/claim` with `{"call_id": "c_01"}` (and the owner headers) reserves the pending call of a run in
