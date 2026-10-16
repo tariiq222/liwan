@@ -116,6 +116,8 @@ async function renderForm(detail: ProjectDetail) {
     '@/composables/useProjectCharterCatalogs': { useCharterDefaults: () => ({ data: Vue.ref(null) }) },
     '@/utils/projectCharter': projectCharter,
     '@/utils/charterSteps': charterSteps,
+    // The AI draft helpers are not exercised by the save-hint tests: an edit form has neither a draft nor an attestation.
+    '@/utils/aiDraft': { charterDraftFromAi: (_payload: unknown, base: unknown) => base, mayFinalizeCreate: () => true },
     '@/components/pmo/projects/ProjectCharterFields.vue': { __esModule: true, default: Stub('ProjectCharterFields') },
     '@/components/pmo/projects/ProjectCharterDisplay.vue': { __esModule: true, default: Stub('ProjectCharterDisplay') },
   }, { ...route(), useMe: () => ({ me: Vue.ref({ id: 1 }) }) })

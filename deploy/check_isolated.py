@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 NASQ_ADDONS = (
     'nasq_core', 'nasq_platform', 'nasq_api', 'nasq_directory', 'nasq_notify', 'nasq_pmo',
     'nasq_meetings', 'nasq_meetings_pmo', 'nasq_hr', 'nasq_chat', 'nasq_tasks', 'nasq_tasks_pmo',
-    'nasq_operations', 'nasq_operations_pmo',
+    'nasq_operations', 'nasq_operations_pmo', 'nasq_ai', 'nasq_pmo_ai',
 )
 SCRATCH_LIFECYCLE_TOKEN = 'CREATE_NEW_SCRATCH'
 FORBIDDEN_DB_RE = re.compile(

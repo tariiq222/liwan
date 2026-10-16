@@ -103,10 +103,19 @@ docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not r
 # Every pillar must be listed explicitly: pillars depend on nasq_api, not the other way round.
 docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
   -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
-  -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,web_theme_shadcn --stop-after-init
+  -d "$DB_NAME" -i nasq_core,nasq_platform,nasq_api,nasq_directory,nasq_notify,nasq_pmo,nasq_meetings,nasq_meetings_pmo,nasq_hr,nasq_chat,nasq_tasks,nasq_tasks_pmo,nasq_operations,nasq_operations_pmo,nasq_ai,nasq_pmo_ai --stop-after-init
 docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_legacy_policy.py
 docker compose run --rm -T -e VENDOR_PASSWORD -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
+# Nasq AI's database role must not connect to a customer database. Postgres grants CONNECT on a
+# new database to PUBLIC, so close it for the tenant database just created. A no-op when the
+# nasq_ai role does not exist (deployments without AI); a real error still stops provisioning.
+docker compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" <<'SQL'
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM PUBLIC', :'tenant_db')
+  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nasq_ai') \gexec
+SELECT format('REVOKE CONNECT ON DATABASE %I FROM nasq_ai', :'tenant_db')
+  WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nasq_ai') \gexec
+SQL
 docker compose up -d
 echo "https://$DOMAIN is provisioning; vendor login: admin / (VENDOR_PASSWORD from .env)."

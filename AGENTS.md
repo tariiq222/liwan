@@ -301,7 +301,7 @@ worktrees only after their content is preserved and no process is using them.
 ## Check commands
 
 The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is Woodpecker
-(`.woodpecker.yml`, eleven steps, each runnable locally); its notes and the local `woodpecker-cli exec`
+(`.woodpecker.yml`, twelve steps, each runnable locally); its notes and the local `woodpecker-cli exec`
 recipe are in `docs/testing.md` ("CI pipeline notes"). Fast local loop: `npm run check:fast`,
 `npm run test:odoo`, `npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
 Web checks and general commands:

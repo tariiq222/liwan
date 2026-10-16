@@ -21,6 +21,8 @@ services:
       NUXT_ODOO_URL: http://odoo:8069
       NUXT_ODOO_DB: "${DB_NAME}"
       NUXT_AUTH_PROXY_CLIENT_IP_HEADER: x-nasq-client-ip
+      NUXT_AI_SERVICE_URL: "${NUXT_AI_SERVICE_URL:-}"
+      NUXT_AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
     expose: ["3000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/login').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
@@ -55,6 +57,29 @@ services:
     depends_on:
       db: { condition: service_healthy }
 
+  ai:
+    profiles: [ai]
+    build: { context: ../apps/ai-service }
+    restart: unless-stopped
+    environment:
+      AI_PROVIDER: "${AI_PROVIDER:-ollama}"
+      AI_MODEL: "${AI_MODEL:-}"
+      AI_API_KEY: "${AI_API_KEY:-}"
+      AI_BASE_URL: "${AI_BASE_URL:-}"
+      AI_OPENROUTER_REFERER: "${AI_OPENROUTER_REFERER:-}"
+      AI_OPENROUTER_TITLE: "${AI_OPENROUTER_TITLE:-}"
+      AI_DATABASE_URL: "${AI_DATABASE_URL:-}"
+      AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
+      AI_RUN_RETENTION_DAYS: "${AI_RUN_RETENTION_DAYS:-30}"
+    expose: ["8600"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+    depends_on:
+      db: { condition: service_healthy }
+
   db:
     image: postgres:16
     restart: unless-stopped
@@ -62,7 +87,10 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: "${DB_PASSWORD}"
-    volumes: [db_data:/var/lib/postgresql/data]
+      AI_DB_PASSWORD: "${AI_DB_PASSWORD:-}"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-nasq-ai.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U odoo"]
       interval: 5s

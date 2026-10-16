@@ -9,7 +9,7 @@
 # undefined name becomes empty), so a shell brace expansion is written with a doubled dollar sign;
 # braced CI_-prefixed names are Woodpecker's own.
 #
-# Steps: static, control-plane, vendor-admin, odoo, odoo-tasks-standalone, odoo-tasks-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories.
+# Steps: static, ai-service, control-plane, vendor-admin, odoo, odoo-tasks-standalone, odoo-tasks-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories.
 #
 # The control-plane live-PG suites run serially by design (apps/control-plane `test`
 # sets --no-file-parallelism and a 60s hook timeout); parallel runs conflict because
@@ -40,6 +40,24 @@ steps:
       - npx playwright install chromium
       - npm test
       - npm -w apps/web run lint
+
+  - name: ai-service
+    image: bash
+    commands:
+      - set -euo pipefail
+      - export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+      - cd apps/ai-service
+      - python3 -m venv .venv
+      - .venv/bin/pip install --quiet -e '.[dev]'
+      - .venv/bin/ruff check src tests
+      # The Postgres state tests need a throwaway database, dropped on exit (the control-plane step's conventions).
+      - |
+        export PGUSER=nasq_test PGPASSWORD=odoo
+        AI_DB="nasq_ai_ci_${CI_PIPELINE_NUMBER}"
+        trap 'dropdb -h 127.0.0.1 -U "$PGUSER" --if-exists "$AI_DB"' EXIT
+        dropdb -h 127.0.0.1 -U "$PGUSER" --if-exists "$AI_DB"
+        createdb -h 127.0.0.1 -U "$PGUSER" "$AI_DB"
+        AI_TEST_DATABASE_URL="postgresql://$PGUSER:$PGPASSWORD@127.0.0.1/$AI_DB" .venv/bin/pytest -q
 
   - name: control-plane
     image: bash
@@ -322,16 +340,19 @@ steps:
         export E2E_BASE_URL=http://localhost:4097 E2E_PROJECT_POPUPS=1
         node e2e/internal-ui-audit-mock.mjs > mock.log 2>&1 &
         MOCK_PID=$!
+        AI_MOCK_PORT=4499 node e2e/ai-service-mock.mjs > ai-mock.log 2>&1 &
+        AI_MOCK_PID=$!
         cleanup() {
           if [ -n "$${SERVER_PID:-}" ]; then kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; fi
-          kill "$MOCK_PID" 2>/dev/null || true; wait "$MOCK_PID" 2>/dev/null || true
+          kill "$MOCK_PID" "$AI_MOCK_PID" 2>/dev/null || true; wait "$MOCK_PID" "$AI_MOCK_PID" 2>/dev/null || true
         }
         trap cleanup EXIT
+        # Built WITHOUT NUXT_AI_SERVICE_URL on purpose: /ai must follow the runtime value, not the build environment.
         npx nuxt build
-        PORT=4097 node .output/server/index.mjs > nuxt.log 2>&1 &
+        NUXT_AI_SERVICE_URL=http://127.0.0.1:4499 PORT=4097 node .output/server/index.mjs > nuxt.log 2>&1 &
         SERVER_PID=$!
         for i in $(seq 1 60); do
-          kill -0 "$MOCK_PID" "$SERVER_PID"
+          kill -0 "$MOCK_PID" "$AI_MOCK_PID" "$SERVER_PID"
           if curl -fs http://localhost:4097/login >/dev/null; then break; fi
           sleep 2
         done
