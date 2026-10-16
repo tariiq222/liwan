@@ -6,6 +6,11 @@
 	# No request logging here: cookies and query strings of the admin console must never reach a log. Caddy logs nothing
 	# unless a `log` directive is added, so none is declared on purpose.
 
+	# Same cap as the BFF and the control plane (64 KiB); larger bodies are refused with 413 before reaching the app.
+	request_body {
+		max_size 64KB
+	}
+
 	header {
 		Strict-Transport-Security "max-age=63072000; includeSubDomains"
 		X-Content-Type-Options nosniff

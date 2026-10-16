@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { builtinRoleDescription, humanizeId, permissionDomainLabel } from '../labelFallback'
+import { builtinRoleDescription, permissionDomainLabel } from '../labelFallback'
 
 const app = resolve(import.meta.dirname, '../..')
 
@@ -18,18 +18,6 @@ function catalogue(locale: 'ar' | 'en') {
 }
 
 describe('label fallbacks for applications that ship no label', () => {
-  it('humanises module ids and identifiers', () => {
-    expect(humanizeId('nasq_sales')).toBe('Sales')
-    expect(humanizeId('customer_acme_reports')).toBe('Acme reports')
-    expect(humanizeId('sales')).toBe('Sales')
-    expect(humanizeId('field_service')).toBe('Field service')
-    expect(humanizeId('')).toBe('')
-    expect(humanizeId('nasq_')).toBe('nasq_')
-    expect(humanizeId('nasq__x')).toBe('X')
-    expect(humanizeId('a..b')).toBe('A b')
-    expect(humanizeId('field.service')).toBe('Field service')
-  })
-
   it("keeps today's domain labels and never shows an i18n key for a new domain", () => {
     for (const locale of ['ar', 'en'] as const) {
       const { domains, t, te } = catalogue(locale)

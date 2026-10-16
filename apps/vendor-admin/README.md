@@ -26,6 +26,8 @@ service key and forwards each call to the control plane (`apps/control-plane`) a
 - **The BFF always overwrites `x-nasq-client-ip`** with `getRequestIP(event, { xForwardedFor: trustProxy })`. A value sent
   by the browser is never forwarded. Turn `NUXT_TRUST_PROXY` on only behind the edge that sets `X-Forwarded-For` itself.
 - Without a service key of at least 32 bytes every API route answers `503 { "code": "vendor_unavailable" }`.
+- Request bodies are capped at 64 KiB at every hop: the edge (`request_body { max_size 64KB }` in
+  `deploy/vendor-admin/Caddyfile.snippet`), this BFF (`413 payload_too_large`) and the control plane.
 
 ## Environment
 

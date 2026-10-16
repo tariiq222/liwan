@@ -43,6 +43,13 @@ describe('vendor API proxy', () => {
     expect(await post('/commercial/plans')).toMatchObject({ status: 403, body: { code: 'step_up_required' } })
   })
 
+  it('passes an upstream 403 forbidden through and keeps the session', async () => {
+    stubUpstream(() => json(403, { code: 'forbidden' }))
+    const result = await post('/commercial/orders')
+    expect(result).toMatchObject({ status: 403, body: { code: 'forbidden' } })
+    expect(result.headers.get('set-cookie')).toBeNull()
+  })
+
   it('passes other upstream 4xx through, with a generic code when the body is not JSON', async () => {
     stubUpstream(() => json(409, { code: 'conflict' }))
     expect(await post('/commercial/plans')).toMatchObject({ status: 409, body: { code: 'conflict' } })
@@ -52,7 +59,7 @@ describe('vendor API proxy', () => {
 
   it('answers an upstream 204 with no body', async () => {
     stubUpstream(() => json(204))
-    expect(await post('/commercial/plans/1/disable')).toMatchObject({ status: 204, text: '' })
+    expect(await post('/commercial/plans/1/publish')).toMatchObject({ status: 204, text: '' })
   })
 
   it('turns an upstream 5xx, a network failure and a redirect into 503 vendor_unavailable', async () => {
@@ -71,9 +78,9 @@ describe('vendor API proxy', () => {
     expect(result.headers.get('set-cookie')).toMatch(/nasq_admin=;/)
   })
 
-  it('rejects a body over 1 MB with 413', async () => {
+  it('rejects a body over 64 KiB with 413', async () => {
     const calls = stubUpstream(() => json(200))
-    const rawBody = JSON.stringify({ pad: 'x'.repeat(1024 * 1024) })
+    const rawBody = JSON.stringify({ pad: 'x'.repeat(64 * 1024) })
     expect(await post('/commercial/plans', { rawBody })).toMatchObject({ status: 413, body: { code: 'payload_too_large' } })
     expect(calls).toHaveLength(0)
   })
@@ -111,10 +118,10 @@ describe('vendor API proxy', () => {
 
   it('forwards only the vendor surface the console uses', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/orders/ab-1/cancel', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
+    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/orders', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
     for (const path of allowed) expect((await get(path)).status, path).toBe(200)
     expect(calls).toHaveLength(allowed.length)
-    const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx']
+    const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx', '/commercial', '/commercial/payment-events/moyasar', '/commercial/payment-simulator/a-1/settle', '/commercial/renewals/run', '/commercial/branch-quotes', '/commercial/customers/c-1/invitations', '/commercial/orders/ab-1/other', '/commercial/plans/p-1/other', '/commercial/subscriptions/s-1/other', '/commercial/catalog', '/customer/orders', '/customer/invoices/i-1', '/invitations/accept']
     for (const path of denied) expect((await get(path)).status, path).toBe(404)
     expect(calls).toHaveLength(allowed.length)
   })

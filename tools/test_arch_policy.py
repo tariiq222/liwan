@@ -361,6 +361,19 @@ class TestCollect(unittest.TestCase):
             'packages/ui/app/composables/useBad.ts',
         ])
 
+    def test_commercial_ui_layer_importing_an_app_is_a_hard_failure(self):
+        self.clean_tree()
+        self.write('packages/commercial-ui/app/components/Bad.vue', "<script setup>import x from 'apps/vendor-admin/app/x'</script>\n")
+        self.write('packages/commercial-ui/app/composables/useBad.ts', "import { y } from '@/composables/y'\n")
+        self.write('packages/commercial-ui/app/composables/useGood.ts', "import { z } from '@nasq/commercial-contracts'\n")
+        self.write('packages/commercial-ui/app/components/__tests__/Bad.test.ts', "import x from 'apps/web/app/x'\n")
+        self.write('packages/commercial-ui/node_modules/dep/index.ts', "import x from 'apps/web/x'\n")
+        _, hard = collect(self.root, self.layers)
+        self.assertEqual([h.split(' ')[1] for h in hard], [
+            'packages/commercial-ui/app/components/Bad.vue',
+            'packages/commercial-ui/app/composables/useBad.ts',
+        ])
+
     def test_ui_layer_css_and_node_modules(self):
         self.clean_tree()
         self.write('packages/ui/app/assets/css/a.css', "a { background: url(../../../../apps/web/a.png) }\n")

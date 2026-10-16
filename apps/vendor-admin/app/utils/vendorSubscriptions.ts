@@ -2,7 +2,7 @@ import type { StatusBadgeEntry } from '@nasq/ui/app/utils/statusBadge'
 import { subscriptionDisplayState, type Cadence, type Invoice, type InvoiceLine, type Order, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@nasq/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
-import { humanizeId } from './labelFallback'
+import { humanizeId } from '@nasq/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@nasq/commercial-ui/app/utils/invoiceLines'
 
 export { subscriptionDisplayState }

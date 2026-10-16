@@ -39,7 +39,7 @@ describe('request body cap on the actual stream', () => {
   afterEach(async () => { vi.unstubAllGlobals(); await new Promise(r => server.close(r)) })
 
   it('answers 413 for a chunked body over the cap with no content-length', async () => {
-    const piece = 'x'.repeat(64 * 1024)
+    const piece = 'x'.repeat(16 * 1024)
     const chunks = ['{"pad":"', ...Array.from({ length: (8 * MAX_BODY_BYTES) / piece.length }, () => piece), '"}']
     const result = await post(chunks)
     expect(result.status).toBe(413)
