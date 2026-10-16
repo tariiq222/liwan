@@ -414,10 +414,11 @@ function discardToServer() {
           :disabled="pending || !hydrated"
           size="sm"
           data-testid="charter-stepper"
-          :ui="{ title: 'hidden md:block', description: 'hidden md:block' }"
+          :aria-label="t('projects.charter.stepOf', { step: stepIndex + 1, total: steps.length, title: t(`projects.charter.steps.${step}`) })"
+          :ui="{ title: 'sr-only', description: 'sr-only', root: '[&>[role=status]]:hidden' }"
           @update:model-value="onStepperSelect"
         />
-        <p class="text-sm text-muted" data-testid="charter-step-position" aria-live="polite">
+        <p class="text-base font-medium text-highlighted" data-testid="charter-step-position" aria-live="polite">
           {{ t('projects.charter.stepOf', { step: stepIndex + 1, total: steps.length, title: t(`projects.charter.steps.${step}`) }) }}
         </p>
         <p v-if="stepIndex === 0" class="text-sm text-muted">{{ t('projects.charter.stepsHint') }}</p>

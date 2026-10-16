@@ -22,16 +22,19 @@ const manifest: AppManifest = {
   // the sidebar (user decision 2026-09-16); they are not a settings-module page.
   contextLinks: () => [
     { id: 'new-project', labelKey: 'nav.newProject', icon: 'i-lucide-plus', to: '/projects/new', capability: 'pmo.projects.create', pinned: true },
-    { id: 'project-dashboard', labelKey: 'nav.projectDashboard', icon: 'i-lucide-chart-no-axes-combined', to: '/projects/dashboard', capability: 'pmo.projects.read' },
-    { id: 'projects', labelKey: 'nav.allProjects', icon: 'i-lucide-folder-kanban', to: '/projects', capability: 'pmo.projects.read' },
-    { id: 'tasks', labelKey: 'nav.tasks', icon: 'i-lucide-check-square', to: '/tasks', capability: 'pmo.tasks.read' },
-    { id: 'project-settings', labelKey: 'settings.projects.title', icon: 'i-lucide-settings', to: '/projects/settings', capability: 'pmo.settings.manage' },
+    { id: 'project-dashboard', labelKey: 'projects.dashboard.title', icon: 'i-lucide-chart-no-axes-combined', to: '/projects/dashboard', capability: 'pmo.projects.read' },
+    { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', capability: 'pmo.projects.read' },
+    { id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/tasks', capability: 'pmo.tasks.read' },
+    { id: 'project-settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/projects/settings', capability: 'pmo.settings.manage' },
   ],
   landing: [
     { path: '/projects/dashboard', capability: 'pmo.projects.read' },
     { path: '/tasks', capability: 'pmo.tasks.read' },
     { path: '/projects', capability: 'pmo.projects.read' },
     { path: '/projects/settings', capability: 'pmo.settings.manage', late: true },
+  ],
+  recordListSources: [
+    { pattern: /^\/projects\/[1-9]\d*\/meetings$/, capability: 'meetings.read' },
   ],
   routeCapabilities: [
     { pattern: /^\/projects\/settings(?:\/|$)/, capability: 'pmo.settings.manage' },

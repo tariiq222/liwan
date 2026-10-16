@@ -153,7 +153,7 @@ describe('projects dashboard navigation', () => {
     expect(contextLinksForModule('home', creator)).toEqual([])
     expect(contextLinksForModule('projects', employee).map(link => link.id)).toEqual(['project-dashboard', 'projects', 'tasks'])
     expect(contextLinksForModule('projects', { capabilities: ['pmo.projects.read'] }).map(link => link.id)).toEqual(['project-dashboard', 'projects'])
-    expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['nav.projectDashboard', 'nav.allProjects', 'nav.tasks'])
+    expect(contextLinksForModule('projects', employee).map(link => link.labelKey)).toEqual(['projects.dashboard.title', 'nav.projects', 'nav.myTasks'])
     expect(contextLinksForModule('projects', full).some(link => ['my-projects', 'archived-tasks', 'project-system-settings', 'summary', 'current-project-settings'].includes(link.id))).toBe(false)
     expect(contextLinksForModule('projects', undefined)).toEqual([])
   })

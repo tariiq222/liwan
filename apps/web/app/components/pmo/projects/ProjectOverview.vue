@@ -35,6 +35,8 @@ function dateLabel(value: string | null) {
 
 <template>
   <div data-testid="project-overview" class="@container min-w-0 space-y-6">
+    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
+
     <!-- Two columns from the narrowest width, compact tiles on phones; the odd one out spans the row. -->
     <section :class="metricGridClass">
       <SharedMetricTile
@@ -51,17 +53,19 @@ function dateLabel(value: string | null) {
         icon="i-lucide-list-checks"
         :label="t('projects.overview.openTasks')"
         :value="openTaskCount"
-        :hint="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })"
       />
+      <SharedRecordSection v-if="milestones.error.value" panel data-testid="project-overview-milestone-error" :title="t('projects.overview.nextMilestone')">
+        <SharedPageState :error="milestones.error.value" @retry="milestones.refetch()" />
+      </SharedRecordSection>
+      <SharedLoadingSkeleton v-else-if="milestones.isLoading.value" :count="1" />
       <!-- Localized Arabic dates contain bidi marks; preserve the locale direction. -->
       <SharedMetricTile
+        v-else
         :label="t('projects.overview.nextMilestone')"
         :value="nearestMilestone ? dateLabel(nearestMilestone.deadline) : null"
         :hint="nearestMilestone?.name ?? t(project.milestone_count === 0 ? 'projects.overview.noMilestones' : 'projects.overview.noUpcomingMilestone')"
       />
     </section>
-
-    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
 
     <SharedRecordSection panel data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
       <template #actions>
@@ -85,6 +89,12 @@ function dateLabel(value: string | null) {
         </div>
         <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
       </div>
+    </SharedRecordSection>
+    <SharedRecordSection panel :title="t('projects.overview.metadata')">
+      <dl class="grid grid-cols-2 gap-4">
+        <div><dt class="text-sm text-muted">{{ t('projects.overview.milestones') }}</dt><dd class="mt-1 font-medium tabular-nums">{{ project.milestone_count }}</dd></div>
+        <div><dt class="text-sm text-muted">{{ t('projects.overview.followers') }}</dt><dd class="mt-1 font-medium tabular-nums">{{ project.followers_count }}</dd></div>
+      </dl>
     </SharedRecordSection>
   </div>
 </template>

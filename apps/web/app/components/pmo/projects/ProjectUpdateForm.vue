@@ -61,7 +61,7 @@ async function submit() {
     </UFormField>
     <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
-      <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('app.create')" />
+      <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('projects.updates.publish')" />
     </SharedFormActions>
   </form>
 </template>

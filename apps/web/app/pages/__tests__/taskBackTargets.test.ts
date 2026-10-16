@@ -40,7 +40,7 @@ function loadSetupState(rel: string, router: Router, extraBindings: Record<strin
     ApiError: class ApiError extends Error {},
     returnToQuery: (value: string) => ({ returnTo: value }),
     safeReturnTo: (value: unknown, fallback: string) => (typeof value === 'string' ? value : fallback),
-    StakeholderForm: {}, RegisterForm: {}, TaskCreateForm: {}, TaskDetailPage: {}, TaskBoard: {}, TaskArchivedList: {}, TaskTable: {}, TaskToolbar: {},
+    StakeholderForm: {}, RegisterForm: {}, TaskCreateForm: {}, TaskDetailPage: {}, ProjectTaskScheduleSection: {}, TaskBoard: {}, TaskArchivedList: {}, TaskTable: {}, TaskToolbar: {},
     ...extraBindings,
   }
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))

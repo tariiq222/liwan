@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { projectRecordBack } from '@/utils/projectNavigation'
 import ProjectOverview from '@/components/pmo/projects/ProjectOverview.vue'
-import { formatCalendarDate } from '@/composables/calendarDate'
 import { ApiError } from '@/composables/useApi'
 import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { useProject, useProjectList } from '@/composables/useProjects'
@@ -10,7 +9,7 @@ import { returnToQuery } from '@/utils/safeReturnTo'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const projectId = computed(() => projectIdFromPath(route.path))
@@ -31,9 +30,7 @@ const copyTo = computed(() => ({
   query: { copyFrom: String(projectId.value), ...returnToQuery(route.fullPath) },
 }))
 
-function dateLabel(value: string | null | undefined) {
-  return value ? formatCalendarDate(value, locale.value) : null
-}
+
 </script>
 
 <template>
@@ -51,16 +48,6 @@ function dateLabel(value: string | null | undefined) {
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>
     <ProjectOverview v-if="project" :project="project" />
-    <template v-if="project" #summary>
-      <SharedPropertiesPanel>
-        <SharedPropertyRow v-if="project.date_start" :label="t('projects.charter.fields.date_start')"><bdi>{{ dateLabel(project.date_start) }}</bdi></SharedPropertyRow>
-        <SharedPropertyRow v-else :label="t('projects.charter.fields.date_start')" />
-        <SharedPropertyRow v-if="project.date_end" :label="t('projects.columns.dateEnd')"><bdi>{{ dateLabel(project.date_end) }}</bdi></SharedPropertyRow>
-        <SharedPropertyRow v-else :label="t('projects.columns.dateEnd')" />
-        <SharedPropertyRow :label="t('projects.overview.tasks')" :value="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })" />
-        <SharedPropertyRow :label="t('projects.overview.milestones')" :value="project.milestone_count" />
-        <SharedPropertyRow :label="t('projects.overview.followers')" :value="project.followers_count" />
-      </SharedPropertiesPanel>
-    </template>
+
   </SharedRecordPage>
 </template>

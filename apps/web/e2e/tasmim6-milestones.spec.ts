@@ -24,7 +24,8 @@ test.describe('Plan 6a: milestones', () => {
       await open(page, '/projects/2/milestones')
       const reached = rows(page).filter({ hasText: 'اعتماد الخطة' })
       await expect(reached).toContainText('تم')
-      await expect(reached.getByRole('switch')).toHaveCount(2)
+      await expect(reached.getByRole('switch')).toHaveCount(0)
+      await expect(reached).toContainText('2 من 2')
       const overdue = rows(page).filter({ hasText: 'إطلاق النموذج الأول' })
       await expect(overdue.locator('.text-error')).toHaveCount(1)
       await expect(overdue).toContainText('1 من 3')
@@ -47,7 +48,7 @@ test.describe('Plan 6a: milestones', () => {
       await open(page, '/projects/2/milestones')
       await page.getByTestId('project-workspace-name').click()
       await page.keyboard.press('c')
-      await expect(page).toHaveURL(/\/projects\/2\/milestones\/new$/)
+      await expect(page).toHaveURL(/\/projects\/2\/milestones\/new\?/)
       await expect(page.getByRole('dialog')).toBeVisible()
       await expect(page.locator('[data-template="list"]')).toHaveCount(1)
       await page.keyboard.press('Escape')
@@ -70,7 +71,7 @@ test.describe('Plan 6a: milestones', () => {
     test('a milestone with tasks cannot be deleted from its menu', async ({ page }) => {
       await open(page, '/projects/2/milestones')
       await page.getByRole('button', { name: 'إجراءات المعلم إطلاق النموذج الأول' }).click()
-      await expect(page.getByRole('menuitem', { name: /حذف \(مرتبط بـ 3 مهمة\)/ })).toBeDisabled()
+      await expect(page.getByRole('menuitem', { name: /حذف \(مرتبط بـ 3 مهام\)/ })).toBeDisabled()
     })
 
     test('the edit form stays within 58rem at all three root font sizes', async ({ page }) => {
@@ -92,7 +93,9 @@ test.describe('Plan 6a: milestones', () => {
       await expect(rows(page)).toHaveCount(3)
       await expect(page.getByTestId('project-header-create')).toHaveCount(0)
       await expect(page.getByTestId('milestone-actions')).toHaveCount(0)
-      await expect(rows(page).first().getByRole('switch').first()).toBeDisabled()
+      await expect(rows(page).first().getByRole('switch')).toHaveCount(0)
+      await rows(page).first().getByRole('link', { name: 'اعتماد الخطة', exact: true }).click()
+      await expect(page.getByRole('switch').first()).toBeDisabled()
     })
   })
 

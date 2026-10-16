@@ -7,7 +7,7 @@ import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@/components/shared/data/FilterBar.vue'
 
 const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; embedded?: boolean; collapsible?: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [TaskListParams] }>()
+const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; search: [string] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 
@@ -57,6 +57,7 @@ function removeState(s: TaskState) {
 // `search` updates every keystroke for a snappy field, while `debouncedSearch`
 // (and therefore `modelValue.q`) only settles 300ms after typing stops.
 const search = ref(props.modelValue.q ?? '')
+watch(search, value => emit('search', value), { flush: 'sync' })
 const debouncedSearch = refDebounced(search, 300)
 watch(debouncedSearch, (q) => patch({ q: q || undefined }))
 // If params are reset from elsewhere (e.g. restored from localStorage after

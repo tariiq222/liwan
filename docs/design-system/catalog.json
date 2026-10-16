@@ -1091,12 +1091,12 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/projects/[id]/raci.vue:111"
+          "context": "apps/web/app/pages/projects/[id]/raci.vue:113"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/projects/[id]/raci.vue:111"
+          "context": "apps/web/app/pages/projects/[id]/raci.vue:113"
         }
       ]
     },
@@ -1231,7 +1231,7 @@
         {
           "id": "BesideFieldLabel",
           "name": "بجانب عنوان الحقل",
-          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:132"
+          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:133"
         }
       ]
     },
@@ -1308,7 +1308,7 @@
         },
         {
           "name": "level",
-          "type": "\"sections\" | \"governance\"",
+          "type": "\"sections\" | \"governance\" | \"planning\"",
           "required": false,
           "default": "\"sections\""
         }
@@ -1320,17 +1320,22 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:114"
+          "context": "apps/web/app/pages/projects/[id].vue:115"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:114"
+          "context": "apps/web/app/pages/projects/[id].vue:115"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:114"
+          "context": "apps/web/app/pages/projects/[id].vue:115"
+        },
+        {
+          "id": "Planning",
+          "name": "التخطيط: الجدول الزمني والمعالم",
+          "context": "apps/web/app/pages/projects/[id].vue:115"
         }
       ]
     },
@@ -2481,12 +2486,12 @@
         {
           "id": "Menu",
           "name": "قائمة إجراءات",
-          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:183"
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:147"
         },
         {
           "id": "SingleAction",
           "name": "إجراء واحد",
-          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:183"
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:147"
         }
       ]
     },
@@ -3390,7 +3395,7 @@
         {
           "id": "Single",
           "name": "اختيار واحد",
-          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:235"
+          "context": "apps/web/app/components/pmo/projects/ProjectCharterFields.vue:238"
         },
         {
           "id": "Multiple",
@@ -3484,12 +3489,12 @@
         {
           "id": "InProjectSettings",
           "name": "في إعدادات المشروع",
-          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:190"
+          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:188"
         },
         {
           "id": "WithoutCreate",
           "name": "بلا صلاحية إنشاء وسم",
-          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:190"
+          "context": "apps/web/app/components/pmo/projects/ProjectGeneralForm.vue:188"
         }
       ]
     },
@@ -4146,7 +4151,7 @@
         {
           "id": "Workspace",
           "name": "أقسام المشروع",
-          "context": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue:41"
+          "context": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue:45"
         }
       ]
     },
