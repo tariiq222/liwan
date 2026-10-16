@@ -46,7 +46,7 @@ export async function setRoles(client: PoolClient, issuer: string, actor: { id: 
   const target = await client.query('SELECT status FROM vendor_accounts WHERE id=$1', [accountId])
   if (!target.rowCount || target.rows[0].status === 'disabled') throw new AdminAuthError(422, 'invalid')
   if (owners.includes(Number(accountId)) && !roles.includes('owner') && owners.length <= 1) throw new AdminAuthError(409, 'last_owner')
-  if (actor !== 'operator' && Number(actor.id) === Number(accountId) && owners.filter((id) => id !== Number(accountId)).length === 0) throw new AdminAuthError(409, 'last_owner')
+  if (actor !== 'operator' && !roles.includes('owner') && Number(actor.id) === Number(accountId) && owners.filter((id) => id !== Number(accountId)).length === 0) throw new AdminAuthError(409, 'last_owner')
   await client.query('DELETE FROM vendor_account_roles WHERE account_id=$1', [accountId])
   for (const role of roles) await client.query('INSERT INTO vendor_account_roles(account_id,role) VALUES($1,$2)', [accountId, role])
   await syncMembership(client, issuer, accountId)

@@ -82,6 +82,11 @@ describe('mock account routes', () => {
     expect((await signed('/v1/admin/accounts/1/disable', 'POST', { reason: 'cleanup' }, session)).body).toEqual({ code: 'last_owner' })
   })
 
+  it('lets the only owner edit own roles while keeping owner', async () => {
+    const session = await ownerSession()
+    expect((await signed('/v1/admin/accounts/1/roles', 'POST', { roles: ['owner', 'finance'], reason: 'add finance' }, session)).status).toBe(204)
+  })
+
   it('asks for a step-up on a mutation when it is due', async () => {
     const session = await ownerSession()
     await fetch(`${base}/__mock/config`, { method: 'POST', body: JSON.stringify({ stepUpRequired: true }) })
