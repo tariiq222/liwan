@@ -4,7 +4,7 @@
 
 عند التعارض: تعليمات المستخدم في المحادثة الحالية، ثم هذا الملف، ثم [فهرس المكونات](docs/design-system/components.md). العقود والأمن والبيانات في [AGENTS.md](AGENTS.md) لا يغيّرها الشكل.
 
-النطاق: `apps/web` و`apps/vendor-admin` والطبقتان المشتركتان `packages/ui` و`packages/commercial-ui`. ثيم كونسول البائع `web_theme_shadcn` خارج هذا الدستور.
+النطاق: `apps/web` و`apps/vendor-admin` والطبقتان المشتركتان `packages/ui` و`packages/commercial-ui`.
 
 ## ابدأ هنا
 

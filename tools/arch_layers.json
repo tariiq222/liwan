@@ -18,7 +18,6 @@
   },
   "exempt": [
     "cyan_meeting_minutes",
-    "web_theme_shadcn",
     "nasq_registry_probe"
   ],
   "web_apps": {
