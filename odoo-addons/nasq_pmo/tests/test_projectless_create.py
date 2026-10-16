@@ -18,7 +18,7 @@ class TestProjectlessCreateHook(NasqPmoCase):
             type(Task), '_nasq_projectless_create_allowed', return_value=False,
         ), self.assertRaisesRegex(AccessError, 'A visible current-company project is required'):
             Task.with_user(self.employee).create({
-                'name': 'no project', 'company_id': self.env.company.id,
+                'name': 'no project',
             })
 
     def test_hook_default_is_false(self):

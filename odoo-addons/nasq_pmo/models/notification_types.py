@@ -1,31 +1,36 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""nasq_pmo's notification kinds in the nasq_notify registry: tasks and the overdue digest.
+"""nasq_pmo's notification kinds in the nasq_notify registry: tasks, the overdue digest and the charter approval.
 
 Documented notification sudo: the candidate lookup below reads only the
-current partner's own inbox rows; whether the task is still readable is
-decided by an ordinary search in the caller's environment.
+current partner's own inbox rows; whether the task or project is still
+readable is decided by an ordinary search in the caller's environment.
 """
 from odoo import api, models
 
-from odoo.addons.nasq_pmo.serializers.notification import dump_notification
+from odoo.addons.nasq_pmo.serializers.notification import (
+    CHARTER_DECISION_KINDS,
+    CHARTER_KINDS,
+    CHARTER_REVIEW_KIND,
+    dump_notification,
+)
 
 TASK_KINDS = ('assignment', 'comment', 'mention', 'deadline')
 DIGEST_KIND = 'overdue_digest'
 
 
-def recipient_candidate_task_ids(env):
-    """Task ids on inbox nasq rows owned by the current partner.
+def recipient_candidate_ids(env, model, source_field):
+    """Source record ids on inbox nasq rows of ``model`` owned by the current partner.
 
     The recipient restriction is in the domain before the elevated
-    ``mail.notification`` read. This does not search ``project.task``.
+    ``mail.notification`` read. This does not search the source model.
     """
     rows = env['mail.notification'].sudo().search([
         ('res_partner_id', '=', env.user.partner_id.id),
         ('mail_message_id.nasq_notification', '=', True),
-        ('mail_message_id.model', '=', 'project.task'),
+        ('mail_message_id.model', '=', model),
         ('notification_type', '=', 'inbox'),
     ])
-    return rows.mapped('mail_message_id.nasq_task_id').ids
+    return rows.mapped(f'mail_message_id.{source_field}').ids
 
 
 def readable_active_task_ids(env, candidate_ids=None):
@@ -38,7 +43,7 @@ def readable_active_task_ids(env, candidate_ids=None):
     if not env['nasq.access.service']._nasq_has_capability(env.user, 'pmo.tasks.read') or not env['project.task'].has_access('read'):
         return []
     if candidate_ids is None:
-        candidate_ids = recipient_candidate_task_ids(env)
+        candidate_ids = recipient_candidate_ids(env, 'project.task', 'nasq_task_id')
     if not candidate_ids:
         return []
     company_id = env.company.id
@@ -58,6 +63,23 @@ def readable_active_task_ids(env, candidate_ids=None):
     ]).ids
 
 
+def readable_active_project_ids(env):
+    """Caller-visible active current-company projects among recipient candidates.
+
+    Project search is never sudo'd, so the caller's record rules decide.
+    """
+    if not env['nasq.access.service']._nasq_has_capability(env.user, 'pmo.projects.read') or not env['project.project'].has_access('read'):
+        return []
+    candidate_ids = recipient_candidate_ids(env, 'project.project', 'nasq_project_id')
+    if not candidate_ids:
+        return []
+    return env['project.project'].search([
+        ('id', 'in', candidate_ids),
+        ('active', '=', True),
+        ('company_id', '=', env.company.id),
+    ]).ids
+
+
 def digest_live_tasks(env, row):
     """The digest's snapshot tasks the caller can still read, in the caller's environment."""
     Task = env['project.task']
@@ -67,7 +89,7 @@ def digest_live_tasks(env, row):
     return Task._nasq_live_digest_tasks(snapshot)
 
 
-class NasqPmoTaskNotificationTypes(models.AbstractModel):
+class NasqPmoNotificationTypes(models.AbstractModel):
     _inherit = 'nasq.notify.registry'
 
     @api.model
@@ -79,10 +101,23 @@ class NasqPmoTaskNotificationTypes(models.AbstractModel):
                 for kind in TASK_KINDS
             ),
             {'kind': DIGEST_KIND, 'owner': 'nasq_pmo', 'model': 'res.company', 'feature_key': 'pmo.enabled', 'live': True},
+            *(
+                {'kind': kind, 'owner': 'nasq_pmo', 'model': 'project.project', 'feature_key': 'pmo.enabled'}
+                for kind in CHARTER_KINDS
+            ),
         )
 
     @api.model
     def _nasq_notify_visible_domain(self):
+        project_ids = readable_active_project_ids(self.env)
+        # The review row only lives while that project's charter still waits for its sponsor.
+        # Without readable projects there is nothing to search, and a caller without
+        # pmo.projects.read must not reach the guarded project search at all.
+        review_ids = self.env['project.project'].search([
+            ('id', 'in', project_ids),
+            ('nasq_charter_state', '=', 'submitted'),
+            ('nasq_sponsor_id', '=', self.env.user.id),
+        ]).ids if project_ids else []
         return [
             *super()._nasq_notify_visible_domain(),
             [
@@ -95,6 +130,16 @@ class NasqPmoTaskNotificationTypes(models.AbstractModel):
                 ('mail_message_id.model', '=', 'project.task'),
                 ('mail_message_id.nasq_task_id', 'in', readable_active_task_ids(self.env)),
             ],
+            [
+                ('mail_message_id.nasq_notification_kind', '=', CHARTER_REVIEW_KIND),
+                ('mail_message_id.model', '=', 'project.project'),
+                ('mail_message_id.nasq_project_id', 'in', review_ids),
+            ],
+            [
+                ('mail_message_id.nasq_notification_kind', 'in', list(CHARTER_DECISION_KINDS)),
+                ('mail_message_id.model', '=', 'project.project'),
+                ('mail_message_id.nasq_project_id', 'in', project_ids),
+            ],
         ]
 
     @api.model
@@ -106,6 +151,6 @@ class NasqPmoTaskNotificationTypes(models.AbstractModel):
 
     @api.model
     def _nasq_notify_dump(self, row, extra):
-        if row.mail_message_id.nasq_notification_kind in (*TASK_KINDS, DIGEST_KIND):
+        if row.mail_message_id.nasq_notification_kind in (*TASK_KINDS, DIGEST_KIND, *CHARTER_KINDS):
             return dump_notification(row, extra)
         return super()._nasq_notify_dump(row, extra)

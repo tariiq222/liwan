@@ -260,6 +260,35 @@
       "showLess": "Show less",
       "titleRequired": "Enter an update title."
     },
+    "phase": {
+      "title": "Project phase",
+      "position": "{current} of {total}",
+      "steps": {
+        "initiating": "Initiating",
+        "planning": "Planning",
+        "executing": "Executing",
+        "closing": "Closing",
+        "closed": "Closed"
+      },
+      "gateTitle": "Move to {phase}",
+      "checks": {
+        "charter_approved": "Charter approved",
+        "unknown": "Unknown requirement"
+      },
+      "met": "Met",
+      "unmet": "Not met",
+      "fix": "Complete",
+      "moveTo": "Move to {phase}",
+      "backTo": "Back to {phase}",
+      "backConfirm": "Go back to {phase}?",
+      "closedNotice": "This project is closed",
+      "stale": "The project changed during the move. Review the current version and try again.",
+      "errors": {
+        "gate": "The requirements for this move are not met yet.",
+        "step": "A project moves one phase at a time.",
+        "forbidden": "You do not have permission to change the project phase."
+      }
+    },
     "charter": {
       "title": "Project file",
       "pageDescription": "The source of record for purpose, scope, and deliverables.",

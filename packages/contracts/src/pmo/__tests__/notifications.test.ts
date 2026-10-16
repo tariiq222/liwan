@@ -1,12 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import {
+  NotificationKindSchema,
   NotificationListSchema,
   NotificationReadResultSchema,
   NotificationSchema,
+  ProjectNotificationKindSchema,
   UnknownNotificationSchema,
 } from '../notification'
 
 describe('notification contracts', () => {
+  it('accepts the charter bell rows and rejects task keys on them', () => {
+    const row = {
+      id: 11, kind: 'charter_review', project_id: 4, project_name: 'Erada Portal',
+      body: 'Mona asked you to review the charter', created_at: '2026-10-15T10:00:00Z', is_read: false,
+    }
+    for (const kind of ['charter_review', 'charter_approved', 'charter_returned'] as const) {
+      expect(NotificationSchema.parse({ ...row, kind }).kind).toBe(kind)
+      expect(ProjectNotificationKindSchema.parse(kind)).toBe(kind)
+      expect(NotificationKindSchema.parse(kind)).toBe(kind)
+    }
+    expect(NotificationListSchema.parse({ items: [row], total: 1, unread_count: 1 }).items).toEqual([row])
+    expect(() => NotificationSchema.parse({ ...row, task_id: 2 })).toThrow()
+    expect(() => NotificationSchema.parse({ ...row, project_id: undefined })).toThrow()
+  })
+
   it('accepts the list and read response wire shapes', () => {
     const notification = {
       id: 7, kind: 'comment', task_id: 12, task_name: 'Review brief',

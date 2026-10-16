@@ -8,7 +8,7 @@ const meta = {
   title: 'Project/ProjectWorkspaceTabs',
   component: ProjectWorkspaceTabs,
   args: { projectId: 1, active: true },
-  parameters: storyContext('apps/web/app/pages/projects/[id].vue:115', 'شريط أقسام المشروع: خط سفلي مستقيم للقسم الحالي وزوايا غير منحنية.'),
+  parameters: storyContext('apps/web/app/pages/projects/[id].vue:117', 'شريط أقسام المشروع: خط سفلي مستقيم للقسم الحالي وزوايا غير منحنية.'),
   render: args => ({
     components: { ProjectWorkspaceTabs },
     setup: () => {

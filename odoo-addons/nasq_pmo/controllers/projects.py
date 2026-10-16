@@ -19,6 +19,7 @@ from odoo.addons.nasq_pmo.models.project_project import (
 from odoo.addons.nasq_pmo.serializers.project import (
     dump_project,
     dump_project_detail,
+    dump_project_task_summary,
     parse_project_copy,
     parse_project_create,
     parse_project_vals,
@@ -90,7 +91,7 @@ class ProjectController(http.Controller):
             # name/id order breaks ties at the same rounded value shown in UI.
             readable = Project.search(domain, order='name, id')
             projects = readable.sorted(
-                key=lambda project: -round(project.task_completion_percentage * 100),
+                key=lambda project: -dump_project_task_summary(project)['progress'],
             )[offset:offset + limit]
         else:
             projects = Project.search(domain, order='name, id', limit=limit, offset=offset)
