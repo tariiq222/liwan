@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { invoiceSchema, TAX_LABEL, type Invoice, type Quote } from '@nasq/commercial-contracts'
+import { invoiceSchema, invoiceStatusSchema, TAX_LABEL, type Invoice, type Money, type Quote } from '@nasq/commercial-contracts'
 
 export type InvoiceView = Invoice
+/** Vendor-console view: the customer-facing invoice plus the customer's name (never sent to customers). */
+export type VendorInvoiceView = InvoiceView & { customer_name: string }
+export type VendorInvoiceSummary = { outstanding: Money[]; overdue_count: number }
 type Q = Pick<Pool, 'query'>
 
 const d = (v: unknown): string => (v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10))
@@ -98,4 +101,46 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
   if (customer_id) { args.push(customer_id); w += ' AND customer_id = $2' }
   const rows = (await pool.query(`SELECT * FROM invoices WHERE ${w}`, args)).rows
   return (await hydrate(pool, rows))[0] ?? null
+}
+
+async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]> {
+  const views = await hydrate(pool, rows)
+  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string }))
+}
+
+export async function getVendorInvoice(pool: Q, id: string): Promise<VendorInvoiceView | null> {
+  const rows = (await pool.query('SELECT i.*, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.id = $1', [id])).rows
+  return (await hydrateVendor(pool, rows))[0] ?? null
+}
+
+/** Vendor list: filtered page plus honest server-side figures for the same customer scope (issued = outstanding; overdue = issued past due_at). */
+export async function listVendorInvoices(
+  pool: Q,
+  { customer_id, status, limit = 50, offset = 0 }: { customer_id?: string; status?: string; limit?: number; offset?: number } = {},
+): Promise<{ items: VendorInvoiceView[]; total: number; summary: VendorInvoiceSummary }> {
+  if (status !== undefined) invoiceStatusSchema.parse(status)
+  const scope: string[] = []
+  const scopeArgs: unknown[] = []
+  if (customer_id) { scopeArgs.push(customer_id); scope.push(`i.customer_id = $${scopeArgs.length}`) }
+  const scopeWhere = scope.length ? `WHERE ${scope.join(' AND ')}` : ''
+  const where = [...scope]
+  const args = [...scopeArgs]
+  if (status) { args.push(status); where.push(`i.status = $${args.length}`) }
+  const w = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  const total = num((await pool.query(`SELECT count(*)::int AS n FROM invoices i ${w}`, args)).rows[0].n)
+  const rows = (await pool.query(
+    `SELECT i.*, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id ${w}
+     ORDER BY i.created_at DESC, i.id LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
+    [...args, limit, offset],
+  )).rows
+  const issued = scopeWhere ? `${scopeWhere} AND i.status = 'issued'` : `WHERE i.status = 'issued'`
+  const sums = (await pool.query(
+    `SELECT i.currency, i.exponent, sum(i.total_minor)::bigint AS minor FROM invoices i ${issued} GROUP BY i.currency, i.exponent ORDER BY i.currency`,
+    scopeArgs,
+  )).rows
+  const overdue = num((await pool.query(`SELECT count(*)::int AS n FROM invoices i ${issued} AND i.due_at < now()`, scopeArgs)).rows[0].n)
+  return {
+    items: await hydrateVendor(pool, rows), total,
+    summary: { outstanding: sums.map(r => ({ currency: r.currency, exponent: num(r.exponent), minor: num(r.minor) })), overdue_count: overdue },
+  }
 }

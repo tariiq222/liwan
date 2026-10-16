@@ -447,6 +447,7 @@
         "id": "inv-1",
         "number": "INV-0001",
         "customer_id": "cust-alpha",
+        "customer_name": "شركة ألفا",
         "subscription_id": "sub-alpha",
         "order_id": null,
         "kind": "initial",
@@ -502,6 +503,7 @@
         "id": "inv-2",
         "number": "INV-0002",
         "customer_id": "cust-alpha",
+        "customer_name": "شركة ألفا",
         "subscription_id": "sub-alpha",
         "order_id": null,
         "kind": "initial",
@@ -556,6 +558,7 @@
         "id": "inv-3",
         "number": null,
         "customer_id": "cust-beta",
+        "customer_name": "شركة بيتا",
         "subscription_id": "sub-beta",
         "order_id": "order-beta",
         "kind": "initial",
@@ -607,7 +610,8 @@
         "official_tax_invoice": false
       }
     ],
-    "total": 3
+    "total": 3,
+    "summary": { "outstanding": [], "overdue_count": 0 }
   },
   "paymentAttempts": {
     "order-beta": {
@@ -1427,6 +1431,7 @@
     "sub-alpha": {
       "id": "sub-alpha",
       "customer_id": "cust-alpha",
+        "customer_name": "شركة ألفا",
       "tenant_id": "tenant-1",
       "state": "active",
       "applied": {
@@ -1434,6 +1439,7 @@
         "subscription_id": "sub-alpha",
         "revision": 1,
         "customer_id": "cust-alpha",
+        "customer_name": "شركة ألفا",
         "tenant_id": "tenant-1",
         "plan_revision_id": "00000000-0000-4000-8000-000000000010",
         "bundle_revision_ids": [
@@ -1473,6 +1479,7 @@
         "subscription_id": "sub-alpha",
         "revision": 1,
         "customer_id": "cust-alpha",
+        "customer_name": "شركة ألفا",
         "tenant_id": "tenant-1",
         "plan_revision_id": "00000000-0000-4000-8000-000000000010",
         "bundle_revision_ids": [
@@ -1521,6 +1528,7 @@
     "sub-beta": {
       "id": "sub-beta",
       "customer_id": "cust-beta",
+        "customer_name": "شركة بيتا",
       "tenant_id": null,
       "state": "pending",
       "applied": null,
@@ -1529,6 +1537,7 @@
         "subscription_id": "sub-beta",
         "revision": 1,
         "customer_id": "cust-beta",
+        "customer_name": "شركة بيتا",
         "tenant_id": "tenant-2",
         "plan_revision_id": "00000000-0000-4000-8000-000000000010",
         "bundle_revision_ids": [
@@ -1566,6 +1575,7 @@
       "pending_order": {
         "id": "order-beta",
         "customer_id": "cust-beta",
+        "customer_name": "شركة بيتا",
         "subscription_id": "sub-beta",
         "kind": "new",
         "quote_id": "quote-sub-beta",
