@@ -17,13 +17,16 @@ const ALLOWED = [
   /^\/v1\/admin\/(me|accounts)$/,
   /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,
 ]
+// Package revisions are read-only history (the control plane answers 410 to any write).
+const READ_ONLY = [new RegExp(`^/v1/packages(/${SEGMENT})?$`)]
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */
-function upstreamPath(event: H3Event): string {
+function upstreamPath(event: H3Event, method: string): string {
   const url = getRequestURL(event)
   if (!url.pathname.startsWith(BROWSER_PREFIX)) bffFail(404, 'not_found')
   const path = `/v1/${url.pathname.slice(BROWSER_PREFIX.length)}`
-  if (!ALLOWED.some(pattern => pattern.test(path))) bffFail(404, 'not_found')
+  const allowed = ALLOWED.some(pattern => pattern.test(path)) || (method === 'GET' && READ_ONLY.some(pattern => pattern.test(path)))
+  if (!allowed) bffFail(404, 'not_found')
   return `${path}${url.search}`
 }
 
@@ -35,7 +38,7 @@ export async function proxyVendorRequest(event: H3Event): Promise<unknown> {
   assertSameOrigin(event)
   const session = readSession(event)
   if (!session) return bffFail(401, 'unauthorized')
-  const path = upstreamPath(event)
+  const path = upstreamPath(event, method)
   const body = method === 'GET' ? undefined : (await readJsonObject(event, PROXY_INVALID)).raw
   const result = await controlCall(event, { path, method, body, session })
   if (result.status === 401) clearSession(event)

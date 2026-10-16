@@ -111,12 +111,19 @@ describe('vendor API proxy', () => {
 
   it('forwards only the vendor surface the console uses', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/commercial/customers', '/commercial/orders/ab-1/cancel', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
+    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/orders/ab-1/cancel', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
     for (const path of allowed) expect((await get(path)).status, path).toBe(200)
     expect(calls).toHaveLength(allowed.length)
-    const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts']
+    const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx']
     for (const path of denied) expect((await get(path)).status, path).toBe(404)
     expect(calls).toHaveLength(allowed.length)
+  })
+
+  it('allows only GET on packages', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await post('/packages/00000000-0000-4000-8000-000000000001')).status).toBe(404)
+    expect((await post('/packages')).status).toBe(404)
+    expect(calls).toHaveLength(0)
   })
 
   it('drops every upstream header, including set-cookie', async () => {

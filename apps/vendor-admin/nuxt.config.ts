@@ -7,8 +7,7 @@ import { discoverLocaleFiles } from './i18n/localeFiles'
 const localeFiles = discoverLocaleFiles(fileURLToPath(new URL('./i18n/locales', import.meta.url)))
 
 export default defineNuxtConfig({
-  // The second layer (@nasq/commercial-ui) is added when the billing-presentation move lands.
-  extends: ['@nasq/ui'],
+  extends: ['@nasq/ui', '@nasq/commercial-ui'],
   compatibilityDate: '2025-07-15',
   hooks: {
     ready(nuxt) {
