@@ -1,22 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="webvue_meeting_minutes_landscape" model="report.paperformat">
-        <field name="name">webvue meeting minutes landscape</field>
-        <field name="format">A4</field>
-        <field name="orientation">Landscape</field>
-        <field name="margin_top">12</field>
-        <field name="margin_bottom">12</field>
-        <field name="margin_left">12</field>
-        <field name="margin_right">12</field>
-        <field name="header_line">False</field>
-        <field name="dpi">90</field>
-    </record>
-    <record id="cyan_meeting_minutes.action_report_meeting_minutes" model="ir.actions.report">
-        <field name="paperformat_id" ref="webvue_meetings.webvue_meeting_minutes_landscape"/>
-    </record>
-    <template id="report_meeting_minutes_document_history"
-              inherit_id="cyan_meeting_minutes.report_meeting_minutes_document">
-        <xpath expr="//div[contains(concat(' ', normalize-space(@class), ' '), ' page ')]" position="replace">
+    <template id="report_meeting_minutes_document">
+        <t t-call="web.external_layout">
+            <t t-set="doc" t-value="doc.with_context(lang=doc.env.user.lang)"/>
             <div class="page" t-att-dir="'rtl' if doc.env.user.lang and doc.env.user.lang.startswith('ar') else 'ltr'">
                 <t t-set="is_ar" t-value="doc.env.user.lang and doc.env.user.lang.startswith('ar')"/>
                 <t t-set="state_labels" t-value="{'open': 'مفتوح', 'in_progress': 'قيد التنفيذ', 'done': 'مكتمل', 'cancelled': 'ملغى'} if is_ar else {'open': 'Open', 'in_progress': 'In progress', 'done': 'Done', 'cancelled': 'Cancelled'}"/>
@@ -229,6 +215,12 @@
                     </table>
                 </t>
             </div>
-        </xpath>
+        </t>
+    </template>
+
+    <template id="report_meeting_minutes">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc"><t t-call="webvue_meetings.report_meeting_minutes_document"/></t>
+        </t>
     </template>
 </odoo>

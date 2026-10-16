@@ -1,14 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Global rules intersect Cyan's support-group rules for every ORM access path. -->
+    <!-- Global rules apply to every ORM access path: capability, company and participation. -->
     <record id="rule_meeting_capability_scope" model="ir.rule">
         <field name="name">WebVue meetings: current company capability and participation</field>
-        <field name="model_id" ref="cyan_meeting_minutes.model_cyan_meeting_minute"/>
+        <field name="model_id" ref="model_webvue_meeting_minute"/>
         <field name="domain_force">user._webvue_meeting_access_domain(company_id)</field>
     </record>
     <record id="rule_resolution_capability_scope" model="ir.rule">
         <field name="name">WebVue resolutions: current company capability and participation</field>
-        <field name="model_id" ref="cyan_meeting_minutes.model_cyan_meeting_resolution"/>
+        <field name="model_id" ref="model_webvue_meeting_resolution"/>
         <field name="domain_force">user._webvue_meeting_access_domain(company_id, resolution=True)</field>
+    </record>
+    <!-- Group rules narrow who may write: organizers and secretaries edit minutes, and
+         assignees also update their recommendations. Managers write every record they can read. -->
+    <record id="rule_meeting_editors_write" model="ir.rule">
+        <field name="name">WebVue meetings: organizers and secretaries write</field>
+        <field name="model_id" ref="model_webvue_meeting_minute"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_read'))]"/>
+        <field name="domain_force">['|', ('organizer_id', '=', user.id), ('secretary_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_meeting_managers_write" model="ir.rule">
+        <field name="name">WebVue meetings: managers write company records</field>
+        <field name="model_id" ref="model_webvue_meeting_minute"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_manage'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+    <record id="rule_resolution_editors_write" model="ir.rule">
+        <field name="name">WebVue resolutions: editors and assignees write</field>
+        <field name="model_id" ref="model_webvue_meeting_resolution"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_read'))]"/>
+        <field name="domain_force">['|', '|', ('meeting_id.organizer_id', '=', user.id), ('meeting_id.secretary_id', '=', user.id), ('responsible_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_resolution_managers_write" model="ir.rule">
+        <field name="name">WebVue resolutions: managers write company records</field>
+        <field name="model_id" ref="model_webvue_meeting_resolution"/>
+        <field name="groups" eval="[(4, ref('group_cap_meetings_manage'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
     </record>
 </odoo>

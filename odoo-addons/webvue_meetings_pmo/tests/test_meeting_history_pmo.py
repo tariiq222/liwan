@@ -93,7 +93,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
             'minutes': '<p>Release minutes</p>',
         }
         defaults.update(values)
-        return self.env['cyan.meeting.minute'].create(defaults)
+        return self.env['webvue.meeting.minute'].create(defaults)
 
     def _complete(self, meeting):
         meeting.with_user(self.manager).action_confirm()
@@ -101,14 +101,14 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
 
     def test_completion_freezes_snapshot_while_live_resolution_changes(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Publish release notes',
             'responsible_id': self.employee.id,
             'deadline': '2026-09-12',
             'result': '<p>Queued</p>',
         })
-        linked_resolution = self.env['cyan.meeting.resolution'].create({
+        linked_resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Track deployment task',
             'responsible_id': self.employee.id,
@@ -127,9 +127,9 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
         self.assertEqual(snapshot['resolutions'][0]['name'], 'Publish release notes')
         self.assertEqual(snapshot['resolutions'][0]['result'], '<p>Queued</p>')
         self.assertIn('captured_at', snapshot)
-        report = self.env.ref('cyan_meeting_minutes.action_report_meeting_minutes')
+        report = self.env.ref('webvue_meetings.action_report_meeting_minutes')
         historical_html, _type = report._render_qweb_html(
-            'cyan_meeting_minutes.action_report_meeting_minutes', meeting.ids,
+            'webvue_meetings.action_report_meeting_minutes', meeting.ids,
         )
         historical_payload = historical_html if isinstance(historical_html, str) else historical_html.decode()
         self.assertIn('Release minutes', historical_payload)
@@ -147,7 +147,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
         )
         self.assertEqual(linked_historical['state'], 'in_progress')
         current_html, _type = report._render_qweb_html(
-            'cyan_meeting_minutes.action_report_meeting_minutes', meeting.ids,
+            'webvue_meetings.action_report_meeting_minutes', meeting.ids,
         )
         current_payload = current_html if isinstance(current_html, str) else current_html.decode()
         self.assertIn('Release minutes', current_payload)
@@ -164,7 +164,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
 
     def test_later_task_cannot_change_an_earlier_snapshot(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Earlier captured resolution',
             'responsible_id': self.employee.id,
@@ -184,7 +184,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
             start_datetime='2026-09-09 07:00:00',
             end_datetime='2026-09-09 08:00:00',
         )
-        later_resolution = self.env['cyan.meeting.resolution'].create({
+        later_resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': later_meeting.id,
             'name': 'Later task',
             'responsible_id': self.employee.id,
@@ -202,7 +202,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
 
     def test_snapshot_has_no_task_ids_or_action_permissions(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Converted task',
             'responsible_id': self.employee.id,
@@ -219,7 +219,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
 
     def test_snapshot_does_not_copy_status_from_task_outside_current_read_scope(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Private task status',
             'responsible_id': self.employee.id,
@@ -241,7 +241,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
 
     def test_private_backing_is_hidden_and_projection_rechecks_current_reader_for_api_and_pdf(self):
         meeting = self._meeting(attendee_ids=[(6, 0, [self.employee.id, self.history_reader.id])])
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Reader-safe task',
             'responsible_id': self.employee.id,
@@ -258,9 +258,9 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
         self.assertEqual(row['state'], 'open')
         self.assertNotIn('task_id', json.dumps(public))
 
-        report = self.env.ref('cyan_meeting_minutes.action_report_meeting_minutes')
+        report = self.env.ref('webvue_meetings.action_report_meeting_minutes')
         html, _type = report.with_user(self.history_reader)._render_qweb_html(
-            'cyan_meeting_minutes.action_report_meeting_minutes', meeting.ids,
+            'webvue_meetings.action_report_meeting_minutes', meeting.ids,
         )
         payload = html if isinstance(html, str) else html.decode()
         self.assertIn('Open', payload)
@@ -268,7 +268,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
 
     def test_archived_task_does_not_project_into_history(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Archived task',
             'responsible_id': self.employee.id,
@@ -287,7 +287,7 @@ class TestMeetingHistoryProjects(WebVuePmoCase):
 
     def test_converted_task_projection_uses_integer_resolution_id(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Task projection',
             'responsible_id': self.employee.id,

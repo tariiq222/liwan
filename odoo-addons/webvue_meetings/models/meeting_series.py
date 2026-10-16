@@ -45,7 +45,7 @@ class WebVueMeetingSeries(models.Model):
     until_count = fields.Integer()
     location = fields.Char()
     meeting_url = fields.Char()
-    meeting_ids = fields.One2many('cyan.meeting.minute', 'series_id')
+    meeting_ids = fields.One2many('webvue.meeting.minute', 'series_id')
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -130,7 +130,7 @@ class WebVueMeetingSeries(models.Model):
             vals['start_datetime'] = start
             vals['end_datetime'] = stop
             vals['meeting_date'] = self._webvue_local_start(start).date()
-        return self.env['cyan.meeting.minute'].create(vals)
+        return self.env['webvue.meeting.minute'].create(vals)
 
     def action_generate_occurrences(self, start, stop):
         self.ensure_one()
@@ -196,7 +196,7 @@ class WebVueMeetingSeries(models.Model):
                 '|', ('base_event_id', '=', event.id), ('calendar_event_ids', 'in', event.ids),
             ], limit=1)
             occurrences = (recurrence.calendar_event_ids if recurrence else event).filtered('active').sorted('start')
-            meetings = self.env['cyan.meeting.minute']
+            meetings = self.env['webvue.meeting.minute']
             for occurrence in occurrences:
                 vals = self._webvue_meeting_defaults()
                 vals.update(
@@ -204,8 +204,8 @@ class WebVueMeetingSeries(models.Model):
                     end_datetime=occurrence.stop,
                     meeting_date=self._webvue_local_start(occurrence.start).date(),
                 )
-                meeting = self.env['cyan.meeting.minute'].create(vals)
-                meeting._cyan_link_calendar_event(occurrence)
+                meeting = self.env['webvue.meeting.minute'].create(vals)
+                meeting._webvue_link_calendar_event(occurrence)
                 meetings |= meeting
         finally:
             _SERIES_GENERATION.reset(generation)

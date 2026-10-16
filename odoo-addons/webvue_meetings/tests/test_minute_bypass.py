@@ -3,20 +3,11 @@ from datetime import timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessError, UserError
-from odoo.tests import new_test_user
 
-from .common import CyanMeetingCase
+from .common import WebVueMeetingEngineCase
 
 
-class TestBypass(CyanMeetingCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.calendar_only = new_test_user(
-            cls.env, login="cyan_cal_only", groups="base.group_user",
-            company_id=cls.company.id, company_ids=[cls.company.id],
-        )
+class TestBypass(WebVueMeetingEngineCase):
 
     def _approved_meeting(self):
         meeting = self._create_meeting()
@@ -79,11 +70,6 @@ class TestBypass(CyanMeetingCase):
             meeting.with_user(self.manager).write({"active": False})
         self.assertTrue(meeting.exists())
 
-    def test_cannot_schedule_calendar_on_locked_meeting(self):
-        meeting, _resolution = self._approved_meeting()
-        with self.assertRaises(UserError):
-            meeting.with_user(self.organizer).action_schedule_calendar_event()
-
     def test_cannot_subscribe_or_notify_outsider(self):
         meeting = self._create_meeting()
         with self.assertRaises(AccessError):
@@ -106,17 +92,6 @@ class TestBypass(CyanMeetingCase):
         with self.assertRaises(AccessError):
             meeting.with_user(self.attendee).write({"minutes": "<p>nope</p>"})
 
-    def test_calendar_user_without_meeting_acl_does_not_crash(self):
-        meeting = self._create_meeting()
-        meeting.with_user(self.organizer).action_schedule_calendar_event()
-        event = meeting.calendar_event_id
-        rows = event.with_user(self.calendar_only).search_read(
-            [("id", "=", event.id)],
-            ["name", "meeting_minute_count", "cyan_can_create_minutes"],
-        )
-        self.assertEqual(rows[0]["meeting_minute_count"], 0)
-        self.assertFalse(rows[0]["cyan_can_create_minutes"])
-
     def test_copy_resolution_forbidden_on_locked_parent(self):
         _meeting, resolution = self._approved_meeting()
         with self.assertRaises(UserError):
@@ -133,7 +108,7 @@ class TestBypass(CyanMeetingCase):
         meeting = self._create_meeting()
         attachment = self.env["ir.attachment"].with_user(self.organizer).create({
             "name": "secret.txt",
-            "res_model": "cyan.meeting.minute",
+            "res_model": "webvue.meeting.minute",
             "res_id": meeting.id,
             "raw": b"secret-bytes",
         })
@@ -145,7 +120,7 @@ class TestBypass(CyanMeetingCase):
         other = self._create_meeting(name="Other confidential")
         secret = self.env["ir.attachment"].with_user(self.organizer).create({
             "name": "other.txt",
-            "res_model": "cyan.meeting.minute",
+            "res_model": "webvue.meeting.minute",
             "res_id": other.id,
             "raw": b"other-secret",
         })
@@ -160,7 +135,7 @@ class TestBypass(CyanMeetingCase):
                 subtype_xmlid="mail.mt_comment",
             )
         self.assertEqual(secret.res_id, other.id)
-        self.assertEqual(secret.res_model, "cyan.meeting.minute")
+        self.assertEqual(secret.res_model, "webvue.meeting.minute")
         posted = meeting.with_user(self.attendee).message_post(
             body="own note",
             author_id=self.organizer.partner_id.id,
@@ -188,7 +163,7 @@ class TestBypass(CyanMeetingCase):
             subtype_xmlid="mail.mt_comment",
         )
         own.invalidate_recordset()
-        self.assertEqual(own.res_model, "cyan.meeting.minute")
+        self.assertEqual(own.res_model, "webvue.meeting.minute")
         self.assertEqual(own.res_id, meeting.id)
 
     def test_foreign_unbound_and_cross_company_attachment_rejected(self):
@@ -214,7 +189,7 @@ class TestBypass(CyanMeetingCase):
         })
         other_att = self.env["ir.attachment"].with_user(self.other_user).create({
             "name": "b.txt",
-            "res_model": "cyan.meeting.minute",
+            "res_model": "webvue.meeting.minute",
             "res_id": meeting_b.id,
             "raw": b"b-secret",
         })
@@ -234,28 +209,6 @@ class TestBypass(CyanMeetingCase):
                 "minutes": "<p>late</p>",
             })
         self.assertIn("غير قابلة", str(error.exception))
-
-    def test_current_company_not_all_allowed_companies(self):
-        dual = new_test_user(
-            self.env, login="cyan_dual",
-            groups="cyan_meeting_minutes.group_meeting_manager",
-            company_id=self.company.id,
-            company_ids=[self.company.id, self.company_other.id],
-        )
-        meeting_b = self.Meeting.with_user(self.other_user).with_company(self.company_other).create({
-            "name": "Other co meeting",
-            "company_id": self.company_other.id,
-            "organizer_id": self.other_user.id,
-            "meeting_date": fields.Date.today(),
-        })
-        hidden = self.Meeting.with_user(dual).with_company(self.company).search(
-            [("id", "=", meeting_b.id)],
-        )
-        self.assertFalse(hidden)
-        visible = self.Meeting.with_user(dual).with_company(self.company_other).search(
-            [("id", "=", meeting_b.id)],
-        )
-        self.assertEqual(visible, meeting_b)
 
     def test_open_minutes_requires_event_read(self):
         start = fields.Datetime.now()

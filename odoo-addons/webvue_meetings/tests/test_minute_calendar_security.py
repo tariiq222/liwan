@@ -4,10 +4,10 @@ from datetime import timedelta
 from odoo import fields
 from odoo.exceptions import AccessError, UserError
 
-from .common import CyanMeetingCase
+from .common import WebVueMeetingEngineCase
 
 
-class TestCalendarSecurity(CyanMeetingCase):
+class TestCalendarSecurity(WebVueMeetingEngineCase):
 
     def _event_vals(self, user, **extra):
         start = fields.Datetime.now()
@@ -38,7 +38,7 @@ class TestCalendarSecurity(CyanMeetingCase):
             self._event_vals(self.event_owner),
         )
         meeting = self._create_meeting()
-        meeting.with_user(self.manager)._cyan_link_calendar_event(event)
+        meeting.with_user(self.manager)._webvue_link_calendar_event(event)
         meeting.with_user(self.organizer).action_confirm()
         meeting.with_user(self.manager).action_done()
         original = event.name
@@ -57,19 +57,9 @@ class TestCalendarSecurity(CyanMeetingCase):
         meeting.with_user(self.organizer).action_confirm()
         meeting.with_user(self.manager).action_done()
         with self.assertRaises(UserError):
-            meeting.with_user(self.organizer).with_context(cyan_calendar_sync=True).write({
+            meeting.with_user(self.organizer).with_context(webvue_calendar_sync=True).write({
                 "name": "spoofed",
             })
-
-    def test_search_read_event_does_not_leak_minutes(self):
-        meeting = self._create_meeting()
-        meeting.with_user(self.organizer).action_schedule_calendar_event()
-        event = meeting.calendar_event_id
-        rows = event.with_user(self.outsider).search_read(
-            [("id", "=", event.id)],
-            ["name", "meeting_minute_count"],
-        )
-        self.assertEqual(rows[0]["meeting_minute_count"], 0)
 
     def test_non_owner_cannot_create_minutes_from_event(self):
         event = self.env["calendar.event"].with_user(self.event_owner).create(

@@ -23,13 +23,13 @@ def readable_active_meeting_ids(env):
     Elevated notification reads do not grant access to the linked meeting.
     Explicit company scope also protects superusers with several companies.
     """
-    Meeting = env['cyan.meeting.minute']
+    Meeting = env['webvue.meeting.minute']
     if not env['webvue.access.service']._webvue_has_capability(env.user, 'meetings.read') or not Meeting.has_access('read'):
         return []
     rows = env['mail.notification'].sudo().search([
         ('res_partner_id', '=', env.user.partner_id.id),
         ('mail_message_id.webvue_notification', '=', True),
-        ('mail_message_id.model', '=', 'cyan.meeting.minute'),
+        ('mail_message_id.model', '=', 'webvue.meeting.minute'),
         ('notification_type', '=', 'inbox'),
     ])
     candidate_ids = rows.mapped('mail_message_id.webvue_meeting_id')
@@ -50,7 +50,7 @@ class WebVueMeetingNotificationTypes(models.AbstractModel):
         return (
             *super()._webvue_notification_types(),
             *(
-                {'kind': kind, 'owner': 'webvue_meetings', 'model': 'cyan.meeting.minute', 'feature_key': 'meetings.enabled'}
+                {'kind': kind, 'owner': 'webvue_meetings', 'model': 'webvue.meeting.minute', 'feature_key': 'meetings.enabled'}
                 for kind in MEETING_KINDS
             ),
         )
@@ -62,7 +62,7 @@ class WebVueMeetingNotificationTypes(models.AbstractModel):
             *super()._webvue_notify_visible_domain(),
             [
                 ('mail_message_id.webvue_notification_kind', 'in', list(MEETING_KINDS)),
-                ('mail_message_id.model', '=', 'cyan.meeting.minute'),
+                ('mail_message_id.model', '=', 'webvue.meeting.minute'),
                 ('mail_message_id.res_id', 'in', meeting_ids),
                 ('mail_message_id.webvue_meeting_id', 'in', meeting_ids),
             ],

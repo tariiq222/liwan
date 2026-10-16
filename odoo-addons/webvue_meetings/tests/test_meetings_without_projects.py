@@ -31,11 +31,11 @@ class TestMeetingsWithoutProjects(WebVueMeetingsCase):
         cls.series = cls.env['webvue.meeting.series'].create({
             'name': 'No project cadence', 'recurrence': 'none', 'organizer_id': cls.employee.id,
         })
-        cls.meeting = cls.env['cyan.meeting.minute'].create({
+        cls.meeting = cls.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'No project meeting', 'organizer_id': cls.employee.id,
             'series_id': cls.series.id, 'meeting_date': '2026-09-10',
         })
-        cls.resolution = cls.env['cyan.meeting.resolution'].create({
+        cls.resolution = cls.env['webvue.meeting.resolution'].create({
             'meeting_id': cls.meeting.id, 'name': 'No project recommendation',
             'responsible_id': cls.employee.id, 'deadline': '2026-09-30',
         })
@@ -50,7 +50,7 @@ class TestMeetingsWithoutProjects(WebVueMeetingsCase):
 
     def test_no_model_carries_a_project_link(self):
         self.assertEqual(self.env['webvue.meeting.links']._webvue_link_fields(), frozenset())
-        for model in ('cyan.meeting.minute', 'cyan.meeting.resolution', 'webvue.meeting.series'):
+        for model in ('webvue.meeting.minute', 'webvue.meeting.resolution', 'webvue.meeting.series'):
             self.assertNotIn('project_id', self.env[model]._fields, model)
 
     def test_payloads_keep_their_project_keys_as_null(self):

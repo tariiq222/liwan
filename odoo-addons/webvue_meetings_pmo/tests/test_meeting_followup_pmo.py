@@ -14,7 +14,7 @@ class TestMeetingFollowupProjects(TestMeetingWorkspaceProjects):
         series = self.env['webvue.meeting.series'].create({'name': 'Projected followup', 'organizer_id': self.employee.id})
         meeting = self._meeting(series_id=series.id)
         project = self.env['project.project'].create({'name': 'Followup project', 'company_id': self.env.company.id, 'user_id': self.employee.id})
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id, 'name': 'Converted done', 'responsible_id': self.employee.id, 'deadline': '2020-01-01',
         })
         task = resolution.action_convert_to_task(project.id)
@@ -44,7 +44,7 @@ class TestMeetingFollowupProjects(TestMeetingWorkspaceProjects):
 
     def test_followup_query_count_stays_bounded_at_5000_recommendations(self):
         meeting = self._meeting()
-        Resolution = self.env['cyan.meeting.resolution'].with_context(tracking_disable=True, mail_create_nolog=True)
+        Resolution = self.env['webvue.meeting.resolution'].with_context(tracking_disable=True, mail_create_nolog=True)
 
         def create_rows(count):
             return Resolution.create([{'meeting_id': meeting.id, 'name': f'Scale {i}', 'responsible_id': self.employee.id, 'execution_period': 'Continuous'} for i in range(count)])
@@ -61,7 +61,7 @@ class TestMeetingFollowupProjects(TestMeetingWorkspaceProjects):
             total = records.search_count(domain)
             readable = links._webvue_readable_links(page)
             linked = links._webvue_linked_resolution_ids(page)
-            manager = page._cyan_is_manager()
+            manager = page._webvue_is_manager()
             rows = [dump_resolution(row, readable.get(row.id), linked_ids=linked, manager=manager) for row in page]
             return self.env.cr.sql_log_count - before, total, rows
         small, count, rows = page_cost()
@@ -76,7 +76,7 @@ class TestMeetingFollowupProjects(TestMeetingWorkspaceProjects):
     def test_meeting_only_reader_does_not_need_project_access_for_followup(self):
         meeting = self._meeting()
         project = self.env['project.project'].create({'name': 'Hidden project name', 'company_id': self.env.company.id})
-        self.env['cyan.meeting.resolution'].create({'meeting_id': meeting.id, 'name': 'Meeting only recommendation', 'responsible_id': self.employee.id, 'execution_period': 'Continuous', 'project_id': project.id})
+        self.env['webvue.meeting.resolution'].create({'meeting_id': meeting.id, 'name': 'Meeting only recommendation', 'responsible_id': self.employee.id, 'execution_period': 'Continuous', 'project_id': project.id})
         meeting._webvue_set_minutes_form({'opening': 'Opening', 'closing': '', 'chairperson': '', 'approver_name': '', 'approver_title': '', 'topics': [{'key': 'hidden-project', 'title': 'Topic', 'discussion': '', 'project_id': project.id, 'resolution_ids': []}]})
         role = self.env['webvue.access.role'].search([('key', '=', 'meeting_workspace_editor')])
         role.permission_ids -= self.env['webvue.access.permission'].search([('key', 'in', ['pmo.projects.read', 'pmo.tasks.read'])])

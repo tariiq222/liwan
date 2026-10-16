@@ -8,8 +8,8 @@ from odoo.exceptions import AccessError, UserError
 from .project_task_meeting import CONVERT_MARKER
 
 
-class CyanMeetingResolutionConvert(models.Model):
-    _inherit = 'cyan.meeting.resolution'
+class WebVueMeetingResolutionConvert(models.Model):
+    _inherit = 'webvue.meeting.resolution'
 
     def action_convert_to_task(self, project_id):
         """Mint a PMO task from this recommendation. Origin ids are opaque integers."""
@@ -22,7 +22,7 @@ class CyanMeetingResolutionConvert(models.Model):
         service = self.env['webvue.access.service']
         if not (
             service._webvue_has_capability(self.env.user, 'meetings.manage')
-            or self._cyan_is_meeting_editor(meeting)
+            or self._webvue_is_meeting_editor(meeting)
         ):
             raise AccessError(self.env._(
                 "Only a meeting editor or meetings manager can convert a recommendation to a task.",

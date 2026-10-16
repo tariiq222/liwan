@@ -2,7 +2,7 @@
 <odoo noupdate="1">
     <record id="sequence_meeting_minute" model="ir.sequence">
         <field name="name">Meeting Minutes</field>
-        <field name="code">cyan.meeting.minute</field>
+        <field name="code">webvue.meeting.minute</field>
         <field name="prefix">MIN/%(year)s/</field>
         <field name="padding">4</field>
         <field name="company_id" eval="False"/>

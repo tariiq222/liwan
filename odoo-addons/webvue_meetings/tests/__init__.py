@@ -14,4 +14,9 @@ from . import (
     test_meetings,
     test_meetings_access_composition,
     test_meetings_without_projects,
+    test_minute_bypass,
+    test_minute_calendar_security,
+    test_minute_security,
+    test_minute_workflow,
+    test_resolution_security,
 )

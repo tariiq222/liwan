@@ -46,12 +46,12 @@ def _resolution_filters(domain):
 
 def _resolution_page(domain, *, order):
     limit, offset = _page_args()
-    Resolution = request.env['cyan.meeting.resolution']
+    Resolution = request.env['webvue.meeting.resolution']
     records = Resolution.search(domain, order=order, limit=limit, offset=offset)
     links = request.env['webvue.meeting.links']
     readable = links._webvue_readable_links(records)
     linked_ids = links._webvue_linked_resolution_ids(records)
-    manager = records._cyan_is_manager()
+    manager = records._webvue_is_manager()
     items = []
     for resolution in records:
         row = dump_resolution(resolution, readable.get(resolution.id), linked_ids=linked_ids, manager=manager)
@@ -74,7 +74,7 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def meeting_events(self, meeting_id, **_):
         self._read()
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         limit, offset = _page_args()
         Event = request.env['webvue.meeting.event']
         domain = [('meeting_id', '=', meeting.id), ('company_id', '=', request.env.company.id)]
@@ -99,7 +99,7 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def meeting_versions(self, meeting_id, **_):
         self._read()
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         limit, offset = _page_args()
         Version = request.env['webvue.meeting.minutes.version']
         domain = [('meeting_id', '=', meeting.id), ('company_id', '=', request.env.company.id)]
@@ -111,7 +111,7 @@ class MeetingWorkspaceController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def meeting_version(self, meeting_id, version_id, **_):
         self._read()
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         version = get_record('webvue.meeting.minutes.version', version_id)
         if version.company_id != request.env.company or version.meeting_id != meeting:
             raise ApiError(404, 'not_found', 'meeting version not found')

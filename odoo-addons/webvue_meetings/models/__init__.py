@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    calendar_event,
     entitlement_service,
     feature_registry,
     meeting_access,
@@ -11,9 +12,5 @@ from . import (
     meeting_notification_types,
     meeting_resolution,
     meeting_series,
+    meeting_workspace,
 )
-
-# Load the history extension after the Cyan meeting model and the other
-# mixins so its completion override remains the final layer in the model MRO.
-# isort: split
-from . import meeting_history, meeting_workspace

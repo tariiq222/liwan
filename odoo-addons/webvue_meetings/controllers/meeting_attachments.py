@@ -18,7 +18,7 @@ class MeetingAttachmentController(http.Controller):
 
     def _attachments(self, meeting):
         return request.env['ir.attachment'].search([
-            ('res_model', '=', 'cyan.meeting.minute'),
+            ('res_model', '=', 'webvue.meeting.minute'),
             ('res_id', '=', meeting.id),
             ('type', '=', 'binary'),
         ])
@@ -28,7 +28,7 @@ class MeetingAttachmentController(http.Controller):
     @requires_feature('meetings.enabled', operation='read')
     def list_meeting_attachments(self, meeting_id):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         attachments = self._attachments(meeting)
         for attachment in attachments:
             attachment.check_access('read')
@@ -39,7 +39,7 @@ class MeetingAttachmentController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def upload_meeting_attachment(self, meeting_id, **payload):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
         payload.pop('meeting_id', None)
@@ -51,7 +51,7 @@ class MeetingAttachmentController(http.Controller):
             'type': 'binary',
             'url': False,
             'public': False,
-            'res_model': 'cyan.meeting.minute',
+            'res_model': 'webvue.meeting.minute',
             'res_id': meeting.id,
         })
         return request.make_json_response(dump_attachment(attachment), status=201)
@@ -64,7 +64,7 @@ class MeetingAttachmentController(http.Controller):
     @requires_feature('meetings.enabled', operation='write')
     def delete_meeting_attachment(self, meeting_id, attachment_id):
         request.env['webvue.access.service']._webvue_require_capability('meetings.read')
-        meeting = get_record('cyan.meeting.minute', meeting_id)
+        meeting = get_record('webvue.meeting.minute', meeting_id)
         if not meeting.can_edit:
             raise AccessError(request.env._("You are not allowed to change this meeting."))
         attachment = self._attachments(meeting).filtered(lambda item: item.id == attachment_id)

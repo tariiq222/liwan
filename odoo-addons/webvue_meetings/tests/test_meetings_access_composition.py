@@ -57,7 +57,7 @@ class TestMeetingsAccessComposition(TransactionCase):
         self.assertIn(manage, self.env.ref('webvue_core.group_access_admin').all_implied_ids)
         self.assertIn(manage, self.env.ref('webvue_core.group_vendor_support').all_implied_ids)
         self.assertIn(
-            self.env.ref('cyan_meeting_minutes.group_meeting_user'),
+            self.env.ref('webvue_meetings.group_cap_meetings_read'),
             self.env.ref('webvue_meetings.group_cap_meetings_read').all_implied_ids,
         )
         for name in RULES:

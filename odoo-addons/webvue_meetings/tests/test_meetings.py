@@ -29,7 +29,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
 
     def test_patch_explicitly_clears_start_and_end(self):
         self._grant_meeting_create()
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'name': 'Clear schedule', 'state': 'draft', 'organizer_id': self.employee.id,
             'meeting_date': '2026-09-08',
             'start_datetime': '2026-09-08 09:00:00',
@@ -49,7 +49,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
 
     def test_meeting_attachment_upload_uses_the_shared_validator(self):
         self._grant_meeting_create()
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Attachment meeting', 'organizer_id': self.employee.id,
         })
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -69,7 +69,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
 
     def test_patch_title_only_normalizes_existing_odoo_datetimes(self):
         self._grant_meeting_create()
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'name': 'Existing schedule', 'state': 'draft', 'organizer_id': self.employee.id,
             'meeting_date': '2026-09-08',
             'start_datetime': '2026-09-08 09:00:00',
@@ -83,7 +83,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
 
     def test_patch_clear_clocks_allows_an_explicit_new_calendar_day(self):
         self._grant_meeting_create()
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'name': 'Move date', 'state': 'draft', 'organizer_id': self.employee.id,
             'meeting_date': '2026-09-08',
             'start_datetime': '2026-09-08 09:00:00',
@@ -127,7 +127,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
         })
         self.assertEqual(invalid_range.status_code, 422, invalid_range.text)
         self.assertEqual(invalid_range.json()['field'], 'end_datetime')
-        meeting = self.env['cyan.meeting.minute'].with_user(self.employee).create({
+        meeting = self.env['webvue.meeting.minute'].with_user(self.employee).create({
             'name': 'URL validation', 'meeting_date': '2026-09-08',
         })
         invalid_url = self.api('PATCH', f'/api/v1/meetings/{meeting.id}', {
@@ -150,7 +150,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
             'name': 'Patch target', 'recurrence': 'none', 'organizer_id': self.manager.id,
             'attendee_ids': [(6, 0, self.employee.ids)],
         })
-        meeting = self.env['cyan.meeting.minute'].with_user(self.employee).create({
+        meeting = self.env['webvue.meeting.minute'].with_user(self.employee).create({
             'name': 'Own standalone', 'organizer_id': self.employee.id,
             'meeting_date': fields.Date.today(),
         })
@@ -191,7 +191,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
 
     def test_minutes_pdf_requires_access_and_returns_pdf_response(self):
         self.employee.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'PDF minutes', 'organizer_id': self.employee.id,
             'meeting_date': fields.Date.today(),
         })
@@ -203,7 +203,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.assertEqual(response.headers['Content-Type'], 'application/pdf')
         self.assertIn('attachment;', response.headers['Content-Disposition'])
         self.assertEqual(response.content, b'%PDF-test')
-        hidden = self.env['cyan.meeting.minute'].create({
+        hidden = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Hidden PDF', 'organizer_id': self.manager.id,
             'meeting_date': fields.Date.today(),
         })
@@ -307,11 +307,11 @@ class TestMeetingsApi(WebVueMeetingsCase):
         series = self.env['webvue.meeting.series'].create({
             'name': 'Date-only schedule', 'recurrence': 'none', 'organizer_id': self.manager.id,
         })
-        first = self.env['cyan.meeting.minute'].create({
+        first = self.env['webvue.meeting.minute'].create({
             'name': 'First date-only', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
             'meeting_date': '2026-09-08',
         })
-        second = self.env['cyan.meeting.minute'].create({
+        second = self.env['webvue.meeting.minute'].create({
             'name': 'Second date-only', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
             'meeting_date': '2026-09-15',
         })
@@ -345,11 +345,11 @@ class TestMeetingsApi(WebVueMeetingsCase):
         series = self.env['webvue.meeting.series'].create({
             'name': 'Mixed date-only schedule', 'recurrence': 'none', 'organizer_id': self.manager.id,
         })
-        first = self.env['cyan.meeting.minute'].create({
+        first = self.env['webvue.meeting.minute'].create({
             'name': 'First date-only', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
             'meeting_date': '2026-09-08',
         })
-        second = self.env['cyan.meeting.minute'].create({
+        second = self.env['webvue.meeting.minute'].create({
             'name': 'Second timed', 'state': 'draft', 'series_id': series.id, 'organizer_id': self.manager.id,
             'meeting_date': '2026-09-15',
             'start_datetime': '2026-09-15 14:00:00', 'end_datetime': '2026-09-15 15:00:00',
@@ -372,13 +372,13 @@ class TestMeetingsApi(WebVueMeetingsCase):
         user_group = self.env.ref('webvue_meetings.group_cap_meetings_read')
         self.employee.group_ids |= user_group
         self.manager.group_ids |= user_group
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Ops Review',
             'organizer_id': self.employee.id,
             'meeting_date': fields.Date.today(),
             'attendee_ids': [(6, 0, [self.employee.id])],
         })
-        hidden = self.env['cyan.meeting.minute'].create({
+        hidden = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Secret Board',
             'organizer_id': self.manager.id,
             'meeting_date': fields.Date.today(),
@@ -400,11 +400,11 @@ class TestMeetingsApi(WebVueMeetingsCase):
         user_group = self.env.ref('webvue_meetings.group_cap_meetings_read')
         self.employee.group_ids |= user_group
         self.manager.group_ids |= user_group
-        visible = self.env['cyan.meeting.minute'].create({
+        visible = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Operations review', 'organizer_id': self.employee.id,
             'location': 'Secure Room', 'meeting_date': '2026-09-10',
         })
-        hidden = self.env['cyan.meeting.minute'].create({
+        hidden = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Board review', 'organizer_id': self.manager.id,
             'location': 'Secure Room', 'meeting_date': '2026-09-10',
         })
@@ -422,7 +422,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.assertEqual(response.json()['field'], 'date_to')
 
     def test_manage_group_reads_company_meetings_and_outsider_cannot(self):
-        # WebVue-dependent coverage recovered from the Cyan source conflict.
+        # WebVue-dependent coverage recovered from the vendored engine source conflict.
         office = new_test_user(
             self.env, login='webvue_office_mgr',
             groups='webvue_meetings.group_cap_meetings_manage',
@@ -431,7 +431,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.env['webvue.access.assignment'].create({'user_id': office.id, 'role_id': self.env.ref('webvue_core.role_system_admin').id, 'company_id': self.env.company.id})
         self.employee.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
         self.manager.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Office meeting', 'organizer_id': self.manager.id,
         })
         self.assertIn(meeting, meeting.with_user(office).search([('id', '=', meeting.id)]))
@@ -446,7 +446,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
         self.env['webvue.access.assignment'].create({
             'user_id': self.employee.id, 'role_id': role.id, 'company_id': self.env.company.id,
         })
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'state': 'draft', 'name': 'Meetings only', 'organizer_id': self.employee.id,
         })
         self.authenticate('api_emp', 'api_emp_pass_123')
@@ -470,7 +470,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
                 'permission_ids': [(6, 0, self.env['webvue.access.permission'].search([('key', 'in', keys)]).ids)]})
             self.env['webvue.access.assignment'].create({'user_id': self.employee.id, 'role_id': role.id, 'company_id': company.id})
         self.employee.sudo().write({'company_id': company_b.id})
-        meeting = self.env['cyan.meeting.minute'].with_company(company_b).create({
+        meeting = self.env['webvue.meeting.minute'].with_company(company_b).create({
             'name': 'Confidential B', 'organizer_id': self.manager.id, 'state': 'draft'})
         meeting._webvue_notify_partners(self.employee.partner_id, 'meeting_invite', 'Private notice')
         row = self.env['mail.notification'].sudo().search([
@@ -531,7 +531,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
             'user_id': self.manager.id, 'company_id': self.env.company.id, 'role_id': role.id,
         })
         vals = {'name': 'Completion guard', 'state': 'draft', 'organizer_id': self.manager.id, 'meeting_date': '2026-09-08', **values}
-        return self.env['cyan.meeting.minute'].create(vals)
+        return self.env['webvue.meeting.minute'].create(vals)
 
     def test_complete_requires_schedule_and_minutes(self):
         meeting = self._manager_meeting()
@@ -579,7 +579,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
 
     def test_patch_with_a_stale_write_date_is_a_conflict(self):
         self._grant_meeting_create()
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'name': 'Concurrent minutes', 'state': 'draft', 'organizer_id': self.employee.id,
             'meeting_date': '2026-09-08',
         })
@@ -607,7 +607,7 @@ class TestMeetingsApi(WebVueMeetingsCase):
         series = self.env['webvue.meeting.series'].create({
             'name': 'Detach series', 'recurrence': 'none', 'organizer_id': self.employee.id,
         })
-        meeting = self.env['cyan.meeting.minute'].create({
+        meeting = self.env['webvue.meeting.minute'].create({
             'name': 'Detached occurrence', 'state': 'draft', 'organizer_id': self.employee.id,
             'series_id': series.id, 'meeting_date': '2026-09-08',
         })
@@ -622,12 +622,12 @@ class TestMeetingsApi(WebVueMeetingsCase):
 
     def test_non_manager_transitions_and_attendee_edits_answer_403(self):
         self._grant_meeting_create()
-        own = self.env['cyan.meeting.minute'].create({
+        own = self.env['webvue.meeting.minute'].create({
             'name': 'Organizer without manage', 'state': 'draft', 'organizer_id': self.employee.id,
             'meeting_date': '2026-09-08',
         })
         self.manager.group_ids |= self.env.ref('webvue_meetings.group_cap_meetings_read')
-        attended = self.env['cyan.meeting.minute'].create({
+        attended = self.env['webvue.meeting.minute'].create({
             'name': 'Attended only', 'state': 'draft', 'organizer_id': self.manager.id,
             'attendee_ids': [(6, 0, self.employee.ids)], 'meeting_date': '2026-09-08',
         })

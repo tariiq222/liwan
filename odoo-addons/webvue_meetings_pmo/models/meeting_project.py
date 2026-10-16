@@ -2,24 +2,24 @@
 """The project a meeting, a series or a recommendation belongs to (the meetings/PMO bridge)."""
 from odoo import fields, models
 
-from odoo.addons.webvue_meetings.models.meeting_workspace import (
-    WebVueMeetingResolutionWorkspace,
-    WebVueMeetingWorkspace,
+from odoo.addons.webvue_meetings.models.meeting_minute import WebVueMeetingMinute
+from odoo.addons.webvue_meetings.models.meeting_resolution import (
+    WebVueMeetingResolution,
 )
 
 
-class CyanMeetingMinuteProject(models.Model):
-    _inherit = 'cyan.meeting.minute'
+class WebVueMeetingMinuteProject(models.Model):
+    _inherit = 'webvue.meeting.minute'
 
     project_id = fields.Many2one('project.project', check_company=True, index=True)
-    _CONTENT_FIELDS = WebVueMeetingWorkspace._CONTENT_FIELDS | {'project_id'}
+    _CONTENT_FIELDS = WebVueMeetingMinute._CONTENT_FIELDS | {'project_id'}
 
 
-class CyanMeetingResolutionProject(models.Model):
-    _inherit = 'cyan.meeting.resolution'
+class WebVueMeetingResolutionProject(models.Model):
+    _inherit = 'webvue.meeting.resolution'
 
     project_id = fields.Many2one('project.project', check_company=True, index=True)
-    _DECISION_FIELDS = WebVueMeetingResolutionWorkspace._DECISION_FIELDS | {'project_id'}
+    _DECISION_FIELDS = WebVueMeetingResolution._DECISION_FIELDS | {'project_id'}
 
 
 class WebVueMeetingSeriesProject(models.Model):

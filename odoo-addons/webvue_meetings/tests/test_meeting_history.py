@@ -80,7 +80,7 @@ class TestMeetingHistory(WebVueMeetingsCase):
             'minutes': '<p>Release minutes</p>',
         }
         defaults.update(values)
-        return self.env['cyan.meeting.minute'].create(defaults)
+        return self.env['webvue.meeting.minute'].create(defaults)
 
     def _complete(self, meeting):
         meeting.with_user(self.manager).action_confirm()
@@ -131,14 +131,12 @@ class TestMeetingHistory(WebVueMeetingsCase):
             meeting.with_user(self.employee).write({'minutes_snapshot': forged})
         with self.assertRaises(AccessError):
             meeting.with_user(self.employee).write({'minutes_snapshot_data': forged})
-        with self.assertRaises(AccessError):
-            meeting.with_user(self.employee).write({'minutes_snapshot_at': fields.Datetime.now()})
 
         self._complete(meeting.with_context(default_minutes_snapshot=forged))
         self.assertNotEqual(meeting.minutes_snapshot, forged)
         self.assertEqual(meeting.minutes_snapshot['minutes'], '<p>Release minutes</p>')
 
-        created = self.env['cyan.meeting.minute'].with_user(self.employee).with_context(
+        created = self.env['webvue.meeting.minute'].with_user(self.employee).with_context(
             default_minutes_snapshot=forged,
         ).create({
             'name': 'No forged default',
@@ -148,7 +146,7 @@ class TestMeetingHistory(WebVueMeetingsCase):
 
     def test_same_write_captures_final_attendees_resolution_and_renamed_origin(self):
         meeting = self._meeting()
-        resolution = self.env['cyan.meeting.resolution'].create({
+        resolution = self.env['webvue.meeting.resolution'].create({
             'meeting_id': meeting.id,
             'name': 'Same-write resolution',
             'responsible_id': self.employee.id,
@@ -180,7 +178,7 @@ class TestMeetingHistory(WebVueMeetingsCase):
             fields.Datetime.to_datetime('2026-09-01 08:00:00'),
             'First delivery review',
         )
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': first.id,
             'name': 'Carry this item',
             'responsible_id': self.employee.id,
@@ -201,15 +199,15 @@ class TestMeetingHistory(WebVueMeetingsCase):
         meeting = self._meeting()
         self._complete(meeting)
         self.env.cr.execute(
-            'UPDATE cyan_meeting_minute SET minutes_snapshot_data = NULL, minutes_snapshot_at = NULL WHERE id = %s',
+            'UPDATE webvue_meeting_minute SET minutes_snapshot_data = NULL WHERE id = %s',
             (meeting.id,),
         )
         meeting.invalidate_recordset()
         self.assertFalse(dump_meeting(meeting, detail=True)['minutes_snapshot'])
 
-        report = self.env.ref('cyan_meeting_minutes.action_report_meeting_minutes')
+        report = self.env.ref('webvue_meetings.action_report_meeting_minutes')
         html, _type = report._render_qweb_html(
-            'cyan_meeting_minutes.action_report_meeting_minutes', meeting.ids,
+            'webvue_meetings.action_report_meeting_minutes', meeting.ids,
         )
         payload = html if isinstance(html, str) else html.decode()
         self.assertIn('Historical snapshot unavailable', payload)
@@ -233,7 +231,7 @@ class TestMeetingHistory(WebVueMeetingsCase):
             fields.Datetime.to_datetime('2026-09-01 08:00:00'),
             'Managers only',
         )
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': first.id, 'name': 'Confidential item',
             'responsible_id': self.manager.id, 'deadline': '2026-09-05',
         })
@@ -243,7 +241,7 @@ class TestMeetingHistory(WebVueMeetingsCase):
             'Open review',
         )
         second.write({'attendee_ids': [(4, self.history_reader.id)], 'minutes': '<p>Reviewed</p>'})
-        self.env['cyan.meeting.resolution'].create({
+        self.env['webvue.meeting.resolution'].create({
             'meeting_id': second.id, 'name': 'Shared item',
             'responsible_id': self.history_reader.id, 'deadline': '2026-09-12',
         })

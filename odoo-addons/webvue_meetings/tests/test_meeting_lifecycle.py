@@ -14,7 +14,7 @@ class TestMeetingLifecycle(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.company
-        meeting_user = 'webvue_core.group_employee,cyan_meeting_minutes.group_meeting_user'
+        meeting_user = 'webvue_core.group_employee,webvue_meetings.group_cap_meetings_read'
         cls.organizer = new_test_user(
             cls.env, login='life_org', groups=meeting_user,
             company_id=cls.company.id, company_ids=[cls.company.id],
@@ -48,8 +48,8 @@ class TestMeetingLifecycle(TransactionCase):
             ]).ids)],
         })
         Assignment.create({'user_id': cls.organizer.id, 'role_id': create_role.id, 'company_id': cls.company.id})
-        cls.Meeting = cls.env['cyan.meeting.minute']
-        cls.Resolution = cls.env['cyan.meeting.resolution']
+        cls.Meeting = cls.env['webvue.meeting.minute']
+        cls.Resolution = cls.env['webvue.meeting.resolution']
 
     def _create_meeting(self, **extra):
         vals = {
@@ -150,7 +150,7 @@ class TestMeetingLifecycle(TransactionCase):
         meeting.write({'name': 'Added together', 'attendee_ids': [(4, self.attendee.id)]})
         self.assertEqual(meeting.attendee_ids, self.attendee)
         self.assertEqual(meeting.secretary_id, self.secretary)
-        self.assertEqual(meeting.calendar_event_id.partner_ids, meeting._cyan_participant_users().mapped('partner_id'))
+        self.assertEqual(meeting.calendar_event_id.partner_ids, meeting._webvue_participant_users().mapped('partner_id'))
 
     def test_calendar_origin_membership_keeps_secretary_and_no_stale_attendee(self):
         meeting = self._create_meeting()

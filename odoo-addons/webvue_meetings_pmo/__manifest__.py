@@ -2,7 +2,7 @@
 {
     'name': 'webvue Meetings and Projects',
     'summary': 'webvue platform: links meetings to projects and converts recommendations to tasks',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
