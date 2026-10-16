@@ -1,0 +1,135 @@
+{
+  "analytics": {
+    "title": "Analytics",
+    "description": "An executive view of revenue, collection, customers and risks.",
+    "export": "Export CSV",
+    "disclaimer": "These figures are commercial tracking computed from subscriptions and invoices. They are not official accounting or financial statements.",
+    "scope": "Period {from} to {to}, compared with {previousFrom} to {previousTo}. Amounts in {currency}, before tax.",
+    "excluded": "{count} subscription billed in another currency is left out. | {count} subscriptions billed in another currency are left out.",
+    "period": {
+      "label": "Period",
+      "month": "This month",
+      "quarter": "This quarter",
+      "year": "This year",
+      "custom": "Custom range",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "invalid": "Choose an ordered range of at most two years."
+    },
+    "delta": {
+      "vsPrevious": "vs previous period",
+      "fromZero": "new",
+      "up": "Up",
+      "down": "Down",
+      "flat": "No change"
+    },
+    "unavailable": {
+      "short": "Not available",
+      "no_data": "Not available: nothing to measure in this period.",
+      "no_cancellation_date": "Not available: the system does not store when a subscription ended."
+    },
+    "kpi": {
+      "mrr": "Monthly recurring revenue (MRR)",
+      "arr": "Annual recurring revenue (ARR)",
+      "newMrr": "New MRR",
+      "expansionMrr": "Upgrade MRR",
+      "contractionMrr": "Downgrade MRR",
+      "churnedMrr": "Churned MRR",
+      "arpc": "Average revenue per customer",
+      "extraBranchMrr": "Extra-branch add-on revenue",
+      "collected": "Collected in period",
+      "outstanding": "Outstanding",
+      "overdue0to30": "Overdue 0–30 days",
+      "overdue31to60": "Overdue 31–60 days",
+      "overdue61plus": "Overdue over 60 days",
+      "paymentSuccessRate": "Payment success rate",
+      "avgDaysToPay": "Average days to pay",
+      "activeCustomers": "Active customers",
+      "newCustomers": "New customers",
+      "churnedCustomers": "Churned customers",
+      "churnRateByCount": "Churn rate (by customers)",
+      "churnRateByRevenue": "Churn rate (by revenue)",
+      "trialConversion": "Trial to paid conversion",
+      "hoursToReady": "Average hours from payment to workspace ready"
+    },
+    "groups": {
+      "revenue": "Revenue",
+      "collection": "Collection and payment",
+      "customers": "Customers and plans",
+      "operations": "Operations",
+      "opportunities": "Opportunities and risks"
+    },
+    "trend": {
+      "title": "MRR, last 12 months",
+      "description": "Recurring revenue of today's billable customers, month by month. It does not drop for customers who left.",
+      "empty": "No recurring revenue yet."
+    },
+    "aging": {
+      "title": "Overdue invoices by age",
+      "description": "Unpaid invoices past their due date at the end of the period.",
+      "empty": "No overdue invoices."
+    },
+    "states": {
+      "title": "Customers by subscription state",
+      "description": "Where every subscription stands today.",
+      "empty": "No subscriptions yet.",
+      "pending": "Pending setup",
+      "trialing": "In trial",
+      "active": "Active",
+      "past_due": "Past due",
+      "suspended": "Suspended",
+      "cancelled": "Cancelled"
+    },
+    "plans": {
+      "title": "Plans",
+      "description": "Billable customers and recurring revenue per plan.",
+      "empty": "No billable customers yet.",
+      "customers": "{count} customer | {count} customers"
+    },
+    "planChanges": {
+      "title": "Moves between plans",
+      "description": "Plan changes applied in the period.",
+      "empty": "No plan changes in this period.",
+      "upgrade": "Upgrade",
+      "downgrade": "Downgrade",
+      "lateral": "Same price",
+      "move": "{from} to {to}"
+    },
+    "upsell": {
+      "title": "Close to their limits",
+      "description": "Using 80% or more of a plan limit: upsell candidates.",
+      "empty": "No customer is near a limit."
+    },
+    "lowUsage": {
+      "title": "Low usage",
+      "description": "Using under 20% of every limit: at risk of leaving.",
+      "empty": "No customer with low usage."
+    },
+    "renewals": {
+      "title": "Upcoming renewals",
+      "description": "Renewal value of billable customers, counted from today.",
+      "empty": "No renewals due.",
+      "within": "Within {days} days",
+      "count": "{count} renewal | {count} renewals"
+    },
+    "stalled": {
+      "title": "Stalled fulfillments ({count})",
+      "description": "Paid orders whose workspace work failed or has waited over an hour.",
+      "empty": "Nothing is stalled.",
+      "age": "{hours} h"
+    },
+    "fulfillment": {
+      "failed": "Failed",
+      "needs_intervention": "Needs intervention",
+      "queued": "Waiting in queue",
+      "applying": "Being applied"
+    },
+    "csv": {
+      "section": "Section",
+      "metric": "Figure",
+      "current": "Period",
+      "previous": "Previous period"
+    }
+  }
+}

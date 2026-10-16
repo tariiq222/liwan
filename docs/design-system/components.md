@@ -136,6 +136,10 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 | `apps/vendor-admin/app/components/RecoveryCodes.vue` | رموز الاسترداد تُعرض مرة واحدة بعد التسجيل مع إقرار الحفظ | `UAlert`, `UButton`, `UCheckbox` |
 | `apps/vendor-admin/app/components/StepUpPanel.vue` | لوحة تأكيد مرتفع الأمان مضمّنة أعلى النافذة، لا حوار | `UButton`, `UIcon` |
 | `apps/vendor-admin/app/components/TotpSetup.vue` | إعداد تطبيق المصادقة: رمز QR والمفتاح ورابط otpauth | `UButton` |
+| `apps/vendor-admin/app/components/analytics/KpiTile.vue` | مؤشر تحليلي واحد: القيمة والتغير عن الفترة السابقة، أو سبب عدم توفره | `SharedMetricTile`, `UIcon` |
+| `apps/vendor-admin/app/components/analytics/PeriodBar.vue` | اختيار فترة التحليلات: الشهر أو الربع أو السنة أو مدى مخصص | `UButton`, `UFormField`, `UInput` |
+| `apps/vendor-admin/app/components/analytics/RankedList.vue` | قائمة قصيرة بصفوف وقيم وشريط نسبة اختياري ورابط | `UProgress` |
+| `apps/vendor-admin/app/components/analytics/TrendChart.vue` | منحنى الإيراد الشهري المتكرر لآخر 12 شهرًا بـ SVG، يتبع الوضع الداكن واتجاه RTL | |
 | `apps/vendor-admin/app/components/team/AccountAction.vue` | لوحة إجراء على حساب فريق (سبب وأدوار وتأكيد داخلي) | `SharedInlineConfirm`, `UAlert`, `UButton`, `UFormField`, `UInput` |
 | `apps/vendor-admin/app/components/team/AccountForm.vue` | نموذج دعوة حساب فريق مع حماية المسودة | `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput` |
 | `apps/vendor-admin/app/components/team/InvitationLink.vue` | رابط الدعوة مع تاريخ انتهائه وزر النسخ | `UButton`, `UFormField`, `UInput` |

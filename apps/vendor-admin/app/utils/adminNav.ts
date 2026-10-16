@@ -6,6 +6,7 @@ interface AdminNavEntry { id: string, icon: string, capability: string, alsoUnde
 // Display order. The control plane enforces every capability; hiding an entry here is presentation only.
 const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'overview', icon: 'i-lucide-house', capability: 'vendor.read' },
+  { id: 'analytics', icon: 'i-lucide-chart-line', capability: 'vendor.billing.manage' },
   { id: 'customers', icon: 'i-lucide-users', capability: 'vendor.read', alsoUnder: ['/tenants'] },
   { id: 'plans', icon: 'i-lucide-badge-percent', capability: 'vendor.read', alsoUnder: ['/catalog'] },
   { id: 'bundles', icon: 'i-lucide-boxes', capability: 'vendor.read' },

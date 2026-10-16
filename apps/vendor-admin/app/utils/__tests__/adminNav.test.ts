@@ -16,8 +16,8 @@ const ROLES: Record<string, string[]> = {
 const caps = (role: string) => ROLES[role]!.map(name => `vendor.${name}`)
 const ids = (capabilities: string[]) => adminNav(capabilities).map(item => item.id)
 
-const BEFORE_INVOICES = ['overview', 'customers', 'plans', 'bundles']
-const READ_SECTIONS = [...BEFORE_INVOICES, 'operations']
+const READ_SECTIONS = ['overview', 'customers', 'plans', 'bundles', 'operations']
+const BEFORE_INVOICES = ['overview', 'analytics', 'customers', 'plans', 'bundles']
 
 describe('adminNav', () => {
   it('shows the owner every section in the fixed order', () => {
@@ -39,12 +39,12 @@ describe('adminNav', () => {
   })
 
   it('leaks no section when its own capability is missing', () => {
-    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', audit: 'vendor.audit.read', team: 'vendor.accounts.manage' }
+    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', analytics: 'vendor.billing.manage', audit: 'vendor.audit.read', team: 'vendor.accounts.manage' }
     for (const [section, capability] of Object.entries(gated)) {
       const withoutIt = caps('owner').filter(name => name !== capability)
       expect(ids(withoutIt)).not.toContain(section)
     }
-    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['invoices', 'audit', 'team'])
+    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['analytics', 'invoices', 'audit', 'team'])
   })
 
   it('points every item at a root path without the old /vendor prefix', () => {
@@ -61,6 +61,7 @@ describe('activeNavId', () => {
 
   it('matches the section of a list or record path', () => {
     expect(activeNavId(items, '/customers')).toBe('customers')
+    expect(activeNavId(items, '/analytics?period=year')).toBe('analytics')
     expect(activeNavId(items, '/customers/12/change')).toBe('customers')
     expect(activeNavId(items, '/plans/new')).toBe('plans')
     expect(activeNavId(items, '/team/new')).toBe('team')
