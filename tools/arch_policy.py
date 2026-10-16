@@ -30,7 +30,7 @@ FOUNDATION_MAX_RANK = 2
 STATIC_APP_TOKENS = ('project', 'cyan_meeting_minutes')
 ADDON_IMPORT = re.compile(r'odoo\.addons\.((?:nasq|customer)_\w+)')
 CONTROL_PLANE_IMPORT = re.compile(r"""(?:from|import|require\()\s*\(?['"][^'"\n]*control-plane""")
-# UI1: a file of the shared UI layer reaches into an application, an addon, an app alias, the contracts or the control plane.
+# UI1: a file of a shared UI layer (packages/ui, packages/commercial-ui) reaches into an application, an addon, an app alias, the contracts or the control plane.
 UI_LAYER_FORBIDDEN = re.compile(
     # A JS specifier needs its opening quote, so prose such as "moved from apps/web/app/x" in a comment is not an import;
     # CSS at-rules and url() may be unquoted.
@@ -584,14 +584,16 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
             rel = _rel(path, root)
             if path.is_file() and path.suffix in ('.ts', '.vue') and not is_test_path(Path(rel)):
                 _put(v['R3'], f'web {rel}', foreign_component_uses(_read(path), '', web_apps, rel))
-    # The shared UI layer is a hard rule, never baselined: it imports nothing from an application (UI1). Tests under
-    # packages/ui are exempt (is_test_path): they may read application files to prove the layer stays independent.
-    for path in sorted(ui.rglob('*')) if ui.is_dir() else []:
-        rel = _rel(path, root)
-        if 'node_modules' in path.parts or not path.is_file() or path.suffix not in UI_LAYER_FILES or is_test_path(Path(rel)):
-            continue
-        if ui_layer_violations(_read(path)):
-            hard.append(f'UI1 {rel} imports from an application, an addon, an app alias, the contracts or the control plane')
+    # The shared UI layers (packages/ui and packages/commercial-ui) are a hard rule, never baselined: they import nothing
+    # from an application (UI1). Tests under them are exempt (is_test_path): they may read application files to prove the
+    # layer stays independent.
+    for layer in (ui, root / 'packages' / 'commercial-ui'):
+        for path in sorted(layer.rglob('*')) if layer.is_dir() else []:
+            rel = _rel(path, root)
+            if 'node_modules' in path.parts or not path.is_file() or path.suffix not in UI_LAYER_FILES or is_test_path(Path(rel)):
+                continue
+            if ui_layer_violations(_read(path)):
+                hard.append(f'UI1 {rel} imports from an application, an addon, an app alias, the contracts or the control plane')
     # The vendor admin app is its own application with its own boundary, a hard rule never baselined (VA1): it reaches no
     # application, addon, customer contract or Odoo route, and the customer app never imports it.
     for app_dir, is_admin, message in (
