@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessError, UserError
+from odoo.tests import new_test_user
 
 from .common import WebVueMeetingEngineCase
 
@@ -69,6 +70,15 @@ class TestBypass(WebVueMeetingEngineCase):
         with self.assertRaises(UserError):
             meeting.with_user(self.manager).write({"active": False})
         self.assertTrue(meeting.exists())
+
+    def test_cannot_schedule_calendar_on_locked_meeting(self):
+        # Without start/end no calendar event is auto-linked on create (and done needs them), so cancel locks it.
+        meeting = self._create_meeting(start_datetime=False, end_datetime=False)
+        meeting.with_user(self.manager).action_cancel()
+        self.assertEqual(meeting.state, "cancelled")
+        self.assertFalse(meeting.calendar_event_id)
+        with self.assertRaises(UserError):
+            meeting.with_user(self.organizer).action_schedule_calendar_event()
 
     def test_cannot_subscribe_or_notify_outsider(self):
         meeting = self._create_meeting()
@@ -209,6 +219,36 @@ class TestBypass(WebVueMeetingEngineCase):
                 "minutes": "<p>late</p>",
             })
         self.assertIn("غير قابلة", str(error.exception))
+
+    def test_current_company_not_all_allowed_companies(self):
+        dual = new_test_user(
+            self.env, login="engine_dual", groups="webvue_core.group_employee",
+            company_id=self.company.id,
+            company_ids=[self.company.id, self.company_other.id],
+        )
+        permissions = self.env["webvue.access.permission"].search([("key", "in", ["meetings.read", "meetings.manage"])])
+        for company in (self.company, self.company_other):
+            role = self.env["webvue.access.role"].with_company(company).create({
+                "name_ar": "دور اختبار الشركتين", "company_id": company.id,
+                "permission_ids": [(6, 0, permissions.ids)],
+            })
+            self.env["webvue.access.assignment"].with_company(company).create({
+                "user_id": dual.id, "role_id": role.id, "company_id": company.id,
+            })
+        meeting_b = self.Meeting.with_user(self.other_user).with_company(self.company_other).create({
+            "name": "Other co meeting",
+            "company_id": self.company_other.id,
+            "organizer_id": self.other_user.id,
+            "meeting_date": fields.Date.today(),
+        })
+        hidden = self.Meeting.with_user(dual).with_company(self.company).search(
+            [("id", "=", meeting_b.id)],
+        )
+        self.assertFalse(hidden)
+        visible = self.Meeting.with_user(dual).with_company(self.company_other).search(
+            [("id", "=", meeting_b.id)],
+        )
+        self.assertEqual(visible, meeting_b)
 
     def test_open_minutes_requires_event_read(self):
         start = fields.Datetime.now()

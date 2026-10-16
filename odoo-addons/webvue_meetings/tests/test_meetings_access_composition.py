@@ -11,7 +11,14 @@ RULES = (
     'rule_meeting_capability_scope', 'rule_resolution_capability_scope',
     'rule_meeting_series_capability_scope', 'rule_meeting_event_current_company',
     'rule_meeting_minutes_version_current_company',
+    'rule_meeting_editors_write', 'rule_meeting_managers_write',
+    'rule_resolution_editors_write', 'rule_resolution_managers_write',
 )
+# (read, write, create, unlink) per capability group on each meeting model.
+ACL = {
+    'group_cap_meetings_read': (True, True, True, False),
+    'group_cap_meetings_manage': (True, True, True, True),
+}
 
 
 @tagged('webvue', 'webvue_access')
@@ -56,10 +63,16 @@ class TestMeetingsAccessComposition(TransactionCase):
         manage = self.env.ref('webvue_meetings.group_cap_meetings_manage')
         self.assertIn(manage, self.env.ref('webvue_core.group_access_admin').all_implied_ids)
         self.assertIn(manage, self.env.ref('webvue_core.group_vendor_support').all_implied_ids)
-        self.assertIn(
-            self.env.ref('webvue_meetings.group_cap_meetings_read'),
-            self.env.ref('webvue_meetings.group_cap_meetings_read').all_implied_ids,
-        )
+        for model in ('model_webvue_meeting_minute', 'model_webvue_meeting_resolution'):
+            model_id = self.env.ref(f'webvue_meetings.{model}').id
+            for group_name, perms in ACL.items():
+                group = self.env.ref(f'webvue_meetings.{group_name}')
+                access = self.env['ir.model.access'].search([('model_id', '=', model_id), ('group_id', '=', group.id)])
+                self.assertEqual(len(access), 1, (model, group_name))
+                self.assertEqual(
+                    (access.perm_read, access.perm_write, access.perm_create, access.perm_unlink),
+                    perms, (model, group_name),
+                )
         for name in RULES:
             self.assertTrue(self.env.ref(f'webvue_meetings.{name}').active, name)
 
