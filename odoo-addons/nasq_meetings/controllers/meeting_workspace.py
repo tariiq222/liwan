@@ -26,6 +26,40 @@ def _page_args():
     return limit, offset
 
 
+def _resolution_filters(domain):
+    args = request.httprequest.args
+    query = (args.get('q') or '').strip()
+    state = (args.get('state') or '').strip()
+    if state and state not in RESOLUTION_STATES | {'active', 'overdue'}:
+        raise ApiError(422, 'invalid', 'invalid state', field='state')
+    if query:
+        domain += ['|', ('name', 'ilike', query), ('meeting_id.name', 'ilike', query)]
+    if args.get('mine') in ('1', 'true'):
+        domain.append(('responsible_id', '=', request.env.uid))
+    if state:
+        states = (state,) if state in RESOLUTION_STATES else ('open', 'in_progress')
+        domain += request.env['nasq.meeting.links']._nasq_resolution_execution_domain(states)
+    if state == 'overdue':
+        domain.append(('deadline', '<', fields.Date.context_today(request.env.user)))
+    return domain
+
+
+def _resolution_page(domain, *, order):
+    limit, offset = _page_args()
+    Resolution = request.env['cyan.meeting.resolution']
+    records = Resolution.search(domain, order=order, limit=limit, offset=offset)
+    links = request.env['nasq.meeting.links']
+    readable = links._nasq_readable_links(records)
+    linked_ids = links._nasq_linked_resolution_ids(records)
+    manager = records._cyan_is_manager()
+    items = []
+    for resolution in records:
+        row = dump_resolution(resolution, readable.get(resolution.id), linked_ids=linked_ids, manager=manager)
+        row.update(meeting_id=resolution.meeting_id.id, meeting_name=resolution.meeting_id.name)
+        items.append(row)
+    return {'items': items, 'total': Resolution.search_count(domain)}
+
+
 def _meeting_ids_for_series(series):
     return series.meeting_ids.filtered(lambda meeting: meeting.company_id == request.env.company).ids
 
@@ -89,32 +123,17 @@ class MeetingWorkspaceController(http.Controller):
     def series_resolutions(self, series_id, **_):
         self._read()
         series = get_record('nasq.meeting.series', series_id)
-        limit, offset = _page_args()
-        args = request.httprequest.args
-        query = (args.get('q') or '').strip()
-        state = (args.get('state') or '').strip()
-        if state and state not in RESOLUTION_STATES | {'active', 'overdue'}:
-            raise ApiError(422, 'invalid', 'invalid state', field='state')
-        domain = [
+        domain = _resolution_filters([
             ('meeting_id.series_id', '=', series.id),
             ('meeting_id.company_id', '=', request.env.company.id),
-        ]
-        if query:
-            domain += ['|', ('name', 'ilike', query), ('meeting_id.name', 'ilike', query)]
-        if state in RESOLUTION_STATES:
-            domain.append(('state', '=', state))
-        elif state:
-            domain.append(('state', 'in', ('open', 'in_progress')))
-        if state == 'overdue':
-            domain.append(('deadline', '<', fields.Date.context_today(request.env.user)))
-        Resolution = request.env['cyan.meeting.resolution']
-        # ``meeting_id`` orders by the meeting's own order (latest occurrence first).
-        records = Resolution.search(domain, order='meeting_id, sequence, id', limit=limit, offset=offset)
-        readable = request.env['nasq.meeting.links']._nasq_readable_links(records)
-        items = []
-        for resolution in records:
-            row = dump_resolution(resolution, readable.get(resolution.id))
-            row['meeting_id'] = resolution.meeting_id.id
-            row['meeting_name'] = resolution.meeting_id.name
-            items.append(row)
-        return {'items': items, 'total': Resolution.search_count(domain)}
+        ])
+        return _resolution_page(domain, order='meeting_id, sequence, id')
+
+    @http.route('/api/v1/meetings/resolutions', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('meetings.enabled', operation='read')
+    def meeting_followup(self, **_):
+        self._read()
+        domain = _resolution_filters([('meeting_id.company_id', '=', request.env.company.id)])
+        # Odoo's date ascending order keeps unscheduled recommendations last.
+        return _resolution_page(domain, order='deadline asc, id desc')

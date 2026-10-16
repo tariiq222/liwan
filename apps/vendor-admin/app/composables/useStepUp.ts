@@ -20,6 +20,8 @@ export interface StepUpDeps {
   onSessionEnded: () => unknown
   /** Closes the browser's passkey prompt when the person cancels while it is open. */
   abortPrompt: () => void
+  /** Local development only: the panel offers a confirmation without a passkey. */
+  devLogin: boolean
 }
 
 export interface StepUpState {
@@ -44,6 +46,8 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
   let ceremony: Promise<void> | null = null
   let cancelled = false
   let cancelPrompt: (() => void) | null = null
+  let devConfirmed = false
+  let skipPasskey: (() => void) | null = null
 
   const choose = (choice: Choice) => {
     const settle = decision
@@ -54,6 +58,7 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
 
   /** One passkey assertion: options, the browser prompt, verification. */
   async function assertOnce(): Promise<void> {
+    if (devConfirmed) return
     const challenge = await deps.post<{ challenge_id: string, options: PublicKeyCredentialRequestOptionsJSON }>('/api/auth/step-up-options', {})
       .catch(async (error: unknown) => {
         if (statusOf(error) !== 401) throw error
@@ -61,16 +66,21 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
         throw new SessionGone(error)
       })
     if (cancelled) throw new StepUpCancelled()
+    if (devConfirmed) return
     const prompt = deps.authenticate({ optionsJSON: challenge.options })
     // A prompt the person cancelled settles at once, whatever the browser does with it.
     const dismissed = new Promise<never>((_, reject) => { cancelPrompt = () => reject(new StepUpCancelled()) })
-    const response = await Promise.race([prompt, dismissed]).finally(() => { cancelPrompt = null })
+    // The developer confirmation replaces the assertion: the prompt is closed and nothing is verified.
+    const skipped = new Promise<undefined>((resolve) => { skipPasskey = () => resolve(undefined) })
+    const response = await Promise.race([prompt, dismissed, skipped]).finally(() => { cancelPrompt = null; skipPasskey = null })
     if (cancelled) throw new StepUpCancelled()
+    if (!response) return
     await deps.post('/api/auth/step-up-verify', { challenge_id: challenge.challenge_id, response })
   }
 
   async function confirm(): Promise<void> {
     cancelled = false
+    devConfirmed = false
     state.pending.value = true
     try {
       for (;;) {
@@ -105,8 +115,24 @@ export function createStepUp(deps: StepUpDeps, state: StepUpState = { pending: r
     return fn()
   }
 
+  /** Local development only: the control plane marks the session as stepped up; the open passkey confirmation ends. */
+  async function confirmWithDev(): Promise<void> {
+    try {
+      await deps.post('/api/auth/dev-step-up', {})
+    } catch (error) {
+      state.error.value = authErrorKey(error)
+      return
+    }
+    devConfirmed = true
+    skipPasskey?.()
+    deps.abortPrompt()
+    choose('retry')
+  }
+
   return {
     ...state,
+    devEnabled: deps.devLogin,
+    confirmWithDev,
     run,
     retry: () => choose('retry'),
     cancel: () => {

@@ -20,11 +20,17 @@ export function isMeetingTab(value: unknown): value is MeetingTab {
 }
 
 export function meetingTabFromRoute(queryTab: unknown, hash: unknown): MeetingTab {
+  if (queryTab === 'agenda') return 'summary'
+  if (queryTab === 'versions') return 'history'
   if (isMeetingTab(queryTab)) return queryTab
-  if (typeof hash === 'string' && LEGACY_MEETING_HASHES[hash]) return LEGACY_MEETING_HASHES[hash]
+  if (typeof hash === 'string' && LEGACY_MEETING_HASHES[hash]) return meetingTabFromRoute(LEGACY_MEETING_HASHES[hash], undefined)
   return 'summary'
 }
 
 export function meetingTabQuery(query: LocationQueryRaw, tab: MeetingTab): LocationQueryRaw {
   return { ...query, tab }
+}
+
+export function meetingHistoryViewFromRoute(tab: unknown, hash: unknown, view: unknown): 'events' | 'versions' {
+  return tab === 'versions' || hash === '#meeting-versions' || view === 'versions' ? 'versions' : 'events'
 }

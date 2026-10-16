@@ -24,6 +24,7 @@ const STRICTER: Record<string, string> = {
   'bundles/[id]/edit.vue': 'vendor.catalog.manage',
   'bundles/new.vue': 'vendor.catalog.manage',
   'customers/[id]/change.vue': 'vendor.subscriptions.manage',
+  'customers/new.vue': 'vendor.tenants.manage',
   'customers/[id]/terms/new.vue': 'vendor.pricing.manage',
   'invoices.vue': 'vendor.billing.manage',
   'invoices/[id].vue': 'vendor.billing.manage',
@@ -33,7 +34,6 @@ const STRICTER: Record<string, string> = {
   'team.vue': 'vendor.accounts.manage',
   'team/index.vue': 'vendor.accounts.manage',
   'team/new.vue': 'vendor.accounts.manage',
-  'tenants/new.vue': 'vendor.tenants.manage',
 }
 
 describe('vendor admin routes', () => {

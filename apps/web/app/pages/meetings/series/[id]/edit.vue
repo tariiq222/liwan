@@ -73,8 +73,11 @@ const termination = computed(() => {
   return t('meetingsUx.terminationOpen')
 })
 
+const formElement = ref<HTMLFormElement | null>(null)
+const { attemptedSubmit, visibleErrors, validate } = useMeetingFormFeedback(formErrors, formElement)
+
 async function save() {
-  if (id.value === null || !hydrated.value || isPending.value || !canEdit.value || !dirty.value || Object.values(formErrors.value).some(Boolean)) return
+  if (id.value === null || !hydrated.value || isPending.value || !canEdit.value || !dirty.value || !validate()) return
   await mutateAsync({
     id: id.value,
     body: {
@@ -95,18 +98,19 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form v-if="query.data.value" class="space-y-8" @submit.prevent="save">
+      <form ref="formElement" novalidate v-if="query.data.value" class="space-y-8" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
+      <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
         <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsForbidden')" />
         <SharedFormSection :title="t('meetingsUx.seriesDefaultsTitle')" class="space-y-4">
-          <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="formErrors.name ? t(`meetingsUx.errors.${formErrors.name}`) : undefined">
-            <UInput id="series-settings-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.name" required />
+          <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined">
+            <UInput id="series-settings-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>
           <UFormField :label="t('meetingsUi.location')" name="location">
             <UInput id="series-settings-location" v-model="location" class="w-full" :disabled="!hydrated || isPending || !canEdit" />
           </UFormField>
-          <UFormField :label="t('meetingsUi.url')" name="meetingUrl" :error="formErrors.meetingUrl ? t(`meetingsUx.errors.${formErrors.meetingUrl}`) : undefined">
-            <UInput id="series-settings-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!formErrors.meetingUrl" />
+          <UFormField :label="t('meetingsUi.url')" name="meetingUrl" :error="visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined">
+            <UInput id="series-settings-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.meetingUrl" />
           </UFormField>
         </SharedFormSection>
         <SharedFormSection :title="t('meetingsUi.sectionPeople')">
@@ -120,9 +124,10 @@ async function save() {
           <p class="text-sm text-muted">{{ t('meetingsUx.seriesSettingsScope') }}</p>
         </SharedFormSection>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsSaveError')" />
+        <p v-if="loaded && !dirty" class="text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
         <SharedFormActions class="justify-end">
           <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty || Object.values(formErrors).some(Boolean)" :label="t('app.save')" />
+          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
         </SharedFormActions>
       </form>
     </SharedPageState>

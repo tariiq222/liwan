@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ApiError } from '@/composables/useApi'
 import { useDeleteMyTaskAttachment, useMyTaskAttachments, useUploadMyTaskAttachment } from '@/composables/useMyTasks'
-import { ATTACHMENT_ACCEPT, fileToBase64 } from '@/utils/attachmentFile'
-import { attachmentProblem } from '@/utils/myTaskDetail'
+import { ATTACHMENT_ACCEPT, attachmentProblem, fileToBase64 } from '@/utils/attachmentFile'
 
 // The personal task's wiring of `SharedAttachmentList`. `count` is the detail's `attachment_count`;
 // the list itself is its own read.

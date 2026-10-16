@@ -62,6 +62,10 @@ describe('manifest bell kinds', () => {
     const titleArgs: unknown[][] = []
     bellKindFor('overdue_digest')?.title?.({ overdue_count: '3' }, (...args) => { titleArgs.push(args); return '' })
     expect(titleArgs).toEqual([['tasks.digest.count', 3]])
+    for (const kind of ['charter_review', 'charter_approved', 'charter_returned']) {
+      expect(bellKindFor(kind)?.href({ project_id: 12 }), kind).toBe('/projects/12/charter')
+      expect(bellKindFor(kind)?.title?.({ project_name: 'Alpha' }, key => key), kind).toBe('Alpha')
+    }
     expect(bellKindFor('meeting_future_change')).toBeUndefined()
     expect(bellKindFor('sales_order_assigned')).toBeUndefined()
   })

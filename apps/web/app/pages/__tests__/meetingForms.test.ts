@@ -1,3 +1,7 @@
+import * as meetingEditorContext from '../../utils/meetingEditorContext'
+import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
+import { firstQuery } from '../../utils/routeQuery'
+import { isCalendarDate } from '@nasq/ui/app/composables/calendarDate'
 import * as recordNavigation from './helpers/recordNavigation'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -24,7 +28,7 @@ function form(file: string, routeQuery: Record<string, string> = {}, seriesIniti
   const mutateAsync = vi.fn(async () => ({ id: 7 }))
   const navigateTo = vi.fn(async () => {})
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: {} }] })
-  const scope = { useRouter: () => router, ...recordNavigation, computed, ref, watch, nextTick, useRoute: () => ({ params: { id: '7' }, query: routeQuery }),
+  const scope = { useRouter: () => router, ...recordNavigation, ...meetingEditorContext, useMeetingFormFeedback, firstQuery, isCalendarDate, computed, ref, watch, nextTick, useRoute: () => ({ params: { id: '7' }, query: routeQuery }),
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => ref(true),
     useSsrQuerySeed: () => {}, // Client workflow harness; actual SSR is tested separately.
     useMeetingSubmitError: () => ({ fieldErrors: computed(() => ({})), submitError: computed(() => '') }),

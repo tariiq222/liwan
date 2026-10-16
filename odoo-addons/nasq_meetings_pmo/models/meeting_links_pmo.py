@@ -9,6 +9,7 @@ hook reads projects and tasks in the caller's environment.
 """
 from odoo import api, models
 from odoo.exceptions import AccessError, ValidationError
+from odoo.fields import Domain
 
 from odoo.addons.nasq_api.controllers.common import ApiError, get_record
 
@@ -37,17 +38,21 @@ class NasqMeetingProjectLinks(models.AbstractModel):
     def _nasq_project_ref_by_id(self, record, project_id):
         if not project_id:
             return None
-        return self._nasq_visible_project_ref(self.env['project.project'].browse(project_id).exists())
+        return self._nasq_visible_project_ref(self.env['project.project'].browse(project_id))
 
     @api.model
     def _nasq_visible_project_ref(self, project):
-        if not project or project.company_id != self.env.company:
+        if not project:
             return None
         if not self.env['nasq.access.service']._nasq_has_capability(self.env.user, 'pmo.projects.read'):
             return None
         try:
+            if not project.exists():
+                return None
             project.check_access('read')
         except AccessError:
+            return None
+        if project.company_id != self.env.company:
             return None
         return {'id': project.id, 'name': project.name}
 
@@ -87,19 +92,10 @@ class NasqMeetingProjectLinks(models.AbstractModel):
     @api.model
     def _nasq_readable_links(self, resolutions):
         links = super()._nasq_readable_links(resolutions)
-        Task = self.env['project.task']
-        can_read_tasks = self.env['nasq.access.service']._nasq_has_capability(
-            self.env.user, 'pmo.tasks.read',
-        ) and Task.has_access('read')
-        if not can_read_tasks or not resolutions:
+        domain = self._nasq_readable_task_domain()
+        if domain is None or not resolutions:
             return links
-        tasks = Task.search([
-            ('resolution_id', 'in', resolutions.ids),
-            ('company_id', '=', self.env.company.id),
-            ('project_id.company_id', '=', self.env.company.id),
-            ('project_id.active', '=', True),
-            ('active', '=', True),
-        ])
+        tasks = self.env['project.task'].search(domain + [('resolution_id', 'in', resolutions.ids)])
         for task in tasks:
             if task.resolution_id:
                 links[task.resolution_id] = {
@@ -109,3 +105,32 @@ class NasqMeetingProjectLinks(models.AbstractModel):
                     'project_id': task.project_id.id,
                 }
         return links
+
+    @api.model
+    def _nasq_readable_task_domain(self):
+        Task = self.env['project.task']
+        if not self.env['nasq.access.service']._nasq_has_capability(self.env.user, 'pmo.tasks.read') or not Task.has_access('read'):
+            return None
+        return [
+            ('resolution_id', '>', 0),
+            ('company_id', '=', self.env.company.id),
+            ('project_id.company_id', '=', self.env.company.id),
+            ('project_id.active', '=', True),
+            ('active', '=', True),
+        ]
+
+    @api.model
+    def _nasq_resolution_execution_domain(self, states):
+        base = Domain(super()._nasq_resolution_execution_domain(states))
+        domain = self._nasq_readable_task_domain()
+        if domain is None:
+            return list(base)
+        # Fetch only the two projection fields, in ordinary ACL/rule scope. Never
+        # interpret hidden or archived tasks, and never fetch recommendation content.
+        tasks = self.env['project.task'].search_fetch(domain, ['resolution_id', 'state'])
+        linked_ids = [task.resolution_id for task in tasks]
+        matching_ids = [task.resolution_id for task in tasks if TASK_EXECUTION_STATES.get(task.state, 'in_progress') in states]
+        return list(Domain.OR([
+            Domain('id', 'in', matching_ids),
+            base & Domain('id', 'not in', linked_ids),
+        ]))

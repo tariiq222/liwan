@@ -11,11 +11,9 @@
     "nav": {
       "overview": "نظرة عامة",
       "customers": "العملاء",
-      "tenants": "النسخ",
       "operations": "العمليات",
       "plans": "الباقات",
       "bundles": "الحزم",
-      "catalog": "الحزم القديمة",
       "invoices": "الفواتير",
       "audit": "التدقيق",
       "team": "الفريق"

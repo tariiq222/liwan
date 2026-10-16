@@ -15,7 +15,7 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/', '/projects/dashboard', '/projects', '/tasks', '/meetings', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
+    expect(nav.map(item => item.to)).toEqual(['/', '/projects/dashboard', '/projects', '/tasks', '/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
     expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     // Account and appearance live in the header, so an employee has no settings module.
@@ -167,7 +167,7 @@ describe('projects dashboard navigation', () => {
     expect(hidePinnedNewProject('/projects/40/?tab=tasks')).toBe(true)
   })
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
-    expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-calendar', 'meeting-series'])
+    expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-followup', 'meeting-series'])
     expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.documents'])
   })
 })

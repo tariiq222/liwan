@@ -79,9 +79,9 @@ describe('RecoveryCodes', () => {
 })
 
 describe('StepUpPanel', () => {
-  const panel = (state: { pending: boolean, waiting: boolean, error: string | null }) =>
+  const panel = (state: { pending: boolean, waiting: boolean, error: string | null }, devEnabled = false) =>
     renderSfc('components/StepUpPanel.vue', {}, {}, {
-      globals: { useStepUp: () => ({ pending: ref(state.pending), waiting: ref(state.waiting), error: ref(state.error), retry: () => undefined, cancel: () => undefined }) },
+      globals: { useStepUp: () => ({ pending: ref(state.pending), waiting: ref(state.waiting), error: ref(state.error), devEnabled, retry: () => undefined, cancel: () => undefined, confirmWithDev: () => undefined }) },
     })
 
   it('renders nothing while no step-up is needed', async () => {
@@ -95,6 +95,11 @@ describe('StepUpPanel', () => {
     expect(html).toContain('إلغاء')
     expect(html).not.toContain('إعادة المحاولة')
     expect(html).not.toMatch(/role="(alert)?dialog"/)
+  })
+
+  it('offers the developer confirmation only when the development flag is on', async () => {
+    expect(await panel({ pending: true, waiting: false, error: null })).not.toContain('تأكيد التطوير')
+    expect(await panel({ pending: true, waiting: false, error: null }, true)).toContain('تأكيد التطوير')
   })
 
   it('shows what failed and offers Retry after a cancelled prompt', async () => {

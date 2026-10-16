@@ -9,13 +9,13 @@ const PACKAGE = '00000000-0000-4000-8000-000000000301'
 
 const PAGES = [
   '/overview', '/customers', '/customers/cust-alpha', '/customers/cust-alpha/change', '/customers/cust-alpha/terms/new',
-  '/tenants', '/tenants/new', '/tenants/tenant-1', '/operations', '/operations/op-1',
+  ...['subscription', 'invoices', 'workspace', 'operations', 'history'].map(tab => `/customers/cust-alpha?tab=${tab}`), '/customers/new', '/operations', '/operations/op-1',
   '/plans', '/plans/new', `/plans/${PLAN}`, `/plans/${PLAN}/edit`,
   '/bundles', '/bundles/new', `/bundles/${BUNDLE}`, `/bundles/${BUNDLE}/edit`,
   '/catalog', `/catalog/${PACKAGE}`, '/invoices', '/invoices/inv-1', '/audit',
 ]
 // Entries that only redirect: the destination is what renders.
-const REDIRECTS: Record<string, string> = { '/': '/overview', '/catalog/new': '/catalog', [`/catalog/${PACKAGE}/edit`]: `/catalog/${PACKAGE}` }
+const REDIRECTS: Record<string, string> = { '/': '/overview', '/tenants/tenant-1': '/customers/cust-alpha', '/catalog/new': '/catalog', [`/catalog/${PACKAGE}/edit`]: `/catalog/${PACKAGE}` }
 const RAW_KEY = /^(vendor|commercial|adminAuth|app|states)\.[A-Za-z0-9_.]+$/
 
 async function expectCleanPage(page: Page, path: string, errors: string[]) {
@@ -54,7 +54,7 @@ test.describe('list states', () => {
     await open(page, '/overview')
     await page.route('**/api/vendor/v1/commercial/customers**', route => route.fulfill({ json: { items: [], total: 0 } }))
     await navigateClient(page, '/customers')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('العملاء التجاريون')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('العملاء')
     await expect(page.locator('[data-slot="data-table"] tbody tr')).toHaveCount(0)
     expect((await page.locator('body').innerText()).split('\n').filter(line => RAW_KEY.test(line.trim()))).toEqual([])
   })

@@ -1,40 +1,39 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { customerDisplayBadge } from '@/utils/vendorBadges'
-import { useVendorCommercial } from '@/composables/useVendorCommercial'
-import { CUSTOMER_STATE_FILTERS, customerDisplayState, customerListQuery, isCustomerStateFilter, isNotAvailable, type VendorCustomer } from '@/utils/vendorSubscriptions'
+import type { ClientRow } from '@nasq/commercial-contracts'
+import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
+import { CLIENT_PAGE_SIZE, CLIENT_STATE_FILTERS, clientListQuery, clientTo, isClientStateFilter } from '@/utils/vendorClients'
+import { isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { entitledFeaturePrefixes } from '@nasq/commercial-ui/app/utils/entitlementApps'
 definePageMeta({ capability: 'vendor.read' })
-const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const api = useVendorSubscriptions()
-const PAGE = 25
+const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const api = useVendorSubscriptions(); const { can } = useVendorContext()
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
-const state = computed(() => (isCustomerStateFilter(route.query.state) ? route.query.state : 'all'))
+const state = computed(() => (isClientStateFilter(route.query.state) ? route.query.state : 'all'))
 const page = computed(() => Math.max(1, Number(route.query.page ?? 1) || 1))
 function patch(change: Record<string, unknown>) { void router.replace({ path: '/customers', query: { ...route.query, page: undefined, ...change } }) }
-const { data, error, pending, refresh } = await useAsyncData(() => `vendor:customers:${q.value}:${state.value}:${page.value}`, () => api.listCustomers(customerListQuery({ q: q.value, state: state.value, page: page.value, pageSize: PAGE })), { watch: [q, state, page] })
-const { data: plans } = await useAsyncData('vendor:customers:plans', () => useVendorCommercial().listPlans({ limit: 200 }).then(r => r.items).catch(() => []))
-const planName = (id: string) => plans.value?.find(p => p.id === id)?.name
+const { data, error, pending, refresh } = await useAsyncData(() => `vendor:clients:${q.value}:${state.value}:${page.value}`, () => api.listClients(clientListQuery({ q: q.value, state: state.value, page: page.value })), { watch: [q, state, page] })
 const unavailable = computed(() => isNotAvailable(error.value))
-const items = computed<VendorCustomer[]>(() => data.value?.items ?? [])
-const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / PAGE)))
-const stateItems = computed(() => CUSTOMER_STATE_FILTERS.map(value => ({ value, label: t(`vendor.customers.filter.${value}`) })))
-const to = (c: VendorCustomer) => ({ path: `/customers/${encodeURIComponent(c.id)}`, query: { returnTo: route.fullPath } })
-const planOf = (c: VendorCustomer) => (c.subscription?.applied ? planName(c.subscription.applied.plan_revision_id) ?? t('vendor.customers.planAssigned') : t('vendor.customers.noPlan'))
-const services = (c: VendorCustomer) => (c.subscription?.applied ? entitledFeaturePrefixes(c.subscription.applied.entitlement.features).length : null)
-const branches = (c: VendorCustomer) => (c.subscription?.applied ? 1 + c.subscription.applied.extra_branch_count : null)
+const items = computed<ClientRow[]>(() => data.value?.items ?? [])
+const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / CLIENT_PAGE_SIZE)))
+const stateItems = computed(() => CLIENT_STATE_FILTERS.map(value => ({ value, label: t(`vendor.customers.filter.${value}`) })))
+const to = (row: ClientRow) => clientTo(row, route.fullPath)
+// A plan bought but not yet applied is shown with its pending state rather than as "no plan".
+const planLabel = (row: ClientRow) => row.plan_name ?? (row.pending_plan_name ? t('vendor.customers.pendingPlan', { plan: row.pending_plan_name }) : t('vendor.customers.noPlan'))
+const rowKey = (row: ClientRow) => row.customer_id ?? row.tenant_id!
+const modeText = (row: ClientRow) => (row.commercial_mode && row.hosting_model ? `${t(`vendor.mode.${row.commercial_mode === 'saas' ? 'saas' : 'nonSaas'}`)} · ${t(`vendor.hosting.${row.hosting_model === 'managed' ? 'managed' : 'customerHosted'}`)}` : null)
+const workspaceLabel = (row: ClientRow) => (row.tenant_status ? (operationStatusBadge(row.tenant_status).labelKey ? t(operationStatusBadge(row.tenant_status).labelKey) : row.tenant_status) : '')
 
-const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
+const columns = computed<TableColumn<ClientRow>[]>(() => [
   { id: 'name', header: t('vendor.customers.title') },
   { id: 'status', header: t('vendor.common.status') },
   { id: 'plan', header: t('vendor.customers.plan') },
-  { id: 'services', header: t('vendor.customers.services') },
-  { id: 'branches', header: t('vendor.customers.branches') },
+  { id: 'workspace', header: t('vendor.customers.workspace') },
+  { id: 'mode', header: t('vendor.customers.modeHosting') },
   { id: 'renewal', header: t('vendor.customers.renewal') },
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.customers.title')" :description="t('vendor.customers.description')">
+<SharedListPage :title="t('vendor.customers.title')" :description="t('vendor.customers.description')" :create-to="can('vendor.tenants.manage') ? { path: '/customers/new', query: { returnTo: route.fullPath } } : undefined" :create-label="t('vendor.customers.new')" create-test-id="vendor-customer-new">
 
 <template #filters><SharedFilterBar :active-count="Number(Boolean(q)) + Number(state !== 'all')" @clear="router.replace('/customers')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.customers.search')" :placeholder="t('vendor.customers.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>
@@ -43,28 +42,28 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
     </SharedFilterBar></template>
 <p v-if="data" class="text-sm text-muted" data-testid="customers-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.customers.notAvailable')" :description="t('vendor.customers.notAvailableHint')" />
-<SharedDataTable v-else :rows="items" :columns="columns" row-key="id" :row-to="to" :loading="pending" :error="error" :empty-text="t(q || state !== 'all' ? 'vendor.customers.noResults' : 'vendor.customers.empty')" :caption="t('vendor.customers.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
+<SharedDataTable v-else :rows="items" :columns="columns" :row-key="rowKey" :row-to="to" :loading="pending" :error="error" :empty-text="t(q || state !== 'all' ? 'vendor.customers.noResults' : 'vendor.customers.empty')" :caption="t('vendor.customers.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
   <template #name-cell="{ row: { original: c } }"><NuxtLink :to="to(c)" data-testid="customer-row" class="font-medium hover:underline">{{ c.name }}</NuxtLink></template>
-  <template #status-cell="{ row: { original: c } }"><SharedStatusBadge v-if="c.commercial_setup_required" tone="warning" :label="t('vendor.customers.setupRequired')" data-testid="setup-required" /><SharedStatusBadge v-if="customerDisplayState(c)" :tone="customerDisplayBadge(customerDisplayState(c)!).tone" :label="customerDisplayBadge(customerDisplayState(c)!).labelKey ? t(customerDisplayBadge(customerDisplayState(c)!).labelKey) : customerDisplayState(c)!" /><SharedStatusBadge v-if="!customerDisplayState(c)" tone="neutral" variant="outline" :label="t('vendor.customers.noSubscription')" /></template>
-  <template #plan-cell="{ row: { original: c } }">{{ planOf(c) }}</template>
-  <template #services-cell="{ row: { original: c } }">{{ services(c) ?? t('app.notAvailable') }}</template>
-  <template #branches-cell="{ row: { original: c } }">{{ branches(c) ?? t('app.notAvailable') }}</template>
-  <template #renewal-cell="{ row: { original: c } }"><bdi dir="ltr">{{ c.subscription?.renewal_at ?? t('app.notAvailable') }}</bdi></template>
+  <template #status-cell="{ row: { original: c } }"><SharedStatusBadge v-if="c.setup_required" tone="warning" :label="t('vendor.customers.setupRequired')" data-testid="setup-required" /><SharedStatusBadge v-if="c.subscription_state" :tone="customerDisplayBadge(c.subscription_state).tone" :label="t(customerDisplayBadge(c.subscription_state).labelKey)" /><SharedStatusBadge v-else-if="c.customer_id" tone="neutral" variant="outline" :label="t('vendor.customers.noSubscription')" /><SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noCommercial')" data-testid="no-commercial" /></template>
+  <template #plan-cell="{ row: { original: c } }">{{ planLabel(c) }}</template>
+  <template #workspace-cell="{ row: { original: c } }"><SharedStatusBadge v-if="c.tenant_status" :tone="operationStatusBadge(c.tenant_status).tone" :label="workspaceLabel(c)" /><SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noWorkspace')" data-testid="no-workspace" /></template>
+  <template #mode-cell="{ row: { original: c } }">{{ modeText(c) ?? t('app.notAvailable') }}</template>
+  <template #renewal-cell="{ row: { original: c } }"><bdi dir="ltr">{{ c.renewal_at ?? t('app.notAvailable') }}</bdi></template>
   <template #mobile-row="{ row: c }"><div class="flex flex-wrap items-start justify-between gap-4">
             <div class="min-w-0"><h2 class="text-lg font-semibold"><NuxtLink data-testid="customer-row" :to="to(c)">{{ c.name }}</NuxtLink></h2></div>
             <div class="flex flex-wrap items-center gap-2">
-              <SharedStatusBadge v-if="c.commercial_setup_required" tone="warning" :label="t('vendor.customers.setupRequired')" data-testid="setup-required" />
-              <SharedStatusBadge v-if="customerDisplayState(c)" :tone="customerDisplayBadge(customerDisplayState(c)!).tone" :label="t(`vendor.customers.display.${customerDisplayState(c)}`)" />
-              <SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noSubscription')" />
+              <SharedStatusBadge v-if="c.setup_required" tone="warning" :label="t('vendor.customers.setupRequired')" data-testid="setup-required" />
+              <SharedStatusBadge v-if="c.subscription_state" :tone="customerDisplayBadge(c.subscription_state).tone" :label="t(customerDisplayBadge(c.subscription_state).labelKey)" />
+              <SharedStatusBadge v-else-if="c.customer_id" tone="neutral" variant="outline" :label="t('vendor.customers.noSubscription')" />
+              <SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noCommercial')" data-testid="no-commercial" />
             </div>
           </div>
-          <dl v-if="c.subscription" class="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div><dt class="text-muted">{{ t('vendor.customers.plan') }}</dt><dd>{{ planOf(c) }}</dd></div>
-            <div><dt class="text-muted">{{ t('vendor.customers.services') }}</dt><dd class="tabular-nums">{{ services(c) ?? t('app.notAvailable') }}</dd></div>
-            <div><dt class="text-muted">{{ t('vendor.customers.branches') }}</dt><dd class="tabular-nums">{{ branches(c) ?? t('app.notAvailable') }}</dd></div>
-            <div><dt class="text-muted">{{ t('vendor.customers.renewal') }}</dt><dd class="tabular-nums"><bdi dir="ltr">{{ c.subscription.renewal_at ?? t('app.notAvailable') }}</bdi></dd></div>
-          </dl>
-          <p v-else-if="c.commercial_setup_required" class="mt-3 text-sm text-muted">{{ t('vendor.customers.setupHint') }}</p></template>
+          <dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div><dt class="text-muted">{{ t('vendor.customers.plan') }}</dt><dd>{{ planLabel(c) }}</dd></div>
+            <div><dt class="text-muted">{{ t('vendor.customers.workspace') }}</dt><dd>{{ c.tenant_status ? workspaceLabel(c) : t('vendor.customers.noWorkspace') }}</dd></div>
+            <div><dt class="text-muted">{{ t('vendor.customers.modeHosting') }}</dt><dd>{{ modeText(c) ?? t('app.notAvailable') }}</dd></div>
+            <div><dt class="text-muted">{{ t('vendor.customers.renewal') }}</dt><dd class="tabular-nums"><bdi dir="ltr">{{ c.renewal_at ?? t('app.notAvailable') }}</bdi></dd></div>
+          </dl></template>
 </SharedDataTable>
 </SharedListPage>
 </template>

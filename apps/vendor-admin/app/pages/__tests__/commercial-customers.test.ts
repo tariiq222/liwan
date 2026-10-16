@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -15,6 +15,13 @@ describe('vendor commercial customers and invoices pages', () => {
     expect(page('customers/[id]/terms/new.vue')).toContain("capability: 'vendor.pricing.manage'")
     expect(page('customers/[id]/terms/new.vue')).toMatch(/can\('vendor\.pricing\.manage'\) && can\('vendor\.subscriptions\.manage'\)/)
     expect(page('customers/[id]/change.vue')).toContain("capability: 'vendor.subscriptions.manage'")
+  })
+  it('creates a client under customers and leaves no tenant list or tenant create page behind', () => {
+    expect(page('customers/new.vue')).toContain("capability: 'vendor.tenants.manage'")
+    expect(page('customers/new.vue')).toContain("['/customers']")
+    expect(page('customers/index.vue')).toContain("'/customers/new'")
+    expect(existsSync(resolve(root, 'app/pages/tenants/index.vue'))).toBe(false)
+    expect(existsSync(resolve(root, 'app/pages/tenants/new.vue'))).toBe(false)
   })
   it('terms is a route-backed create panel that previews before vs after and requires a reason', () => {
     const p = page('customers/[id]/terms/new.vue')

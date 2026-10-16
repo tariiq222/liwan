@@ -44,6 +44,13 @@ describe('vendor-admin identity contracts', () => {
   it('describes a success body for every route that is not 204', () => {
     expect(Object.keys(adminAuthResults).every((route) => route in adminAuthBodies)).toBe(true)
     expect(adminAuthResults.fallback).toBe(adminSessionResultSchema)
+    expect(adminAuthResults['dev-login']).toBe(adminSessionResultSchema)
+  })
+  it('takes an empty body for the developer sign-in routes', () => {
+    for (const route of ['dev-login', 'dev-step-up'] as const) {
+      expect(adminAuthBodies[route].safeParse({}).success).toBe(true)
+      expect(adminAuthBodies[route].safeParse({ email: 'a@nasq.sa' }).success).toBe(false)
+    }
   })
   it('declares strict bodies for every auth route', () => {
     for (const schema of Object.values(adminAuthBodies)) expect(schema.safeParse({ unexpected: true }).success).toBe(false)

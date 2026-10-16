@@ -22,7 +22,7 @@ describe('vendor operation bounded polling UX', () => {
   })
 
   it('does not change operation availability based on an unverified lane guess', () => {
-    const tenantPage = readFileSync(resolve(webRoot, 'app/pages/tenants/[id].vue'), 'utf8')
+    const tenantPage = readFileSync(resolve(webRoot, 'app/components/vendor/TenantOperationsPanel.vue'), 'utf8')
     expect(tenantPage).not.toMatch(/inventory_target.*startsWith|hosting_model.*managed.*operationTypes/)
   })
 })

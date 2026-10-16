@@ -16,16 +16,17 @@ const ROLES: Record<string, string[]> = {
 const caps = (role: string) => ROLES[role]!.map(name => `vendor.${name}`)
 const ids = (capabilities: string[]) => adminNav(capabilities).map(item => item.id)
 
-const READ_SECTIONS = ['overview', 'customers', 'tenants', 'operations', 'plans', 'bundles', 'catalog']
+const BEFORE_INVOICES = ['overview', 'customers', 'plans', 'bundles']
+const READ_SECTIONS = [...BEFORE_INVOICES, 'operations']
 
 describe('adminNav', () => {
   it('shows the owner every section in the fixed order', () => {
-    expect(ids(caps('owner'))).toEqual([...READ_SECTIONS, 'invoices', 'audit', 'team'])
+    expect(ids(caps('owner'))).toEqual([...BEFORE_INVOICES, 'invoices', 'operations', 'audit', 'team'])
   })
 
   it.each([
     ['customer_success', READ_SECTIONS],
-    ['finance', [...READ_SECTIONS, 'invoices']],
+    ['finance', [...BEFORE_INVOICES, 'invoices', 'operations']],
     ['product', READ_SECTIONS],
     ['operations', READ_SECTIONS],
     ['support', [...READ_SECTIONS, 'audit']],
@@ -63,6 +64,19 @@ describe('activeNavId', () => {
     expect(activeNavId(items, '/customers/12/change')).toBe('customers')
     expect(activeNavId(items, '/plans/new')).toBe('plans')
     expect(activeNavId(items, '/team/new')).toBe('team')
+  })
+
+  it('keeps a workspace without a customer under customers, which owns the only client section', () => {
+    expect(activeNavId(items, '/tenants/t-1')).toBe('customers')
+    expect(activeNavId(items, '/customers/new')).toBe('customers')
+    expect(activeNavId(items, '/tenantsx')).toBeNull()
+    expect(items.map(item => item.id)).not.toContain('tenants')
+  })
+
+  it('keeps the retired legacy packages under plans', () => {
+    expect(activeNavId(items, '/catalog')).toBe('plans')
+    expect(activeNavId(items, '/catalog/pkg-1')).toBe('plans')
+    expect(activeNavId(items, '/catalogx')).toBeNull()
   })
 
   it('does not match a path that only shares a prefix', () => {

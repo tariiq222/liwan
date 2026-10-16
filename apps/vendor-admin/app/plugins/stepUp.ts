@@ -10,6 +10,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     authenticate: startAuthentication,
     onSessionEnded: () => nuxtApp.runWithContext(() => useSessionEnded()()),
     abortPrompt: () => WebAuthnAbortService.cancelCeremony(),
+    devLogin: useRuntimeConfig().public.devLogin === true,
   }, {
     pending: useState('admin-step-up-pending', () => false),
     waiting: useState('admin-step-up-waiting', () => false),

@@ -32,7 +32,7 @@ const props = withDefaults(defineProps<{
 }>(), { recommendations: () => [], legacyAgenda: '', readonly: false, pending: false })
 const emit = defineEmits<{
   'update:modelValue': [value: MeetingMinutesFormValue]
-  'save-and-create-resolution': []
+  'save-and-create-resolution': [topicKey?: string]
 }>()
 
 const { t, locale } = useI18n()
@@ -104,42 +104,22 @@ function readAgenda() {
       </div>
     </section>
 
-    <section class="grid gap-3">
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.signoff') }}</h3>
-        <span class="text-xs text-muted">{{ t('meetingMinutesForm.missingOnly') }}</span>
-      </div>
-      <div class="grid gap-3 sm:grid-cols-2">
-        <div class="grid gap-1">
-          <label for="minutes-chairperson" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.chairperson') }}</label>
-          <UInput id="minutes-chairperson" :model-value="modelValue.chairperson" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ chairperson: String($event) })" />
-        </div>
-        <div class="grid gap-1">
-          <label for="minutes-approver-name" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.approverName') }}</label>
-          <UInput id="minutes-approver-name" :model-value="modelValue.approver_name" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_name: String($event) })" />
-        </div>
-        <div class="grid gap-1 sm:col-span-2">
-          <label for="minutes-approver-title" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.approverTitle') }}</label>
-          <UInput id="minutes-approver-title" :model-value="modelValue.approver_title" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_title: String($event) })" />
-        </div>
-      </div>
-    </section>
+
 
     <section class="grid gap-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.body') }}</h3>
         <UButton v-if="legacyAgenda && !modelValue.opening.trim()" type="button" color="neutral" variant="outline" size="sm" :disabled="readonly || pending || !hydrated" :label="t('meetingMinutesForm.readAgenda')" @click="readAgenda" />
       </div>
-      <div class="grid gap-1">
-        <label for="minutes-opening" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.opening') }}</label>
-        <UTextarea id="minutes-opening" :model-value="modelValue.opening" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending" @update:model-value="update({ opening: normalizeMeetingMinutesText(String($event)) })" />
-      </div>
+      <UFormField :label="t('meetingMinutesForm.opening')" class="grid gap-1">
+        <UTextarea id="minutes-opening" :model-value="modelValue.opening" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending || !hydrated" @update:model-value="update({ opening: normalizeMeetingMinutesText(String($event)) })" />
+      </UFormField>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h4 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.topics') }}</h4>
         <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="readonly || pending || modelValue.topics.length >= 100 || !hydrated" :label="t('meetingMinutesForm.addTopic')" @click="addTopic" />
       </div>
       <SharedEmptyState v-if="!modelValue.topics.length" :title="t('meetingMinutesForm.noTopics')" />
-      <article v-for="(topic, index) in modelValue.topics" :key="topic.key" class="grid gap-3 rounded-lg bg-default p-4 ring ring-default">
+      <article v-for="(topic, index) in modelValue.topics" :id="`meeting-minutes-topic-${topic.key}`" tabindex="-1" :key="topic.key" class="grid gap-3 rounded-lg bg-default p-4 ring ring-default">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h5 class="font-medium text-highlighted">{{ t('meetingMinutesForm.topicNumber', { number: index + 1 }) }}</h5>
           <div class="flex flex-wrap items-center gap-1">
@@ -148,18 +128,16 @@ function readAgenda() {
             <UButton type="button" color="error" variant="ghost" size="sm" :disabled="readonly || pending || !hydrated" :label="t('meetingMinutesForm.removeTopic')" @click="removeTopic(index)" />
           </div>
         </div>
-        <div class="grid gap-1">
-          <label :for="`minutes-topic-title-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.topicTitle') }}</label>
-          <UInput :id="`minutes-topic-title-${topic.key}`" :model-value="topic.title" class="w-full" maxlength="500" :disabled="readonly || pending" @update:model-value="updateTopic(index, { title: String($event) })" />
-        </div>
-        <div class="grid gap-1">
-          <label :for="`minutes-topic-discussion-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.discussion') }}</label>
-          <UTextarea :id="`minutes-topic-discussion-${topic.key}`" :model-value="topic.discussion" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending" @update:model-value="updateTopic(index, { discussion: normalizeMeetingMinutesText(String($event)) })" />
-        </div>
-        <div class="grid gap-1">
-          <label :for="`minutes-topic-project-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.project') }}</label>
-          <MeetingProjectFilter :id="`minutes-topic-project-${topic.key}`" hide-label :model-value="topic.project_id ?? undefined" :disabled="readonly || pending" @update:model-value="updateTopic(index, { project_id: $event ?? null })" />
-        </div>
+        <UFormField :label="t('meetingMinutesForm.topicTitle')" class="grid gap-1">
+          <UInput :id="`minutes-topic-title-${topic.key}`" :model-value="topic.title" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="updateTopic(index, { title: String($event) })" />
+        </UFormField>
+        <UFormField :label="t('meetingMinutesForm.discussion')" class="grid gap-1">
+          <UTextarea :id="`minutes-topic-discussion-${topic.key}`" :model-value="topic.discussion" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending || !hydrated" @update:model-value="updateTopic(index, { discussion: normalizeMeetingMinutesText(String($event)) })" />
+        </UFormField>
+        <UFormField :label="t('meetingMinutesForm.project')" class="grid gap-1">
+          <MeetingProjectFilter :id="`minutes-topic-project-${topic.key}`" hide-label :model-value="topic.project_id ?? undefined" :disabled="readonly || pending || !hydrated" @update:model-value="updateTopic(index, { project_id: $event ?? null })" />
+        </UFormField>
+        <UButton v-if="!readonly" type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution', topic.key)" />
         <div class="grid gap-1">
           <span :id="`minutes-topic-resolutions-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.recommendations') }}</span>
           <fieldset :aria-labelledby="`minutes-topic-resolutions-${topic.key}`" class="grid gap-2 rounded-lg p-3 ring ring-default">
@@ -182,9 +160,26 @@ function readAgenda() {
       </article>
     </section>
 
-    <section class="grid gap-1">
-      <label for="minutes-closing" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.closing') }}</label>
-      <UTextarea id="minutes-closing" :model-value="modelValue.closing" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending" @update:model-value="update({ closing: normalizeMeetingMinutesText(String($event)) })" />
+    <UFormField :label="t('meetingMinutesForm.closing')" class="grid gap-1">
+      <UTextarea id="minutes-closing" :model-value="modelValue.closing" class="w-full" maxlength="50000" :rows="4" :disabled="readonly || pending || !hydrated" @update:model-value="update({ closing: normalizeMeetingMinutesText(String($event)) })" />
+    </UFormField>
+
+    <section class="grid gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.signoff') }}</h3>
+        <span class="text-xs text-muted">{{ t('meetingMinutesForm.missingOnly') }}</span>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <UFormField :label="t('meetingMinutesForm.chairperson')" class="grid gap-1">
+          <UInput id="minutes-chairperson" :model-value="modelValue.chairperson" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ chairperson: String($event) })" />
+        </UFormField>
+        <UFormField :label="t('meetingMinutesForm.approverName')" class="grid gap-1">
+          <UInput id="minutes-approver-name" :model-value="modelValue.approver_name" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_name: String($event) })" />
+        </UFormField>
+        <UFormField :label="t('meetingMinutesForm.approverTitle')" class="grid gap-1">
+          <UInput id="minutes-approver-title" :model-value="modelValue.approver_title" class="w-full" maxlength="500" :disabled="readonly || pending || !hydrated" @update:model-value="update({ approver_title: String($event) })" />
+        </UFormField>
+      </div>
     </section>
 
     <div v-if="!readonly" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-default p-3">

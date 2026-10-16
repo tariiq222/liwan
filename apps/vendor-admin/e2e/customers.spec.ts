@@ -10,12 +10,12 @@ test.describe('Plan 6e: vendor customers', () => {
     test('the list is the list template with a data table and the same filters', async ({ page }) => {
       await open(page, '/customers')
       await expectNoSecondH1(page)
-      await expect(page.getByRole('heading', { level: 1 })).toContainText('العملاء التجاريون')
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('العملاء')
       await expect(page.locator('[data-template="list"]')).toHaveCount(1)
       await expect(rows(page)).toHaveCount(3)
       await expect(page.getByTestId('customer-row').filter({ visible: true })).toHaveCount(3)
       await expect(page.getByTestId('setup-required').filter({ visible: true })).toHaveCount(1)
-      await expect(page.locator('[data-shortcut-create]')).toHaveCount(0)
+      await expect(page.locator('[data-shortcut-create]')).toHaveCount(1)
       await expect(page.getByTestId('customers-result-count')).toContainText('3')
     })
 
@@ -49,20 +49,22 @@ test.describe('Plan 6e: vendor customers', () => {
       await expect(page.locator('#__nuxt')).toContainText('غير متاح')
     })
 
-    test('the record is the record template: one h1, sections as h2, the summary in the aside', async ({ page }) => {
+    test('the record is the record template: one h1, tabs, sections as h2', async ({ page }) => {
       await open(page, '/customers/cust-alpha?returnTo=%2Fcustomers')
       await expectNoSecondH1(page)
       await expect(page.getByRole('heading', { level: 1 })).toContainText('شركة ألفا')
       await expect(page.locator('[data-template="record"]')).toHaveCount(1)
-      await expect(page.locator('[data-slot="record-aside"] [data-slot="properties-panel"]')).toHaveCount(1)
       await expect(page.locator('[data-slot="record-section"]').first()).toBeVisible()
+      await expect(page.locator('[data-slot="properties-panel"]').first()).toBeVisible()
+      await open(page, '/customers/cust-alpha?tab=subscription')
       await expect(page.getByTestId('branch-summary')).toBeVisible()
-      await expect(page.getByTestId('customer-invoice')).toHaveCount(2)
       await expect(page.getByTestId('usage-meter').first()).toBeVisible()
+      await open(page, '/customers/cust-alpha?tab=invoices')
+      await expect(page.getByTestId('customer-invoice')).toHaveCount(2)
     })
 
     test('cancelling a pending order asks inline first and never opens a dialog', async ({ page }) => {
-      await open(page, '/customers/cust-beta')
+      await open(page, '/customers/cust-beta?tab=subscription')
       await page.getByRole('button', { name: 'إلغاء الطلب المعلّق' }).first().click()
       await expect(page.getByRole('dialog')).toHaveCount(0)
       await expect(page.getByLabel('سبب الإلغاء (من 3 إلى 1000 حرف)')).toBeVisible()
@@ -70,7 +72,7 @@ test.describe('Plan 6e: vendor customers', () => {
 
     for (const refreshState of ['loading', 'failed'] as const) {
       test(`a failed cancellation preserves its dirty reason guard during ${refreshState} customer refresh`, async ({ page }) => {
-        await open(page, '/customers/cust-beta')
+        await open(page, '/customers/cust-beta?tab=subscription')
         const reason = 'سبب الإلغاء محفوظ'
         let cancelRequests = 0
         let refreshRequests = 0
@@ -103,10 +105,10 @@ test.describe('Plan 6e: vendor customers', () => {
           }
           await page.locator('[data-slot="page-header"] a').first().click()
           await expect(page.getByTestId('unsaved-changes-dialog')).toBeVisible()
-          await expect(page).toHaveURL(/\/customers\/cust-beta$/)
+          await expect(page).toHaveURL(/\/customers\/cust-beta\?tab=subscription$/)
           await page.getByRole('button', { name: 'البقاء في الصفحة', exact: true }).click()
           await expect(page.getByTestId('unsaved-changes-dialog')).toHaveCount(0)
-          await expect(page).toHaveURL(/\/customers\/cust-beta$/)
+          await expect(page).toHaveURL(/\/customers\/cust-beta\?tab=subscription$/)
           recoverRefresh = true
           if (refreshState === 'loading') finishRefresh()
           else await page.locator('[data-slot="error-state"]').getByRole('button').click()

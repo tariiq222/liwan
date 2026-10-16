@@ -13,6 +13,7 @@ import { returnToQuery } from '@nasq/ui/app/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
+import { meetingViewRoute, meetingViewOptions } from '@/utils/meetingRoutes'
 import { parseOffset } from '@/utils/routeQuery'
 
 const route = useRoute()
@@ -140,8 +141,7 @@ function meetingRecordNumber(meeting: { reference: string; id: number }) {
 }
 
 const columns = computed<TableColumn<MeetingListItem>[]>(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
-  { accessorKey: 'name', header: t('meetingsUi.title') },
+  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { class: { th: 'w-2/5', td: 'max-w-0' } } },
   { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
   { accessorKey: 'organizer', header: t('meetingsUi.organizer') },
   { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
@@ -257,10 +257,12 @@ function setPage(next: number) {
             <SharedFilterField v-if="can('pmo.projects.read')" :label="t('meetingsFilters.project')" for="meeting-project">
               <MeetingProjectFilter id="meeting-project" hide-label class="w-full" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
             </SharedFilterField>
-            <SharedFilterField :label="t('meetingsFilters.organizer')" for="meeting-organizer-search">
-              <UInput id="meeting-organizer-search" v-model="organizerSearch" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.organizerSearch')" :aria-label="t('meetingsFilters.organizerSearch')" />
+            <SharedFilterField :label="t('meetingsFilters.organizer')" for="meeting-organizer">
+
               <USelectMenu
                 id="meeting-organizer"
+                v-model:search-term="organizerSearch"
+                :ignore-filter="true"
                 class="w-full"
                 value-key="value"
                 :model-value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'"
@@ -281,6 +283,7 @@ function setPage(next: number) {
             </SharedFilterField>
           </template>
           <template #view>
+            <SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
             <UTabs
               data-testid="meeting-scope"
               :model-value="mine ? 'mine' : 'all'"
@@ -322,8 +325,6 @@ function setPage(next: number) {
       @update:page="setPage"
       @retry="query.refetch()"
     >
-      <template #id-cell="{ row }"><RecordNumber :value="meetingRecordNumber(row.original)" />
-      </template>
       <template #name-cell="{ row }">
         <NuxtLink
           :to="meetingTo(row.original)"
@@ -331,8 +332,9 @@ function setPage(next: number) {
           data-testid="meeting-row"
           class="block min-w-0 font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >{{ row.original.name }}</NuxtLink>
+        <RecordNumber :value="meetingRecordNumber(row.original)" class="mt-1 text-xs text-muted" />
       </template>
-      <template #meeting_date-cell="{ row }">{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</template>
+      <template #meeting_date-cell="{ row }"><div class="grid gap-0.5 whitespace-nowrap"><span>{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date, locale) : '—' }}</span><span class="text-xs text-muted">{{ row.original.start_datetime ? localTime(row.original.start_datetime) : t('meetingsUx.timeUnavailable') }}</span></div></template>
       <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
       <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" data-testid="meeting-row-state" />
       </template>

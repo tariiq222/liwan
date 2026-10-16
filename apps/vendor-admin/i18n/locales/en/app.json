@@ -10,12 +10,10 @@
     },
     "nav": {
       "overview": "Overview",
-      "customers": "Clients",
-      "tenants": "Tenants",
-      "operations": "Ops",
+      "customers": "Customers",
+      "operations": "Operations",
       "plans": "Plans",
       "bundles": "Bundles",
-      "catalog": "Legacy packages",
       "invoices": "Invoices",
       "audit": "Audit",
       "team": "Team"

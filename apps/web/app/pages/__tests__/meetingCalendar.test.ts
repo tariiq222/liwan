@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { calendarCoverage } from '../../utils/meetingWorkspace'
 import { meetingStateBadgeProps } from '../../utils/meetingStatus'
@@ -103,6 +103,13 @@ describe('meetings calendar page', () => {
     // 2026-03-10 22:00 to 2026-03-12 00:00 in Riyadh.
     const page = calendar([meeting({ id: 8, meeting_date: '2026-03-10', start_datetime: '2026-03-10T19:00:00Z', end_datetime: '2026-03-11T21:00:00Z' })], { year: '2026', month: '3' })
     expect([...page.byDate.value.keys()].sort()).toEqual(['2026-03-10', '2026-03-11'])
+  })
+
+  it('restores the selected month and day when browser history changes query', async () => {
+    const page = calendar([], { year: '2026', month: '9', day: '2026-09-15' })
+    page.route.query = { year: '2026', month: '10', day: '2026-10-20' }
+    await nextTick()
+    expect([page.year.value, page.month.value, page.selectedDay.value]).toEqual([2026, 9, '2026-10-20'])
   })
 
   it('rejects an impossible or out-of-month day query', () => {

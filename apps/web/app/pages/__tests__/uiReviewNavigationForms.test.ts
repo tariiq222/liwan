@@ -46,7 +46,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     provideFrameOwnsHeading: () => undefined,
     useEscapeBack: (target: unknown) => { escapeTargets.push(target) },
     projectTaskParams: () => ({}), projectTaskQuery: () => ({}),
-    useProject: () => ({ data: Vue.ref({ active: true, name: 'Example project', can_manage: true, status: 'active' }), error: Vue.ref(null) }),
+    useProject: () => ({ data: Vue.ref({ active: true, name: 'Example project', can_manage: true, status: 'active', phase_state: { current: 'initiating' } }), error: Vue.ref(null) }),
     useArchivedTasks: () => ({ data: Vue.ref({ pages: [] }), isLoading: Vue.ref(false) }),
     useRestoreTask: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }),
     useMe: () => ({ me: Vue.ref({}) }), useApi: () => ({ $api: vi.fn() }),
@@ -66,7 +66,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useSsrQuerySeed: () => undefined, navigateTo: navigate,
     ApiError: class ApiError extends Error {},
     TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, FilterBar: {}, DocumentEditor: {},
-    projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', ProjectWorkspaceTabs: {},
+    projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', ProjectWorkspaceTabs: {}, ProjectPhaseStepper: {},
     ...overrides,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))

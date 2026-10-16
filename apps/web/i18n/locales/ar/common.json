@@ -76,7 +76,9 @@
     "language": "اللغة",
     "goToShowAll": "عرض كل الصفحات ({count})",
     "goToShowLess": "عرض أقل",
-    "notificationsFilters": "تصفية الإشعارات"
+    "notificationsFilters": "تصفية الإشعارات",
+    "meetingFollowup": "المتابعة",
+    "meetingSeriesShort": "الدورية"
   },
   "auth": {
     "username": "اسم المستخدم",

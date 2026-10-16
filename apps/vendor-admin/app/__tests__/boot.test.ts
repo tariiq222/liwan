@@ -27,6 +27,7 @@ describe('vendor admin scaffold', () => {
     const { runtimeConfig } = await loadConfig()
     const { public: publicConfig, ...privateConfig } = runtimeConfig
     expect(privateConfig).toEqual({ controlUrl: '', serviceKey: '', installationId: '', adminOrigin: '', trustProxy: false })
+    expect(publicConfig).toEqual({ devLogin: false })
     expect(JSON.stringify(publicConfig ?? {})).not.toMatch(/key|control/i)
   })
 

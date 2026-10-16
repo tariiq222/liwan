@@ -16,7 +16,9 @@
       "password": "Password",
       "totpCode": "Authenticator code",
       "recoveryCode": "Recovery code",
-      "submit": "Sign in"
+      "submit": "Sign in",
+      "devSignIn": "Developer sign-in",
+      "devHint": "This button exists only in local development. It is never shown or accepted in production."
     },
     "enroll": {
       "title": "Activate your account",
@@ -60,7 +62,8 @@
       "title": "Confirm with your passkey",
       "lead": "This action is sensitive. Confirm it is you in the browser prompt to continue.",
       "retry": "Try again",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "devConfirm": "Developer confirm"
     },
     "errors": {
       "failed": "Sign-in failed. Check your details and try again.",

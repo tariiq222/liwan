@@ -136,14 +136,14 @@ def dump_version(version):
     }
 
 
-def _resolution_allowed_actions(resolution, *, linked, task_readable):
+def _resolution_allowed_actions(resolution, *, linked, manager=None):
     if linked:
         return []
     meeting = resolution.meeting_id
     if meeting.state == 'cancelled':
         return []
-    manager = resolution._cyan_is_manager()
-    editor = resolution._cyan_is_meeting_editor(meeting)
+    manager = resolution._cyan_is_manager() if manager is None else manager
+    editor = manager or resolution.env.user in (meeting.organizer_id | meeting.secretary_id)
     assignee = resolution.env.user == resolution.responsible_id
     if resolution.state in ('done', 'cancelled'):
         return ['reopen'] if manager else []
@@ -159,13 +159,13 @@ def _resolution_allowed_actions(resolution, *, linked, task_readable):
     return actions
 
 
-def dump_resolution(resolution, link=None):
+def dump_resolution(resolution, link=None, *, linked_ids=None, manager=None):
     """``link`` is this recommendation's entry of ``_nasq_readable_links``, when the caller can read it."""
     links = _links(resolution)
-    linked = bool(link) or resolution.id in links._nasq_linked_resolution_ids(resolution)
+    linked = bool(link) or resolution.id in (links._nasq_linked_resolution_ids(resolution) if linked_ids is None else linked_ids)
     execution_state = link['state'] if link else resolution.state
     allowed_actions = _resolution_allowed_actions(
-        resolution, linked=linked, task_readable=bool(link),
+        resolution, linked=linked, manager=manager,
     )
     return {
         'id': resolution.id,

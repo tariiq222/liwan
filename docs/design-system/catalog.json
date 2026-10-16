@@ -88,10 +88,7 @@
         }
       ],
       "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UCard"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "Editable",
@@ -234,6 +231,12 @@
           "default": "[]"
         },
         {
+          "name": "compact",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        },
+        {
           "name": "title",
           "type": "string",
           "required": false,
@@ -260,6 +263,11 @@
           "id": "Empty",
           "name": "بلا مواضيع",
           "context": "apps/web/app/pages/meetings/[id].vue:200"
+        },
+        {
+          "id": "Compact",
+          "name": "قراءة المحضر داخل الاجتماع",
+          "context": "apps/web/app/pages/meetings/[id].vue:211"
         }
       ]
     },
@@ -311,13 +319,14 @@
         },
         {
           "name": "save-and-create-resolution",
-          "payload": "[]"
+          "payload": "[topicKey?: string | undefined]"
         }
       ],
       "slots": [],
       "nuxtUi": [
         "UButton",
         "UCheckbox",
+        "UFormField",
         "UInput",
         "UTextarea"
       ],
@@ -1113,7 +1122,7 @@
         },
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\"; next: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\" | null; previous: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
           "required": false
         },
         {
@@ -1262,7 +1271,7 @@
       "props": [
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\"; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\"; next: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\" | null; previous: \"closed\" | \"closing\" | \"initiating\" | \"planning\" | \"executing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
           "required": true
         },
         {
@@ -1327,7 +1336,7 @@
         },
         {
           "name": "level",
-          "type": "\"sections\" | \"governance\" | \"planning\"",
+          "type": "\"planning\" | \"sections\" | \"governance\"",
           "required": false,
           "default": "\"sections\""
         }
@@ -1339,22 +1348,22 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:115"
+          "context": "apps/web/app/pages/projects/[id].vue:117"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:115"
+          "context": "apps/web/app/pages/projects/[id].vue:117"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:115"
+          "context": "apps/web/app/pages/projects/[id].vue:117"
         },
         {
           "id": "Planning",
           "name": "التخطيط: الجدول الزمني والمعالم",
-          "context": "apps/web/app/pages/projects/[id].vue:115"
+          "context": "apps/web/app/pages/projects/[id].vue:117"
         }
       ]
     },
@@ -2095,7 +2104,7 @@
         {
           "id": "FixedOptions",
           "name": "من قائمة ثابتة",
-          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:77"
+          "context": "apps/web/app/pages/meetings/[id]/resolutions/new.vue:103"
         }
       ]
     },
@@ -3814,7 +3823,7 @@
         {
           "id": "InMeetingAttachments",
           "name": "داخل مرفقات الاجتماع",
-          "context": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83"
+          "context": "apps/web/app/components/shared/data/AttachmentList.vue:99"
         },
         {
           "id": "InDocumentCard",
@@ -3824,7 +3833,7 @@
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue:83"
+          "context": "apps/web/app/components/shared/data/AttachmentList.vue:99"
         }
       ]
     },
@@ -4750,11 +4759,11 @@
       ],
       "events": [
         {
-          "name": "prev",
+          "name": "next",
           "payload": "[]"
         },
         {
-          "name": "next",
+          "name": "prev",
           "payload": "[]"
         },
         {

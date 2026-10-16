@@ -6,6 +6,10 @@ describe('access policy navigation', () => {
     expect(hasCapability({ role: 'admin' }, 'access.users.read')).toBe(false)
     expect(hasCapability(null, 'hr.employees.read')).toBe(false)
   })
+  it('opens the bell for a project reader without tasks.read (charter rows are delivered on projects.read)', () => {
+    expect(hasCapability({ capabilities: ['pmo.projects.read'] }, 'nasq.notifications')).toBe(true)
+    expect(hasCapability({ capabilities: ['hr.employees.read'] }, 'nasq.notifications')).toBe(false)
+  })
   it('checks the named capability without elevating other domains', () => {
     const hr = { capabilities: ['hr.employees.read', 'hr.employees.manage'] }
     expect(hasCapability(hr, 'hr.employees.manage')).toBe(true)
@@ -67,7 +71,7 @@ describe('access policy navigation', () => {
     expect(requiredCapabilityForPath('/meetings/series/new')).toBe('meetings.create')
     expect(postLoginPath({ capabilities: ['meetings.read'] }, '/meetings/series/new')).toBe('/')
     expect(postLoginPath({ capabilities: ['meetings.read', 'meetings.create'] }, '/meetings/series/new')).toBe('/meetings/series/new')
-    expect(isNavPathActive('/meetings/calendar', '/meetings')).toBe(false)
+    expect(isNavPathActive('/meetings/calendar', '/meetings')).toBe(true)
     expect(isNavPathActive('/meetings/calendar', '/meetings/calendar')).toBe(true)
     expect(requiredCapabilityForPath('/account')).toBe(null)
     expect(requiredCapabilityForPath('/projects/settings')).toBe('pmo.settings.manage')

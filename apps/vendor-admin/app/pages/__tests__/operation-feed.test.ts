@@ -7,27 +7,33 @@ import ts from 'typescript'
 import { expect, it, vi } from 'vitest'
 import { invoiceStatusBadge } from '@nasq/commercial-ui/app/utils/commercialBadges'
 import { paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
+import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter } from '../../utils/vendorOperations'
 import { safeReturnTo } from '@nasq/ui/app/utils/safeReturnTo'
+import * as clients from '../../utils/vendorClients'
+import { isNotAvailable } from '../../utils/vendorSubscriptions'
 import { formatNasqDateTime } from '@nasq/ui/app/composables/calendarDate'
 
-async function page(name: string, data: unknown, source?: string) {
+async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}) {
   const filename = resolve(import.meta.dirname, '..', name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'operation-feed' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', 'false').replace('export default', 'return')
   const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
-  const request = vi.fn(async () => data)
+  const tenants = { items: [{ id: 'tenant-id', name: 'Acme' }], total: 1 }
+  const request = vi.fn(async (path: string, _options?: unknown) => (path === 'tenants' && name === 'operations/index.vue' ? tenants : data))
+  const replace = vi.fn()
   const keys: string[] = []
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatNasqDateTime,
+    formatNasqDateTime, ...clients, isNotAvailable,
+    useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: () => {}, onBeforeUnmount: () => {},
-    definePageMeta: () => {}, useI18n: () => ({ t, locale: Vue.ref('en') }), safeReturnTo, FilterBar: {},
-    useRoute: () => ({ params: { id: 'job-id' }, query: { source }, fullPath: '/operations?source=all' }),
-    useRouter: () => ({ replace: vi.fn() }), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }),
+    definePageMeta: () => {}, useI18n: () => ({ t, locale: Vue.ref('en') }), safeReturnTo, OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter,
+    useRoute: () => ({ params: { id: 'job-id' }, query: { source, ...query }, fullPath: '/operations?source=all' }),
+    useRouter: () => ({ replace }), useHydrated: () => Vue.ref(true), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }),
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
       keys.push(typeof key === 'function' ? key() : key)
       return { data: Vue.ref(await fn()), pending: Vue.ref(false), error: Vue.ref(null), refresh: vi.fn() }
@@ -45,7 +51,7 @@ async function page(name: string, data: unknown, source?: string) {
   } }))
   const html = await renderToString(app)
   scope.stop()
-  return { state, request, keys, captured, html }
+  return { state, request, replace, keys, captured, html }
 }
 const operation = { id: 'job-id', tenant_id: 'tenant-id', type: 'provision', source: 'shared', status: 'verified', stage: 'verified', reason: 'shared_execution_verified', request_id: 'request-id', result: null, created_at: '2026-10-01T00:00:00Z', updated_at: null, last_event_at: null, events: [] }
 
@@ -77,4 +83,53 @@ it('preserves legacy failed read-operation retry and active polling', async () =
 it('keeps navigation available when a combined-feed page is empty but has earlier records', async () => {
   const list = await page('operations/index.vue', { items: [], total: 28 })
   expect(list.captured.find(node => node.name === 'SharedDataTable')?.props.pages).toBe(2)
+})
+
+const lastQuery = (list: { replace: ReturnType<typeof vi.fn> }) => list.replace.mock.calls.at(-1)![0]
+
+it('filters the operation list by status and installation from the URL and shows installation names', async () => {
+  const list = await page('operations/index.vue', { items: [operation], total: 1 }, undefined, { tenant_id: 'tenant-id', status: 'attention', page: '2' })
+  expect(list.request).toHaveBeenCalledWith('operations', { query: { source: 'all', tenant_id: 'tenant-id', status: 'attention', page: 2 } })
+  expect(list.keys[0]).toBe('vendor:operations:all:tenant-id:attention:2')
+  expect(list.state.tenantName('tenant-id')).toBe('Acme'); expect(list.state.tenantName('other-id')).toBe('other-id')
+  expect(list.state.tenantItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'tenant-id'])
+  expect(list.state.filtered.value).toBe(true)
+  expect(list.state.statusItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'pending', 'attention', 'succeeded', 'verified'])
+})
+
+it('keeps an unknown installation id selectable and ignores an invalid status', async () => {
+  const list = await page('operations/index.vue', { items: [], total: 0 }, undefined, { tenant_id: 'gone-id', status: 'bogus' })
+  expect(list.request).toHaveBeenCalledWith('operations', { query: { source: 'all', tenant_id: 'gone-id', status: undefined, page: undefined } })
+  expect(list.state.tenantItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'gone-id', 'tenant-id'])
+  expect(list.state.status.value).toBe('all')
+})
+
+it('writes operation filters to the URL and resets the page', async () => {
+  const list = await page('operations/index.vue', { items: [], total: 0 }, undefined, { tenant_id: 'tenant-id', page: '3' })
+  list.state.patch({ status: 'pending' })
+  expect(lastQuery(list)).toEqual({ path: '/operations', query: { source: undefined, tenant_id: 'tenant-id', page: undefined, status: 'pending' } })
+})
+
+it('keeps client search, state and page in the URL and queries the unified list', async () => {
+  const list = await page('customers/index.vue', { items: [], total: 60 }, undefined, { q: 'acme', state: 'active', page: '2' })
+  expect(list.request).toHaveBeenCalledWith('commercial/clients', { query: { q: 'acme', state: 'active', page: 2 } })
+  expect(list.keys[0]).toBe('vendor:clients:acme:active:2')
+  expect(list.state.q.value).toBe('acme'); expect(list.state.state.value).toBe('active')
+  expect(list.captured.find(node => node.name === 'SharedDataTable')?.props.pages).toBe(3)
+  list.state.patch({ state: undefined })
+  expect(lastQuery(list)).toMatchObject({ path: '/customers', query: { q: 'acme', page: undefined, state: undefined } })
+  const invalid = await page('customers/index.vue', { items: [], total: 0 }, undefined, { state: 'bogus' })
+  expect(invalid.state.state.value).toBe('all')
+  expect(invalid.request).toHaveBeenCalledWith('commercial/clients', { query: { q: undefined, state: undefined, page: undefined } })
+})
+it('opens a client on its customer page, or on its workspace page when it has no commercial record', async () => {
+  const list = await page('customers/index.vue', { items: [], total: 0 })
+  expect(list.state.to({ customer_id: 'cust 1', tenant_id: null })).toEqual({ path: '/customers/cust%201', query: { returnTo: '/operations?source=all' } })
+  expect(list.state.to({ customer_id: 'cust-1', tenant_id: 'tenant-1' }).path).toBe('/customers/cust-1')
+  expect(list.state.to({ customer_id: null, tenant_id: 'tenant-1' }).path).toBe('/tenants/tenant-1')
+  expect(list.state.rowKey({ customer_id: null, tenant_id: 'tenant-1' })).toBe('tenant-1')
+})
+it('offers the create action to tenant managers only', async () => {
+  const list = await page('customers/index.vue', { items: [], total: 0 })
+  expect(list.captured.find(node => node.name === 'SharedListPage')?.props['create-to']).toEqual({ path: '/customers/new', query: { returnTo: '/operations?source=all' } })
 })

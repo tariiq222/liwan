@@ -4,12 +4,13 @@ import {
   isDigestNotification,
   isKnownNotification,
   isMeetingNotification,
+  isProjectNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotificationsPage,
   type BellNotification,
 } from '@/composables/useNotifications'
-import { formatNotificationTimestamp, genericNotificationText } from '@/utils/notificationPresentation'
+import { formatNotificationTimestamp, genericNotificationText, isUserWrittenNotificationKind } from '@/utils/notificationPresentation'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -62,13 +63,15 @@ function kindLabel(item: BellNotification) {
   if (!isKnownNotification(item)) return t('notifications.preview.other')
   if (isDigestNotification(item)) return t('tasks.digest.kind')
   if (isMeetingNotification(item)) return t(`meetingsUi.notify.${item.kind}`)
-  if (item.kind === 'comment' || item.kind === 'mention') return t(`notifications.${item.kind}`)
+  if (isProjectNotification(item)) return t(`notifications.preview.${item.kind}`)
+  if (isUserWrittenNotificationKind(item.kind)) return t(`notifications.${item.kind}`)
   return t(`notifications.${item.kind}`, { task: item.task_name })
 }
 
 function itemTitle(item: BellNotification) {
   if (isDigestNotification(item)) return t('tasks.digest.count', { n: item.overdue_count }, item.overdue_count)
   if (isMeetingNotification(item)) return item.meeting_name
+  if (isProjectNotification(item)) return item.project_name
   if (isKnownNotification(item)) return item.task_name
   return genericNotificationText(item).title
 }
@@ -89,6 +92,7 @@ async function openNotification(item: BellNotification) {
     await markRead(item.id)
     if (isDigestNotification(item)) await navigateTo(`/notification-digests/${item.id}`)
     else if (isMeetingNotification(item)) await navigateTo(`/meetings/${item.meeting_id}`)
+    else if (isProjectNotification(item)) await navigateTo(`/projects/${item.project_id}/charter`)
     else if (isKnownNotification(item)) await navigateTo(`/tasks/${item.task_id}`)
   } catch (error) {
     toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
@@ -178,7 +182,7 @@ async function retryNextPage() {
                 </span>
               </span>
               <span v-if="itemTitle(item)" class="font-medium">{{ itemTitle(item) }}</span>
-              <span v-if="item.kind === 'comment' || item.kind === 'mention'" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
+              <span v-if="isUserWrittenNotificationKind(item.kind)" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
               <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
               <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
             </UButton>

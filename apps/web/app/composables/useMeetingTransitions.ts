@@ -17,8 +17,8 @@ export function useMeetingTransitions({ meetingId, meeting, hydrated }: {
   hydrated: Ref<boolean>
 }) {
   const { t } = useI18n()
-  const toast = useToast()
   const { mutateAsync: runMeeting, isPending: transitioning } = useMeetingAction()
+  const actionError = ref('')
   const pendingMeetingAction = ref<PendingMeetingAction | null>(null)
 
   const meetingActionConfirm = computed(() => {
@@ -43,12 +43,12 @@ export function useMeetingTransitions({ meetingId, meeting, hydrated }: {
 
   async function executeMeetingAction(pending: PendingMeetingAction) {
     if (!hydrated.value || transitioning.value || !meetingId.value) return
+    actionError.value = ''
     try {
       await runMeeting({ id: meetingId.value, action: pending.action, body: pending.scope ? { scope: pending.scope } : undefined })
-    } catch (error) {
-      toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
-    } finally {
       pendingMeetingAction.value = null
+    } catch (error) {
+      actionError.value = error instanceof ApiError ? error.message : t('errors.generic')
     }
   }
 
@@ -57,5 +57,5 @@ export function useMeetingTransitions({ meetingId, meeting, hydrated }: {
     if (pending) await executeMeetingAction(pending)
   }
 
-  return { pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning }
+  return { actionError, pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning }
 }

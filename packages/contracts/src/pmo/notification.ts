@@ -3,8 +3,10 @@ import { IDENTIFIER_PATTERN } from '../access'
 import { TaskSchema } from './task'
 
 export const TaskNotificationKindSchema = z.enum(['assignment', 'comment', 'mention', 'deadline'])
+export const ProjectNotificationKindSchema = z.enum(['charter_review', 'charter_approved', 'charter_returned'])
 export const NotificationKindSchema = z.enum([
   'assignment', 'comment', 'mention', 'deadline', 'overdue_digest',
+  'charter_review', 'charter_approved', 'charter_returned',
   'meeting_invite', 'meeting_series_invite', 'meeting_resolution', 'meeting_converted',
   'meeting_changed', 'meeting_cancelled', 'meeting_reminder', 'meeting_resolution_overdue',
 ])
@@ -51,6 +53,16 @@ export const MeetingNotificationSchema = z.object({
   is_read: z.boolean(),
 }).strict()
 
+export const ProjectCharterNotificationSchema = z.object({
+  id: z.number().int().positive(),
+  kind: ProjectNotificationKindSchema,
+  project_id: z.number().int().positive(),
+  project_name: z.string(),
+  body: z.string(),
+  created_at: z.string(),
+  is_read: z.boolean(),
+}).strict()
+
 export const DigestNotificationSchema = z.object({
   id: z.number().int().positive(),
   kind: z.literal('overdue_digest'),
@@ -68,6 +80,7 @@ export const NotificationSchema = z.discriminatedUnion('kind', [
   MentionNotificationSchema,
   DeadlineNotificationSchema,
   DigestNotificationSchema,
+  ProjectCharterNotificationSchema,
   MeetingNotificationSchema,
 ])
 

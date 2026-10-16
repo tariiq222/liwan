@@ -81,10 +81,10 @@ const dis = computed(() => !hydrated.value || props.busy)
       <UAlert v-for="h in hints.conflicts" :key="`c-${h.app}-${h.with}`" color="warning" variant="subtle" :title="t('vendor.pricing.bundle.conflicts', { app: name(h.app), other: name(h.with) })" />
     </SharedFormSection>
     <SharedFormSection v-if="keys.length" :title="t('vendor.pricing.sections.limits')" :description="t('vendor.pricing.bundle.limitsHint')">
-      <CapacityLimitsEditor v-model="draft.limits" :keys="keys" :labels="labels" :disabled="dis" :show-errors="attempted" :server-errors="serverLimitErrors" />
+      <VendorCapacityLimitsEditor v-model="draft.limits" :keys="keys" :labels="labels" :disabled="dis" :show-errors="attempted" :server-errors="serverLimitErrors" />
     </SharedFormSection>
     <SharedFormSection :title="t('vendor.pricing.sections.prices')" :description="canPrice ? t('vendor.pricing.bundle.pricesHint') : t('vendor.pricing.errors.pricingRequired')">
-      <PriceListEditor v-model="draft.prices" :label="t('vendor.pricing.sections.prices')" :disabled="dis || !canPrice" :show-errors="attempted" :server-error="serverIssue('prices')" />
+      <VendorPriceListEditor v-model="draft.prices" :label="t('vendor.pricing.sections.prices')" :disabled="dis || !canPrice" :show-errors="attempted" :server-error="serverIssue('prices')" />
       <p v-if="attempted && errors.prices" class="text-sm text-error">{{ errors.prices }}</p>
     </SharedFormSection>
     <SharedFormSection v-if="requireReason" :title="t('vendor.pricing.sections.review')">

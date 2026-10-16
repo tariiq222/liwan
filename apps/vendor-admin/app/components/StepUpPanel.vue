@@ -2,7 +2,7 @@
 // The step-up confirmation: an inline panel pinned to the top of the window (above the shell and over an open
 // create panel, whose modal layer would otherwise block its buttons), never a dialog. The browser's
 // own passkey prompt is native; this panel says what it is for and offers Retry and Cancel.
-const { pending, waiting, error, retry, cancel } = useStepUp()
+const { pending, waiting, error, devEnabled, retry, cancel, confirmWithDev } = useStepUp()
 const { t } = useI18n()
 // Server markup stays in place; the browser moves the panel to the body once mounted.
 const teleported = ref(false)
@@ -35,6 +35,7 @@ onMounted(() => { teleported.value = true })
           </p>
         </div>
         <div class="flex gap-2">
+          <UButton v-if="devEnabled" type="button" size="sm" color="warning" variant="soft" :label="t('adminAuth.stepUp.devConfirm')" @click="confirmWithDev" />
           <UButton v-if="waiting" type="button" size="sm" :label="t('adminAuth.stepUp.retry')" @click="retry" />
           <UButton type="button" size="sm" color="neutral" variant="ghost" :label="t('adminAuth.stepUp.cancel')" @click="cancel" />
         </div>

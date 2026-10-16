@@ -11,9 +11,9 @@ const unitItems = computed(() => [{ label: t('vendor.pricing.cadence.month.unit'
 </script>
 <template>
   <div class="space-y-3" data-slot="price-list-editor">
-    <p class="text-sm font-medium">{{ label }}</p>
+    <p class="text-sm font-medium text-highlighted">{{ label }}</p>
     <p v-if="hint" class="text-sm text-muted">{{ hint }}</p>
-    <p v-if="!modelValue.length" class="text-sm text-muted">{{ t('vendor.pricing.prices.empty') }}</p>
+    <SharedEmptyState v-if="!modelValue.length" :title="t('vendor.pricing.prices.empty')" />
     <div v-for="(row, index) in modelValue" :key="index" class="grid items-start gap-3 sm:grid-cols-[1fr_6rem_1fr_auto]">
       <UFormField :label="t('vendor.pricing.prices.unit')" :error="showErrors && errors[index] === 'cadence' ? t('vendor.pricing.prices.cadenceInvalid') : showErrors && errors[index] === 'duplicate' ? t('vendor.pricing.prices.duplicate') : undefined">
         <USelect :model-value="row.unit || undefined" :items="unitItems" :placeholder="t('vendor.pricing.choose')" class="w-full" :disabled="!hydrated || disabled" @update:model-value="patch(index, { unit: $event as PriceDraft['unit'] })" />
@@ -22,7 +22,7 @@ const unitItems = computed(() => [{ label: t('vendor.pricing.cadence.month.unit'
         <UInput :model-value="row.count" inputmode="numeric" class="w-full" :disabled="!hydrated || disabled" @update:model-value="patch(index, { count: String($event) })" />
       </UFormField>
       <UFormField :label="t('vendor.pricing.prices.amount')" :error="showErrors && errors[index] === 'amount' ? t('vendor.pricing.prices.amountInvalid') : undefined">
-        <UInput :model-value="row.amount" inputmode="decimal" dir="ltr" class="w-full" :disabled="!hydrated || disabled" @update:model-value="patch(index, { amount: String($event) })"><template #trailing><span class="text-xs text-muted">{{ t('vendor.pricing.sar') }}</span></template></UInput>
+        <UInput :model-value="row.amount" inputmode="decimal" class="w-full" :disabled="!hydrated || disabled" @update:model-value="patch(index, { amount: String($event) })"><template #trailing><span class="text-xs text-muted">{{ t('vendor.pricing.sar') }}</span></template></UInput>
       </UFormField>
       <UButton color="error" variant="ghost" icon="i-lucide-trash-2" class="sm:mt-6" :aria-label="t('vendor.pricing.prices.remove')" :disabled="!hydrated || disabled" @click="remove(index)" />
     </div>

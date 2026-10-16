@@ -1,6 +1,6 @@
 {
   "meetingsUi": {
-    "attachmentsTitle": "مرفقات الاجتماع",
+    "attachmentsTitle": "المرفقات",
     "uploadAttachment": "إضافة مرفق",
     "attachmentHelp": "اختر ملفًا لإرفاقه بهذا الاجتماع.",
     "emptyAttachments": "لا توجد مرفقات لهذا الاجتماع.",
@@ -20,7 +20,7 @@
     "emptyAgenda": "لا يوجد جدول أعمال لهذا الاجتماع.",
     "minutes": "المحضر",
     "emptyMinutes": "لم يُكتب المحضر بعد.",
-    "summary": "ملخص الاجتماع",
+    "summary": "نظرة عامة",
     "edit": "تعديل الاجتماع",
     "start": "البداية",
     "end": "النهاية",
@@ -157,9 +157,9 @@
       "resolutionName": "أدخل عنوان التوصية.",
       "responsible": "اختر المسؤول."
     },
-    "editMinutes": "تعديل جدول الأعمال والمحضر",
+    "editMinutes": "تحرير المحضر",
     "minutesEditorTitle": "تعديل محضر الاجتماع",
-    "minutesEditorContext": "تعديل جدول الأعمال والمحضر للاجتماع: {name}.",
+    "minutesEditorContext": "تحرير محضر: {name}",
     "minutesEditorForbidden": "لا تملك صلاحية تعديل هذا المحضر.",
     "minutesEditorReopen": "هذا الاجتماع مكتمل أو ملغى. أعد فتحه من صفحة الاجتماع قبل تعديل المحضر.",
     "historicalMinutesTitle": "المحضر التاريخي المحفوظ عند الإكمال",
@@ -189,7 +189,41 @@
     "dayCardEmpty": "لا اجتماعات في هذا اليوم.",
     "dayCardCount": "لا اجتماعات | اجتماع واحد | اجتماعان | {count} اجتماعات | {count} اجتماعًا | {count} اجتماع",
     "dayCardView": "عرض",
-    "dayCardSelect": "عرض اجتماعات يوم {date}"
+    "dayCardSelect": "عرض اجتماعات يوم {date}",
+    "openTaskNewTab": "فتح المهمة — تبويب جديد",
+    "listView": "القائمة",
+    "activity": "النشاط",
+    "saveChanges": "حفظ التغييرات",
+    "additionalNotes": "ملاحظات إضافية",
+    "validationSummary": "راجع الحقول المحددة ({count}).",
+    "recommendationEditorContext": "إضافة توصية للاجتماع: {name}. تم حفظ المحضر قبل الانتقال.",
+    "linkedProject": "مشروع مرتبط",
+    "recommendationReturn": {
+      "linked": "أُنشئت التوصية؛ احفظ المحضر لتثبيت ربطها بالموضوع.",
+      "already_linked": "التوصية مرتبطة بموضوع في هذا المحضر.",
+      "unassigned": "أُنشئت التوصية دون ربط بموضوع. اخترها داخل الموضوع المناسب ثم احفظ المحضر.",
+      "unavailable": "تعذّر العثور على التوصية ضمن الاجتماع المقروء. لم يتغير ربط الموضوعات."
+    },
+    "createMeeting": "إنشاء اجتماع",
+    "createSeries": "إنشاء اجتماع دوري",
+    "createRecommendation": "إنشاء توصية",
+    "completionReview": "أكمل التالي قبل إنهاء الاجتماع:",
+    "completionGaps": {
+      "schedule": "تحديد وقت البداية والنهاية",
+      "minutes": "كتابة محضر الاجتماع"
+    },
+    "followupDescription": "تابع تنفيذ التوصيات وافتح الاجتماع أو المهمة المرتبطة.",
+    "followupSearch": "ابحث في التوصيات",
+    "followupAll": "الكل",
+    "followupMine": "المسندة إلي",
+    "attachmentErrors": {
+      "type": "نوع الملف غير مدعوم. اختر PDF أو صورة أو نصًا أو DOCX أو XLSX.",
+      "empty": "الملف فارغ.",
+      "tooLarge": "حجم الملف يتجاوز 10 ميغابايت."
+    },
+    "unchangedDraft": "لا توجد تغييرات للحفظ.",
+    "recommendationCreated": "تم إنشاء التوصية وحفظها.",
+    "returnAfterRecommendation": "متابعة الرجوع للاجتماع"
   },
   "meetingsFilters": {
     "searchMeetings": "ابحث في العنوان أو المرجع أو المكان",
@@ -297,7 +331,6 @@
     "topicTitle": "عنوان الموضوع",
     "discussion": "النقاش",
     "project": "المشروع",
-    "projectId": "المشروع رقم {id}",
     "recommendations": "التوصيات",
     "recommendationsHint": "اختر توصيات موجودة. يمكن ربط التوصية بموضوع واحد فقط.",
     "noRecommendations": "لا توجد توصيات غير مسندة متاحة.",
@@ -314,7 +347,7 @@
       "invalid": "راجع موضوعات المحضر وروابط التوصيات قبل الحفظ."
     },
     "documentTitle": "المحضر المنظم",
-    "history": "السجل التاريخي",
+    "history": "السجل",
     "versions": "النسخ",
     "version": "النسخة",
     "versionNumber": "النسخة {number}",

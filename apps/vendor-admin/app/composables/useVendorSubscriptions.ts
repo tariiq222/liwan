@@ -1,6 +1,6 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { BranchSummary, Invoice, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@nasq/commercial-contracts'
+import type { BranchSummary, ClientList, Invoice, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@nasq/commercial-contracts'
 import type { VendorCustomer, VendorCustomerList, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
@@ -8,6 +8,7 @@ export function useVendorSubscriptions() {
   const { request } = useVendorApi()
   const seg = encodeURIComponent
   return {
+    listClients: (query: Record<string, unknown>) => request<ClientList>('commercial/clients', { query }),
     listCustomers: (query: Record<string, unknown>) => request<VendorCustomerList>('commercial/customers', { query }),
     createCustomer: (body: { name: string; tenant_id?: string; admin_name?: string; admin_login?: string; request_id?: string }) => request<VendorCustomer>('commercial/customers', { method: 'POST', body }),
     customer: async (id: string) => {

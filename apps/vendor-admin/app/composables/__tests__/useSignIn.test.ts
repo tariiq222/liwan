@@ -9,7 +9,7 @@ function setup(next: unknown = undefined, overrides: Partial<SignInDeps> = {}) {
   const authenticate = vi.fn(async () => ({ id: 'assertion' }))
   const refresh = vi.fn(async () => undefined)
   const go = vi.fn()
-  const signIn = createSignIn({ post: post as SignInDeps['post'], authenticate: authenticate as unknown as SignInDeps['authenticate'], refresh, go, next: () => next, ...overrides })
+  const signIn = createSignIn({ post: post as SignInDeps['post'], authenticate: authenticate as unknown as SignInDeps['authenticate'], refresh, go, next: () => next, devLogin: false, ...overrides })
   return { signIn, post, authenticate, refresh, go }
 }
 
@@ -74,6 +74,29 @@ describe('createSignIn with a passkey', () => {
     release()
     await first
     expect(post).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('createSignIn with the developer sign-in', () => {
+  it('is offered only when the development flag is on', () => {
+    expect(setup().signIn.devEnabled).toBe(false)
+    expect(setup(undefined, { devLogin: true }).signIn.devEnabled).toBe(true)
+  })
+
+  it('posts an empty body, loads the profile and goes to the safe next path', async () => {
+    const { signIn, post, refresh, go } = setup('/audit', { devLogin: true })
+    await signIn.signInWithDev()
+    expect(post.mock.calls).toEqual([['/api/auth/dev-login', {}]])
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(go).toHaveBeenCalledWith('/audit')
+  })
+
+  it('shows the failure and stays on the page', async () => {
+    const post = vi.fn().mockRejectedValue(failure(404, 'not_found'))
+    const { signIn, go } = setup(undefined, { devLogin: true, post: post as unknown as SignInDeps['post'] })
+    await signIn.signInWithDev()
+    expect(signIn.errorKey.value).toBe('adminAuth.errors.generic')
+    expect(go).not.toHaveBeenCalled()
   })
 })
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Invoice, Order, SubscriptionView } from '@nasq/commercial-contracts'
 import {
-  commercialMetrics, customerListQuery, customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
+  commercialMetrics, customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews,
   type VendorCustomer,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@nasq/commercial-ui/app/utils/commercial'
@@ -13,8 +13,7 @@ const sub = (o: Partial<SubscriptionView> = {}) => ({ id: 's', state: 'active', 
 const cust = (s: SubscriptionView | null, setup = false): VendorCustomer => ({ id: 'c', name: 'n', tenant_id: null, commercial_setup_required: setup, subscription: s })
 
 describe('queries', () => {
-  it('maps filters and paging, dropping "all"', () => {
-    expect(customerListQuery({ q: 'a', state: 'all', page: 3, pageSize: 25 })).toEqual({ q: 'a', state: undefined, limit: 25, offset: 50 })
+  it('maps invoice filters and paging, dropping "all"', () => {
     expect(invoiceListQuery({ customerId: 'c', status: 'paid', page: 1, pageSize: 25 })).toEqual({ customer_id: 'c', status: 'paid', limit: 25, offset: 0 })
   })
   it('keeps return links inside the customers list', () => {

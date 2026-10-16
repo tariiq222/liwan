@@ -57,10 +57,10 @@ async function submit() {
   finally { busy.value = false }
 }
 const errorKey = computed(() => (saveError.value ? (sharedEnabled.value ? commercialErrorKey(saveError.value) : fieldError(saveError.value)) : ''))
-const backTo = computed(() => safeReturnTo(route.query.returnTo, '/tenants', ['/tenants']))
+const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', ['/customers']))
 </script>
 <template>
-  <SharedCreatePanel :title="t('vendor.tenants.create')" :back-to="backTo">
+  <SharedCreatePanel :title="t('vendor.customers.new')" :back-to="backTo">
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedForbiddenState v-if="!can('vendor.tenants.manage')" />
     <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!plans && !plansError)" :error="error || catalogError || plansError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPlans() }">
@@ -85,7 +85,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/tenants', ['/
           <UFormField :label="t('vendor.tenants.fields.catalogTier')" required><USelect v-model="form.catalog_tier" :items="(selectedCatalog?.solution.tiers ?? []).map(tier => ({ label: `${tier.name} · ${t(`vendor.catalog.tiers.${tier.id}`, tier.id)}`, value: tier.id }))" required :disabled="!form.catalog_version" class="w-full" /></UFormField>
           <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="form.reason" required maxlength="1000" class="w-full" /></UFormField>
         </template>
-        <div class="flex justify-end gap-2"><UButton :to="backTo" color="neutral" variant="outline">{{ t('app.cancel') }}</UButton><UButton type="submit" icon="i-lucide-plus" :loading="busy" :disabled="!hydrated || busy || (sharedEnabled && (!canSubscribe || !selectedCadence))">{{ t('vendor.tenants.new') }}</UButton></div>
+        <div class="flex justify-end gap-2"><UButton :to="backTo" color="neutral" variant="outline">{{ t('app.cancel') }}</UButton><UButton type="submit" icon="i-lucide-plus" :loading="busy" :disabled="!hydrated || busy || (sharedEnabled && (!canSubscribe || !selectedCadence))">{{ t('vendor.customers.new') }}</UButton></div>
       </form>
     </SharedPageState>
   </SharedCreatePanel>

@@ -138,10 +138,23 @@ class NasqMeetingWorkspace(models.Model):
         self.check_access('read')
         self._nasq_validate_minutes_form(form)
         self._cyan_check_human_write({'minutes_form_data': form})
+        # The wire form redacts an unreadable topic project to null. Editing
+        # visible minutes must not silently clear that server-owned association.
+        # Read only after the ordinary record/content checks above, using the
+        # same documented elevation that writes this protected JSON field.
+        meeting_sudo = self.sudo()
+        previous = meeting_sudo.minutes_form_data or {}
+        projects_by_key = {topic['key']: topic.get('project_id') for topic in previous.get('topics', [])}
+        form = {**form, 'topics': [dict(topic) for topic in form['topics']]}
+        links = self.env['nasq.meeting.links']
+        for topic in form['topics']:
+            previous_project = projects_by_key.get(topic['key'])
+            if topic['project_id'] is None and previous_project and not links._nasq_project_ref_by_id(self, previous_project):
+                topic['project_id'] = previous_project
         was_internal = _WORKSPACE_WRITE.get()
         token = _WORKSPACE_WRITE.set(True)
         try:
-            result = self.sudo().with_context(nasq_workspace_write=True).write({'minutes_form_data': form})
+            result = meeting_sudo.with_context(nasq_workspace_write=True).write({'minutes_form_data': form})
         finally:
             _WORKSPACE_WRITE.reset(token)
         if not was_internal:

@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import { z } from 'zod'
 import { adminAuthFields, adminAuthResults, adminErrorBodySchema, adminMeSchema, adminSessionResultSchema } from '@nasq/commercial-contracts'
 import { AUTH_INVALID, readJsonObject } from './body'
-import { bffConfig } from './config'
+import { bffConfig, devLoginEnabled } from './config'
 import { controlCall, type ControlResult } from './control'
 import { bffFail, bffHandler, respond } from './errors'
 import { assertSameOrigin } from './origin'
@@ -28,6 +28,8 @@ export type AuthRouteSpec = {
   /** `required`: the cookie must be present (401 otherwise); `none`: never sent upstream. */
   session: 'required' | 'none'
   onSuccess?: (event: H3Event, result: ControlResult) => unknown
+  /** Developer sign-in route: answers 404 unless `devLoginEnabled`. */
+  devOnly?: true
 }
 
 /** A control-plane failure reaches the browser only in the contract's error shape; anything else is an outage. */
@@ -56,6 +58,7 @@ async function sessionIsGone(event: H3Event, session: AdminSession): Promise<boo
 /** A POST route that validates the body, signs it as the anonymous actor and relays the result. */
 export function authRoute(name: string, spec: AuthRouteSpec) {
   return bffHandler(name, async (event) => {
+    if (spec.devOnly && !devLoginEnabled(event)) return bffFail(404, 'not_found')
     bffConfig(event)
     assertSameOrigin(event)
     const { json } = await readJsonObject(event, AUTH_INVALID)
