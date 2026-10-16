@@ -8,7 +8,7 @@ import { inviteAccount, issueReset } from '../enrollment.js'
 import { open, totpBoxAad } from '../crypto.js'
 import { createSession, resolveSession } from '../sessions.js'
 import { totpAt, totpStep } from '../totp.js'
-import type { WebAuthnLib } from '../webauthn.js'
+import { consumeChallenge, finishAuthentication, type WebAuthnLib } from '../webauthn.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) {
@@ -303,6 +303,42 @@ else describe('admin auth routes', () => {
     const options = await post('/v1/admin/auth/passkey/options', {})
     return post('/v1/admin/auth/passkey/verify', { challenge_id: options.body.challenge_id, response: { id } })
   }
+  it('never deadlocks when sign-ins race a reset: each ends as a normal success or refusal', async () => {
+    for (let round = 0; round < 12; round++) {
+      await pool.query('TRUNCATE vendor_auth_attempts')
+      const code = await freshCode()
+      const options = await post('/v1/admin/auth/passkey/options', {})
+      const [password, passkeySignIn, recoverySignIn, reset] = await Promise.all([
+        post('/v1/admin/auth/fallback', { email: 'owner@nasq.sa', password: PASSWORD, totp_code: code }),
+        post('/v1/admin/auth/passkey/verify', { challenge_id: options.body.challenge_id, response: { id: passkey } }),
+        post('/v1/admin/auth/recovery', { email: 'owner@nasq.sa', password: PASSWORD, recovery_code: codes[round % codes.length] }),
+        transaction(pool, (c) => issueReset(c, 'operator', accountId, 'race', new Date())),
+      ])
+      for (const result of [password, passkeySignIn, recoverySignIn]) expect([200, 401]).toContain(result.status)
+      const { token } = reset
+      const done = await enrollVia(token, 'owner@nasq.sa', PASSWORD)
+      expect(done.complete.status).toBe(200)
+      ;({ secret, passkey } = { secret: done.secret, passkey: done.id })
+      codes = done.complete.body.recovery_codes
+    }
+  })
+  it('takes the account lock before any credential row, so a reset that holds the account cannot deadlock a sign-in half way', async () => {
+    // Sign-in side: passkey assertion, then the session insert, with a reset issued while the sign-in is mid-flight.
+    const options = await post('/v1/admin/auth/passkey/options', {})
+    const consumed = await consumeChallenge(pool, options.body.challenge_id, 'login', new Date())
+    const signIn = await pool.connect()
+    await signIn.query('BEGIN')
+    const outcomes: unknown[] = []
+    try {
+      await finishAuthentication(signIn, lib, admin, 'login', consumed, { id: passkey }, new Date())
+      const reset = transaction(pool, (c) => issueReset(c, 'operator', accountId, 'race', new Date())).then(() => 'reset', (e) => e)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      outcomes.push(await createSession(signIn, accountId, new Date(), true).then(() => 'signed-in', (e) => e))
+      await signIn.query('COMMIT').catch(() => undefined)
+      outcomes.push(await reset)
+    } finally { await signIn.query('ROLLBACK').catch(() => undefined); signIn.release() }
+    expect(outcomes.filter((o) => o instanceof Error)).toEqual([])
+  })
   it('makes every old credential unusable the moment a reset is issued', async () => {
     const { token } = await transaction(pool, (c) => issueReset(c, 'operator', accountId, 'lost device', new Date()))
     const opened = await post('/v1/admin/auth/invitation', { token })

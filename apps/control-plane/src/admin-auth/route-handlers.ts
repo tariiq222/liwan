@@ -37,7 +37,9 @@ function sessionHeader(ctx: AuthContext): string {
 
 async function passwordLogin(ctx: AuthContext, client: PoolClient, scopes: string[], emailRaw: string, passwordText: string, route: string): Promise<{ id: number; scopes: string[] }> {
   const email = normalizeEmail(emailRaw)
-  const row = (await client.query("SELECT id, password_hash FROM vendor_accounts WHERE email=$1 AND status='active'", [email])).rows[0]
+  // Find the account, take its lock (shared) before any credential or session row, then read it again under the lock.
+  const found = (await client.query('SELECT id FROM vendor_accounts WHERE email=$1', [email])).rows[0]
+  const row = found ? (await client.query("SELECT id, password_hash FROM vendor_accounts WHERE id=$1 AND status='active' FOR SHARE", [found.id])).rows[0] : undefined
   const ok = await verifyPassword(row?.password_hash ?? await dummy(), passwordText)
   if (!row || !row.password_hash || !ok) throw counted(scopes, route)
   return { id: Number(row.id), scopes }
