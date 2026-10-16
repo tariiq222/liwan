@@ -12,6 +12,7 @@ class TestAiToolsRoute(AiProbe, NasqApiCase):
     def setUp(self):
         super().setUp()
         self._install_probe()
+        self._grant_ai_use(self.employee)
         self.authenticate('api_emp', 'api_emp_pass_123')
 
     def _set_limit(self, key, value):

@@ -1,5 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import math
+
 from odoo.exceptions import AccessError, ValidationError
+from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.nasq_ai.tests.common import CREATE_CAP, READ_CAP, WRITE_CAP, AiProbe
@@ -28,10 +31,11 @@ class TestAiAudit(AiProbe, NasqApiCase):
     def setUp(self):
         super().setUp()
         self._install_probe()
+        self._grant_ai_use(self.employee)
         self.granted = {READ_CAP}
         self.other = new_test_user(
             self.env, login='ai_other', password='ai_other_pass_123', name='Omar',
-            groups='nasq_core.group_employee',
+            groups='nasq_core.group_employee,nasq_ai.group_cap_ai_use',
         )
         self.authenticate('api_emp', 'api_emp_pass_123')
 
@@ -118,10 +122,11 @@ class TestAiAuditHardening(AiProbe, NasqApiCase):
     def setUp(self):
         super().setUp()
         self._install_probe()
+        self._grant_ai_use(self.employee)
         self.granted = {READ_CAP, WRITE_CAP, CREATE_CAP}
         self.other = new_test_user(
             self.env, login='ai_other2', password='ai_other_pass_123', name='Omar',
-            groups='nasq_core.group_employee',
+            groups='nasq_core.group_employee,nasq_ai.group_cap_ai_use',
         )
         self.audit_a = self.env['nasq.ai.audit'].with_user(self.employee)
         self.audit_b = self.env['nasq.ai.audit'].with_user(self.other)
@@ -140,24 +145,59 @@ class TestAiAuditHardening(AiProbe, NasqApiCase):
         self.assertEqual(response.status_code, 422, response.content)
         self.assertEqual(response.json()['field'], field)
 
-    # 1. company-wide message count without sudo
-    def test_message_count_is_company_wide_for_plain_employees(self):
+    # 1. tenant-wide message count without sudo
+    def _other_company_user(self):
+        company = self.env['res.company'].create({'name': 'AI other company'})
+        user = new_test_user(
+            self.env, login='ai_company_b', password='ai_company_b_pass_123', name='Bader',
+            groups='nasq_core.group_employee,nasq_ai.group_cap_ai_use',
+            company_id=company.id, company_ids=[Command.set(company.ids)],
+        )
+        return company, user
+
+    def test_message_limit_counts_the_whole_tenant_across_companies(self):
+        company, user = self._other_company_user()
+        audit_c = self.env['nasq.ai.audit'].with_user(user).with_company(company)
+        for _ in range(2):
+            self.audit_a.create(MESSAGE)
+        audit_c.create(MESSAGE)
+        self.assertEqual(self.audit_a._nasq_ai_count_messages(), 3)
+        self.assertEqual(audit_c._nasq_ai_count_messages(), 3)
+        self.assertEqual(
+            self.audit_a.create(MESSAGE).company_id | audit_c.create(MESSAGE).company_id,
+            self.employee.company_id | company,
+        )
+        self._set_feature('ai.messages.monthly', 5)
+        with self.assertRaises(Exception) as caught:
+            self.audit_a.create(MESSAGE)
+        self.assertEqual(getattr(caught.exception, 'details', None), {'reason': 'limit', 'limit_key': 'ai.messages.monthly'})
+        self.assertEqual(self.env['nasq.ai.audit'].search_count([('kind', '=', 'message')]), 5)
+
+    def test_message_limit_counts_colleagues_without_reading_their_rows(self):
         for _ in range(3):
             self.audit_a.create(MESSAGE)
+        self.assertFalse(self.audit_b.search([]))
         self.assertEqual(self.audit_b._nasq_ai_count_messages(), 3)
         self._set_feature('ai.messages.monthly', 3)
         with self.assertRaises(Exception) as caught:
             self.audit_b.create(MESSAGE)
         self.assertEqual(getattr(caught.exception, 'details', None), {'reason': 'limit', 'limit_key': 'ai.messages.monthly'})
 
-    def test_other_users_cannot_read_tool_or_draft_rows(self):
+    def test_tools_route_reports_the_tenant_wide_messages_used(self):
+        company, user = self._other_company_user()
+        self.env['nasq.ai.audit'].with_user(user).with_company(company).create(MESSAGE)
+        self.assertEqual(self.api('GET', '/api/v1/ai/tools').json()['limits']['messages_used'], 1)
+
+    def test_other_users_cannot_read_any_row_of_a_colleague(self):
         self.audit_a.create(MESSAGE)
         self.audit_a.create(READ)
         self.audit_a.create({**DRAFT, 'result': 'approved', 'approved': {'name': 'A'}, 'attested': True})
-        visible = self.audit_b.search([])
-        self.assertEqual(visible.mapped('kind'), ['message'])
-        self.assertFalse(visible.tool_name)
-        self.assertFalse(self.audit_b.search([('kind', '!=', 'message')]))
+        self.assertFalse(self.audit_b.search([]))
+        self.assertEqual(len(self.audit_a.search([])), 3)
+
+    def test_the_flow_limit_never_feeds_the_stock_usage(self):
+        self.audit_a.create(MESSAGE)
+        self.assertEqual(self.env['nasq.entitlement.service']._nasq_count_usage('ai.messages.monthly'), 0)
 
     def test_a_message_row_stores_no_tool_data(self):
         for change, field in (
@@ -185,9 +225,9 @@ class TestAiAuditHardening(AiProbe, NasqApiCase):
             calls.append('lock')
             return lock(model)
 
-        def spy_count(model, company=None):
+        def spy_count(model):
             calls.append('count')
-            return count(model, company)
+            return count(model)
 
         self.patch(profile_model, '_nasq_lock', spy_lock)
         self.patch(audit_model, '_nasq_ai_count_messages', spy_count)
@@ -281,4 +321,46 @@ class TestAiAuditHardening(AiProbe, NasqApiCase):
         with self.assertRaises(Exception) as caught:
             self.env['nasq.ai.audit'].with_user(self.employee).create({**MESSAGE})
         self.assertEqual(getattr(caught.exception, 'code', None), 'feature_not_included')
+        self.assertFalse(self.env['nasq.ai.audit'].search([]))
+
+    # 6. NUL characters and non-finite numbers
+    def test_nul_characters_are_422_never_500(self):
+        for change, field in (
+            ({'input': {'name': 'a\x00b'}}, 'input'),
+            ({'input': {'a\x00b': 1}}, 'input'),
+            ({'input': {'rows': [{'name': 'x\x00'}]}}, 'input'),
+            ({'conversation_id': 'r\x00_1'}, 'conversation_id'),
+        ):
+            self._assert_422(self._post(**change), field)
+        self._assert_422(self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'draft': {'name': 'a\x00'}}), 'draft')
+        self._assert_422(
+            self.api('POST', '/api/v1/ai/audit', {**DRAFT, 'result': 'approved', 'attested': True, 'approved': {'n': '\x00'}}),
+            'approved',
+        )
+        with self.assertRaises(ValidationError) as caught:
+            self.audit_a.create({**READ, 'input': {'name': 'a\x00b'}})
+        self.assertEqual(caught.exception.nasq_field, 'input')
+        self.assertFalse(self.env['nasq.ai.audit'].search([]))
+
+    def test_non_finite_numbers_are_422_never_500(self):
+        for number in (math.nan, math.inf, -math.inf):
+            with self.assertRaises(ValidationError, msg=number) as caught:
+                self.audit_a.create({**READ, 'input': {'n': [number]}})
+            self.assertEqual(caught.exception.nasq_field, 'input')
+        for literal in ('NaN', 'Infinity', '-Infinity'):
+            body = (
+                '{"conversation_id": "r_test_01", "kind": "read", "tool_name": "probe.list_things", '
+                f'"result": "ok", "input": {{"n": {literal}}}}}'
+            )
+            response = self.url_open(
+                '/api/v1/ai/audit', data=body, headers={'Content-Type': 'application/json'}, method='POST',
+            )
+            self._assert_422(response, 'input')
+        self.assertFalse(self.env['nasq.ai.audit'].search([]))
+
+    def test_the_route_answers_an_unknown_field_as_unknown_field(self):
+        response = self._post(surprise=1)
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()['code'], 'unknown_field')
+        self.assertEqual(response.json()['field'], 'surprise')
         self.assertFalse(self.env['nasq.ai.audit'].search([]))

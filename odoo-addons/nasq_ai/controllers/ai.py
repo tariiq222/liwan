@@ -13,7 +13,6 @@ from odoo.addons.nasq_api.controllers.common import (
 )
 
 AI_FEATURE = 'ai.enabled'
-AUDIT_FIELDS = {'conversation_id', 'kind', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved', 'attested'}
 
 
 class AiController(http.Controller):
@@ -41,17 +40,13 @@ class AiController(http.Controller):
     def record_audit(self, **payload):
         request.env['nasq.entitlement.service'].require(AI_FEATURE)
         request.env['nasq.access.service']._nasq_require_capability(AI_USE)
-        unknown = set(payload) - AUDIT_FIELDS
-        if unknown:
-            field = sorted(unknown)[0]
-            raise ApiError(422, 'unknown_field', f"field {field!r} is not accepted", field=field)
         Audit = request.env['nasq.ai.audit']
         try:
-            row = Audit._nasq_ai_record(payload)
+            row = Audit.create(payload)
         except ValidationError as error:
             field = getattr(error, 'nasq_field', None)
             if field is None:
                 raise
-            raise ApiError(422, 'invalid', str(error), field=field) from error
+            raise ApiError(422, getattr(error, 'nasq_code', 'invalid'), str(error), field=field) from error
         entitlement = request.env['nasq.entitlement.service']
         return dump_audit_receipt(row, Audit._nasq_ai_count_messages(), entitlement._nasq_limit_value('ai.messages.monthly'))

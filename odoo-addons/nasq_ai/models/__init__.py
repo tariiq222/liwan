@@ -2,7 +2,6 @@
 from . import (
     access_service,
     ai_audit,
-    entitlement_service,
     feature_registry,
     tool_registry,
 )

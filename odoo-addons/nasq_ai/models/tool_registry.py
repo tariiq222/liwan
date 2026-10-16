@@ -120,15 +120,10 @@ class NasqAiToolRegistry(models.AbstractModel):
         ]
 
     @api.model
-    def _nasq_ai_messages_used(self):
-        """Messages recorded this UTC month for the current company."""
-        return self.env['nasq.ai.audit']._nasq_ai_count_messages()
-
-    @api.model
     def _nasq_ai_limits(self):
         entitlement = self.env['nasq.entitlement.service']
         return {
             'tool_calls_per_run': entitlement._nasq_limit_value('ai.tool_calls.per_run'),
             'messages_monthly': entitlement._nasq_limit_value('ai.messages.monthly'),
-            'messages_used': self._nasq_ai_messages_used(),
+            'messages_used': self.env['nasq.ai.audit']._nasq_ai_count_messages(),
         }

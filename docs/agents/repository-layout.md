@@ -33,7 +33,7 @@ limits describe implementation stages, not permanent product exclusions.
   application.
 - `odoo-addons/nasq_ai` (shared service, rank 3) owns the Nasq AI tool registry
   (`nasq.ai.tool.registry`, composed through `super()` by each application), the
-  per-user audit log `nasq.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role), and the two
+  per-user audit log `nasq.ai.audit`, the `ai.*` features and limits, the `ai.use` capability (granted to the employee role; its ACL and own-rows rule follow that capability group, and the monthly message limit counts tenant-wide), and the two
   routes `GET /api/v1/ai/tools` and `POST /api/v1/ai/audit`. It knows no application and
   holds no language-model code. PMO's tools are declared by the bridge `nasq_pmo_ai`
   (rank 5, `auto_install`), not by `nasq_pmo`, which does not depend on `nasq_ai`. The AI service and the Nuxt executor live

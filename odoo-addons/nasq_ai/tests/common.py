@@ -7,6 +7,8 @@ feature and by capability keys the test grants through a patched
 ``_nasq_has_capability``. The tests behave the same with or without an
 application installed.
 """
+from odoo.fields import Command
+
 from odoo.addons.nasq_api.tests.common import (
     PROBE_FEATURE,
     register_probe_feature,
@@ -78,6 +80,10 @@ class AiProbe:
     ``self.granted`` is the set of capability keys the patched access service
     grants to every user; tests add and remove keys to shape what a user sees.
     """
+
+    def _grant_ai_use(self, user):
+        """Give ``user`` the capability group that the ACL and record rule of ``nasq.ai.audit`` follow."""
+        user.write({'group_ids': [Command.link(self.env.ref('nasq_ai.group_cap_ai_use').id)]})
 
     def _install_probe(self, tools=PROBE_TOOLS):
         self.granted = set()

@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import json
+import math
 from datetime import datetime, timezone
 
 from odoo import api, fields, models
@@ -15,6 +16,7 @@ WIRE_KEYS = frozenset({
     'conversation_id', 'kind', 'tool_name', 'input', 'result', 'http_status', 'draft', 'approved', 'attested',
 })
 SECRET_FRAGMENTS = ('password', 'passwd', 'token', 'secret', 'apikey', 'authorization', 'credential')
+NUL = '\x00'
 MAX_JSON_DEPTH = 8
 MAX_JSON_BYTES = 32 * 1024
 
@@ -24,13 +26,24 @@ def is_secret_key(key):
     return normalized == 'key' or any(fragment in normalized for fragment in SECRET_FRAGMENTS)
 
 
+def check_scalar(value):
+    if isinstance(value, str) and NUL in value:
+        message = 'NUL characters are not allowed'
+        raise ValueError(message)
+    if isinstance(value, float) and not math.isfinite(value):
+        message = 'numbers must be finite'
+        raise ValueError(message)
+    return value
+
+
 def scrub(value, depth=1):
     """Drop secret-looking keys anywhere in a JSON value; everything else is kept verbatim.
 
-    Raises ``ValueError`` for a container nested deeper than ``MAX_JSON_DEPTH`` or a non-string key.
+    Raises ``ValueError`` for a container nested deeper than ``MAX_JSON_DEPTH``, a non-string key,
+    a NUL character in a key or string (PostgreSQL cannot store it) or a non-finite number.
     """
     if not isinstance(value, (dict, list)):
-        return value
+        return check_scalar(value)
     if depth > MAX_JSON_DEPTH:
         message = f'nesting deeper than {MAX_JSON_DEPTH} levels'
         raise ValueError(message)
@@ -39,6 +52,8 @@ def scrub(value, depth=1):
     if not all(isinstance(key, str) for key in value):
         message = 'keys must be strings'
         raise ValueError(message)
+    for key in value:
+        check_scalar(key)
     return {key: scrub(item, depth + 1) for key, item in value.items() if not is_secret_key(key)}
 
 
@@ -47,9 +62,9 @@ class NasqAiAudit(models.Model):
 
     Written by the Nuxt executor as the user (``/api/v1/ai/audit``); never
     elevated. ``create`` is the single validation point. Record rules keep each
-    user on their own rows, except content-free ``message`` rows which every
-    employee of the company reads to count the monthly limit, and the access
-    audit readers on their company.
+    user on their own rows, plus the access audit readers on their company. The
+    monthly message limit is counted by SQL over the whole tenant, so it needs
+    no read access to other users' rows; ``message`` rows carry no content.
     """
     _name = 'nasq.ai.audit'
     _description = 'Nasq AI audit'
@@ -71,9 +86,10 @@ class NasqAiAudit(models.Model):
     attested_at = fields.Datetime()
 
     @api.model
-    def _nasq_ai_invalid(self, field, message):
+    def _nasq_ai_invalid(self, field, message, code='invalid'):
         error = ValidationError(self.env._('%(message)s', message=message))
         error.nasq_field = field
+        error.nasq_code = code
         raise error
 
     @api.model
@@ -105,10 +121,10 @@ class NasqAiAudit(models.Model):
         unknown = set(values) - WIRE_KEYS
         if unknown:
             field = sorted(unknown)[0]
-            invalid(field, f'field {field!r} is not accepted')
+            self._nasq_ai_invalid(field, f'field {field!r} is not accepted', code='unknown_field')
         conversation_id = values.get('conversation_id')
-        if not isinstance(conversation_id, str) or not conversation_id or len(conversation_id) > 64:
-            invalid('conversation_id', 'conversation_id must be a non-empty string of at most 64 characters')
+        if not isinstance(conversation_id, str) or not conversation_id or len(conversation_id) > 64 or NUL in conversation_id:
+            invalid('conversation_id', 'conversation_id must be a non-empty string of at most 64 characters, without NUL')
         kind = values.get('kind')
         if not isinstance(kind, str) or kind not in AUDIT_KINDS:
             invalid('kind', f'kind must be one of {AUDIT_KINDS}')
@@ -173,15 +189,14 @@ class NasqAiAudit(models.Model):
         rows = [self._nasq_ai_prepare(values) for values in vals_list]
         messages = sum(row['kind'] == 'message' for row in rows)
         if messages:
-            # Serialize concurrent senders on the tenant row so the limit cannot be passed by a race.
+            # The lock serialises writers on the tenant row, but Odoo runs REPEATABLE READ: a sender that
+            # waited here may count from a snapshot older than the winner's commit. The limit can
+            # therefore overshoot by at most the number of concurrent senders (the same bounded pattern
+            # as the platform's quota claims); it is not an exact cap.
             entitlement = self.env['nasq.entitlement.service']
             entitlement._nasq_profile()._nasq_lock()
             entitlement.require_within_limit('ai.messages.monthly', self._nasq_ai_count_messages() + messages)
         return super().create(rows)
-
-    @api.model
-    def _nasq_ai_record(self, values):
-        return self.create(values)
 
     @api.model
     def _nasq_ai_month_start(self):
@@ -189,11 +204,16 @@ class NasqAiAudit(models.Model):
         return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
     @api.model
-    def _nasq_ai_count_messages(self, company=None):
-        """Message rows of ``company`` (default: current) since the start of this UTC month."""
-        company = company or self.env.company
-        return self.search_count([
-            ('company_id', '=', company.id),
-            ('kind', '=', 'message'),
-            ('create_date', '>=', self._nasq_ai_month_start()),
-        ])
+    def _nasq_ai_count_messages(self):
+        """Message rows of the whole tenant since the start of this UTC month.
+
+        The monthly limit belongs to the one tenant profile, so the count spans every company and
+        user. It is plain SQL on this table (no ORM read access to other users' rows). It feeds
+        ``limits.messages_used`` and the limit check only, never ``_nasq_count_usage``: a rolling
+        monthly flow must not block a plan change as stock usage would.
+        """
+        self.env.cr.execute(
+            "SELECT count(*) FROM nasq_ai_audit WHERE kind = 'message' AND create_date >= %s",
+            [self._nasq_ai_month_start()],
+        )
+        return self.env.cr.fetchone()[0]

@@ -3,7 +3,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
 from odoo.addons.nasq_ai.tests.common import READ_CAP, AiProbe
-from odoo.addons.nasq_ai.tests.test_ai_audit import MESSAGE
+from odoo.addons.nasq_ai.tests.test_ai_audit import MESSAGE, READ
 from odoo.addons.nasq_api.tests.common import NasqApiCase
 
 
@@ -13,6 +13,7 @@ class TestAiUseCapability(AiProbe, NasqApiCase):
     def setUp(self):
         super().setUp()
         self._install_probe()
+        self._grant_ai_use(self.employee)
         self.granted = {READ_CAP}
         role = self.env['nasq.access.role'].create({
             'name_ar': 'قارئ الأدوار',
@@ -47,3 +48,24 @@ class TestAiUseCapability(AiProbe, NasqApiCase):
         with self.assertRaises(AccessError):
             self.env['nasq.ai.audit'].with_user(self.no_ai).create(MESSAGE)
         self.assertTrue(self.env['nasq.ai.audit'].with_user(self.employee).create(MESSAGE))
+
+    def test_a_custom_role_granting_only_ai_use_works_end_to_end(self):
+        permission = self.env['nasq.access.permission'].search([('key', '=', 'ai.use')])
+        role = self.env['nasq.access.role'].create({
+            'name_ar': 'مستخدم المساعد', 'company_id': self.env.company.id,
+            'permission_ids': [(6, 0, permission.ids)],
+        })
+        user = new_test_user(self.env, login='ai_only', password='ai_only_pass_123', name='Aya', groups='base.group_user')
+        self.env['nasq.access.assignment'].create({
+            'user_id': user.id, 'role_id': role.id, 'company_id': self.env.company.id,
+        })
+        self.assertFalse(user.has_group('nasq_core.group_employee'))
+        self.assertTrue(user.has_group('nasq_ai.group_cap_ai_use'))
+        self.authenticate('ai_only', 'ai_only_pass_123')
+        self.assertEqual(self.api('GET', '/api/v1/ai/tools').status_code, 200)
+        first = self.api('POST', '/api/v1/ai/audit', MESSAGE)
+        self.assertEqual(first.status_code, 200, first.content)
+        self.env['nasq.ai.audit'].with_user(self.employee).create(READ)
+        rows = self.env['nasq.ai.audit'].with_user(user).search([])
+        self.assertEqual(rows.mapped('user_id'), user)
+        self.assertEqual(rows.mapped('kind'), ['message'])
