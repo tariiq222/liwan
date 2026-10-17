@@ -105,13 +105,22 @@ def changed_paths(repo: Path, base: str, commit: str, env: dict | None = None) -
     return sorted(filter(None, listing.split('\0')))
 
 
+def merge_base(repo: Path, base: str, commit: str) -> str:
+    try:
+        return subprocess.check_output(['git', '-C', str(repo), 'merge-base', base, commit],
+                                       text=True, stderr=subprocess.PIPE).strip()
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ScopeError(f'cannot find the merge base of {base} and {commit}: {error}') from error
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--base', required=True)
     parser.add_argument('--commit', default='HEAD')
     args = parser.parse_args(argv)
     try:
-        paths = changed_paths(Path.cwd(), args.base, args.commit)
+        # The merge brings in what commit changed since it left base, so preview from their merge base.
+        paths = changed_paths(Path.cwd(), merge_base(Path.cwd(), args.base, args.commit), args.commit)
     except ScopeError as error:
         print(f'ci_scope: {error}', file=sys.stderr)
         return 1

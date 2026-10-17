@@ -228,6 +228,8 @@ def run(args):
                        '--commit-branch', 'main', '--commit-ref', 'refs/heads/main',
                        '--commit-sha', args.commit, '--prev-commit-sha', args.base,
                        '--pipeline-number', str(time.time_ns() // 1000000),
+                       # A scoped pipeline file lives in run_dir; steps must still run in this checkout.
+                       '--repo-path', str(Path.cwd()),
                        '--env', 'WEBVUE_CI_RUN_DIR=' + str(run_dir), str(pipeline_file(run_dir, selected))]
             sys.stdout.write(f"Running {len(selected)} of twelve Woodpecker stages: {', '.join(selected)}; log: "
                              + str(report_dir / 'pipeline.log') + '\n')
