@@ -10,7 +10,7 @@ import {
 // dump_task()'s key set is the contract this schema mirrors.
 const TASK_JSON = {
   id: 12, name: 'Overdue task', project: { id: 3, name: 'Erada Portal' }, state: 'in_progress',
-  description_excerpt: 'Short summary', priority: '1', date_deadline: '2026-08-01T09:00:00Z', days_remaining: -3,
+  description_excerpt: 'Short summary', subtask_count: 3, subtask_done_count: 1, attachment_count: 2, priority: '1', date_deadline: '2026-08-01T09:00:00Z', days_remaining: -3,
   is_overdue: true, is_closed: false, personal_stage: { id: 5, name: 'Inbox' }, stage: { id: 9, name: 'To Do' },
   assignees: [{ id: 7, name: 'Sara' }], tags: [{ id: 1, name: 'urgent', color: 2 }],
   allowed_transitions: ['waiting', 'changes_requested', 'approved', 'done', 'cancelled'],

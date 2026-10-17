@@ -3,7 +3,7 @@ import { DependencyListSchema, ProjectDetailSchema, TaskDetailSchema } from '../
 
 const task = {
   id: 1, name: 'Task', project: { id: 4, name: 'Project' }, state: 'in_progress', priority: '0',
-  date_deadline: null, description_excerpt: '', days_remaining: null, is_overdue: false, is_closed: false, personal_stage: null,
+  date_deadline: null, description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0, days_remaining: null, is_overdue: false, is_closed: false, personal_stage: null,
   stage: null, assignees: [], tags: [], allowed_transitions: ['waiting', 'done', 'cancelled'],
   description_html: '', allocated_hours: 0, age_days: 0,
   cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_approve: false,

@@ -10,7 +10,8 @@ from .common import WebVuePmoCase
 
 TASK_KEYS = {'id', 'name', 'description_excerpt', 'project', 'state', 'priority', 'date_deadline',
              'days_remaining', 'is_overdue', 'is_closed', 'personal_stage', 'stage',
-             'assignees', 'tags', 'can_write', 'can_approve', 'allowed_transitions'}
+             'assignees', 'tags', 'can_write', 'can_approve', 'allowed_transitions',
+             'subtask_count', 'subtask_done_count', 'attachment_count'}
 
 
 @tagged('post_install', '-at_install', 'webvue')

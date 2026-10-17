@@ -8,7 +8,11 @@ from odoo.addons.webvue_api.controllers.common import (
     api_handler,
     requires_feature,
 )
-from odoo.addons.webvue_pmo.serializers.task import dump_task, dump_task_detail
+from odoo.addons.webvue_pmo.serializers.task import (
+    dump_task,
+    dump_task_detail,
+    task_counts,
+)
 
 MAX_LIMIT = 200
 # Field fetches for `_webvue_can_archive` are isolated per batch so the
@@ -95,7 +99,8 @@ class TaskArchiveController(http.Controller):
         eligible_ids = eligible_archived_task_ids(Task, domain)
         page_ids = eligible_ids[offset:offset + page_limit]
         tasks = Task.browse(page_ids)
-        return {'items': [dump_task(task) for task in tasks], 'total': len(eligible_ids)}
+        counts = task_counts(tasks)
+        return {'items': [dump_task(task, counts=counts) for task in tasks], 'total': len(eligible_ids)}
 
     @http.route('/api/v1/tasks/<int:task_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -34,6 +34,7 @@ from . import (
     test_settings,
     test_tags,
     test_task_attachments,
+    test_task_counts,
     test_task_lifecycle,
     test_task_summary,
     test_tasks,

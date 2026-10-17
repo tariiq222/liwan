@@ -17,6 +17,10 @@ export const TaskSchema = z.object({
   can_write: z.boolean().optional().default(false),
   can_approve: z.boolean().optional().default(false),
   allowed_transitions: z.array(TaskStateSchema),
+  // Subtasks the caller can read (done = state done, never cancelled) and the direct files of the task.
+  subtask_count: z.number().int().nonnegative(),
+  subtask_done_count: z.number().int().nonnegative(),
+  attachment_count: z.number().int().nonnegative(),
 }).strict()
 
 export const TaskDetailSchema = TaskSchema.extend({

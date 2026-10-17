@@ -11,7 +11,7 @@ from odoo.addons.webvue_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.webvue_pmo.models.notification_types import DIGEST_KIND
-from odoo.addons.webvue_pmo.serializers.task import dump_task
+from odoo.addons.webvue_pmo.serializers.task import dump_task, task_counts
 
 MAX_LIMIT = 200
 
@@ -34,11 +34,12 @@ class NotificationController(http.Controller):
         tasks = live.sorted(lambda task: (task.date_deadline or datetime.min, task.id))
         page = tasks[offset:offset + limit]
         local_date = row.mail_message_id.webvue_digest_date
+        counts = task_counts(page)
         return {
             'id': row.id,
             'kind': 'overdue_digest',
             'local_date': local_date.isoformat() if local_date else None,
             'overdue_count': len(tasks),
-            'items': [dump_task(task) for task in page],
+            'items': [dump_task(task, counts=counts) for task in page],
             'total': len(tasks),
         }

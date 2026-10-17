@@ -8,7 +8,7 @@ const task = {
   state: 'in_progress' as const,
   priority: '1' as const,
   date_deadline: null,
-  description_excerpt: '',
+  description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0,
   days_remaining: null,
   is_overdue: false,
   is_closed: false,

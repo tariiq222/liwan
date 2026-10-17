@@ -102,7 +102,44 @@ def _milestone_ref(milestone):
     return {'id': milestone.id, 'name': milestone.sudo().display_name}
 
 
-def dump_task(task, today=None):
+def task_counts(tasks):
+    """{task_id: {'subtask_count', 'subtask_done_count', 'attachment_count'}} for `tasks`.
+
+    A constant number of queries however many tasks are given. The counts follow the
+    detail payload's own rules, in the caller's environment: subtasks are `child_ids`
+    (so what the caller may not read is not counted), `subtask_done_count` is the
+    subtasks that are done (a cancelled one is not), and attachments are those of
+    `_webvue_task_attachments()` (direct binary files, never chatter files or links).
+    """
+    env = tasks.env
+    counts = {t_id: {'subtask_count': 0, 'subtask_done_count': 0, 'attachment_count': 0} for t_id in tasks.ids}
+    child_groups = env['project.task']._read_group(
+        [('parent_id', 'in', tasks.ids), ('recurring_task', '=', False),
+         '|', ('parent_id.is_template', '=', True), ('is_template', '=', False)],
+        ['parent_id', 'state'], ['__count'],
+    )
+    for parent, state, count in child_groups:
+        counts[parent.id]['subtask_count'] += count
+        if state == API_TO_STATE['done']:
+            counts[parent.id]['subtask_done_count'] += count
+    candidates = env['ir.attachment'].search_fetch(
+        [('res_model', '=', 'project.task'), ('res_id', 'in', tasks.ids),
+         ('type', '=', 'binary'), ('url', '=', False)],
+        ['res_id'],
+    )
+    by_task = {}
+    for attachment in candidates:
+        by_task.setdefault(attachment.res_id, set()).add(attachment.id)
+    # Chatter files are excluded exactly as `_webvue_task_attachments` does; only tasks that
+    # have a candidate file need their messages, and the loop shares one prefetch.
+    for task in tasks.browse(by_task):
+        counts[task.id]['attachment_count'] = len(by_task[task.id] - set(task.message_ids.attachment_ids.ids))
+    return counts
+
+
+def dump_task(task, today=None, counts=None):
+    """The list shape of one task. `counts` is a `task_counts` map covering `task`;
+    list callers pass it for the whole page, a single dump computes its own."""
     today = _today(task, today)
     days = _days_remaining(task, today)
     stage = task.personal_stage_type_id
@@ -126,12 +163,14 @@ def dump_task(task, today=None):
         'can_write': task._webvue_can_write(),
         'can_approve': task._webvue_can_approve(),
         'allowed_transitions': task._webvue_allowed_transitions(),
+        **(counts or task_counts(task))[task.id],
     }
 
 
 def dump_task_detail(task, today=None):
     today = _today(task, today)
-    data = dump_task(task, today)
+    counts = task_counts(task | task.child_ids)
+    data = dump_task(task, today, counts)
     start = task.date_assign or task.create_date
     cycle = (task.date_end - start).days if task.is_closed and task.date_end and start else None
     dependencies = task.env['project.task'].search([
@@ -147,7 +186,7 @@ def dump_task_detail(task, today=None):
         'allocated_hours': task.allocated_hours,
         'age_days': (today - task.create_date.date()).days,
         'cycle_days': cycle,
-        'subtasks': [dump_task(t, today) for t in task.child_ids],
+        'subtasks': [dump_task(t, today, counts) for t in task.child_ids],
         'depends_on': [{'id': t.id, 'name': t.name, 'state': STATE_TO_API[t.state]} for t in dependencies],
         'attachments': [{
             'id': a.id, 'name': a.name, 'mimetype': a.mimetype or '',

@@ -24,6 +24,7 @@ from odoo.addons.webvue_pmo.serializers.task import (
     dump_task_detail,
     local_day_start_utc,
     parse_task_vals,
+    task_counts,
     today_start_utc,
 )
 
@@ -197,7 +198,8 @@ class TaskController(http.Controller):
         Task = request.env['project.task']
         limit = min(limit, MAX_LIMIT)
         tasks = Task.search(domain, order=order, limit=limit, offset=offset)
-        return {'items': [dump_task(t) for t in tasks], 'total': Task.search_count(domain)}
+        counts = task_counts(tasks)
+        return {'items': [dump_task(t, counts=counts) for t in tasks], 'total': Task.search_count(domain)}
 
     @http.route('/api/v1/tasks/summary', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

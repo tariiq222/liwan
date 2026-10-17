@@ -12896,6 +12896,11 @@
                   },
                   "type": "array"
                 },
+                "attachment_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "can_approve": {
                   "default": false,
                   "type": "boolean"
@@ -13035,6 +13040,16 @@
                   ],
                   "type": "string"
                 },
+                "subtask_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "subtask_done_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "tags": {
                   "items": {
                     "additionalProperties": false,
@@ -13080,7 +13095,10 @@
                 "tags",
                 "can_write",
                 "can_approve",
-                "allowed_transitions"
+                "allowed_transitions",
+                "subtask_count",
+                "subtask_done_count",
+                "attachment_count"
               ],
               "type": "object"
             },
@@ -22099,6 +22117,11 @@
             },
             "type": "array"
           },
+          "attachment_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "attachments": {
             "items": {
               "additionalProperties": false,
@@ -22441,6 +22464,16 @@
             ],
             "type": "string"
           },
+          "subtask_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "subtask_done_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "subtasks": {
             "items": {
               "additionalProperties": false,
@@ -22479,6 +22512,11 @@
                     "type": "object"
                   },
                   "type": "array"
+                },
+                "attachment_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "can_approve": {
                   "default": false,
@@ -22619,6 +22657,16 @@
                   ],
                   "type": "string"
                 },
+                "subtask_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "subtask_done_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "tags": {
                   "items": {
                     "additionalProperties": false,
@@ -22664,7 +22712,10 @@
                 "tags",
                 "can_write",
                 "can_approve",
-                "allowed_transitions"
+                "allowed_transitions",
+                "subtask_count",
+                "subtask_done_count",
+                "attachment_count"
               ],
               "type": "object"
             },
@@ -22719,6 +22770,9 @@
           "can_write",
           "can_approve",
           "allowed_transitions",
+          "subtask_count",
+          "subtask_done_count",
+          "attachment_count",
           "description_html",
           "allocated_hours",
           "age_days",
@@ -22785,6 +22839,11 @@
                   },
                   "type": "array"
                 },
+                "attachment_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "can_approve": {
                   "default": false,
                   "type": "boolean"
@@ -22924,6 +22983,16 @@
                   ],
                   "type": "string"
                 },
+                "subtask_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "subtask_done_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
                 "tags": {
                   "items": {
                     "additionalProperties": false,
@@ -22969,7 +23038,10 @@
                 "tags",
                 "can_write",
                 "can_approve",
-                "allowed_transitions"
+                "allowed_transitions",
+                "subtask_count",
+                "subtask_done_count",
+                "attachment_count"
               ],
               "type": "object"
             },
@@ -23133,6 +23205,11 @@
             },
             "type": "array"
           },
+          "attachment_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "can_approve": {
             "default": false,
             "type": "boolean"
@@ -23272,6 +23349,16 @@
             ],
             "type": "string"
           },
+          "subtask_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "subtask_done_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
           "tags": {
             "items": {
               "additionalProperties": false,
@@ -23317,7 +23404,10 @@
           "tags",
           "can_write",
           "can_approve",
-          "allowed_transitions"
+          "allowed_transitions",
+          "subtask_count",
+          "subtask_done_count",
+          "attachment_count"
         ],
         "type": "object"
       },
