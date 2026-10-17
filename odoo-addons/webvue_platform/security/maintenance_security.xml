@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_maintenance_manager" model="res.groups">
+        <field name="name">Maintenance manager</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+    <record id="webvue_core.group_customer_admin" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('webvue_platform.group_maintenance_manager'))]"/>
+    </record>
+    <record id="maintenance_preference_company_rule" model="ir.rule">
+        <field name="name">Maintenance preferences: allowed companies</field>
+        <field name="model_id" ref="model_webvue_maintenance_preference"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="maintenance_release_company_rule" model="ir.rule">
+        <field name="name">Maintenance notices: allowed companies</field>
+        <field name="model_id" ref="model_webvue_maintenance_release"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="maintenance_booking_company_rule" model="ir.rule">
+        <field name="name">Maintenance bookings: allowed companies</field>
+        <field name="model_id" ref="model_webvue_maintenance_booking"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="maintenance_event_company_rule" model="ir.rule">
+        <field name="name">Maintenance events: allowed companies</field>
+        <field name="model_id" ref="model_webvue_maintenance_event"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="maintenance_authority_company_rule" model="ir.rule">
+        <field name="name">Maintenance authority: allowed companies</field>
+        <field name="model_id" ref="model_webvue_maintenance_authority"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

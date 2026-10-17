@@ -57,3 +57,19 @@ def test_a_missing_database_stops_the_boot_unless_memory_state_is_exactly_true(f
 def test_memory_state_is_allowed_only_when_asked_for():
     assert Settings.from_env({**ENV, "AI_ALLOW_MEMORY_STATE": "true"}).database_url is None
     assert Settings.from_env({**ENV, "AI_DATABASE_URL": "postgresql://ai@db/ai"}).database_url == "postgresql://ai@db/ai"
+
+
+def test_incompatible_state_contract_fails_before_opening_state():
+    with pytest.raises(SettingsError) as error:
+        Settings.from_env({**ENV, "AI_ALLOW_MEMORY_STATE": "true", "AI_STATE_VERSION": "future"})
+    assert error.value.variable == "AI_STATE_VERSION"
+
+
+def test_generation_identity_is_explicit_and_validated():
+    env = {**ENV, "AI_ALLOW_MEMORY_STATE": "true"}
+    assert Settings.from_env({**env, "AI_GENERATION_ID": "green-ai"}).generation_id == "green-ai"
+    assert Settings.from_env(env).generation_id is None
+    for generation in ("", "../old", "blue\nsecret", "UPPER"):
+        with pytest.raises(SettingsError) as error:
+            Settings.from_env({**env, "AI_GENERATION_ID": generation})
+        assert error.value.variable == "AI_GENERATION_ID"

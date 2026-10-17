@@ -147,12 +147,22 @@ class BackupBoundaryTests(unittest.TestCase):
         self.assertEqual(self.run_main(RuntimeError('boom')), (1, {'error_code': 'shared_effect_unverified'}))
 
     def test_restore_observe_writer_after_completion_is_not_retryable(self):
-        runner = object.__new__(odoo_backup.BackupRunner)
-        runner.config = {'projectName': 'webvue-shared-test'}
-        runner.command = lambda args, **_: 'webvue-shared-test-effect-12345678-install'
-        import inspect
-        source = inspect.getsource(odoo_backup.BackupRunner.observe)
-        self.assertIn("assert_no_effect_containers(code='runtime_writer_after_effect')", source)
+        import json
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner = object.__new__(odoo_backup.BackupRunner)
+            runner.config = {'projectName': 'webvue-shared-test'}
+            runner.command = lambda args, **_: 'webvue-shared-test-effect-12345678-install'
+            runner.preflight = lambda: None
+            runner.root, runner.operation = root, 'restore'
+            runner.complete_path = root / 'complete.json'
+            runner.target, runner.backup_id = 'target', 'backup'
+            runner.authority = {'approvalId': 'approval', 'manifestSha256': 'digest'}
+            runner.request = {'payloadDigest': 'payload'}
+            runner.complete_path.write_text(json.dumps({'approvalId': 'approval', 'backupId': 'backup',
+                'targetDatabase': 'target', 'digest': 'payload', 'manifestSha256': 'digest'}))
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^runtime_writer_after_effect$'):
+                runner.observe()
 
     def test_database_binary_corruption_fails_without_exposing_bytes(self):
         self.assertTrue(hasattr(odoo_backup, 'database_attachment_digest'))
@@ -211,6 +221,21 @@ class BackupBoundaryTests(unittest.TestCase):
             path.write_bytes(b'tampered')
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_backup.require_hash(path, expected)
+
+
+class ReleaseBackupBoundaryTests(unittest.TestCase):
+    def test_enabled_release_capture_refuses_before_shared_stop_or_reservation(self):
+        import os
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner = object.__new__(odoo_backup.BackupRunner)
+            calls = []
+            runner.assert_no_effect_containers = lambda **kwargs: calls.append('runtime')
+            with patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root)}):
+                with self.assertRaisesRegex(odoo_effect.EffectError, '^release_backup_requires_quiescence$'):
+                    runner.capture()
+            self.assertEqual(calls, [])
+
 
 if __name__ == '__main__':
     unittest.main()

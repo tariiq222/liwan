@@ -6,6 +6,7 @@ expiry. A controller grants every physical stage after fresh authoritative
 claim validation. Interrupted attempts can only be independently observed.
 """
 from __future__ import annotations
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,9 @@ import signal
 import subprocess
 import sys
 import threading
+
+from deploy.releases.helper_runtime import verify_helper_runtime
+from deploy.releases.fencing import ReleaseOperationError, release_routes_enabled, tenant_operation
 
 from tools.webvue_cli.managed_verify import ERROR_CODES, VerificationError, build_policy_script, build_snapshot_script, parse_snapshot
 from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resolve_catalog_path
@@ -34,6 +38,35 @@ class EffectError(ValueError):
 
 # Usage observations and read-back snapshots: `<project>-effect-<attempt8>-<kind>-<hex>`.
 OBSERVE_CONTAINER = re.compile(r'-effect-[a-f0-9]{8}-(?:observe|snapshot|read-admin)-[a-f0-9]+$')
+
+
+@contextmanager
+def effect_operation(request, operation, *, allow_unrouted=False):
+    """Keep release admission separate from existing CP claims/advisory locks."""
+    if not release_routes_enabled():
+        yield None
+        return
+    try:
+        if not isinstance(request, dict): raise ReleaseOperationError('release_operation_blocked')
+        job_binding = request.get('job', {}).get('binding')
+        binding = job_binding if job_binding is not None else request.get('releaseBinding')
+        if job_binding is not None and request.get('releaseBinding', job_binding) != job_binding:
+            raise ReleaseOperationError('release_operation_blocked')
+        expected_db = request.get('tenant', {}).get('database') or request.get('job', {}).get('binding', {}).get('database')
+        if not isinstance(binding, dict) or binding.get('database') != expected_db:
+            raise ReleaseOperationError('release_operation_blocked')
+        with tenant_operation(binding, operation, allow_unrouted=allow_unrouted) as lease:
+            helper_pool = os.environ.get('WEBVUE_RELEASE_HELPER_POOL_ID')
+            if (not isinstance(helper_pool, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,39}', helper_pool)
+                    or (lease['poolId'] != 'pending' and helper_pool != lease['poolId'])):
+                raise ReleaseOperationError('release_operation_blocked')
+            try:
+                verify_helper_runtime(request.get('config'), lease, helper_pool)
+            except ValueError:
+                raise ReleaseOperationError('release_operation_blocked') from None
+            yield lease
+    except ReleaseOperationError:
+        raise EffectError('release_operation_blocked') from None
 
 
 def validate_database(value):
@@ -279,6 +312,11 @@ class Runner:
                 raise EffectError(code)
 
     def apply_owned(self):
+        operation = self.request.get('job', {}).get('operation', 'provision')
+        with effect_operation(self.request, operation, allow_unrouted=operation == 'provision'):
+            return self._apply_owned()
+
+    def _apply_owned(self):
         permit('runtime')
         # Refuse a busy project BEFORE the gate exists: a refusal here has run no effect, so it
         # leaves nothing behind and the job can simply be retried once the other container ended.
@@ -406,9 +444,17 @@ print('WEBVUE_SHARED_ADMIN:' + json.dumps(result))
         return value['uid']
 
     def observe(self):
+        provisioning = self.request.get('job', {}).get('operation') == 'provision'
+        with effect_operation(self.request, 'provision_observe' if provisioning else 'observe', allow_unrouted=provisioning) as lease:
+            return self._observe_operation(unrouted=bool(lease and lease['poolId'] == 'pending'))
+
+    def _observe_operation(self, *, unrouted=False):
         if (self.root / 'runtime-gate').exists():
             return {'state': 'unknown'}
         self.preflight()
+        if unrouted:
+            require_new_target(self.exists(), self.filestore_exists())
+            return {'state': 'absent'}
         if not self.exists():
             return {'state': 'partial'} if self.reservation.exists() or self.filestore_exists() else {'state': 'absent'}
         if not self.reservation.exists():
@@ -463,7 +509,7 @@ def classify_error(error):
         return error.code
     # Writer refusals are non-secret and the control plane tells them apart: only the
     # pre-gate one (nothing ran) may be retried.
-    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS:
+    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS | {'release_operation_blocked'}:  # Safe release barrier refusal, distinct from CP claims.
         return str(error)
     return 'shared_effect_unverified'
 

@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
+from uuid import uuid4
+
+from webvue_ai_service.contracts import AI_STATE_VERSION
 
 
 def new_run_id() -> str:
@@ -15,6 +19,7 @@ def new_run_id() -> str:
 
 ACTIVE = ("running", "executing")  # a process holds the run: only its lease settles it
 EXECUTING = "executing"  # a claimed write: it may already have run, so a stale one is never re-entered by claim or resume
+DRAIN_ACTIVE = (*ACTIVE, "waiting_tool")  # the BFF is still answering an automatic read between two service streams
 
 
 def is_stale(record: RunRecord, stale_after_seconds: float) -> bool:
@@ -41,6 +46,13 @@ class RunRecord:
 
 
 class RunStore(Protocol):
+    state_id: str
+
+    async def generation_draining(self, generation_id: str) -> bool: ...
+    async def drain_generation(self, generation_id: str) -> None: ...
+    async def activity(self) -> dict[str, int]:
+        """Shared active leases, including unresolved claimed writes; never age them out for retirement."""
+        ...
     async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord: ...
     async def get(self, run_id: str) -> RunRecord | None: ...
     async def list_for_owner(self, tenant: str, user_ref: str, limit: int = 50, *, archived: bool = False) -> list[RunRecord]:
@@ -86,7 +98,19 @@ def _require_window(days: int) -> None:
 class MemoryRunStore:
     def __init__(self) -> None:
         self.records: dict[str, RunRecord] = {}
+        self.state_id = "state_" + uuid4().hex
+        self._drained_generations: set[str] = set()
         self._lock = asyncio.Lock()
+
+    async def generation_draining(self, generation_id: str) -> bool:
+        return generation_id in self._drained_generations
+
+    async def drain_generation(self, generation_id: str) -> None:
+        async with self._lock:
+            self._drained_generations.add(generation_id)
+
+    async def activity(self) -> dict[str, int]:
+        return {status: sum(record.status == status for record in self.records.values()) for status in DRAIN_ACTIVE}
 
     async def create(self, tenant: str, user_ref: str, title: str | None = None) -> RunRecord:
         record = RunRecord(new_run_id(), tenant, user_ref, lease=new_lease(), title=title)
@@ -168,11 +192,6 @@ CREATE TABLE IF NOT EXISTS ai_runs (
     archived_at TIMESTAMPTZ
 )
 """,
-    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS lease TEXT",
-    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS pending_call_id TEXT",
-    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS title TEXT",
-    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS title_locked BOOLEAN NOT NULL DEFAULT false",
-    "ALTER TABLE ai_runs ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ",
     "CREATE INDEX IF NOT EXISTS ai_runs_updated_at ON ai_runs (updated_at)",
     "CREATE INDEX IF NOT EXISTS ai_runs_owner_updated_at ON ai_runs (tenant, user_ref, updated_at DESC)",
 )
@@ -187,6 +206,28 @@ DELETE_OLD_CHECKPOINTS = (
 class PostgresRunStore:
     def __init__(self, pool) -> None:
         self.pool = pool
+        self.state_id: str | None = None
+
+    async def generation_draining(self, generation_id: str) -> bool:
+        async with self.pool.connection() as conn:
+            row = await (await conn.execute(
+                "SELECT draining FROM ai_generations WHERE generation_id = %s", (generation_id,),
+            )).fetchone()
+        return bool(row and row[0])
+
+    async def drain_generation(self, generation_id: str) -> None:
+        async with self.pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO ai_generations (generation_id, draining) VALUES (%s, true)"
+                " ON CONFLICT (generation_id) DO UPDATE SET draining = true", (generation_id,),
+            )
+
+    async def activity(self) -> dict[str, int]:
+        async with self.pool.connection() as conn:
+            rows = await (await conn.execute(
+                "SELECT status, count(*) FROM ai_runs WHERE status = ANY(%s) GROUP BY status", (list(DRAIN_ACTIVE),),
+            )).fetchall()
+        return {status: dict(rows).get(status, 0) for status in DRAIN_ACTIVE}
 
     async def setup(self) -> None:
         async with self.pool.connection() as conn:
@@ -273,8 +314,61 @@ class PostgresRunStore:
         return [row[0] for row in rows]
 
 
-async def open_state(database_url: str | None) -> tuple[RunStore, object, Callable[[], Awaitable[None]]]:
-    """``(store, checkpointer, aclose)``: Postgres for a URL, memory (development only) without one."""
+class StateCompatibilityError(RuntimeError):
+    """State needs explicit operator initialization or an offline migration, never runtime setup."""
+
+
+async def _state_tables(conn):
+    return await (await conn.execute(
+        "SELECT to_regclass('ai_state_schema'), to_regclass('ai_runs'), to_regclass('checkpoints'),"
+        " to_regclass('checkpoint_blobs'), to_regclass('checkpoint_writes'), to_regclass('checkpoint_migrations'),"
+        " to_regclass('ai_generations')",
+    )).fetchone()
+
+
+async def _validate_state(conn, checkpoint_version: int) -> str:
+    tables = await _state_tables(conn)
+    if not tables or len(tables) != 7 or not all(tables):
+        raise StateCompatibilityError("AI state is uninitialized or incompatible; initialize explicitly before runtime startup")
+    version = await (await conn.execute("SELECT state_version, checkpoint_version, state_id FROM ai_state_schema WHERE singleton")).fetchone()
+    migration = await (await conn.execute("SELECT max(v) FROM checkpoint_migrations")).fetchone()
+    if (not version or len(version) != 3 or version[:2] != (AI_STATE_VERSION, checkpoint_version)
+            or not isinstance(version[2], str) or not re.fullmatch(r"state_[a-f0-9]{32}", version[2])
+            or migration != (checkpoint_version,)):
+        raise StateCompatibilityError("AI state/checkpoint contract is incompatible with this runtime")
+    return version[2]
+
+
+async def _initialize_state(pool, checkpointer, store) -> None:
+    # Operator-only session lock also serializes bootstrap across processes. Runtime never takes this lock or runs DDL.
+    async with pool.connection() as conn:
+        await conn.execute("SELECT pg_advisory_lock(184732, 1)")
+        try:
+            tables = await _state_tables(conn)
+            if any(tables):
+                await _validate_state(conn, len(checkpointer.MIGRATIONS) - 1)
+                return
+            await checkpointer.setup()
+            await store.setup()
+            await conn.execute(
+                "CREATE TABLE ai_state_schema (singleton BOOLEAN PRIMARY KEY DEFAULT true CHECK (singleton),"
+                " state_version TEXT NOT NULL, checkpoint_version INTEGER NOT NULL,"
+                " state_id TEXT NOT NULL UNIQUE CHECK (state_id ~ '^state_[a-f0-9]{32}$'))",
+            )
+            await conn.execute(
+                "INSERT INTO ai_state_schema (state_version, checkpoint_version, state_id) VALUES (%s, %s, %s)",
+                (AI_STATE_VERSION, len(checkpointer.MIGRATIONS) - 1, "state_" + uuid4().hex),
+            )
+            await conn.execute(
+                "CREATE TABLE ai_generations (generation_id TEXT PRIMARY KEY CHECK (generation_id ~ '^[a-z][a-z0-9_-]{0,62}$'),"
+                " draining BOOLEAN NOT NULL)",
+            )
+        finally:
+            await conn.execute("SELECT pg_advisory_unlock(184732, 1)")
+
+
+async def open_state(database_url: str | None, *, initialize: bool = False) -> tuple[RunStore, object, Callable[[], Awaitable[None]]]:
+    """Runtime validates existing Postgres state without mutation. Only an explicit operator bootstrap runs setup."""
     if not database_url:
         from langgraph.checkpoint.memory import InMemorySaver
 
@@ -290,9 +384,11 @@ async def open_state(database_url: str | None) -> tuple[RunStore, object, Callab
     await pool.open()
     try:
         checkpointer = AsyncPostgresSaver(pool)
-        await checkpointer.setup()
         store = PostgresRunStore(pool)
-        await store.setup()
+        if initialize:
+            await _initialize_state(pool, checkpointer, store)
+        async with pool.connection() as conn:
+            store.state_id = await _validate_state(conn, len(checkpointer.MIGRATIONS) - 1)
     except Exception:
         await pool.close()
         raise
@@ -301,3 +397,26 @@ async def open_state(database_url: str | None) -> tuple[RunStore, object, Callab
         await pool.close()
 
     return store, checkpointer, aclose
+
+
+async def _initialize_from_env() -> None:
+    import os
+
+    database_url = os.environ.get("AI_DATABASE_URL")
+    if not database_url or os.environ.get("AI_STATE_VERSION", AI_STATE_VERSION) != AI_STATE_VERSION:
+        raise StateCompatibilityError("AI_DATABASE_URL and a compatible AI_STATE_VERSION are required")
+    _, _, close = await open_state(database_url, initialize=True)
+    await close()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="One-time operator bootstrap for an empty AI state database")
+    parser.add_argument("--initialize", action="store_true", required=True)
+    parser.parse_args()
+    try:
+        asyncio.run(_initialize_from_env())
+    except Exception as error:
+        # Never print a connection exception's text; it can include the database credential.
+        parser.exit(1, f"AI initialization failed: {type(error).__name__}\n")

@@ -1,7 +1,11 @@
 import http from 'node:http'
+import { isReleaseAssetRequest, readAsset, validateAssetStore } from '../../apps/web/server/utils/releaseAssets.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 import { resolveTenantHost } from '../../apps/web/server/utils/tenantHostResolver.ts'
+import { createReleaseLease, readReleaseRoute } from '../../apps/web/server/utils/releaseRouting.ts'
+import { readdirSync, existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const forbidden = /^(x-odoo-|x-openerp-|x-webvue-|forwarded$|x-forwarded-)/i
 // The web's double-submit CSRF token (compared with its cookie, never trusted as identity); Nuxt hop only.
@@ -32,7 +36,7 @@ export function requestPlan(req, registry, token, codec) {
   const internal = equal(req.headers['x-webvue-proxy-token'], token)
   if (!token || token.length < 32) throw Error('invalid_proxy_token')
   for (const name of Object.keys(req.headers)) {
-    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-webvue-proxy-token', 'x-webvue-tenant-revision'].includes(name))) throw Error('forbidden_header')
+    if (forbidden.test(name) && !browserHeaders.has(name) && !(internal && ['x-webvue-proxy-token', 'x-webvue-tenant-revision', 'x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence', 'x-webvue-release-admission'].includes(name))) throw Error('forbidden_header')
   }
   if (internal && req.headers['x-webvue-tenant-revision'] !== String(tenant.registryRevision)) throw Error('stale_binding')
   if (!req.url.startsWith('/') || req.url.startsWith('//') || /[\\\r\n]/.test(req.url)) throw Error('invalid_path')
@@ -89,7 +93,11 @@ function cookiesForBrowser(cookies, codec, tenant) {
     return `session_id=${deletion ? '' : codec.seal(sid, tenant)}; Path=/; HttpOnly; Secure; SameSite=Lax${deletion ? '; Max-Age=0' : '; Max-Age=3600'}`
   }).filter(Boolean)
 }
-export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl }) {
+export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl, webUrl, wsUrl = odooUrl, releaseRoutesDir, releaseAssetsDir }) {
+  if (releaseAssetsDir !== undefined) {
+    if (!releaseRoutesDir) throw Error('release_assets_require_routes')
+    validateAssetStore(releaseAssetsDir)
+  }
   const codec = sessionCodec(keys, activeKid)
   const upstreams = [odooUrl, webUrl, wsUrl].map(v => new URL(v))
   if (upstreams.some(u => u.protocol !== 'http:' || u.username || u.password)) throw Error('private_http_upstreams_required')
@@ -97,11 +105,42 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
     const registry = readTenantRegistry(registryPath)
     // Stock Odoo's filestore directory is named after its database.
     if (registry.targets.some(t => t.database !== t.filestore)) throw Error('filestore_binding_invalid')
-    return requestPlan(req, registry, proxyToken, codec)
+    const p = requestPlan(req, registry, proxyToken, codec)
+    if (!releaseRoutesDir) return p
+    if (p.internal && p.path === '/_webvue/release-status') return { ...p, status: true }
+    const pinHeaders = ['x-webvue-release-pool', 'x-webvue-release-revision', 'x-webvue-release-fence']
+    const hasPin = pinHeaders.some(key => req.headers[key] !== undefined)
+    const pin = p.internal && hasPin ? { poolId: req.headers[pinHeaders[0]], routeRevision: Number(req.headers[pinHeaders[1]]), fence: Number(req.headers[pinHeaders[2]]) } : undefined
+    const lease = createReleaseLease(releaseRoutesDir, p.tenant, pin, 'http', p.internal ? req.headers['x-webvue-release-admission'] : undefined)
+    if (!p.odoo) {
+      p.headers['x-webvue-release-pool'] = lease.context.poolId
+      p.headers['x-webvue-release-revision'] = String(lease.context.routeRevision)
+      p.headers['x-webvue-release-fence'] = String(lease.context.fence)
+      p.headers['x-webvue-release-admission'] = lease.context.admissionId
+    }
+    return { ...p, release: lease.context, closeLease: lease.release }
   }
   const server = http.createServer(async (req, res) => {
     let p
-    try { p = plan(req) } catch { res.writeHead(403); res.end('tenant_boundary_rejected'); return }
+    try { p = plan(req) } catch (error) { res.writeHead(error.statusCode === 503 ? 503 : 403); res.end(error.statusCode === 503 ? 'tenant_maintenance_or_release_unavailable' : 'tenant_boundary_rejected'); return }
+    if (p.status) {
+      try {
+        const route = readReleaseRoute(releaseRoutesDir, p.tenant.tenantId, true)
+        const directory = join(releaseRoutesDir, 'leases', p.tenant.tenantId)
+        const leases = existsSync(directory) ? readdirSync(directory).filter(x => x.endsWith('.json')).map(x => JSON.parse(readFileSync(join(directory, x), 'utf8'))) : []
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify({ routeRevision: route.routeRevision, fence: route.fence, poolId: route.poolId, releaseId: route.releaseId, maintenance: existsSync(join(releaseRoutesDir, `${p.tenant.tenantId}.maintenance`)), leases: leases.map(x => ({ poolId: x.poolId, operation: x.operation })) }))
+      } catch { res.writeHead(503); res.end('release_status_unavailable') }
+      return
+    }
+    if (p.closeLease) { res.once('finish', p.closeLease); res.once('close', p.closeLease) }
+    if (releaseAssetsDir !== undefined && (isReleaseAssetRequest(req.url) || isReleaseAssetRequest(p.path))) {
+      if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405, { allow: 'GET, HEAD' }); res.end(); return }
+      const asset = readAsset(releaseAssetsDir, req.url)
+      if (!asset) { res.writeHead(404, { 'cache-control': 'no-store' }); res.end('release_asset_not_found'); return }
+      if (req.headers['if-none-match'] === asset.headers.etag) { res.writeHead(304, asset.headers); res.end(); return }
+      res.writeHead(200, asset.headers); res.end(req.method === 'HEAD' ? undefined : asset.body); return
+    }
     // Auth DB is injected by our BFF, never accepted from public clients.
     let body
     if ((p.odoo || p.path.startsWith('/api/auth/')) && !['GET', 'HEAD'].includes(req.method)) {
@@ -123,7 +162,7 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
         }
       } catch { res.writeHead(400); res.end('invalid_upstream_body'); return }
     }
-    const target = upstreams[p.odoo ? 0 : 1]
+    const target = p.release ? new URL(p.odoo ? p.release.odooUrl : p.release.webUrl) : upstreams[p.odoo ? 0 : 1]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, method: req.method, headers: p.headers }, reply => {
       const headers = { ...reply.headers }
       if (p.odoo) headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant)
@@ -134,8 +173,9 @@ export function createGuard({ registryPath, proxyToken, keys, activeKid, odooUrl
   })
   server.on('upgrade', (req, socket, head) => {
     let p
-    try { p = plan(req); if (!p.odoo || new URL(req.url, 'http://local').pathname !== '/websocket') throw Error() } catch { socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n'); return }
-    const target = upstreams[2]
+    try { p = plan(req); if (!p.odoo || new URL(req.url, 'http://local').pathname !== '/websocket') throw Error() } catch (error) { p?.closeLease?.(); socket.end(`HTTP/1.1 ${error.statusCode === 503 ? '503 Service Unavailable' : '403 Forbidden'}\r\nConnection: close\r\n\r\n`); return }
+    if (p.closeLease) socket.once('close', p.closeLease)
+    const target = p.release ? new URL(p.release.wsUrl) : upstreams[2]
     const upstream = http.request({ hostname: target.hostname, port: target.port, path: p.path, headers: p.headers })
     upstream.on('upgrade', (reply, remote, remoteHead) => {
       const headers = { ...reply.headers }; headers['set-cookie'] = cookiesForBrowser(headers['set-cookie'], codec, p.tenant)

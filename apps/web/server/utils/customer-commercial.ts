@@ -153,7 +153,7 @@ export async function customerPrincipal(event: H3Event, config: CustomerConfig):
   if (!tenantId) fail(503, 'commercial_unavailable', 'Tenant binding is not configured')
   let me: unknown
   try {
-    if (tenant) {
+    if (tenant || process.env.WEBVUE_RELEASE_ROUTES_DIR) {
       const response = await tenantTransport(event, config.odooUrl ?? '', '/api/v1/me')
       if (!response.ok) throw new Error('actor_unavailable')
       me = await response.json()

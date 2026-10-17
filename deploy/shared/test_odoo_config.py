@@ -13,7 +13,7 @@ from validate_odoo_config import ConfigRejected, main, validate_config
 
 FIXTURE = """[options]
 db_host = synthetic-db
-db_user = synthetic-user
+db_user = synthetic_user
 db_password = SYNTHETIC_PASSWORD_MUST_NOT_APPEAR
 admin_passwd = SYNTHETIC_ADMIN_MUST_NOT_APPEAR
 dbfilter = ^%h$
@@ -87,6 +87,60 @@ class SharedConfigTest(unittest.TestCase):
                 self.assertEqual(launch_odoo.main(), 1)
                 execute.assert_not_called()
             self.assertEqual(output.getvalue(), "shared_config_rejected\n")
+
+
+class ReleaseConfigTest(unittest.TestCase):
+    """Use real secret-free files and exercise public launcher without exec."""
+    setUp = SharedConfigTest.setUp
+    fixture = SharedConfigTest.fixture
+    def release_env(self, role='http', **extra):
+        return {'WEBVUE_TENANCY_MODE': 'shared', 'WEBVUE_RELEASE_POOL_ID': 'green',
+                'WEBVUE_RELEASE_DB_USER':'synthetic_user','WEBVUE_RELEASE_ROLE': role, **extra}
+
+    def launch(self, args, env, content=FIXTURE):
+        path = self.fixture(content)
+        executions = []
+        with patch.dict(os.environ, env, clear=True), patch('sys.argv', ['launch', *args]), \
+                patch.object(launch_odoo, 'validate_config', lambda unused: validate_config(path)), \
+                patch.object(launch_odoo.os, 'execv', lambda executable, argv: executions.append((executable, argv))):
+            result = launch_odoo.main()
+        return result, executions
+
+    def test_http_release_forwards_only_exact_public_cron_disable(self):
+        result, executions = self.launch(['--max-cron-threads=0'], self.release_env())
+        self.assertIsNone(result)
+        self.assertEqual(executions, [('/usr/local/bin/webvue-odoo', ['webvue-odoo', '--max-cron-threads=0'])])
+
+    def test_cron_release_requires_exact_explicit_database_membership(self):
+        env = self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_b,tenant_a')
+        argv = ['--no-http', '--max-cron-threads=1', '--database=tenant_a,tenant_b']
+        _, executions = self.launch(argv, env, FIXTURE + 'db_name = tenant_b,tenant_a\n')
+        self.assertEqual(executions[0][1], ['webvue-odoo', *argv])
+        for args in ([], argv[:-1], [*argv, '--db-filter=.*'],
+                     ['--no-http', '--max-cron-threads=1', '--database=tenant_a']):
+            with self.subTest(args=args), contextlib.redirect_stderr(io.StringIO()):
+                result, calls = self.launch(args, env)
+                self.assertEqual(result, 1); self.assertFalse(calls)
+
+    def test_release_profiles_do_not_weaken_http_or_secret_config(self):
+        cases = [(self.release_env(), FIXTURE + 'db_name = tenant_a\n', ['--max-cron-threads=0']),
+                 (self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_a'), FIXTURE + 'db_name = tenant_b\n', ['--no-http', '--max-cron-threads=1', '--database=tenant_a']),
+                 (self.release_env(), FIXTURE.replace('^%h$', '.*'), ['--max-cron-threads=0'])]
+        for env, content, args in cases:
+            with self.subTest(env=env), contextlib.redirect_stderr(io.StringIO()):
+                result, calls = self.launch(args, env, content)
+                self.assertEqual(result, 1); self.assertFalse(calls)
+
+    def test_missing_profile_forged_pool_and_protected_db_refuse_before_exec(self):
+        envs = [self.release_env(WEBVUE_RELEASE_POOL_ID='../escape'),
+                {'WEBVUE_TENANCY_MODE': 'shared', 'WEBVUE_RELEASE_POOL_ID': 'green'},
+                self.release_env('cron', WEBVUE_RELEASE_DATABASES='odoo19'),
+                self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_a,tenant_a'),
+                self.release_env('cron', WEBVUE_RELEASE_DATABASES='tenant_a;DROP')]
+        for env in envs:
+            with self.subTest(env=env), contextlib.redirect_stderr(io.StringIO()):
+                result, calls = self.launch(['--max-cron-threads=0'], env)
+                self.assertEqual(result, 1); self.assertFalse(calls)
 
 
 if __name__ == "__main__":

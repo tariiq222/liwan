@@ -468,5 +468,63 @@ class RuntimeWriterCheckOrderTests(unittest.TestCase):
                         self.assertTrue((runner.root / 'runtime-gate').exists())
 
 
+
+class ReleaseOperationBoundaryTests(unittest.TestCase):
+    def test_provision_observation_barrier_precedes_all_runtime_calls(self):
+        import os
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            (root / 'tenant_a.maintenance').write_text('{}')
+            runner = object.__new__(odoo_effect.Runner)
+            runner.request = {'job': {'operation': 'provision', 'binding': {'tenantId': 'tenant_a', 'registryRevision': 4, 'database': 'tenant_a'}}}
+            calls = []
+            runner.preflight = lambda: calls.append('runtime')
+            runner.root = root
+            with unittest.mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root)}):
+                with self.assertRaises(odoo_effect.EffectError): runner.observe()
+            self.assertEqual(calls, [])
+
+
+
+class VerifiedHelperRuntimeBoundaryTests(unittest.TestCase):
+    def fixture(self, root):
+        from deploy.releases.test_helper_runtime import helper_fixture
+        config, metadata, pools, rendered = helper_fixture(root)
+        binding = {'tenantId': 'tenant_a', 'database': 'db_a', 'registryRevision': 4}
+        (root / 'tenant_a.json').write_text(json.dumps({'schemaVersion': 1, 'tenantId': 'tenant_a', 'identityRevision': 4, 'routeRevision': 2, 'fence': 8, 'poolId': 'blue', 'releaseId': 'release_blue', 'state': 'serving'}))
+        return {'config': config, 'job': {'binding': binding}, 'fence': 999}, rendered
+
+    def test_wrong_actual_image_refuses_effect_even_when_pool_environment_matches(self):
+        import os
+        import subprocess
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(); request, rendered = self.fixture(root)
+            rendered['services']['odoo']['image'] = 'webvue/odoo@sha256:' + 'b' * 64
+            def docker_config(argv, **kwargs):
+                self.assertEqual(len(list((root / 'leases' / 'tenant_a').glob('*.json'))), 1)
+                return subprocess.CompletedProcess(argv, 0, json.dumps(rendered), '')
+            with unittest.mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root), 'WEBVUE_RELEASE_HELPER_POOL_ID': 'blue'}), unittest.mock.patch('deploy.releases.helper_runtime.subprocess.run', docker_config):
+                with self.assertRaisesRegex(odoo_effect.EffectError, '^release_operation_blocked$'):
+                    with odoo_effect.effect_operation(request, 'observe'): self.fail('wrong image effect admitted')
+            self.assertFalse(list((root / 'leases' / 'tenant_a').glob('*.json')))
+
+    def test_verified_view_and_pending_provision_keep_lease_until_effect_finishes(self):
+        import os
+        import subprocess
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve(); request, rendered = self.fixture(root)
+            def docker_config(argv, **kwargs):
+                self.assertEqual(len(list((root / 'leases' / 'tenant_a').glob('*.json'))), 1)
+                return subprocess.CompletedProcess(argv, 0, json.dumps(rendered), '')
+            with unittest.mock.patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root), 'WEBVUE_RELEASE_HELPER_POOL_ID': 'blue'}), unittest.mock.patch('deploy.releases.helper_runtime.subprocess.run', docker_config):
+                with odoo_effect.effect_operation(request, 'observe') as lease:
+                    self.assertEqual(lease['fence'], 8)
+                (root / 'tenant_a.json').unlink()
+                with odoo_effect.effect_operation(request, 'provision', allow_unrouted=True) as lease:
+                    self.assertEqual(lease['poolId'], 'pending')
+                    self.assertTrue((root / 'leases' / 'tenant_a' / 'provision.lock').exists())
+            self.assertFalse(list((root / 'leases' / 'tenant_a').glob('*.json')))
+
+
 if __name__ == '__main__':
     unittest.main()

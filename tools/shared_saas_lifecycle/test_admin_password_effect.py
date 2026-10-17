@@ -173,5 +173,22 @@ class AdminPasswordEffectTest(unittest.TestCase):
         self.assertIn('OPERATOR_CONTEXT', script)
 
 
+
+class ReleasePasswordBoundaryTests(unittest.TestCase):
+    def test_maintenance_blocks_password_process_before_stdin_secret(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            (root / 'tenant_a.maintenance').write_text('{}')
+            payload = request()
+            payload['releaseBinding'] = {'tenantId': 'tenant_a', 'registryRevision': 4, 'database': DATABASE}
+            runner = FakeRunner('')
+            with patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root)}):
+                with self.assertRaises(EffectError): effect.execute(payload, runner)
+            self.assertEqual(runner.calls, [])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -140,7 +140,7 @@ async def test_the_lease_the_stale_window_and_the_pending_call_are_atomic_in_pos
         await aclose()
 
 
-async def test_a_failed_setup_closes_the_pool_before_raising(monkeypatch):
+async def test_failed_runtime_validation_closes_the_pool_without_checkpoint_setup(monkeypatch):
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
     from psycopg_pool import AsyncConnectionPool
 
@@ -151,12 +151,16 @@ async def test_a_failed_setup_closes_the_pool_before_raising(monkeypatch):
         closed.append(True)
         await real_close(self, *args, **kwargs)
 
-    async def broken_setup(self):
-        raise RuntimeError("setup failed")
+    async def broken_validation(conn, checkpoint_version):
+        raise RuntimeError("incompatible state")
+
+    async def forbidden_setup(self):
+        pytest.fail("runtime must not execute checkpoint setup")
 
     monkeypatch.setattr(AsyncConnectionPool, "close", recording_close)
-    monkeypatch.setattr(AsyncPostgresSaver, "setup", broken_setup)
-    with pytest.raises(RuntimeError, match="setup failed"):
+    monkeypatch.setattr("webvue_ai_service.store._validate_state", broken_validation)
+    monkeypatch.setattr(AsyncPostgresSaver, "setup", forbidden_setup)
+    with pytest.raises(RuntimeError, match="incompatible state"):
         await open_state(url())
     assert closed == [True]
 

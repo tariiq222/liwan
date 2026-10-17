@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from webvue_ai_service.contracts import AI_STATE_VERSION
 from webvue_ai_service.provider_registry import REGISTRY
 
 
@@ -27,6 +29,7 @@ def _retention_days(environ: Mapping[str, str]) -> int:
 
 
 MIN_SERVICE_TOKEN_LENGTH = 24
+GENERATION_ID = re.compile(r"^[a-z][a-z0-9_-]{0,62}$")
 
 
 def _service_token(environ: Mapping[str, str]) -> str | None:
@@ -64,9 +67,17 @@ class Settings:
     service_token: str | None = None
     openrouter_referer: str | None = None
     openrouter_title: str | None = None
+    state_version: str = AI_STATE_VERSION
+    generation_id: str | None = None
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str]) -> Settings:
+        state_version = environ.get("AI_STATE_VERSION", AI_STATE_VERSION)
+        if state_version != AI_STATE_VERSION:
+            raise SettingsError("AI_STATE_VERSION", "AI_STATE_VERSION is incompatible with this runtime")
+        generation_id = environ.get("AI_GENERATION_ID")
+        if generation_id is not None and not GENERATION_ID.fullmatch(generation_id):
+            raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID must be a stable generation identifier")
         provider = environ.get("AI_PROVIDER", "")
         if provider not in REGISTRY:
             msg = f"AI_PROVIDER must be one of {', '.join(REGISTRY)}, got {provider!r}"
@@ -93,4 +104,6 @@ class Settings:
             service_token=_service_token(environ),
             openrouter_referer=environ.get("AI_OPENROUTER_REFERER") or None,
             openrouter_title=environ.get("AI_OPENROUTER_TITLE") or None,
+            state_version=state_version,
+            generation_id=generation_id,
         )

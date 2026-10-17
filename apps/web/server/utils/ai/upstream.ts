@@ -12,6 +12,38 @@ const AI_ABORT = Symbol('webvue-ai-abort')
 const SERVICE_TIMEOUT_MS = 130000
 const ODOO_TIMEOUT_MS = 15000
 const MAX_SSE_BUFFER = 1024 * 1024
+const AI_STATE_VERSION = '1'
+export type ReleaseWritePermit = <T>(action: () => Promise<T>) => Promise<T>
+type AiRelease = { releaseId: string; poolId: string; routeRevision: number; fence: number; aiUrl?: string; aiStateVersion?: string; aiMaintenance?: boolean }
+const pinnedReleases = new WeakMap<H3Event, Readonly<AiRelease>>()
+const acceptedClaims = new WeakMap<H3Event, Map<string, string>>()
+
+/** Only trusted middleware, after tenant boundary verification, supplies this context. Never read browser routing headers. */
+function releaseFor(event: H3Event, settlingClaim = false): Readonly<AiRelease> | undefined {
+  if (!process.env.WEBVUE_RELEASE_ROUTES_DIR) return undefined
+  const current = event.context.webvueRelease as AiRelease | undefined
+  if (current?.aiMaintenance && !settlingClaim) throw serviceUnavailable('the AI service is under maintenance')
+  const pinned = pinnedReleases.get(event)
+  if (pinned) return pinned
+  if (!current || !current.releaseId || !current.poolId || !Number.isSafeInteger(current.routeRevision) || current.routeRevision < 0
+    || !Number.isSafeInteger(current.fence) || current.fence < 0 || current.aiStateVersion !== AI_STATE_VERSION || !current.aiUrl) {
+    throw serviceUnavailable('the AI release route is unavailable')
+  }
+  let url: URL
+  try { url = new URL(current.aiUrl) } catch { throw serviceUnavailable('the AI release route is unavailable') }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw serviceUnavailable('the AI release route is unavailable')
+  const snapshot = Object.freeze({ ...current })
+  pinnedReleases.set(event, snapshot)
+  return snapshot
+}
+
+/** The coordinator owns the durable lease and barrier check. The callback lasts through response consumption. */
+export async function withReleaseWritePermit<T>(event: H3Event, action: () => Promise<T>): Promise<T> {
+  if (!releaseFor(event)) return action()
+  const permit = event.context.webvueReleaseWritePermit as ReleaseWritePermit | undefined
+  if (typeof permit !== 'function') throw serviceUnavailable('the AI release write permit is unavailable')
+  return permit(action)
+}
 
 /**
  * Aborts when the browser goes away before the response ended. `res.close` (not `req.close`, which Node fires once the request
@@ -39,36 +71,55 @@ export function forwardUpstream(upstream: Upstream): never {
 
 /** One Odoo call as the caller: the request cookie travels, nothing else is added. */
 export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH', path: string, options: { query?: Record<string, unknown>; body?: unknown; signal?: SignalOption } = {}): Promise<Upstream> {
-  const { odooUrl } = useRuntimeConfig(event)
-  const cookie = getHeader(event, 'cookie')
-  if (!cookie) throw createError({ statusCode: 401, data: { code: 'unauthorized', message: 'no session' } })
-  const target = withQuery(path, (options.query ?? {}) as QueryObject)
-  const headers: Record<string, string> = { cookie, accept: 'application/json', ...(options.body !== undefined ? { 'content-type': 'application/json' } : {}) }
-  const body = options.body !== undefined ? JSON.stringify(options.body) : undefined
-  const tenantHeaders = tenantUpstreamHeaders(event)
-  const response = Object.keys(tenantHeaders).length
-    ? await tenantTransport(event, odooUrl, target, { method, body, headers, signal: options.signal ?? undefined, ignoreClientClose: options.signal === null })
-    : await fetch(joinURL(odooUrl, target), { method, body, headers, redirect: 'error', signal: withTimeout(event, ODOO_TIMEOUT_MS, options.signal) })
-  const text = await response.text()
-  let parsed: unknown = text
-  try { parsed = text ? JSON.parse(text) : null } catch { parsed = text }
-  return { status: response.status, body: parsed }
+  const dispatch = async (): Promise<Upstream> => {
+    const { odooUrl } = useRuntimeConfig(event)
+    const cookie = getHeader(event, 'cookie')
+    if (!cookie) throw createError({ statusCode: 401, data: { code: 'unauthorized', message: 'no session' } })
+    const target = withQuery(path, (options.query ?? {}) as QueryObject)
+    const headers: Record<string, string> = { cookie, accept: 'application/json', ...(options.body !== undefined ? { 'content-type': 'application/json' } : {}) }
+    const body = options.body !== undefined ? JSON.stringify(options.body) : undefined
+    const tenantHeaders = tenantUpstreamHeaders(event)
+    const response = Object.keys(tenantHeaders).length
+      ? await tenantTransport(event, odooUrl, target, { method, body, headers, signal: options.signal ?? undefined, ignoreClientClose: options.signal === null })
+      : await fetch(joinURL(odooUrl, target), { method, body, headers, redirect: 'error', signal: withTimeout(event, ODOO_TIMEOUT_MS, options.signal) })
+    const text = await response.text()
+    let parsed: unknown = text
+    try { parsed = text ? JSON.parse(text) : null } catch { parsed = text }
+    return { status: response.status, body: parsed }
+  }
+  return method === 'GET' ? dispatch() : withReleaseWritePermit(event, dispatch)
 }
 
 /** One call to the WebVue AI service. It gets no cookie and no bearer: the owner headers (plus the shared service token, when set) are all it sees. */
 export async function serviceFetch(event: H3Event, method: 'GET' | 'POST' | 'PATCH', path: string, owner: Owner, body?: unknown, signal?: SignalOption): Promise<Response> {
-  const { aiServiceUrl, aiServiceToken } = useRuntimeConfig(event)
+  const config = useRuntimeConfig(event)
+  const payload = body as { call_id?: string; result?: { decision?: string } } | undefined
+  const claimPath = path.endsWith('/resume') ? path.slice(0, -7) + '/claim' : ''
+  const settlingClaim = method === 'POST' && signal === null && !!claimPath && payload?.result?.decision === 'approved'
+    && !!payload.call_id && acceptedClaims.get(event)?.get(claimPath) === payload.call_id
+  const route = releaseFor(event, settlingClaim)
+  const aiServiceUrl = route?.aiUrl ?? config.aiServiceUrl
+  const aiServiceToken = config.aiServiceToken
   if (!aiServiceUrl) throw serviceUnavailable('the AI service is not configured')
   try {
-    return await fetch(joinURL(aiServiceUrl, path), {
+    const response = await fetch(joinURL(aiServiceUrl, path), {
       method,
       headers: {
         'content-type': 'application/json', accept: 'text/event-stream, application/json', 'x-webvue-tenant': owner.tenant, 'x-webvue-user': owner.user,
         ...(aiServiceToken ? { 'x-webvue-service-token': aiServiceToken } : {}),
+        ...(route ? { 'x-webvue-ai-state-version': route.aiStateVersion! } : {}),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: withTimeout(event, SERVICE_TIMEOUT_MS, signal),
+      redirect: 'error',
     })
+    if (response.ok && method === 'POST' && /^\/v1\/runs\/[^/]+\/claim$/.test(path) && payload?.call_id) {
+      const claims = acceptedClaims.get(event) ?? new Map<string, string>()
+      claims.set(path, payload.call_id)
+      acceptedClaims.set(event, claims)
+    }
+    if (response.ok && settlingClaim) acceptedClaims.get(event)?.delete(claimPath)
+    return response
   } catch {
     // Refused, reset or timed out: the raw exception text never reaches the browser.
     throw serviceUnavailable('the AI service is unavailable')

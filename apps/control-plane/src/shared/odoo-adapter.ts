@@ -24,7 +24,7 @@ import { resolveOdooBackupAuthority,recordOdooBackup } from './odoo-backup.js'
  * and catalog-source codes classify_error allows across the IPC boundary. */
 /** The request the subscription effect receives; `admin_login` is sent only when the control plane stored one. */
 export function subscriptionRequest(input:{job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number},adminLogin?:string|null){
-  return {action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},...input.job.authority,attemptId:input.attemptId,fence:input.fence,
+  return {action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},releaseBinding:input.job.binding,...input.job.authority,attemptId:input.attemptId,fence:input.fence,
     ...(typeof adminLogin==='string' && adminLogin.length>0?{admin_login:adminLogin}:{})}
 }
 export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present','runtime_writer_after_effect'])
@@ -160,9 +160,9 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
     return subscriptionExecute(subscriptionRequest(input,admin?.rowCount===1?admin.rows[0].admin_login:undefined),assertCurrent)
   }
   const observeSubscription:ObserveRunner=async input=>{
-    const row=await pool.query('SELECT host FROM shared_registry_bindings WHERE control_tenant_id=$1',[input.tenant_id])
+    const row=await pool.query('SELECT host,tenant_id AS "tenantId",database_name AS database,filestore,registry_revision::float8 AS "registryRevision" FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true',[input.tenant_id])
     if(!row.rowCount)throw Error('tenant_binding_mismatch')
-    return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},attemptId:randomUUID(),fence:0},undefined,input.signal) as Awaited<ReturnType<ObserveRunner>>
+    return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},releaseBinding:row.rows[0],attemptId:randomUUID(),fence:0},undefined,input.signal) as Awaited<ReturnType<ObserveRunner>>
   }
   // The same read-only observe action; the collector validates every field it keeps.
   const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>await observeSubscription(input) as unknown

@@ -192,3 +192,5 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 Meetings use SharedListPage/DataTable/RecordPage/TimelineFrame/StandalonePage. ChatWorkspace uses SharedConversationLayout and ChatInfoPanel.
 
 | جدولة مهمة المشروع داخل سجلها | `apps/web/app/components/pmo/projects/schedule/ProjectTaskScheduleSection.vue` | SharedRecordSection وSharedPageState وScheduleTaskForm، مع UButton؛ نفس توكنات السجل والنموذج، قراءة الجدولة وإظهار محررها للمدير فقط، دون واجهة مستقلة |
+
+| جدولة الصيانة | `apps/web/app/components/settings/MaintenanceSettings.vue` (قصة: `apps/web/stories/settings/MaintenanceSettings.stories.ts`) | `SharedSettingsPage` و`UFormField` و`UInput` و`USelect` و`SharedInlineConfirm`؛ تفضيل أسبوعي وحجز إصدار معلن مع المنطقة الزمنية والصلاحية وحماية المسودة |

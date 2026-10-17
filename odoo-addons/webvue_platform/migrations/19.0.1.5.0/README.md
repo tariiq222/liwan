@@ -1,0 +1,3 @@
+Adds maintenance preference, operator release notice booking and immutable maintenance event models. No existing data moves or schema remnants. Permission data repairs the system administrator grant on install and upgrade.
+
+Adds an internal company-unique maintenance authority with a monotonically increasing operation generation. Every scheduling mutation flushes an authority write before reading overlapping bookings, so stale REPEATABLE READ snapshots fail serialization rather than admitting duplicate bookings. It is technical concurrency state, not a second preference or booking store. Rows are initialized lazily; no existing business data is converted.

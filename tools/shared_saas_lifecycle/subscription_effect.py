@@ -391,6 +391,10 @@ class SubscriptionEffect:
             self.runner.run_script(build_observe_script(database), 'observe')))
 
     def observe(self, request):
+        with odoo_effect.effect_operation(request, 'observe'):
+            return self._observe_operation(request)
+
+    def _observe_operation(self, request):
         database = validate_tenant(request['tenant'])['database']
         observed = self._observe(database)
         return {**observed, 'observed_at': self.clock()}
@@ -408,6 +412,10 @@ class SubscriptionEffect:
                 'modules_installed': installed}
 
     def reconfigure(self, request):
+        with odoo_effect.effect_operation(request, 'reconfigure'):
+            return self._reconfigure_operation(request)
+
+    def _reconfigure_operation(self, request):
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
         observed = self._observe(database)

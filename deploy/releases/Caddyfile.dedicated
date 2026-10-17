@@ -1,0 +1,14 @@
+# Import inside the dedicated site's route AFTER the existing aggregate rate policy.
+# The guard is internal-only. Configure its trusted socket peer to this Caddy peer.
+reverse_proxy dedicated-guard:8080 {
+	header_up -X-WebVue-*
+	# Preserve the browser double-submit CSRF token as a control, never identity.
+	header_up X-WebVue-Csrf {http.request.header.X-WebVue-Csrf}
+	header_up -X-Odoo-*
+	header_up -X-Openerp-*
+	header_up -Forwarded
+	header_up -X-Forwarded-*
+	header_up X-WebVue-Client-IP {remote_host}
+	header_up X-WebVue-Client-Host {hostport}
+	header_up X-WebVue-Client-Proto {scheme}
+}

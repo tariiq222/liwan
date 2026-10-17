@@ -164,14 +164,19 @@ def run(args):
             port = port_output.rsplit(':', 1)[-1]
             if not port.isdigit():
                 fail('Docker did not publish a PostgreSQL loopback port')
+            # The image's temporary initialization server accepts Unix sockets
+            # before the published TCP endpoint used by the stages is ready.
             for attempt in range(60):
-                ready = subprocess.run(['docker', 'exec', container, 'pg_isready', '-U', 'postgres'],
-                                       env=env, stdout=log, stderr=subprocess.STDOUT, check=False)
+                ready = subprocess.run(['psql', '-h', '127.0.0.1', '-p', port,
+                                        '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1',
+                                        '-c', 'SELECT 1'],
+                                       env={**env, 'PGPASSWORD': password, 'PGCONNECT_TIMEOUT': '2'},
+                                       stdout=log, stderr=subprocess.STDOUT, check=False)
                 if ready.returncode == 0:
                     break
                 time.sleep(1)
             else:
-                fail('isolated PostgreSQL did not become ready')
+                fail('isolated PostgreSQL TCP endpoint did not become ready')
             output(['docker', 'exec', container, 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1',
                     '-c', "CREATE ROLE odoo LOGIN CREATEDB PASSWORD '" + password + "'"], env=env)
             output(['psql', '-h', '127.0.0.1', '-p', port, '-U', 'odoo', '-d', 'postgres',
