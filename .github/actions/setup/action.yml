@@ -1,0 +1,87 @@
+name: Setup
+description: Toolchain for a CI stage - Node with dependencies, Python, and the pinned Odoo checkout with its virtualenv.
+inputs:
+  node:
+    description: Install Node.js from .nvmrc with the npm cache.
+    default: 'true'
+  npm-ci:
+    description: Run npm ci --ignore-scripts (needs node). Stage scripts that install on their own set this to false.
+    default: 'true'
+  playwright:
+    description: Install Chromium and its system libraries (needs npm-ci).
+    default: 'false'
+  python:
+    description: Install Python 3.12 (implied by odoo).
+    default: 'false'
+  odoo:
+    description: Fetch the pinned Odoo commit and build its virtualenv; exports ODOO_ROOT and ODOO_PYTHON.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Node.js
+      if: inputs.node == 'true'
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: .nvmrc
+        cache: npm
+    - name: Silence the npm update notice
+      if: inputs.node == 'true'
+      shell: bash
+      # Some tests spawn npx with a minimal environment and assert an empty stderr; only the user npmrc reaches them.
+      run: npm config set update-notifier false
+    - name: Install npm dependencies
+      if: inputs.node == 'true' && inputs.npm-ci == 'true'
+      shell: bash
+      run: npm ci --ignore-scripts
+    - name: Install Chromium
+      if: inputs.node == 'true' && inputs.npm-ci == 'true' && inputs.playwright == 'true'
+      shell: bash
+      run: npx playwright install --with-deps chromium
+    - name: Python 3.12
+      id: python
+      if: inputs.python == 'true' || inputs.odoo == 'true'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: System packages for Odoo
+      if: inputs.odoo == 'true'
+      shell: bash
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y -q --no-install-recommends build-essential libpq-dev libldap2-dev libsasl2-dev postgresql-client-16
+    - name: Odoo source cache
+      id: odoo-source
+      if: inputs.odoo == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/odoo
+        key: odoo-source-${{ hashFiles('deploy/odoo/ODOO_COMMIT') }}
+    - name: Fetch the pinned Odoo commit
+      if: inputs.odoo == 'true' && steps.odoo-source.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        git init -q "$RUNNER_TEMP/odoo"
+        git -C "$RUNNER_TEMP/odoo" fetch -q --depth 1 https://github.com/odoo/odoo.git "$(cat deploy/odoo/ODOO_COMMIT)"
+        git -C "$RUNNER_TEMP/odoo" checkout -q FETCH_HEAD
+    - name: Odoo virtualenv cache
+      id: odoo-venv
+      if: inputs.odoo == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/odoo-venv
+        key: odoo-venv-${{ steps.python.outputs.python-version }}-${{ hashFiles('deploy/odoo/ODOO_COMMIT', 'deploy/odoo/requirements-python312-linux.txt') }}
+    - name: Build the Odoo virtualenv
+      if: inputs.odoo == 'true' && steps.odoo-venv.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m venv "$RUNNER_TEMP/odoo-venv"
+        "$RUNNER_TEMP/odoo-venv/bin/pip" install --quiet -r deploy/odoo/requirements-python312-linux.txt
+    - name: Export the Odoo paths
+      if: inputs.odoo == 'true'
+      shell: bash
+      run: |
+        echo "ODOO_ROOT=$RUNNER_TEMP/odoo" >> "$GITHUB_ENV"
+        echo "ODOO_PYTHON=$RUNNER_TEMP/odoo-venv/bin/python" >> "$GITHUB_ENV"

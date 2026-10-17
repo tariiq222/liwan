@@ -142,8 +142,8 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   configuration exists; the optional local git hooks come from `npm run hooks:install`
   (`tools/hooks.py`). Do not introduce another convention.
 - Authorized module tests: use the **Check commands** block below
-  and `.woodpecker.yml` **odoo** step (including its classification fixture; the
-  **odoo-tasks-standalone** and **odoo-tasks-bridge** steps run the same shape for
+  and `deploy/ci/odoo.sh` (the **odoo** stage, including its classification fixture; the
+  **odoo-tasks-standalone** and **odoo-tasks-bridge** stages run the same shape for
   `webvue_tasks` alone and with the PMO bridge),
   with the selected checkout's explicit addons path, `-i` modules,
   `--test-tags /<addon>` and `--stop-after-init`. Require a nonzero test count;
@@ -172,7 +172,7 @@ export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
 # Set PGHOST, PGPORT, PGUSER, and PGPASSWORD in the environment as needed;
 # never put a password on the command line.
 PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
-# The release module list is derived from the catalog, as in .woodpecker.yml.
+# The release module list is derived from the catalog, as in deploy/ci/odoo.sh.
 MODULES="$(cd "$WORKTREE" && python3 -B tools/catalog_check.py --release-modules)"
 TAGS="/${MODULES//,/,/}"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \

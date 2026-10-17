@@ -27,7 +27,7 @@ git branch --show-current
 
 ## حالة التنظيف — 2026-09-20
 
-أزيلت خمس نسخ عمل منتهية وخمسة فروع محلية بعد أرشفتها والتحقق من عدم استخدامها. بقيت نسخة `/Users/tariq/code/nasq` ونسخة العمل الجارية `.worktrees/phase-1-isolation`؛ لم تتغير فروع GitHub أو الوسوم أو الخدمات أو قواعد البيانات. تفاصيل الجرد والحفظ وحدود التحقق في [تقرير التنظيف](verification/2026-09-20-workspace-cleanup.md).
+أزيلت خمس نسخ عمل منتهية وخمسة فروع محلية بعد أرشفتها والتحقق من عدم استخدامها. بقيت نسخة `/Users/tariq/code/webvue` ونسخة العمل الجارية `.worktrees/phase-1-isolation`؛ لم تتغير فروع GitHub أو الوسوم أو الخدمات أو قواعد البيانات. تفاصيل الجرد والحفظ وحدود التحقق في [تقرير التنظيف](verification/2026-09-20-workspace-cleanup.md).
 
 نسخة الاسترداد: `/Users/tariq/Archives/webvue/2026-10-04/webvue-cleanup-20260920-211532` (نُقلت كاملة من مسارها السابق في `code` يوم 2026-10-04)؛ تحتوي Git bundle كاملًا وأرشيف النسخ الخمس، بما فيها الملفات المتجاهلة، وجرد SHA-256 وإرشادات الاستعادة. تحقق المحتوى والروابط شمل 51,850 عنصرًا. لا تُحذف ضمن تنظيف لاحق ولا تُرفع إلى GitHub؛ قد تحتوي مواد محلية حساسة.
 
@@ -48,29 +48,15 @@ git branch --show-current
 
 التحقق المحلي لا يثبت النشر. الـ remote هو `origin` (`https://github.com/tariiq222/webvue.git`) ويتتبعه `main`؛ قارن `main` مع `origin/main` بعد `git fetch` قبل أي دمج. لا commit أو دمج أو push أو نشر أو حذف عمل دون تفويض الإجراء؛ الدمج يحفظ القرارات السابقة وفق [AGENTS.md](../AGENTS.md).
 
-## CI — Woodpecker (2026-09-29)
+## CI — GitHub Actions
 
-CI is Woodpecker, defined in [`.woodpecker.yml`](../.woodpecker.yml); GitHub
-Actions was removed from the project. The main pipeline runs eleven steps on the
-local instance (`static`, `control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`,
-`odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock`,
-`rtl-stories`) and is portable to any Woodpecker deployment with
-a Docker backend. The Docker image gate lives in
-[`deploy/woodpecker/image.yml`](../deploy/woodpecker/image.yml) and is
-activated by pointing the repository pipeline path at it: it needs an agent
-whose engine can start a privileged dind service, which the local
-rootless-dind engine cannot do (nested rootlesskit fails with
-`newuidmap: Operation not permitted`). Keep it out of `.woodpecker/` because a
-pipeline file whose `when` matches nothing makes the server reject the whole
-webhook.
-`.github/` keeps only non-Actions files (Copilot instructions and hooks). A
-temporary Cloudflare tunnel fronts the instance because GitHub rejects
-`localhost` webhook URLs; if the tunnel or its address changes,
-`WOODPECKER_HOST` must be updated and the server restarted. The migration
-policy is [`migrations.md`](migrations.md). The control-plane live-PG suites
-run serially by design: its `test` script sets `--no-file-parallelism` and a
-60s hook timeout because the suites share one scratch control database and
-TRUNCATE the same tables.
+CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages, each a
+`deploy/ci/<stage>.sh` script, selected per change by `tools/ci_scope.py`. Its aggregate job `ci-result` gates the
+`automerge` job, which merges every non-draft PR once it passes (owner decision 2026-10-17, valid until the first
+server deployment; branch protection is not available on the current plan). Details are in [`testing.md`](testing.md#ci-workflow). The migration policy is
+[`migrations.md`](migrations.md). The control-plane live-PG suites run serially by design: its `test` script sets
+`--no-file-parallelism` and a 60s hook timeout because the suites share one scratch control database and TRUNCATE
+the same tables.
 
 ## Vendor workspace local integration — 2026-09-23 (historical, superseded)
 
@@ -164,7 +150,7 @@ Local only: no push and no deployment. `main` (`4eab6fd7`) includes
 
 ## تجميع المصدر المحلي — 2026-10-04
 
-اكتمل تجميع المصدر محليًا في النسخة المرجعية `/Users/tariq/code/nasq` على
+اكتمل تجميع المصدر محليًا في النسخة المرجعية `/Users/tariq/code/webvue` على
 `main` بالالتزام `a3fb8925acb9643d35955e9c979094b210c42a94`، وشمل 398 مسارًا.
 حُفظت التغييرات المحلية العشرون غير المرتبطة بالتجميع. الخرائط المؤرخة أعلاه
 سجلات تاريخية؛ المرجع الحالي هو هذا القسم وأدلة الإغلاق المحلية.
@@ -210,7 +196,7 @@ Local only: no push and no deployment. `main` (`4eab6fd7`) includes
 
 ## جرد الأرشيفات وترتيبها — 2026-10-04
 
-التحقق الحي أثبت وجود worktree واحدة: `/Users/tariq/code/nasq` على `main`
+التحقق الحي أثبت وجود worktree واحدة: `/Users/tariq/code/webvue` على `main`
 عند `7208cf961ecbeb60e988e840fe2ca7cd4c3a3b9d`، وفيها إصلاحات لوحة البائع/SaaS.
 هذه نقطة تحقق مؤرخة؛ افحص Git قبل العمل. إصلاح الإلغاء وإعادة الاختيار يغطي
 الشراء المؤهل غير المدفوع قبل بدء التنفيذ؛ تسوية حالات الدفع العالقة والقبول

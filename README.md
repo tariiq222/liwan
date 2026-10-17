@@ -25,10 +25,9 @@ See [the hosting contract](docs/superpowers/specs/webvue-shared-saas-and-soverei
 and [WORKSPACE.md](docs/WORKSPACE.md) for implementation and acceptance evidence;
 the product vision does not establish production readiness.
 
-Local main integration after review and owner authorization:
-`npm run merge:main -- codex/<area>-<slug>`. It checks an isolated merge candidate
-through the twelve local CI stages and advances main only to that tested commit.
-See [testing guide](docs/testing.md#local-main-merge-gate). It does not push.
+Integration into `main` is a GitHub pull request; the `ci` workflow (`.github/workflows/ci.yml`) is the only gate
+and merges the PR when it passes (until the first server deployment). See the
+[testing guide](docs/testing.md#ci-workflow). Agents do not push without the owner's authorization.
 
 ## Current product
 

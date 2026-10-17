@@ -1,14 +1,17 @@
-"""Choose the Woodpecker stages a change can affect; a path without a rule runs all twelve.
+"""Choose the CI stages a change can affect; a path without a rule runs all twelve.
 
-    python3 -B tools/ci_scope.py --base <ref> [--commit <ref>]
+    python3 -B tools/ci_scope.py --base <ref> [--commit <ref>] [--stages]
+    python3 -B tools/ci_scope.py --full [--stages]
 
 Prints the stages selected for the files changed between the two refs and the rule behind each
-changed path. This module is the only place the path-to-stage map lives: ``local_ci.py`` runs the
-selection and ``merge_main.py`` re-derives it to verify the receipt.
+changed path. With ``--stages`` it prints only the selected stage names as a JSON array, which
+the ``scope`` job of ``.github/workflows/ci.yml`` feeds to the stage jobs. ``--full`` selects every
+stage without reading a diff. This module is the only place the path-to-stage map lives.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from fnmatch import fnmatchcase
@@ -18,16 +21,16 @@ STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
           'odoo-tasks-standalone', 'odoo-tasks-bridge', 'upgrade',
           'restore-drill', 'image', 'e2e-mock', 'rtl-stories')
 # Tools no non-static step runs and no application code executes (checked with rg across
-# `.woodpecker.yml`, deploy/, apps/, packages/ and odoo-addons/). Everything else under tools/,
+# `.github/`, deploy/, apps/, packages/ and odoo-addons/). Everything else under tools/,
 # including tools/webvue_cli/ and tools/shared_saas_lifecycle/ (run by the control-plane tests),
 # is unmapped on purpose, so a new tool runs all twelve stages until it is listed here.
 STATIC_ONLY_TOOLS = (
     'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_layers.json',
     'tools/arch_policy.py', 'tools/check_fast.py', 'tools/contracts_jsonschema.mjs',
     'tools/docs_policy.py', 'tools/e2e_isolated.mjs', 'tools/git_policy.py', 'tools/hooks.py',
-    'tools/jev_review.mjs', 'tools/merge_main.py', 'tools/migration_guard.py', 'tools/new_app.py',
+    'tools/jev_review.mjs', 'tools/migration_guard.py', 'tools/new_app.py',
     'tools/new_app_templates/*', 'tools/no_external_refs.py', 'tools/odoo_test.py',
-    'tools/secret_guard.py', 'tools/semgrep_gate.py', 'tools/ship.py', 'tools/ts_loader.mjs',
+    'tools/secret_guard.py', 'tools/semgrep_gate.py', 'tools/ts_loader.mjs',
     'tools/ui_catalog.mjs', 'tools/ui_inventory.py', 'tools/ui_layer_baseline.mjs',
     'tools/ui_policy.py', 'tools/ui_templates.mjs', 'tools/wt.py',
 )
@@ -37,14 +40,13 @@ UNMAPPED = '(no rule: all stages)'
 # First match wins, so the paths that need every stage come first. `*` also crosses `/`, hence
 # `dir/*` covers a whole tree. `static` is added to every selection and is not repeated here.
 RULES = (
-    # CI machinery: the pipeline itself, its scripts, and the repository-wide inputs of every step.
-    ('.woodpecker.yml', STAGES),
-    ('tools/local_ci.py', STAGES),
+    # CI machinery: the workflow, its composite action, and the repository-wide inputs of every stage.
+    ('.github/*', STAGES),
     ('tools/ci_scope.py', STAGES),
     ('tools/catalog_check.py', STAGES),      # odoo, upgrade, restore-drill and image read --release-modules
     ('tools/upgrade_baseline.py', STAGES),   # the upgrade step
     ('tools/upgrade_log_guard.py', STAGES),  # the upgrade step
-    ('deploy/*', STAGES),                    # stage.sh, ci-test.sh, classification.py, the image Dockerfile
+    ('deploy/*', STAGES),                    # deploy/ci/*.sh, ci-test.sh, classification.py, the image Dockerfile
     ('odoo-addons/*', STAGES),               # the Odoo steps, the image and the static ruff run
     ('packages/contracts/*', STAGES),
     ('package.json', STAGES),
@@ -87,13 +89,6 @@ def stages_for(paths: list[str]) -> tuple[str, ...]:
     return tuple(stage for stage in STAGES if stage in selected)
 
 
-def scope(paths: list[str], full: bool) -> dict:
-    """The receipt's `scope` entry: every stage when `full`, else the change's selection."""
-    stages = STAGES if full else stages_for(paths)
-    return {'mode': 'full' if full else 'selected', 'stages': list(stages),
-            'skipped': [stage for stage in STAGES if stage not in stages]}
-
-
 def changed_paths(repo: Path, base: str, commit: str, env: dict | None = None) -> list[str]:
     """Files changed from base to commit; a rename counts as a delete plus an add."""
     try:
@@ -115,19 +110,28 @@ def merge_base(repo: Path, base: str, commit: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    parser.add_argument('--base', required=True)
+    parser.add_argument('--base')
     parser.add_argument('--commit', default='HEAD')
+    parser.add_argument('--full', action='store_true', help='select every stage without reading a diff')
+    parser.add_argument('--stages', action='store_true', help='print only the selected stage names as a JSON array')
     args = parser.parse_args(argv)
-    try:
-        # The merge brings in what commit changed since it left base, so preview from their merge base.
-        paths = changed_paths(Path.cwd(), merge_base(Path.cwd(), args.base, args.commit), args.commit)
-    except ScopeError as error:
-        print(f'ci_scope: {error}', file=sys.stderr)
-        return 1
+    if not args.full and not args.base:
+        parser.error('--base is required unless --full is given')
+    paths = []
+    if not args.full:
+        try:
+            # The merge brings in what commit changed since it left base, so preview from their merge base.
+            paths = changed_paths(Path.cwd(), merge_base(Path.cwd(), args.base, args.commit), args.commit)
+        except ScopeError as error:
+            print(f'ci_scope: {error}', file=sys.stderr)
+            return 1
+    selected = STAGES if args.full else stages_for(paths)
+    if args.stages:
+        print(json.dumps(selected))
+        return 0
     for path in paths:
         pattern, stages = matching_rule(path)
         print(f"{path}  <-  {pattern}  ->  {', '.join(('static', *stages)) if stages != STAGES else 'all'}")
-    selected = stages_for(paths)
     print(f'{len(selected)} of {len(STAGES)} stages: {", ".join(selected)}')
     return 0
 

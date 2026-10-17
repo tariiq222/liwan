@@ -165,15 +165,14 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertNotIn('WEBVUE_COMMERCIAL_CONFIG', base)
         for text in ('read_only: true', 'create_host_path: false', '/run/webvue/classification.json', '${WEBVUE_CLASSIFICATION_FILE:?'):
             self.assertIn(text, overlay)
-        # CI is Woodpecker (.woodpecker.yml plus the deploy/woodpecker image
-        # gate); GitHub Actions was removed. The same provisioning invariants
-        # must hold in the pipeline definitions.
-        pipeline = ((ROOT / '.woodpecker.yml').read_text()
-                    + (ROOT / 'deploy' / 'woodpecker' / 'image.yml').read_text())
-        # Local-backend pipeline uses shell variables for DB names; verify
+        # CI is the GitHub Actions workflow running deploy/ci/<stage>.sh. The same
+        # provisioning invariants must hold in the stage scripts.
+        pipeline = ''.join((ROOT / 'deploy' / 'ci' / (stage + '.sh')).read_text()
+                           for stage in ('odoo', 'upgrade', 'restore-drill', 'image'))
+        # The stage scripts use shell variables for DB names; verify
         # the fixture invocations are present with the expected modes.
         self.assertIn('fixture --database "$SCRATCH_DB" --mode saas', pipeline)
-        self.assertIn('fixture --database webvue_image_scratch --mode non_saas', pipeline)
+        self.assertIn('fixture --database "$SCRATCH_DB" --mode non_saas', pipeline)
         self.assertIn('fixture --database "$SRC_DB" --mode non_saas', pipeline)
         # The previous-release install must run without any commercial
         # classification, and only the upgrade step may point at the fixture.
@@ -183,7 +182,7 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertNotIn('WEBVUE_COMMERCIAL_CONFIG=', previous)
         self.assertIn('WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
         self.assertIn('-e WEBVUE_COMMERCIAL_CONFIG=/run/webvue/classification.json', pipeline)
-        self.assertIn('image-classification.json:/run/webvue/classification.json:ro', pipeline)
+        self.assertIn('classification.json:/run/webvue/classification.json:ro', pipeline)
         self.assertIn('unset WEBVUE_COMMERCIAL_CONFIG', pipeline)
         self.assertIn('negative case passed unexpectedly', pipeline)
         self.assertIn('tools/upgrade_log_guard.py', pipeline)
