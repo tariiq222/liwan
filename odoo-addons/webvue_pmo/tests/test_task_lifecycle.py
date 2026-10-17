@@ -109,7 +109,7 @@ class TestTaskLifecycle(WebVuePmoCase):
         paged = self.api('GET', '/api/v1/tasks/archived?filter=mine&limit=1&offset=1').json()
         self.assertEqual((paged['total'], paged['items']), (1, []))
         self.assertEqual(set(body['items'][0]), {
-            'id', 'name', 'project', 'state', 'priority', 'date_deadline', 'days_remaining',
+            'id', 'name', 'description_excerpt', 'project', 'state', 'priority', 'date_deadline', 'days_remaining',
             'is_overdue', 'is_closed', 'personal_stage', 'stage', 'assignees', 'tags',
             'can_write', 'can_approve', 'allowed_transitions',
         })

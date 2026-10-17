@@ -12922,6 +12922,10 @@
                     }
                   ]
                 },
+                "description_excerpt": {
+                  "maxLength": 140,
+                  "type": "string"
+                },
                 "id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
@@ -13062,6 +13066,7 @@
               "required": [
                 "id",
                 "name",
+                "description_excerpt",
                 "project",
                 "state",
                 "priority",
@@ -22283,6 +22288,10 @@
             },
             "type": "array"
           },
+          "description_excerpt": {
+            "maxLength": 140,
+            "type": "string"
+          },
           "description_html": {
             "type": "string"
           },
@@ -22497,6 +22506,10 @@
                     }
                   ]
                 },
+                "description_excerpt": {
+                  "maxLength": 140,
+                  "type": "string"
+                },
                 "id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
@@ -22637,6 +22650,7 @@
               "required": [
                 "id",
                 "name",
+                "description_excerpt",
                 "project",
                 "state",
                 "priority",
@@ -22690,6 +22704,7 @@
         "required": [
           "id",
           "name",
+          "description_excerpt",
           "project",
           "state",
           "priority",
@@ -22796,6 +22811,10 @@
                     }
                   ]
                 },
+                "description_excerpt": {
+                  "maxLength": 140,
+                  "type": "string"
+                },
                 "id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
@@ -22936,6 +22955,7 @@
               "required": [
                 "id",
                 "name",
+                "description_excerpt",
                 "project",
                 "state",
                 "priority",
@@ -23139,6 +23159,10 @@
               }
             ]
           },
+          "description_excerpt": {
+            "maxLength": 140,
+            "type": "string"
+          },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
@@ -23279,6 +23303,7 @@
         "required": [
           "id",
           "name",
+          "description_excerpt",
           "project",
           "state",
           "priority",
@@ -23307,6 +23332,39 @@
           "cancelled"
         ],
         "type": "string"
+      },
+      "TaskSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "done": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "open": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "overdue": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "open",
+          "overdue",
+          "done"
+        ],
+        "type": "object"
       },
       "TenantStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -33346,6 +33404,46 @@
           ],
           "feature_operation": "read",
           "handler": "list_archived",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/tasks/summary": {
+      "get": {
+        "operationId": "webvue_pmo.TaskController.summarize_tasks.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "summarize_tasks",
+        "tags": [
+          "webvue_pmo"
+        ],
+        "x-webvue": {
+          "addon": "webvue_pmo",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "pmo",
+          "controller": "TaskController",
+          "feature_keys": [
+            "pmo.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summarize_tasks",
           "readonly": true,
           "route_type": "json2"
         }

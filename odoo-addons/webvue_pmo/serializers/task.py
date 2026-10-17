@@ -1,9 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
+from datetime import datetime, time
+
+import pytz
 
 from odoo import fields
 from odoo.exceptions import ValidationError
 from odoo.http import request
+from odoo.tools import html2plaintext
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
@@ -19,6 +23,8 @@ STATE_TO_API = {
 }
 API_TO_STATE = {v: k for k, v in STATE_TO_API.items()}
 
+EXCERPT_MAX = 140
+
 EMPLOYEE_FIELDS = {'name', 'description', 'date_deadline', 'priority', 'user_ids', 'tag_ids',
                    'personal_stage_type_id', 'stage_id', 'milestone_id', 'deliverables'}
 MANAGER_FIELDS = EMPLOYEE_FIELDS | {'allocated_hours'}
@@ -33,6 +39,23 @@ def _today(task, today=None):
     "today" is the requesting user's day.
     """
     return today or fields.Date.context_today(task)
+
+
+def today_start_utc(task):
+    """The start of the reader's calendar day as a naive UTC datetime.
+
+    `date_deadline < today_start_utc(...)` is the domain form of `_days_remaining < 0`:
+    a deadline is overdue once its day, in the reader's timezone, is before today.
+    """
+    tz = pytz.timezone(task.env.user.tz or 'UTC')
+    local_midnight = tz.localize(datetime.combine(_today(task), time.min))
+    return local_midnight.astimezone(pytz.utc).replace(tzinfo=None)
+
+
+def description_excerpt(task):
+    """One plain-text line of the task description, at most EXCERPT_MAX characters."""
+    text = ' '.join(html2plaintext(task.description or '', include_references=False).split())
+    return text if len(text) <= EXCERPT_MAX else text[:EXCERPT_MAX - 1].rstrip() + '…'
 
 
 def _days_remaining(task, today=None):
@@ -82,6 +105,7 @@ def dump_task(task, today=None):
         'id': task.id,
         'name': task.name,
         'project': _project_ref(task.project_id) if task.project_id else None,
+        'description_excerpt': description_excerpt(task),
         'state': STATE_TO_API[task.state],
         'priority': task.priority,
         'date_deadline': iso(task.date_deadline),

@@ -5,7 +5,7 @@ from odoo.tests import new_test_user, tagged
 
 from .common import WebVuePmoCase
 
-TASK_KEYS = {'id', 'name', 'project', 'state', 'priority', 'date_deadline',
+TASK_KEYS = {'id', 'name', 'description_excerpt', 'project', 'state', 'priority', 'date_deadline',
              'days_remaining', 'is_overdue', 'is_closed', 'personal_stage', 'stage',
              'assignees', 'tags', 'can_write', 'can_approve', 'allowed_transitions'}
 

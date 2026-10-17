@@ -35,6 +35,7 @@ from . import (
     test_tags,
     test_task_attachments,
     test_task_lifecycle,
+    test_task_summary,
     test_tasks,
     test_timeline,
     test_transition,

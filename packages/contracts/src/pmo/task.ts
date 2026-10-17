@@ -7,7 +7,8 @@ export const TagSchema = z.object({ id: z.number().int().positive(), name: z.str
 const TaskDeliverableSchema = z.object({ name: z.string().trim().min(1), done: z.boolean() }).strict()
 
 export const TaskSchema = z.object({
-  id: z.number().int().positive(), name: z.string(), project: RefSchema.nullable(), state: TaskStateSchema,
+  id: z.number().int().positive(), name: z.string(), description_excerpt: z.string().max(140),
+  project: RefSchema.nullable(), state: TaskStateSchema,
   // Phase 1 rules add priority values '2' and '3' on top of the design spec's '0'/'1' —
   // see odoo-addons/webvue_api/serializers/task.py::parse_task_vals, which accepts '0'..'3'.
   priority: z.enum(['0', '1', '2', '3']), date_deadline: z.string().nullable(), days_remaining: z.number().int().nullable(),
@@ -40,6 +41,12 @@ export const DependencySchema = z.object({ id: z.number().int().positive(), name
 export const DependencyListSchema = z.object({ items: z.array(DependencySchema), total: z.number().int(), can_manage: z.boolean(), enabled: z.boolean() }).strict()
 export const DependencyCandidateListSchema = z.object({ items: z.array(DependencySchema), total: z.number().int() }).strict()
 
+// GET /api/v1/tasks/summary: counts for the tasks that match the list filters.
+export const TaskSummarySchema = z.object({
+  total: z.number().int().nonnegative(), open: z.number().int().nonnegative(),
+  overdue: z.number().int().nonnegative(), done: z.number().int().nonnegative(),
+}).strict()
+
 export const TaskListSchema = z.object({ items: z.array(TaskSchema), total: z.number().int() }).strict()
 
 export const TaskPatchSchema = z.object({
@@ -61,6 +68,7 @@ export const TaskCreateSchema = z.object({
 })
 
 export type Task = z.infer<typeof TaskSchema>
+export type TaskSummary = z.infer<typeof TaskSummarySchema>
 export type TaskDetail = z.infer<typeof TaskDetailSchema>
 export type TaskPatch = z.infer<typeof TaskPatchSchema>
 export type TaskCreate = z.infer<typeof TaskCreateSchema>

@@ -20,6 +20,7 @@ from odoo.addons.webvue_pmo.serializers.task import (
     dump_task,
     dump_task_detail,
     parse_task_vals,
+    today_start_utc,
 )
 
 SORTABLE = {'date_deadline', 'priority', 'name', 'create_date', 'write_date'}
@@ -42,6 +43,56 @@ def _parse_description(value):
     return value
 
 
+def _filtered_task_domain(args):
+    """The domain for the task filters shared by the list and the summary.
+
+    Reads `filter`, `project_id`, `state` and `q` from the query string `args`; the
+    open/closed split (`closed`) is left to the caller. Returns None when the
+    requested project is not readable, so the caller answers with an empty set.
+    """
+    filter_ = args.get('filter')
+    state = args.get('state')
+    project_id = args.get('project_id')
+    q = args.get('q')
+    if filter_ not in (None, 'mine'):
+        raise ApiError(400, 'unsupported_filter', "filter must be 'mine'")
+    if project_id is not None:
+        try:
+            project_id = int(project_id)
+        except ValueError:
+            raise ApiError(422, 'invalid', "project_id must be an integer", field='project_id') from None
+        if project_id <= 0:
+            raise ApiError(422, 'invalid', "project_id must be a positive integer", field='project_id')
+    if filter_ != 'mine' and project_id is None:
+        raise ApiError(400, 'unsupported_filter', "pass filter=mine and/or project_id")
+    if project_id is not None and not request.env['project.project'].search_count([('id', '=', project_id)]):
+        # ACL/ir.rule decide readability; an unreadable (or nonexistent) project simply
+        # yields nothing. Checked up front: project.task's own visibility rule also grants
+        # read on a task assigned to the caller regardless of the project's own privacy, so
+        # scoping by project_id alone would otherwise still surface that one task.
+        return None
+    # project_todo (auto-installed alongside project) gives every new internal user a
+    # personal "Welcome" project.task with no project_id; the webvue task list is about
+    # project work, so exclude those to-dos rather than surfacing them as "mine".
+    domain = Domain('project_id', '!=', False)
+    if filter_ == 'mine':
+        domain &= Domain('user_ids', 'in', [request.env.uid])
+    if project_id is not None:
+        domain &= Domain('project_id', '=', project_id)
+    if state:
+        # Silently dropping an unknown value used to answer 200 with a list
+        # filtered by whatever was left — a typo'd filter looked like "no
+        # such tasks" instead of a bad request.
+        names = [s.strip() for s in str(state).split(',') if s.strip()]
+        unknown = [s for s in names if s not in API_TO_STATE]
+        if unknown:
+            raise ApiError(422, 'invalid', f"unknown state {unknown[0]!r}", field='state')
+        domain &= Domain('state', 'in', [API_TO_STATE[s] for s in names])
+    if q:
+        domain &= Domain('name', 'ilike', q)
+    return domain
+
+
 class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -54,53 +105,15 @@ class TaskController(http.Controller):
         # type='json2' routes only merge the JSON body with path args — the query string
         # is not passed as kwargs (see odoo/http.py Json2Dispatcher). Read it ourselves.
         args = request.httprequest.args
-        filter_ = args.get('filter')
-        state = args.get('state')
-        project_id = args.get('project_id')
-        closed = args.get('closed', '0')
-        q = args.get('q')
         sort = args.get('sort', 'date_deadline asc, priority desc')
         limit = args.get('limit', 50)
         offset = args.get('offset', 0)
-
-        if filter_ not in (None, 'mine'):
-            raise ApiError(400, 'unsupported_filter', "filter must be 'mine'")
-        if project_id is not None:
-            try:
-                project_id = int(project_id)
-            except ValueError:
-                raise ApiError(422, 'invalid', "project_id must be an integer", field='project_id') from None
-            if project_id <= 0:
-                raise ApiError(422, 'invalid', "project_id must be a positive integer", field='project_id')
-        if filter_ != 'mine' and project_id is None:
-            raise ApiError(400, 'unsupported_filter', "pass filter=mine and/or project_id")
         limit = parse_nonneg_int(limit, 'limit') or 50
         offset = parse_nonneg_int(offset, 'offset')
-        if project_id is not None and not request.env['project.project'].search_count([('id', '=', project_id)]):
-            # ACL/ir.rule decide readability; an unreadable (or nonexistent) project simply
-            # yields nothing. Checked up front: project.task's own visibility rule also grants
-            # read on a task assigned to the caller regardless of the project's own privacy, so
-            # scoping by project_id alone would otherwise still surface that one task.
+        domain = _filtered_task_domain(args)
+        if domain is None:
             return {'items': [], 'total': 0}
-        # project_todo (auto-installed alongside project) gives every new internal user a
-        # personal "Welcome" project.task with no project_id; the webvue task list is about
-        # project work, so exclude those to-dos rather than surfacing them as "mine".
-        domain = Domain('project_id', '!=', False) & Domain('is_closed', '=', closed in ('1', 'true', True))
-        if filter_ == 'mine':
-            domain &= Domain('user_ids', 'in', [request.env.uid])
-        if project_id is not None:
-            domain &= Domain('project_id', '=', project_id)
-        if state:
-            # Silently dropping an unknown value used to answer 200 with a list
-            # filtered by whatever was left — a typo'd filter looked like "no
-            # such tasks" instead of a bad request.
-            names = [s.strip() for s in str(state).split(',') if s.strip()]
-            unknown = [s for s in names if s not in API_TO_STATE]
-            if unknown:
-                raise ApiError(422, 'invalid', f"unknown state {unknown[0]!r}", field='state')
-            domain &= Domain('state', 'in', [API_TO_STATE[s] for s in names])
-        if q:
-            domain &= Domain('name', 'ilike', q)
+        domain &= Domain('is_closed', '=', args.get('closed', '0') in ('1', 'true', True))
         order_parts = []
         for part in str(sort).split(','):
             field, _, direction = part.strip().partition(' ')
@@ -111,6 +124,27 @@ class TaskController(http.Controller):
         limit = min(limit, MAX_LIMIT)
         tasks = Task.search(domain, order=f"{order}, id desc", limit=limit, offset=offset)
         return {'items': [dump_task(t) for t in tasks], 'total': Task.search_count(domain)}
+
+    @http.route('/api/v1/tasks/summary', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('pmo.enabled', operation='read')
+    def summarize_tasks(self, **_):
+        request.env['webvue.access.service']._webvue_require_capability(
+            'pmo.tasks.read',
+        )
+        domain = _filtered_task_domain(request.httprequest.args)
+        if domain is None:
+            return {'total': 0, 'open': 0, 'overdue': 0, 'done': 0}
+        Task = request.env['project.task']
+        # The open/closed split is the summary's own output, so `closed` is not a filter here.
+        open_domain = domain & Domain('is_closed', '=', False)
+        overdue_domain = open_domain & Domain('date_deadline', '<', today_start_utc(Task))
+        return {
+            'total': Task.search_count(domain),
+            'open': Task.search_count(open_domain),
+            'overdue': Task.search_count(overdue_domain),
+            'done': Task.search_count(domain & Domain('is_closed', '=', True)),
+        }
 
     @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
