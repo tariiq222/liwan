@@ -6,7 +6,7 @@ const consent = ref(false)
 </script>
 <template>
   <div class="space-y-3" data-slot="auto-renew">
-    <p class="flex items-center gap-2"><span class="font-medium">{{ t('subscription.autoRenew.title') }}</span><SharedStatusBadge :tone="enabled ? 'success' : 'neutral'" variant="subtle" :label="t(enabled ? 'subscription.autoRenew.on' : 'subscription.autoRenew.off')" /></p>
+    <p><SharedStatusBadge :tone="enabled ? 'success' : 'neutral'" variant="subtle" :label="t(enabled ? 'subscription.autoRenew.on' : 'subscription.autoRenew.off')" /></p>
     <p v-if="!canManage" class="text-sm text-muted">{{ t('subscription.autoRenew.readOnly') }}</p>
     <template v-else-if="!enabled">
       <UCheckbox v-model="consent" :label="t('subscription.autoRenew.consent')" :disabled="hydrated === false" />

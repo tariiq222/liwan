@@ -103,7 +103,7 @@ async function submitTotp() {
         <UInput id="password" v-model="state.password" type="password" autocomplete="current-password" dir="ltr" class="w-full" />
       </UFormField>
       <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-      <UButton type="submit" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="$t('auth.signIn')" />
+      <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="$t('auth.signIn')" />
     </UForm>
     <UForm v-else novalidate :state="totpState" :validate="validateTotp" class="grid gap-5" @submit="submitTotp">
       <UFormField :label="$t('auth.totpTitle')" name="totp" required>
@@ -114,7 +114,7 @@ async function submitTotp() {
         <template #hint><span>{{ $t('auth.totpHint') }}</span></template>
       </UFormField>
       <UAlert v-if="errorMessage" role="alert" color="error" variant="subtle" :title="errorMessage" />
-      <UButton type="submit" class="w-full justify-center" :loading="pending" :label="$t('auth.continue')" />
+      <UButton type="submit" size="lg" class="w-full justify-center" :loading="pending" :label="$t('auth.continue')" />
     </UForm>
   </SharedStandalonePage>
 </template>

@@ -32,18 +32,20 @@ definePageMeta({ middleware: 'customer-commercial' })
     <SharedPageHeader :title="t('subscription.status.title')" :description="t('subscription.status.description')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
-      <div class="space-y-4">
-        <SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" />
-        <SharedPropertiesPanel v-if="order" data-testid="order-status">
-          <SharedPropertyRow :label="t('subscription.status.payment')" :value="t(`subscription.status.payments.${order.payment_state}`)" />
-          <SharedPropertyRow :label="t('subscription.status.fulfillment')" :value="t(`subscription.status.fulfillments.${order.fulfillment_state}`)" />
-        </SharedPropertiesPanel>
-        <p v-else-if="settled" class="text-sm text-muted" role="status">{{ t('subscription.status.missing') }}</p>
-        <div class="flex gap-2">
-          <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
-          <UButton v-if="order && order.payment_state === 'awaiting_payment' && can('subscription.manage')" :disabled="!hydrated || payBusy" :loading="payBusy" @click="continuePayment">{{ t('subscription.status.retryPayment') }}</UButton>
+      <SharedRecordSection variant="panel" :title="t('subscription.status.order')">
+        <template #actions><SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" /></template>
+        <div class="space-y-4">
+          <SharedPropertiesPanel v-if="order" data-testid="order-status">
+            <SharedPropertyRow :label="t('subscription.status.payment')" :value="t(`subscription.status.payments.${order.payment_state}`)" />
+            <SharedPropertyRow :label="t('subscription.status.fulfillment')" :value="t(`subscription.status.fulfillments.${order.fulfillment_state}`)" />
+          </SharedPropertiesPanel>
+          <p v-else-if="settled" class="text-sm text-muted" role="status">{{ t('subscription.status.missing') }}</p>
+          <div class="flex flex-wrap gap-2">
+            <UButton color="neutral" variant="outline" :disabled="!hydrated" @click="refresh()">{{ t('subscription.status.refresh') }}</UButton>
+            <UButton v-if="order && order.payment_state === 'awaiting_payment' && can('subscription.manage')" :disabled="!hydrated || payBusy" :loading="payBusy" @click="continuePayment">{{ t('subscription.status.retryPayment') }}</UButton>
+          </div>
         </div>
-      </div>
+      </SharedRecordSection>
     </SharedPageState>
   </SharedSettingsPage>
 </template>

@@ -13,7 +13,7 @@ definePageMeta({ middleware: 'customer-commercial' })
     <SharedForbiddenState v-if="!allowed" />
     <template v-else>
       <p v-if="!can('branches.manage')" class="text-sm text-muted">{{ t('subscription.branches.readOnly') }}</p>
-      <SharedPageState :loading="pending" :error="error" @retry="refresh"><SubscriptionBranchSummary v-if="data" :summary="data" /></SharedPageState>
+      <SharedPageState :loading="pending" :error="error" @retry="refresh"><SharedRecordSection v-if="data" variant="list"><SubscriptionBranchSummary :summary="data" /></SharedRecordSection></SharedPageState>
     </template>
     <NuxtPage />
   </SharedSettingsPage>
