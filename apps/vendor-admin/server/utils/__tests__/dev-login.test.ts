@@ -74,6 +74,17 @@ describe('developer sign-in routes', () => {
       expect((await send(from(peer, devLogin), '/api/auth/dev-login', { body: {} })).status).toBe(200)
     })
 
+    it('accepts a loopback caller behind the nuxt dev proxy, which hides the socket peer', async () => {
+      stubUpstream(() => json(200, signedIn))
+      const proxied = defineEventHandler((event) => {
+        Object.defineProperty(event.node.req.socket, 'remoteAddress', { value: undefined, configurable: true })
+        return devLogin(event)
+      })
+      const forwarded = { 'x-nuxt-dev-request-id': 'req-1', 'x-forwarded-for': '::1' }
+      expect((await send(proxied, '/api/auth/dev-login', { body: {}, headers: forwarded })).status).toBe(200)
+      expect((await send(proxied, '/api/auth/dev-login', { body: {}, headers: { ...forwarded, 'x-forwarded-for': '203.0.113.7' } })).status).toBe(404)
+    })
+
     it('dev-login signs the anonymous request, sets the cookie and returns only the expiry', async () => {
       const calls = stubUpstream(() => json(200, signedIn))
       const result = await send(devLogin, '/api/auth/dev-login', { body: {} })
