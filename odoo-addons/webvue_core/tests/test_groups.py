@@ -35,7 +35,7 @@ class TestWebVueGroups(TransactionCase):
     def test_company_branding_defaults(self):
         company = self.env.ref('base.main_company')
         self.assertEqual(company.font, 'IBM_Plex_Sans_Arabic')
-        self.assertEqual(company.primary_color, '#0046d5')
+        self.assertEqual(company.primary_color, '#0066cc')
         selection = dict(self.env['res.company']._fields['font'].get_description(self.env)['selection'])
         self.assertEqual(selection['IBM_Plex_Sans_Arabic'], 'IBM Plex Sans Arabic')
 
