@@ -4,7 +4,13 @@ import { resolveTenantHost, type TenantHostTarget } from './tenantHostResolver.t
 export type TenantRegistry = { schemaVersion: 1; snapshotRevision: number; targets: TenantHostTarget[] }
 export function validateRegistry(value: unknown): TenantRegistry {
   const r = value as TenantRegistry
-  if (!r || r.schemaVersion !== 1 || !Number.isSafeInteger(r.snapshotRevision) || r.snapshotRevision < 1 || !Array.isArray(r.targets) || !r.targets.length) throw new Error('tenant_registry_invalid')
+  if (!r || r.schemaVersion !== 1 || !Number.isSafeInteger(r.snapshotRevision) || r.snapshotRevision < 0 || !Array.isArray(r.targets)) throw new Error('tenant_registry_invalid')
+  // Revision 0 without targets is the control plane's deny-all bootstrap snapshot.
+  if (!r.targets.length) {
+    if (r.snapshotRevision !== 0) throw new Error('tenant_registry_invalid')
+    return structuredClone(r)
+  }
+  if (r.snapshotRevision < 1) throw new Error('tenant_registry_invalid')
   // Reuse the existing resolver, including global uniqueness checks, even when all rows are disabled.
   resolveTenantHost(r.targets[0]?.host, r.targets.map(t => ({ ...t, enabled: true })))
   if (r.targets.some(t => typeof t.enabled !== 'boolean' || t.host !== t.host.toLowerCase() || t.database !== t.filestore)) throw new Error('tenant_registry_invalid')
