@@ -428,7 +428,7 @@ class StaticGateTest(unittest.TestCase):
             UI + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
                                    "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
             UI + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.285714rem;\n"
-                                           "  --webvue-midnight: #13234a; --webvue-lime: #c8f031;\n"
+                                           "  --webvue-midnight: #13234a; --webvue-lime: #c6f432;\n"
                                            "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
                                            "  --status-danger: red; --status-danger-foreground: white;\n"
                                            "  --unread-count-foreground: white;\n"

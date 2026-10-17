@@ -45,7 +45,7 @@ function token(name: string, fallback: string) {
 }
 
 const chartColors = computed(() => [
-  token('--chart-1', '#13234a'),
+  token('--chart-1', '#0046d5'),
   token('--chart-2', '#3a5191'),
   token('--chart-3', '#6b7fb8'),
   token('--chart-4', '#9ab0d8'),
@@ -61,7 +61,7 @@ const TONE_TOKEN: Record<ChartTone, [string[], string]> = {
   warning: [['--chart-status-warning', '--status-warning'], '#d97706'],
   danger: [['--chart-status-error', '--status-danger'], '#dc2626'],
   neutral: [['--chart-status-neutral', '--muted-foreground'], '#64748b'],
-  primary: [['--chart-1'], '#13234a'],
+  primary: [['--chart-1'], '#0046d5'],
 }
 const toneColor = (tone: ChartTone) => {
   const [names, fallback] = TONE_TOKEN[tone]
