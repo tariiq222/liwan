@@ -11,9 +11,13 @@ deploy/data/
 test-results/
 playwright-report/
 
-# Generated agent index and system map: regenerate locally, never track.
+# Generated agent index, system map and run ledgers: regenerate locally, never track.
+# `.agent/flow.json` (the gate list) stays tracked.
 .agent/index
 .agent/system-map/
+.agent/learnings.jsonl
+.agent/metrics.jsonl
+.planning/
 
 # Stray Nuxt root created by `nuxt dev 127.0.0.1` (positional arg, not --host)
 apps/web/127.0.0.1/
