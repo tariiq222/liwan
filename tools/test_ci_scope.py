@@ -150,3 +150,21 @@ class ChangedPathsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_preview_ignores_changes_base_made_after_the_branch_left_it(self):
+        self.git('switch', '-qc', 'task')
+        self.write('docs/keep.md', 'task\n')
+        task = self.commit()
+        self.git('switch', '-q', 'main')
+        self.write('odoo-addons/m/old.py', 'main moved on\n')
+        main = self.commit()
+        out = io.StringIO()
+        previous = Path.cwd()
+        try:
+            os.chdir(self.repo)
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(ci_scope.main(['--base', main, '--commit', task]), 0)
+        finally:
+            os.chdir(previous)
+        self.assertIn('1 of 12 stages: static', out.getvalue())
+        self.assertNotIn('odoo-addons', out.getvalue())

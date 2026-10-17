@@ -84,8 +84,11 @@ map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static` al
 with no rule runs all twelve stages** (that includes any `tools/` file not listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
 
 ```sh
-python3 -B tools/ci_scope.py --base main
+python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>]
 ```
+
+The preview lists what the branch changed since its merge base with `main`, which is what the
+merge brings in; the gate itself scopes the actual merge commit against `main`.
 
 `report.json` records `scope` (`mode`, `stages`, `skipped`) and lists every unselected stage as
 `skipped`; the receipt passes only when every selected stage passed. `merge_main.py` derives the same

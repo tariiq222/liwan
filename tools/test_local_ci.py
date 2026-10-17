@@ -174,6 +174,7 @@ if Path(MODE).read_text() == 'cli-failure': sys.exit(4)
                                                'reason': 'not affected by the change'})
         cli = next(json.loads(x) for x in self.calls.read_text().splitlines() if x.startswith('["woodpecker"'))
         self.assertNotEqual(cli[-1], '.woodpecker.yml')
+        self.assertEqual(Path(cli[cli.index('--repo-path') + 1]).resolve(), self.repo.resolve())
 
     def test_scope_comes_from_the_diff_so_a_full_path_runs_every_stage(self):
         base = self.change('deploy/odoo/new.sh')
