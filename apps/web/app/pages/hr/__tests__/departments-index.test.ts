@@ -102,7 +102,13 @@ const Slotted = defineComponent({
 const ListPage = defineComponent({
   inheritAttrs: false,
   setup(_, { slots, attrs }) {
-    return () => h('div', { 'data-list-page': '', 'data-views': JSON.stringify(attrs.views) }, [slots.filters?.(), slots.default?.()])
+    return () => h('div', { 'data-list-page': '', 'data-views': JSON.stringify(attrs.views) }, [slots.default?.()])
+  },
+})
+const ListCard = defineComponent({
+  inheritAttrs: false,
+  setup(_, { slots, attrs }) {
+    return () => h('div', { 'data-list-card': '', 'data-fill': attrs.fill ? 'true' : 'false' }, [slots.filters?.(), slots.default?.(), slots.footer?.()])
   },
 })
 const Named = (name: string) => defineComponent({
@@ -122,8 +128,8 @@ async function render(url: string, options?: Parameters<typeof evaluate>[1]) {
   }).outputText)(Vue) as RenderFunction
   const app = createSSRApp({ render: () => h(defineComponent({ setup: () => ({ ...state }), render: renderFn })) })
   for (const [name, stub] of [
-    ['SharedListPage', ListPage], ['FilterBar', Slotted],
-    ['SharedPageState', Slotted], ['SharedInlineConfirm', Named('confirm')], ['SharedFilterChip', Named('chip')],
+    ['SharedListPage', ListPage], ['SharedListCard', ListCard], ['FilterBar', Slotted],
+    ['SharedPageState', Named('state')], ['SharedListFooter', Named('footer')], ['SharedInlineConfirm', Named('confirm')], ['SharedFilterChip', Named('chip')],
     ['UInput', Named('search')], ['DepartmentTree', Named('tree')], ['DepartmentTable', Named('table')],
     ['DepartmentOrgChart', Named('canvas')],
   ] as const) app.component(name, stub)
@@ -177,6 +183,17 @@ describe('the departments list chooses its presentation from the URL', () => {
     byName.state.clearFilters()
     await settled()
     expect(byName.router.currentRoute.value.query.q).toBeUndefined()
+  })
+})
+
+describe('the departments list is one list card', () => {
+  it('docks the card only for the org chart and counts the filtered rows in the footer', async () => {
+    expect(await render('/hr/departments')).toContain('data-fill="false"')
+    expect(await render('/hr/departments?view=tree')).toContain('data-fill="false"')
+    expect(await render('/hr/departments?view=canvas')).toContain('data-fill="true"')
+    const html = await render('/hr/departments?q=نورة')
+    expect(html).toContain('data-child="footer"')
+    expect(html).toContain('count-label="hr.depts.footer.results:1"')
   })
 })
 

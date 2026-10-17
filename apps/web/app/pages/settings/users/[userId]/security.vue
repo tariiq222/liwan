@@ -25,7 +25,7 @@ onBeforeUnmount(() => { successKey.value = '' })
 <template>
   <SharedSettingsPage width="form">
     <SharedPageHeader :title="t('access.users.security')" :back-to="backTo" />
-    <p v-if="successKey && !blocked" role="status" class="text-sm text-success">{{ t(successKey) }}</p>
+    <UAlert v-if="successKey && !blocked" role="status" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t(successKey)" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :loading="user.isLoading.value" :error="user.error.value" :empty="!user.data.value" :empty-text="t('access.notFound')" @retry="user.refetch">
       <UserSecurityForm v-if="user.data.value" :user="user.data.value" :on-success-key="setSecuritySuccess" />

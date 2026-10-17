@@ -25,6 +25,8 @@ const roles = useAdminRoles({}, computed(() => !forbidden.value && can('access.r
 const departments = useHrDepartments()
 const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ?? 25)) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? 25))))
+const items = computed(() => query.data.value?.items ?? [])
+const total = computed(() => query.data.value?.total ?? 0)
 const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.status)) + Number(Boolean(filters.role_id)) + Number(Boolean(filters.department_id)))
 
 function isUsersList() {
@@ -76,41 +78,38 @@ function clearSearch() { filters.q = ''; updateFilters() }
     :create-label="t('access.users.grantAccount')"
     create-test-id="settings-user-new"
   >
-    <template v-if="!forbidden" #filters>
-      <div id="filters" class="w-full min-w-0">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="filters.q" class="w-full" :aria-label="t('access.users.filters.searchNameLogin')" :placeholder="t('access.users.filters.searchNameLogin')" :disabled="!hydrated" @change="updateFilters" />
-          </template>
-          <template #default>
-            <SharedFilterChoice :label="t('access.users.columns.status')" :items="statusOptions" :model-value="filters.status ?? allValue" :disabled="!hydrated" @update:model-value="onStatusChange" />
-            <SharedFilterField :label="t('access.users.role')" for="settings-users-role"><USelect id="settings-users-role" :model-value="filters.role_id ? String(filters.role_id) : allValue" :items="roleOptions" class="w-full" :disabled="!hydrated" @update:model-value="onRoleChange" /></SharedFilterField>
-            <SharedFilterField :label="t('nav.departments')" for="settings-users-department"><USelect id="settings-users-department" :model-value="filters.department_id ? String(filters.department_id) : allValue" :items="departmentOptions" class="w-full" :disabled="!hydrated || !can('hr.departments.read')" @update:model-value="onDepartmentChange" /></SharedFilterField>
-          </template>
-          <template #active>
-            <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="filters.q?.trim()" :label="filters.q ?? ''" @remove="clearSearch" />
-              <SharedFilterChip v-if="filters.status" :label="filters.status === 'active' ? t('access.active') : t('access.disabled')" @remove="onStatusChange(allValue)" />
-              <SharedFilterChip v-if="filters.role_id" :label="roles.data.value?.items.find(role => role.id === filters.role_id)?.name[locale === 'ar' ? 'ar' : 'en'] ?? t('access.users.role')" @remove="onRoleChange(allValue)" />
-              <SharedFilterChip v-if="filters.department_id" :label="departments.data.value?.items.find(department => department.id === filters.department_id)?.name ?? t('nav.departments')" @remove="onDepartmentChange(allValue)" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-    </template>
-
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <div v-else class="grid gap-3">
+    <SharedListCard v-else>
+      <template #filters>
+        <div id="filters" class="w-full min-w-0">
+          <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+            <template #search>
+              <UInput v-model="filters.q" :aria-label="t('access.users.filters.searchNameLogin')" :placeholder="t('access.users.filters.searchNameLogin')" icon="i-lucide-search" class="min-w-48 flex-1" :disabled="!hydrated" @change="updateFilters">
+                <template v-if="filters.q" #trailing>
+                  <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('access.users.filters.clearSearch')" class="-me-1" @click="clearSearch" />
+                </template>
+              </UInput>
+            </template>
+            <template #default>
+              <USelect class="w-full md:w-40" :items="statusOptions" :model-value="filters.status ?? allValue" :aria-label="t('access.users.columns.status')" :disabled="!hydrated" @update:model-value="onStatusChange" />
+              <USelect class="w-full md:w-48" :items="roleOptions" :model-value="filters.role_id ? String(filters.role_id) : allValue" :aria-label="t('access.users.role')" :disabled="!hydrated" @update:model-value="onRoleChange" />
+              <USelect class="w-full md:w-48" :items="departmentOptions" :model-value="filters.department_id ? String(filters.department_id) : allValue" :aria-label="t('nav.departments')" :disabled="!hydrated || !can('hr.departments.read')" @update:model-value="onDepartmentChange" />
+            </template>
+          </FilterBar>
+        </div>
+      </template>
       <UserTable
         id="results"
-        :users="query.data.value?.items ?? []"
+        :users="items"
         :loading="query.isLoading.value"
         :error="query.error.value"
         :empty-text="t('access.users.empty')"
         :to-for="userTo"
         @retry="query.refetch"
       />
-      <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
-    </div>
+      <template v-if="query.data.value && items.length" #footer>
+        <SharedListFooter :count-label="t('access.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
+      </template>
+    </SharedListCard>
   </SharedListPage>
 </template>

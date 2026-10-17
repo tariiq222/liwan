@@ -24,7 +24,7 @@ const editor = useEditor({
       role: 'textbox',
       'aria-label': t('hr.docs.body'),
       'aria-multiline': 'true',
-      class: 'tiptap min-h-[160px] px-3 py-2 text-sm outline-none',
+      class: 'tiptap min-h-40 px-3 py-2 text-sm outline-none',
     },
   },
   onUpdate: ({ editor: ed }) => {
@@ -101,15 +101,15 @@ function applyLink() {
       editor has focus. Keep the capture listener so page-level keyboard
       handling can still observe Escape before it reaches contenteditable.
     -->
-    <div data-editor="document" class="rounded-card border border-default bg-default" @keydown.esc.capture="emit('escape')">
-      <div class="flex items-center gap-1 border-b p-1">
+    <div data-editor="document" class="overflow-hidden rounded-control bg-default ring ring-default" @keydown.esc.capture="emit('escape')">
+      <div class="flex items-center gap-1 border-b border-default p-1">
         <UButton :color="editor?.isActive('bold') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('bold')" :aria-label="t('tasks.detail.bold')" icon="i-lucide-bold" @click="toggleBold" />
         <UButton :color="editor?.isActive('italic') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('italic')" :aria-label="t('tasks.detail.italic')" icon="i-lucide-italic" @click="toggleItalic" />
         <UButton :color="editor?.isActive('bulletList') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('bulletList')" :aria-label="t('tasks.detail.bulletList')" icon="i-lucide-list" @click="toggleBulletList" />
         <UButton :color="editor?.isActive('orderedList') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('orderedList')" :aria-label="t('tasks.detail.orderedList')" icon="i-lucide-list-ordered" @click="toggleOrderedList" />
         <UButton :color="editor?.isActive('link') ? 'primary' : 'secondary'" variant="ghost" square type="button" :disabled="disabled" :aria-pressed="!!editor?.isActive('link')" :aria-label="t('tasks.detail.linkPrompt')" icon="i-lucide-link" @click="toggleLink" />
       </div>
-      <div v-if="linkEditing" class="flex gap-2 border-b p-2">
+      <div v-if="linkEditing" class="flex gap-2 border-b border-default p-2">
         <UInput v-model="linkUrl" class="flex-1" :disabled="disabled" :aria-label="t('hr.docs.linkPrompt')" :placeholder="t('hr.docs.linkPrompt')" />
         <UButton type="button" color="primary" size="sm" :disabled="disabled" :label="t('app.save')" @click="applyLink" />
         <UButton type="button" color="neutral" variant="outline" size="sm" :label="t('app.cancel')" @click="linkEditing = false" />

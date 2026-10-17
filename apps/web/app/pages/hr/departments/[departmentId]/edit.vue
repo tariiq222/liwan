@@ -17,7 +17,7 @@ function saved() { void navigateTo(backTo.value) }
     <SharedPageHeader :title="t('hr.depts.edit')" :back-to="backTo" />
     <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <SharedPageState v-else :loading="query.isLoading.value || departments.isLoading.value || employees.isLoading.value" :error="initialDataReady ? undefined : dependencyError" :empty="!department" @retry="retryDependencies">
-      <DepartmentForm v-if="department" panel :department="department" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="saved" />
+      <DepartmentForm v-if="department" :department="department" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="saved" />
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
   </SharedPageContainer>

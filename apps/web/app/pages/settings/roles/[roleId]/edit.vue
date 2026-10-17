@@ -22,7 +22,7 @@ const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value))
     <SharedPageHeader :title="t('access.roles.editTitle')" :back-to="backTo" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
-      <SharedFormSection v-if="role.data.value" panel><RolePermissionForm :role="role.data.value" :permissions="catalog.data.value?.items ?? []" @saved="navigateTo(backTo)" /></SharedFormSection>
+      <RolePermissionForm v-if="role.data.value" :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :cancel-to="backTo" @saved="navigateTo(backTo)" />
     </SharedPageState>
   </SharedSettingsPage>
 </template>

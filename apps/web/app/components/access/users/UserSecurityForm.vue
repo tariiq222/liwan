@@ -84,10 +84,10 @@ onBeforeUnmount(clearSecrets)
 
 <template>
   <SharedFormSection panel :title="t('access.users.securityTitle')">
-    <div class="space-y-5">
-      <p v-if="props.user.protected" class="text-sm text-muted">{{ t('access.protectedUser') }}</p>
+    <div class="grid gap-5">
+      <UAlert v-if="props.user.protected" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('access.protectedUser')" />
       <template v-else>
-        <div v-if="canReset || canReactivate" class="space-y-3">
+        <div v-if="canReset || canReactivate" class="grid gap-3">
           <div class="grid gap-4 sm:grid-cols-2">
             <UFormField :label="t('access.users.password')" name="admin-password">
               <UInput id="admin-password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated || anyPending" />
@@ -99,7 +99,7 @@ onBeforeUnmount(clearSecrets)
           <UButton v-if="canReset" color="primary" :disabled="anyPending || pendingAction !== null || !password.length || password !== passwordConfirmation" :label="t('access.users.resetPassword')" @click="resetPassword" />
           <SharedInlineConfirm v-if="pendingAction === 'reset'" color="warning" :title="t('access.users.confirmResetPassword', { name: props.user.name })" :confirm-label="t('access.users.confirmAction')" :pending="anyPending" @confirm="resetPassword" @cancel="pendingAction = null" />
         </div>
-        <div v-if="canDisable || canReactivate" class="space-y-3">
+        <div v-if="canDisable || canReactivate" class="grid gap-3">
           <div class="flex flex-wrap items-center gap-3">
             <UButton color="neutral" variant="outline" :disabled="anyPending || pendingAction !== null || (canReactivate && (!password.length || password !== passwordConfirmation))" :label="props.user.active ? t('access.users.disable') : t('access.users.reactivate')" @click="changeState" />
             <span class="text-sm text-muted">{{ props.user.active ? t('access.users.disableHint') : t('access.users.reactivateHint') }}</span>
@@ -107,7 +107,7 @@ onBeforeUnmount(clearSecrets)
           <SharedInlineConfirm v-if="pendingAction === 'disable'" color="warning" :title="t('access.users.confirmDisable', { name: props.user.name })" :confirm-label="t('access.users.confirmAction')" :pending="anyPending" @confirm="changeState" @cancel="pendingAction = null" />
           <SharedInlineConfirm v-if="pendingAction === 'reactivate'" color="primary" :title="t('access.users.confirmReactivate', { name: props.user.name })" :confirm-label="t('access.users.confirmAction')" :pending="anyPending" @confirm="changeState" @cancel="pendingAction = null" />
         </div>
-        <p v-if="!canReset && !canDisable && !canReactivate" class="text-sm text-muted">{{ t('access.readOnly') }}</p>
+        <UAlert v-if="!canReset && !canDisable && !canReactivate" color="neutral" variant="subtle" icon="i-lucide-eye" :title="t('access.readOnly')" />
       </template>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey" />
     </div>

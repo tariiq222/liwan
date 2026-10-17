@@ -62,34 +62,41 @@ async function confirmDelete() {
     :create-label="t('hr.depts.new')"
     create-test-id="hr-department-new"
     :views="views"
+    views-in-filters
   >
-    <template #filters>
-      <div class="w-full min-w-0">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="search" class="min-w-52 flex-1" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" icon="i-lucide-search" />
-          </template>
-          <template #active>
-            <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip :label="t('hr.directory.searchValue', { value: search })" @remove="clearFilters" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-    </template>
-    <SharedInlineConfirm
-      v-if="deleting"
-      :title="t('hr.depts.deleteConfirm', { name: deleting.name })"
-      :description="deleteError?.message"
-      :confirm-label="t('hr.depts.delete')"
-      :pending="deletingPending"
-      @confirm="confirmDelete"
-      @cancel="deleting = null"
-    />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch">
-      <DepartmentOrgChart v-if="canvasView" :roots="roots" :query="search" :hydrated="hydrated" :return-to="route.fullPath" />
+    <!-- The org chart is a screen-sized surface, so its card docks and fills the viewport; the list and tree are ordinary cards. -->
+    <SharedListCard :fill="canvasView">
+      <template #filters>
+        <div class="w-full min-w-0">
+          <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+            <template #search>
+              <UInput v-model="search" class="min-w-48 flex-1" :disabled="!hydrated" :aria-label="t('hr.depts.search')" :placeholder="t('hr.depts.search')" icon="i-lucide-search" />
+            </template>
+            <template #active>
+              <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
+                <SharedFilterChip :label="t('hr.directory.searchValue', { value: search })" @remove="clearFilters" />
+              </div>
+            </template>
+          </FilterBar>
+        </div>
+      </template>
+      <SharedInlineConfirm
+        v-if="deleting"
+        class="m-(--webvue-card-pad-dense)"
+        :title="t('hr.depts.deleteConfirm', { name: deleting.name })"
+        :description="deleteError?.message"
+        :confirm-label="t('hr.depts.delete')"
+        :pending="deletingPending"
+        @confirm="confirmDelete"
+        @cancel="deleting = null"
+      />
+      <SharedPageState v-if="query.isLoading.value || query.error.value || !departments.length" class="m-(--webvue-card-pad-dense)" :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch" />
+      <DepartmentOrgChart v-else-if="canvasView" :roots="roots" :query="search" :hydrated="hydrated" :return-to="route.fullPath" />
       <DepartmentTree v-else-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('hr.documents.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @delete="askDelete" />
-    </SharedPageState>
+      <template v-if="departments.length" #footer>
+        <SharedListFooter :count-label="t('hr.depts.footer.results', { count: filtered.length }, filtered.length)" :page="1" :pages="1" />
+      </template>
+    </SharedListCard>
   </SharedListPage>
 </template>

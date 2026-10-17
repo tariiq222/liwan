@@ -5,7 +5,7 @@ import EmployeeGeneralForm from '@/components/hr/EmployeeGeneralForm.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useHrEmployee, useHrEmployees } from '@/composables/useHrEmployees'
 const route = useRoute()
-const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated(); const id = computed(() => Number(route.params.employeeId)); const query = useHrEmployee(id)
+const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS); const { t } = useI18n(); const { can } = useAccess(); const id = computed(() => Number(route.params.employeeId)); const query = useHrEmployee(id)
 // Child pages always return to their current record; only normalized list context follows.
 // Directory Manage opens this editor directly with returnTo; it is accepted
 // only as exact directory context, never as this editor's destination.
@@ -30,11 +30,7 @@ function saved() { void navigateTo(backTo.value) }
       :empty="!query.data.value"
       @retry="retryDependencies"
     >
-      <EmployeeGeneralForm v-if="query.data.value" panel :employee="query.data.value" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="saved">
-        <template #actions>
-          <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="backTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
-        </template>
-      </EmployeeGeneralForm>
+      <EmployeeGeneralForm v-if="query.data.value" :employee="query.data.value" :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="saved" />
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
   </SharedPageContainer>

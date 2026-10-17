@@ -27,7 +27,8 @@ const items = computed<HrDocument[]>(() => query.data.value?.items ?? [])
 const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
-const hasActiveFilters = computed(() => activeFilterCount.value > 0)
+const total = computed(() => query.data.value?.total ?? 0)
+const showEmpty = computed(() => !query.isLoading.value && !query.error.value && items.value.length === 0)
 function formatDocumentDate(value: string) {
   return formatCalendarDate(value, locale.value) || '—'
 }
@@ -64,42 +65,45 @@ function rowTo(document: HrDocument) { return detailsTo(document) }
 </script>
 
 <template>
-  <section class="space-y-3">
-    <div class="w-full min-w-0">
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearSearch">
-        <template #search>
-          <UInput v-model="search" class="min-w-52 flex-1" :disabled="!hydrated" :placeholder="t('hr.docs.search')" icon="i-lucide-search" @change="updateSearch" />
+  <SharedListCard>
+    <template #filters>
+      <div class="w-full min-w-0">
+        <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearSearch">
+          <template #search>
+            <UInput v-model="search" class="min-w-48 flex-1" :disabled="!hydrated" :placeholder="t('hr.docs.search')" :aria-label="t('hr.docs.search')" icon="i-lucide-search" @change="updateSearch">
+              <template v-if="search" #trailing>
+                <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('hr.docs.clearSearch')" class="-me-1" @click="clearSearch" />
+              </template>
+            </UInput>
+          </template>
+          <template #actions>
+            <UButton v-if="canWriteAllowed" color="primary" :disabled="!hydrated" icon="i-lucide-plus" :label="t('hr.docs.new')" :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
+          </template>
+        </FilterBar>
+      </div>
+    </template>
+    <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
+      <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hr.docs.empty')" />
+      <SharedDataTable
+        v-else
+        bare
+        :rows="items"
+        :columns="columns"
+        row-key="id"
+        :row-to="rowTo"
+        :loading="query.isLoading.value"
+        :caption="t('hr.docs.title')"
+      >
+        <template #name-cell="{ row }"><NuxtLink :to="detailsTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name">{{ row.original.name }}</NuxtLink></template>
+        <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>
+        <template #mobile-row="{ row }">
+          <NuxtLink :to="detailsTo(row)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
+          <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(row.write_date) }}</p>
         </template>
-        <template #actions>
-          <UButton v-if="canWriteAllowed" color="primary" :disabled="!hydrated" icon="i-lucide-plus" :label="t('hr.docs.new')" :to="{ path: `/hr/departments/${props.departmentId}/documents/new`, query: returnToQuery(route.fullPath) }" @click="!hydrated && $event.preventDefault()" />
-        </template>
-        <template #active>
-          <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-            <SharedFilterChip :label="t('hr.directory.searchValue', { value: search })" @remove="clearSearch" />
-          </div>
-        </template>
-      </FilterBar>
-    </div>
-    <SharedDataTable
-      :rows="items"
-      :columns="columns"
-      row-key="id"
-      :row-to="rowTo"
-      :loading="query.isLoading.value"
-      :error="query.error.value"
-      :empty-text="t('hr.docs.empty')"
-      :caption="t('hr.docs.title')"
-      :page="page"
-      :pages="pages"
-      @update:page="setPage"
-      @retry="query.refetch"
-    >
-      <template #name-cell="{ row }"><NuxtLink :to="detailsTo(row.original)" class="rounded font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
-      <template #write_date-cell="{ row }"><span class="text-muted">{{ formatDocumentDate(row.original.write_date) }}</span></template>
-      <template #mobile-row="{ row }">
-        <NuxtLink :to="detailsTo(row)" class="rounded font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
-        <p class="mt-1 text-xs text-muted">{{ formatDocumentDate(row.write_date) }}</p>
-      </template>
-    </SharedDataTable>
-  </section>
+      </SharedDataTable>
+    </SharedPageState>
+    <template v-if="query.data.value && !showEmpty" #footer>
+      <SharedListFooter :count-label="t('hr.docs.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
+    </template>
+  </SharedListCard>
 </template>

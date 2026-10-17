@@ -114,8 +114,8 @@ function resetBooking() {
     <UAlert v-if="error" data-testid="maintenance-error" color="error" :title="error" :description="t('settings.maintenance.keepDraft')">
       <template v-if="reload" #actions><UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="reload()">{{ t('app.retry') }}</UButton></template>
     </UAlert>
-    <form data-testid="maintenance-preference-form" class="space-y-4" @submit.prevent="savePreference">
-      <SharedFormSection :title="t('settings.maintenance.preference')" :description="t('settings.maintenance.preferenceHint')">
+    <form data-testid="maintenance-preference-form" class="webvue-form" @submit.prevent="savePreference">
+      <SharedFormSection panel :title="t('settings.maintenance.preference')" :description="t('settings.maintenance.preferenceHint')">
         <UFormField :label="t('settings.maintenance.timezone')" name="timezone">
           <UInput v-model="timezone" data-testid="maintenance-timezone" :disabled="disabled" dir="ltr" @update:model-value="preferenceDirty = true" />
         </UFormField>
@@ -130,18 +130,18 @@ function resetBooking() {
         </UFormField>
       </SharedFormSection>
       <SharedFormActions>
-        <UButton type="submit" data-testid="maintenance-preference-save" :disabled="disabled" :loading="busy">{{ t('app.save') }}</UButton>
         <UButton type="button" color="neutral" variant="outline" :disabled="disabled || !preferenceDirty" @click="loadPreference(snapshot.preference)">{{ t('settings.maintenance.discard') }}</UButton>
+        <UButton type="submit" data-testid="maintenance-preference-save" :disabled="disabled" :loading="busy">{{ t('app.save') }}</UButton>
       </SharedFormActions>
     </form>
-    <SharedRecordSection :title="t('settings.maintenance.releases')">
-      <p v-if="!snapshot.releases.items.length" class="text-muted">{{ t('settings.maintenance.noReleases') }}</p>
-      <article v-for="notice in snapshot.releases.items" :key="notice.id" class="space-y-2 border-b border-default py-4">
+    <SharedRecordSection variant="list" :title="t('settings.maintenance.releases')">
+      <p v-if="!snapshot.releases.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('settings.maintenance.noReleases') }}</p>
+      <article v-for="notice in snapshot.releases.items" :key="notice.id" class="space-y-2 p-(--webvue-card-pad)">
         <div class="flex flex-wrap items-center gap-2">
           <h3 class="font-semibold" dir="ltr">{{ notice.releaseId }}</h3>
-          <UBadge color="neutral" variant="subtle">{{ t(`settings.maintenance.scope.${notice.scope}`) }}</UBadge>
-          <UBadge color="neutral" variant="subtle">{{ t(`settings.maintenance.releaseStatus.${notice.status}`) }}</UBadge>
-          <UBadge v-if="notice.urgency === 'security'" color="warning">{{ t('settings.maintenance.security') }}</UBadge>
+          <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.scope.${notice.scope}`)" />
+          <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.releaseStatus.${notice.status}`)" />
+          <SharedStatusBadge v-if="notice.urgency === 'security'" tone="warning" :label="t('settings.maintenance.security')" />
         </div>
         <p>{{ t('settings.maintenance.deadline', { date: formatDate(notice.deadlineAt), zone: timezone }) }}</p>
         <p>{{ t('settings.maintenance.estimate', { seconds: notice.estimatedSeconds }) }}</p>
@@ -149,8 +149,8 @@ function resetBooking() {
         <p v-if="notice.scope !== 'tenant'" class="text-muted">{{ t('settings.maintenance.sharedScope') }}</p>
       </article>
     </SharedRecordSection>
-    <form v-if="available.length || editing" class="space-y-4" data-testid="maintenance-booking-form" @submit.prevent="saveBooking">
-      <SharedFormSection :title="t(editing ? 'settings.maintenance.editBooking' : 'settings.maintenance.newBooking')">
+    <form v-if="available.length || editing" class="webvue-form" data-testid="maintenance-booking-form" @submit.prevent="saveBooking">
+      <SharedFormSection panel :title="t(editing ? 'settings.maintenance.editBooking' : 'settings.maintenance.newBooking')">
         <UFormField :label="t('settings.maintenance.release')" name="release">
           <USelect v-model="releaseId" data-testid="maintenance-release" :items="releaseItems" :disabled="disabled || !!editing" @update:model-value="bookingDirty = true" />
         </UFormField>
@@ -169,17 +169,17 @@ function resetBooking() {
         <UAlert v-if="release" color="info" :title="t('settings.maintenance.deadline', { date: formatDate(release.deadlineAt), zone: timezone })" :description="release.policy" />
       </SharedFormSection>
       <SharedFormActions>
-        <UButton type="submit" :disabled="disabled || !releaseId || !editingAllowed || release?.status !== 'supported' || (usePreference && preferenceDirty)" :loading="busy">{{ t('settings.maintenance.confirmBooking') }}</UButton>
         <UButton type="button" color="neutral" variant="outline" :disabled="disabled" @click="resetBooking">{{ t('settings.maintenance.discard') }}</UButton>
+        <UButton type="submit" :disabled="disabled || !releaseId || !editingAllowed || release?.status !== 'supported' || (usePreference && preferenceDirty)" :loading="busy">{{ t('settings.maintenance.confirmBooking') }}</UButton>
       </SharedFormActions>
     </form>
-    <SharedRecordSection :title="t('settings.maintenance.bookings')">
-      <p v-if="!snapshot.bookings.items.length" class="text-muted">{{ t('settings.maintenance.noBookings') }}</p>
-      <article v-for="booking in snapshot.bookings.items" :key="booking.id" class="space-y-2 border-b border-default py-4">
+    <SharedRecordSection variant="list" :title="t('settings.maintenance.bookings')">
+      <p v-if="!snapshot.bookings.items.length" class="p-(--webvue-card-pad) text-sm text-muted">{{ t('settings.maintenance.noBookings') }}</p>
+      <article v-for="booking in snapshot.bookings.items" :key="booking.id" class="space-y-2 p-(--webvue-card-pad)">
         <h3 class="font-semibold">{{ snapshot.releases.items.find(item => item.id === booking.releaseId)?.releaseId ?? booking.releaseId }}</h3>
         <p>{{ formatDate(booking.scheduledAt, booking.timezone) }} · {{ booking.timezone }}</p>
         <p>{{ t('settings.maintenance.windowMinutes', { minutes: booking.durationMinutes }) }}</p>
-        <UBadge color="neutral" variant="subtle">{{ t(`settings.maintenance.status.${booking.status}`) }}</UBadge>
+        <SharedStatusBadge tone="neutral" :label="t(`settings.maintenance.status.${booking.status}`)" />
         <div v-if="booking.status === 'scheduled'" class="flex gap-2">
           <UButton type="button" color="neutral" variant="outline" :disabled="disabled || bookingDirty" :data-testid="`maintenance-edit-${booking.id}`" @click="editBooking(booking)">{{ t('settings.maintenance.editBooking') }}</UButton>
           <UButton type="button" color="error" variant="outline" :disabled="disabled" :data-testid="`maintenance-cancel-${booking.id}`" @click="cancelTarget = { ...booking }">{{ t('settings.maintenance.cancelBooking') }}</UButton>

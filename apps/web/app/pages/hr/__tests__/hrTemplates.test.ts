@@ -10,18 +10,21 @@ const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 describe('the HR pages stay on their templates', () => {
   it.each([
     ['pages/hr/index.vue', ['<SharedListPage', 'create-test-id="hr-employee-new"']],
-    ['pages/hr/departments/index.vue', ['<SharedListPage', 'create-test-id="hr-department-new"', ':views="views"']],
+    ['pages/hr/departments/index.vue', ['<SharedListPage', 'create-test-id="hr-department-new"', ':views="views"', 'views-in-filters', '<SharedListCard', '<SharedListFooter', 'embedded']],
     ['pages/hr/documents.vue', ['<SharedListPage', 'create-test-id="hr-document-new"', '<SharedDataTable']],
-    ['pages/hr/departments/[departmentId].vue', ['<SharedRecordPage', '<SharedRecordSection', '<SharedPropertiesPanel', ':hide-header="isCreateDocument"']],
-    ['pages/hr/employees/[employeeId].vue', ['<SharedRecordPage', '<EmployeeProperties']],
+    ['pages/hr/departments/[departmentId].vue', ['<SharedRecordPage', '<HrIdentityCard', '<SharedRecordSection', '<SharedPropertiesPanel', '#aside', ':hide-header="isCreateDocument"']],
+    ['pages/hr/employees/[employeeId].vue', ['<SharedRecordPage', '<EmployeeProperties', '#aside', '<SharedRowActions']],
     ['pages/hr/departments/[departmentId]/documents/[documentId].vue', ['<SharedRecordPage', '<SharedRecordSection']],
-    ['components/hr/DirectoryTable.vue', ['<SharedDataTable', '#mobile-row', 'data-testid="hr-employee-name"']],
-    ['components/hr/DepartmentTable.vue', ['<SharedDataTable', '#mobile-row']],
+    ['components/hr/DirectoryTable.vue', ['<SharedListCard', '<SharedListFooter', '<SharedDataTable', ' bare', '#mobile-row', 'data-testid="hr-employee-name"']],
+    ['components/hr/DepartmentTable.vue', ['<SharedDataTable', ' bare', '#mobile-row']],
     ['components/hr/DocumentList.vue', ['<SharedDataTable', '#mobile-row']],
-    ['components/hr/EmployeeCard.vue', ['<SharedRecordSection']],
+    ['components/hr/EmployeeCard.vue', ['<HrIdentityCard', 'variant="tinted"']],
+    ['components/hr/HrIdentityCard.vue', ['<SharedRecordSection variant="panel"', 'avatarProps']],
     ['components/hr/EmployeeProperties.vue', ['<SharedPropertiesPanel', '<SharedPropertyRow']],
-    ['pages/hr/employees/[employeeId]/edit.vue', ['<EmployeeGeneralForm', ' panel ']],
-    ['pages/hr/departments/[departmentId]/edit.vue', ['<DepartmentForm', ' panel ']],
+    ['pages/hr/employees/[employeeId]/edit.vue', ['<EmployeeGeneralForm', ':back-to="backTo"']],
+    ['pages/hr/departments/[departmentId]/edit.vue', ['<DepartmentForm', ':back-to="backTo"']],
+    ['components/hr/EmployeeGeneralForm.vue', ['<SharedFormSection panel', '<SharedFormActions']],
+    ['components/hr/DepartmentForm.vue', ['<SharedFormSection panel', '<SharedFormActions']],
     ['pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue', ['<SharedFormSection panel']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
@@ -34,6 +37,16 @@ describe('the HR pages stay on their templates', () => {
       expect(source, file).not.toMatch(/<UTable\b/)
       expect(source, file).not.toMatch(/<USkeleton\b/)
       expect(source, file).not.toMatch(/md:hidden/)
+    }
+  })
+
+  it('keeps hand-made radii, fixed heights and form spacing overrides out of the HR records and forms', () => {
+    for (const file of ['components/hr/DepartmentTree.vue', 'components/hr/DepartmentOrgChart.vue', 'components/hr/EmployeeCard.vue', 'components/hr/EmployeeGeneralForm.vue', 'components/hr/DepartmentForm.vue']) {
+      const source = read(file)
+      expect(source, file).not.toMatch(/rounded-(md|lg|xl|\[)/)
+      expect(source, file).not.toMatch(/h-\[calc|min-h-\[|min-w-52/)
+      expect(source, file).not.toMatch(/<SharedFormSection[^>]*(mt-4|space-y-)/)
+      expect(source, file).not.toMatch(/webvue-form-grid mt-4/)
     }
   })
 
