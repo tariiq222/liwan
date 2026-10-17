@@ -33428,7 +33428,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "summarize_tasks",
+        "summary": "Counts for the tasks the list filters select (the list's `total` equals `total` here).",
         "tags": [
           "webvue_pmo"
         ],

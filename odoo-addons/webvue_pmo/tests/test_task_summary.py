@@ -40,7 +40,7 @@ class TestTaskSummary(WebVuePmoCase):
 
     def test_summary_matches_golden(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
-        # overdue open, future open, done and cancelled (closed, so never overdue).
+        # overdue open, future open, done (counted) and cancelled (total only, never overdue).
         self.assertEqual(self._summary(), json.loads(GOLDEN.read_text()))
 
     def test_summary_ignores_closed_and_paging_keys(self):
@@ -56,9 +56,17 @@ class TestTaskSummary(WebVuePmoCase):
         self.assertEqual(self._summary('?filter=mine&state=done'),
                          {'total': 1, 'open': 0, 'overdue': 0, 'done': 1})
         self.assertEqual(self._summary('?filter=mine&state=in_progress,cancelled'),
-                         {'total': 3, 'open': 2, 'overdue': 1, 'done': 1})
-        listed = self.api('GET', '/api/v1/tasks?filter=mine&q=task&closed=1').json()
-        self.assertEqual(self._summary('?filter=mine&q=task')['done'], listed['total'])
+                         {'total': 3, 'open': 2, 'overdue': 1, 'done': 0})
+        open_list = self.api('GET', '/api/v1/tasks?filter=mine&q=task&closed=0').json()
+        closed_list = self.api('GET', '/api/v1/tasks?filter=mine&q=task&closed=1').json()
+        self.assertEqual(self._summary('?filter=mine&q=task')['total'], open_list['total'] + closed_list['total'])
+
+    def test_summary_done_excludes_cancelled(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self._summary('?filter=mine&state=cancelled'),
+                         {'total': 1, 'open': 0, 'overdue': 0, 'done': 0})
+        summary = self._summary()
+        self.assertEqual(summary['total'], summary['open'] + summary['done'] + 1)
 
     def test_summary_empty_set_is_all_zero(self):
         self.authenticate('api_emp', 'api_emp_pass_123')

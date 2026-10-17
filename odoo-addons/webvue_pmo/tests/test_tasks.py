@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
+import pytz
+
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from .common import WebVuePmoCase
@@ -457,6 +460,208 @@ class TestTaskWrite(WebVuePmoCase):
         self.assertEqual(res.status_code, 422, res.text)
         self.assertEqual(res.json()['code'], 'invalid')
         self.assertEqual(res.json()['field'], 'state')
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestTaskListSort(WebVuePmoCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        Task = cls.env['project.task']
+        cls.sooner = Task.create({'name': 'Sooner', 'project_id': cls.project.id, 'user_ids': [(4, cls.employee.id)],
+                                  'date_deadline': '2030-01-01 08:00:00', 'priority': '0'})
+        cls.later = Task.create({'name': 'Later', 'project_id': cls.project.id, 'user_ids': [(4, cls.employee.id)],
+                                 'date_deadline': '2030-06-01 08:00:00', 'priority': '1'})
+        cls.undated = Task.create({'name': 'Undated', 'project_id': cls.project.id, 'user_ids': [(4, cls.employee.id)],
+                                   'priority': '1'})
+        cls.undated_too = Task.create({'name': 'Undated too', 'project_id': cls.project.id,
+                                       'user_ids': [(4, cls.employee.id)], 'priority': '0'})
+        # Open tasks of the employee, in record-number order.
+        cls.by_id = [cls.task_overdue.id, cls.sooner.id, cls.later.id, cls.undated.id, cls.undated_too.id]
+
+    def ids(self, query=''):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/tasks?filter=mine{query}')
+        self.assertEqual(res.status_code, 200)
+        return [t['id'] for t in res.json()['items']]
+
+    def test_default_is_record_number_ascending(self):
+        self.assertEqual(self.ids(), self.by_id)
+
+    def test_record_number_both_directions(self):
+        self.assertEqual(self.ids('&sort=id asc'), self.by_id)
+        self.assertEqual(self.ids('&sort=id desc'), self.by_id[::-1])
+
+    def test_deadline_puts_undated_tasks_last_in_both_directions(self):
+        overdue, sooner, later = self.task_overdue.id, self.sooner.id, self.later.id
+        self.assertEqual(self.ids('&sort=date_deadline asc'), [overdue, sooner, later, self.undated.id, self.undated_too.id])
+        self.assertEqual(self.ids('&sort=date_deadline desc'), [later, sooner, overdue, self.undated.id, self.undated_too.id])
+
+    def test_priority_both_directions_with_stable_ties(self):
+        urgent = [self.task_overdue.id, self.later.id, self.undated.id]
+        normal = [self.sooner.id, self.undated_too.id]
+        self.assertEqual(self.ids('&sort=priority desc'), urgent + normal)
+        self.assertEqual(self.ids('&sort=priority asc'), normal + urgent)
+
+    def test_unknown_sort_keys_are_ignored(self):
+        self.assertEqual(self.ids('&sort=nonsense desc'), self.by_id)
+        self.assertEqual(self.ids('&sort=state desc'), self.by_id)
+        self.assertEqual(self.ids('&sort=id;drop table'), self.by_id)
+
+    def test_sort_is_applied_before_paging(self):
+        self.assertEqual(self.ids('&sort=id desc&limit=2&offset=1'), self.by_id[::-1][1:3])
+
+
+@tagged('post_install', '-at_install', 'webvue')
+class TestTaskFilters(WebVuePmoCase):
+    """`assignee`, `deadline` and `priority`, on the list and on the summary through one shared domain."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # UTC+3: the caller's midnight is 21:00 UTC of the day before, so a UTC-day reading would be wrong.
+        cls.employee.tz = 'Asia/Riyadh'
+        cls.tz = pytz.timezone('Asia/Riyadh')
+        cls.fp = cls.env['project.project'].create({'name': 'Filter project', 'company_id': cls.env.company.id})
+        cls.today = fields.Date.context_today(cls.env['project.task'].with_user(cls.employee))
+        cls.day_start = cls.local_start(cls.today)
+        Task = cls.env['project.task']
+
+        def make(name, deadline, users=(), priority='0', **vals):
+            return Task.create({'name': name, 'project_id': cls.fp.id, 'date_deadline': deadline, 'priority': priority,
+                                'user_ids': [(6, 0, [u.id for u in users])], **vals})
+
+        cls.just_overdue = make('just overdue', cls.day_start - timedelta(seconds=1), [cls.employee], '3')
+        cls.today_first = make('today first second', cls.day_start, [cls.employee], '2')
+        cls.today_last = make('today last second', cls.local_start(cls.today + timedelta(days=1)) - timedelta(seconds=1),
+                              [cls.manager], '1')
+        cls.next_week = make('in eight days', cls.local_start(cls.today + timedelta(days=8)), [cls.employee, cls.manager])
+        cls.undated = make('undated', False, [], '3')
+        cls.done_overdue = make('done and late', cls.day_start - timedelta(days=2), [cls.employee], '0', state='1_done')
+
+    @classmethod
+    def local_start(cls, day):
+        return cls.tz.localize(datetime.combine(day, time.min)).astimezone(pytz.utc).replace(tzinfo=None)
+
+    def ids(self, query, closed=False):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/tasks?project_id={self.fp.id}&closed={int(closed)}{query}')
+        self.assertEqual(res.status_code, 200, res.text)
+        body = res.json()
+        self.assertEqual(body['total'], len(body['items']))
+        return {t['id'] for t in body['items']}
+
+    def summary(self, query):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', f'/api/v1/tasks/summary?project_id={self.fp.id}{query}')
+        self.assertEqual(res.status_code, 200, res.text)
+        return res.json()
+
+    def assert_agrees(self, query, expected_open, expected_done=()):
+        """The list and the summary count the same tasks for one query."""
+        self.assertEqual(self.ids(query), set(expected_open))
+        self.assertEqual(self.ids(query, closed=True), set(expected_done))
+        summary = self.summary(query)
+        self.assertEqual((summary['open'], summary['done'], summary['total']),
+                         (len(expected_open), len(expected_done), len(expected_open) + len(expected_done)))
+
+    def test_assignee_me_none_and_user_id(self):
+        self.assert_agrees('&assignee=me', {self.just_overdue.id, self.today_first.id, self.next_week.id}, {self.done_overdue.id})
+        self.assert_agrees('&assignee=none', {self.undated.id})
+        self.assert_agrees(f'&assignee={self.manager.id}', {self.today_last.id, self.next_week.id})
+
+    def test_assignee_alone_is_a_scope(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        res = self.api('GET', '/api/v1/tasks?assignee=none')
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertIn(self.undated.id, {t['id'] for t in res.json()['items']})
+        self.assertEqual(self.api('GET', '/api/v1/tasks?deadline=today').status_code, 400)
+
+    def test_deadline_today_uses_the_callers_day(self):
+        self.assert_agrees('&deadline=today', {self.today_first.id, self.today_last.id})
+
+    def test_deadline_overdue_is_open_tasks_before_the_callers_day(self):
+        # The boundary second of the previous local day is overdue; the first second of today is not.
+        self.assert_agrees('&deadline=overdue', {self.just_overdue.id})
+        # Overdue only ever matches open tasks, so the done scope stays empty although its task is late.
+        self.assertEqual(self.ids('&deadline=overdue', closed=True), set())
+
+    def test_deadline_none_is_tasks_without_a_deadline(self):
+        self.assert_agrees('&deadline=none', {self.undated.id})
+
+    def test_deadline_week_ends_at_the_next_language_week_start(self):
+        lang = self.env['res.lang']._lang_get(self.employee.lang or 'en_US')
+        for week_start in (1, 7, 4):
+            lang.week_start = str(week_start)
+            end = self.today + timedelta(days=1)
+            while end.isoweekday() != week_start:
+                end += timedelta(days=1)
+            inside = self.env['project.task'].create({
+                'name': 'last second of the week', 'project_id': self.fp.id, 'user_ids': [(4, self.employee.id)],
+                'date_deadline': self.local_start(end) - timedelta(seconds=1)})
+            outside = self.env['project.task'].create({
+                'name': 'first second of next week', 'project_id': self.fp.id, 'user_ids': [(4, self.employee.id)],
+                'date_deadline': self.local_start(end)})
+            week = self.ids('&deadline=week')
+            self.assertLessEqual({self.today_first.id, self.today_last.id, inside.id}, week, week_start)
+            self.assertFalse({self.just_overdue.id, self.next_week.id, outside.id, self.undated.id} & week, week_start)
+            self.assertEqual(self.summary('&deadline=week')['open'], len(week))
+            (inside + outside).unlink()
+
+    def test_priority_single_and_list(self):
+        self.assert_agrees('&priority=3', {self.just_overdue.id, self.undated.id})
+        self.assert_agrees('&priority=0', {self.next_week.id}, {self.done_overdue.id})
+        self.assert_agrees('&priority=3,2', {self.just_overdue.id, self.undated.id, self.today_first.id})
+        self.assert_agrees('&priority=1,1', {self.today_last.id})
+
+    def test_filters_combine_with_each_other_and_with_state_and_project(self):
+        self.assert_agrees('&assignee=me&priority=3,2&deadline=today', {self.today_first.id})
+        self.assert_agrees('&assignee=me&deadline=overdue&state=in_progress', {self.just_overdue.id})
+        self.assert_agrees('&assignee=me&deadline=overdue&state=done', set())
+        self.assert_agrees(f'&assignee={self.manager.id}&priority=1&q=today', {self.today_last.id})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        mine = self.api('GET', f'/api/v1/tasks?filter=mine&assignee=none&project_id={self.fp.id}').json()
+        self.assertEqual(mine, {'items': [], 'total': 0})
+        other = self.api('GET', f'/api/v1/tasks?assignee=me&deadline=today&project_id={self.project.id}').json()
+        self.assertEqual(other, {'items': [], 'total': 0})
+
+    def test_summary_overdue_follows_the_filters(self):
+        self.assertEqual(self.summary('&priority=3'), {'total': 2, 'open': 2, 'overdue': 1, 'done': 0})
+        self.assertEqual(self.summary('&assignee=me'), {'total': 4, 'open': 3, 'overdue': 1, 'done': 1})
+        self.assertEqual(self.summary('&deadline=today'), {'total': 2, 'open': 2, 'overdue': 0, 'done': 0})
+
+    def test_invalid_values_are_422(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for base in ('/api/v1/tasks?filter=mine', '/api/v1/tasks/summary?filter=mine'):
+            for query, field in (
+                ('assignee=somebody', 'assignee'), ('assignee=0', 'assignee'), ('assignee=-3', 'assignee'),
+                ('assignee=1.5', 'assignee'), ('assignee=999999999', 'assignee'), ('assignee=', 'assignee'),
+                ('deadline=tomorrow', 'deadline'), ('deadline=', 'deadline'),
+                ('priority=4', 'priority'), ('priority=high', 'priority'), ('priority=1,x', 'priority'), ('priority=', 'priority'),
+            ):
+                res = self.api('GET', f'{base}&{query}')
+                self.assertEqual((res.status_code, res.json()['code'], res.json()['field']), (422, 'invalid', field), (base, query))
+
+    def test_invalid_values_win_over_an_unreadable_project(self):
+        self.fp.write({'privacy_visibility': 'followers'})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', f'/api/v1/tasks?project_id={self.fp.id}&deadline=never').status_code, 422)
+        self.assertEqual(self.api('GET', f'/api/v1/tasks?project_id={self.fp.id}&deadline=today').json(),
+                         {'items': [], 'total': 0})
+
+    def test_other_companies_stay_out_of_every_filter(self):
+        company_b = self.env['res.company'].create({'name': 'Filter company B'})
+        foreign_project = self.env['project.project'].create({'name': 'Foreign', 'company_id': company_b.id})
+        foreign = self.env['project.task'].create({
+            'name': 'Foreign task', 'project_id': foreign_project.id, 'company_id': company_b.id,
+            'user_ids': [(4, self.employee.id)], 'priority': '3', 'date_deadline': self.day_start})
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        for query in ('assignee=me', 'filter=mine&deadline=today', 'filter=mine&priority=3', 'assignee=none'):
+            body = self.api('GET', f'/api/v1/tasks?{query}&closed=0').json()
+            self.assertNotIn(foreign.id, {t['id'] for t in body['items']}, query)
+        summary = self.api('GET', f'/api/v1/tasks/summary?project_id={foreign_project.id}&assignee=me').json()
+        self.assertEqual(summary['total'], 0)
 
 
 @tagged('post_install', '-at_install', 'webvue')

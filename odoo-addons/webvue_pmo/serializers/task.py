@@ -41,15 +41,20 @@ def _today(task, today=None):
     return today or fields.Date.context_today(task)
 
 
+def local_day_start_utc(task, day):
+    """The start of calendar `day` in the reader's timezone, as a naive UTC datetime."""
+    tz = pytz.timezone(task.env.user.tz or 'UTC')
+    local_midnight = tz.localize(datetime.combine(day, time.min))
+    return local_midnight.astimezone(pytz.utc).replace(tzinfo=None)
+
+
 def today_start_utc(task):
     """The start of the reader's calendar day as a naive UTC datetime.
 
     `date_deadline < today_start_utc(...)` is the domain form of `_days_remaining < 0`:
     a deadline is overdue once its day, in the reader's timezone, is before today.
     """
-    tz = pytz.timezone(task.env.user.tz or 'UTC')
-    local_midnight = tz.localize(datetime.combine(_today(task), time.min))
-    return local_midnight.astimezone(pytz.utc).replace(tzinfo=None)
+    return local_day_start_utc(task, _today(task))
 
 
 def description_excerpt(task):

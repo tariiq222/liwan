@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
 from odoo import http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
@@ -17,15 +19,20 @@ from odoo.addons.webvue_pmo.serializers.dates import parse_date
 from odoo.addons.webvue_pmo.serializers.task import (
     API_TO_STATE,
     _parse_deadline,
+    _today,
     dump_task,
     dump_task_detail,
+    local_day_start_utc,
     parse_task_vals,
     today_start_utc,
 )
 
-SORTABLE = {'date_deadline', 'priority', 'name', 'create_date', 'write_date'}
+SORTABLE = {'id', 'date_deadline', 'priority', 'name', 'create_date', 'write_date'}
+DEFAULT_SORT = 'id asc'
 MAX_LIMIT = 200
 _MISSING = object()
+DEADLINE_FILTERS = ('overdue', 'today', 'week', 'none')
+PRIORITIES = ('0', '1', '2', '3')
 
 
 def _parse_deliverables(value):
@@ -43,17 +50,66 @@ def _parse_description(value):
     return value
 
 
+def _assignee_domain(value):
+    """`assignee`: `me` (the caller is among the assignees), `none` (nobody is) or a readable user id."""
+    if value == 'me':
+        return Domain('user_ids', 'in', [request.env.uid])
+    if value == 'none':
+        return Domain('user_ids', '=', False)
+    user_id = parse_positive_int(value, 'assignee')
+    if not request.env['res.users'].search_count([('id', '=', user_id)]):
+        raise ApiError(422, 'invalid', "assignee must be 'me', 'none' or the id of a readable user", field='assignee')
+    return Domain('user_ids', 'in', [user_id])
+
+
+def _deadline_domain(value, Task):
+    """`deadline`, in the caller's own timezone and with the same day boundary as `is_overdue`.
+
+    `overdue` is a deadline before today and only ever matches open tasks; `today` is the caller's
+    calendar day; `week` runs from today to the end of the current week, which starts on the day of the
+    caller's language (`res.lang.week_start`, Monday-based by default) and so ends at the next week start;
+    `none` is a task without a deadline.
+    """
+    if value not in DEADLINE_FILTERS:
+        raise ApiError(422, 'invalid', f"deadline must be one of {', '.join(DEADLINE_FILTERS)}", field='deadline')
+    if value == 'none':
+        return Domain('date_deadline', '=', False)
+    today = _today(Task)
+    if value == 'overdue':
+        return Domain('date_deadline', '<', today_start_utc(Task)) & Domain('is_closed', '=', False)
+    if value == 'today':
+        end = today + timedelta(days=1)
+    else:
+        lang = request.env['res.lang']._lang_get(request.env.user.lang or 'en_US')
+        week_start = int(lang.week_start or 1)
+        end = today + timedelta(days=7 - (today.isoweekday() - week_start) % 7)
+    return Domain('date_deadline', '>=', today_start_utc(Task)) & Domain('date_deadline', '<', local_day_start_utc(Task, end))
+
+
+def _priority_domain(value):
+    """`priority`: one value `0`-`3` or a comma list; `3` is urgent."""
+    names = list(dict.fromkeys(p.strip() for p in str(value).split(',') if p.strip()))
+    unknown = [p for p in names if p not in PRIORITIES]
+    if unknown or not names:
+        raise ApiError(422, 'invalid', f"unknown priority {(unknown or [value])[0]!r}", field='priority')
+    return Domain('priority', 'in', names)
+
+
 def _filtered_task_domain(args):
     """The domain for the task filters shared by the list and the summary.
 
-    Reads `filter`, `project_id`, `state` and `q` from the query string `args`; the
-    open/closed split (`closed`) is left to the caller. Returns None when the
-    requested project is not readable, so the caller answers with an empty set.
+    Reads `filter`, `project_id`, `state`, `q`, `assignee`, `deadline` and `priority` from the query string
+    `args`; the open/closed split (`closed`) is left to the caller. All of them combine with AND, and
+    `assignee` alone is a valid scope (so `assignee=none` lists every readable unassigned task). Returns
+    None when the requested project is not readable, so the caller answers with an empty set.
     """
     filter_ = args.get('filter')
     state = args.get('state')
     project_id = args.get('project_id')
     q = args.get('q')
+    assignee = args.get('assignee')
+    deadline = args.get('deadline')
+    priority = args.get('priority')
     if filter_ not in (None, 'mine'):
         raise ApiError(400, 'unsupported_filter', "filter must be 'mine'")
     if project_id is not None:
@@ -63,8 +119,17 @@ def _filtered_task_domain(args):
             raise ApiError(422, 'invalid', "project_id must be an integer", field='project_id') from None
         if project_id <= 0:
             raise ApiError(422, 'invalid', "project_id must be a positive integer", field='project_id')
-    if filter_ != 'mine' and project_id is None:
-        raise ApiError(400, 'unsupported_filter', "pass filter=mine and/or project_id")
+    if filter_ != 'mine' and project_id is None and assignee is None:
+        raise ApiError(400, 'unsupported_filter', "pass filter=mine, project_id and/or assignee")
+    Task = request.env['project.task']
+    # Validated before the project check so a bad value is a 422 whatever the project's visibility.
+    filters = Domain.TRUE
+    if assignee is not None:
+        filters &= _assignee_domain(assignee)
+    if deadline is not None:
+        filters &= _deadline_domain(deadline, Task)
+    if priority is not None:
+        filters &= _priority_domain(priority)
     if project_id is not None and not request.env['project.project'].search_count([('id', '=', project_id)]):
         # ACL/ir.rule decide readability; an unreadable (or nonexistent) project simply
         # yields nothing. Checked up front: project.task's own visibility rule also grants
@@ -74,7 +139,7 @@ def _filtered_task_domain(args):
     # project_todo (auto-installed alongside project) gives every new internal user a
     # personal "Welcome" project.task with no project_id; the webvue task list is about
     # project work, so exclude those to-dos rather than surfacing them as "mine".
-    domain = Domain('project_id', '!=', False)
+    domain = Domain('project_id', '!=', False) & filters
     if filter_ == 'mine':
         domain &= Domain('user_ids', 'in', [request.env.uid])
     if project_id is not None:
@@ -93,6 +158,20 @@ def _filtered_task_domain(args):
     return domain
 
 
+def _task_order(sort):
+    """The ORM order for a `sort` query value: known keys only, a task without a deadline always last,
+    and `id asc` as the final tiebreaker so paging stays stable."""
+    parts = {}
+    for part in str(sort).split(','):
+        field, _, direction = part.strip().partition(' ')
+        if field in SORTABLE and field not in parts:
+            parts[field] = f"{field} {'desc' if direction.strip() == 'desc' else 'asc'}"
+            if field == 'date_deadline':
+                parts[field] += ' nulls last'
+    parts.setdefault('id', 'id asc')
+    return ', '.join(parts.values())
+
+
 class TaskController(http.Controller):
 
     @http.route('/api/v1/tasks', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -105,7 +184,7 @@ class TaskController(http.Controller):
         # type='json2' routes only merge the JSON body with path args — the query string
         # is not passed as kwargs (see odoo/http.py Json2Dispatcher). Read it ourselves.
         args = request.httprequest.args
-        sort = args.get('sort', 'date_deadline asc, priority desc')
+        sort = args.get('sort', DEFAULT_SORT)
         limit = args.get('limit', 50)
         offset = args.get('offset', 0)
         limit = parse_nonneg_int(limit, 'limit') or 50
@@ -114,21 +193,21 @@ class TaskController(http.Controller):
         if domain is None:
             return {'items': [], 'total': 0}
         domain &= Domain('is_closed', '=', args.get('closed', '0') in ('1', 'true', True))
-        order_parts = []
-        for part in str(sort).split(','):
-            field, _, direction = part.strip().partition(' ')
-            if field in SORTABLE:
-                order_parts.append(f"{field} {'desc' if direction == 'desc' else 'asc'}")
-        order = ', '.join(order_parts) or 'date_deadline asc, priority desc'
+        order = _task_order(sort)
         Task = request.env['project.task']
         limit = min(limit, MAX_LIMIT)
-        tasks = Task.search(domain, order=f"{order}, id desc", limit=limit, offset=offset)
+        tasks = Task.search(domain, order=order, limit=limit, offset=offset)
         return {'items': [dump_task(t) for t in tasks], 'total': Task.search_count(domain)}
 
     @http.route('/api/v1/tasks/summary', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def summarize_tasks(self, **_):
+        """Counts for the tasks the list filters select (the list's `total` equals `total` here).
+
+        `open` is unfinished tasks, `overdue` the open ones past their deadline, and `done` completed tasks only;
+        a cancelled task counts in `total` but in neither `open` nor `done`. `closed` and paging keys are ignored.
+        """
         request.env['webvue.access.service']._webvue_require_capability(
             'pmo.tasks.read',
         )
@@ -137,13 +216,14 @@ class TaskController(http.Controller):
             return {'total': 0, 'open': 0, 'overdue': 0, 'done': 0}
         Task = request.env['project.task']
         # The open/closed split is the summary's own output, so `closed` is not a filter here.
+        # `done` counts completed tasks only: a cancelled task is in `total` but in neither `open` nor `done`.
         open_domain = domain & Domain('is_closed', '=', False)
         overdue_domain = open_domain & Domain('date_deadline', '<', today_start_utc(Task))
         return {
             'total': Task.search_count(domain),
             'open': Task.search_count(open_domain),
             'overdue': Task.search_count(overdue_domain),
-            'done': Task.search_count(domain & Domain('is_closed', '=', True)),
+            'done': Task.search_count(domain & Domain('state', '=', API_TO_STATE['done'])),
         }
 
     @http.route('/api/v1/tasks/<int:task_id>', type='json2', auth='user', methods=['GET'], readonly=True)
