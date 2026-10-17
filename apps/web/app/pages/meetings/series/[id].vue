@@ -64,6 +64,10 @@ const sessionStateOptions = computed(() => [
   { value: ALL_STATES, label: t('meetingsUi.allStates') },
   ...['draft', 'confirmed', 'done', 'cancelled'].map(state => ({ value: state, label: t(`meetingsUi.state.${state}`) })),
 ])
+const viewItems = computed(() => [
+  { value: 'timeline', label: t('meetingTimeline.timelineView') },
+  { value: 'table', label: t('meetingTimeline.tableView') },
+])
 const sessionSortOptions = computed(() => [
   { value: 'timeline', label: t('meetingTimeline.sortTimeline') },
   { value: 'date_desc', label: t('meetingTimeline.sortNewest') },
@@ -112,6 +116,13 @@ const hasMoreMeetings = computed(() => visibleMeetings.value.length < filteredMe
 const activeSessionFilterCount = computed(() => [occurrenceSearch.value.trim(), occurrenceState.value, dateFrom.value, dateTo.value].filter(Boolean).length)
 const upcoming = computed(() => selectNextMeeting(query.data.value?.meetings ?? [], now.value))
 const previous = computed(() => selectPreviousMeeting(query.data.value?.meetings ?? [], now.value))
+// A tile links to the place that explains its number: the follow-up tab for the counts, the meeting for the dates.
+function followupLink(state: 'active' | 'overdue') {
+  return router.resolve({ query: { ...route.query, tab: 'followup', followup_state: state, followup_page: undefined } }).fullPath
+}
+function meetingLink(meeting: { id: number }) {
+  return router.resolve({ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }).fullPath
+}
 
 function clearSessionFilters() {
   setQuery({ session_q: undefined, session_state: undefined, session_from: undefined, session_to: undefined, session_sort: undefined, session_limit: undefined })
@@ -198,139 +209,110 @@ function setHistoryPage(page: number) {
   >
     <template #actions>
       <UButton v-if="query.data.value?.can_edit === true" color="neutral" variant="outline" :to="recordChildTo(`/meetings/series/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('meetingsUx.seriesSettingsLink')" />
-      <UButton v-if="canAddOccurrence" :disabled="!hydrated" :to="meetingCreateRoute(route.fullPath, query.data.value?.project?.id, id ?? undefined)" :label="t('meetingsUi.addOccurrence')" />
+      <UButton v-if="canAddOccurrence" icon="i-lucide-plus" :disabled="!hydrated" :to="meetingCreateRoute(route.fullPath, query.data.value?.project?.id, id ?? undefined)" :label="t('meetingsUi.addOccurrence')" />
     </template>
     <template #tabs>
-      <SharedRouteTabs data-testid="meeting-series-tabs" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
+      <SharedRouteTabs data-testid="meeting-series-tabs" variant="pill" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
     </template>
 
-    <div v-if="query.data.value" class="grid min-w-0 gap-4">
-      <section v-if="activeTab === 'sessions'" class="grid gap-4" data-testid="meeting-series-sessions">
+    <div v-if="query.data.value" class="grid min-w-0 gap-(--webvue-gap-card)">
+      <section v-if="activeTab === 'sessions'" class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-sessions">
         <SharedRecordSection :title="t('meetingTimeline.scheduleSummary')" :description="t('meetingTimeline.scheduleSummaryHint')">
-          <template #actions>
-            <UTabs
-              :model-value="occurrenceView"
-              :items="[{ label: t('meetingTimeline.timelineView'), value: 'timeline', disabled: !hydrated }, { label: t('meetingTimeline.tableView'), value: 'table', disabled: !hydrated }]"
-              :content="false"
-              size="sm"
-              :aria-label="t('meetingTimeline.scheduleSummary')"
-              @update:model-value="occurrenceView = $event === 'table' ? 'table' : 'timeline'"
-            />
-          </template>
-          <UCard>
-            <div class="grid gap-4">
-              <div class="flex flex-wrap gap-2">
-                <UButton color="primary" variant="subtle" size="sm" :to="{ query: { ...route.query, tab: 'followup', followup_state: 'active', followup_page: undefined } }" :label="t('meetingsUi.openCount', { count: query.data.value.open_resolution_count }, query.data.value.open_resolution_count)" />
-                <UButton color="error" variant="subtle" size="sm" :to="{ query: { ...route.query, tab: 'followup', followup_state: 'overdue', followup_page: undefined } }" :label="t('meetingsUi.overdueCount', { count: query.data.value.overdue_resolution_count })" />
-              </div>
-              <div class="grid w-full min-w-0 gap-3 sm:grid-cols-2">
-                <div class="rounded-control p-3 ring ring-default">
-                  <p class="text-sm text-muted">{{ t('meetingsUi.nextMeeting') }}</p>
-                  <div v-if="upcoming" class="mt-1 grid gap-1">
-                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${upcoming.id}`, query: returnToQuery(route.fullPath) }">{{ upcoming.name }}</UButton>
-                    <span class="text-sm text-muted">{{ occurrenceLabel(upcoming) }}</span>
-                  </div>
-                  <p v-else class="mt-1 text-sm text-muted">{{ t('meetingsUx.noNextMeeting') }}</p>
-                </div>
-                <div class="rounded-control p-3 ring ring-default">
-                  <p class="text-sm text-muted">{{ t('meetingTimeline.lastCompleted') }}</p>
-                  <div v-if="previous" class="mt-1 grid gap-1">
-                    <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${previous.id}`, query: returnToQuery(route.fullPath) }">{{ previous.name }}</UButton>
-                    <span class="text-sm text-muted">{{ occurrenceLabel(previous) }}</span>
-                  </div>
-                  <p v-else class="mt-1 text-sm text-muted">{{ t('meetingTimeline.noCompletedMeeting') }}</p>
-                </div>
-              </div>
-            </div>
-          </UCard>
+          <div class="grid w-full min-w-0 gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4">
+            <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingTimeline.openTile')" :value="query.data.value.open_resolution_count" :to="followupLink('active')" />
+            <SharedMetricTile density="compact" icon="i-lucide-triangle-alert" :tone="query.data.value.overdue_resolution_count ? 'danger' : 'neutral'" :label="t('meetingTimeline.overdueTile')" :value="query.data.value.overdue_resolution_count" :to="followupLink('overdue')" />
+            <SharedMetricTile density="compact" icon="i-lucide-calendar-clock" :label="t('meetingsUi.nextMeeting')" :value="upcoming ? occurrenceLabel(upcoming) : t('meetingsUx.noNextMeeting')" :hint="upcoming?.name" :to="upcoming ? meetingLink(upcoming) : undefined" />
+            <SharedMetricTile density="compact" icon="i-lucide-calendar-check" :label="t('meetingTimeline.lastCompleted')" :value="previous ? occurrenceLabel(previous) : t('meetingTimeline.noCompletedMeeting')" :hint="previous?.name" :to="previous ? meetingLink(previous) : undefined" />
+          </div>
         </SharedRecordSection>
-        <FilterBar :title="t('filterCard.title')" :active-count="activeSessionFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearSessionFilters">
-          <template #search>
-            <UInput id="series-session-search" v-model="occurrenceSearch" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingTimeline.searchSessions')" :aria-label="t('meetingTimeline.searchSessions')" />
+        <SharedListCard>
+          <template #filters>
+            <FilterBar embedded class="w-full" :active-count="activeSessionFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearSessionFilters">
+              <template #search>
+                <UInput id="series-session-search" v-model="occurrenceSearch" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingTimeline.searchSessions')" :aria-label="t('meetingTimeline.searchSessions')">
+                  <template v-if="occurrenceSearch" #trailing>
+                    <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('meetingsFilters.clearSearch')" class="-me-1" @click="occurrenceSearch = ''" />
+                  </template>
+                </UInput>
+              </template>
+              <template #default>
+                <USelect data-testid="series-session-state" class="w-full md:w-44" icon="i-lucide-activity" :items="sessionStateOptions" :model-value="sessionStateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="sessionStateSelect = String($event)" />
+                <USelect data-testid="series-session-sort" class="w-full md:w-44" icon="i-lucide-arrow-up-down" :items="sessionSortOptions" :model-value="occurrenceSort" :disabled="!hydrated" :aria-label="t('meetingTimeline.sort')" @update:model-value="occurrenceSort = String($event)" />
+                <SharedDateField id="series-session-from" v-model="dateFromField" class="w-full md:w-44" :label="dateFromField ? undefined : t('meetingTimeline.from')" :aria-label="t('meetingTimeline.from')" :disabled="!hydrated" :aria-invalid="!validDateRange" />
+                <SharedDateField id="series-session-to" v-model="dateToField" class="w-full md:w-44" :label="dateToField ? undefined : t('meetingTimeline.to')" :aria-label="t('meetingTimeline.to')" :disabled="!hydrated" :aria-invalid="!validDateRange" />
+              </template>
+              <template #view>
+                <SharedSegmentedControl :label="t('meetingTimeline.scheduleSummary')" :items="viewItems" :model-value="occurrenceView" :disabled="!hydrated" @update:model-value="occurrenceView = $event === 'table' ? 'table' : 'timeline'" />
+              </template>
+            </FilterBar>
           </template>
-          <template #default>
-            <SharedFilterChoice data-testid="series-session-state" :label="t('meetingsUi.stateLabel')" :items="sessionStateOptions" :model-value="sessionStateSelect" :disabled="!hydrated" @update:model-value="sessionStateSelect = String($event)" />
-            <SharedFilterChoice data-testid="series-session-sort" :label="t('meetingTimeline.sort')" :items="sessionSortOptions" :model-value="occurrenceSort" :disabled="!hydrated" @update:model-value="occurrenceSort = String($event)" />
-            <SharedFilterField :label="t('meetingTimeline.from')" for="series-session-from">
-              <SharedDateField id="series-session-from" v-model="dateFromField" class="w-full" :disabled="!hydrated" :aria-invalid="!validDateRange" />
-            </SharedFilterField>
-            <SharedFilterField :label="t('meetingTimeline.to')" for="series-session-to">
-              <SharedDateField id="series-session-to" v-model="dateToField" class="w-full" :disabled="!hydrated" :aria-invalid="!validDateRange" />
-            </SharedFilterField>
-            <UAlert v-if="!validDateRange" role="alert" color="error" variant="subtle" :title="t('meetingTimeline.invalidDateRange')" />
+          <UAlert v-if="!validDateRange" class="m-(--webvue-card-pad-dense)" role="alert" color="error" variant="subtle" :title="t('meetingTimeline.invalidDateRange')" />
+          <MeetingTimeline :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" :view="occurrenceView" bare :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" />
+          <template v-if="visibleMeetings.length" #footer>
+            <span class="tabular-nums" data-testid="meeting-series-sessions-count">{{ t('meetingsUi.footer.results', { shown: visibleMeetings.length, total: filteredMeetings.length }, filteredMeetings.length) }}</span>
+            <UButton v-if="hasMoreMeetings" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingTimeline.loadMore')" @click="loadMoreMeetings" />
           </template>
-          <template #active>
-            <div class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="occurrenceSearch.trim()" :label="t('meetingsUi.searchValue', { value: occurrenceSearch })" @remove="occurrenceSearch = ''" />
-              <SharedFilterChip v-if="occurrenceState" :label="t(`meetingsUi.state.${occurrenceState}`)" @remove="occurrenceState = ''" />
-              <SharedFilterChip v-if="dateFrom" :label="t('meetingsFilters.fromDate', { value: dateFrom })" @remove="dateFrom = ''" />
-              <SharedFilterChip v-if="dateTo" :label="t('meetingsFilters.toDate', { value: dateTo })" @remove="dateTo = ''" />
-            </div>
-          </template>
-        </FilterBar>
-        <UCard v-if="occurrenceView === 'timeline' && visibleMeetings.length"><MeetingTimeline :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" view="timeline" :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" /></UCard>
-        <MeetingTimeline v-else :meetings="visibleMeetings" :next-meeting-id="upcoming?.id" :view="occurrenceView" :preserve-order="occurrenceSort !== 'timeline'" :return-to="route.fullPath" :now="now" />
-        <div v-if="hasMoreMeetings" class="flex justify-center"><UButton color="neutral" variant="outline" :disabled="!hydrated" :label="t('meetingTimeline.loadMore')" @click="loadMoreMeetings" /></div>
+        </SharedListCard>
       </section>
 
-      <section v-else-if="activeTab === 'followup'" class="grid gap-4" data-testid="meeting-series-followup">
-        <FilterBar :title="t('meetingTimeline.followupTitle')" :active-count="followupFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFollowupFilters">
-          <template #search>
-            <UInput id="series-followup-search" v-model="followupSearch" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingTimeline.searchFollowup')" :aria-label="t('meetingTimeline.searchFollowup')" />
+      <section v-else-if="activeTab === 'followup'" class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-followup">
+        <SharedListCard>
+          <template #filters>
+            <FilterBar embedded class="w-full" :active-count="followupFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFollowupFilters">
+              <template #search>
+                <UInput id="series-followup-search" v-model="followupSearch" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingTimeline.searchFollowup')" :aria-label="t('meetingTimeline.searchFollowup')">
+                  <template v-if="followupSearch" #trailing>
+                    <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('meetingsFilters.clearSearch')" class="-me-1" @click="followupSearch = ''" />
+                  </template>
+                </UInput>
+              </template>
+              <template #default>
+                <USelect data-testid="series-followup-state" class="w-full md:w-48" icon="i-lucide-activity" :items="followupStateOptions" :model-value="followupStateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="followupStateSelect = String($event)" />
+              </template>
+            </FilterBar>
           </template>
-          <template #default>
-            <SharedFilterChoice data-testid="series-followup-state" :label="t('meetingsUi.stateLabel')" :items="followupStateOptions" :model-value="followupStateSelect" :disabled="!hydrated" @update:model-value="followupStateSelect = String($event)" />
-          </template>
-          <template #active>
-            <div class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="followupSearch.trim()" :label="t('meetingsUi.searchValue', { value: followupSearch })" @remove="followupSearch = ''" />
-              <SharedFilterChip v-if="followupState" :label="followupStateLabel(followupState)" @remove="followupState = ''" />
-            </div>
-          </template>
-        </FilterBar>
-        <SharedPageState :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch">
-          <ul class="grid divide-y divide-default overflow-hidden rounded-card bg-default ring ring-default">
-            <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 p-4">
-              <div class="flex flex-wrap items-start justify-between gap-2">
-                <div class="grid min-w-0 gap-0.5">
-                  <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${item.meeting_id}`, query: { ...returnToQuery(route.fullPath), tab: 'resolutions' } }">{{ item.name }}</UButton>
-                  <p class="text-xs text-muted">{{ item.meeting_name }}</p>
+          <SharedPageState :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch">
+            <ul class="divide-y divide-default">
+              <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 px-(--webvue-card-pad) py-4">
+                <div class="flex flex-wrap items-start justify-between gap-2">
+                  <div class="grid min-w-0 gap-0.5">
+                    <UButton color="primary" variant="link" class="w-fit p-0 text-base font-semibold whitespace-normal text-start" :to="{ path: `/meetings/${item.meeting_id}`, query: { ...returnToQuery(route.fullPath), tab: 'resolutions' } }">{{ item.name }}</UButton>
+                    <p class="text-xs text-muted">{{ item.meeting_name }}</p>
+                  </div>
+                  <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.execution_state || item.state, t, followupStateLabel(item.execution_state || item.state))" />
                 </div>
-                <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.execution_state || item.state, t, followupStateLabel(item.execution_state || item.state))" />
-              </div>
-              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
-                <span v-if="resolutionText(item, 'deadline')">{{ t('meetingsUi.deadline') }}: {{ resolutionText(item, 'deadline') }}</span>
-                <span v-if="resolutionText(item, 'execution_period')">{{ t('meetingTimeline.executionPeriod') }}: {{ resolutionText(item, 'execution_period') }}</span>
-                <UButton v-if="resolutionProject(item)" color="primary" variant="link" size="sm" class="p-0" :to="`/projects/${resolutionProject(item)?.id}`" :label="`${t('meetingsUi.project')}: ${resolutionProject(item)?.name}`" />
-              </div>
-              <p v-if="item.responsible" class="text-sm text-muted">{{ t('meetingsUi.responsible') }}: {{ item.responsible.name }}</p>
-              <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
-              <UButton v-if="resolutionTaskId(item)" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${resolutionTaskId(item)}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
-            </li>
-          </ul>
-        </SharedPageState>
-        <SharedPagination :page="followupPageNumber" :pages="followupPages" :disabled="followupQuery.isFetching.value" @update:page="setFollowupPage($event - 1)" />
+                <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                  <div v-if="item.responsible" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.responsible') }}</dt><dd class="flex items-center gap-2 text-highlighted"><SharedPersonAvatar :people="[item.responsible]" /><span class="truncate">{{ item.responsible.name }}</span></dd></div>
+                  <div v-if="resolutionText(item, 'deadline')" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.deadline') }}</dt><dd class="text-highlighted">{{ resolutionText(item, 'deadline') }}</dd></div>
+                  <div v-if="resolutionText(item, 'execution_period')" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingTimeline.executionPeriod') }}</dt><dd class="text-highlighted">{{ resolutionText(item, 'execution_period') }}</dd></div>
+                  <div v-if="resolutionProject(item)" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.project') }}</dt><dd><UButton color="primary" variant="link" size="sm" class="p-0" :to="`/projects/${resolutionProject(item)?.id}`" :label="resolutionProject(item)?.name" /></dd></div>
+                </dl>
+                <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
+                <UButton v-if="resolutionTaskId(item)" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${resolutionTaskId(item)}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
+              </li>
+            </ul>
+          </SharedPageState>
+          <template v-if="!followupQuery.error.value && followupQuery.data.value?.items.length" #footer>
+            <SharedListFooter :count-label="t('meetingsUi.footer.results', { shown: followupQuery.data.value.items.length, total: followupQuery.data.value.total }, followupQuery.data.value.total)" count-test-id="meeting-series-followup-count" :page="followupPageNumber" :pages="followupPages" :disabled="followupQuery.isFetching.value" @update:page="setFollowupPage($event - 1)" />
+          </template>
+        </SharedListCard>
       </section>
 
-      <section v-else-if="activeTab === 'history'" class="grid gap-4" data-testid="meeting-series-history">
-        <SharedRecordSection :title="t('meetingTimeline.historyTitle')" :description="t('meetingTimeline.historyHint')" />
-        <MeetingEventList :events="historyQuery.data.value?.items ?? []" :loading="historyQuery.isLoading.value" :error="historyQuery.error.value" :total="historyQuery.data.value?.total ?? 0" :page="historyPageNumber" :page-size="historyPageSize" @retry="historyQuery.refetch" @page="setHistoryPage" />
+      <section v-else-if="activeTab === 'history'" class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-history">
+        <MeetingEventList :title="t('meetingTimeline.historyTitle')" :description="t('meetingTimeline.historyHint')" :events="historyQuery.data.value?.items ?? []" :loading="historyQuery.isLoading.value" :error="historyQuery.error.value" :total="historyQuery.data.value?.total ?? 0" :page="historyPageNumber" :page-size="historyPageSize" @retry="historyQuery.refetch" @page="setHistoryPage" />
       </section>
 
-      <section v-else class="grid gap-4" data-testid="meeting-series-details">
-        <SharedRecordSection :title="t('meetingsUi.series')">
-          <UCard>
-            <dl class="grid gap-4 sm:grid-cols-2">
-              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="text-highlighted">{{ query.data.value.organizer?.name || '—' }}</dd></div>
-              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
-              <div v-if="query.data.value.meeting_url" class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
-              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUx.attendees') }}</dt><dd class="text-highlighted">{{ query.data.value.attendees.map(person => person.name).join('، ') || '—' }}</dd></div>
-              <div class="min-w-0"><dt class="text-sm text-muted">{{ t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }, query.data.value.until_count) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date, locale) : t('meetingsUx.terminationOpen') }}</dd></div>
-            </dl>
-          </UCard>
+      <section v-else class="grid gap-(--webvue-gap-card)" data-testid="meeting-series-details">
+        <SharedRecordSection variant="panel" :title="t('meetingsUi.series')">
+          <dl class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.organizer') }}</dt><dd class="text-highlighted">{{ query.data.value.organizer?.name || '—' }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
+            <div v-if="query.data.value.meeting_url" class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUi.url') }}</dt><dd><UButton color="primary" variant="link" class="p-0 break-all whitespace-normal text-start" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" dir="ltr">{{ query.data.value.meeting_url }}</UButton></dd></div>
+            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.attendees') }}</dt><dd class="text-highlighted">{{ query.data.value.attendees.map(person => person.name).join('، ') || '—' }}</dd></div>
+            <div class="min-w-0"><dt class="text-xs text-muted">{{ t('meetingsUx.termination') }}</dt><dd class="text-highlighted">{{ query.data.value.until_count ? t('meetingsUx.terminationCount', { count: query.data.value.until_count }, query.data.value.until_count) : query.data.value.until_date ? formatCalendarDate(query.data.value.until_date, locale) : t('meetingsUx.terminationOpen') }}</dd></div>
+          </dl>
         </SharedRecordSection>
       </section>
-
     </div>
 
     <template v-if="query.data.value" #summary>

@@ -6,7 +6,6 @@
     "emptyAttachments": "لا توجد مرفقات لهذا الاجتماع.",
     "new": "اجتماع جديد",
     "search": "بحث في الاجتماعات",
-    "totalSeries": "عدد الاجتماعات الدورية: {count}",
     "searchValue": "بحث: {value}",
     "clear": "مسح الفلاتر",
     "title": "عنوان الاجتماع",
@@ -99,6 +98,9 @@
       "meeting_cancelled": "أُلغي الاجتماع",
       "meeting_reminder": "تذكير باجتماع قادم",
       "meeting_resolution_overdue": "توصية متأخرة"
+    },
+    "footer": {
+      "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة"
     }
   },
   "meetingsUx": {
@@ -133,8 +135,6 @@
     "timeUnavailable": "لم يُحدد الوقت",
     "calendarTruncated": "لا اجتماعات في هذا الشهر. | في هذا الشهر اجتماع واحد. | في هذا الشهر اجتماعان. | في هذا الشهر {count} اجتماعات؛ المعروض أول ٢٠٠٠ فقط. | في هذا الشهر {count} اجتماعًا؛ المعروض أول ٢٠٠٠ فقط. | في هذا الشهر {count} اجتماع؛ المعروض أول ٢٠٠٠ فقط.",
     "calendarCoverageUnknown": "تعذر تأكيد العدد الكلي. راجع السجلات المحمّلة قبل اعتبار التقويم مكتملًا.",
-    "countLoading": "جارٍ تحميل عدد الاجتماعات الدورية…",
-    "countUnavailable": "تعذر تحميل عدد الاجتماعات الدورية",
     "attendees": "الحضور",
     "termination": "نهاية التكرار",
     "noNextMeeting": "لا يوجد لقاء قادم فعّال مجدول.",
@@ -182,13 +182,11 @@
     "openMeetingForReopen": "فتح صفحة الاجتماع",
     "browserTimeZone": "تُعرض الأوقات حسب المنطقة الزمنية للمتصفح: {zone}.",
     "currentPreviousFollowUp": "المتابعة الحالية من اللقاءات السابقة",
-    "currentFollowUpOrigin": "من السجل الحالي: {name}",
     "snapshotOrigin": "محفوظ من: {name}",
     "dayCardTitle": "أحداث اليوم",
     "dayCardHint": "اختر يومًا من التقويم لعرض اجتماعاته.",
     "dayCardEmpty": "لا اجتماعات في هذا اليوم.",
     "dayCardCount": "لا اجتماعات | اجتماع واحد | اجتماعان | {count} اجتماعات | {count} اجتماعًا | {count} اجتماع",
-    "dayCardView": "عرض",
     "dayCardSelect": "عرض اجتماعات يوم {date}",
     "openTaskNewTab": "فتح المهمة — تبويب جديد",
     "listView": "القائمة",
@@ -223,7 +221,9 @@
     },
     "unchangedDraft": "لا توجد تغييرات للحفظ.",
     "recommendationCreated": "تم إنشاء التوصية وحفظها.",
-    "returnAfterRecommendation": "متابعة الرجوع للاجتماع"
+    "returnAfterRecommendation": "متابعة الرجوع للاجتماع",
+    "requiredHint": "الحقول المميزة بنجمة مطلوبة.",
+    "openOnly": "المفتوحة فقط"
   },
   "meetingsFilters": {
     "searchMeetings": "ابحث في العنوان أو المرجع أو المكان",
@@ -253,7 +253,8 @@
     "allMeetings": "كل الاجتماعات",
     "scope": "نطاق الاجتماعات",
     "removeFilter": "إزالة الفلتر",
-    "retry": "إعادة المحاولة"
+    "retry": "إعادة المحاولة",
+    "clearSearch": "مسح البحث"
   },
   "meetingTimeline": {
     "unknownDate": "التاريخ غير متاح",
@@ -299,7 +300,9 @@
     "overdueFollowup": "متأخرة",
     "noFollowup": "لا توجد توصيات متابعة مطابقة لهذه الفلاتر.",
     "historyTitle": "سجل الاجتماع الدوري",
-    "historyHint": "نشاط موثق لهذا الاجتماع الدوري."
+    "historyHint": "نشاط موثق لهذا الاجتماع الدوري.",
+    "openTile": "توصيات مفتوحة",
+    "overdueTile": "توصيات متأخرة"
   },
   "meetingMinutesForm": {
     "metadata": "بيانات الاجتماع",
@@ -379,6 +382,7 @@
     "print": "طباعة",
     "printPreview": "معاينة وطباعة",
     "signature": "التوقيع",
-    "readOnlyMeeting": "هذا الاجتماع نهائي أو ملغى ولا يمكن تعديله."
+    "readOnlyMeeting": "هذا الاجتماع نهائي أو ملغى ولا يمكن تعديله.",
+    "selectedVersion": "المعروضة"
   }
 }

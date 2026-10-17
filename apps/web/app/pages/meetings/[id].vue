@@ -19,6 +19,7 @@ import { parsePositiveId } from '@/utils/routeParams'
 import { meetingTabFromRoute, meetingTabQuery, meetingHistoryViewFromRoute, type MeetingTab } from '@/utils/meetingTabs'
 
 const route = useRoute()
+const router = useRouter()
 const sourcePaths = useRecordListPaths(MEETING_LIST_PATHS)
 const { t, locale } = useI18n()
 const hydrated = useHydrated()
@@ -56,6 +57,8 @@ function childTo(path: string, query = route.query) {
 }
 const activeTab = computed<MeetingTab>(() => isCreateResolution.value ? 'resolutions' : meetingTabFromRoute(route.query.tab, hydrated.value ? route.hash : undefined))
 const historyView = computed(() => meetingHistoryViewFromRoute(route.query.tab, hydrated.value ? route.hash : undefined, route.query.history_view))
+// The open-recommendations tile links to the tab that lists them, keeping returnTo and the list filters.
+const resolutionsTabLink = computed(() => router.resolve({ query: meetingTabQuery(route.query, 'resolutions'), hash: '' }).fullPath)
 const historyLinks = computed(() => [
   { key: 'meeting-history-events', label: t('meetingsUx.activity'), to: { query: { ...route.query, tab: 'history', history_view: 'events' }, hash: '' }, active: historyView.value === 'events' },
   { key: 'meeting-history-versions', label: t('meetingMinutesForm.versions'), to: { query: { ...route.query, tab: 'history', history_view: 'versions' }, hash: '' }, active: historyView.value === 'versions' },
@@ -167,15 +170,14 @@ function displayValue(value: string | null | undefined) {
       <MeetingRecordTabs :tabs="tabLinks" :log-tab-start="logTabStart" :label="t('meetingsUx.sections')" />
     </template>
 
-    <div v-if="query.data.value" class="grid min-w-0 gap-4">
+    <div v-if="query.data.value" class="grid min-w-0 gap-(--webvue-gap-card)">
       <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" />
-      <UCard v-if="pendingMeetingAction?.action === 'complete' && completionGaps.length">
-        <div class="grid gap-3">
-          <p class="font-medium">{{ t('meetingsUx.completionReview') }}</p>
-          <UButton v-for="gap in completionGaps" :key="gap" color="neutral" variant="outline" class="w-fit" :to="childTo(`/meetings/${id}/${gap === 'schedule' ? 'edit' : 'minutes'}`)" :label="t(`meetingsUx.completionGaps.${gap}`)" />
-          <UButton color="neutral" variant="ghost" class="w-fit" :label="t('app.cancel')" @click="pendingMeetingAction = null" />
+      <SharedRecordSection v-if="pendingMeetingAction?.action === 'complete' && completionGaps.length" variant="action" :title="t('meetingsUx.completionReview')">
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton v-for="gap in completionGaps" :key="gap" color="neutral" variant="outline" :to="childTo(`/meetings/${id}/${gap === 'schedule' ? 'edit' : 'minutes'}`)" :label="t(`meetingsUx.completionGaps.${gap}`)" />
+          <UButton color="neutral" variant="ghost" :label="t('app.cancel')" @click="pendingMeetingAction = null" />
         </div>
-      </UCard>
+      </SharedRecordSection>
       <SharedInlineConfirm
         v-if="pendingMeetingAction && meetingActionConfirm && !(pendingMeetingAction.action === 'complete' && completionGaps.length)"
         :color="meetingActionConfirm.color"
@@ -198,15 +200,13 @@ function displayValue(value: string | null | undefined) {
             </div>
           </div>
         </SharedRecordSection>
-        <section id="meeting-agenda" aria-labelledby="meeting-agenda-title" class="space-y-3">
-          <h2 id="meeting-agenda-title" class="sr-only">{{ t('meetingsUi.agenda') }}</h2>
-          <p v-if="historicalSnapshot" class="text-sm text-muted">{{ t('meetingsUx.historicalMinutesTitle') }}</p>
-          <UCard class="min-w-0">
-            <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
+        <SharedRecordSection id="meeting-agenda" variant="panel" :title="t('meetingsUi.agenda')" :description="historicalSnapshot ? t('meetingsUx.historicalMinutesTitle') : undefined">
+          <div class="grid min-w-0 gap-3">
+            <UAlert v-if="doneWithoutSnapshot" color="neutral" variant="subtle" icon="i-lucide-info" :title="`${t('meetingsUx.historyUnavailable')} ${t('meetingsUx.currentContentAfterMissingHistory')}`" />
             <SharedRichText v-if="richTextHasContent(historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda)" :html="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda" size="sm" />
             <SharedEmptyState v-else :title="t('meetingsUi.emptyAgenda')" />
-          </UCard>
-        </section>
+          </div>
+        </SharedRecordSection>
       </template>
       <template v-else-if="activeTab === 'minutes'">
                 <MeetingMinutesDocument
@@ -221,33 +221,29 @@ function displayValue(value: string | null | undefined) {
           :legacy-recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
           :title="t('meetingMinutesForm.documentTitle')"
         />
-        <section v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" aria-labelledby="meeting-minutes-title">
-          <h2 id="meeting-minutes-title" class="sr-only">{{ t('meetingsUi.minutes') }}</h2>
-          <UCard class="min-w-0">
-            <p v-if="doneWithoutSnapshot" class="mb-3 text-xs text-muted">{{ t('meetingsUx.historyUnavailable') }} {{ t('meetingsUx.currentContentAfterMissingHistory') }}</p>
+        <SharedRecordSection v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" variant="panel" :title="t('meetingsUi.minutes')">
+          <div class="grid min-w-0 gap-3">
+            <UAlert v-if="doneWithoutSnapshot" color="neutral" variant="subtle" icon="i-lucide-info" :title="`${t('meetingsUx.historyUnavailable')} ${t('meetingsUx.currentContentAfterMissingHistory')}`" />
             <SharedRichText v-if="richTextHasContent(query.data.value.minutes)" :html="query.data.value.minutes" size="sm" />
             <SharedEmptyState v-else :title="t('meetingsUi.emptyMinutes')" />
-          </UCard>
-        </section>
-        <SharedRecordSection v-if="historicalSnapshot" id="meeting-snapshot" :title="t('meetingsUx.historicalDecisionStates')" :description="t('meetingsUx.historicalMinutesTitle')">
-          <UCard class="min-w-0">
-            <div v-if="historicalSnapshot.resolutions.length" class="grid gap-3">
-              <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="grid min-w-0 gap-1 text-sm">
-                <div class="flex min-w-0 flex-wrap items-center gap-2">
-                  <span class="font-medium text-highlighted">{{ item.name }}</span>
-                  <span v-if="item.meeting_name" class="text-xs text-muted">{{ t('meetingsUx.snapshotOrigin', { name: item.meeting_name }) }}</span>
-                  <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.state, t)" />
-                </div>
-                <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
-              </div>
+          </div>
+        </SharedRecordSection>
+        <SharedRecordSection v-if="historicalSnapshot" id="meeting-snapshot" variant="list" :title="t('meetingsUx.historicalDecisionStates')" :description="t('meetingsUx.historicalMinutesTitle')">
+          <div v-if="!historicalSnapshot.resolutions.length" class="p-(--webvue-card-pad)"><SharedEmptyState :title="t('meetingsUi.emptyResolutions')" /></div>
+          <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="grid min-w-0 gap-1 px-(--webvue-card-pad) py-3 text-sm">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <span class="font-semibold text-highlighted">{{ item.name }}</span>
+              <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.state, t)" />
+              <span v-if="item.meeting_name" class="text-xs text-muted">{{ t('meetingsUx.snapshotOrigin', { name: item.meeting_name }) }}</span>
             </div>
-            <SharedEmptyState v-else :title="t('meetingsUi.emptyResolutions')" />
-          </UCard>
+            <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
+          </div>
         </SharedRecordSection>
       </template>
       <template v-else-if="activeTab === 'history'">
-        <SharedRouteTabs :items="historyLinks" :ariaLabel="t('meetingMinutesForm.history')" />
+        <SharedRouteTabs variant="pill" :items="historyLinks" :ariaLabel="t('meetingMinutesForm.history')" />
         <MeetingEventList v-if="historyView === 'events'"
+          :title="t('meetingsUx.activity')"
           :events="eventRows"
           :loading="eventQuery.isLoading.value"
           :error="eventQuery.error.value"
@@ -257,7 +253,7 @@ function displayValue(value: string | null | undefined) {
           @retry="eventQuery.refetch"
           @page="eventPage = $event"
         />
-        <div v-if="historyView === 'versions'" class="grid min-w-0 gap-4">
+        <div v-if="historyView === 'versions'" class="grid min-w-0 gap-(--webvue-gap-card)">
         <MeetingVersionList
           :versions="versionRows"
           :loading="versionQuery.isLoading.value"
@@ -287,7 +283,7 @@ function displayValue(value: string | null | undefined) {
         </div>
       </template>
       <!-- Stays mounted so its filters, pending confirmations and in-flight state survive tab switches. -->
-      <div v-show="activeTab === 'resolutions'" class="grid min-w-0 gap-4">
+      <div v-show="activeTab === 'resolutions'" class="grid min-w-0 gap-(--webvue-gap-card)">
         <MeetingResolutionsTab :meeting="query.data.value" :meeting-id="query.data.value.id" @update:busy="resolutionsBusy = $event" />
       </div>
       <!-- Stays mounted so the tab label always shows the attachment count. -->
@@ -295,12 +291,23 @@ function displayValue(value: string | null | undefined) {
     </div>
 
     <template v-if="query.data.value" #summary>
-      <div class="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 rounded-card bg-default p-4 ring ring-default">
-        <SharedStatusBadge v-bind="meetingStateBadgeProps(query.data.value.state, t)" data-testid="meeting-state-badge" />
-        <span class="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-highlighted"><span>{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</span><span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime, locale)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span></span>
-        <span class="text-sm text-muted">{{ t('meetingsUi.organizer') }}: {{ displayValue(query.data.value.organizer?.name) }}</span>
-        <span v-if="query.data.value.location" class="text-sm text-muted">{{ query.data.value.location }}</span>
-        <UButton v-if="query.data.value.meeting_url" color="neutral" variant="outline" size="sm" icon="i-lucide-video" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
+      <div class="grid min-w-0 gap-(--webvue-gap-card) lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]" data-testid="meeting-hero">
+        <SharedRecordSection variant="panel">
+          <div class="grid min-w-0 gap-3">
+            <p class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xl font-semibold text-highlighted">
+              <span>{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</span>
+              <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime, locale)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
+            </p>
+            <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
+              <SharedStatusBadge v-bind="meetingStateBadgeProps(query.data.value.state, t)" data-testid="meeting-state-badge" />
+              <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>
+              <span v-if="query.data.value.location" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-map-pin" class="size-4 shrink-0" aria-hidden="true" />{{ query.data.value.location }}</span>
+              <UButton v-if="query.data.value.meeting_url" color="neutral" variant="outline" size="sm" icon="i-lucide-video" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
+            </div>
+          </div>
+        </SharedRecordSection>
+        <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('meetingsUi.attendees')" :value="query.data.value.attendees.length" />
+        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingsUi.resolutions')" :value="query.data.value.open_resolution_count" :hint="t('meetingsUx.openOnly')" :to="resolutionsTabLink" />
       </div>
     </template>
     <template v-if="query.data.value" #aside>
@@ -308,7 +315,6 @@ function displayValue(value: string | null | undefined) {
         <SharedPropertyRow :label="t('app.recordNumber')"><SharedRecordNumber :value="query.data.value.reference" /></SharedPropertyRow>
         <SharedPropertyRow v-if="query.data.value.series" :label="t('meetingsUi.series')"><UButton color="primary" variant="link" class="p-0 whitespace-normal text-start" :to="`/meetings/series/${query.data.value.series.id}`">{{ query.data.value.series.name }}</UButton></SharedPropertyRow>
         <SharedPropertyRow v-if="query.data.value.project" :label="t('meetingsUi.project')" :value="query.data.value.project.name" />
-        <SharedPropertyRow :label="t('meetingsUi.resolutions')" :value="t('meetingsUi.openCount', { count: query.data.value.open_resolution_count }, query.data.value.open_resolution_count)" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

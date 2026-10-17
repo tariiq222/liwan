@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
-import { routeTabClass, routeTabsStripClass } from '@webvue/ui/app/utils/sectionTabs'
+import { routeTabPillClass, routeTabsPillStripClass } from '@webvue/ui/app/utils/sectionTabs'
 
 const props = defineProps<{
   tabs: { key: string; label: string; to: RouteLocationRaw; active: boolean }[]
@@ -43,10 +43,10 @@ onBeforeUnmount(() => {
 <template>
   <div ref="root" class="min-w-0 max-w-full">
     <!-- Record tabs first, then a divider and the log tabs (history, versions); every tab keeps its own route. -->
-    <nav data-testid="meeting-tabs" :class="routeTabsStripClass" :aria-label="label">
+    <nav data-testid="meeting-tabs" :class="routeTabsPillStripClass" :aria-label="label">
       <template v-for="(tab, index) in tabs" :key="tab.key">
-        <span v-if="index === logTabStart" role="separator" aria-orientation="vertical" class="mx-1 my-2 w-px shrink-0 bg-accented" />
-        <UButton color="neutral" variant="ghost" :class="routeTabClass" :to="tab.to" :aria-current="tab.active ? 'page' : undefined" :data-active="tab.active" :data-testid="tab.key">
+        <span v-if="index === logTabStart" role="separator" aria-orientation="vertical" class="mx-1 h-5 w-px shrink-0 bg-accented" />
+        <UButton color="neutral" variant="ghost" :class="routeTabPillClass" :to="tab.to" :aria-current="tab.active ? 'page' : undefined" :data-active="tab.active" :data-testid="tab.key">
           <span>{{ tab.label }}</span>
         </UButton>
       </template>

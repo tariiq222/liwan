@@ -29,28 +29,30 @@ function capturedAt(value: string) {
 </script>
 
 <template>
-  <section data-testid="meeting-version-list" class="space-y-3" aria-labelledby="meeting-version-list-title">
-    <h2 id="meeting-version-list-title" class="sr-only">{{ t('meetingMinutesForm.versions') }}</h2>
+  <SharedRecordSection data-testid="meeting-version-list" variant="list" :title="t('meetingMinutesForm.versions')">
     <SharedPageState :loading="loading" :error="error" :empty="!versions.length" :empty-text="t('meetingMinutesForm.noVersions')" @retry="emit('retry')">
-      <ol class="grid gap-2">
+      <ol class="divide-y divide-default">
         <li v-for="version in versions" :key="version.id">
-          <UButton
+          <button
             type="button"
-            color="neutral"
-            :variant="selectedId === version.id ? 'subtle' : 'outline'"
-            class="grid w-full min-w-0 justify-items-start gap-1 p-3 text-start"
-            :class="selectedId === version.id ? 'ring-primary' : ''"
+            class="grid w-full min-w-0 justify-items-start gap-1 px-(--webvue-card-pad) py-3 text-start transition-colors duration-150 hover:bg-(--webvue-row-hover) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:opacity-60 motion-reduce:transition-none"
+            :class="selectedId === version.id ? 'bg-primary/5' : ''"
             :aria-pressed="selectedId === version.id"
             :data-selected="selectedId === version.id ? 'true' : undefined"
             :disabled="!hydrated"
             @click="emit('select', version)"
           >
-            <span class="font-medium text-highlighted">{{ t('meetingMinutesForm.versionNumber', { number: version.number }) }}</span>
+            <span class="flex min-w-0 flex-wrap items-center gap-2">
+              <span class="font-semibold text-highlighted">{{ t('meetingMinutesForm.versionNumber', { number: version.number }) }}</span>
+              <UBadge v-if="selectedId === version.id" color="primary" variant="subtle" size="sm">{{ t('meetingMinutesForm.selectedVersion') }}</UBadge>
+            </span>
             <span class="text-xs text-muted">{{ capturedAt(version.captured_at) }} · {{ version.actor?.name || t('meetingMinutesForm.systemActor') }}</span>
-          </UButton>
+          </button>
         </li>
       </ol>
     </SharedPageState>
-    <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
-  </section>
+    <div v-if="pages > 1" class="border-t border-default px-(--webvue-card-pad) py-3">
+      <SharedPagination :page="page" :pages="pages" :disabled="loading" @update:page="emit('page', $event)" />
+    </div>
+  </SharedRecordSection>
 </template>

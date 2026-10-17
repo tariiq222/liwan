@@ -146,6 +146,18 @@
           "type": "number",
           "required": false,
           "default": "25"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "default": "undefined"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "default": "undefined"
         }
       ],
       "events": [
@@ -245,9 +257,7 @@
       ],
       "events": [],
       "slots": [],
-      "nuxtUi": [
-        "UCard"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "Structured",
@@ -545,9 +555,7 @@
       ],
       "slots": [],
       "nuxtUi": [
-        "UBadge",
         "UButton",
-        "UCard",
         "UInput",
         "USelect"
       ],
@@ -604,6 +612,13 @@
           "type": "Date",
           "required": false,
           "default": "undefined"
+        },
+        {
+          "name": "bare",
+          "type": "boolean",
+          "required": false,
+          "default": "false",
+          "description": "The table has no card of its own: the caller's SharedListCard draws it."
         }
       ],
       "events": [],
@@ -693,7 +708,7 @@
       ],
       "slots": [],
       "nuxtUi": [
-        "UButton"
+        "UBadge"
       ],
       "stories": [
         {
@@ -3231,22 +3246,22 @@
         {
           "id": "Chips",
           "name": "شرائح",
-          "context": "apps/web/app/pages/meetings/index.vue:256"
+          "context": "apps/web/app/pages/settings/roles/index.vue:46"
         },
         {
           "id": "Multiple",
           "name": "اختيار متعدد",
-          "context": "apps/web/app/pages/meetings/index.vue:256"
+          "context": "apps/web/app/pages/settings/roles/index.vue:46"
         },
         {
           "id": "Segment",
           "name": "شريط مقسّم",
-          "context": "apps/web/app/pages/meetings/index.vue:256"
+          "context": "apps/web/app/pages/settings/roles/index.vue:46"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/meetings/index.vue:256"
+          "context": "apps/web/app/pages/settings/roles/index.vue:46"
         }
       ]
     },
@@ -3277,7 +3292,7 @@
         {
           "id": "InFilterPanel",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:257"
+          "context": "apps/web/app/pages/settings/access-log/index.vue:54"
         }
       ]
     },

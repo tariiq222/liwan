@@ -4,8 +4,10 @@ import type { MeetingSeriesListItem } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { clearMeetingListFilters, parseMeetingListFilters, patchMeetingListQuery } from '@/utils/meetingListFilters'
 import { parseOffset } from '@/utils/routeQuery'
@@ -59,13 +61,11 @@ const params = computed(() => ({
 const query = useMeetingSeriesList(params)
 const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
-const totalLabel = computed(() => query.isLoading.value
-  ? t('meetingsUx.countLoading')
-  : query.error.value
-    ? t('meetingsUx.countUnavailable')
-    : t('meetingsUi.totalSeries', { count: query.data.value?.total ?? 0 }))
+const rows = computed(() => query.data.value?.items ?? [])
+const total = computed(() => query.data.value?.total ?? 0)
 
 const columns = computed<TableColumn<MeetingSeriesListItem>[]>(() => [
+  { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
   { accessorKey: 'name', header: t('meetingsUx.seriesName') },
   { accessorKey: 'recurrence', header: t('meetingsUi.recurrenceLabel') },
   { accessorKey: 'organizer', header: t('meetingsUi.organizer') },
@@ -80,7 +80,6 @@ function seriesTo(series: { id: number }) {
 const createTo = computed(() => ({ path: '/meetings/series/new', query: returnToQuery(liveReturnTo()) }))
 
 const activeFilterCount = computed(() => [search.value.trim(), projectId.value].filter(Boolean).length)
-const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 
 function setProject(value: number | undefined) {
   if (!isCurrentList()) return
@@ -113,70 +112,68 @@ function setPage(next: number) {
     create-test-id="meeting-series-new"
     @click.capture="openCreate"
   >
-    <template #filters>
-      <div class="w-full min-w-0">
-        <FilterBar
-          :title="t('filterCard.title')"
-          :active-count="activeFilterCount"
-          :clear-label="t('meetingsUi.clear')"
-          :disabled="!hydrated"
-          @clear="clearFilters"
-        >
+    <SharedListCard>
+      <template #filters>
+        <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">
           <template #search>
-            <UInput id="meeting-series-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')" />
+            <UInput id="meeting-series-search" v-model="search" icon="i-lucide-search" class="w-full" :disabled="!hydrated" :placeholder="t('meetingsFilters.searchSeries')" :aria-label="t('meetingsFilters.searchSeries')">
+              <template v-if="search" #trailing>
+                <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('meetingsFilters.clearSearch')" class="-me-1" @click="clearSearch" />
+              </template>
+            </UInput>
           </template>
           <template v-if="can('pmo.projects.read')" #default>
-            <SharedFilterField :label="t('meetingsFilters.project')" for="meeting-series-project">
-              <MeetingProjectFilter id="meeting-series-project" hide-label class="w-full" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-            </SharedFilterField>
-          </template>
-          <template v-if="hasActiveFilters" #active>
-            <div class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="search.trim()" :label="t('meetingsUi.searchValue', { value: search })" @remove="clearSearch" />
-              <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="setProject(undefined)" />
-            </div>
+            <MeetingProjectFilter id="meeting-series-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
           </template>
         </FilterBar>
-
-        <span class="text-sm text-muted" role="status">{{ totalLabel }}</span>
-      </div>
-    </template>
-    <SharedDataTable
-      :rows="query.data.value?.items ?? []"
-      :columns="columns"
-      row-key="id"
-      :row-to="seriesTo"
-      :loading="query.isLoading.value"
-      :error="query.error.value"
-      :empty-text="t('meetingsUi.emptySeries')"
-      :caption="t('nav.meetingSeries')"
-      :page="page"
-      :pages="pages"
-      @update:page="setPage"
-      @retry="query.refetch()"
-    >
-      <template #name-cell="{ row }">
-        <NuxtLink :to="seriesTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.capture="openRecord($event, row.original)">{{ row.original.name }}</NuxtLink>
       </template>
-      <template #recurrence-cell="{ row }">{{ t(`meetingsUi.recurrence.${row.original.recurrence}`) }}</template>
-      <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
-      <template #project-cell="{ row }">{{ row.original.project?.name || '—' }}</template>
-      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }} · {{ t('meetingsUi.overdueCount', { count: row.original.overdue_resolution_count }) }}</template>
-      <template #mobile-row="{ row: series }">
-        <NuxtLink :to="seriesTo(series)" @click.capture="openRecord($event, series)" class="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 focus-visible:outline-none">
-          <span class="min-w-0 flex-1 break-words font-medium text-highlighted">{{ series.name }}</span>
-          <span class="ms-auto text-end text-sm text-muted">{{ t(`meetingsUi.recurrence.${series.recurrence}`) }}</span>
-          <span class="basis-full text-xs text-muted">
-            <span v-if="series.organizer">{{ t('meetingsUi.organizer') }}: {{ series.organizer.name }}</span>
-            <span v-if="series.organizer && series.project"> · </span>
-            <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
-            <span v-if="series.organizer || series.project"> · </span>
-            <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }, series.open_resolution_count) }}</span>
-            <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
-          </span>
-        </NuxtLink>
+      <SharedDataTable
+        bare
+        :rows="rows"
+        :columns="columns"
+        row-key="id"
+        :row-to="seriesTo"
+        :loading="query.isLoading.value"
+        :error="query.error.value"
+        :empty-text="t(activeFilterCount ? 'app.noResults' : 'meetingsUi.emptySeries')"
+        :caption="t('nav.meetingSeries')"
+        @retry="query.refetch()"
+      >
+        <template #record_number-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+        <template #name-cell="{ row }">
+          <NuxtLink :to="seriesTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.capture="openRecord($event, row.original)">{{ row.original.name }}</NuxtLink>
+        </template>
+        <template #recurrence-cell="{ row }"><SharedStatusBadge tone="neutral" icon="i-lucide-repeat" :label="t(`meetingsUi.recurrence.${row.original.recurrence}`)" /></template>
+        <template #organizer-cell="{ row }">
+          <div v-if="row.original.organizer" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.organizer]" /><span class="min-w-0 truncate text-muted">{{ row.original.organizer.name }}</span></div>
+          <span v-else class="text-muted">—</span>
+        </template>
+        <template #project-cell="{ row }"><span class="text-muted">{{ row.original.project?.name || '—' }}</span></template>
+        <template #open_resolution_count-cell="{ row }">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-muted">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</span>
+            <SharedStatusBadge v-if="row.original.overdue_resolution_count" tone="destructive" :label="t('meetingsUi.overdueCount', { count: row.original.overdue_resolution_count })" />
+          </div>
+        </template>
+        <template #mobile-row="{ row: series }">
+          <NuxtLink :to="seriesTo(series)" @click.capture="openRecord($event, series)" class="flex min-w-0 flex-wrap items-start gap-x-4 gap-y-2 focus-visible:outline-none">
+            <span class="min-w-0 flex-1 break-words font-semibold text-highlighted">{{ series.name }}</span>
+            <span class="ms-auto text-end text-sm text-muted">{{ t(`meetingsUi.recurrence.${series.recurrence}`) }}</span>
+            <span class="basis-full text-xs text-muted">
+              <span v-if="series.organizer">{{ t('meetingsUi.organizer') }}: {{ series.organizer.name }}</span>
+              <span v-if="series.organizer && series.project"> · </span>
+              <span v-if="series.project">{{ t('meetingsUi.project') }}: {{ series.project.name }}</span>
+              <span v-if="series.organizer || series.project"> · </span>
+              <span>{{ t('meetingsUi.openCount', { count: series.open_resolution_count }, series.open_resolution_count) }}</span>
+              <span> · {{ t('meetingsUi.overdueCount', { count: series.overdue_resolution_count }) }}</span>
+            </span>
+          </NuxtLink>
+        </template>
+      </SharedDataTable>
+      <template v-if="!query.error.value && rows.length" #footer>
+        <SharedListFooter :count-label="t('meetingsUi.footer.results', { shown: rows.length, total }, total)" count-test-id="meeting-series-result-count" :page="page" :pages="pages" :disabled="query.isFetching.value || !hydrated" @update:page="setPage" />
       </template>
-    </SharedDataTable>
+    </SharedListCard>
   </SharedListPage>
   <NuxtPage />
 </template>

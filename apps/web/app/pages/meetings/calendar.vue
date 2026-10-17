@@ -7,7 +7,7 @@ import { formatCalendarDate, formatWebVueTime, isCalendarDate } from '@webvue/ui
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
-import { meetingStateBadgeProps } from '@/utils/meetingStatus'
+import { meetingStateBadge, meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { meetingViewRoute, meetingViewOptions } from '@/utils/meetingRoutes'
 import { firstQuery } from '@/utils/routeQuery'
 
@@ -53,8 +53,20 @@ function patchFilters(patch: MeetingFilterPatch) {
 function onStateChange(value: unknown) {
   patchFilters({ state: value === ALL_STATES ? undefined : String(value) })
 }
+const scopeItems = computed(() => [
+  { value: 'all', label: t('meetingsFilters.allMeetings') },
+  { value: 'mine', label: t('meetingsUi.mine') },
+])
 function onScopeChange(value: unknown) {
   patchFilters({ mine: value === 'mine' })
+}
+// The tone dot of an event chip, from the same tone map as the state pill.
+const STATE_DOT: Record<string, string> = { neutral: 'bg-accented', info: 'bg-info', success: 'bg-success', warning: 'bg-warning', destructive: 'bg-error', primary: 'bg-primary' }
+function stateDot(state: string) {
+  return STATE_DOT[meetingStateBadge(state).tone] ?? 'bg-accented'
+}
+function chipTitle(meeting: { name: string; start_datetime: string | null; state: string }) {
+  return [meeting.name, meeting.start_datetime ? localTime(meeting.start_datetime) : t('meetingsUx.timeUnavailable'), t(`meetingsUi.state.${meeting.state}`)].join(' · ')
 }
 function clearFilters() {
   patchFilters({ q: undefined, organizer_id: undefined, series_id: undefined, state: undefined, mine: false, project_id: undefined })
@@ -205,41 +217,28 @@ function goToday() {
     <template #actions><UButton v-if="can('meetings.create')" icon="i-lucide-plus" :to="createTo" :label="t('nav.newMeeting')" data-testid="meeting-calendar-new" /></template>
     <div class="grid min-w-0">
       <div class="border-b border-default px-(--webvue-card-pad-dense) py-3">
-      <FilterBar
-        embedded
-        :title="t('filterCard.title')"
-        :active-count="activeFilterCount"
-        :clear-label="t('meetingsUi.clear')"
-        :disabled="!hydrated"
-        @clear="clearFilters"
-      >
-        <template #search><UInput :model-value="routeFilters.q" class="w-full" icon="i-lucide-search" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" :disabled="!hydrated" @update:model-value="patchFilters({ q: String($event) || undefined })" /></template>
-        <template #default>
-          <SharedFilterChoice data-testid="meeting-state" :label="t('meetingsUi.stateLabel')" :items="stateOptions" :model-value="selectedState || ALL_STATES" :disabled="!hydrated" @update:model-value="onStateChange" />
-          <SharedFilterField v-if="can('pmo.projects.read')" :label="t('meetingsFilters.project')" for="meeting-project">
-            <MeetingProjectFilter id="meeting-project" hide-label class="w-full" :model-value="projectId" @update:model-value="patchFilters({ project_id: $event })" @resolved-name="projectName = $event" />
-          </SharedFilterField>
-        </template>
-        <template #view>
-          <SharedViewSwitch model-value="calendar" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(route.query, value === 'calendar' ? 'calendar' : 'list'))" />
-          <UTabs
-            data-testid="meeting-scope"
-            :model-value="routeFilters.mine ? 'mine' : 'all'"
-            :aria-label="t('meetingsFilters.scope')"
-            :items="[{ label: t('meetingsFilters.allMeetings'), value: 'all', disabled: !hydrated }, { label: t('meetingsUi.mine'), value: 'mine', disabled: !hydrated }]"
-            size="sm"
-            @update:model-value="onScopeChange"
-          />
-        </template>
-        <template v-if="activeFilterCount > 0" #active>
-          <SharedFilterChip v-if="routeFilters.q" :label="t('meetingsUi.searchValue', { value: routeFilters.q })" @remove="patchFilters({ q: undefined })" />
-          <SharedFilterChip v-if="routeFilters.organizerId" :label="t('meetingsFilters.selectedOrganizer')" @remove="patchFilters({ organizer_id: undefined })" />
-          <SharedFilterChip v-if="routeFilters.seriesId" :label="t('meetingsFilters.inheritedSeries')" @remove="patchFilters({ series_id: undefined })" />
-          <SharedFilterChip v-if="selectedState" :label="t(`meetingsUi.state.${selectedState}`)" @remove="patchFilters({ state: undefined })" />
-          <SharedFilterChip v-if="routeFilters.mine" :label="t('meetingsUi.mine')" @remove="patchFilters({ mine: false })" />
-          <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="patchFilters({ project_id: undefined })" />
-        </template>
-      </FilterBar>
+        <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <UInput :model-value="routeFilters.q" class="w-full" icon="i-lucide-search" :placeholder="t('meetingsFilters.searchMeetings')" :aria-label="t('meetingsFilters.searchMeetings')" :disabled="!hydrated" @update:model-value="patchFilters({ q: String($event) || undefined })">
+              <template v-if="routeFilters.q" #trailing>
+                <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('meetingsFilters.clearSearch')" class="-me-1" @click="patchFilters({ q: undefined })" />
+              </template>
+            </UInput>
+          </template>
+          <template #default>
+            <USelect data-testid="meeting-state" class="w-full md:w-44" icon="i-lucide-activity" :items="stateOptions" :model-value="selectedState || ALL_STATES" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
+            <MeetingProjectFilter v-if="can('pmo.projects.read')" id="meeting-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="patchFilters({ project_id: $event })" @resolved-name="projectName = $event" />
+          </template>
+          <template #view>
+            <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="routeFilters.mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
+            <SharedViewSwitch model-value="calendar" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(route.query, value === 'calendar' ? 'calendar' : 'list'))" />
+          </template>
+          <!-- The dropdowns show their own choice; only the filters inherited from a link have no control. -->
+          <template v-if="routeFilters.organizerId || routeFilters.seriesId" #active>
+            <SharedFilterChip v-if="routeFilters.organizerId" :label="t('meetingsFilters.selectedOrganizer')" @remove="patchFilters({ organizer_id: undefined })" />
+            <SharedFilterChip v-if="routeFilters.seriesId" :label="t('meetingsFilters.inheritedSeries')" @remove="patchFilters({ series_id: undefined })" />
+          </template>
+        </FilterBar>
       </div>
       <p v-if="coverage.status === 'truncated'" class="px-(--webvue-card-pad-dense) py-3 text-sm text-warning" role="status">
         {{ t('meetingsUx.calendarTruncated', { count: coverage.total }, coverage.total) }}
@@ -249,16 +248,16 @@ function goToday() {
       </p>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
         <div class="@container min-w-0">
-          <div class="@min-[600px]:hidden">
-            <div v-if="!agenda.length" class="p-3"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
+          <div class="@xl:hidden">
+            <div v-if="!agenda.length" class="p-(--webvue-card-pad-dense)"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
             <ul v-else class="grid divide-y divide-default">
               <li v-for="meeting in agenda" :key="meeting.id">
                 <NuxtLink
                   :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                  class="grid min-w-0 gap-1 p-3 hover:bg-elevated/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                  class="grid min-w-0 gap-1 px-(--webvue-card-pad-dense) py-3 hover:bg-(--webvue-row-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                 >
                   <div class="flex min-w-0 items-start justify-between gap-2">
-                    <span class="min-w-0 break-words font-medium text-highlighted">{{ meeting.name }}</span>
+                    <span class="min-w-0 break-words font-semibold text-highlighted">{{ meeting.name }}</span>
                     <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" class="shrink-0" />
                   </div>
                   <div class="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
@@ -270,82 +269,65 @@ function goToday() {
               </li>
             </ul>
           </div>
-          <div class="hidden @min-[600px]:grid @min-[900px]:grid-cols-[minmax(0,1fr)_18rem]">
+          <div class="hidden @xl:grid @4xl:grid-cols-[minmax(0,1fr)_18rem]">
             <div class="min-w-0 overflow-x-auto">
-              <div class="min-w-[560px]">
-                <div class="grid grid-cols-7 border-b border-default text-center text-xs text-muted">
-                  <div v-for="label in weekdayLabels" :key="label" class="p-2">{{ label }}</div>
+              <div class="min-w-[calc(var(--webvue-row-h)*14)]">
+                <div class="grid grid-cols-7 border-b border-default bg-muted text-center text-xs font-medium text-muted">
+                  <div v-for="label in weekdayLabels" :key="label" class="py-2">{{ label }}</div>
                 </div>
                 <div class="grid grid-cols-7">
                   <div
                     v-for="cell in cells"
                     :key="cell.key"
-                    class="relative min-h-28 border-e border-b border-default p-1 last:border-e-0"
-                    :class="[cell.today ? 'bg-primary/10' : '', cell.key === selectedDay ? 'ring-2 ring-inset ring-primary' : '']"
+                    class="relative grid min-h-[calc(var(--webvue-row-h)*3)] content-start gap-1 border-e border-b border-default p-(--webvue-subcard-pad) last:border-e-0"
+                    :class="{ 'ring-2 ring-inset ring-primary': cell.key === selectedDay }"
                   >
                     <button
                       v-if="cell.day"
                       type="button"
-                      class="absolute inset-0 rounded-none hover:bg-elevated/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                      class="absolute inset-0 hover:bg-(--webvue-row-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                       :disabled="!hydrated"
                       :aria-pressed="cell.key === selectedDay"
                       :aria-label="t('meetingsUx.dayCardSelect', { date: localDate(cell.key) })"
                       @click="selectedDay = cell.key"
                     />
-                    <p v-if="cell.day" class="relative px-1 text-xs text-muted" aria-hidden="true">{{ cell.day }}</p>
+                    <span
+                      v-if="cell.day"
+                      class="pointer-events-none relative inline-flex size-6 items-center justify-center rounded-full text-xs tabular-nums"
+                      :class="cell.today ? 'bg-primary/15 font-semibold text-primary' : 'text-muted'"
+                      :aria-current="cell.today ? 'date' : undefined"
+                      aria-hidden="true"
+                    >{{ cell.day }}</span>
                     <NuxtLink
                       v-for="meeting in (cell.day ? byDate.get(cell.key) ?? [] : [])"
                       :key="meeting.id"
                       :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                      class="relative mt-1 block truncate rounded-md px-1 py-0.5 text-xs hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      :title="chipTitle(meeting)"
+                      class="relative flex min-w-0 items-center gap-1.5 rounded-full bg-elevated px-2 py-0.5 text-xs text-highlighted hover:bg-accented focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
-                      <span class="block truncate text-highlighted">{{ meeting.name }}</span>
-                      <span class="block truncate text-xs text-muted">
-                        <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
-                        <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-                        · {{ t(`meetingsUi.state.${meeting.state}`) }}
-                      </span>
+                      <span class="size-1.5 shrink-0 rounded-full" :class="stateDot(meeting.state)" aria-hidden="true" />
+                      <span class="truncate">{{ meeting.name }}</span>
+                      <span class="sr-only">{{ meeting.start_datetime ? localTime(meeting.start_datetime) : t('meetingsUx.timeUnavailable') }} · {{ t(`meetingsUi.state.${meeting.state}`) }}</span>
                     </NuxtLink>
                   </div>
                 </div>
               </div>
             </div>
-            <aside class="min-w-0 border-t border-default @min-[900px]:border-s @min-[900px]:border-t-0" :aria-label="t('meetingsUx.dayCardTitle')">
-              <div class="flex items-start justify-between gap-2 border-b border-default p-3">
-                <div class="min-w-0">
-                  <h2 class="text-sm font-semibold text-highlighted">{{ t('meetingsUx.dayCardTitle') }}</h2>
-                  <p class="text-xs text-muted">{{ selectedDay ? localDate(selectedDay) : t('meetingsUx.dayCardHint') }}</p>
-                </div>
-                <UBadge v-if="selectedDay" color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }, selectedMeetings.length) }}</UBadge>
-              </div>
-              <div v-if="selectedDay && !selectedMeetings.length" class="p-3"><SharedEmptyState :title="t('meetingsUx.dayCardEmpty')" /></div>
-              <ul v-else-if="selectedDay" class="grid gap-2 p-3">
-                <li v-for="meeting in selectedMeetings" :key="meeting.id">
-                  <UCard :ui="{ body: 'p-3 sm:p-3' }">
-                    <div class="flex min-w-0 items-start justify-between gap-2">
-                      <div class="min-w-0 grid gap-1">
-                        <p class="break-words text-sm font-medium text-highlighted">{{ meeting.name }}</p>
-                        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                          <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
-                          <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
-                          <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" size="sm" />
-                        </div>
-                      </div>
-                      <UButton
-                        color="neutral"
-                        variant="ghost"
-                        size="sm"
-                        square
-                        icon="i-lucide-eye"
-                        class="shrink-0"
-                        :aria-label="`${t('meetingsUx.dayCardView')}: ${meeting.name}`"
-                        :title="t('meetingsUx.dayCardView')"
-                        :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }"
-                      />
+            <aside class="min-w-0 border-t border-default p-(--webvue-card-pad-dense) @4xl:border-s @4xl:border-t-0" :aria-label="t('meetingsUx.dayCardTitle')">
+              <SharedRecordSection variant="list" :title="t('meetingsUx.dayCardTitle')" :description="selectedDay ? localDate(selectedDay) : t('meetingsUx.dayCardHint')">
+                <template v-if="selectedDay" #actions><UBadge color="neutral" variant="subtle" class="shrink-0">{{ t('meetingsUx.dayCardCount', { count: selectedMeetings.length }, selectedMeetings.length) }}</UBadge></template>
+                <p v-if="selectedDay && !selectedMeetings.length" class="px-(--webvue-card-pad) py-4 text-sm text-muted">{{ t('meetingsUx.dayCardEmpty') }}</p>
+                <div v-for="meeting in selectedMeetings" :key="meeting.id" class="flex min-w-0 items-start justify-between gap-2 px-(--webvue-card-pad) py-3">
+                  <div class="grid min-w-0 gap-1">
+                    <NuxtLink :to="{ path: `/meetings/${meeting.id}`, query: returnToQuery(route.fullPath) }" class="break-words text-sm font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ meeting.name }}</NuxtLink>
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                      <span v-if="meeting.start_datetime">{{ localTime(meeting.start_datetime) }}</span>
+                      <span v-else>{{ t('meetingsUx.timeUnavailable') }}</span>
+                      <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" size="sm" />
                     </div>
-                  </UCard>
-                </li>
-              </ul>
+                  </div>
+                </div>
+              </SharedRecordSection>
             </aside>
           </div>
         </div>
