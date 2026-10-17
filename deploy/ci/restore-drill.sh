@@ -16,7 +16,7 @@ cleanup() {
 }
 trap cleanup EXIT
 for db in "$SRC_DB" "$RST_DB" "$RST2_DB"; do dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$db" || true; done
-B="$(dirname "$(readlink -f "$(command -v pg_dump)")")"
+B="$(dirname "$(command -v pg_dump)")"
 export WEBVUE_COMMERCIAL_CONFIG="$W/restore-classification.json"
 python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$WEBVUE_COMMERCIAL_CONFIG"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
