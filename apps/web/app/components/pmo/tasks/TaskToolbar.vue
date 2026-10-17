@@ -72,6 +72,10 @@ function setScope(closed: boolean) {
   if (Boolean(props.modelValue.closed) === closed) return
   patch({ closed, state: undefined })
 }
+const scopeItems = computed(() => [
+  { value: 'open', label: t('tasks.filters.open') },
+  { value: 'closed', label: t('tasks.filters.closed') },
+])
 function removeState(s: TaskState) {
   const states = selectedStates.value.filter((state) => state !== s)
   patch({ state: states.length ? states : undefined })
@@ -202,19 +206,13 @@ const projectItems = computed(() => [
     <template #actions><slot name="actions" /></template>
 
     <template #view>
-      <div role="group" data-testid="task-scope" class="inline-flex items-center gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.filters.scopeLabel')">
-        <UButton
-          v-for="scope in [{ value: false, label: t('tasks.filters.open') }, { value: true, label: t('tasks.filters.closed') }]"
-          :key="String(scope.value)"
-          type="button"
-          color="neutral"
-          size="sm"
-          :variant="Boolean(modelValue.closed) === scope.value ? 'soft' : 'ghost'"
-          :aria-pressed="Boolean(modelValue.closed) === scope.value"
-          :disabled="!hydrated"
-          @click="setScope(scope.value)"
-        >{{ scope.label }}</UButton>
-      </div>
+      <SharedSegmentedControl
+        data-testid="task-scope"
+        :label="t('tasks.filters.scopeLabel')"
+        :items="scopeItems"
+        :model-value="modelValue.closed ? 'closed' : 'open'"
+        @update:model-value="setScope($event === 'closed')"
+      />
     </template>
   </FilterBar>
   </div>

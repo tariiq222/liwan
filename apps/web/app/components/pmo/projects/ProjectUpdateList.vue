@@ -54,11 +54,6 @@ useResizeObserver(listEl, measure)
 watch(items, () => nextTick(measure), { flush: 'post' })
 onMounted(measure)
 
-const DOT_CLASS: Record<string, string> = { success: 'bg-success', warning: 'bg-warning', destructive: 'bg-error' }
-function dotClass(status: ProjectStatus | null): string {
-  return DOT_CLASS[projectBadge(status).tone] ?? 'bg-accented'
-}
-
 function openCreate() {
   router.push({ path: `/projects/${props.projectId}/updates/new`, query: returnToQuery(route.fullPath) })
 }
@@ -67,28 +62,31 @@ function openCreate() {
 <template>
   <SharedLoadingSkeleton v-if="isLoading" />
   <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
-  <SharedEmptyState v-else-if="items.length === 0" :title="t('projects.updates.empty')" :description="t('projects.updates.emptyHint')">
+  <SharedEmptyState v-else-if="items.length === 0" bordered :title="t('projects.updates.empty')" :description="t('projects.updates.emptyHint')">
     <template v-if="canManage" #action>
       <UButton data-testid="project-update-new" size="sm" icon="i-lucide-plus" :disabled="!hydrated" :label="t('projects.updates.new')" @click="openCreate" />
     </template>
   </SharedEmptyState>
-  <ol v-else ref="listEl">
-    <li v-for="(u, index) in items" :key="u.id" class="flex gap-3" :class="index < items.length - 1 ? 'pb-3' : ''">
-      <div class="relative flex w-3 shrink-0 justify-center" aria-hidden="true">
-        <span v-if="items.length > 1" class="w-px self-stretch bg-accented" :class="index === 0 ? 'mt-4' : index === items.length - 1 ? 'mb-auto max-h-4' : ''" />
-        <span class="absolute inset-x-0 top-4 mx-auto size-2.5 rounded-full" :class="dotClass(u.status)" />
-      </div>
-      <UCard as="article" data-testid="project-update" class="min-w-0 flex-1" :ui="{ body: 'p-3 sm:p-3 grid gap-1.5' }">
-        <div class="flex min-w-0 items-center justify-between gap-2">
-          <h3 class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted">{{ u.name }}</h3>
-          <SharedStatusBadge v-bind="projectBadge(u.status)" data-testid="project-status" class="shrink-0" />
-        </div>
-        <p class="text-xs text-muted">{{ t('projects.updates.by', { name: u.author.name }) }} · {{ dateLabel(u.date) }}</p>
-        <div :ref="(el) => setBodyEl(u.id, el)" :class="expanded.has(u.id) ? '' : 'line-clamp-2'">
-          <SharedRichText size="sm" :html="u.description_html" />
-        </div>
-        <UButton v-if="clamped.has(u.id)" color="neutral" variant="link" size="xs" class="justify-self-start px-0" :disabled="!hydrated" :aria-expanded="expanded.has(u.id)" :label="expanded.has(u.id) ? t('projects.updates.showLess') : t('projects.updates.showMore')" @click="toggle(u.id)" />
-      </UCard>
-    </li>
-  </ol>
+  <SharedListCard v-else>
+    <ol ref="listEl" class="divide-y divide-default">
+      <li v-for="u in items" :key="u.id">
+        <article data-testid="project-update" class="grid min-w-0 gap-2 px-(--webvue-card-pad) py-4">
+          <div class="flex min-w-0 items-center justify-between gap-3">
+            <h3 class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted">{{ u.name }}</h3>
+            <SharedStatusBadge v-bind="projectBadge(u.status)" data-testid="project-status" class="shrink-0" />
+          </div>
+          <p class="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+            <SharedPersonAvatar :people="[u.author]" />
+            <span>{{ t('projects.updates.by', { name: u.author.name }) }}</span>
+            <span aria-hidden="true">·</span>
+            <bdi>{{ dateLabel(u.date) }}</bdi>
+          </p>
+          <div :ref="(el) => setBodyEl(u.id, el)" :class="expanded.has(u.id) ? '' : 'line-clamp-2'">
+            <SharedRichText size="sm" :html="u.description_html" />
+          </div>
+          <UButton v-if="clamped.has(u.id)" color="neutral" variant="link" size="xs" class="justify-self-start px-0" :disabled="!hydrated" :aria-expanded="expanded.has(u.id)" :label="expanded.has(u.id) ? t('projects.updates.showLess') : t('projects.updates.showMore')" @click="toggle(u.id)" />
+        </article>
+      </li>
+    </ol>
+  </SharedListCard>
 </template>

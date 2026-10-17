@@ -6,7 +6,6 @@ import { chromium, type Browser, type Page } from 'playwright'
 import ts from 'typescript'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { RACI_ROLE_TONE } from '../governance/state'
-import { STATUS_COLOR } from '@webvue/ui/app/utils/statusTone'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const webRoot = resolve(here, '../../../../../')
@@ -75,7 +74,7 @@ describe('RACI role select authoritative value', () => {
   async function mountMatrix(role: 'R' | 'A', mode: 'cancel' | 'fail' | 'succeed') {
     await page.setContent('<div id="app"></div>')
     await page.addScriptTag({ path: vueGlobal })
-    await page.evaluate(({ renderCode, matrixScriptJs, matrixRenderCode, assignmentJs, changeRoleJs, role, mode, RACI_ROLE_TONE, STATUS_COLOR }) => {
+    await page.evaluate(({ renderCode, matrixScriptJs, matrixRenderCode, assignmentJs, changeRoleJs, role, mode, RACI_ROLE_TONE }) => {
       const Vue = (globalThis as unknown as { Vue: typeof import('vue') }).Vue
       const render = new Function('Vue', renderCode)(Vue) as () => unknown
       const Passthrough = {
@@ -126,8 +125,8 @@ describe('RACI role select authoritative value', () => {
         `${changeRoleJs}\nreturn changeRole;`,
       )(assignment, error, confirmRow, update, create, id, t, ApiError, pending, loading)
       const RaciMatrix = new Function(
-        '_defineComponent', 'useI18n', 'useHydrated', 'RecordNumber', 'STATUS_COLOR', 'RACI_ROLE_TONE', matrixScriptJs,
-      )(Vue.defineComponent, () => ({ t }), () => Vue.ref(true), Passthrough, STATUS_COLOR, RACI_ROLE_TONE)
+        '_defineComponent', 'useI18n', 'useHydrated', 'useId', 'RecordNumber', 'recordNumberHeader', 'RACI_ROLE_TONE', matrixScriptJs,
+      )(Vue.defineComponent, () => ({ t }), () => Vue.ref(true), () => 'raci-help', Passthrough, (translate: (key: string) => string) => Vue.h('span', translate('app.recordNumber')), RACI_ROLE_TONE)
       RaciMatrix.render = new Function('Vue', matrixRenderCode)(Vue)
       const app = Vue.createApp({
         setup() {
@@ -161,6 +160,9 @@ describe('RACI role select authoritative value', () => {
             stakeholderPageNumber: 1,
             stakeholderPages: 1,
             nextTasks() {},
+            noMatrix: false,
+            legend: [],
+            scopeItems: [],
             route: { fullPath: '/projects/7/raci' },
           }
         },
@@ -174,6 +176,7 @@ describe('RACI role select authoritative value', () => {
       })
       app.component('SharedRecordSection', Passthrough)
       app.component('SharedPagination', Passthrough)
+      app.component('SharedStatusBadge', Passthrough)
       app.component('SharedPageContainer', Passthrough)
       app.component('SharedPageHeader', Passthrough)
       app.component('SharedPageState', Passthrough)
@@ -214,7 +217,7 @@ describe('RACI role select authoritative value', () => {
         },
       })
       app.mount('#app')
-    }, { renderCode, matrixScriptJs, matrixRenderCode, assignmentJs, changeRoleJs, role, mode, RACI_ROLE_TONE, STATUS_COLOR })
+    }, { renderCode, matrixScriptJs, matrixRenderCode, assignmentJs, changeRoleJs, role, mode, RACI_ROLE_TONE })
   }
 
   function roleSelect() {

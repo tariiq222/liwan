@@ -116,28 +116,28 @@ async function submit() {
 </script>
 
 <template>
-  <form novalidate class="space-y-8" @submit.prevent="submit">
+  <form novalidate class="webvue-page-stack" @submit.prevent="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedUnsavedChanges :dirty="dirty" />
-    <SharedFormSection :title="t('projects.refresh.workspace.registerDetailsTitle')" :description="t('projects.refresh.workspace.registerDetailsDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection panel :title="t('projects.refresh.workspace.registerDetailsTitle')" :description="t('projects.refresh.workspace.registerDetailsDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField :label="t('projects.governance.register.kind')">
           <USelect id="register-kind" v-model="kind" :items="kindItems" class="w-full" :disabled="!hydrated || pending || !!item" />
         </UFormField>
         <UFormField :label="t('projects.governance.register.priority')">
           <USelect id="register-priority" v-model="priority" :items="priorityItems" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
-        <UFormField class="sm:col-span-2" :label="t('projects.governance.register.itemTitle')" required :error="requiredError">
+        <UFormField :label="t('projects.governance.register.itemTitle')" required :error="requiredError">
           <UInput id="register-title" v-model="title" class="w-full" required :disabled="!hydrated || pending" />
         </UFormField>
-        <UFormField class="sm:col-span-2" :label="t('projects.governance.register.description')">
+        <UFormField :label="t('projects.governance.register.description')">
           <UTextarea id="register-description" v-model="description" class="w-full" :rows="4" :disabled="!hydrated || pending" />
         </UFormField>
       </div>
     </SharedFormSection>
 
-    <SharedFormSection :title="t('projects.refresh.workspace.registerOwnershipTitle')" :description="t('projects.refresh.workspace.registerOwnershipDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection panel :title="t('projects.refresh.workspace.registerOwnershipTitle')" :description="t('projects.refresh.workspace.registerOwnershipDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField :label="t('projects.governance.register.status')">
           <USelect id="register-status" v-model="status" :items="statusItems" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
@@ -186,8 +186,8 @@ async function submit() {
       </div>
     </SharedFormSection>
 
-    <SharedFormSection v-if="kind === 'risk'" :title="t('projects.refresh.workspace.registerRiskTitle')" :description="t('projects.refresh.workspace.registerRiskDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection v-if="kind === 'risk'" panel :title="t('projects.refresh.workspace.registerRiskTitle')" :description="t('projects.refresh.workspace.registerRiskDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField :label="t('projects.governance.register.probability')">
           <UInputNumber id="register-probability" v-model="probability" class="w-full" :min="1" :max="5" :disabled="!hydrated || pending" />
         </UFormField>
@@ -197,15 +197,18 @@ async function submit() {
       </div>
     </SharedFormSection>
 
-    <SharedFormSection :title="t('projects.refresh.workspace.registerPlanTitle')" :description="t('projects.refresh.workspace.registerPlanDescription')">
+    <SharedFormSection panel :title="t('projects.refresh.workspace.registerPlanTitle')" :description="t('projects.refresh.workspace.registerPlanDescription')">
       <UFormField :label="t('projects.governance.register.response')">
         <UTextarea id="register-response" v-model="response" class="w-full" :rows="4" :disabled="!hydrated || pending" />
       </UFormField>
     </SharedFormSection>
 
-    <SharedFormActions class="flex flex-wrap gap-2 justify-end">
-      <UButton type="button" color="neutral" :disabled="!hydrated || pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ t('app.save') }}</UButton>
+    <SharedFormActions>
+      <p class="me-auto text-xs text-muted">{{ t('projects.requiredHint') }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
+        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ t('app.save') }}</UButton>
+      </div>
     </SharedFormActions>
   </form>
 </template>

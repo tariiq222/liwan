@@ -75,8 +75,11 @@
   --webvue-row-h-comfortable: 3.714286rem;
   --webvue-card-pad: 1.428571rem;
   --webvue-card-pad-dense: 1.142857rem;
+  --webvue-subcard-pad: 0.857143rem;
   --webvue-gap-card: 1.142857rem;
   --webvue-gap-section: 2.285714rem;
+  --webvue-progress-sm: 0.428571rem;
+  --webvue-progress-md: 0.571429rem;
   /* Shell: a white floating module rail (fixed WebVue blue accents, not tenant-derived) and surfaces. */
   --webvue-rail-border: #d8deec;
   --webvue-rail-ink: #475569;

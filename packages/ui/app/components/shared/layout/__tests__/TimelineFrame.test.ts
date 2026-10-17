@@ -16,6 +16,7 @@ const UButton = defineComponent({
 })
 const stubs = {
   UButton,
+  UTooltip: defineComponent({ setup: (_, { slots }) => () => slots.default?.() }),
   SharedPageContainer: defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) { return () => h('div', attrs, slots.default?.()) } }),
   SharedPageHeader: defineComponent({
     props: { title: String, hideTitle: Boolean },

@@ -18,4 +18,11 @@ describe('SharedListCard', () => {
     expect(html).toMatch(/list-card-body[^>]*>(<!--\[-->)?<p>board/)
     expect(await renderShared('ListCard', {}, { default: () => h('p', 'board') })).not.toContain('webvue-list-card-fill')
   })
+
+  it('draws the footer as the last row under a hairline, and no row without the slot', async () => {
+    const html = await renderShared('ListCard', {}, { default: () => h('p', 'content'), footer: () => h('span', 'count') })
+    expect(html).toMatch(/list-card-footer[^>]*border-t border-default/)
+    expect(html.indexOf('content')).toBeLessThan(html.indexOf('count'))
+    expect(await renderShared('ListCard', {}, { default: () => h('p', 'content') })).not.toContain('list-card-footer')
+  })
 })

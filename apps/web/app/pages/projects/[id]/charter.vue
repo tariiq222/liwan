@@ -75,10 +75,12 @@ function onCancel() {
     </SharedPageHeader>
     <p v-if="projectId === null" class="text-muted">{{ t('projects.invalidId') }}</p>
     <SharedPageState v-else :loading="isLoading && !project" :error="notFound ? null : error" :empty="notFound || (!isLoading && !error && !project)" :empty-text="notFound ? t('projects.notFound') : t('projects.empty')" @retry="refetch">
-      <UAlert v-if="project && charterState === 'draft' && project.charter.return_note" class="mb-4" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="project.charter.return_note" />
-      <SharedFormSection panel>
-        <ProjectCharterForm mode="edit" :project="project" :readonly="false" :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @saved="onSaved" @draft-saved="onDraftSaved" @cancel="onCancel" @retry-milestones="refetchMilestones" />
-      </SharedFormSection>
+      <div class="grid gap-(--webvue-gap-card)">
+        <UAlert v-if="project && charterState === 'draft' && project.charter.return_note" color="warning" variant="subtle" icon="i-lucide-undo-2" data-testid="charter-returned" :title="t('projects.charter.returned')" :description="project.charter.return_note" />
+        <SharedFormSection panel>
+          <ProjectCharterForm mode="edit" :project="project" :readonly="false" :milestones="milestones ?? []" :milestones-loading="milestonesLoading" :milestones-error="milestonesError" @saved="onSaved" @draft-saved="onDraftSaved" @cancel="onCancel" @retry-milestones="refetchMilestones" />
+        </SharedFormSection>
+      </div>
     </SharedPageState>
   </SharedPageContainer>
 </template>

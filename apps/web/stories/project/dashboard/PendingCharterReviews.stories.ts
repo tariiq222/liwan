@@ -14,7 +14,7 @@ const list = (items: unknown[]) => [http.get('/api/v1/projects', () => HttpRespo
 const meta = {
   title: 'Project/PendingCharterReviews',
   component: PendingCharterReviews,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/dashboard.vue:165') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/projects/dashboard.vue:189') },
   render: () => ({
     components: { PageContainer, PendingCharterReviews },
     template: '<main class="webvue-shell-main"><PageContainer width="list"><PendingCharterReviews /></PageContainer></main>',

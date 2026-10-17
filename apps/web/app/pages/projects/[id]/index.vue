@@ -30,25 +30,23 @@ const copyTo = computed(() => ({
   path: '/projects/new',
   query: { copyFrom: String(projectId.value), ...returnToQuery(route.fullPath) },
 }))
-
-
 </script>
 
 <template>
   <SharedPageContainer v-if="notFound" width="list">
-    <div class="flex flex-col items-start gap-3">
+    <div class="flex flex-col items-start gap-(--webvue-gap-card)">
       <p class="text-muted">{{ t('projects.notFound') }}</p>
       <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
     </div>
   </SharedPageContainer>
   <!-- The workspace frame above is this page's h1, so hide-header draws no heading here. The title still
-       names the page for the shell. The frame and its tabs span the full list width, so the record drops its 68rem
-       cap and the summary tiles line up with the tab strip. -->
-  <SharedRecordPage :keep-content="!!project" v-else hide-header class="!max-w-none" :title="t('nav.projectSummary')" :loading="loading" :error="error" @retry="refetch">
+       names the page for the shell. The frame and its tabs span the full list width, so the record is full width
+       too and the summary tiles line up with the tab strip. -->
+  <SharedRecordPage :keep-content="!!project" v-else hide-header width="full" :title="t('nav.projectSummary')" :loading="loading" :error="error" @retry="refetch">
     <template v-if="canCopy" #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-copy" :to="copyTo" data-testid="project-copy-link" :label="t('projects.copy.action')" />
     </template>
-    <div v-if="project" class="flex flex-col gap-6">
+    <div v-if="project" class="flex flex-col gap-(--webvue-gap-card)">
       <ProjectPhaseGate :project="project" />
       <ProjectOverview :project="project" />
     </div>

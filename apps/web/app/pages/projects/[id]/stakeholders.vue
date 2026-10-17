@@ -50,12 +50,17 @@ function clearFilters() {
 }
 
 const columns = computed(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t) },
-  { accessorKey: 'name', header: t('projects.governance.stakeholder.name') },
-  { accessorKey: 'organization', header: t('projects.governance.stakeholder.organization') },
-  { accessorKey: 'role', header: t('projects.governance.stakeholder.role') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2', td: 'w-12 px-2' } } },
+  { accessorKey: 'name', header: t('projects.governance.stakeholder.name'), meta: { class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
+  { accessorKey: 'organization', header: t('projects.governance.stakeholder.organization'), meta: { class: { td: 'max-w-0 min-w-40 truncate' } } },
+  { accessorKey: 'role', header: t('projects.governance.stakeholder.role'), meta: { class: { td: 'max-w-0 min-w-40 truncate' } } },
+  { id: 'user', header: t('projects.governance.stakeholder.internalUser'), meta: { class: { th: 'w-36', td: 'w-36' } } },
   { id: 'actions', header: t('app.actions'), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } },
 ])
+const total = computed(() => list.data.value?.total ?? 0)
+const items = computed(() => list.data.value?.items ?? [])
+// Nobody registered and nothing searched is an empty page, not an empty list: no filter row to show.
+const bareEmpty = computed(() => Boolean(list.data.value) && !items.value.length && !activeFilterCount.value && !parsed.value.offset)
 async function deleteItem(item: { id: number }) {
   error.value = null
   if (confirmDeleteId.value !== item.id) { confirmDeleteId.value = item.id; return }
@@ -104,21 +109,6 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
     :create-label="t('projects.governance.newStakeholder')"
     create-test-id="stakeholders-create"
   >
-    <template #filters>
-      <div class="w-full min-w-0" data-testid="stakeholders-toolbar">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="search" :aria-label="t('projects.clarity.stakeholderSearch')" :disabled="!hydrated" :placeholder="t('projects.clarity.stakeholderSearch')" icon="i-lucide-search" class="w-full min-w-52" />
-          </template>
-          <template #active>
-            <div v-if="search.trim()" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip :label="`${t('projects.clarity.stakeholderSearch')}: ${search}`" @remove="clearFilters" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-    </template>
-
     <SharedInlineConfirm
       v-if="confirmItem"
       data-testid="stakeholder-delete-confirm"
@@ -132,37 +122,58 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
     </SharedInlineConfirm>
     <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
-    <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
-    <SharedEmptyState v-else-if="!list.isLoading.value && !list.data.value?.items.length" :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.stakeholdersEmpty')" />
-    <SharedDataTable v-else :rows="list.data.value?.items ?? []" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.governance.stakeholders')">
-      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-      <template #name-cell="{ row }">
-        <NuxtLink :to="itemTo(row.original)" @click="openLiveItem($event, row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
-      </template>
-      <template #organization-cell="{ row }">{{ row.original.organization || '—' }}</template>
-      <template #role-cell="{ row }">{{ row.original.role || '—' }}</template>
-      <template #actions-cell="{ row }">
-        <div v-if="list.data.value?.can_manage" class="flex justify-end">
-          <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.name })" :disabled="!hydrated" />
+    <SharedEmptyState v-if="bareEmpty" bordered :title="t('projects.clarity.stakeholdersEmpty')" />
+    <SharedListCard v-else>
+      <template #filters>
+        <div class="w-full min-w-0" data-testid="stakeholders-toolbar">
+          <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+            <template #search>
+              <UInput v-model="search" :aria-label="t('projects.clarity.stakeholderSearch')" :disabled="!hydrated" :placeholder="t('projects.clarity.stakeholderSearch')" icon="i-lucide-search" class="w-full min-w-52">
+                <template v-if="search" #trailing>
+                  <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('projects.filters.clearSearch')" class="-me-1" @click="clearFilters" />
+                </template>
+              </UInput>
+            </template>
+          </FilterBar>
         </div>
       </template>
-      <template #mobile-row="{ row: item }">
-        <div class="space-y-3">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0 space-y-1">
-              <RecordNumber :value="item.id" />
-              <NuxtLink :to="itemTo(item)" @click="openLiveItem($event, item)" class="block font-medium text-highlighted hover:underline">{{ item.name }}</NuxtLink>
-            </div>
-            <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.name })" :disabled="!hydrated" />
+      <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
+      <div v-else-if="!list.isLoading.value && !items.length" class="p-(--webvue-card-pad)">
+        <SharedEmptyState :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.stakeholdersEmpty')" />
+      </div>
+      <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.governance.stakeholders')">
+        <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+        <template #name-cell="{ row }">
+          <NuxtLink :to="itemTo(row.original)" @click="openLiveItem($event, row.original)" class="block truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+        </template>
+        <template #organization-cell="{ row }"><span :title="row.original.organization">{{ row.original.organization || '—' }}</span></template>
+        <template #role-cell="{ row }"><span :title="row.original.role">{{ row.original.role || '—' }}</span></template>
+        <template #user-cell="{ row }"><SharedPersonAvatar :people="row.original.user ? [row.original.user] : []" /></template>
+        <template #actions-cell="{ row }">
+          <div v-if="list.data.value?.can_manage" class="flex justify-end">
+            <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.name })" :disabled="!hydrated" />
           </div>
-          <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-            <div><dt class="text-xs text-muted">{{ t('projects.governance.stakeholder.organization') }}</dt><dd>{{ item.organization || '—' }}</dd></div>
-            <div><dt class="text-xs text-muted">{{ t('projects.governance.stakeholder.role') }}</dt><dd>{{ item.role || '—' }}</dd></div>
-          </dl>
-        </div>
+        </template>
+        <template #mobile-row="{ row: item }">
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 space-y-1">
+                <RecordNumber :value="item.id" />
+                <NuxtLink :to="itemTo(item)" @click="openLiveItem($event, item)" class="block font-semibold text-highlighted hover:underline">{{ item.name }}</NuxtLink>
+              </div>
+              <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.name })" :disabled="!hydrated" />
+            </div>
+            <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <div><dt class="text-xs text-muted">{{ t('projects.governance.stakeholder.organization') }}</dt><dd>{{ item.organization || '—' }}</dd></div>
+              <div><dt class="text-xs text-muted">{{ t('projects.governance.stakeholder.role') }}</dt><dd>{{ item.role || '—' }}</dd></div>
+            </dl>
+          </div>
+        </template>
+      </SharedDataTable>
+      <template v-if="!list.error.value && items.length" #footer>
+        <SharedListFooter :count-label="t('projects.footer.results', { shown: items.length, total }, total)" count-test-id="stakeholders-result-count" :page="pageNumber" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
       </template>
-    </SharedDataTable>
-    <SharedPagination v-if="list.data.value" :page="pageNumber" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
+    </SharedListCard>
   </SharedListPage>
   <NuxtPage />
 </template>

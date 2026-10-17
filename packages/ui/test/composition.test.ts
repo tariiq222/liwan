@@ -6,7 +6,7 @@ import * as Vue from 'vue'
 import { createSSRApp, defineComponent, h, type Component, type RenderFunction, type VNode } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { renderFilter } from './helpers/filterComponents'
-import { sharedFile } from './helpers/renderShared'
+import { renderShared as renderCompiled, sharedFile } from './helpers/renderShared'
 
 const NuxtLinkStub = defineComponent({
   props: { to: { type: [String, Object], default: '#' } },
@@ -114,7 +114,7 @@ describe('shared composition rendered contracts', () => {
   it('renders each page width as its own class, and defaults to the list band', async () => {
     // The width is a vocabulary of three named bands, not a utility a page
     // picks for itself: the class is what the stylesheet sizes.
-    for (const width of ['list', 'detail', 'form'] as const) {
+    for (const width of ['list', 'detail', 'form', 'full'] as const) {
       const html = await renderShared('PageContainer', { width }, { default: () => h('p', 'محتوى') })
       expect(html, width).toContain(`data-layout-width="${width}"`)
       expect(html, width).toContain(`webvue-page-width-${width}`)
@@ -126,12 +126,13 @@ describe('shared composition rendered contracts', () => {
   })
 
   it('renders FormSection title and description with reference section spacing', async () => {
-    const html = await renderShared(
+    const html = await renderCompiled(
       'FormSection',
       { title: 'General', description: 'Identity fields' },
       { default: () => h('input', { 'aria-label': 'Name' }) },
     )
-    expect(html).toContain('<section class="space-y-5">')
+    expect(html).toContain('data-variant="flat"')
+    expect(html).toContain('<div class="space-y-5">')
     expect(html).toContain('General')
     expect(html).toContain('Identity fields')
     expect(html).toContain('aria-label="Name"')

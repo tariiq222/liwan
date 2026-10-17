@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>
 
 export const InTableCell: Story = {
   name: 'داخل خلية جدول',
-  parameters: storyContext('apps/web/app/pages/projects/[id]/stakeholders.vue:137'),
+  parameters: storyContext('apps/web/app/pages/projects/[id]/stakeholders.vue:148'),
   render: () => ({
     components: { RecordNumber },
     setup() {
@@ -30,7 +30,7 @@ export const InTableCell: Story = {
 
 export const InMobileCard: Story = {
   name: 'داخل بطاقة الجوال',
-  parameters: storyContext('apps/web/app/pages/projects/[id]/stakeholders.vue:137', 'تظهر البطاقة تحت 768px (md:hidden)، فالغلاف بعرض شاشة جوال 375px.'),
+  parameters: storyContext('apps/web/app/pages/projects/[id]/stakeholders.vue:164', 'تظهر البطاقة تحت 768px (md:hidden)، فالغلاف بعرض شاشة جوال 375px.'),
   render: args => ({
     components: { RecordNumber },
     setup: () => ({ args }),

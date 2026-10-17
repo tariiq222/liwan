@@ -101,7 +101,7 @@ async function retry() {
           <UAlert v-else-if="backupUnverified" color="warning" variant="subtle" :title="t('vendor.operations.backupUnverified')" :description="t('vendor.operations.backupUnverifiedHint')" />
         </div>
 
-        <SharedRecordSection v-if="can('vendor.operations.run') && canRetry" :title="t('vendor.operations.retryTitle')" :description="t('vendor.operations.retryHint')" panel>
+        <SharedRecordSection v-if="can('vendor.operations.run') && canRetry" :title="t('vendor.operations.retryTitle')" :description="t('vendor.operations.retryHint')" variant="panel">
           <UAlert v-if="actionError" class="mb-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />
           <form class="grid gap-3" @submit.prevent="retry">
             <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="reason" required maxlength="1000" class="w-full" /></UFormField>

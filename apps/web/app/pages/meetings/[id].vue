@@ -189,7 +189,7 @@ function displayValue(value: string | null | undefined) {
       </SharedInlineConfirm>
 
       <template v-if="activeTab === 'summary'">
-        <SharedRecordSection id="meeting-summary" :title="t('meetingsUi.sectionPeople')" panel>
+        <SharedRecordSection id="meeting-summary" :title="t('meetingsUi.sectionPeople')" variant="panel">
           <div class="grid gap-4 sm:grid-cols-2">
             <div><p class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</p><p class="text-highlighted">{{ displayValue(query.data.value.secretary?.name) }}</p></div>
             <div><p class="mb-2 text-sm text-muted">{{ t('meetingsUi.attendees') }}</p>

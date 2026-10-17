@@ -99,14 +99,14 @@ describe('SharedViewSwitch', () => {
     const html = await renderShared('ViewSwitch', { modelValue: 'table', options: views }, {}, { hydrated: false, stubs: { UTooltip: TooltipStub } })
     expect(html).toContain('role="group"')
     expect(html).toContain('aria-label="states.view"')
-    expect(html).toMatch(/<button[^>]*aria-label="Table view"[^>]*aria-pressed="true"[^>]*disabled[^>]*data-view="table"/)
-    expect(html).toMatch(/<button[^>]*aria-label="Board view"[^>]*aria-pressed="false"[^>]*disabled[^>]*data-view="board"/)
+    expect(html).toMatch(/<button[^>]*aria-label="Table view"[^>]*aria-pressed="true"[^>]*disabled[^>]*data-value="table"/)
+    expect(html).toMatch(/<button[^>]*aria-label="Board view"[^>]*aria-pressed="false"[^>]*disabled[^>]*data-value="board"/)
   })
 
   it('puts an option test id on its button only when the option has one', async () => {
     const withIds = [{ ...views[0]!, testId: 'projects-view-table' }, views[1]!]
     const html = await renderShared('ViewSwitch', { modelValue: 'table', options: withIds }, {}, { stubs: { UTooltip: TooltipStub } })
-    expect(html).toMatch(/<button(?=[^>]*data-view="table")(?=[^>]*data-testid="projects-view-table")[^>]*>/)
+    expect(html).toMatch(/<button(?=[^>]*data-value="table")(?=[^>]*data-testid="projects-view-table")[^>]*>/)
     expect(html.match(/data-testid=/g)).toHaveLength(1)
   })
 })

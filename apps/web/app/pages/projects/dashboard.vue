@@ -162,47 +162,49 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
 <template>
   <SharedDashboardPage :title="t('projects.dashboard.title')" data-testid="project-dashboard-page">
     <template #filters>
-      <PendingCharterReviews class="mb-5" />
-      <div class="w-full min-w-0">
-        <FilterBar class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" icon="i-lucide-search" class="min-w-52 flex-1" />
-          </template>
-          <template #default>
-            <SharedFilterChoice
-              data-testid="project-dashboard-status-filter"
-              :label="t('projects.filters.statusLabel')"
-              :items="statusOptions"
-              :model-value="filters.status"
-              :disabled="!hydrated"
-              @update:model-value="onStatusChange"
-            />
-          </template>
-          <template #active>
-            <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="filters.q.trim()" :label="t('projects.filters.searchValue', { value: filters.q })" @remove="clearSearch" />
-              <SharedFilterChip v-if="filters.status !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
+      <FilterBar embedded class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <template #search>
+          <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.reports.search')" :aria-label="t('projects.reports.search')" icon="i-lucide-search" class="min-w-52 flex-1" />
+        </template>
+        <template #default>
+          <SharedFilterChoice
+            data-testid="project-dashboard-status-filter"
+            :label="t('projects.filters.statusLabel')"
+            :items="statusOptions"
+            :model-value="filters.status"
+            :disabled="!hydrated"
+            @update:model-value="onStatusChange"
+          />
+        </template>
+        <template #active>
+          <div v-if="filtered" class="flex flex-wrap items-center gap-2">
+            <SharedFilterChip v-if="filters.q.trim()" :label="t('projects.filters.searchValue', { value: filters.q })" @remove="clearSearch" />
+            <SharedFilterChip v-if="filters.status !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
+          </div>
+        </template>
+      </FilterBar>
+    </template>
+
+    <template #primary>
+      <PendingCharterReviews />
     </template>
 
     <template v-if="hasRows" #metrics>
       <ProjectDashboardMetrics :rows="rows" />
     </template>
 
-    <SharedLoadingSkeleton v-if="loadingState" variant="cards" :count="4" class="@min-[768px]:col-span-2" />
+    <SharedLoadingSkeleton v-if="loadingState" variant="cards" :count="4" class="col-span-full" />
     <SharedErrorState
       v-else-if="analytics.error.value"
-      class="@min-[768px]:col-span-2"
+      class="col-span-full"
       data-testid="project-dashboard-analytics-error"
       :error="analytics.error.value"
       :title="t('projects.dashboard.analyticsError')"
       @retry="analytics.refetch()"
     />
-    <div v-else-if="rows.length === 0" class="@min-[768px]:col-span-2" data-testid="project-dashboard-empty">
+    <div v-else-if="rows.length === 0" class="col-span-full" data-testid="project-dashboard-empty">
       <SharedEmptyState
+        bordered
         :title="t(filtered ? 'projects.filteredEmpty' : 'projects.dashboard.empty')"
         :description="t(filtered ? 'projects.filteredEmptyHint' : 'projects.emptyHint')"
       >
@@ -212,7 +214,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
       </SharedEmptyState>
     </div>
     <template v-else>
-      <ProjectDashboardRecentProjects class="@min-[768px]:col-span-2" :rows="recentRows" :all-rows="rows" />
+      <ProjectDashboardRecentProjects class="col-span-full" :rows="recentRows" :all-rows="rows" />
       <ProjectDashboardCharts :rows="rows" />
     </template>
   </SharedDashboardPage>

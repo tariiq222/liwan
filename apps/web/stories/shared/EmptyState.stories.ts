@@ -28,3 +28,12 @@ export const InTaskListMobile: Story = {
     template: `<div class="rounded-card ring ring-default bg-default overflow-hidden" style="width: 375px"><div class="divide-y divide-default"><div class="p-6 text-center"><EmptyState :title="$t('tasks.empty.closedTitle')" /></div></div></div>`,
   }),
 }
+
+export const Bordered: Story = {
+  name: 'بطاقة كاملة لصفحة فارغة',
+  parameters: storyContext('unused', '`bordered`: وصفة البطاقة (18px وحد رفيع وخلفية بيضاء) حين يكون كل جسم الصفحة فارغًا، بدل البطاقة المرسومة يدويًا.'),
+  render: () => ({
+    components: { EmptyState },
+    template: `<div class="max-w-2xl bg-muted p-4"><EmptyState bordered :title="$t('tasks.empty.title')"><template #action><UButton size="sm">{{ $t('tasks.empty.action') }}</UButton></template></EmptyState></div>`,
+  }),
+}

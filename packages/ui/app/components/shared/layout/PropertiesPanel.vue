@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// The record's properties (Tasmim spec §6): one description list of SharedPropertyRow.
+// The record's properties (Tasmim spec §6): one description list of SharedPropertyRow in the shared panel card.
+import RecordSection from './RecordSection.vue'
+
 const props = defineProps<{ title?: string }>()
-const headingId = useId()
 </script>
 
 <template>
-  <section data-slot="properties-panel" class="rounded-card bg-default px-4 py-3 ring ring-default" :aria-labelledby="props.title ? headingId : undefined">
-    <h2 v-if="props.title" :id="headingId" class="text-sm font-semibold text-highlighted">{{ props.title }}</h2>
+  <RecordSection variant="panel" :title="props.title" data-slot="properties-panel">
     <dl class="divide-y divide-default"><slot /></dl>
-  </section>
+  </RecordSection>
 </template>

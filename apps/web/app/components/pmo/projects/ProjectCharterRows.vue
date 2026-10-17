@@ -49,8 +49,8 @@ function addDeliverable() {
 </script>
 
 <template>
-  <div class="space-y-8">
-    <section v-if="showObjectives" class="space-y-3" data-testid="charter-field-objectives">
+  <div class="grid gap-(--webvue-gap-section)">
+    <section v-if="showObjectives" class="grid gap-3" data-testid="charter-field-objectives">
       <div class="flex items-center gap-1">
         <h2 class="text-base font-semibold text-highlighted">{{ t('projects.charter.fields.objectives') }}</h2>
         <ProjectFieldHelp
@@ -58,10 +58,10 @@ function addDeliverable() {
           :text="t('projects.charter.help.objectives')"
         />
       </div>
-      <div
+      <SharedSubCard
         v-for="(row, index) in draft.objectives"
         :key="row.key"
-        class="space-y-3 rounded-md border border-default p-3"
+        class="grid gap-3"
         :data-testid="`charter-objective-${index}`"
       >
         <div class="grid gap-3 md:grid-cols-3">
@@ -106,11 +106,11 @@ function addDeliverable() {
           @cancel="pendingRemove = null"
           @confirm="removeRow('objective', row.key)"
         />
-      </div>
+      </SharedSubCard>
       <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" icon="i-lucide-plus" :label="t('projects.charter.addObjective')" @click="addObjective" variant="outline" />
     </section>
 
-    <section v-if="showDeliverables" class="space-y-3" data-testid="charter-field-deliverables">
+    <section v-if="showDeliverables" class="grid gap-3" data-testid="charter-field-deliverables">
       <div class="flex items-center gap-1">
         <h2 class="text-base font-semibold text-highlighted">{{ t('projects.charter.fields.deliverables') }}</h2>
         <ProjectFieldHelp
@@ -118,10 +118,10 @@ function addDeliverable() {
           :text="t('projects.charter.help.deliverables')"
         />
       </div>
-      <div
+      <SharedSubCard
         v-for="(row, index) in draft.deliverables"
         :key="row.key"
-        class="space-y-3 rounded-md border border-default p-3"
+        class="grid gap-3"
         :data-testid="`charter-deliverable-${index}`"
       >
         <UFormField :label="t('projects.charter.fields.deliverableName')">
@@ -166,7 +166,7 @@ function addDeliverable() {
           @cancel="pendingRemove = null"
           @confirm="removeRow('deliverable', row.key)"
         />
-      </div>
+      </SharedSubCard>
       <UButton v-if="!readonly" type="button" color="neutral" size="sm" :disabled="disabled" icon="i-lucide-plus" :label="t('projects.charter.addDeliverable')" @click="addDeliverable" variant="outline" />
     </section>
   </div>

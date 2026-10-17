@@ -22,7 +22,7 @@ describe('milestones stay on their templates', () => {
   })
   it('the edit page has no hand-built card', () => {
     const edit = read('pages/projects/[id]/milestones/[milestoneId]/edit.vue')
-    expect(edit).toContain('<SharedFormSection panel')
+    expect(edit).toMatch(/<SharedFormSection[^>]* panel/)
     expect(edit).not.toContain('rounded-lg ring ring-default')
   })
 })

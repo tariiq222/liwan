@@ -7,6 +7,7 @@ import { useGovernanceTaskPage, useProjectRaci, useProjectStakeholders, useCreat
 import type { ProjectRaci, ProjectRaciRole } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import { RACI_ROLE_TONE } from '@/components/pmo/projects/governance/state'
 import { projectSectionLocation } from '@/utils/projectWorkspaceMemory'
 const route = useRoute(); const router = useRouter(); const { t } = useI18n(); const hydrated = useHydrated()
 const id = computed(() => Number(route.params.id)); const viewport = computed(() => governanceMatrixFilters(route.query))
@@ -59,30 +60,22 @@ const taskPageNumber = computed(() => taskPage.value + 1)
 const taskPages = computed(() => Math.max(1, taskPageNumber.value, Math.ceil((tasks.data.value?.total ?? 0) / TASK_PAGE)))
 const stakeholderPageNumber = computed(() => stakeholderPage.value + 1)
 const stakeholderPages = computed(() => Math.max(1, stakeholderPageNumber.value, Math.ceil((stakeholders.data.value?.total ?? 0) / STAKEHOLDER_PAGE)))
+const scopeItems = computed(() => [
+  { value: 'open', label: t('projects.governance.openTasks') },
+  { value: 'closed', label: t('projects.governance.closedTasks') },
+])
+// The same four roles as the matrix chips, in the order of the acronym.
+const legend = computed(() => [
+  { role: 'R' as const, name: t('projects.refresh.workspace.raciResponsible'), hint: t('projects.refresh.workspace.raciResponsibleHint') },
+  { role: 'A' as const, name: t('projects.refresh.workspace.raciAccountable'), hint: t('projects.refresh.workspace.raciAccountableHint') },
+  { role: 'C' as const, name: t('projects.refresh.workspace.raciConsulted'), hint: t('projects.refresh.workspace.raciConsultedHint') },
+  { role: 'I' as const, name: t('projects.refresh.workspace.raciInformed'), hint: t('projects.refresh.workspace.raciInformedHint') },
+])
+const noMatrix = computed(() => !visibleTasks.value.length || !visibleStakeholders.value.length)
 const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading.value && !rows.isLoading.value && !tasks.error.value && !stakeholders.error.value && !rows.error.value)
 </script>
 <template>
   <SharedListPage hide-header :title="t('projects.governance.raci.title')">
-    <template #filters>
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
-        <template #search>
-          <div class="grid min-w-0 gap-3 sm:grid-cols-2">
-            <UFormField :label="t('projects.governance.raci.task')"><UInput v-model="taskSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" class="w-full" /></UFormField>
-            <UFormField :label="t('projects.governance.raci.stakeholder')"><UInput v-model="stakeholderSearch" :disabled="!hydrated || pending" :placeholder="t('app.search')" class="w-full" /></UFormField>
-          </div>
-        </template>
-        <template #view>
-          <UTabs data-testid="raci-closed-scope" :model-value="closed ? 'closed' : 'open'" :items="[{ label: t('projects.governance.openTasks'), value: 'open', disabled: !hydrated || pending }, { label: t('projects.governance.closedTasks'), value: 'closed', disabled: !hydrated || pending }]" size="sm" @update:model-value="closed = $event === 'closed'" />
-        </template>
-        <template #active>
-          <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-            <SharedFilterChip v-if="taskSearch.trim()" :label="`${t('projects.governance.raci.task')}: ${taskSearch}`" :disabled="pending" @remove="taskSearch = ''" />
-            <SharedFilterChip v-if="stakeholderSearch.trim()" :label="`${t('projects.governance.raci.stakeholder')}: ${stakeholderSearch}`" :disabled="pending" @remove="stakeholderSearch = ''" />
-          </div>
-        </template>
-      </FilterBar>
-    </template>
-
     <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
     <!-- role="group" keeps the confirmation addressable by its question while the matrix stays locked. -->
     <SharedInlineConfirm
@@ -98,51 +91,65 @@ const settled = computed(() => !tasks.isLoading.value && !stakeholders.isLoading
       @confirm="deleteRow"
     />
 
-    <SharedPageState v-if="!settled" :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
-    <SharedEmptyState
-      v-else-if="!visibleTasks.length || !visibleStakeholders.length"
-      data-testid="raci-empty"
-      :title="t('projects.refresh.workspace.raciEmptyTitle')"
-      :description="t(!visibleTasks.length && !visibleStakeholders.length ? 'projects.refresh.workspace.raciEmptyBoth' : !visibleTasks.length ? 'projects.refresh.workspace.raciEmptyTasks' : 'projects.refresh.workspace.raciEmptyStakeholders')"
-    >
-      <template #action>
-        <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="tasksTo">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
-        <UButton v-if="!visibleStakeholders.length && rows.data.value?.can_manage" color="neutral" variant="outline" icon="i-lucide-plus" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</UButton>
+    <SharedListCard>
+      <template #filters>
+        <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated || pending" @clear="clearFilters">
+          <template #search>
+            <UInput v-model="taskSearch" icon="i-lucide-search" :disabled="!hydrated || pending" :aria-label="t('projects.governance.raci.searchTasks')" :placeholder="t('projects.governance.raci.searchTasks')" class="w-full min-w-52">
+              <template v-if="taskSearch" #trailing>
+                <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('projects.filters.clearSearch')" class="-me-1" :disabled="pending" @click="taskSearch = ''" />
+              </template>
+            </UInput>
+          </template>
+          <template #default>
+            <UInput v-model="stakeholderSearch" icon="i-lucide-users" :disabled="!hydrated || pending" :aria-label="t('projects.governance.raci.searchStakeholders')" :placeholder="t('projects.governance.raci.searchStakeholders')" class="w-full md:w-64">
+              <template v-if="stakeholderSearch" #trailing>
+                <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('projects.filters.clearSearch')" class="-me-1" :disabled="pending" @click="stakeholderSearch = ''" />
+              </template>
+            </UInput>
+          </template>
+          <template #view>
+            <SharedSegmentedControl data-testid="raci-closed-scope" :label="t('projects.governance.raci.task')" :items="scopeItems" :model-value="closed ? 'closed' : 'open'" :disabled="!hydrated || pending" @update:model-value="closed = $event === 'closed'" />
+          </template>
+        </FilterBar>
       </template>
-    </SharedEmptyState>
-    <RaciMatrix
-      v-else
-      :project-id="id"
-      :tasks="visibleTasks"
-      :stakeholders="visibleStakeholders"
-      :assignments="assignments"
-      :can-manage="rows.data.value?.can_manage === true"
-      :locked="pending || loading || !!confirmRow"
-      :return-to="route.fullPath"
-      @change="changeRole"
-    />
+      <SharedPageState v-if="!settled" :loading="tasks.isLoading.value || stakeholders.isLoading.value || rows.isLoading.value" :error="tasks.error.value || stakeholders.error.value || rows.error.value" :empty="false" @retry="() => { tasks.refetch(); stakeholders.refetch(); rows.refetch() }" />
+      <div v-else-if="noMatrix" class="p-(--webvue-card-pad)">
+        <SharedEmptyState
+          data-testid="raci-empty"
+          :title="t('projects.refresh.workspace.raciEmptyTitle')"
+          :description="t(!visibleTasks.length && !visibleStakeholders.length ? 'projects.refresh.workspace.raciEmptyBoth' : !visibleTasks.length ? 'projects.refresh.workspace.raciEmptyTasks' : 'projects.refresh.workspace.raciEmptyStakeholders')"
+        >
+          <template #action>
+            <UButton v-if="!visibleTasks.length" color="neutral" variant="outline" :to="tasksTo">{{ t('projects.refresh.workspace.raciOpenTasks') }}</UButton>
+            <UButton v-if="!visibleStakeholders.length && rows.data.value?.can_manage" color="neutral" variant="outline" icon="i-lucide-plus" :to="{ path: `/projects/${id}/stakeholders/new`, query: { returnTo: route.fullPath } }">{{ t('projects.refresh.workspace.raciAddStakeholder') }}</UButton>
+          </template>
+        </SharedEmptyState>
+      </div>
+      <RaciMatrix
+        v-else
+        :project-id="id"
+        :tasks="visibleTasks"
+        :stakeholders="visibleStakeholders"
+        :assignments="assignments"
+        :can-manage="rows.data.value?.can_manage === true"
+        :locked="pending || loading || !!confirmRow"
+        :return-to="route.fullPath"
+        @change="changeRole"
+      />
+      <template v-if="taskPages > 1 || stakeholderPages > 1" #footer>
+        <div class="grid w-full gap-(--webvue-gap-card) sm:grid-cols-2">
+          <div role="group" :aria-label="t('projects.governance.raci.task')"><SharedPagination :page="taskPageNumber" :pages="taskPages" :disabled="loading || pending" @update:page="taskPage = $event - 1" /></div>
+          <div role="group" :aria-label="t('projects.governance.raci.stakeholder')"><SharedPagination :page="stakeholderPageNumber" :pages="stakeholderPages" :disabled="loading || pending" @update:page="stakeholderPage = $event - 1" /></div>
+        </div>
+      </template>
+    </SharedListCard>
 
-    <div class="grid gap-3 sm:grid-cols-2">
-      <div role="group" :aria-label="t('projects.governance.raci.task')"><SharedPagination :page="taskPageNumber" :pages="taskPages" :disabled="loading || pending" @update:page="taskPage = $event - 1" /></div>
-      <div role="group" :aria-label="t('projects.governance.raci.stakeholder')"><SharedPagination :page="stakeholderPageNumber" :pages="stakeholderPages" :disabled="loading || pending" @update:page="stakeholderPage = $event - 1" /></div>
-    </div>
-    <SharedRecordSection panel :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
-      <dl class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div class="flex items-start gap-2">
-          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">R</span>
-          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciResponsible') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciResponsibleHint') }}</dd></div>
-        </div>
-        <div class="flex items-start gap-2">
-          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">A</span>
-          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciAccountable') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciAccountableHint') }}</dd></div>
-        </div>
-        <div class="flex items-start gap-2">
-          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">C</span>
-          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciConsulted') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciConsultedHint') }}</dd></div>
-        </div>
-        <div class="flex items-start gap-2">
-          <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-elevated text-xs font-semibold text-highlighted ring ring-default">I</span>
-          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ t('projects.refresh.workspace.raciInformed') }}</dt><dd class="text-xs text-muted">{{ t('projects.refresh.workspace.raciInformedHint') }}</dd></div>
+    <SharedRecordSection variant="tinted" :title="t('projects.refresh.workspace.raciLegendTitle')" :description="t('projects.refresh.workspace.raciLegendDescription')">
+      <dl class="grid grid-cols-2 gap-(--webvue-gap-card) lg:grid-cols-4">
+        <div v-for="item in legend" :key="item.role" class="flex items-start gap-2">
+          <SharedStatusBadge class="min-w-8 shrink-0 justify-center" :tone="RACI_ROLE_TONE[item.role]" :label="item.role" />
+          <div class="min-w-0"><dt class="text-sm font-medium text-highlighted">{{ item.name }}</dt><dd class="text-xs text-muted">{{ item.hint }}</dd></div>
         </div>
       </dl>
     </SharedRecordSection>

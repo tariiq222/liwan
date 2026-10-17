@@ -133,14 +133,14 @@ function confirmDelete(stageId: StageRow['id']) {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="grid gap-3">
     <p v-if="stages.length === 0" class="text-sm text-muted">{{ t('projects.stages.empty') }}</p>
     <p v-else id="stage-reorder-help" class="text-xs text-muted">
       {{ t('projects.stages.reorderHelp') }}
     </p>
 
-    <VueDraggable v-model="localStages" :disabled="disabled" handle=".stage-drag-handle" :animation="150" class="space-y-1" @end="onDragEnd">
-      <div v-for="stage in localStages" :key="stage.id" data-testid="stage-row" class="flex flex-wrap items-center gap-2 rounded-md border p-2">
+    <VueDraggable v-model="localStages" :disabled="disabled" handle=".stage-drag-handle" :animation="150" class="grid gap-2" @end="onDragEnd">
+      <SharedSubCard v-for="stage in localStages" :key="stage.id" data-testid="stage-row" class="flex flex-wrap items-center gap-2">
         <UButton
           type="button"
           color="neutral"
@@ -221,7 +221,7 @@ function confirmDelete(stageId: StageRow['id']) {
             <UButton color="neutral" variant="ghost" square type="button" data-testid="stage-delete" icon="i-lucide-trash-2" :aria-label="t('projects.stages.delete')" disabled />
           </span>
         </UTooltip>
-      </div>
+      </SharedSubCard>
     </VueDraggable>
 
     <div class="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">

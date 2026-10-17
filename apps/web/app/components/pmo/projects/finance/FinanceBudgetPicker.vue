@@ -82,33 +82,28 @@ function setPage(next: number) {
 </script>
 
 <template>
-  <div class="grid gap-2" data-testid="finance-budget-picker">
-    <label for="finance-budget-entry" class="block font-medium text-default">{{ t('projects.finance.fields.budget_entry_id') }}</label>
-    <div class="space-y-2">
-      <label for="finance-budget-search" class="sr-only">{{ t('projects.finance.searchBudgets') }}</label>
+  <UFormField name="budget_entry_id" :label="t('projects.finance.fields.budget_entry_id')" :error="error" data-testid="finance-budget-picker">
+    <div class="grid gap-2">
       <UInput
         id="finance-budget-search"
         v-model="search"
         class="w-full"
+        icon="i-lucide-search"
         :disabled="disabled || !hydrated"
         :placeholder="t('projects.finance.searchBudgets')"
         :aria-label="t('projects.finance.searchBudgets')"
       />
+      <USelect
+        id="finance-budget-entry"
+        :model-value="selectedValue"
+        :items="budgetItems"
+        :disabled="disabled || !hydrated"
+        class="w-full"
+        :aria-label="t('projects.finance.fields.budget_entry_id')"
+        @update:model-value="onSelect"
+      />
+      <SharedPagination :page="page" :pages="pages" :disabled="disabled || list.isFetching.value" @update:page="setPage" />
+      <p v-if="list.error.value" role="alert" class="text-sm text-error">{{ t('projects.finance.budgetPickerError') }}</p>
     </div>
-    <USelect
-      id="finance-budget-entry"
-      :model-value="selectedValue"
-      :items="budgetItems"
-      :disabled="disabled || !hydrated"
-      class="w-full"
-      :color="error ? 'error' : undefined"
-      :highlight="!!error"
-      :aria-invalid="!!error"
-      :aria-describedby="error ? 'finance-budget-entry-error' : undefined"
-      @update:model-value="onSelect"
-    />
-    <p v-if="error" id="finance-budget-entry-error" role="alert" class="text-sm text-error">{{ error }}</p>
-    <SharedPagination :page="page" :pages="pages" :disabled="disabled || list.isFetching.value" @update:page="setPage" />
-    <p v-if="list.error.value" class="text-sm text-error">{{ t('projects.finance.budgetPickerError') }}</p>
-  </div>
+  </UFormField>
 </template>

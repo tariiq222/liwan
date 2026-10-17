@@ -10,8 +10,8 @@ import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { formatMoney } from '@/utils/projectFinance'
 import { recordChildTo } from '@/utils/recordListOrigin'
 
-// The ledger on SharedDataTable. A row link, Enter and a background click open the entry through `rowTo`;
-// the empty state, the error and the paging belong to the page.
+// The ledger on a bare SharedDataTable inside the page's SharedListCard. A row link, Enter and a background click open
+// the entry through `rowTo`; the empty state, the error, the result count and the paging belong to the page (its list card footer).
 const props = defineProps<{
   projectId: number
   items: FinanceEntry[]
@@ -28,13 +28,14 @@ function openLiveEntry(event: MouseEvent, item: FinanceEntry) {
   void router.push(props.rowTo(item))
 }
 const budgets = computed(() => new Map(props.items.filter(item => item.kind === 'budget').map(item => [item.id, item.title])))
+const KIND_ICON = { budget: 'i-lucide-wallet', expense: 'i-lucide-receipt' } as const
 const columns = computed<TableColumn<FinanceEntry>[]>(() => [
-  { id: 'record', header: () => recordNumberHeader(t) },
-  { id: 'title', header: t('projects.finance.columns.title') },
-  { id: 'kind', header: t('projects.finance.columns.kind') },
-  { id: 'amount', header: t('projects.finance.columns.amount') },
-  { id: 'date', header: t('projects.finance.columns.date') },
-  { id: 'budget', header: t('projects.finance.columns.budget') },
+  { id: 'record', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2', td: 'w-12 px-2' } } },
+  { id: 'title', header: t('projects.finance.columns.title'), meta: { class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
+  { id: 'kind', header: t('projects.finance.columns.kind'), meta: { class: { th: 'w-32', td: 'w-32' } } },
+  { id: 'amount', header: t('projects.finance.columns.amount'), meta: { class: { th: 'text-end', td: 'text-end whitespace-nowrap' } } },
+  { id: 'date', header: t('projects.finance.columns.date'), meta: { class: { td: 'whitespace-nowrap' } } },
+  { id: 'budget', header: t('projects.finance.columns.budget'), meta: { class: { th: 'min-w-40', td: 'max-w-0 min-w-40 truncate' } } },
   ...(props.canManage ? [{ id: 'actions', header: () => h('span', { class: 'sr-only' }, t('app.actions')), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } }] : []),
 ])
 // Deletion stays on the entry page, where its inline confirmation lives.
@@ -49,34 +50,34 @@ const dateLabel = (item: FinanceEntry) => (item.expense_date ? formatCalendarDat
 </script>
 
 <template>
-  <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="isLoading" :caption="t('projects.finance.columns.title')">
+  <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="rowTo" :loading="isLoading" :caption="t('projects.finance.columns.title')">
     <template #record-cell="{ row }"><RecordNumber :value="row.original.reference || row.original.id" /></template>
     <template #title-cell="{ row }">
       <div data-testid="finance-entry-row" class="min-w-0">
-        <NuxtLink :to="rowTo(row.original)" @click="openLiveEntry($event, row.original)" class="block truncate font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
+        <NuxtLink :to="rowTo(row.original)" @click="openLiveEntry($event, row.original)" class="block truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
       </div>
     </template>
-    <template #kind-cell="{ row }">{{ t(`projects.finance.kind.${row.original.kind}`) }}</template>
-    <template #amount-cell="{ row }"><span dir="ltr" class="tabular-nums">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
+    <template #kind-cell="{ row }"><SharedStatusBadge tone="neutral" :icon="KIND_ICON[row.original.kind]" :label="t(`projects.finance.kind.${row.original.kind}`)" /></template>
+    <template #amount-cell="{ row }"><span dir="ltr" class="font-semibold tabular-nums text-highlighted">{{ formatMoney(row.original.amount, summary.currency) }}</span></template>
     <template #date-cell="{ row }">{{ dateLabel(row.original) }}</template>
-    <template #budget-cell="{ row }"><span class="truncate">{{ budgetLabel(row.original) }}</span></template>
+    <template #budget-cell="{ row }"><span class="text-muted" :title="budgetLabel(row.original)">{{ budgetLabel(row.original) }}</span></template>
     <template #actions-cell="{ row }">
       <SharedRowActions :actions="entryActions(row.original)" :label="t('projects.finance.actionsNamed', { name: row.original.title })" />
     </template>
     <template #mobile-row="{ row: item }">
-      <div data-testid="finance-entry-card" class="grid gap-3">
+      <div data-testid="finance-entry-card" class="grid gap-(--webvue-gap-card)">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <RecordNumber :value="item.reference || item.id" />
-            <NuxtLink :to="rowTo(item)" @click="openLiveEntry($event, item)" class="mt-1 block font-medium text-highlighted hover:underline">{{ item.title }}</NuxtLink>
+            <NuxtLink :to="rowTo(item)" @click="openLiveEntry($event, item)" class="mt-1 block font-semibold text-highlighted hover:underline">{{ item.title }}</NuxtLink>
           </div>
           <div class="flex shrink-0 items-center gap-2">
-            <span class="text-sm">{{ t(`projects.finance.kind.${item.kind}`) }}</span>
+            <SharedStatusBadge tone="neutral" :icon="KIND_ICON[item.kind]" :label="t(`projects.finance.kind.${item.kind}`)" />
             <SharedRowActions v-if="canManage" :actions="entryActions(item)" :label="t('projects.finance.actionsNamed', { name: item.title })" />
           </div>
         </div>
-        <dl class="grid grid-cols-2 gap-3 text-xs">
-          <div><dt class="text-muted">{{ t('projects.finance.columns.amount') }}</dt><dd dir="ltr" class="tabular-nums">{{ formatMoney(item.amount, summary.currency) }}</dd></div>
+        <dl class="grid grid-cols-2 gap-(--webvue-gap-card) text-xs">
+          <div><dt class="text-muted">{{ t('projects.finance.columns.amount') }}</dt><dd dir="ltr" class="font-semibold tabular-nums text-highlighted">{{ formatMoney(item.amount, summary.currency) }}</dd></div>
           <div><dt class="text-muted">{{ t('projects.finance.columns.date') }}</dt><dd>{{ dateLabel(item) }}</dd></div>
           <div class="col-span-2"><dt class="text-muted">{{ t('projects.finance.columns.budget') }}</dt><dd>{{ budgetLabel(item) }}</dd></div>
         </dl>

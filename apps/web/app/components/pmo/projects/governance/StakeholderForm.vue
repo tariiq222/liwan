@@ -68,11 +68,11 @@ async function submit() {
 </script>
 
 <template>
-  <form novalidate class="space-y-8" @submit.prevent="submit">
+  <form novalidate class="webvue-page-stack" @submit.prevent="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
     <SharedUnsavedChanges :dirty="dirty" />
-    <SharedFormSection :title="t('projects.refresh.workspace.stakeholderIdentity')" :description="t('projects.refresh.workspace.stakeholderIdentityDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection panel :title="t('projects.refresh.workspace.stakeholderIdentity')" :description="t('projects.refresh.workspace.stakeholderIdentityDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField :label="t('projects.governance.stakeholder.name')" required :error="requiredError">
           <UInput id="stakeholder-name" v-model="name" class="w-full" required :disabled="!hydrated || pending" />
         </UFormField>
@@ -84,8 +84,8 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <SharedFormSection :title="t('projects.refresh.workspace.stakeholderConnection')" :description="t('projects.refresh.workspace.stakeholderConnectionDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection panel :title="t('projects.refresh.workspace.stakeholderConnection')" :description="t('projects.refresh.workspace.stakeholderConnectionDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField :label="t('projects.governance.stakeholder.contact')">
           <UInput id="stakeholder-contact" v-model="contact" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
@@ -105,14 +105,17 @@ async function submit() {
             <p v-else-if="!peopleOptions.length" class="text-xs text-muted">{{ t('projects.governance.stakeholder.noUsers') }}</p>
           </div>
         </UFormField>
-        <UFormField class="sm:col-span-2" :label="t('projects.governance.stakeholder.notes')">
+        <UFormField :label="t('projects.governance.stakeholder.notes')">
           <UTextarea id="stakeholder-notes" v-model="notes" class="w-full" :rows="4" :disabled="!hydrated || pending" />
         </UFormField>
       </div>
     </SharedFormSection>
-    <SharedFormActions class="flex flex-wrap gap-2 justify-end">
-      <UButton type="button" color="neutral" :disabled="!hydrated || pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ pending ? t('projects.governance.saving') : t('app.save') }}</UButton>
+    <SharedFormActions>
+      <p class="me-auto text-xs text-muted">{{ t('projects.requiredHint') }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || pending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
+        <UButton type="submit" :disabled="!hydrated || pending" :loading="pending">{{ pending ? t('projects.governance.saving') : t('app.save') }}</UButton>
+      </div>
     </SharedFormActions>
   </form>
 </template>

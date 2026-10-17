@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
-import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE } from '@/components/pmo/projects/governance/state'
+import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
 import { useProject } from '@/composables/useProjects'
 import { useProjectRegisterItem } from '@/composables/useProjectGovernance'
 
@@ -32,24 +32,34 @@ const detailPath = computed(() => `/projects/${projectId.value}/register/${regis
     </template>
     <SharedEmptyState v-if="!item.data?.value" :title="t('app.noResults')" />
     <template v-else>
-      <SharedRecordSection panel :title="t('projects.refresh.workspace.registerDescription')">
+      <SharedRecordSection variant="panel" :title="t('projects.refresh.workspace.registerDescription')">
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.description || '—' }}</p>
       </SharedRecordSection>
-      <SharedRecordSection panel :title="t('projects.refresh.workspace.registerPlan')">
-        <p class="whitespace-pre-wrap text-sm">{{ item.data.value.response || '—' }}</p>
-        <p v-if="item.data.value.task" class="mt-2 text-sm">
-          <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>
-          <NuxtLink class="underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}` }">{{ item.data.value.task.name }}</NuxtLink>
-        </p>
+      <SharedRecordSection variant="panel" :title="t('projects.refresh.workspace.registerPlan')">
+        <div class="grid gap-(--webvue-gap-card)">
+          <p class="whitespace-pre-wrap text-sm">{{ item.data.value.response || '—' }}</p>
+          <SharedSubCard v-if="item.data.value.task" tone="tinted" class="text-sm">
+            <span class="text-muted">{{ t('projects.governance.register.task') }}:</span>
+            <NuxtLink class="font-medium text-primary hover:underline" :to="{ path: `/projects/${projectId}/tasks/${item.data.value.task.id}` }">{{ item.data.value.task.name }}</NuxtLink>
+          </SharedSubCard>
+        </div>
       </SharedRecordSection>
     </template>
     <template v-if="item.data?.value" #summary>
-      <SharedPropertiesPanel :title="t('projects.refresh.workspace.registerSummary')">
-        <SharedPropertyRow :label="t('projects.governance.register.kind')" :value="t(`projects.governance.register.${item.data.value.kind}`)" />
+      <SharedPropertiesPanel>
+        <SharedPropertyRow :label="t('projects.governance.register.kind')">
+          <SharedStatusBadge tone="neutral" :icon="item.data.value.kind === 'risk' ? 'i-lucide-triangle-alert' : 'i-lucide-circle-alert'" :label="t(`projects.governance.register.${item.data.value.kind}`)" />
+        </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.governance.register.priority')"><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[item.data.value.priority]" :label="t(`projects.governance.register.${item.data.value.priority}`)" /></SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.governance.register.status')"><SharedStatusBadge :tone="REGISTER_STATUS_TONE[item.data.value.status]" :label="t(`projects.governance.register.${item.data.value.status}`)" /></SharedPropertyRow>
-        <SharedPropertyRow :label="t('projects.governance.register.score')" :value="item.data.value.score" />
-        <SharedPropertyRow :label="t('projects.governance.register.owner')" :value="item.data.value.owner?.name" />
+        <SharedPropertyRow :label="t('projects.governance.register.score')">
+          <SharedStatusBadge v-if="item.data.value.score != null" :tone="registerScoreTone(item.data.value.score)" :label="String(item.data.value.score)" />
+          <span v-else aria-hidden="true">—</span>
+        </SharedPropertyRow>
+        <SharedPropertyRow :label="t('projects.governance.register.owner')">
+          <span v-if="item.data.value.owner" class="inline-flex items-center gap-2"><SharedPersonAvatar :people="[item.data.value.owner]" />{{ item.data.value.owner.name }}</span>
+          <span v-else aria-hidden="true">—</span>
+        </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.governance.register.dueDate')" :value="item.data.value.due_date" />
         <SharedPropertyRow :label="t('projects.governance.register.probability')" :value="item.data.value.probability" />
         <SharedPropertyRow :label="t('projects.governance.register.impact')" :value="item.data.value.impact" />

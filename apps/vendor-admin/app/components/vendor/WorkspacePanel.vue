@@ -10,7 +10,7 @@ const { sharedOnboardingEnabled } = useVendorContext()
 
 <template>
   <div class="space-y-6">
-    <SharedRecordSection v-if="sharedOnboardingEnabled" panel :title="t('vendor.tenants.provisioning.title')">
+    <SharedRecordSection v-if="sharedOnboardingEnabled" variant="panel" :title="t('vendor.tenants.provisioning.title')">
       <template #actions>
         <UButton v-if="progress.loginUrl" :to="progress.loginUrl" external target="_blank" rel="noopener noreferrer" size="sm" icon="i-lucide-external-link">{{ t('vendor.tenants.provisioning.open') }}</UButton>
         <UButton v-if="progress.provisioning || progress.error" color="neutral" variant="outline" size="sm" icon="i-lucide-refresh-cw" :disabled="!hydrated || progress.pending" :loading="progress.pending" @click="progress.refreshNow">{{ t('vendor.common.refresh') }}</UButton>
@@ -25,7 +25,7 @@ const { sharedOnboardingEnabled } = useVendorContext()
       </div>
     </SharedRecordSection>
 
-    <SharedRecordSection panel :title="t('vendor.tenants.policyTitle')" :description="t('vendor.tenants.policyHint')">
+    <SharedRecordSection variant="panel" :title="t('vendor.tenants.policyTitle')" :description="t('vendor.tenants.policyHint')">
       <VendorPolicyComparison :desired="tenant.desired_policy" :observed="tenant.observed_policy" />
     </SharedRecordSection>
   </div>

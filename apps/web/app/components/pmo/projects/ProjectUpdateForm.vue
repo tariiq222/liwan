@@ -51,15 +51,15 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form novalidate data-testid="project-update-form" class="grid gap-5" @submit.prevent="submit">
-    <UAlert v-if="error" role="alert" class="sm:col-span-2" color="error" variant="subtle" :title="error" />
+  <form novalidate data-testid="project-update-form" class="grid gap-(--webvue-card-pad)" @submit.prevent="submit">
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     <UFormField :label="t('projects.updates.title')" required :error="requiredError">
       <UInput id="project-update-title" v-model="title" class="w-full" required :disabled="!hydrated || isPending" />
     </UFormField>
-    <UFormField class="sm:col-span-2" :label="t('projects.updates.body')">
+    <UFormField :label="t('projects.updates.body')">
       <DescriptionEditor ref="descriptionEditor" :model-value="description" :task-id="projectId" :readonly="isPending" @update:model-value="onDescriptionChange" @draft="onDescriptionDraft" />
     </UFormField>
-    <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+    <SharedFormActions>
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
       <UButton type="submit" :disabled="!hydrated || isPending" :loading="isPending" :label="t('projects.updates.publish')" />
     </SharedFormActions>

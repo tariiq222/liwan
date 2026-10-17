@@ -17,8 +17,8 @@ import {
   type ChartLabels,
 } from '@/utils/projectChartData'
 
-// The six charts of the dashboard as chart panels. They render straight into SharedDashboardPage's grid
-// (two columns from 768px of the grid's own width); the progress and finance charts span both.
+// The six charts of the dashboard as chart panels. They render straight into SharedDashboardPage's grid; the
+// progress and finance charts span the full width (`span="full"`, size lg), the other four sit two to a row (size md).
 const props = defineProps<{ rows: readonly ProjectReportRow[] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -56,7 +56,7 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
     :has-data="statusHasData"
     :empty-text="t('projects.dashboard.charts.noStatusData')"
     :accessible-label="t('projects.dashboard.charts.statusTitle')"
-    height="240px"
+    size="md"
   />
   <DashboardChartPanel
     test-id="chart-tasks"
@@ -76,7 +76,7 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
     :has-data="progressBandsHasData"
     :empty-text="t('projects.dashboard.charts.noProgressData')"
     :accessible-label="t('projects.dashboard.charts.progressBandsTitle')"
-    height="240px"
+    size="md"
   />
   <DashboardChartPanel
     test-id="chart-budget-health"
@@ -87,10 +87,9 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
     :has-data="budgetHasData"
     :empty-text="t('projects.dashboard.charts.noBudgetData')"
     :accessible-label="t('projects.dashboard.charts.budgetHealthTitle')"
-    height="240px"
+    size="md"
   />
   <DashboardChartPanel
-    class="@min-[768px]:col-span-2"
     test-id="chart-project-progress"
     :title="t('projects.dashboard.charts.projectProgressTitle')"
     :description="t('projects.dashboard.charts.projectProgressDescription')"
@@ -98,15 +97,17 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
     :has-data="rows.length > 0"
     :empty-text="t('projects.dashboard.charts.noProgressData')"
     :accessible-label="t('projects.dashboard.charts.projectProgressTitle')"
-    height="360px"
+    span="full"
+    size="lg"
   />
   <SharedChartPanel
-    class="@min-[768px]:col-span-2"
     data-testid="chart-project-finance"
     :title="t('projects.dashboard.charts.financeTitle')"
     :description="t(currencies.length > 1 ? 'projects.dashboard.charts.financeDescription' : 'projects.dashboard.charts.financeDescriptionSingle')"
     :empty="!financeHasData"
     :empty-text="t('projects.dashboard.charts.noFinanceData')"
+    span="full"
+    size="lg"
   >
     <template v-if="currencies.length > 1" #actions>
       <USelect
@@ -120,7 +121,9 @@ const financeChart = computed(() => selectedCurrency.value ? projectFinanceCompa
         @update:model-value="value => { selectedCurrencyId = Number(value) }"
       />
     </template>
-    <p v-if="currencies.length === 1 && selectedCurrency" class="mb-2 text-sm text-muted" data-testid="chart-currency-label">{{ selectedCurrency.name }} ({{ selectedCurrency.symbol }})</p>
-    <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" height="360px" />
+    <template #default="{ height }">
+      <p v-if="currencies.length === 1 && selectedCurrency" class="mb-2 text-sm text-muted" data-testid="chart-currency-label">{{ selectedCurrency.name }} ({{ selectedCurrency.symbol }})</p>
+      <DashboardChart v-if="financeChart" :chart="financeChart" :accessible-label="t('projects.dashboard.charts.financeTitle')" :height="height" />
+    </template>
   </SharedChartPanel>
 </template>

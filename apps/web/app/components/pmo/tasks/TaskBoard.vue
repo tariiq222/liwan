@@ -210,19 +210,7 @@ function dropGroup(lane: Lane) {
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-2 p-4">
     <div class="flex flex-none flex-wrap items-center justify-between gap-2">
-      <div role="group" data-testid="board-grouping" class="inline-flex items-center gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.kanban.groupBy')">
-        <UButton
-          v-for="option in groupingOptions"
-          :key="option.value"
-          type="button"
-          color="neutral"
-          size="sm"
-          :variant="option.value === grouping ? 'soft' : 'ghost'"
-          :aria-pressed="option.value === grouping"
-          :data-grouping="option.value"
-          @click="setGrouping(option.value)"
-        >{{ option.label }}</UButton>
-      </div>
+      <SharedSegmentedControl data-testid="board-grouping" :label="t('tasks.kanban.groupBy')" :items="groupingOptions" :model-value="grouping" @update:model-value="setGrouping($event as Grouping)" />
       <p v-if="isCapped" class="text-xs text-muted">{{ t('tasks.kanban.capped') }}</p>
     </div>
     <SharedPageState v-if="error" :error="error" @retry="refetch" />

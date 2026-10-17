@@ -81,18 +81,21 @@ const priorityItems = computed(() => [
   { value: 'all', label: t('projects.clarity.allPriorities') },
   ...['low', 'normal', 'high', 'critical'].map(value => ({ value, label: t(`projects.governance.register.${value}`) })),
 ])
-function itemLabel(items: { value: string; label: string }[], value: string) {
-  return items.find(item => item.value === value)?.label ?? value
-}
+const KIND_ICON = { risk: 'i-lucide-triangle-alert', issue: 'i-lucide-circle-alert' } as const
 const columns = computed(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t) },
-  { accessorKey: 'title', header: t('projects.governance.register.itemTitle') },
-  { accessorKey: 'kind', header: t('projects.governance.register.kind') },
-  { accessorKey: 'priority', header: t('projects.governance.register.priority') },
-  { accessorKey: 'status', header: t('projects.governance.register.status') },
-  { accessorKey: 'score', header: t('projects.clarity.riskScore') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2', td: 'w-12 px-2' } } },
+  { accessorKey: 'title', header: t('projects.governance.register.itemTitle'), meta: { class: { th: 'min-w-56', td: 'max-w-0 min-w-56 truncate' } } },
+  { accessorKey: 'kind', header: t('projects.governance.register.kind'), meta: { class: { th: 'w-28', td: 'w-28' } } },
+  { accessorKey: 'priority', header: t('projects.governance.register.priority'), meta: { class: { th: 'w-28', td: 'w-28' } } },
+  { accessorKey: 'status', header: t('projects.governance.register.status'), meta: { class: { th: 'w-36', td: 'w-36' } } },
+  { accessorKey: 'score', header: t('projects.clarity.riskScore'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+  { id: 'owner', header: t('projects.governance.register.owner'), meta: { class: { th: 'w-28', td: 'w-28' } } },
   { id: 'actions', header: t('app.actions'), meta: { class: { th: 'w-0', td: 'w-0 text-end' } } },
 ])
+const total = computed(() => list.data.value?.total ?? 0)
+const items = computed(() => list.data.value?.items ?? [])
+// Nothing registered and nothing filtered is an empty page, not an empty list: no filter row to show.
+const bareEmpty = computed(() => Boolean(list.data.value) && !items.value.length && !activeFilterCount.value && !parsed.value.offset)
 async function deleteItem(item: { id: number }) {
   error.value = null
   if (confirmDeleteId.value !== item.id) {
@@ -144,27 +147,6 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
     :create-label="t('projects.clarity.addRegister')"
     create-test-id="register-create"
   >
-    <template #filters>
-      <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-        <template #search>
-          <UInput v-model="search" :aria-label="t('projects.clarity.registerSearch')" :disabled="!hydrated" :placeholder="t('projects.clarity.registerSearch')" icon="i-lucide-search" class="w-full min-w-52" />
-        </template>
-        <template #default>
-          <SharedFilterChoice layout="segment" :label="t('projects.governance.register.kind')" :items="kindItems" :model-value="kind" :disabled="!hydrated" @update:model-value="setKind($event)" />
-          <SharedFilterChoice :label="t('projects.governance.register.status')" :items="statusItems" :model-value="status" :disabled="!hydrated" @update:model-value="setStatus($event)" />
-          <SharedFilterChoice :label="t('projects.governance.register.priority')" :items="priorityItems" :model-value="priority" :disabled="!hydrated" @update:model-value="setPriority($event)" />
-        </template>
-        <template #active>
-          <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-            <SharedFilterChip v-if="search.trim()" :label="`${t('projects.clarity.registerSearch')}: ${search}`" @remove="search = ''" />
-            <SharedFilterChip v-if="parsed.kind" :label="itemLabel(kindItems, kind)" @remove="setKind('all')" />
-            <SharedFilterChip v-if="parsed.status" :label="itemLabel(statusItems, status)" @remove="setStatus('all')" />
-            <SharedFilterChip v-if="parsed.priority" :label="itemLabel(priorityItems, priority)" @remove="setPriority('all')" />
-          </div>
-        </template>
-      </FilterBar>
-    </template>
-
     <SharedInlineConfirm
       v-if="confirmItem"
       data-testid="register-delete-confirm"
@@ -178,43 +160,72 @@ function openLiveItem(event: MouseEvent, item: { id: number }) {
     </SharedInlineConfirm>
     <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
-    <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
-    <SharedEmptyState v-else-if="!list.isLoading.value && !list.data.value?.items.length" :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')" />
-    <SharedDataTable v-else :rows="list.data.value?.items ?? []" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.refresh.workspace.registerTitle')">
-      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-      <template #title-cell="{ row }">
-        <NuxtLink :to="itemTo(row.original)" @click="openLiveItem($event, row.original)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
+    <SharedEmptyState v-if="bareEmpty" bordered :title="t('projects.clarity.registerEmpty')" />
+    <SharedListCard v-else>
+      <template #filters>
+        <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #search>
+            <UInput v-model="search" :aria-label="t('projects.clarity.registerSearch')" :disabled="!hydrated" :placeholder="t('projects.clarity.registerSearch')" icon="i-lucide-search" class="w-full min-w-52">
+              <template v-if="search" #trailing>
+                <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('projects.filters.clearSearch')" class="-me-1" @click="search = ''" />
+              </template>
+            </UInput>
+          </template>
+          <template #default>
+            <USelect class="w-full md:w-44" icon="i-lucide-activity" :items="statusItems" :model-value="status" :disabled="!hydrated" :aria-label="t('projects.governance.register.status')" @update:model-value="setStatus" />
+            <USelect class="w-full md:w-44" icon="i-lucide-flag" :items="priorityItems" :model-value="priority" :disabled="!hydrated" :aria-label="t('projects.governance.register.priority')" @update:model-value="setPriority" />
+          </template>
+          <template #view>
+            <SharedSegmentedControl :label="t('projects.governance.register.kind')" :items="kindItems" :model-value="kind" :disabled="!hydrated" @update:model-value="setKind" />
+          </template>
+        </FilterBar>
       </template>
-      <template #kind-cell="{ row }">{{ t(`projects.governance.register.${row.original.kind}`) }}</template>
-      <template #priority-cell="{ row }"><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[row.original.priority]" :label="t(`projects.governance.register.${row.original.priority}`)" /></template>
-      <template #status-cell="{ row }"><SharedStatusBadge :tone="REGISTER_STATUS_TONE[row.original.status]" :label="t(`projects.governance.register.${row.original.status}`)" /></template>
-      <template #score-cell="{ row }"><SharedStatusBadge :tone="registerScoreTone(row.original.score)" :label="String(row.original.score ?? '—')" /></template>
-      <template #actions-cell="{ row }">
-        <div v-if="list.data.value?.can_manage" class="flex justify-end">
-          <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.title })" :disabled="!hydrated" />
-        </div>
-      </template>
-      <template #mobile-row="{ row: item }">
-        <div class="space-y-3">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0 space-y-1">
-              <RecordNumber :value="item.id" />
-              <NuxtLink :to="itemTo(item)" @click="openLiveItem($event, item)" class="block font-medium text-highlighted hover:underline">{{ item.title }}</NuxtLink>
-            </div>
-            <div class="flex shrink-0 items-center gap-1">
-              <SharedStatusBadge :tone="REGISTER_STATUS_TONE[item.status]" :label="t(`projects.governance.register.${item.status}`)" />
-              <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.title })" :disabled="!hydrated" />
-            </div>
+      <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
+      <div v-else-if="!list.isLoading.value && !items.length" class="p-(--webvue-card-pad)">
+        <SharedEmptyState :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')" />
+      </div>
+      <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.refresh.workspace.registerTitle')">
+        <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+        <template #title-cell="{ row }">
+          <NuxtLink :to="itemTo(row.original)" @click="openLiveItem($event, row.original)" class="block truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.title }}</NuxtLink>
+        </template>
+        <template #kind-cell="{ row }"><SharedStatusBadge tone="neutral" :icon="KIND_ICON[row.original.kind]" :label="t(`projects.governance.register.${row.original.kind}`)" /></template>
+        <template #priority-cell="{ row }"><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[row.original.priority]" :label="t(`projects.governance.register.${row.original.priority}`)" /></template>
+        <template #status-cell="{ row }"><SharedStatusBadge :tone="REGISTER_STATUS_TONE[row.original.status]" :label="t(`projects.governance.register.${row.original.status}`)" /></template>
+        <template #score-cell="{ row }">
+          <SharedStatusBadge v-if="row.original.score != null" :tone="registerScoreTone(row.original.score)" :label="String(row.original.score)" />
+          <span v-else class="text-muted">—</span>
+        </template>
+        <template #owner-cell="{ row }"><SharedPersonAvatar :people="row.original.owner ? [row.original.owner] : []" /></template>
+        <template #actions-cell="{ row }">
+          <div v-if="list.data.value?.can_manage" class="flex justify-end">
+            <SharedRowActions :actions="rowActions(row.original)" :label="t('projects.governance.actionsNamed', { name: row.original.title })" :disabled="!hydrated" />
           </div>
-          <dl class="grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
-            <div><dt class="text-xs text-muted">{{ t('projects.governance.register.kind') }}</dt><dd>{{ t(`projects.governance.register.${item.kind}`) }}</dd></div>
-            <div><dt class="text-xs text-muted">{{ t('projects.governance.register.priority') }}</dt><dd><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[item.priority]" :label="t(`projects.governance.register.${item.priority}`)" /></dd></div>
-            <div><dt class="text-xs text-muted">{{ t('projects.clarity.riskScore') }}</dt><dd><SharedStatusBadge :tone="registerScoreTone(item.score)" :label="String(item.score ?? '—')" /></dd></div>
-          </dl>
-        </div>
+        </template>
+        <template #mobile-row="{ row: item }">
+          <div class="space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0 space-y-1">
+                <RecordNumber :value="item.id" />
+                <NuxtLink :to="itemTo(item)" @click="openLiveItem($event, item)" class="block font-semibold text-highlighted hover:underline">{{ item.title }}</NuxtLink>
+              </div>
+              <div class="flex shrink-0 items-center gap-1">
+                <SharedStatusBadge :tone="REGISTER_STATUS_TONE[item.status]" :label="t(`projects.governance.register.${item.status}`)" />
+                <SharedRowActions v-if="list.data.value?.can_manage" :actions="rowActions(item)" :label="t('projects.governance.actionsNamed', { name: item.title })" :disabled="!hydrated" />
+              </div>
+            </div>
+            <dl class="grid grid-cols-3 gap-x-3 gap-y-2 text-sm">
+              <div><dt class="text-xs text-muted">{{ t('projects.governance.register.kind') }}</dt><dd>{{ t(`projects.governance.register.${item.kind}`) }}</dd></div>
+              <div><dt class="text-xs text-muted">{{ t('projects.governance.register.priority') }}</dt><dd><SharedStatusBadge :tone="REGISTER_PRIORITY_TONE[item.priority]" :label="t(`projects.governance.register.${item.priority}`)" /></dd></div>
+              <div><dt class="text-xs text-muted">{{ t('projects.clarity.riskScore') }}</dt><dd><SharedStatusBadge v-if="item.score != null" :tone="registerScoreTone(item.score)" :label="String(item.score)" /><span v-else class="text-muted">—</span></dd></div>
+            </dl>
+          </div>
+        </template>
+      </SharedDataTable>
+      <template v-if="!list.error.value && items.length" #footer>
+        <SharedListFooter :count-label="t('projects.footer.results', { shown: items.length, total }, total)" count-test-id="register-result-count" :page="pageNumber" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
       </template>
-    </SharedDataTable>
-    <SharedPagination v-if="list.data.value" :page="pageNumber" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
+    </SharedListCard>
   </SharedListPage>
   <NuxtPage />
 </template>

@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 
 // The gate into the next phase on the project summary: the checks with a fix link, then the move
 // and step-back actions for managers.
-const ctx = (note?: string) => storyContext('apps/web/app/pages/projects/[id]/index.vue:53', note)
+const ctx = (note?: string) => storyContext('apps/web/app/pages/projects/[id]/index.vue:50', note)
 const withPhase = (phase_state: ProjectDetail['phase_state'], rest: Partial<ProjectDetail> = {}): ProjectDetail =>
   ({ ...projectDetail, can_manage: true, ...rest, phase_state })
 

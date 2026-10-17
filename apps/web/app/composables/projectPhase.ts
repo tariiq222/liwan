@@ -44,6 +44,10 @@ export const canMoveForward = (state: ProjectPhaseState, canManage: boolean): bo
 export const isGateCardVisible = (state: ProjectPhaseState, canManage: boolean): boolean =>
   canManage || state.current === 'closed' || state.next_checks.length > 0
 
+/** The gate card is the page's one call to action while it is shown on an open project; a closed project's gate is a quiet note. */
+export const isGateAction = (state: ProjectPhaseState, canManage: boolean): boolean =>
+  state.current !== 'closed' && isGateCardVisible(state, canManage)
+
 /** What a failed phase move tells the user: a locale key and toast colour; server text is never shown. */
 export function phaseFailure(error: unknown): { key: string; color: 'warning' | 'error' } {
   const { status, code } = (typeof error === 'object' && error !== null ? error : {}) as { status?: number; code?: string }

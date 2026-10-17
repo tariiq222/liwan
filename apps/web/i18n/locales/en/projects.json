@@ -49,7 +49,6 @@
     },
     "overview": {
       "title": "Overview",
-      "metadata": "Project details",
       "progress": "Progress",
       "openTasks": "Open tasks",
       "milestones": "Milestones",
@@ -106,6 +105,8 @@
       "archived": "Archived",
       "search": "Search project names…",
       "searchValue": "Search: {value}",
+      "clearSearch": "Clear search",
+      "scopeLabel": "Project scope",
       "allStatuses": "All statuses",
       "unset": "Not set",
       "sortDefault": "Default order",
@@ -119,9 +120,8 @@
       "statusLabel": "Status",
       "sortLabel": "Sort by"
     },
-    "previousPage": "Previous",
-    "pageOf": "Page {page} of {pages}",
-    "nextPage": "Next",
+    "requiredHint": "Fields marked with an asterisk are required.",
+    "footer": { "results": "{shown} of 1 result | {shown} of {total} results" },
     "archivedEmpty": "No archived projects",
     "archivedEmptyHint": "Archived projects appear here and can be restored when needed.",
     "menu": {
@@ -559,8 +559,9 @@
         "stakeholdersLoading": "Loading stakeholders…",
         "stakeholdersError": "Stakeholders could not be loaded.",
         "noStakeholders": "Add a stakeholder before creating an assignment.",
-        "legend": "R: Responsible; A: Accountable; C: Consulted; I: Informed. Each task allows one accountable stakeholder.",
-        "matrixHelp": "Choose a role to add or edit an assignment; choose — to remove it after confirmation. Search and page through all tasks and stakeholders."
+        "matrixHelp": "Choose a role to add or edit an assignment; choose — to remove it after confirmation. Search and page through all tasks and stakeholders.",
+        "searchTasks": "Search tasks",
+        "searchStakeholders": "Search stakeholders"
       },
       "register": {
         "title": "Risk and issue register",
@@ -720,6 +721,7 @@
     "dashboard": {
       "pendingChartersHint": "Charters awaiting your decision, independent of project analytics filters.",
       "pendingCharters": "Charters waiting for your approval",
+      "reviewCharter": "Review charter",
       "title": "Overview",
       "description": "A live summary of project status, tasks, and budgets for the current filters.",
       "summaryTitle": "Project summary",
@@ -812,7 +814,9 @@
       "retryAnalytics": "Retry",
       "kpi": {
         "projects": "Total projects",
-        "active": "Active projects",
+        "attention": "Need attention",
+        "percentOfTotal": "{percent}% of projects",
+        "percentDone": "{percent}% completed",
         "taskProgress": "Tasks completed",
         "budgeted": "Projects with a budget"
       },
@@ -831,7 +835,6 @@
     "refresh": {
       "workspace": {
         "needsAttentionPreviewEmpty": "No overdue tasks among the tasks shown.",
-        "resultCount": "{count} project matches the current filters | {count} projects match the current filters",
         "viewAllUpdates": "View update history",
         "updatesTitle": "Project update history",
         "updatesDescription": "The latest 50 project updates, newest first.",
@@ -852,7 +855,6 @@
         "raciOpenTasks": "View project tasks",
         "raciAddStakeholder": "Add stakeholder",
         "registerTitle": "Risks and issues",
-        "registerSummary": "Item details",
         "registerDescription": "Description",
         "registerPlan": "Response plan and links",
         "registerDetailsTitle": "Item description and classification",

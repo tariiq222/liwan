@@ -44,6 +44,10 @@ async function renderList(options: { runs?: typeof runs; run?: string; loading?:
   const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...component.setup({}, { expose: () => {}, emit: () => {} }) }), render }))
   app.component('NuxtLink', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('a', { ...attrs, to: undefined, href: `${(attrs.to as any).path}?run=${(attrs.to as any).query.run}` }, slots.default?.()) }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('a', { href: attrs.to as string, 'data-testid': attrs['data-testid'] as string }, String(attrs.label)) }))
+  app.component('SharedSegmentedControl', Vue.defineComponent({
+    inheritAttrs: false, props: ['items', 'label'],
+    setup: props => () => Vue.h('div', { role: 'group', 'aria-label': props.label }, props.items.map((item: { label: string; testId: string }) => Vue.h('a', { 'data-testid': item.testId }, item.label))),
+  }))
   app.component('SharedRowActions', Vue.defineComponent({
     inheritAttrs: false,
     props: ['actions', 'label'],

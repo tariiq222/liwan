@@ -46,7 +46,7 @@ function budgetAmount(): string {
 </script>
 
 <template>
-  <article data-testid="project-charter-display" class="grid gap-4" aria-labelledby="project-charter-essentials-title">
+  <article data-testid="project-charter-display" class="grid gap-(--webvue-gap-card)" aria-labelledby="project-charter-essentials-title">
     <div v-if="milestonesLoading" role="status" data-testid="charter-milestones-loading" class="text-sm text-muted">
       {{ t('projects.charter.milestonesLoading') }}
     </div>
@@ -62,9 +62,9 @@ function budgetAmount(): string {
       </template>
     </UAlert>
 
-    <div class="grid gap-4 lg:grid-cols-3 lg:items-start">
-      <div class="grid min-w-0 gap-4 lg:col-span-2">
-        <SharedRecordSection panel id="project-charter-essentials" :title="t('projects.charter.sections.essentials')">
+    <div class="grid gap-(--webvue-gap-card) lg:grid-cols-3 lg:items-start">
+      <div class="grid min-w-0 gap-(--webvue-gap-card) lg:col-span-2">
+        <SharedRecordSection variant="panel" id="project-charter-essentials" :title="t('projects.charter.sections.essentials')">
           <template #actions>
             <slot name="state" />
             <UButton
@@ -90,31 +90,31 @@ function budgetAmount(): string {
           </dl>
         </SharedRecordSection>
 
-        <SharedRecordSection v-if="draft.rationale.trim()" panel id="project-charter-purpose" :title="t('projects.charter.sections.purpose')">
+        <SharedRecordSection v-if="draft.rationale.trim()" variant="panel" id="project-charter-purpose" :title="t('projects.charter.sections.purpose')">
           <p class="whitespace-pre-wrap text-sm">{{ draft.rationale }}</p>
         </SharedRecordSection>
 
-        <SharedRecordSection v-if="visibleObjectives.length" panel id="project-charter-objectives" :title="t('projects.charter.fields.objectives')">
-          <ul class="grid gap-3 sm:grid-cols-2">
-            <li v-for="row in visibleObjectives" :key="row.key" class="rounded-md bg-elevated/50 p-3">
+        <SharedRecordSection v-if="visibleObjectives.length" variant="panel" id="project-charter-objectives" :title="t('projects.charter.fields.objectives')">
+          <ul class="grid gap-(--webvue-gap-card) sm:grid-cols-2">
+            <SharedSubCard v-for="row in visibleObjectives" :key="row.key" as="li" tone="tinted">
               <dl class="grid gap-2 text-sm">
                 <div v-if="row.goal.trim()"><dt class="text-muted">{{ t('projects.charter.fields.objectiveGoal') }}</dt><dd>{{ row.goal }}</dd></div>
                 <div v-if="row.metric.trim()"><dt class="text-muted">{{ t('projects.charter.fields.objectiveMetric') }}</dt><dd>{{ row.metric }}</dd></div>
                 <div v-if="row.target.trim()"><dt class="text-muted">{{ t('projects.charter.fields.objectiveTarget') }}</dt><dd>{{ row.target }}</dd></div>
               </dl>
-            </li>
+            </SharedSubCard>
           </ul>
         </SharedRecordSection>
 
-        <SharedRecordSection v-if="draft.scope.trim() || draft.exclusions.trim()" panel id="project-charter-scope" :title="t('projects.charter.sections.scope')">
+        <SharedRecordSection v-if="draft.scope.trim() || draft.exclusions.trim()" variant="panel" id="project-charter-scope" :title="t('projects.charter.sections.scope')">
           <dl class="grid gap-4 sm:grid-cols-2">
             <div v-if="draft.scope.trim()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.scope') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.scope }}</dd></div>
             <div v-if="draft.exclusions.trim()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.exclusions') }}</dt><dd class="mt-1 whitespace-pre-wrap text-sm">{{ draft.exclusions }}</dd></div>
           </dl>
         </SharedRecordSection>
 
-        <SharedRecordSection v-if="milestoneOutputs.length" panel data-testid="charter-milestone-outputs" id="charter-milestone-outputs" :title="t('projects.charter.milestoneOutputs')">
-          <ul class="grid gap-2 rounded-md bg-elevated/50 p-3">
+        <SharedRecordSection v-if="milestoneOutputs.length" variant="panel" data-testid="charter-milestone-outputs" id="charter-milestone-outputs" :title="t('projects.charter.milestoneOutputs')">
+          <SharedSubCard as="ul" tone="tinted" class="grid gap-2">
             <li v-for="(output, index) in milestoneOutputs" :key="`${output.milestoneId}-${index}`" class="flex flex-wrap items-center gap-2 text-sm">
               <label class="flex min-w-0 items-center gap-2">
                 <UCheckbox :model-value="output.done" disabled :aria-label="output.name" />
@@ -122,7 +122,7 @@ function budgetAmount(): string {
               </label>
               <span class="text-muted">{{ output.milestoneName }}</span>
             </li>
-          </ul>
+          </SharedSubCard>
         </SharedRecordSection>
 
         <UCollapsible v-if="hasLegacyDetails" class="rounded-card bg-default ring ring-default" data-testid="charter-legacy-details">
@@ -130,13 +130,13 @@ function budgetAmount(): string {
             color="neutral"
             variant="ghost"
             block
-            class="group justify-between p-4 font-semibold text-highlighted"
+            class="group justify-between p-(--webvue-card-pad) font-semibold text-highlighted"
             trailing-icon="i-lucide-chevron-down"
             :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }"
             :label="t('projects.charter.legacyDetails')"
           />
           <template #content>
-          <div class="grid gap-6 p-4 pt-0">
+          <div class="grid gap-(--webvue-gap-card) p-(--webvue-card-pad) pt-0">
             <dl class="grid gap-4 sm:grid-cols-2">
               <div v-if="draft.typeName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.type') }}</dt><dd class="mt-1 text-sm">{{ draft.typeName }}</dd></div>
               <div v-if="draft.owningUnitName?.trim()"><dt class="text-sm text-muted">{{ t('projects.charter.fields.owning_unit') }}</dt><dd class="mt-1 text-sm">{{ draft.owningUnitName }}</dd></div>
@@ -153,13 +153,13 @@ function budgetAmount(): string {
             <div v-if="legacyDeliverables.length" class="grid gap-3" data-testid="charter-legacy-deliverables">
               <h3 class="text-sm font-medium">{{ t('projects.charter.legacyDeliverables') }}</h3>
               <ul class="grid gap-3">
-                <li v-for="row in legacyDeliverables" :key="row.key" class="rounded-md bg-elevated/50 p-3">
+                <SharedSubCard v-for="row in legacyDeliverables" :key="row.key" as="li" tone="tinted">
                   <dl class="grid gap-2 text-sm">
                     <div v-if="row.name.trim()"><dt class="text-muted">{{ t('projects.charter.fields.deliverableName') }}</dt><dd>{{ row.name }}</dd></div>
                     <div v-if="row.description.trim()"><dt class="text-muted">{{ t('projects.charter.fields.deliverableDescription') }}</dt><dd class="whitespace-pre-wrap">{{ row.description }}</dd></div>
                     <div v-if="row.acceptance.trim()"><dt class="text-muted">{{ t('projects.charter.fields.acceptance') }}</dt><dd class="whitespace-pre-wrap">{{ row.acceptance }}</dd></div>
                   </dl>
-                </li>
+                </SharedSubCard>
               </ul>
             </div>
           </div>
@@ -167,8 +167,8 @@ function budgetAmount(): string {
         </UCollapsible>
       </div>
 
-      <div class="grid min-w-0 gap-4">
-        <SharedRecordSection panel id="project-charter-budget" :title="t('projects.charter.sections.planning')">
+      <div class="grid min-w-0 gap-(--webvue-gap-card)">
+        <SharedRecordSection variant="panel" id="project-charter-budget" :title="t('projects.charter.sections.planning')">
           <dl class="grid gap-4">
             <div><dt class="text-xs text-muted">{{ t('projects.charter.fields.budget_state') }}</dt><dd class="mt-1 text-sm text-default">{{ t(`projects.charter.budget.${draft.budgetState}`) }}</dd></div>
             <div v-if="budgetAmount()"><dt class="text-xs text-muted">{{ t('projects.charter.fields.amount') }}</dt><dd class="mt-1 text-sm text-default">{{ budgetAmount() }}<span v-if="draft.currencyLabel"> {{ draft.currencyLabel }}</span></dd></div>

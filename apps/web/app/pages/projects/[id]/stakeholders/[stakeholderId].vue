@@ -32,15 +32,18 @@ const detailPath = computed(() => `/projects/${projectId.value}/stakeholders/${s
       <UButton data-testid="stakeholder-detail-edit" :to="editTo">{{ t('app.edit') }}</UButton>
     </template>
     <SharedEmptyState v-if="!item.data?.value" :title="notFound ? t('projects.notFound') : t('app.noResults')" />
-    <SharedRecordSection v-else panel :title="t('projects.refresh.workspace.stakeholderContact')">
-      <dl class="grid gap-4 text-sm sm:grid-cols-2">
-        <div><dt class="text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt><dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd></div>
-        <div><dt class="text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></div>
+    <SharedRecordSection v-else variant="panel" :title="t('projects.refresh.workspace.stakeholderContact')">
+      <dl class="grid gap-(--webvue-gap-card) text-sm sm:grid-cols-2">
+        <SharedSubCard><dt class="text-muted">{{ t('projects.governance.stakeholder.contact') }}</dt><dd dir="ltr" class="text-start">{{ item.data.value.contact || '—' }}</dd></SharedSubCard>
+        <SharedSubCard><dt class="text-muted">{{ t('projects.governance.stakeholder.notes') }}</dt><dd class="whitespace-pre-wrap">{{ item.data.value.notes || '—' }}</dd></SharedSubCard>
       </dl>
     </SharedRecordSection>
     <template v-if="item.data?.value" #summary>
-      <SharedPropertiesPanel :title="t('projects.refresh.workspace.stakeholderIdentity')">
-        <SharedPropertyRow :label="t('projects.governance.stakeholder.internalUser')" :value="item.data.value.user?.name || t('projects.governance.stakeholder.noInternalUser')" />
+      <SharedPropertiesPanel>
+        <SharedPropertyRow :label="t('projects.governance.stakeholder.internalUser')">
+          <span v-if="item.data.value.user" class="inline-flex items-center gap-2"><SharedPersonAvatar :people="[item.data.value.user]" />{{ item.data.value.user.name }}</span>
+          <span v-else class="text-muted">{{ t('projects.governance.stakeholder.noInternalUser') }}</span>
+        </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.governance.stakeholder.organization')" :value="item.data.value.organization" />
         <SharedPropertyRow :label="t('projects.governance.stakeholder.role')" :value="item.data.value.role" />
       </SharedPropertiesPanel>

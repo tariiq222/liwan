@@ -84,6 +84,7 @@
         "back": "Back to project settings",
         "add": "Add",
         "edit": "Edit",
+        "rowActions": "Actions for “{name}”",
         "editTitle": "Edit value",
         "newType": "New project type",
         "newUnit": "New owning unit",

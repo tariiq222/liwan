@@ -32,6 +32,16 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Chart: Story = { name: 'مخطط' }
+export const Sizes: Story = {
+  name: 'ارتفاع المخطط',
+  parameters: storyContext('unused', '`size`: sm 224px وmd 300px (الافتراضي) وlg 360px؛ و`span="full"` يمد اللوحة عمودي الشبكة في `SharedDashboardPage`.'),
+  args: { empty: true },
+  render: args => ({
+    components: { ChartPanel },
+    setup: () => ({ args }),
+    template: `<div class="grid max-w-xl gap-(--webvue-gap-card)"><ChartPanel v-bind="args" size="sm" title="sm" /><ChartPanel v-bind="args" size="md" title="md" /><ChartPanel v-bind="args" size="lg" title="lg" /></div>`,
+  }),
+}
 export const Loading: Story = { name: 'تحميل', args: { loading: true } }
 export const Empty: Story = { name: 'لا بيانات', args: { empty: true } }
 export const WithActions: Story = {

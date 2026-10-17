@@ -212,8 +212,6 @@ const sortOptions = computed(() => [
   { value: 'name', label: t('projects.filters.sortName') },
   { value: 'progress', label: t('projects.filters.sortProgress') },
 ])
-const statusLabel = computed(() => statusOptions.value.find(option => option.value === statusFilter.value)?.label ?? '')
-const sortLabel = computed(() => sortOptions.value.find(option => option.value === sort.value)?.label ?? '')
 function clearSearch() {
   search.value = ''
   applyPatch({ q: '' })
@@ -225,6 +223,10 @@ const isLoading = computed(() => projectList.isLoading.value)
 const emptyKey = computed(() => (Boolean(rawSearch.value.trim()) || statusFilter.value !== 'all') ? 'filteredEmpty' : archived.value ? 'archivedEmpty' : 'empty')
 const showEmpty = computed(() => !isLoading.value && items.value.length === 0)
 
+const scopes = computed(() => [
+  { value: 'active', label: t('projects.filters.active') },
+  { value: 'archived', label: t('projects.filters.archived') },
+])
 function onFilterChange(v: unknown) {
   applyPatch({ archived: v === 'archived' })
 }
@@ -257,62 +259,82 @@ async function openProject(id: number) {
     :create-label="t('projects.new')"
     create-test-id="project-new"
     :views="views"
+    views-in-filters
   >
-    <template #filters>
-      <div class="w-full min-w-0" data-testid="projects-toolbar">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" />
-          </template>
-          <template #default>
-            <SharedFilterChoice data-testid="projects-status-filter" :label="t('projects.filters.statusLabel')" :items="statusOptions" :model-value="statusFilter" :disabled="!hydrated" @update:model-value="onStatusChange" />
-            <SharedFilterChoice data-testid="projects-sort" layout="segment" :label="t('projects.filters.sortLabel')" :items="sortOptions" :model-value="sort" :disabled="!hydrated" @update:model-value="onSortChange" />
-          </template>
-          <template #view>
-            <UTabs
-              v-if="canListArchived"
-              :model-value="archived ? 'archived' : 'active'"
-              :items="[{ label: t('projects.filters.active'), value: 'active', disabled: !hydrated }, { label: t('projects.filters.archived'), value: 'archived', disabled: !hydrated }]"
-              size="sm"
-              @update:model-value="onFilterChange"
-            />
-          </template>
-          <template #active>
-            <div v-if="rawSearch || statusFilter !== 'all' || sort !== 'default'" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="rawSearch" :label="t('projects.filters.searchValue', { value: rawSearch })" @remove="clearSearch" />
-              <SharedFilterChip v-if="statusFilter !== 'all'" :label="statusLabel" @remove="onStatusChange('all')" />
-              <SharedFilterChip v-if="sort !== 'default'" :label="sortLabel" @remove="onSortChange('default')" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-    </template>
-
     <template #default="{ view }">
-      <UAlert
-        v-if="activeList.error.value && !projectList.error.value"
-        role="alert"
-        color="error"
-        variant="subtle"
-        icon="i-lucide-circle-alert"
-        :title="t('projects.loadError')"
-      >
-        <template #actions>
-          <UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('app.retry')" @click="activeList.refetch()" />
+      <!-- The list's controls and rows carry client-generated ids, and the query data can land before hydration starts. Mount the
+           card (filters inside it) only once this page has hydrated, so server and client never disagree about its tree and no
+           control's first click is lost; the toolbar's controls stay disabled until then. One card and one filter row serve both
+           views: switching only swaps what is under the row. -->
+      <SharedListCard v-if="hydrated">
+        <template #filters>
+          <div class="w-full min-w-0" data-testid="projects-toolbar">
+            <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+              <template #search>
+                <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="min-w-48 flex-1">
+                  <template v-if="search" #trailing>
+                    <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('projects.filters.clearSearch')" class="-me-1" @click="clearSearch" />
+                  </template>
+                </UInput>
+              </template>
+              <template #default>
+                <USelect
+                  class="w-full md:w-44"
+                  data-testid="projects-status-filter"
+                  :disabled="!hydrated"
+                  :items="statusOptions"
+                  :model-value="statusFilter"
+                  :aria-label="t('projects.filters.statusLabel')"
+                  @update:model-value="onStatusChange"
+                />
+                <USelect
+                  class="w-full md:w-48"
+                  data-testid="projects-sort"
+                  :disabled="!hydrated"
+                  :items="sortOptions"
+                  :model-value="sort"
+                  :aria-label="t('projects.filters.sortLabel')"
+                  @update:model-value="onSortChange"
+                />
+              </template>
+              <template #view>
+                <SharedSegmentedControl
+                  v-if="canListArchived"
+                  data-testid="projects-scope"
+                  :label="t('projects.filters.scopeLabel')"
+                  :items="scopes"
+                  :model-value="archived ? 'archived' : 'active'"
+                  @update:model-value="onFilterChange"
+                />
+              </template>
+            </FilterBar>
+          </div>
         </template>
-      </UAlert>
 
-      <SharedPageState :error="projectList.error.value" :keep-content="displayedItems.length > 0" @retry="projectList.refetch">
-      <div class="grid gap-3">
-        <p v-if="projectList.data.value" data-testid="projects-result-count" class="text-sm text-muted">
-          {{ t('projects.refresh.workspace.resultCount', { count: total }, total) }}
-        </p>
-        <SharedEmptyState v-if="showEmpty" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
-        <ProjectTable v-else-if="view === 'table'" :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
-        <ProjectCards v-else :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
-        <SharedPagination :page="page" :pages="pages" :disabled="projectList.isFetching.value" @update:page="setPage" />
-      </div>
-      </SharedPageState>
+        <UAlert
+          v-if="activeList.error.value && !projectList.error.value"
+          role="alert"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          class="m-(--webvue-card-pad-dense)"
+          :title="t('projects.loadError')"
+        >
+          <template #actions>
+            <UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('app.retry')" @click="activeList.refetch()" />
+          </template>
+        </UAlert>
+
+        <SharedPageState :error="projectList.error.value" :keep-content="displayedItems.length > 0" @retry="projectList.refetch">
+          <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t(`projects.${emptyKey}`)" :description="t(`projects.${emptyKey}Hint`)" />
+          <ProjectTable v-else-if="view === 'table'" :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
+          <ProjectCards v-else :items="displayedItems" :is-loading="isLoading" :to-for="projectTo" @open="openProject" />
+        </SharedPageState>
+        <template v-if="projectList.data.value && !showEmpty" #footer>
+          <SharedListFooter :count-label="t('projects.footer.results', { shown: displayedItems.length, total }, total)" count-test-id="projects-result-count" :page="page" :pages="pages" :disabled="projectList.isFetching.value" @update:page="setPage" />
+        </template>
+      </SharedListCard>
+      <SharedLoadingSkeleton v-else variant="rows" />
     </template>
   </SharedListPage>
 </template>

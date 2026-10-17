@@ -203,8 +203,10 @@ function goToday() {
 <template>
   <SharedTimelineFrame :title="t('nav.meetings')" :range-label="monthLabel" @prev="shift(-1)" @next="shift(1)" @today="goToday">
     <template #actions><UButton v-if="can('meetings.create')" icon="i-lucide-plus" :to="createTo" :label="t('nav.newMeeting')" data-testid="meeting-calendar-new" /></template>
-    <div class="grid min-w-0 gap-4">
+    <div class="grid min-w-0">
+      <div class="border-b border-default px-(--webvue-card-pad-dense) py-3">
       <FilterBar
+        embedded
         :title="t('filterCard.title')"
         :active-count="activeFilterCount"
         :clear-label="t('meetingsUi.clear')"
@@ -238,14 +240,15 @@ function goToday() {
           <SharedFilterChip v-if="projectId" :label="projectName || t('meetingsFilters.selectedProject')" @remove="patchFilters({ project_id: undefined })" />
         </template>
       </FilterBar>
-      <p v-if="coverage.status === 'truncated'" class="text-sm text-warning" role="status">
+      </div>
+      <p v-if="coverage.status === 'truncated'" class="px-(--webvue-card-pad-dense) py-3 text-sm text-warning" role="status">
         {{ t('meetingsUx.calendarTruncated', { count: coverage.total }, coverage.total) }}
       </p>
-      <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="text-sm text-muted" role="status">
+      <p v-else-if="coverage.status === 'unknown' && !query.isLoading.value" class="px-(--webvue-card-pad-dense) py-3 text-sm text-muted" role="status">
         {{ t('meetingsUx.calendarCoverageUnknown') }}
       </p>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
-        <div class="@container min-w-0 overflow-hidden rounded-card bg-default ring ring-default">
+        <div class="@container min-w-0">
           <div class="@min-[600px]:hidden">
             <div v-if="!agenda.length" class="p-3"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
             <ul v-else class="grid divide-y divide-default">

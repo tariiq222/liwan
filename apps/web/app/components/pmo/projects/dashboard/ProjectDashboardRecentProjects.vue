@@ -51,6 +51,12 @@ const columns = computed<TableColumn<DashboardProject>[]>(() => [
   { id: 'updated', header: t('projects.dashboard.recentUpdated') },
 ])
 
+// A late project's bar turns red; an at-risk or off-track one amber; the rest keep the brand colour.
+function progressTone(row: DashboardProject) {
+  if ((row.overdue_task_count ?? 0) > 0 || row.project.status === 'off_track') return 'danger'
+  return row.project.status === 'at_risk' ? 'warning' : 'primary'
+}
+
 function updatedAt(value: string | null | undefined) {
   if (!value) return t('projects.dashboard.unknown')
   const date = new Date(value)
@@ -59,12 +65,12 @@ function updatedAt(value: string | null | undefined) {
 </script>
 
 <template>
-  <SharedRecordSection id="project-dashboard-recent" class="min-w-0" :title="t('projects.dashboard.attention.title')" :description="t('projects.dashboard.attention.description')">
+  <SharedRecordSection id="project-dashboard-recent" variant="list" :title="t('projects.dashboard.attention.title')" :description="t('projects.dashboard.attention.description')">
     <template #actions>
-      <UButton color="neutral" variant="outline" :to="{ path: '/projects', query: projectListQuery }" :label="t('projects.dashboard.allProjects')" />
+      <UTabs v-model="view" :items="tabs" :content="false" variant="pill" size="sm" color="primary" :aria-label="t('projects.dashboard.attention.tabsLabel')" data-testid="project-dashboard-attention-tabs" />
+      <UButton color="neutral" variant="outline" size="sm" :to="{ path: '/projects', query: projectListQuery }" :label="t('projects.dashboard.allProjects')" />
     </template>
-    <UTabs v-model="view" :items="tabs" :content="false" variant="pill" size="sm" color="primary" :aria-label="t('projects.dashboard.attention.tabsLabel')" data-testid="project-dashboard-attention-tabs" class="mb-3 w-full" />
-    <SharedDataTable :rows="[...rows]" :columns="columns" :row-key="row => row.project.id" :empty-text="emptyText" :caption="t('projects.dashboard.attention.title')">
+    <SharedDataTable bare :rows="[...rows]" :columns="columns" :row-key="row => row.project.id" :empty-text="emptyText" :caption="t('projects.dashboard.attention.title')">
       <template #record-cell="{ row }"><RecordNumber :value="row.original.project.id" /></template>
       <template #project-cell="{ row }">
         <div data-testid="recent-project-row">
@@ -74,7 +80,7 @@ function updatedAt(value: string | null | undefined) {
       <template #status-cell="{ row }"><SharedStatusBadge v-bind="projectBadge(row.original.project.status)" data-testid="project-status" /></template>
       <template #progress-cell="{ row }">
         <div class="flex min-w-28 items-center gap-2">
-          <UProgress v-if="row.original.progress != null" :model-value="row.original.progress" size="xs" color="primary" class="w-16" aria-hidden="true" />
+          <SharedProgress class="w-16" :value="row.original.progress" size="sm" :tone="progressTone(row.original)" />
           <span dir="ltr" class="tabular-nums">{{ formatNullablePercent(row.original.progress, t('projects.dashboard.unavailable')) }}</span>
         </div>
       </template>

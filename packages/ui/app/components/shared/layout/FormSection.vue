@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// A titled group of form fields: the shared panel card with `panel`, otherwise a flat section whose fields sit 20px apart.
+import RecordSection from './RecordSection.vue'
+
 defineProps<{
   title?: string
   description?: string
@@ -7,18 +10,8 @@ defineProps<{
 </script>
 
 <template>
-  <UCard v-if="panel">
-    <template v-if="title || description" #header>
-      <h2 v-if="title" class="text-lg font-semibold text-highlighted">{{ title }}</h2>
-      <p v-if="description" class="mt-1 text-sm text-muted">{{ description }}</p>
-    </template>
-    <slot />
-  </UCard>
-  <section v-else class="space-y-5">
-    <header v-if="title || description">
-      <h2 v-if="title" class="text-lg font-semibold text-highlighted">{{ title }}</h2>
-      <p v-if="description" class="mt-1 text-sm text-muted">{{ description }}</p>
-    </header>
-    <slot />
-  </section>
+  <RecordSection :variant="panel ? 'panel' : 'flat'" :title="title" :description="description">
+    <slot v-if="panel" />
+    <div v-else class="space-y-5"><slot /></div>
+  </RecordSection>
 </template>

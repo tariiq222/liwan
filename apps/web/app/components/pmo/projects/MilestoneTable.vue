@@ -6,6 +6,8 @@ import { formatCalendarDate, toCalendarDate } from '@webvue/ui/app/composables/c
 import type { TableColumn } from '@nuxt/ui'
 import { useDeleteMilestone, useMilestones, useUpdateMilestone } from '@/composables/useMilestones'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
+import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const props = defineProps<{ projectId: number; canManage: boolean }>()
@@ -98,6 +100,7 @@ async function confirmDelete() {
   }
 }
 const columns = computed<TableColumn<Milestone>[]>(() => [
+  { id: 'number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12', td: 'w-12' } } },
   { id: 'name', header: t('projects.milestones.name') },
   { id: 'state', header: t('projects.milestones.state') },
   { id: 'start', header: t('projects.milestones.startDate') },
@@ -108,10 +111,11 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
 </script>
 
 <template>
-  <div class="min-w-0 space-y-3" data-testid="milestone-table">
+  <div class="grid min-w-0 gap-(--webvue-gap-card)" data-testid="milestone-table">
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
     <SharedEmptyState
       v-else-if="hydrated && !isLoading && items.length === 0"
+      bordered
       :title="t('projects.milestones.empty')"
       :description="t('projects.milestones.emptyHint')"
     />
@@ -125,50 +129,54 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
         @cancel="deleteId = null"
         @confirm="confirmDelete"
       />
-      <SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="isLoading || !hydrated" :caption="t('projects.tabs.milestones')">
-        <template #name-cell="{ row }">
-          <div data-testid="milestone-row" class="grid min-w-0 gap-1">
-            <NuxtLink :to="detailTo(row.original)" class="font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
-            <span v-if="row.original.deliverables?.length" class="text-xs text-muted">{{ t('projects.milestones.checklistOf', { done: row.original.deliverables.filter(item => item.done).length, total: row.original.deliverables.length }) }}</span>
-
-          </div>
-        </template>
-        <template #state-cell="{ row }">
-          <SharedStatusBadge :tone="row.original.is_reached ? 'success' : 'neutral'" :label="t(row.original.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
-        </template>
-        <template #start-cell="{ row }">{{ startText(row.original) }}</template>
-        <template #deadline-cell="{ row }"><span :class="DEADLINE_TEXT_CLASS[deadlineTone(row.original)]">{{ deadlineText(row.original) }}</span></template>
-        <template #tasks-cell="{ row }">
-          <span class="block">{{ t('projects.milestones.tasksOf', { done: row.original.done_task_count, total: row.original.task_count }) }}</span>
-          <span class="block text-xs text-muted">{{ t('projects.milestones.taskProgress', { percent: taskProgress(row.original) }) }}</span>
-        </template>
-        <template #actions-cell="{ row }">
-          <div data-testid="milestone-actions">
-            <SharedRowActions :actions="milestoneActions(row.original)" :label="t('projects.milestones.actionsNamed', { name: row.original.name })" />
-          </div>
-        </template>
-        <template #mobile-row="{ row: m }">
-          <div data-testid="milestone-card" class="space-y-3">
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <NuxtLink :to="detailTo(m)" class="font-medium text-highlighted hover:underline">{{ m.name }}</NuxtLink>
-                <SharedStatusBadge class="mt-1" :tone="m.is_reached ? 'success' : 'neutral'" :label="t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+      <SharedListCard>
+        <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="isLoading || !hydrated" :caption="t('projects.tabs.milestones')">
+          <template #number-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+          <template #name-cell="{ row }">
+            <div data-testid="milestone-row" class="grid min-w-0 gap-1">
+              <NuxtLink :to="detailTo(row.original)" class="font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
+              <span v-if="row.original.deliverables?.length" class="text-xs text-muted">{{ t('projects.milestones.checklistOf', { done: row.original.deliverables.filter(item => item.done).length, total: row.original.deliverables.length }) }}</span>
+            </div>
+          </template>
+          <template #state-cell="{ row }">
+            <SharedStatusBadge :tone="row.original.is_reached ? 'success' : 'neutral'" :label="t(row.original.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+          </template>
+          <template #start-cell="{ row }">{{ startText(row.original) }}</template>
+          <template #deadline-cell="{ row }"><span :class="DEADLINE_TEXT_CLASS[deadlineTone(row.original)]">{{ deadlineText(row.original) }}</span></template>
+          <template #tasks-cell="{ row }">
+            <div class="grid min-w-32 gap-1">
+              <span class="text-sm">{{ t('projects.milestones.tasksOf', { done: row.original.done_task_count, total: row.original.task_count }) }}</span>
+              <SharedProgress size="sm" :value="taskProgress(row.original)" :label="t('projects.milestones.taskProgress', { percent: taskProgress(row.original) })" />
+            </div>
+          </template>
+          <template #actions-cell="{ row }">
+            <div data-testid="milestone-actions">
+              <SharedRowActions :actions="milestoneActions(row.original)" :label="t('projects.milestones.actionsNamed', { name: row.original.name })" />
+            </div>
+          </template>
+          <template #mobile-row="{ row: m }">
+            <div data-testid="milestone-card" class="grid gap-3">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <NuxtLink :to="detailTo(m)" class="font-medium text-highlighted hover:underline">{{ m.name }}</NuxtLink>
+                  <SharedStatusBadge class="mt-1" :tone="m.is_reached ? 'success' : 'neutral'" :label="t(m.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+                </div>
+                <div v-if="canManage" data-testid="milestone-actions-card" class="shrink-0">
+                  <SharedRowActions :actions="milestoneActions(m)" :label="t('projects.milestones.actionsNamed', { name: m.name })" />
+                </div>
               </div>
-              <div v-if="canManage" data-testid="milestone-actions-card" class="shrink-0">
-                <SharedRowActions :actions="milestoneActions(m)" :label="t('projects.milestones.actionsNamed', { name: m.name })" />
+              <SharedProgress size="sm" :value="taskProgress(m)" :label="t('projects.milestones.taskProgress', { percent: taskProgress(m) })" />
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+                <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
+                <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
+                <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
+                <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
+                <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
               </div>
             </div>
-            <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-              <span>{{ t('projects.milestones.startDate') }}: {{ startText(m) }}</span>
-              <span :class="DEADLINE_TEXT_CLASS[deadlineTone(m)]">{{ t('projects.milestones.deadline') }}: {{ deadlineText(m) }}</span>
-              <span>{{ t('projects.milestones.tasksOf', { done: m.done_task_count, total: m.task_count }) }}</span>
-              <span>{{ t('projects.milestones.taskProgress', { percent: taskProgress(m) }) }}</span>
-              <span v-if="m.deliverables?.length">{{ t('projects.milestones.checklistOf', { done: m.deliverables.filter(item => item.done).length, total: m.deliverables.length }) }}</span>
-            </div>
-
-          </div>
-        </template>
-      </SharedDataTable>
+          </template>
+        </SharedDataTable>
+      </SharedListCard>
     </template>
   </div>
 </template>

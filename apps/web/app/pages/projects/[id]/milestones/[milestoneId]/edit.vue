@@ -19,7 +19,6 @@ const backTo = computed(() => recordParentTo(`/projects/${projectId.value}/miles
 function retry() {
   void Promise.all([refetchProject(), refetchMilestones()])
 }
-
 </script>
 
 <template>
@@ -37,11 +36,9 @@ function retry() {
       @retry="retry"
     >
       <p v-if="!project?.can_manage" class="text-muted">{{ t('projects.forbidden') }}</p>
-      <template v-else-if="milestone && projectId">
-      <SharedFormSection panel class="space-y-5">
+      <SharedFormSection v-else-if="milestone && projectId" panel>
         <MilestoneForm :project-id="projectId" :project-start="project?.date_start" :project-end="project?.date_end" :milestone="milestone" @saved="router.push(backTo)" @cancel="router.push(backTo)" />
       </SharedFormSection>
-      </template>
     </SharedPageState>
   </SharedPageContainer>
 </template>

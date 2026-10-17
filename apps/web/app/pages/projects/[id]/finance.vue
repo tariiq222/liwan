@@ -208,6 +208,8 @@ const liveListPath = computed(() => router.resolve({
 const entryTo = (item: { id: number }) => ({ path: `/projects/${projectId.value}/finance/${item.id}`, query: { ...serializeFinanceListRoute({ ...filters, q: search.value }), ...returnToQuery(liveListPath.value) } })
 const newTo = (kind: 'budget' | 'expense') => ({ path: `/projects/${projectId.value}/finance/new`, query: { kind, ...returnToQuery(liveListPath.value) } })
 const showEmpty = computed(() => !list.isLoading.value && items.value.length === 0)
+// A ledger with nothing in it and nothing filtered is an empty page, not an empty list: no filter row to show.
+const bareEmpty = computed(() => Boolean(summary.value) && showEmpty.value && !filtered.value && filters.offset === 0)
 </script>
 
 <template>
@@ -226,35 +228,36 @@ const showEmpty = computed(() => !list.isLoading.value && items.value.length ===
       <template v-if="canManage" #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-plus" :disabled="!hydrated" :to="newTo('expense')">{{ t('projects.finance.newExpense') }}</UButton>
       </template>
-      <template #filters>
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" icon="i-lucide-search" data-testid="finance-search" class="w-full min-w-52" />
+      <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
+      <template v-else>
+        <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" :can-manage="canManage" />
+        <SharedEmptyState v-if="bareEmpty" bordered :title="t('projects.finance.empty')" :description="t('projects.finance.emptyHint')" />
+        <SharedListCard v-else>
+          <template #filters>
+            <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+              <template #search>
+                <UInput v-model="search" :disabled="!hydrated" :placeholder="t('projects.finance.search')" :aria-label="t('projects.finance.search')" icon="i-lucide-search" data-testid="finance-search" class="w-full min-w-52">
+                  <template v-if="search" #trailing>
+                    <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('projects.filters.clearSearch')" class="-me-1" @click="clearSearch" />
+                  </template>
+                </UInput>
+              </template>
+              <template #view>
+                <SharedSegmentedControl data-testid="finance-kind-filter" :label="t('projects.finance.fields.kind')" :items="kindItems" :model-value="filters.kind" :disabled="!hydrated" @update:model-value="onKindChange" />
+              </template>
+            </FilterBar>
           </template>
-          <template #default>
-            <SharedFilterChoice data-testid="finance-kind-filter" layout="segment" :label="t('projects.finance.fields.kind')" :items="kindItems" :model-value="filters.kind" :disabled="!hydrated" @update:model-value="onKindChange" />
-          </template>
-          <template #active>
-            <div v-if="filtered" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="filters.q.trim()" :label="t('projects.filters.searchValue', { value: filters.q })" @remove="clearSearch" />
-              <SharedFilterChip v-if="filters.kind !== 'all'" :label="t(`projects.finance.kind.${filters.kind}`)" @remove="onKindChange('all')" />
+          <SharedPageState :loading="list.isLoading.value && !list.data.value" :error="notFound ? null : list.error.value" :empty="false" @retry="list.refetch">
+            <div v-if="summary && showEmpty" class="p-(--webvue-card-pad)">
+              <SharedEmptyState :title="t('projects.finance.filteredEmpty')" :description="t('projects.finance.filteredEmptyHint')" />
             </div>
+            <FinanceEntryTable v-else-if="summary && projectId" :project-id="projectId" :items="items" :summary="summary" :is-loading="list.isLoading.value" :row-to="entryTo" :can-manage="canManage" />
+          </SharedPageState>
+          <template v-if="summary && items.length" #footer>
+            <SharedListFooter :count-label="t('projects.footer.results', { shown: items.length, total }, total)" count-test-id="finance-result-count" :page="page" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
           </template>
-        </FilterBar>
+        </SharedListCard>
       </template>
-      <SharedPageState :loading="list.isLoading.value && !list.data.value" :error="notFound ? null : list.error.value" :empty="false" @retry="list.refetch">
-        <p v-if="notFound && !list.isLoading.value" class="text-muted">{{ t('projects.notFound') }}</p>
-        <template v-else>
-          <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" :can-manage="canManage" />
-          <SharedEmptyState
-            v-if="summary && showEmpty"
-            :title="t(filtered ? 'projects.finance.filteredEmpty' : 'projects.finance.empty')"
-            :description="t(filtered ? 'projects.finance.filteredEmptyHint' : 'projects.finance.emptyHint')"
-          />
-          <FinanceEntryTable v-else-if="summary && projectId" :project-id="projectId" :items="items" :summary="summary" :is-loading="list.isLoading.value" :row-to="entryTo" :can-manage="canManage" />
-          <SharedPagination :page="page" :pages="pages" :disabled="list.isFetching.value" @update:page="setPage" />
-        </template>
-      </SharedPageState>
     </SharedListPage>
   </template>
   <KeepAlive>

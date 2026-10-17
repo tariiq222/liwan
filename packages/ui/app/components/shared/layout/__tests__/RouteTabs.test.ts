@@ -29,4 +29,17 @@ describe('RouteTabs', () => {
     expect((await render({ items, ariaLabel: 'x' })).match(/i-lucide-house/g)).toHaveLength(1)
     expect(await render({ items: [], ariaLabel: 'x' })).not.toContain('<nav')
   })
+
+  it('draws the underline strip by default and the round pill strip for variant pill, with the same links', async () => {
+    const underline = await render({ items, ariaLabel: 'x' })
+    expect(underline).toContain('border-b border-default')
+    expect(underline).not.toContain('rounded-full')
+    const pill = await render({ items, ariaLabel: 'x', variant: 'pill' })
+    expect(pill).toMatch(/<nav[^>]*rounded-full[^>]*ring-default/)
+    expect(pill).toContain('h-8')
+    expect(pill).toContain('data-[active=true]:bg-primary/10')
+    expect(pill).not.toContain('border-b-2')
+    expect(pill.match(/aria-current="page"/g)).toHaveLength(1)
+    expect(pill).toContain('data-testid="project-tab-overview"')
+  })
 })

@@ -7,7 +7,7 @@ const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 describe('stakeholders stays on its templates', () => {
   it('the list is a hide-header list page over a data table with tone badges', () => {
     const page = read('pages/projects/[id]/stakeholders.vue')
-    for (const needle of ['<SharedListPage', 'hide-header', 'create-test-id="stakeholders-create"', '<SharedDataTable', '#mobile-row', '#mobile-row']) expect(page).toContain(needle)
+    for (const needle of ['<SharedListPage', 'hide-header', 'create-test-id="stakeholders-create"', '<SharedListCard', '<FilterBar embedded', 'bare :rows=', '#mobile-row']) expect(page).toContain(needle)
     for (const gone of ['<UTable', 'md:hidden', '<SharedPageHeader']) expect(page).not.toContain(gone)
   })
   it('the delete confirmation follows the live list', () => {

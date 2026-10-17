@@ -34,7 +34,7 @@ async function mountFinance(auth: (to: RouteLocationNormalized) => unknown | Pro
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true),
     useProject: () => ({ data: Vue.ref({ id: 2 }) }),
     useProjectFinanceList: () => ({ data: Vue.ref({ items: [], total: 4, can_manage: true }), isFetching: Vue.ref(false), error: Vue.ref(null) }),
-    ApiError: class ApiError extends Error {}, FinanceEntryTable: {}, FinanceSummaryCards: {}, FilterBar: {},
+    ApiError: class ApiError extends Error {}, FinanceEntryTable: {}, FinanceSummaryCards: {}, FilterBar: {}, SharedSegmentedControl: {},
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const page = new Function(...Object.keys(bindings), code)(...Object.values(bindings))

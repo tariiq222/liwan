@@ -3,13 +3,16 @@ import { useTasks, type TaskListParams } from '@/composables/useTasks'
 import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
-// "Needs your attention": the overdue open tasks of the project (first five), as a record section.
-const props = defineProps<{ projectId: number; returnTo: string }>()
+// "Needs your attention": the overdue open tasks of the project (first five). It is the page's call to action
+// only while there is something to act on and the phase gate (the page's one `action` block) is not shown;
+// otherwise it is a quiet tinted note.
+const props = defineProps<{ projectId: number; returnTo: string; gateAction?: boolean }>()
 const taskParams = computed<TaskListParams>(() => ({ mine: false, project_id: props.projectId, closed: false }))
 const { data, isLoading, isError, error, refetch } = useTasks(taskParams)
 const tasks = computed(() => data.value?.pages.flatMap(page => page.items) ?? [])
 const attention = computed(() => tasks.value.filter(task => task.is_overdue).slice(0, 5))
 const { t, locale } = useI18n()
+const variant = computed(() => attention.value.length && !props.gateAction ? 'action' : 'tinted')
 
 function taskQuery() {
   return returnToQuery(props.returnTo)
@@ -20,14 +23,14 @@ function deadlineLabel(value: string | null) {
 </script>
 
 <template>
-  <SharedRecordSection panel data-testid="project-active-tasks" :title="t('projects.overview.needsAttention')">
+  <SharedRecordSection :variant="variant" data-testid="project-active-tasks" :title="t('projects.overview.needsAttention')">
     <template #actions>
       <NuxtLink :to="`/projects/${props.projectId}/tasks`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
         {{ t('projects.overview.viewTasks') }}
       </NuxtLink>
     </template>
     <div>
-      <div v-if="isLoading" class="space-y-3" data-testid="project-active-tasks-loading">
+      <div v-if="isLoading" data-testid="project-active-tasks-loading">
         <SharedLoadingSkeleton :count="3" />
       </div>
       <UAlert v-else-if="isError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error instanceof Error ? error.message : t('errors.generic')">
@@ -42,17 +45,18 @@ function deadlineLabel(value: string | null) {
             v-for="task in attention"
             :key="task.id"
             :to="{ path: `/projects/${props.projectId}/tasks/${task.id}`, query: taskQuery() }"
-            class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0 hover:bg-elevated/50"
+            class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
           >
             <span class="min-w-0">
               <span class="block truncate text-sm font-medium">{{ task.name }}</span>
-              <span class="mt-1 flex flex-wrap gap-x-2 text-xs text-muted">
+              <span class="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+                <SharedPersonAvatar v-if="task.assignees.length" :people="task.assignees.slice(0, 1)" />
                 <span>{{ task.assignees[0]?.name ?? t('tasks.drawer.unassigned') }}</span>
                 <span aria-hidden="true">·</span>
                 <bdi>{{ deadlineLabel(task.date_deadline) }}</bdi>
               </span>
             </span>
-            <UBadge variant="subtle" color="error">{{ t('projects.milestones.overdue') }}</UBadge>
+            <UBadge variant="subtle" color="error" class="shrink-0">{{ t('projects.milestones.overdue') }}</UBadge>
           </NuxtLink>
         </div>
         <p class="mt-3 text-xs text-muted">{{ t('projects.overview.activeTasksCap') }}</p>

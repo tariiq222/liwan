@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
-  width?: 'list' | 'detail' | 'form'
+  width?: 'list' | 'detail' | 'form' | 'full'
 }>(), {
   width: 'list',
 })

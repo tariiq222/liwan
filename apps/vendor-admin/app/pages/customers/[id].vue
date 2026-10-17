@@ -154,10 +154,10 @@ async function cancelPendingOrder() {
             <UAlert v-if="extra?.full.failed" class="mt-3" color="error" variant="subtle" :title="t('vendor.customers.cancelOrder.refreshFailed')"><template #actions><UButton color="neutral" variant="outline" :disabled="!hydrated || cancelBusy" @click="refreshCancellationState">{{ t('app.retry') }}</UButton></template></UAlert>
           </SharedRecordSection>
           <div v-if="view" class="grid items-start gap-6 lg:grid-cols-2">
-            <SharedRecordSection v-if="view.applied" panel :title="t('vendor.customers.sections.services')">
+            <SharedRecordSection v-if="view.applied" variant="panel" :title="t('vendor.customers.sections.services')">
               <VendorEntitlementSummary :release="release" :selections="selections" include-core />
             </SharedRecordSection>
-            <SharedRecordSection panel :title="t('vendor.customers.sections.branches')">
+            <SharedRecordSection variant="panel" :title="t('vendor.customers.sections.branches')">
               <p v-if="extra?.branches.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
               <dl v-else-if="branchText" class="grid grid-cols-2 gap-4 tabular-nums" data-testid="branch-summary">
                 <div><dt class="text-sm text-muted">{{ t('vendor.customers.branchesHq') }}</dt><dd class="font-semibold">{{ t('vendor.customers.included') }}</dd></div>
@@ -168,7 +168,7 @@ async function cancelPendingOrder() {
               <p v-else class="text-sm text-muted">{{ t('vendor.customers.usage.none') }}</p>
             </SharedRecordSection>
           </div>
-          <SharedRecordSection v-if="view" panel :title="t('vendor.customers.sections.usage')">
+          <SharedRecordSection v-if="view" variant="panel" :title="t('vendor.customers.sections.usage')">
             <p v-if="extra?.usage.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
             <VendorUsageMeters v-else :usage="extra?.usage.value" />
           </SharedRecordSection>
@@ -177,7 +177,7 @@ async function cancelPendingOrder() {
           </details>
         </template>
 
-        <SharedRecordSection v-else-if="tab === 'invoices'" panel :title="t('vendor.customers.sections.invoices')">
+        <SharedRecordSection v-else-if="tab === 'invoices'" variant="panel" :title="t('vendor.customers.sections.invoices')">
           <template v-if="invoices.length" #actions><UButton :to="{ path: '/invoices', query: { customer_id: id } }" color="neutral" variant="outline" size="sm">{{ t('vendor.customers.allInvoices') }}</UButton></template>
           <p v-if="extra?.invoices.unavailable" class="text-sm text-muted">{{ t('vendor.customers.sectionUnavailable') }}</p>
           <p v-else-if="!invoices.length" class="text-sm text-muted">{{ t('vendor.invoices.empty') }}</p>
@@ -207,16 +207,16 @@ async function cancelPendingOrder() {
         </template>
 
         <template v-else>
-          <SharedRecordSection panel :title="t('vendor.customers.sections.terms')">
+          <SharedRecordSection variant="panel" :title="t('vendor.customers.sections.terms')">
             <template v-if="view && canTerms" #actions><UButton :to="termsTo" color="neutral" variant="outline" size="sm" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton></template>
             <p v-if="view?.applied?.terms_revision_id" class="text-sm">{{ t('vendor.customers.terms.active') }}</p>
             <p v-else class="text-sm text-muted">{{ t('vendor.customers.terms.noneActive') }}</p>
             <p class="mt-2 text-sm text-muted">{{ t('vendor.customers.terms.isolation') }}</p>
           </SharedRecordSection>
-          <SharedRecordSection v-if="view" panel :title="t('vendor.customers.history.title')" :description="t('vendor.customers.history.hint')">
+          <SharedRecordSection v-if="view" variant="panel" :title="t('vendor.customers.history.title')" :description="t('vendor.customers.history.hint')">
             <VendorSubscriptionTimeline :subscription="view" :plan-name="planNameOf" />
           </SharedRecordSection>
-          <SharedRecordSection panel :title="t('vendor.customers.sections.audit')" :description="t('vendor.customers.history.whoHint')">
+          <SharedRecordSection variant="panel" :title="t('vendor.customers.sections.audit')" :description="t('vendor.customers.history.whoHint')">
             <UButton :to="{ path: '/audit', query: { customer_id: id } }" color="neutral" variant="outline" icon="i-lucide-scroll-text">{{ t('vendor.customers.openAudit') }}</UButton>
           </SharedRecordSection>
         </template>

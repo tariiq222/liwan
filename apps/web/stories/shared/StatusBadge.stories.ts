@@ -31,7 +31,7 @@ export const Tones: Story = {
 }
 export const ProjectStatus: Story = {
   name: 'حالة المشروع',
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectTable.vue:66'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectTable.vue:85'),
   render: row('<StatusBadge v-for="s in statuses" :key="String(s)" :tone="projectStatusBadge(s).tone" :label="t(projectStatusBadge(s).labelKey)" />', () => ({ statuses: [...ProjectStatusSchema.options, null], projectStatusBadge })),
 }
 export const TaskState: Story = {

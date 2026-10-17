@@ -61,6 +61,34 @@ describe('SharedChartPanel', () => {
   })
 })
 
+describe('SharedChartPanel span and size', () => {
+  it('is half width at 300px by default, and full spans both columns', async () => {
+    const half = await renderShared('ChartPanel', { title: 'A' }, { default: chart })
+    expect(half).toContain('data-span="half"')
+    expect(half).toContain('data-size="md"')
+    expect(half).not.toContain('col-span-2')
+    const full = await renderShared('ChartPanel', { title: 'A', span: 'full' }, { default: chart })
+    expect(full).toContain('@min-[768px]:col-span-2')
+  })
+
+  it('sizes the empty and loading bodies, and hands the chart its height', async () => {
+    const heights = { sm: '224px', md: '300px', lg: '360px' }
+    for (const [size, height] of Object.entries(heights)) {
+      expect(await renderShared('ChartPanel', { title: 'A', size, empty: true }, { default: chart }), size).toContain(`min-height:${height}`)
+      expect(await renderShared('ChartPanel', { title: 'A', size, loading: true }, { default: chart }), size).toContain(`min-height:${height}`)
+      let received = ''
+      await renderShared('ChartPanel', { title: 'A', size }, { default: ((slot: { height: string }) => { received = slot.height; return chart() }) as never })
+      expect(received, size).toBe(height)
+    }
+  })
+
+  it('titles follow the panel heading ladder (text-sm, never text-lg)', async () => {
+    const html = await renderShared('ChartPanel', { title: 'A' }, { default: chart })
+    expect(html).toContain('text-sm font-semibold')
+    expect(html).not.toContain('text-lg')
+  })
+})
+
 describe('SharedDashboardPage', () => {
   it('renders header, labelled metric row and chart grid in that order', async () => {
     const html = await renderShared('DashboardPage', { title: 'Projects dashboard', description: 'All projects' }, {
@@ -79,6 +107,23 @@ describe('SharedDashboardPage', () => {
     expect(positions.every(position => position >= 0)).toBe(true)
     expect([...positions].sort((a, b) => a - b)).toEqual(positions)
     expect(html).toContain('@min-[768px]:grid-cols-2')
+    expect(html).toContain('gap-(--webvue-gap-card)')
+    expect(html).not.toMatch(/\bgap-[356]\b/)
+  })
+
+  it('draws the primary slot full width after the filters and above the metrics', async () => {
+    const html = await renderShared('DashboardPage', { title: 'Overview' }, {
+      filters: () => h('div', { 'data-filter-bar': '' }),
+      primary: () => h('section', { 'data-primary-block': '' }),
+      metrics: () => h('div', { 'data-metric': '' }),
+      default: () => h('section', { 'data-chart-panel': '' }),
+    }, { stubs })
+    const order = ['<h1>', 'data-filter-bar', 'data-template="dashboard-primary"', 'data-primary-block', 'data-template="dashboard-metrics"', 'data-chart-panel']
+    const positions = order.map(marker => html.indexOf(marker))
+    expect(positions.every(position => position >= 0)).toBe(true)
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions)
+    const without = await renderShared('DashboardPage', { title: 'Overview' }, { default: () => h('section') }, { stubs })
+    expect(without).not.toContain('dashboard-primary')
   })
 
   it('omits the metric row and the actions when their slots are not given', async () => {

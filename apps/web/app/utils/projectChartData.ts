@@ -23,7 +23,7 @@ export type ChartLabels = {
 }
 
 export type ProjectDashboardMetric = {
-  key: 'projects' | 'active' | 'taskProgress' | 'budgeted'
+  key: 'projects' | 'taskProgress' | 'budgeted'
   value: number | null
   suffix?: '%'
 }
@@ -143,7 +143,6 @@ export function projectDashboardMetrics(rows: readonly ProjectReportRow[]): Proj
   const closedTotal = taskRows.reduce((sum, row) => sum + (row.closed_task_count ?? 0), 0)
   return [
     { key: 'projects', value: rows.length },
-    { key: 'active', value: rows.filter(row => row.project.status !== 'done').length },
     { key: 'taskProgress', value: taskTotal > 0 ? percent(closedTotal, taskTotal) : taskRows.length ? 0 : null, suffix: '%' },
     { key: 'budgeted', value: rows.filter(row => row.finance.planned != null).length },
   ]

@@ -118,13 +118,13 @@ const approverItems = computed(() => {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="grid gap-(--webvue-gap-card)">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <p role="status" class="text-sm text-muted" data-testid="project-autosave-status">{{ t(saveState === 'saving' ? 'projects.clarity.saving' : saveState === 'error' ? 'projects.clarity.saveFailed' : choosingApprover ? 'projects.clarity.chooseApprover' : saveState === 'saved' ? 'projects.clarity.saved' : 'projects.clarity.autosaveHint') }}</p>
     <UAlert v-if="saveState === 'error'" role="alert" color="error" variant="subtle" :title="saveError">
       <template #actions><UButton type="button" color="neutral" variant="outline" data-testid="project-settings-retry" :label="t('app.retry')" @click="pendingPatch && save(pendingPatch)" /></template>
     </UAlert>
-    <fieldset :disabled="controlsLocked" class="min-w-0 space-y-5 border-0 p-0">
+    <fieldset :disabled="controlsLocked" class="grid min-w-0 gap-(--webvue-gap-card) border-0 p-0">
       <UFormField as="section" :description="t('projects.refresh.settings.visibilityHint')">
           <template #label><span id="project-settings-visibility-label">{{ t('projects.settings.visibility') }}</span></template>
           <USelect

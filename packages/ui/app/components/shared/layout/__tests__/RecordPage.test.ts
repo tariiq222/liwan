@@ -107,6 +107,15 @@ describe('SharedPropertiesPanel and SharedPropertyRow', () => {
   })
 })
 
+describe('SharedRecordPage width', () => {
+  it('is the detail band by default and `full` lifts the cap', async () => {
+    expect(await renderShared('RecordPage', { title: 'Alpha' }, record, options)).toContain('webvue-page-width-detail')
+    const full = await renderShared('RecordPage', { title: 'Alpha', width: 'full' }, record, options)
+    expect(full).toContain('webvue-page-width-full')
+    expect(full).not.toContain('max-w-none')
+  })
+})
+
 describe('SharedRecordSection', () => {
   it('names the section by its heading and keeps the actions beside it', async () => {
     const html = await renderShared('RecordSection', { title: 'Milestones', description: 'Dates that matter', id: 'milestones' }, {

@@ -10,6 +10,7 @@ async function overview(state: { data?: unknown[]; loading?: boolean; error?: Er
       '@/composables/useMilestones': { useMilestones: () => ({ data: ref(state.data), isLoading: ref(!!state.loading), error: ref(state.error), refetch: () => {} }) },
       '@/composables/useProjectUpdates': { useProjectUpdates: () => ({ data: ref([]), isLoading: ref(false), error: ref(null) }) },
       '@webvue/ui/app/composables/calendarDate': { formatCalendarDate: (value: string) => value },
+      '@/composables/projectPhase': { isGateAction: () => false },
       '@/composables/projectStatus': { projectStatusBadge: () => ({ tone: 'neutral' }) },
       '@webvue/ui/app/utils/statusBadge': { badgeLabel: () => '' },
       './ProjectOverviewTasks.vue': { default: defineComponent({ setup: () => () => h('section', { 'data-testid': 'attention' }) }) },

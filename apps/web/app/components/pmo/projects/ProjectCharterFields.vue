@@ -127,8 +127,8 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
 </script>
 
 <template>
-  <div class="grid gap-6">
-    <div v-if="show('name') || show('code')" class="grid gap-4 sm:grid-cols-3">
+  <div class="grid gap-(--webvue-card-pad)">
+    <div v-if="show('name') || show('code')" class="grid gap-(--webvue-gap-card) sm:grid-cols-3">
     <UFormField v-if="show('name')" class="sm:col-span-2" :label="t('projects.charter.fields.name')" required :error="fieldErrors?.name" data-testid="charter-field-name">
       <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.name'))" :text="t('projects.charter.help.name')" /></template>
       <template #error="{ error }"><span role="alert">{{ error }}</span></template>
@@ -144,13 +144,13 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
 
     <UFormField v-if="show('description')" :label="t('projects.charter.fields.description')" data-testid="charter-field-description">
       <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.description'))" :text="t('projects.charter.help.description')" /></template>
-      <div v-if="readonly && descriptionLooksHtml" class="rounded-md bg-elevated/50 p-3">
+      <SharedSubCard v-if="readonly && descriptionLooksHtml" tone="tinted">
         <SharedRichText size="sm" :html="draft.description" />
-      </div>
+      </SharedSubCard>
       <UTextarea v-else id="charter-description" v-model="draft.description" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
     </UFormField>
 
-    <div v-if="show('type') || show('owning_unit')" class="grid gap-4 md:grid-cols-2">
+    <div v-if="show('type') || show('owning_unit')" class="grid gap-(--webvue-gap-card) md:grid-cols-2">
       <UFormField v-if="show('type')" data-testid="charter-field-type">
         <template #label><span id="charter-type-label">{{ t('projects.charter.fields.type') }}</span></template>
         <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.type'))" :text="t('projects.charter.help.type')" /></template>
@@ -228,7 +228,7 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
       </UFormField>
     </div>
 
-    <div v-if="show('manager') || show('sponsor')" class="grid gap-4 md:grid-cols-2">
+    <div v-if="show('manager') || show('sponsor')" class="grid gap-(--webvue-gap-card) md:grid-cols-2">
       <UFormField v-if="show('manager')" :required="requireManager" :error="fieldErrors?.manager" data-testid="charter-field-manager">
         <template #label><span id="charter-manager-label">{{ t('projects.charter.fields.manager') }}</span></template>
         <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.manager'))" :text="t('projects.charter.help.manager')" /></template>
@@ -335,7 +335,7 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
       <UTextarea id="charter-success" v-model="draft.success" class="w-full" :readonly="readonly" :disabled="controlsDisabled" :rows="3" />
     </UFormField>
 
-    <div v-if="show('date_start') || show('date_end')" class="grid gap-4 md:grid-cols-2">
+    <div v-if="show('date_start') || show('date_end')" class="grid gap-(--webvue-gap-card) md:grid-cols-2">
       <UFormField v-if="show('date_start')" :label="t('projects.charter.fields.date_start')" :error="fieldErrors?.date_start" data-testid="charter-field-date_start">
         <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.date_start'))" :text="t('projects.charter.help.date_start')" /></template>
         <template #error="{ error }"><span role="alert">{{ error }}</span></template>
@@ -380,7 +380,7 @@ const descriptionLooksHtml = computed(() => /<\/?[a-z][\s\S]*>/i.test(draft.valu
       />
     </UFormField>
 
-    <div v-if="show('budget_state') || show('amount') || show('currency')" class="grid gap-4 md:grid-cols-3">
+    <div v-if="show('budget_state') || show('amount') || show('currency')" class="grid gap-(--webvue-gap-card) md:grid-cols-3">
       <UFormField v-if="show('budget_state')" data-testid="charter-field-budget_state">
         <template #label><span id="charter-budget-state-label">{{ t('projects.charter.fields.budget_state') }}</span></template>
         <template #hint><ProjectFieldHelp :label="helpLabel(t('projects.charter.fields.budget_state'))" :text="t('projects.charter.help.budget_state')" /></template>

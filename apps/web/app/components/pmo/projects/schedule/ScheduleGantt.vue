@@ -83,7 +83,7 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
 </script>
 
 <template>
-  <UCard class="overflow-hidden" :ui="{ body: 'p-0' }">
+  <div class="min-w-0 overflow-hidden">
       <div ref="scroller" class="schedule-gantt" data-testid="schedule-gantt-scroller">
         <div class="schedule-gantt-grid" :style="gridStyle">
           <div class="schedule-gantt-name schedule-gantt-corner">{{ t('projects.schedule.task') }}</div>
@@ -165,5 +165,5 @@ defineExpose({ scrollPage, scrollToToday: scrollToFocus })
       <ul v-if="datedMilestones.length" class="schedule-gantt-legend" :aria-label="t('projects.schedule.milestones')">
         <li v-for="milestone in datedMilestones" :key="milestone.id">{{ milestone.name }} · {{ formatScheduleDate(milestone.deadline!, locale) }}</li>
       </ul>
-  </UCard>
+  </div>
 </template>

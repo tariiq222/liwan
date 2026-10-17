@@ -141,7 +141,7 @@ function createRecommendation(topicKey?: string) {
             @save-and-create-resolution="createRecommendation"
           />
         </UFormField>
-        <SharedRecordSection :title="t('meetingsUi.agenda')" panel>
+        <SharedRecordSection :title="t('meetingsUi.agenda')" variant="panel">
           <template v-if="canEdit && !lifecycleLocked" #actions><UButton color="neutral" variant="outline" size="sm" :to="recordSiblingTo(`/meetings/${id}/edit`, { ...cleanMeetingEditorQuery(route.query), tab: 'summary' }, sourcePaths)" :label="t('app.edit')" /></template>
           <SharedRichText v-if="agenda" :html="agenda" size="sm" />
           <p v-else class="text-sm text-muted">{{ t('meetingsUi.emptyAgenda') }}</p>

@@ -9,7 +9,10 @@ const projectId = computed(() => {
   const n = Number(route.params.id)
   return Number.isInteger(n) && n > 0 ? n : null
 })
-const { data: project, isLoading, error, refetch } = useProject(projectId)
+const hydrated = useHydrated()
+const { data: projectData, isLoading, error, refetch } = useProject(projectId)
+// Same SSR contract as the frame: reveal the cached project only once hydrated, so the first client tree matches the server's.
+const project = computed(() => hydrated.value ? projectData.value : undefined)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const canManage = computed(() => project.value?.can_manage ?? false)
 </script>
@@ -24,9 +27,9 @@ const canManage = computed(() => project.value?.can_manage ?? false)
     </template>
     <SharedPageState
       v-else
-      :loading="isLoading && !project"
+      :loading="!project && !error && (isLoading || !hydrated)"
       :error="notFound ? null : error"
-      :empty="notFound || (!isLoading && !error && !project)"
+      :empty="notFound || (hydrated && !isLoading && !error && !project)"
       :empty-text="t('projects.notFound')"
       @retry="refetch"
     >

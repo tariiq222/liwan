@@ -997,10 +997,14 @@
           "required": true
         },
         {
-          "name": "height",
-          "type": "string",
-          "required": false,
-          "default": "\"300px\""
+          "name": "span",
+          "type": "\"full\" | \"half\"",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "\"md\" | \"sm\" | \"lg\"",
+          "required": false
         }
       ],
       "events": [],
@@ -1100,12 +1104,12 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/projects/[id]/raci.vue:113"
+          "context": "apps/web/app/pages/projects/[id]/raci.vue:133"
         },
         {
           "id": "ReadOnly",
           "name": "ReadOnly",
-          "context": "apps/web/app/pages/projects/[id]/raci.vue:113"
+          "context": "apps/web/app/pages/projects/[id]/raci.vue:133"
         }
       ]
     },
@@ -1204,6 +1208,7 @@
         "actions"
       ],
       "nuxtUi": [
+        "UAlert",
         "UBadge",
         "UButton",
         "UCheckbox",
@@ -1309,12 +1314,12 @@
         {
           "id": "OnProjectCard",
           "name": "على بطاقة المشروع",
-          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:48"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:42"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:48"
+          "context": "apps/web/app/components/pmo/projects/ProjectCardBody.vue:42"
         }
       ]
     },
@@ -1348,22 +1353,22 @@
         {
           "id": "Active",
           "name": "مشروع نشط",
-          "context": "apps/web/app/pages/projects/[id].vue:117"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Archived",
           "name": "مشروع مؤرشف",
-          "context": "apps/web/app/pages/projects/[id].vue:117"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Governance",
           "name": "تبويبات الحوكمة الفرعية",
-          "context": "apps/web/app/pages/projects/[id].vue:117"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         },
         {
           "id": "Planning",
           "name": "التخطيط: الجدول الزمني والمعالم",
-          "context": "apps/web/app/pages/projects/[id].vue:117"
+          "context": "apps/web/app/pages/projects/[id].vue:124"
         }
       ]
     },
@@ -1849,7 +1854,7 @@
         {
           "id": "FinanceComparison",
           "name": "المخطط مقابل الفعلي",
-          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:124"
+          "context": "apps/web/app/components/pmo/projects/dashboard/ProjectDashboardCharts.vue:126"
         }
       ]
     },
@@ -2800,6 +2805,18 @@
           "name": "emptyText",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "span",
+          "type": "\"full\" | \"half\"",
+          "required": false,
+          "default": "\"half\""
+        },
+        {
+          "name": "size",
+          "type": "\"md\" | \"sm\" | \"lg\"",
+          "required": false,
+          "default": "\"md\""
         }
       ],
       "events": [],
@@ -2815,6 +2832,11 @@
         {
           "id": "Chart",
           "name": "مخطط",
+          "context": "unused"
+        },
+        {
+          "id": "Sizes",
+          "name": "ارتفاع المخطط",
           "context": "unused"
         },
         {
@@ -3091,32 +3113,32 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:263"
+          "context": "apps/web/app/pages/projects/index.vue:273"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:263"
+          "context": "apps/web/app/pages/projects/index.vue:273"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:263"
+          "context": "apps/web/app/pages/projects/index.vue:273"
         },
         {
           "id": "EmbeddedInCardHeader",
           "name": "مدمج في ترويسة بطاقة (صف واحد)",
-          "context": "apps/web/app/pages/projects/index.vue:263"
+          "context": "apps/web/app/pages/projects/index.vue:273"
         },
         {
           "id": "EmbeddedTaskFilters",
           "name": "مدمج: فلاتر المهام (الأولوية والمسؤول والموعد)",
-          "context": "apps/web/app/pages/projects/index.vue:263"
+          "context": "apps/web/app/pages/projects/index.vue:273"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:263"
+          "context": "apps/web/app/pages/projects/index.vue:273"
         }
       ]
     },
@@ -3260,6 +3282,65 @@
       ]
     },
     {
+      "name": "SharedListFooter",
+      "file": "packages/ui/app/components/shared/data/ListFooter.vue",
+      "story": "apps/web/stories/shared/ListFooter.stories.ts",
+      "title": "Shared/ListFooter",
+      "props": [
+        {
+          "name": "countLabel",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "pages",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "countTestId",
+          "type": "string",
+          "required": false,
+          "default": "undefined"
+        }
+      ],
+      "events": [
+        {
+          "name": "update:page",
+          "payload": "[page: number]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "WithPager",
+          "name": "عدد وترقيم",
+          "context": "apps/web/app/pages/projects/index.vue:334"
+        },
+        {
+          "id": "SinglePage",
+          "name": "صفحة واحدة (العدد فقط)",
+          "context": "apps/web/app/pages/projects/index.vue:334"
+        },
+        {
+          "id": "Fetching",
+          "name": "أثناء التحميل",
+          "context": "apps/web/app/pages/projects/index.vue:334"
+        }
+      ]
+    },
+    {
       "name": "SharedMetricTile",
       "file": "packages/ui/app/components/shared/data/MetricTile.vue",
       "story": "apps/web/stories/shared/MetricTile.stories.ts",
@@ -3314,6 +3395,18 @@
           "type": "number",
           "required": false,
           "description": "0-100: a slim bar under the caption in the tone colour; clamped, and hidden when undefined."
+        },
+        {
+          "name": "emphasis",
+          "type": "boolean",
+          "required": false,
+          "description": "A larger figure and a brand-tinted chip for the page's headline number."
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "required": false,
+          "description": "Makes the tile a link to this route."
         }
       ],
       "events": [],
@@ -3328,12 +3421,17 @@
         {
           "id": "Row",
           "name": "صف مؤشرات",
-          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:34"
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:40"
         },
         {
           "id": "CompactStrip",
           "name": "شريط مدمج بنبرات (مؤشرات قائمة المهام)",
-          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:34"
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:40"
+        },
+        {
+          "id": "Emphasis",
+          "name": "رقم بارز ورابط",
+          "context": "unused"
         }
       ]
     },
@@ -3373,17 +3471,17 @@
         {
           "id": "UnderTable",
           "name": "تحت جدول",
-          "context": "apps/web/app/pages/projects/index.vue:313"
+          "context": "packages/ui/app/components/shared/data/ListFooter.vue:12"
         },
         {
           "id": "MiddlePage",
           "name": "صفحة وسطى",
-          "context": "apps/web/app/pages/projects/index.vue:313"
+          "context": "packages/ui/app/components/shared/data/ListFooter.vue:12"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:313"
+          "context": "packages/ui/app/components/shared/data/ListFooter.vue:12"
         }
       ]
     },
@@ -3429,6 +3527,55 @@
       ]
     },
     {
+      "name": "SharedProgress",
+      "file": "packages/ui/app/components/shared/data/Progress.vue",
+      "story": "apps/web/stories/shared/Progress.stories.ts",
+      "title": "Shared/Progress",
+      "props": [
+        {
+          "name": "value",
+          "type": "number | null",
+          "required": true,
+          "description": "0-100; clamped, and the bar is not drawn when it is not a number."
+        },
+        {
+          "name": "size",
+          "type": "\"md\" | \"sm\"",
+          "required": false,
+          "default": "\"sm\""
+        },
+        {
+          "name": "tone",
+          "type": "\"success\" | \"neutral\" | \"warning\" | \"primary\" | \"danger\"",
+          "required": false,
+          "default": "\"primary\""
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false,
+          "description": "Names the bar for assistive technology."
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UProgress"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "افتراضي",
+          "context": "packages/ui/app/components/shared/data/MetricTile.vue:68"
+        },
+        {
+          "id": "Tones",
+          "name": "النبرات والحجمان",
+          "context": "packages/ui/app/components/shared/data/MetricTile.vue:68"
+        }
+      ]
+    },
+    {
       "name": "SharedRecordNumber",
       "file": "packages/ui/app/components/shared/data/RecordNumber.vue",
       "story": "apps/web/stories/shared/RecordNumber.stories.ts",
@@ -3447,17 +3594,17 @@
         {
           "id": "InTableCell",
           "name": "داخل خلية جدول",
-          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
+          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:148"
         },
         {
           "id": "InMobileCard",
           "name": "داخل بطاقة الجوال",
-          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
+          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:164"
         },
         {
           "id": "EmptyValue",
           "name": "بدون رقم",
-          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:137"
+          "context": "apps/web/app/pages/projects/[id]/stakeholders.vue:164"
         }
       ]
     },
@@ -3494,12 +3641,89 @@
         {
           "id": "Menu",
           "name": "قائمة إجراءات",
-          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:147"
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:154"
         },
         {
           "id": "SingleAction",
           "name": "إجراء واحد",
-          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:147"
+          "context": "apps/web/app/components/pmo/projects/MilestoneTable.vue:154"
+        }
+      ]
+    },
+    {
+      "name": "SharedSegmentedControl",
+      "file": "packages/ui/app/components/shared/data/SegmentedControl.vue",
+      "story": "apps/web/stories/shared/SegmentedControl.stories.ts",
+      "title": "Shared/SegmentedControl",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "items",
+          "type": "SegmentedItem[]",
+          "required": true
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": true,
+          "description": "The accessible name of the group."
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "iconOnly",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "block",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[value: string]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UTooltip"
+      ],
+      "stories": [
+        {
+          "id": "Scope",
+          "name": "نطاق (مفتوحة ومغلقة)",
+          "context": "apps/web/app/components/pmo/tasks/TaskToolbar.vue:209"
+        },
+        {
+          "id": "ThreeOptions",
+          "name": "ثلاثة خيارات",
+          "context": "apps/web/app/components/pmo/tasks/TaskToolbar.vue:209"
+        },
+        {
+          "id": "IconOnly",
+          "name": "أيقونات فقط",
+          "context": "apps/web/app/components/pmo/tasks/TaskToolbar.vue:209"
+        },
+        {
+          "id": "Block",
+          "name": "بملء الصف",
+          "context": "apps/web/app/components/pmo/tasks/TaskToolbar.vue:209"
+        },
+        {
+          "id": "Disabled",
+          "name": "معطّلة",
+          "context": "apps/web/app/components/pmo/tasks/TaskToolbar.vue:209"
         }
       ]
     },
@@ -3589,10 +3813,7 @@
         }
       ],
       "slots": [],
-      "nuxtUi": [
-        "UButton",
-        "UTooltip"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "Default",
@@ -3616,6 +3837,11 @@
           "name": "description",
           "type": "string",
           "required": false
+        },
+        {
+          "name": "bordered",
+          "type": "boolean",
+          "required": false
         }
       ],
       "events": [],
@@ -3634,6 +3860,11 @@
           "id": "InTaskListMobile",
           "name": "داخل قائمة المهام على الجوال",
           "context": "packages/ui/app/components/shared/feedback/PageState.vue:22"
+        },
+        {
+          "id": "Bordered",
+          "name": "بطاقة كاملة لصفحة فارغة",
+          "context": "unused"
         }
       ]
     },
@@ -4144,7 +4375,7 @@
         },
         {
           "name": "tag",
-          "type": "\"div\" | \"span\"",
+          "type": "\"span\" | \"div\"",
           "required": false,
           "default": "\"div\""
         }
@@ -4156,12 +4387,12 @@
         {
           "id": "Document",
           "name": "مستند",
-          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:88"
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:85"
         },
         {
           "id": "Preview",
           "name": "معاينة داخل بطاقة",
-          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:88"
+          "context": "apps/web/app/components/pmo/projects/ProjectUpdateList.vue:85"
         }
       ]
     },
@@ -4370,6 +4601,7 @@
       "slots": [
         "actions",
         "filters",
+        "primary",
         "metrics",
         "default"
       ],
@@ -4413,9 +4645,7 @@
       "slots": [
         "default"
       ],
-      "nuxtUi": [
-        "UCard"
-      ],
+      "nuxtUi": [],
       "stories": [
         {
           "id": "InForm",
@@ -4444,13 +4674,19 @@
       "events": [],
       "slots": [
         "filters",
-        "default"
+        "default",
+        "footer"
       ],
       "nuxtUi": [],
       "stories": [
         {
           "id": "Fill",
           "name": "بحجم الشاشة (لوحة أو خط زمني)",
+          "context": "apps/web/app/pages/tasks.vue:94"
+        },
+        {
+          "id": "WithFooter",
+          "name": "مع تذييل",
           "context": "apps/web/app/pages/tasks.vue:94"
         },
         {
@@ -4560,7 +4796,7 @@
       "props": [
         {
           "name": "width",
-          "type": "\"list\" | \"detail\" | \"form\"",
+          "type": "\"list\" | \"detail\" | \"form\" | \"full\"",
           "required": false,
           "default": "\"list\""
         }
@@ -4585,6 +4821,11 @@
           "id": "Form",
           "name": "صفحة نموذج",
           "context": "apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:66"
+        },
+        {
+          "id": "Full",
+          "name": "صفحة سجل بعرض كامل",
+          "context": "apps/web/app/pages/projects/[id]/index.vue:45"
         }
       ]
     },
@@ -4761,6 +5002,13 @@
           "type": "boolean",
           "required": false,
           "description": "A frame around the page already shows the heading (the project workspace): draw no heading. Actions still render."
+        },
+        {
+          "name": "width",
+          "type": "\"detail\" | \"full\"",
+          "required": false,
+          "default": "\"detail\"",
+          "description": "`full` lets a record page that is a dashboard of cards (the project overview) use the whole workspace width."
         }
       ],
       "events": [
@@ -4802,7 +5050,7 @@
         {
           "name": "title",
           "type": "string",
-          "required": true
+          "required": false
         },
         {
           "name": "description",
@@ -4815,9 +5063,10 @@
           "required": false
         },
         {
-          "name": "panel",
-          "type": "boolean",
-          "required": false
+          "name": "variant",
+          "type": "Variant",
+          "required": false,
+          "default": "\"flat\""
         }
       ],
       "events": [],
@@ -4835,6 +5084,11 @@
         {
           "id": "Panel",
           "name": "بطاقة بعنوان وإجراء",
+          "context": "unused"
+        },
+        {
+          "id": "Variants",
+          "name": "الأنواع الخمسة",
           "context": "unused"
         }
       ]
@@ -4854,6 +5108,12 @@
           "name": "ariaLabel",
           "type": "string",
           "required": true
+        },
+        {
+          "name": "variant",
+          "type": "\"underline\" | \"pill\"",
+          "required": false,
+          "default": "\"underline\""
         }
       ],
       "events": [],
@@ -4866,6 +5126,11 @@
         {
           "id": "Workspace",
           "name": "أقسام المشروع",
+          "context": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue:45"
+        },
+        {
+          "id": "Pill",
+          "name": "شريط حبّات (مساحة المشروع)",
           "context": "apps/web/app/components/pmo/projects/workspace/ProjectWorkspaceTabs.vue:45"
         }
       ]
@@ -4892,7 +5157,7 @@
         {
           "id": "FormPage",
           "name": "صفحة إعداد بنموذج",
-          "context": "apps/web/app/pages/projects/settings.vue:14"
+          "context": "apps/web/app/pages/projects/settings.vue:18"
         },
         {
           "id": "ListPage",
@@ -4958,6 +5223,39 @@
         {
           "id": "PrintInShell",
           "name": "وثيقة للطباعة داخل الإطار",
+          "context": "unused"
+        }
+      ]
+    },
+    {
+      "name": "SharedSubCard",
+      "file": "packages/ui/app/components/shared/layout/SubCard.vue",
+      "story": "apps/web/stories/shared/SubCard.stories.ts",
+      "title": "Shared/SubCard",
+      "props": [
+        {
+          "name": "tone",
+          "type": "\"default\" | \"tinted\"",
+          "required": false,
+          "default": "\"default\""
+        },
+        {
+          "name": "as",
+          "type": "string",
+          "required": false,
+          "default": "\"div\"",
+          "description": "The element to render, e.g. `li` inside a list."
+        }
+      ],
+      "events": [],
+      "slots": [
+        "default"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "InsidePanel",
+          "name": "داخل بطاقة",
           "context": "unused"
         }
       ]

@@ -65,40 +65,43 @@ function setPage(next: number) {
     :create-label="t('meetingsUi.new')"
     create-test-id="project-meetings-create"
   >
-    <SharedDataTable
-      :rows="items"
-      :columns="columns"
-      row-key="id"
-      :row-to="meetingTo"
-      :loading="!notFound && query.isLoading.value"
-      :error="notFound ? null : query.error.value"
-      :empty-text="notFound ? t('projects.notFound') : t('projects.meetings.empty')"
-      :page="page"
-      :pages="pages"
-      :caption="t('projects.tabs.meetings')"
-      @update:page="setPage"
-      @retry="query.refetch"
-    >
-      <template #id-cell="{ row }"><RecordNumber :value="row.original.reference.trim() || row.original.id" /></template>
-      <template #name-cell="{ row }">
-        <NuxtLink :to="meetingTo(row.original)" class="font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
-      </template>
-      <template #meeting_date-cell="{ row }"><bdi>{{ dateLabel(row.original.meeting_date) }}</bdi></template>
-      <template #organizer-cell="{ row }">{{ row.original.organizer?.name || '—' }}</template>
-      <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" /></template>
-      <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</template>
-      <template #mobile-row="{ row: meeting }">
-        <div class="grid min-w-0 gap-2">
-          <div class="flex min-w-0 items-start justify-between gap-2">
-            <NuxtLink :to="meetingTo(meeting)" class="min-w-0 break-words font-medium text-highlighted hover:underline">{{ meeting.name }}</NuxtLink>
-            <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" class="shrink-0" />
+    <SharedListCard>
+      <SharedDataTable
+        bare
+        :rows="items"
+        :columns="columns"
+        row-key="id"
+        :row-to="meetingTo"
+        :loading="!notFound && query.isLoading.value"
+        :error="notFound ? null : query.error.value"
+        :empty-text="notFound ? t('projects.notFound') : t('projects.meetings.empty')"
+        :page="page"
+        :pages="pages"
+        :caption="t('projects.tabs.meetings')"
+        @update:page="setPage"
+        @retry="query.refetch"
+      >
+        <template #id-cell="{ row }"><RecordNumber :value="row.original.reference.trim() || row.original.id" /></template>
+        <template #name-cell="{ row }">
+          <NuxtLink :to="meetingTo(row.original)" class="font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
+        </template>
+        <template #meeting_date-cell="{ row }"><bdi>{{ dateLabel(row.original.meeting_date) }}</bdi></template>
+        <template #organizer-cell="{ row }"><SharedPersonAvatar :people="row.original.organizer ? [row.original.organizer] : []" /></template>
+        <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" /></template>
+        <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</template>
+        <template #mobile-row="{ row: meeting }">
+          <div class="grid min-w-0 gap-2">
+            <div class="flex min-w-0 items-start justify-between gap-2">
+              <NuxtLink :to="meetingTo(meeting)" class="min-w-0 break-words font-medium text-highlighted hover:underline">{{ meeting.name }}</NuxtLink>
+              <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" class="shrink-0" />
+            </div>
+            <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+              <bdi>{{ dateLabel(meeting.meeting_date) }}</bdi>
+              <SharedPersonAvatar v-if="meeting.organizer" :people="[meeting.organizer]" />
+            </div>
           </div>
-          <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
-            <bdi>{{ dateLabel(meeting.meeting_date) }}</bdi>
-            <span v-if="meeting.organizer">{{ meeting.organizer.name }}</span>
-          </div>
-        </div>
-      </template>
-    </SharedDataTable>
+        </template>
+      </SharedDataTable>
+    </SharedListCard>
   </SharedListPage>
 </template>

@@ -117,14 +117,14 @@ async function submit() {
 
 <template>
   <SharedUnsavedChanges :dirty="dirty" />
-  <form novalidate data-testid="milestone-form" class="grid gap-5" @submit.prevent="submit">
+  <form novalidate data-testid="milestone-form" class="grid gap-(--webvue-card-pad)" @submit.prevent="submit">
     <UAlert v-if="serverChanged" color="warning" variant="subtle" :title="t('projects.milestones.changed')">
       <template #actions><UButton type="button" color="neutral" variant="outline" :disabled="isPending" :label="t('projects.milestones.reload')" @click="confirmReload = true" /></template>
     </UAlert>
     <SharedInlineConfirm v-if="confirmReload" :title="t('app.unsavedChangesTitle')" :description="t('app.unsavedChanges')" :confirm-label="t('projects.milestones.reload')" :pending="isPending" @confirm="loadLatest" @cancel="confirmReload = false" />
-    <div v-if="error" class="text-sm text-error sm:col-span-2">
+    <div v-if="error" class="grid gap-2 text-sm text-error">
       <UAlert role="alert" color="error" variant="subtle" :title="error" />
-      <NuxtLink v-if="projectScheduleMissing" class="mt-1 inline-block underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>
+      <NuxtLink v-if="projectScheduleMissing" class="justify-self-start underline underline-offset-4" :to="{ path: `/projects/${props.projectId}/charter`, query: { edit: '1' } }">{{ t('projects.milestones.openProjectFile') }}</NuxtLink>
     </div>
     <UFormField :label="t('projects.milestones.name')" required :error="requiredError">
       <UInput id="milestone-name" v-model="name" class="w-full" required :disabled="!hydrated || isPending" />
@@ -137,11 +137,11 @@ async function submit() {
       <template #label><span id="milestone-deadline-label">{{ t('projects.milestones.deadline') }}</span></template>
       <SharedDateField :min-value="projectStart" :max-value="projectEnd" v-model="deadline" :disabled="!hydrated || isPending" aria-labelledby="milestone-deadline-label" :aria-label="t('projects.milestones.deadline')" />
     </UFormField>
-    <UFormField class="sm:col-span-2" :label="t('projects.milestones.deliverables')" :description="t('projects.milestones.deliverablesHint')">
+    <UFormField :label="t('projects.milestones.deliverables')" :description="t('projects.milestones.deliverablesHint')">
       <template #hint>
         <UButton type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="!hydrated || isPending" :label="t('projects.milestones.addDeliverable')" @click="addDeliverable" />
       </template>
-      <div v-if="deliverables.length" class="space-y-2">
+      <div v-if="deliverables.length" class="grid gap-2">
         <div v-for="(item, index) in deliverables" :key="index" class="flex items-center gap-2">
           <USwitch :model-value="item.done" :aria-label="t('projects.milestones.deliverableDone')" :disabled="!hydrated || isPending" @update:model-value="item.done = $event" />
           <UInput v-model="item.name" class="w-full" :aria-label="t('projects.milestones.deliverableName')" :disabled="!hydrated || isPending" />
@@ -150,7 +150,7 @@ async function submit() {
       </div>
       <p v-else class="text-sm text-muted">{{ t('projects.milestones.noDeliverables') }}</p>
     </UFormField>
-    <SharedFormActions class="flex flex-wrap gap-2 justify-end sm:col-span-2">
+    <SharedFormActions>
       <UButton type="button" color="neutral" :disabled="isPending" :label="t('app.cancel')" @click="emit('cancel')" variant="outline" />
       <UButton type="submit" :disabled="!hydrated || isPending || serverChanged || confirmReload" :loading="isPending" :label="isEdit ? t('app.save') : t('app.create')" />
     </SharedFormActions>

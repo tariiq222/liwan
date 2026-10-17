@@ -25,8 +25,6 @@ const access = useProject(projectId)
       @retry="() => { void item.refetch(); void access.refetch() }"
     />
     <p v-if="access.data.value && !access.data.value.can_manage" role="status">{{ t('projects.governance.readOnly') }}</p>
-    <SharedFormSection v-if="item.data?.value && access.data.value?.can_manage" panel>
-        <StakeholderForm :project-id="projectId" :stakeholder="item.data.value" @saved="() => router.push(backTo)" @cancel="router.push(backTo)" />
-      </SharedFormSection>
+    <StakeholderForm v-if="item.data?.value && access.data.value?.can_manage" :project-id="projectId" :stakeholder="item.data.value" @saved="() => router.push(backTo)" @cancel="router.push(backTo)" />
   </SharedPageContainer>
 </template>

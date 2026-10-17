@@ -211,12 +211,12 @@ async function saveOnLatest() {
 </script>
 
 <template>
-  <form data-testid="finance-form" class="space-y-8" novalidate @submit.prevent="submit()">
+  <form data-testid="finance-form" class="webvue-page-stack" novalidate @submit.prevent="submit()">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="!canWrite" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('projects.finance.writeRevoked')" />
     <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
-    <SharedFormSection :title="t('projects.refresh.finance.formDetailsTitle')" :description="t('projects.refresh.finance.formDetailsDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection panel :title="t('projects.refresh.finance.formDetailsTitle')" :description="t('projects.refresh.finance.formDetailsDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField name="kind" :label="t('projects.finance.fields.kind')">
           <USelect
             id="finance-kind"
@@ -233,8 +233,8 @@ async function saveOnLatest() {
       </div>
     </SharedFormSection>
 
-    <SharedFormSection :title="t('projects.refresh.finance.formAmountTitle')" :description="t('projects.refresh.finance.formAmountDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection panel :title="t('projects.refresh.finance.formAmountTitle')" :description="t('projects.refresh.finance.formAmountDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField name="amount" :label="t('projects.finance.fields.amount')" required :help="currencyHelp" :error="fieldErrors.amount">
           <UInput
             id="finance-amount"
@@ -261,12 +261,12 @@ async function saveOnLatest() {
       </div>
     </SharedFormSection>
 
-    <SharedFormSection :title="t('projects.refresh.finance.formReferenceTitle')" :description="t('projects.refresh.finance.formReferenceDescription')">
-      <div class="grid gap-5">
+    <SharedFormSection panel :title="t('projects.refresh.finance.formReferenceTitle')" :description="t('projects.refresh.finance.formReferenceDescription')">
+      <div class="grid gap-(--webvue-gap-card)">
         <UFormField name="reference" :label="t('projects.finance.fields.reference')" :error="fieldErrors.reference">
           <UInput id="finance-reference" v-model="draft.reference" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
-        <UFormField name="notes" :label="t('projects.finance.fields.notes')" :error="fieldErrors.notes" class="sm:col-span-2">
+        <UFormField name="notes" :label="t('projects.finance.fields.notes')" :error="fieldErrors.notes">
           <UTextarea id="finance-notes" v-model="draft.notes" class="w-full" :disabled="!hydrated || pending" />
         </UFormField>
       </div>
@@ -282,10 +282,10 @@ async function saveOnLatest() {
     >
       <template #description>
         <p>{{ t('projects.finance.staleText') }}</p>
-        <p v-if="latestEntry" class="mt-2" data-testid="finance-stale-latest">
+        <p v-if="latestEntry" data-testid="finance-stale-latest">
           {{ t('projects.finance.staleLatest', { title: latestEntry.title, amount: formatMoney(latestEntry.amount, currency), revision: latestEntry.updated_at }) }}
         </p>
-        <p v-if="latestFetchFailed" role="alert" class="mt-2">{{ t('projects.finance.staleFetchFailed') }}</p>
+        <p v-if="latestFetchFailed" role="alert">{{ t('projects.finance.staleFetchFailed') }}</p>
       </template>
       <template #actions>
         <UButton v-if="latestFetchFailed" data-testid="finance-retry-latest" type="button" color="neutral" :disabled="fetchingLatest || pending" @click="retryLatest" variant="outline">{{ t('app.retry') }}</UButton>
@@ -294,9 +294,12 @@ async function saveOnLatest() {
       </template>
     </UAlert>
 
-    <SharedFormActions class="flex flex-wrap gap-2 justify-end">
-      <UButton type="button" color="neutral" :disabled="pending" @click="emit('cancel')" variant="outline">{{ t('app.cancel') }}</UButton>
-      <UButton type="submit" :loading="pending" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</UButton>
+    <SharedFormActions>
+      <p class="me-auto text-xs text-muted">{{ t('projects.requiredHint') }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :disabled="pending" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
+        <UButton type="submit" :loading="pending" :disabled="ordinarySaveDisabled">{{ isEdit ? t('app.save') : t('app.create') }}</UButton>
+      </div>
     </SharedFormActions>
   </form>
 </template>

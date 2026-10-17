@@ -33,13 +33,15 @@ function onDeleteStage(id: number | string) {
 </script>
 
 <template>
-  <div data-testid="project-settings-page" class="grid gap-4">
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-default px-4 py-3 text-sm ring ring-default">
-      <p class="text-sm text-muted">{{ t('projects.refresh.settings.individualScope') }}</p>
-      <NuxtLink :to="{ path: `/projects/${project.id}/charter`, query: { ...route.query, returnTo: route.fullPath } }" class="text-sm underline underline-offset-4">
-        {{ t('projects.refresh.settings.openCharter') }}
-      </NuxtLink>
-    </div>
+  <div data-testid="project-settings-page" class="grid gap-(--webvue-gap-card)">
+    <SharedRecordSection variant="tinted">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <p class="text-sm text-muted">{{ t('projects.refresh.settings.individualScope') }}</p>
+        <NuxtLink :to="{ path: `/projects/${project.id}/charter`, query: { ...route.query, returnTo: route.fullPath } }" class="text-sm font-medium text-brand-link underline underline-offset-4">
+          {{ t('projects.refresh.settings.openCharter') }}
+        </NuxtLink>
+      </div>
+    </SharedRecordSection>
     <SharedFormSection panel :title="t('projects.settings.status.title')" :description="t('projects.settings.status.description')">
       <ProjectStatusSelect :project="project" />
     </SharedFormSection>

@@ -30,7 +30,7 @@ function load(path: string, extra: Record<string, unknown> = {}) {
     _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed,
     useI18n: () => ({ t: (key: string) => key }), useRoute: () => route, useRouter: () => ({}), useHydrated: () => Vue.ref(true),
     budgetStatus, financeSummaryMode, formatNullableAmount, formatUtilization, projectSectionLocation, returnToQuery, isDirtySnapshot, ApiError,
-    DescriptionEditor: passthrough, FilterBar: passthrough, RaciMatrix: passthrough,
+    DescriptionEditor: passthrough, FilterBar: passthrough, RaciMatrix: passthrough, SharedSegmentedControl: passthrough, RACI_ROLE_TONE: {},
     ...extra,
   }
   const component = new Function(...Object.keys(dependencies), transpile(script))(...Object.values(dependencies))
@@ -46,7 +46,7 @@ async function renderView(view: ReturnType<typeof load>, props: Record<string, u
       return { ...await view.component.setup(props, context) }
     },
   }, props) })
-  for (const name of ['FilterBar', 'RaciMatrix', 'UBadge', 'UAlert', 'DescriptionEditor', 'SharedInlineConfirm', 'SharedRecordSection', 'SharedMetricTile', 'SharedFormActions', 'SharedUnsavedChanges', 'UFormField', 'UInput', 'SharedListPage', 'SharedPageState', 'SharedEmptyState', 'SharedPagination', 'SharedFilterChip', 'UTabs']) app.component(name, passthrough)
+  for (const name of ['FilterBar', 'RaciMatrix', 'UBadge', 'UAlert', 'DescriptionEditor', 'SharedInlineConfirm', 'SharedRecordSection', 'SharedMetricTile', 'SharedFormActions', 'SharedUnsavedChanges', 'UFormField', 'UInput', 'SharedListPage', 'SharedPageState', 'SharedEmptyState', 'SharedPagination', 'SharedFilterChip', 'UTabs', 'SharedListCard', 'SharedStatusBadge', 'SharedProgress']) app.component(name, passthrough)
   app.component('UButton', Vue.defineComponent({ props: ['to', 'label'], setup: (props, { slots, attrs }) => () => Vue.h('a', { ...attrs, href: props.to ? router.resolve(props.to).href : undefined }, props.label || slots.default?.()) }))
   return renderToString(app)
 }

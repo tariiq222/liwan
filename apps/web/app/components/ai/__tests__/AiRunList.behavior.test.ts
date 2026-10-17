@@ -73,6 +73,11 @@ function mountList(props: { disclosure?: boolean } = {}) {
   const passthrough = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h(tag, attrs, slots.default?.()) })
   app.component('NuxtLink', passthrough('a'))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', attrs, String(attrs.label ?? '')) }))
+  app.component('SharedSegmentedControl', Vue.defineComponent({
+    inheritAttrs: false, props: ['items', 'modelValue', 'label'], emits: ['update:modelValue'],
+    setup: (props, { emit }) => () => Vue.h('div', { role: 'group', 'aria-label': props.label }, props.items.map((item: { value: string; label: string; testId: string }) =>
+      Vue.h('button', { 'data-testid': item.testId, 'aria-pressed': item.value === props.modelValue, onClick: () => emit('update:modelValue', item.value) }, item.label))),
+  }))
   app.component('UInput', Vue.defineComponent({
     inheritAttrs: false, props: ['modelValue'],
     setup(props, { attrs, expose }) {

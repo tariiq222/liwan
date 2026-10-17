@@ -7,13 +7,14 @@
 [data-workspace-area="true"] [data-slot="page-header"] { min-height: 2.25rem; align-items: center; }
 [data-workspace-area="true"] .webvue-form-footer { justify-content: flex-end; }
 
-.webvue-page-width-list, .webvue-page-width-detail, .webvue-page-width-form { width: 100%; margin-inline: auto; }
+.webvue-page-width-list, .webvue-page-width-full, .webvue-page-width-detail, .webvue-page-width-form { width: 100%; margin-inline: auto; }
 .webvue-page-width-list { max-width: none; }
+.webvue-page-width-full { max-width: none; }
 .webvue-page-width-detail { max-width: 68rem; }
 .webvue-page-width-form { max-width: 58rem; }
 
-.webvue-form { display: grid; gap: 1.5rem; width: 100%; max-width: 58rem; margin-inline: auto; }
-.webvue-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.webvue-form { display: grid; gap: var(--webvue-gap-card); width: 100%; max-width: 58rem; margin-inline: auto; }
+.webvue-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--webvue-gap-card); }
 
 .webvue-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
 .schedule-gantt { overflow-x: auto; }
@@ -347,6 +348,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 
 @media (max-width: 1099px) and (min-width: 768px) {
   .webvue-shell-brand-name, .webvue-shell-header .account-copy { display: none; }
+  /* Name hidden: the account button is a round avatar button, centred and symmetric (no 14px end gutter). */
+  .webvue-shell-header .header-account { justify-content: center; padding-inline: 6px; }
 }
 
 /* Below 768px: no rail or sidebar; the header spans the width and the drawer
@@ -366,6 +369,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-shell-header-search + .webvue-shell-header-actions { flex: none; }
   .webvue-shell-header .webvue-search-trigger { width: 44px; padding: 0; justify-content: center; }
   .webvue-shell-header :is(.webvue-search-trigger, .webvue-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"], [data-testid="appearance-menu"]) { min-height: 44px; min-width: 44px; }
+  .webvue-shell-header .header-account { justify-content: center; padding-inline: 0; width: 44px; }
   .webvue-shell-workspace { margin-inline: 0; }
   .webvue-shell-main { --webvue-pad-x: 12px; --webvue-pad-top: 16px; padding: var(--webvue-pad-top) var(--webvue-pad-x) max(16px, env(safe-area-inset-bottom)); }
 }

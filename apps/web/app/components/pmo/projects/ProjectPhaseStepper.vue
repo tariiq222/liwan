@@ -19,21 +19,21 @@ const steps = computed(() => phaseSteps(props.current))
         v-for="(step, index) in steps"
         :key="step.phase"
         class="flex items-center gap-2"
-        :class="step.state === 'current' ? 'font-semibold text-highlighted' : step.state === 'done' ? 'text-default' : 'text-muted'"
+        :class="step.state === 'current' ? 'font-semibold text-primary' : step.state === 'done' ? 'text-default' : 'text-muted'"
         :aria-current="step.state === 'current' ? 'step' : undefined"
         :data-testid="`project-phase-${step.phase}`"
         :data-state="step.state"
       >
         <span
-          class="flex size-5 shrink-0 items-center justify-center rounded-full border text-xs"
-          :class="step.state === 'current' ? 'border-primary bg-primary text-inverted' : step.state === 'done' ? 'border-primary text-primary' : 'border-default'"
+          class="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums"
+          :class="step.state === 'current' ? 'bg-(--primary-solid) text-inverted' : step.state === 'done' ? 'bg-primary/10 text-primary' : 'bg-elevated text-muted'"
           aria-hidden="true"
         >
           <UIcon v-if="step.state === 'done'" name="i-lucide-check" class="size-3.5" />
           <template v-else>{{ index + 1 }}</template>
         </span>
         <span v-if="step.state === 'done'" class="sr-only">{{ t('projects.phase.met') }}: </span>{{ t(PHASE_LABEL_KEY[step.phase]) }}
-        <UIcon v-if="index < steps.length - 1" name="i-lucide-chevron-left" class="size-4 text-muted ltr:rotate-180" aria-hidden="true" />
+        <UIcon v-if="index < steps.length - 1" name="i-lucide-chevron-left" class="size-4 text-dimmed ltr:rotate-180" aria-hidden="true" />
       </li>
     </ol>
   </nav>

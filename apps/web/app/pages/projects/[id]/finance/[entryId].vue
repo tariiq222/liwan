@@ -104,18 +104,22 @@ async function confirmRemoval() {
       >
         <p v-if="deleteError" class="text-error">{{ deleteError }}</p>
       </SharedInlineConfirm>
-      <SharedRecordSection panel id="finance-entry-amount" :title="t('projects.finance.fields.amount')">
-        <p dir="ltr" class="text-2xl font-semibold tabular-nums">{{ formatMoney(entry.amount, currency) }}</p>
-        <p v-if="entry.notes" class="mt-2 whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
+      <SharedRecordSection variant="panel" id="finance-entry-amount" :title="t('projects.finance.fields.amount')">
+        <p class="text-2xl font-semibold tabular-nums text-highlighted"><bdi dir="ltr">{{ formatMoney(entry.amount, currency) }}</bdi></p>
+      </SharedRecordSection>
+      <SharedRecordSection v-if="entry.notes" variant="panel" :title="t('projects.finance.fields.notes')">
+        <p class="whitespace-pre-wrap text-sm">{{ entry.notes }}</p>
       </SharedRecordSection>
     </template>
     <template v-if="entry && currency" #summary>
       <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('projects.finance.fields.kind')" :value="t(`projects.finance.kind.${entry.kind}`)" />
+        <SharedPropertyRow :label="t('projects.finance.fields.kind')">
+          <SharedStatusBadge tone="neutral" :icon="entry.kind === 'budget' ? 'i-lucide-wallet' : 'i-lucide-receipt'" :label="t(`projects.finance.kind.${entry.kind}`)" />
+        </SharedPropertyRow>
         <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.expense_date')" :value="entry.expense_date ? formatCalendarDate(entry.expense_date, locale) : null" />
         <SharedPropertyRow :label="t('projects.finance.fields.reference')" :value="entry.reference" />
         <SharedPropertyRow v-if="entry.kind === 'expense'" :label="t('projects.finance.fields.budget_entry_id')">
-          <NuxtLink v-if="entry.budget_entry_id" :to="`/projects/${projectId}/finance/${entry.budget_entry_id}`" class="underline underline-offset-4">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink>
+          <NuxtLink v-if="entry.budget_entry_id" :to="`/projects/${projectId}/finance/${entry.budget_entry_id}`" class="text-primary hover:underline">{{ t('projects.finance.linkedBudget', { id: entry.budget_entry_id }) }}</NuxtLink>
           <span v-else>{{ t('projects.finance.budgetNone') }}</span>
         </SharedPropertyRow>
       </SharedPropertiesPanel>

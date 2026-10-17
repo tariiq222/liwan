@@ -12,8 +12,8 @@ const arProjects = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../.
 
 const Stub = (tag: string) => defineComponent({
   inheritAttrs: false,
-  props: { to: { type: String, default: undefined } },
-  setup: (props, { slots, attrs }) => () => h(tag, { ...attrs, href: props.to }, [slots.header?.(), slots.default?.()]),
+  props: { to: { type: String, default: undefined }, title: { type: String, default: undefined }, label: { type: String, default: undefined } },
+  setup: (props, { slots, attrs }) => () => h(tag, { ...attrs, href: props.to }, [props.title, props.label, slots.actions?.(), slots.default?.()]),
 })
 
 async function render(list: { data?: unknown; error?: unknown }) {
@@ -32,8 +32,9 @@ async function render(list: { data?: unknown; error?: unknown }) {
   const compiled = compileTemplate({ source: descriptor.template!.content, filename, id: 'pending-charters', compilerOptions: { mode: 'function', bindingMetadata: compiledScript.bindings, prefixIdentifiers: true } })
   const renderFn = new Function('Vue', ts.transpileModule(compiled.code, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText)(Vue)
   const app = createSSRApp(defineComponent({ ...component, render: renderFn }))
-  app.component('UCard', Stub('section'))
-  app.component('NuxtLink', Stub('a'))
+  app.component('SharedRecordSection', Stub('section'))
+  app.component('UBadge', Stub('span'))
+  app.component('UButton', Stub('a'))
   app.component('SharedErrorState', defineComponent({ setup: (_, { attrs }) => () => h('div', attrs, 'error') }))
   app.config.warnHandler = () => {}
   return renderToString(app)
@@ -51,6 +52,8 @@ describe('PendingCharterReviews', () => {
   it('renders one link per project to its charter', async () => {
     const html = await render({ data: { items: [{ id: 7, name: 'ألفا' }, { id: 9, name: 'بيتا' }], total: 2 } })
     expect(html).toContain('مواثيق بانتظار اعتمادك')
+    expect(html).toContain('مراجعة الميثاق')
+    expect(html).toContain('data-testid="pending-charters-count"')
     expect(html.match(/data-testid="pending-charter-link"/g)).toHaveLength(2)
     expect(html).toContain('href="/projects/7/charter"')
     expect(html).toContain('href="/projects/9/charter"')

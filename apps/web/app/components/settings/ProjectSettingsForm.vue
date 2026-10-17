@@ -123,69 +123,75 @@ function onDeleteStage(id: number | string) {
     <SharedPageState v-else-if="error" :error="error" @retry="refetch" />
 
     <template v-else-if="settings">
-      <SharedFormSection id="project-creation" :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="webvue-settings-anchor space-y-4">
-        <UFormField id="project-creators" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
-          <URadioGroup
-            :model-value="settings.project_creators"
-            :items="CREATOR_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))"
-            :disabled="!hydrated || isPending || saveState === 'error'"
-            @update:model-value="onCreatorsChange"
-          />
-        </UFormField>
-        <UFormField id="project-requirements" :label="t('settings.projects.createRequirements.label')" :description="t('settings.projects.createRequirements.hint')">
-          <div class="grid gap-3">
-            <USwitch id="settings-require-manager" :model-value="settings.require_manager_on_create" :label="t('settings.projects.createRequirements.manager')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_manager_on_create', v)" />
-            <USwitch id="settings-require-end-date" :model-value="settings.require_end_date_on_create" :label="t('settings.projects.createRequirements.endDate')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_end_date_on_create', v)" />
-          </div>
-        </UFormField>
+      <SharedFormSection id="project-creation" panel :title="t('settings.projects.creation.title')" :description="t('settings.projects.creation.hint')" class="webvue-settings-anchor">
+        <div class="grid gap-(--webvue-gap-card)">
+          <UFormField id="project-creators" :label="t('settings.projects.creators.label')" :description="t('settings.projects.creators.hint')">
+            <URadioGroup
+              :model-value="settings.project_creators"
+              :items="CREATOR_OPTIONS.map(option => ({ value: option.value, label: t(option.labelKey) }))"
+              :disabled="!hydrated || isPending || saveState === 'error'"
+              @update:model-value="onCreatorsChange"
+            />
+          </UFormField>
+          <UFormField id="project-requirements" :label="t('settings.projects.createRequirements.label')" :description="t('settings.projects.createRequirements.hint')">
+            <div class="grid gap-(--webvue-gap-card)">
+              <USwitch id="settings-require-manager" :model-value="settings.require_manager_on_create" :label="t('settings.projects.createRequirements.manager')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_manager_on_create', v)" />
+              <USwitch id="settings-require-end-date" :model-value="settings.require_end_date_on_create" :label="t('settings.projects.createRequirements.endDate')" :disabled="!hydrated || isPending || saveState === 'error'" @update:model-value="v => onBool('require_end_date_on_create', v)" />
+            </div>
+          </UFormField>
+        </div>
       </SharedFormSection>
 
-      <SharedFormSection id="project-defaults" :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="webvue-settings-anchor space-y-4">
-        <UFormField id="project-stages" :label="t('settings.projects.defaultStages.label')" :description="t('settings.projects.defaultStages.hint')">
-          <StageListEditor :stages="rows" :busy="isPending" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
-        </UFormField>
-        <UFormField id="project-approval" :label="t('settings.projects.approval.label')" :description="t('settings.projects.approval.hint')">
-          <URadioGroup
-            :model-value="settings.default_completion_approval"
-            :items="[{ value: 'none', label: t('settings.projects.approval.none') }, { value: 'project_manager', label: t('settings.projects.approval.projectManager') }]"
+      <SharedFormSection id="project-defaults" panel :title="t('settings.projects.defaults.title')" :description="t('settings.projects.defaults.hint')" class="webvue-settings-anchor">
+        <div class="grid gap-(--webvue-gap-card)">
+          <UFormField id="project-stages" :label="t('settings.projects.defaultStages.label')" :description="t('settings.projects.defaultStages.hint')">
+            <StageListEditor :stages="rows" :busy="isPending" @add="onAddStage" @rename="onRenameStage" @fold="onFoldStage" @reorder="onReorderStages" @delete="onDeleteStage" />
+          </UFormField>
+          <UFormField id="project-approval" :label="t('settings.projects.approval.label')" :description="t('settings.projects.approval.hint')">
+            <URadioGroup
+              :model-value="settings.default_completion_approval"
+              :items="[{ value: 'none', label: t('settings.projects.approval.none') }, { value: 'project_manager', label: t('settings.projects.approval.projectManager') }]"
+              :disabled="!hydrated || isPending || saveState === 'error'"
+              @update:model-value="onApprovalDefault"
+            />
+          </UFormField>
+          <USwitch
+            id="settings-require-charter-approval" data-testid="settings-require-charter-approval"
+            :model-value="settings.require_charter_approval"
+            :label="t('settings.projects.charterApproval.label')"
+            :description="t('settings.projects.charterApproval.hint')"
             :disabled="!hydrated || isPending || saveState === 'error'"
-            @update:model-value="onApprovalDefault"
+            @update:model-value="v => onBool('require_charter_approval', v)"
           />
-        </UFormField>
-        <USwitch
-          id="settings-require-charter-approval" data-testid="settings-require-charter-approval"
-          :model-value="settings.require_charter_approval"
-          :label="t('settings.projects.charterApproval.label')"
-          :description="t('settings.projects.charterApproval.hint')"
-          :disabled="!hydrated || isPending || saveState === 'error'"
-          @update:model-value="v => onBool('require_charter_approval', v)"
-        />
+        </div>
       </SharedFormSection>
 
-      <SharedFormSection id="project-reminders" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="webvue-settings-anchor space-y-3">
-        <USwitch
-          id="settings-deadline-reminders" :model-value="settings.deadline_reminders_enabled"
-          :label="t('settings.projects.reminders.enabled')"
-          :disabled="!hydrated || isPending || saveState === 'error'"
-          @update:model-value="v => onBool('deadline_reminders_enabled', v)"
-        />
-        <UFormField :label="t('settings.projects.reminders.daysBefore')">
-          <UInputNumber
-            id="reminder-days"
-            :min="0"
-            :max="30"
-            :model-value="settings.deadline_reminders_days_before"
+      <SharedFormSection id="project-reminders" panel :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" class="webvue-settings-anchor">
+        <div class="grid gap-(--webvue-gap-card)">
+          <USwitch
+            id="settings-deadline-reminders" :model-value="settings.deadline_reminders_enabled"
+            :label="t('settings.projects.reminders.enabled')"
             :disabled="!hydrated || isPending || saveState === 'error'"
-            class="w-full"
-            @update:model-value="onDaysBefore"
+            @update:model-value="v => onBool('deadline_reminders_enabled', v)"
           />
-        </UFormField>
-        <USwitch
-          id="settings-overdue-digest" :model-value="settings.overdue_digest_enabled"
-          :label="t('settings.projects.reminders.digest')"
-          :disabled="!hydrated || isPending || saveState === 'error'"
-          @update:model-value="v => onBool('overdue_digest_enabled', v)"
-        />
+          <UFormField :label="t('settings.projects.reminders.daysBefore')">
+            <UInputNumber
+              id="reminder-days"
+              :min="0"
+              :max="30"
+              :model-value="settings.deadline_reminders_days_before"
+              :disabled="!hydrated || isPending || saveState === 'error'"
+              class="w-full"
+              @update:model-value="onDaysBefore"
+            />
+          </UFormField>
+          <USwitch
+            id="settings-overdue-digest" :model-value="settings.overdue_digest_enabled"
+            :label="t('settings.projects.reminders.digest')"
+            :disabled="!hydrated || isPending || saveState === 'error'"
+            @update:model-value="v => onBool('overdue_digest_enabled', v)"
+          />
+        </div>
       </SharedFormSection>
     </template>
   </div>

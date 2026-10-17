@@ -62,3 +62,16 @@ describe('ForbiddenState and NotFoundState', () => {
     expect(linked).toMatch(/<a[^>]*href="\/projects"[^>]*>.*Projects/s)
   })
 })
+
+describe('EmptyState bordered', () => {
+  it('is the dashed placeholder by default and the card recipe with bordered', async () => {
+    const dashed = await renderShared('EmptyState', { title: 'Nothing here' })
+    expect(dashed).toContain('border-dashed')
+    expect(dashed).not.toContain('data-bordered')
+    const card = await renderShared('EmptyState', { title: 'Nothing here', bordered: true })
+    expect(card).toContain('data-bordered="true"')
+    expect(card).toContain('bg-default ring ring-default')
+    expect(card).toContain('rounded-card')
+    expect(card).not.toContain('border-dashed')
+  })
+})

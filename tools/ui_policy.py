@@ -47,10 +47,10 @@ LAYER_COMPONENTS = frozenset(
     + ['shared/layout/' + name + '.vue' for name in (
         'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'ListPage', 'PageContainer',
         'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RouteTabs', 'SettingsPage',
-        'StandalonePage', 'TimelineFrame')]
+        'StandalonePage', 'SubCard', 'TimelineFrame')]
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
-        'PersonAvatar', 'RecordNumber', 'RowActions', 'StatusBadge', 'ViewSwitch')]
+        'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
     + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellFrame', 'ShellQuickViews')]
 )
@@ -89,7 +89,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/layout/CreatePanel.vue',
     'shared/layout/StandalonePage.vue',
     'shared/data/DataTable.vue',
-    'shared/layout/ListPage.vue', 'shared/layout/ListCard.vue', 'shared/data/ViewSwitch.vue',
+    'shared/layout/ListPage.vue', 'shared/layout/ListCard.vue', 'shared/data/ViewSwitch.vue', 'shared/data/SegmentedControl.vue', 'shared/data/ListFooter.vue',
     'shared/layout/BrandWordmark.vue',
     'shared/layout/FormSection.vue', 'shared/form/FormActions.vue', 'shared/data/RecordNumber.vue', 'shared/layout/SettingsPage.vue', 'shared/feedback/EmptyState.vue', 'shared/layout/RouteTabs.vue',
     'shared/data/FilterBar.vue', 'shared/form/DateField.vue', 'shared/form/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
@@ -111,6 +111,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
     'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue',
+    'shared/layout/SubCard.vue', 'shared/data/Progress.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')

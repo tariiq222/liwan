@@ -72,7 +72,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="grid gap-4" data-testid="project-copy-form">
+  <div class="webvue-form" data-testid="project-copy-form">
     <p v-if="isLoading && !source" class="text-sm text-muted" data-testid="project-copy-loading">{{ t('projects.create.loading') }}</p>
     <div v-else-if="error && !source" role="alert" class="grid gap-2" data-testid="project-copy-source-error">
       <p class="text-sm text-error">{{ forbidden ? t('projects.copy.sourceUnavailable') : t('projects.copy.loadError') }}</p>
@@ -83,7 +83,7 @@ async function submit() {
     </div>
     <template v-else-if="source">
       <SharedUnsavedChanges :dirty="dirty" />
-      <form novalidate class="grid max-w-xl gap-4" @submit.prevent="submit">
+      <form novalidate class="webvue-form" @submit.prevent="submit">
         <UAlert v-if="submitError" role="alert" color="error" variant="subtle" :title="submitError" data-testid="project-copy-submit-error" />
         <p class="text-sm text-muted">{{ t('projects.copy.hint') }}</p>
         <UFormField :label="t('projects.copy.source')">
@@ -95,9 +95,11 @@ async function submit() {
         <UFormField :label="t('projects.copy.startDate')" required :error="fieldErrors.start_date">
           <SharedDateField v-model="startDate" name="project-start-date" :aria-label="t('projects.copy.startDate')" :disabled="!hydrated || mutation.isPending.value" aria-required="true" class="w-full" />
         </UFormField>
-        <SharedFormActions class="flex justify-end gap-2">
-          <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated || mutation.isPending.value" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
-          <UButton type="submit" data-testid="project-copy-submit" :disabled="!hydrated || mutation.isPending.value" :loading="mutation.isPending.value">{{ t('projects.copy.submit') }}</UButton>
+        <SharedFormActions>
+          <div class="ms-auto flex items-center gap-2">
+            <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated || mutation.isPending.value" @click="emit('cancel')">{{ t('app.cancel') }}</UButton>
+            <UButton type="submit" data-testid="project-copy-submit" :disabled="!hydrated || mutation.isPending.value" :loading="mutation.isPending.value">{{ t('projects.copy.submit') }}</UButton>
+          </div>
         </SharedFormActions>
       </form>
     </template>

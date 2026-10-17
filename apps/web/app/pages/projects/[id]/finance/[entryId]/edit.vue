@@ -83,16 +83,14 @@ function retry() {
             <UButton color="neutral" variant="outline" type="button" @click="retry">{{ t('app.retry') }}</UButton>
           </template>
         </UAlert>
-        <SharedFormSection panel>
-            <FinanceEntryForm
-              :project-id="projectId"
-              :currency="currency!"
-              :entry="entry!"
-              :write-allowed="writeAllowed"
-              @saved="saved"
-              @cancel="router.push(backTo)"
-            />
-          </SharedFormSection>
+        <FinanceEntryForm
+          :project-id="projectId"
+          :currency="currency!"
+          :entry="entry!"
+          :write-allowed="writeAllowed"
+          @saved="saved"
+          @cancel="router.push(backTo)"
+        />
       </template>
     </template>
   </SharedPageContainer>

@@ -21,3 +21,4 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Workspace: Story = { name: 'أقسام المشروع' }
+export const Pill: Story = { name: 'شريط حبّات (مساحة المشروع)', args: { variant: 'pill' } }

@@ -2,13 +2,14 @@
 import type { ProjectDetail, ProjectStatus } from '@webvue/contracts'
 import { formatCalendarDate } from '@webvue/ui/app/composables/calendarDate'
 import { projectStatusBadge } from '@/composables/projectStatus'
+import { isGateAction } from '@/composables/projectPhase'
 import { useMilestones } from '@/composables/useMilestones'
 import { useProjectUpdates } from '@/composables/useProjectUpdates'
 import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
 import ProjectOverviewTasks from './ProjectOverviewTasks.vue'
 
-// The main column of the project record: progress figures, tasks that need attention, the latest
-// update. The page puts the properties in the record's aside. Status and manager are shown once, by the
+// The main column of the project record: the tiles (progress, tasks, milestones, followers), tasks that need
+// attention, the latest update. Status and manager are shown once, by the
 // workspace frame, and are changed only in project settings.
 const props = defineProps<{ project: ProjectDetail }>()
 const { t, locale } = useI18n()
@@ -26,20 +27,22 @@ const nearestMilestone = computed(() => {
 const latestUpdate = computed(() => [...(updates.data.value ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null)
 const openTaskCount = computed(() => Math.max(0, props.project.task_count - props.project.closed_task_count))
 
-const metricGridClass = 'grid grid-cols-2 gap-3 @min-[36rem]:grid-cols-3 @min-[36rem]:gap-6 [&>:last-child:nth-child(odd)]:col-span-2 @min-[36rem]:[&>:last-child:nth-child(odd)]:col-span-1 max-sm:[&_[data-slot=body]]:gap-2 max-sm:[&_[data-slot=body]]:p-3 max-sm:[&_[data-slot=body]>span]:hidden'
-
 function dateLabel(value: string | null) {
   return value ? formatCalendarDate(value, locale.value) : '—'
 }
 </script>
 
 <template>
-  <div data-testid="project-overview" class="@container min-w-0 space-y-6">
-    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" />
+  <div data-testid="project-overview" class="@container flex min-w-0 flex-col gap-(--webvue-gap-card)">
+    <ProjectOverviewTasks :project-id="project.id" :return-to="route.fullPath" :gate-action="isGateAction(project.phase_state, project.can_manage)" />
 
-    <!-- Two columns from the narrowest width, compact tiles on phones; the odd one out spans the row. -->
-    <section :class="metricGridClass">
+    <!-- One tile grid: two columns on phones, three from a roomy container; the headline figure spans two cells. -->
+    <section class="grid grid-cols-2 gap-(--webvue-gap-card) @2xl:grid-cols-3">
       <SharedMetricTile
+        class="col-span-2"
+        data-testid="project-overview-progress"
+        density="compact"
+        emphasis
         icon="i-lucide-chart-no-axes-column-increasing"
         :label="t('projects.overview.progress')"
         :value="project.progress"
@@ -47,54 +50,66 @@ function dateLabel(value: string | null) {
         value-dir="ltr"
         :hint="t('projects.overview.completedOf', { closed: project.closed_task_count, total: project.task_count })"
       >
-        <UProgress :model-value="project.progress" class="mt-2" size="sm" />
+        <SharedProgress class="mt-1.5" size="md" :value="project.progress" :label="t('projects.overview.progress')" />
       </SharedMetricTile>
       <SharedMetricTile
+        class="max-sm:col-span-2"
+        density="compact"
         icon="i-lucide-list-checks"
         :label="t('projects.overview.openTasks')"
         :value="openTaskCount"
+        :to="`/projects/${project.id}/tasks`"
       />
-      <SharedRecordSection v-if="milestones.error.value" panel data-testid="project-overview-milestone-error" :title="t('projects.overview.nextMilestone')">
+      <SharedRecordSection v-if="milestones.error.value" variant="panel" data-testid="project-overview-milestone-error" :title="t('projects.overview.nextMilestone')">
         <SharedPageState :error="milestones.error.value" @retry="milestones.refetch()" />
       </SharedRecordSection>
       <SharedLoadingSkeleton v-else-if="milestones.isLoading.value" :count="1" />
       <!-- Localized Arabic dates contain bidi marks; preserve the locale direction. -->
       <SharedMetricTile
         v-else
+        density="compact"
+        icon="i-lucide-flag"
         :label="t('projects.overview.nextMilestone')"
         :value="nearestMilestone ? dateLabel(nearestMilestone.deadline) : null"
         :hint="nearestMilestone?.name ?? t(project.milestone_count === 0 ? 'projects.overview.noMilestones' : 'projects.overview.noUpcomingMilestone')"
+        :to="`/projects/${project.id}/milestones`"
+      />
+      <SharedMetricTile
+        density="compact"
+        icon="i-lucide-milestone"
+        :label="t('projects.overview.milestones')"
+        :value="project.milestone_count"
+        :to="`/projects/${project.id}/milestones`"
+      />
+      <SharedMetricTile
+        density="compact"
+        icon="i-lucide-users"
+        :label="t('projects.overview.followers')"
+        :value="project.followers_count"
       />
     </section>
 
-    <SharedRecordSection panel data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
+    <SharedRecordSection variant="panel" data-testid="project-overview-latest-update" :title="t('projects.overview.latestUpdate')">
       <template #actions>
         <NuxtLink :to="`/projects/${project.id}/updates`" class="text-xs text-muted underline underline-offset-4 hover:text-highlighted">
           {{ t('projects.refresh.workspace.viewAllUpdates') }}
         </NuxtLink>
       </template>
-      <div>
-        <SharedLoadingSkeleton v-if="updates.isLoading.value" :count="1" />
-        <SharedPageState v-else-if="updates.error.value" :error="updates.error.value" @retry="updates.refetch()" />
-        <div v-else-if="latestUpdate" class="grid min-w-0 gap-2">
-          <div class="flex min-w-0 items-center gap-2">
-            <SharedStatusBadge v-bind="projectBadge(latestUpdate.status)" />
-            <span class="truncate text-sm font-medium">{{ latestUpdate.name }}</span>
-          </div>
-          <p class="flex flex-wrap gap-x-2 text-xs text-muted">
-            <span>{{ latestUpdate.author.name }}</span>
-            <span aria-hidden="true">·</span>
-            <bdi>{{ dateLabel(latestUpdate.date) }}</bdi>
-          </p>
+      <SharedLoadingSkeleton v-if="updates.isLoading.value" :count="1" />
+      <SharedPageState v-else-if="updates.error.value" :error="updates.error.value" @retry="updates.refetch()" />
+      <div v-else-if="latestUpdate" class="grid min-w-0 gap-2">
+        <div class="flex min-w-0 items-center gap-2">
+          <SharedStatusBadge v-bind="projectBadge(latestUpdate.status)" />
+          <span class="truncate text-sm font-medium">{{ latestUpdate.name }}</span>
         </div>
-        <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
+        <p class="flex flex-wrap items-center gap-x-2 text-xs text-muted">
+          <SharedPersonAvatar :people="[latestUpdate.author]" />
+          <span>{{ latestUpdate.author.name }}</span>
+          <span aria-hidden="true">·</span>
+          <bdi>{{ dateLabel(latestUpdate.date) }}</bdi>
+        </p>
       </div>
-    </SharedRecordSection>
-    <SharedRecordSection panel :title="t('projects.overview.metadata')">
-      <dl class="grid grid-cols-2 gap-4">
-        <div><dt class="text-sm text-muted">{{ t('projects.overview.milestones') }}</dt><dd class="mt-1 font-medium tabular-nums">{{ project.milestone_count }}</dd></div>
-        <div><dt class="text-sm text-muted">{{ t('projects.overview.followers') }}</dt><dd class="mt-1 font-medium tabular-nums">{{ project.followers_count }}</dd></div>
-      </dl>
+      <p v-else class="text-sm text-muted">{{ t('projects.overview.noUpdates') }}</p>
     </SharedRecordSection>
   </div>
 </template>

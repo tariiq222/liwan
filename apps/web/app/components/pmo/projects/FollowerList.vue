@@ -37,16 +37,16 @@ function removePerson(userId: number) {
 </script>
 
 <template>
-  <div class="space-y-3">
+  <div class="grid gap-3">
     <!-- With "Followers only" visibility, this list is the whole audience for the project — not just people getting notifications. -->
     <p v-if="project.privacy_visibility === 'followers'" class="text-sm text-muted">{{ t('projects.followers.hint') }}</p>
 
     <p v-if="(followers ?? []).length === 0" class="text-sm text-muted">{{ t('projects.followers.empty') }}</p>
 
-    <ul class="space-y-1">
-      <li v-for="f in followers ?? []" :key="f.id" data-testid="follower-row" class="grid gap-2 rounded-md border border-default p-2 text-sm">
+    <ul class="grid gap-2">
+      <SharedSubCard v-for="f in followers ?? []" :key="f.id" as="li" data-testid="follower-row" class="grid gap-2 text-sm">
         <div class="flex items-center justify-between gap-2">
-          <span class="truncate">{{ f.name }}</span>
+          <span class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[f]" /><span class="truncate">{{ f.name }}</span></span>
           <UButton v-if="pendingRemoval !== f.id" color="neutral" variant="ghost" square type="button" icon="i-lucide-x" :disabled="!hydrated || removing" :aria-label="t('projects.followers.removeNamed', { name: f.name })" @click="pendingRemoval = f.id" />
         </div>
         <SharedInlineConfirm
@@ -59,7 +59,7 @@ function removePerson(userId: number) {
           @cancel="pendingRemoval = null"
           @confirm="removePerson(f.id)"
         />
-      </li>
+      </SharedSubCard>
     </ul>
 
     <div class="w-64 max-w-full">

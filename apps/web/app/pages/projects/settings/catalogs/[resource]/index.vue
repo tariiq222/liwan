@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
+import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import { ApiError } from '@/composables/useApi'
 import {
   CHARTER_CATALOG_PAGE_SIZE,
@@ -80,6 +81,10 @@ function onSearch(event: Event) {
 }
 
 // Active-only vs all is a dataset scope at the toolbar end, not a popover filter.
+const scopes = computed(() => [
+  { value: 'active', label: t('settings.projects.catalogs.scopeActive') },
+  { value: 'all', label: t('settings.projects.catalogs.scopeAll') },
+])
 function toggleInactive(value: unknown) {
   const next = value === 'all'
   if (next === showInactive.value) return
@@ -110,6 +115,17 @@ function openNew() {
 function openEdit(id: number) {
   if (!resource.value) return
   void navigateTo({ path: `/projects/settings/catalogs/${resource.value}/${id}/edit`, query: returnToQuery(route.fullPath) })
+}
+
+// One action is a link, more is the row menu: edit, enable or disable, and delete last (it asks inline).
+function rowActions(item: ProjectCharterReference): RowAction[] {
+  return [
+    { label: t('settings.projects.catalogs.edit'), icon: 'i-lucide-pencil', onSelect: () => openEdit(item.id) },
+    item.active
+      ? { label: t('settings.projects.catalogs.disable'), disabled: patching.value, onSelect: () => requestAction(item, 'disable') }
+      : { label: t('settings.projects.catalogs.enable'), disabled: patching.value, onSelect: () => requestAction(item, 'enable') },
+    { label: t('settings.projects.catalogs.delete'), icon: 'i-lucide-trash-2', destructive: true, disabled: deleting.value, onSelect: () => requestAction(item, 'delete') },
+  ]
 }
 
 function requestAction(item: ProjectCharterReference, action: 'disable' | 'enable' | 'delete') {
@@ -144,69 +160,60 @@ async function confirmAction() {
     <p v-if="!resource" class="text-muted">{{ t('settings.projects.catalogs.notFound') }}</p>
     <p v-else-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
     <template v-else>
-      <div class="w-full min-w-0" data-testid="catalog-toolbar">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput :model-value="q" :placeholder="t('app.search')" :aria-label="t('app.search')" icon="i-lucide-search" class="min-w-52 flex-1" :disabled="!hydrated" @change="onSearch" />
-          </template>
-          <template #view>
-            <UTabs
-              data-testid="catalog-scope"
-              :model-value="showInactive ? 'all' : 'active'"
-              :items="[{ label: t('settings.projects.catalogs.scopeActive'), value: 'active', disabled: !hydrated }, { label: t('settings.projects.catalogs.scopeAll'), value: 'all', disabled: !hydrated }]"
-              :aria-label="t('settings.projects.catalogs.showInactive')"
-              size="sm"
-              @update:model-value="toggleInactive"
-            />
-          </template>
-          <template #active>
-            <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="q" :label="q" @remove="clearSearch" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-      <SharedDataTable
-        :rows="query.data.value?.items ?? []"
-        :columns="columns"
-        row-key="id"
-        :loading="query.isLoading.value"
-        :error="query.error.value"
-        :empty-text="t('settings.projects.catalogs.empty')"
-        :page="page"
-        :pages="pages"
-        :caption="title"
-        @update:page="setPage"
-        @retry="query.refetch"
-      >
-        <template #name-cell="{ row }"><span class="font-medium text-highlighted">{{ row.original.name }}</span></template>
-        <template #sequence-cell="{ row }">{{ t('settings.projects.catalogs.sequenceValue', { sequence: row.original.sequence }) }}</template>
-        <template #steps-cell="{ row }">{{ row.original.charter_steps ? t('settings.projects.catalogs.charterStepsColumn', { count: row.original.charter_steps.length }, row.original.charter_steps.length) : '—' }}</template>
-        <template #status-cell="{ row }"><SharedStatusBadge :tone="row.original.active ? 'success' : 'neutral'" :label="row.original.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" /></template>
-        <template #actions-cell="{ row }">
-          <div class="flex flex-wrap justify-end gap-2">
-            <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(row.original.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
-            <UButton v-if="row.original.active" type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(row.original, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
-            <UButton v-else type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(row.original, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
-            <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="requestAction(row.original, 'delete')">{{ t('settings.projects.catalogs.delete') }}</UButton>
+      <!-- The filter bar and the rows carry client-generated ids: mount the card once this page has hydrated, as the other lists do. -->
+      <SharedListCard v-if="hydrated">
+        <template #filters>
+          <div class="w-full min-w-0" data-testid="catalog-toolbar">
+            <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+              <template #search>
+                <UInput :model-value="q" :placeholder="t('app.search')" :aria-label="t('app.search')" icon="i-lucide-search" class="min-w-48 flex-1" :disabled="!hydrated" @change="onSearch" />
+              </template>
+              <template #view>
+                <SharedSegmentedControl
+                  data-testid="catalog-scope"
+                  :label="t('settings.projects.catalogs.showInactive')"
+                  :items="scopes"
+                  :model-value="showInactive ? 'all' : 'active'"
+                  @update:model-value="toggleInactive"
+                />
+              </template>
+            </FilterBar>
           </div>
         </template>
-        <template #mobile-row="{ row: item }">
-          <div class="space-y-3">
-            <div class="flex items-start justify-between gap-3">
-              <p class="font-medium text-highlighted">{{ item.name }}</p>
-              <SharedStatusBadge :tone="item.active ? 'success' : 'neutral'" :label="item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" />
+        <SharedDataTable
+          bare
+          :rows="query.data.value?.items ?? []"
+          :columns="columns"
+          row-key="id"
+          :loading="query.isLoading.value"
+          :error="query.error.value"
+          :empty-text="t('settings.projects.catalogs.empty')"
+          :caption="title"
+          @retry="query.refetch"
+        >
+          <template #name-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.name }}</span></template>
+          <template #sequence-cell="{ row }">{{ t('settings.projects.catalogs.sequenceValue', { sequence: row.original.sequence }) }}</template>
+          <template #steps-cell="{ row }">{{ row.original.charter_steps ? t('settings.projects.catalogs.charterStepsColumn', { count: row.original.charter_steps.length }, row.original.charter_steps.length) : '—' }}</template>
+          <template #status-cell="{ row }"><SharedStatusBadge :tone="row.original.active ? 'success' : 'neutral'" :label="row.original.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" /></template>
+          <template #actions-cell="{ row }"><SharedRowActions :actions="rowActions(row.original)" :label="t('settings.projects.catalogs.rowActions', { name: row.original.name })" /></template>
+          <template #mobile-row="{ row: item }">
+            <div class="space-y-2">
+              <div class="flex items-start justify-between gap-3">
+                <p class="font-semibold text-highlighted">{{ item.name }}</p>
+                <SharedStatusBadge :tone="item.active ? 'success' : 'neutral'" :label="item.active ? t('settings.projects.catalogs.active') : t('settings.projects.catalogs.inactive')" />
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }, item.charter_steps.length) }}</template></p>
+                <SharedRowActions :actions="rowActions(item)" :label="t('settings.projects.catalogs.rowActions', { name: item.name })" />
+              </div>
             </div>
-            <p class="text-sm text-muted">{{ t('settings.projects.catalogs.sequenceValue', { sequence: item.sequence }) }}<template v-if="item.charter_steps"> · {{ t('settings.projects.catalogs.charterStepsColumn', { count: item.charter_steps.length }, item.charter_steps.length) }}</template></p>
-            <div class="flex flex-wrap gap-2">
-              <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" @click="openEdit(item.id)">{{ t('settings.projects.catalogs.edit') }}</UButton>
-              <UButton v-if="item.active" type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'disable')">{{ t('settings.projects.catalogs.disable') }}</UButton>
-              <UButton v-else type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || patching" @click="requestAction(item, 'enable')">{{ t('settings.projects.catalogs.enable') }}</UButton>
-              <UButton type="button" color="error" size="sm" :disabled="!hydrated || deleting" @click="requestAction(item, 'delete')">{{ t('settings.projects.catalogs.delete') }}</UButton>
-            </div>
-          </div>
+          </template>
+        </SharedDataTable>
+        <template v-if="query.data.value?.items.length" #footer>
+          <SharedListFooter :count-label="t('projects.footer.results', { shown: query.data.value.items.length, total: query.data.value.total }, query.data.value.total)" count-test-id="catalog-result-count" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
         </template>
-      </SharedDataTable>
+      </SharedListCard>
+      <SharedLoadingSkeleton v-else variant="rows" />
       <SharedInlineConfirm
         v-if="pendingItem && pendingAction"
         :color="pendingAction === 'enable' ? 'primary' : 'error'"

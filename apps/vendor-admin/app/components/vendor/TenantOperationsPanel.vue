@@ -123,7 +123,7 @@ const operationTime = (op: OperationFeed) => formatWebVueDateTime(op.source === 
 <template>
   <SharedPageState :loading="tenantPending && !data" :error="tenantError" @retry="refresh">
   <div v-if="data" class="space-y-6">
-    <SharedRecordSection panel :title="t('vendor.tenants.operationsTitle')" :description="t('vendor.tenants.operationsHint')">
+    <SharedRecordSection variant="panel" :title="t('vendor.tenants.operationsTitle')" :description="t('vendor.tenants.operationsHint')">
       <template #actions><SharedStatusBadge :tone="data.operations_enabled ? 'success' : 'neutral'" :label="data.operations_enabled ? t('vendor.tenants.operationsOn') : t('vendor.tenants.operationsOff')" /></template>
       <UAlert v-if="operationsNeedEnabling" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('vendor.tenants.operationsDisabledHint')" />
       <UAlert v-else-if="!availableOperations.length" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.tenants.operationsUnavailableHint')" />
@@ -147,7 +147,7 @@ const operationTime = (op: OperationFeed) => formatWebVueDateTime(op.source === 
       <SharedForbiddenState v-else-if="!operationsNeedEnabling && availableOperations.length && !canVendor('vendor.operations.run')" />
     </SharedRecordSection>
 
-    <SharedRecordSection panel :title="t('vendor.tenants.recentOperations')">
+    <SharedRecordSection variant="panel" :title="t('vendor.tenants.recentOperations')">
       <template #actions><UButton :to="{ path: '/operations', query: { tenant_id: tenantId } }" color="neutral" variant="outline" size="sm">{{ t('vendor.tenants.viewOperations') }}</UButton></template>
       <SharedPageState :loading="recentPending && !recent" :error="recentError" @retry="refreshRecent">
       <p v-if="!recent?.length" class="text-sm text-muted">{{ t('vendor.operations.empty') }}</p>

@@ -9,7 +9,7 @@ const meta = {
   title: 'Shared/PageContainer',
   component: PageContainer,
   parameters: { layout: 'fullscreen' },
-  argTypes: { width: { control: 'inline-radio', options: ['list', 'detail', 'form'] } },
+  argTypes: { width: { control: 'inline-radio', options: ['list', 'detail', 'form', 'full'] } },
 } satisfies Meta<typeof PageContainer>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -23,3 +23,4 @@ const page: Story['render'] = args => ({
 export const List: Story = { name: 'صفحة قائمة', args: { width: 'list' }, parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:42', 'داخل `main.webvue-shell-main` من `apps/web/app/layouts/default.vue:53`.'), render: page }
 export const Detail: Story = { name: 'صفحة تفاصيل', args: { width: 'detail' }, parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:34'), render: page }
 export const Form: Story = { name: 'صفحة نموذج', args: { width: 'form' }, parameters: storyContext('apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:66'), render: page }
+export const Full: Story = { name: 'صفحة سجل بعرض كامل', args: { width: 'full' }, parameters: storyContext('apps/web/app/pages/projects/[id]/index.vue:45', 'بديل `!max-w-none`: صفحة سجل هي لوحة بطاقات (نظرة المشروع) تأخذ عرض مساحة العمل كله.'), render: page }

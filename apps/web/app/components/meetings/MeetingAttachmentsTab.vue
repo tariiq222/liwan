@@ -35,7 +35,7 @@ async function deleteFile(attachmentId: number) {
 </script>
 
 <template>
-  <SharedRecordSection id="meeting-attachments" :title="t('meetingsUi.attachmentsTitle')" panel>
+  <SharedRecordSection id="meeting-attachments" :title="t('meetingsUi.attachmentsTitle')" variant="panel">
     <SharedAttachmentList :attachments="attachments.data.value?.items ?? []" :labels="labels" :loading="attachments.isLoading.value" :load-error="attachments.error.value" :error="actionError" :can-write="canEdit" :accept="ATTACHMENT_ACCEPT" :upload-file="uploadFile" :delete-file="deleteFile" upload-id="meeting-attachment-upload" @retry="attachments.refetch()" />
   </SharedRecordSection>
 </template>

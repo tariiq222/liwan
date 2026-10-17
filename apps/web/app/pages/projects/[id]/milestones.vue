@@ -28,7 +28,7 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/milestone
 <template>
   <template v-if="isListRoute">
     <SharedPageContainer v-if="notFound || error" width="list">
-      <div v-if="notFound" class="flex flex-col items-start gap-3">
+      <div v-if="notFound" class="flex flex-col items-start gap-(--webvue-gap-card)">
         <p class="text-muted">{{ t('projects.notFound') }}</p>
         <UButton type="button" color="neutral" variant="outline" size="sm" @click="router.push(projectReturnTo)">{{ t('projects.backToProjects') }}</UButton>
       </div>

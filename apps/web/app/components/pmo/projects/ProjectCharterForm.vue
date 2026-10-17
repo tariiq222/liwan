@@ -423,7 +423,7 @@ function discardToServer() {
 </script>
 
 <template>
-  <div :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-6">
+  <div :data-testid="mode === 'create' ? 'project-create-form' : 'project-charter-form'" class="grid gap-(--webvue-card-pad)">
     <SharedUnsavedChanges v-if="!readonly || dirty" :dirty="dirty" :guard-route-updates="mode === 'edit'" :ignore-query-keys="['step']" />
     <ProjectCharterDisplay
       v-if="readonly"
@@ -436,7 +436,7 @@ function discardToServer() {
       <template #state><slot name="state" /></template>
       <template #actions><slot name="actions" /></template>
     </ProjectCharterDisplay>
-    <form v-else class="grid gap-6" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
+    <form v-else class="grid gap-(--webvue-card-pad)" data-testid="project-charter-wizard" @submit.prevent="isLastStep ? finalize() : next()">
       <div v-if="attestRequired">
         <UBadge color="primary" variant="subtle" data-testid="project-create-ai-badge">{{ t('projects.create.aiBadge') }}</UBadge>
       </div>
@@ -460,7 +460,7 @@ function discardToServer() {
 
       <p v-if="stepNotice" role="alert" data-testid="charter-step-notice" class="text-sm text-error">{{ stepNotice }}</p>
 
-      <div v-if="isLastStep" class="grid gap-4" data-testid="charter-review-step">
+      <div v-if="isLastStep" class="grid gap-(--webvue-gap-card)" data-testid="charter-review-step">
         <p class="text-sm text-muted">{{ t('projects.charter.reviewHint') }}</p>
         <ProjectCharterDisplay :draft="draft" :milestones="milestones ?? []" />
       </div>
@@ -475,19 +475,19 @@ function discardToServer() {
         :require-end-date="mode === 'create' && !!createDefaults?.require_end_date_on_create"
       />
 
-      <div v-if="stale" role="alert" data-testid="charter-stale-write" class="rounded-control border border-warning/30 bg-warning/5 space-y-3 p-3 text-sm">
-        <p>{{ t('projects.charter.staleWrite') }}</p>
-        <p>{{ t('projects.charter.staleWriteHint') }}</p>
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            type="button"
-            data-testid="charter-overwrite-latest"
-            :disabled="!hydrated || pending || !canOverwrite"
-            :label="t('projects.charter.overwriteLatest')"
-            @click="overwriteOnLatest"
-          />
-          <UButton type="button" color="neutral" data-testid="charter-discard-reload" :disabled="pending" :label="t('projects.charter.discardReload')" @click="requestDiscard" variant="outline" />
-        </div>
+      <div v-if="stale" role="alert" data-testid="charter-stale-write" class="grid gap-3">
+        <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('projects.charter.staleWrite')" :description="t('projects.charter.staleWriteHint')">
+          <template #actions>
+            <UButton
+              type="button"
+              data-testid="charter-overwrite-latest"
+              :disabled="!hydrated || pending || !canOverwrite"
+              :label="t('projects.charter.overwriteLatest')"
+              @click="overwriteOnLatest"
+            />
+            <UButton type="button" color="neutral" data-testid="charter-discard-reload" :disabled="pending" :label="t('projects.charter.discardReload')" @click="requestDiscard" variant="outline" />
+          </template>
+        </UAlert>
         <SharedInlineConfirm
           v-if="confirmDiscard"
           data-testid="charter-discard-confirm"
@@ -500,10 +500,10 @@ function discardToServer() {
       </div>
       <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
-      <div v-if="attestRequired && isLastStep" class="rounded-control border border-default p-3" data-testid="project-create-attest">
+      <SharedSubCard v-if="attestRequired && isLastStep" class="grid gap-1" data-testid="project-create-attest">
         <UCheckbox v-model="attested" :label="t('projects.create.aiAttest')" :disabled="pending" required />
-        <p v-if="!attested" class="mt-1 text-xs text-muted">{{ t('projects.create.aiAttestRequired') }}</p>
-      </div>
+        <p v-if="!attested" class="text-xs text-muted">{{ t('projects.create.aiAttestRequired') }}</p>
+      </SharedSubCard>
 
       <p v-if="project?.charter.approval_required && baselineApproved" class="text-sm text-muted" data-testid="charter-save-reopens-hint">{{ t('projects.charter.saveReopensHint') }}</p>
       <SharedFormActions class="flex flex-wrap items-center gap-2" data-testid="charter-wizard-actions">

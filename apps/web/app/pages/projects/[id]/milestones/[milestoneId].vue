@@ -56,30 +56,35 @@ async function deleteMilestone() {
 
 <template>
   <SharedRecordPage v-if="isRecord" :title="milestone?.name ?? t('projects.milestones.name')" :back-to="backTo" :back-label="t('projects.tabs.milestones')" :loading="(isLoading || projectLoading) && !milestone" :error="projectError || error" :keep-content="!!milestone && !notFound" @retry="retry">
-    <template #back><UButton :to="backTo" data-testid="milestone-detail-back" color="neutral" variant="outline" icon="i-lucide-arrow-right" class="ltr:[&_svg]:rotate-180">{{ t('projects.tabs.milestones') }}</UButton></template>
+    <template #back><UButton :to="backTo" data-testid="milestone-detail-back" color="neutral" variant="ghost" icon="i-lucide-arrow-right" class="ltr:[&_svg]:rotate-180">{{ t('projects.tabs.milestones') }}</UButton></template>
     <template v-if="canManage && milestone" #actions>
       <UButton data-testid="milestone-detail-edit" :to="editTo" :disabled="!hydrated || pending">{{ t('app.edit') }}</UButton>
       <UButton color="neutral" variant="outline" :disabled="!hydrated || pending" @click="patch({ is_reached: !milestone.is_reached })">{{ t(milestone.is_reached ? 'projects.milestones.reopen' : 'projects.milestones.markReached') }}</UButton>
       <UButton color="error" variant="outline" :disabled="!hydrated || pending || milestone.task_count > 0" :title="milestone.task_count > 0 ? t('projects.milestones.deleteBlocked', { count: milestone.task_count }, milestone.task_count) : undefined" @click="confirmingDelete = true">{{ t('projects.milestones.delete') }}</UButton>
     </template>
-    <SharedEmptyState v-if="notFound" :title="t('projects.milestones.notFound')" />
+    <SharedEmptyState v-if="notFound" bordered :title="t('projects.milestones.notFound')" />
     <template v-else-if="milestone">
       <UAlert v-if="mutationError" role="alert" color="error" variant="subtle" :title="mutationError" />
       <SharedInlineConfirm v-if="confirmingDelete" :title="t('projects.milestones.deleteConfirm', { name: milestone.name })" :confirm-label="t('projects.milestones.delete')" :pending="pending" @cancel="confirmingDelete = false" @confirm="deleteMilestone" />
-      <SharedStatusBadge :tone="milestone.is_reached ? 'success' : 'neutral'" :label="t(milestone.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
-      <SharedRecordSection panel :title="t('projects.milestones.checklistTitle')" :description="t('projects.milestones.checklistHint')">
+      <SharedRecordSection variant="panel" :title="t('projects.milestones.checklistTitle')" :description="t('projects.milestones.checklistHint')">
         <p v-if="!milestone.deliverables.length" class="text-sm text-muted">{{ t('projects.milestones.noDeliverables') }}</p>
         <div v-else class="grid gap-3">
           <USwitch v-for="(item, index) in milestone.deliverables" :key="index" :model-value="item.done" :label="item.name" :disabled="!hydrated || !canManage || pending || confirmingDelete" @update:model-value="value => toggleDeliverable(index, value)" />
         </div>
       </SharedRecordSection>
-      <SharedRecordSection panel :title="t('projects.milestones.tasks')" :description="t('projects.milestones.taskProgress', { percent: milestone.task_count ? Math.round(milestone.done_task_count / milestone.task_count * 100) : 0 })">
-        <p class="text-sm">{{ t('projects.milestones.tasksOf', { done: milestone.done_task_count, total: milestone.task_count }) }}</p>
-        <UButton class="mt-3" color="neutral" variant="outline" :to="`/projects/${projectId}/tasks`">{{ t('projects.milestones.projectTasks') }}</UButton>
+      <SharedRecordSection variant="panel" :title="t('projects.milestones.tasks')" :description="t('projects.milestones.taskProgress', { percent: milestone.task_count ? Math.round(milestone.done_task_count / milestone.task_count * 100) : 0 })">
+        <div class="grid justify-items-start gap-3">
+          <p class="text-sm">{{ t('projects.milestones.tasksOf', { done: milestone.done_task_count, total: milestone.task_count }) }}</p>
+          <SharedProgress class="w-full" size="md" :value="milestone.task_count ? Math.round(milestone.done_task_count / milestone.task_count * 100) : 0" :label="t('projects.milestones.tasks')" />
+          <UButton color="neutral" variant="outline" :to="`/projects/${projectId}/tasks`">{{ t('projects.milestones.projectTasks') }}</UButton>
+        </div>
       </SharedRecordSection>
     </template>
     <template v-if="milestone && !notFound" #summary>
       <SharedPropertiesPanel>
+        <SharedPropertyRow :label="t('projects.milestones.state')">
+          <SharedStatusBadge :tone="milestone.is_reached ? 'success' : 'neutral'" :label="t(milestone.is_reached ? 'projects.milestones.reached' : 'projects.milestones.notReached')" />
+        </SharedPropertyRow>
         <SharedPropertyRow :label="t('projects.milestones.startDate')" :value="formatCalendarDate(milestone.start_date, locale)" />
         <SharedPropertyRow :label="t('projects.milestones.deadline')" :value="formatCalendarDate(milestone.deadline, locale)" />
         <SharedPropertyRow v-if="milestone.reached_date" :label="t('projects.milestones.reached')" :value="formatCalendarDate(milestone.reached_date, locale)" />

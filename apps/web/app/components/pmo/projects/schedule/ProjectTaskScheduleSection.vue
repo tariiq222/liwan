@@ -20,7 +20,7 @@ const canManage = computed(() => !denied.value && schedule.data.value?.can_manag
 </script>
 
 <template>
-  <SharedRecordSection id="schedule" panel data-testid="project-task-schedule-section" :title="t('projects.schedule.title')" :description="t('projects.schedule.taskSectionHint')">
+  <SharedRecordSection id="schedule" variant="panel" data-testid="project-task-schedule-section" :title="t('projects.schedule.title')" :description="t('projects.schedule.taskSectionHint')">
     <template v-if="canManage && task && !editing" #actions>
       <UButton data-testid="project-task-schedule-edit" color="neutral" variant="outline" :disabled="!hydrated" @click="editing = true">{{ t('projects.schedule.editTitle') }}</UButton>
     </template>
