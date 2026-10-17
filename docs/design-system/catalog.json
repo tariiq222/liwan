@@ -60,7 +60,7 @@
         {
           "id": "InConversationInfo",
           "name": "في معلومات المحادثة",
-          "context": "apps/web/app/components/chat/ChatInfoPanel.vue:123"
+          "context": "apps/web/app/components/chat/ChatInfoPanel.vue:133"
         }
       ]
     },
@@ -813,15 +813,13 @@
       "events": [],
       "slots": [],
       "nuxtUi": [
-        "UAlert",
-        "UButton",
         "UInput"
       ],
       "stories": [
         {
           "id": "Published",
           "name": "Published",
-          "context": "apps/web/app/pages/operations/processes/index.vue:4"
+          "context": "apps/web/app/pages/operations/processes/index.vue:6"
         }
       ]
     },
@@ -936,8 +934,6 @@
       "events": [],
       "slots": [],
       "nuxtUi": [
-        "UAlert",
-        "UButton",
         "UInput",
         "USelect"
       ],
@@ -945,17 +941,17 @@
         {
           "id": "Mine",
           "name": "Mine",
-          "context": "apps/web/app/pages/operations/index.vue:4"
+          "context": "apps/web/app/pages/operations/index.vue:6"
         },
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/pages/operations/index.vue:4"
+          "context": "apps/web/app/pages/operations/index.vue:6"
         },
         {
           "id": "Monitoring",
           "name": "Monitoring",
-          "context": "apps/web/app/pages/operations/index.vue:4"
+          "context": "apps/web/app/pages/operations/index.vue:6"
         }
       ]
     },
@@ -3246,22 +3242,22 @@
         {
           "id": "Chips",
           "name": "شرائح",
-          "context": "apps/web/app/pages/settings/roles/index.vue:46"
+          "context": "apps/web/app/pages/projects/dashboard.vue:170"
         },
         {
           "id": "Multiple",
           "name": "اختيار متعدد",
-          "context": "apps/web/app/pages/settings/roles/index.vue:46"
+          "context": "apps/web/app/pages/projects/dashboard.vue:170"
         },
         {
           "id": "Segment",
           "name": "شريط مقسّم",
-          "context": "apps/web/app/pages/settings/roles/index.vue:46"
+          "context": "apps/web/app/pages/projects/dashboard.vue:170"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/settings/roles/index.vue:46"
+          "context": "apps/web/app/pages/projects/dashboard.vue:170"
         }
       ]
     },
@@ -3785,22 +3781,22 @@
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:70"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
         },
         {
           "id": "Completed",
           "name": "Completed",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:70"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
         },
         {
           "id": "Returned",
           "name": "Returned",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:70"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
         },
         {
           "id": "Rejected",
           "name": "Rejected",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:70"
+          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
         }
       ]
     },
@@ -4532,17 +4528,17 @@
         {
           "id": "Selected",
           "name": "محادثة مختارة",
-          "context": "apps/web/app/components/chat/ChatWorkspace.vue:90"
+          "context": "apps/web/app/components/chat/ChatWorkspace.vue:91"
         },
         {
           "id": "NothingSelected",
           "name": "لا محادثة مختارة",
-          "context": "apps/web/app/components/chat/ChatWorkspace.vue:90"
+          "context": "apps/web/app/components/chat/ChatWorkspace.vue:91"
         },
         {
           "id": "Info",
           "name": "مع لوحة المعلومات",
-          "context": "apps/web/app/components/chat/ChatWorkspace.vue:90"
+          "context": "apps/web/app/components/chat/ChatWorkspace.vue:91"
         }
       ]
     },
@@ -4675,7 +4671,7 @@
       ]
     },
     {
-      "name": "SharedLinkCard",
+      "name": "LinkCard",
       "file": "packages/ui/app/components/shared/layout/LinkCard.vue",
       "story": "apps/web/stories/shared/LinkCard.stories.ts",
       "title": "Shared/LinkCard",

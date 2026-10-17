@@ -33,7 +33,7 @@ const actionLabels: Record<AuditAction, string> = {
       <template v-if="event.data.value">
         <SharedRecordSection v-for="side in (['before', 'after'] as const)" :id="side" :key="side" variant="panel" :title="t(`access.audit.${side}`)">
           <template #actions>
-            <SharedStatusBadge size="sm" :tone="side === 'before' ? 'error' : 'success'" :label="t(side === 'before' ? 'access.roles.removed' : 'access.roles.added')" />
+            <SharedStatusBadge size="sm" :tone="side === 'before' ? 'destructive' : 'success'" :label="t(side === 'before' ? 'access.roles.removed' : 'access.roles.added')" />
           </template>
           <pre class="overflow-x-auto rounded-control bg-elevated/40 py-2 text-xs leading-6" dir="ltr"><span v-for="(line, index) in diff[side]" :key="index" class="block px-3" :class="line.changed ? (side === 'before' ? 'bg-error/10 text-error' : 'bg-success/10 text-success') : ''">{{ line.text }}</span></pre>
         </SharedRecordSection>

@@ -4,7 +4,7 @@ import { renderShared } from '../../../../../test/helpers/renderShared'
 describe('SharedLinkCard', () => {
   it('is one link: a 40px round icon chip, the title and the description', async () => {
     const html = await renderShared('LinkCard', { to: '/projects', icon: 'i-lucide-folder-kanban', title: 'PROJECTS', description: 'DESC' })
-    expect(html).toMatch(/^<a[^>]*href="\/projects"[^>]*data-slot="link-card"/)
+    expect(html).toMatch(/^<a[^>]*to="\/projects"[^>]*data-slot="link-card"/)
     expect(html).toContain('size-10')
     expect(html).toContain('rounded-full')
     expect(html).toContain('PROJECTS')

@@ -48,7 +48,7 @@ async function load(file: string, url: RouteLocationRaw, props: Record<string, u
     useSsrQuerySeed: () => {}, navigateTo: navigate, returnToQuery, buildDepartmentTree, filterDepartmentTree, fitOrgChart, layoutDepartmentOrgChart, nextOrgScale,
     refDebounced: (value: unknown) => value, hasPendingHrSearch: () => false, hrCommittedListParams: () => ({ q: '', offset: 0 }),
     formatCalendarDate: () => '', ApiError: class extends Error {},
-    DocumentList: {}, DocumentReader: {}, DocumentEditor: {}, DocumentCreateForm: {}, HrIdentityCard: {}, DepartmentForm: {}, DepartmentOrgChart: {}, DepartmentTree: {}, DepartmentTable: {}, HrIdentityCard: {}, FilterBar: {}, RecordNumber: {},
+    DocumentList: {}, DocumentReader: {}, DocumentEditor: {}, DocumentCreateForm: {}, HrIdentityCard: {}, DepartmentForm: {}, DepartmentOrgChart: {}, DepartmentTree: {}, DepartmentTable: {}, FilterBar: {}, RecordNumber: {},
     ...navigation, ...recordNavigation, provide: Vue.provide, useSlots: () => ({}), FORM_ACTIONS_HOST,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -62,7 +62,7 @@ async function load(file: string, url: RouteLocationRaw, props: Record<string, u
     const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...props, ...Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))) }), render }))
     app.config.globalProperties.$t = (key: string) => key
     for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(m => m[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
-      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [slots.default?.(), slots.header?.({ close: () => {} }), slots.actions?.(), slots.view?.()]) }
+      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [slots.default?.(), slots.filters?.(), slots.header?.({ close: () => {} }), slots.actions?.(), slots.view?.()]) }
     } }))
     await renderToString(app)
     return captured

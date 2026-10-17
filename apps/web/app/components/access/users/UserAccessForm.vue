@@ -72,7 +72,7 @@ const changeGroups = computed(() => {
   const withSources = (item: EffectiveCapability) => `${capabilityLabel(item.key)} · ${item.sources.map((source) => roleLabel(source.role)).join('، ')}`
   return [
     { key: 'added', title: t('access.roles.added'), tone: 'success' as const, items: capabilityChanges.value.added.map((item) => ({ key: item.key, label: capabilityLabel(item.key) })) },
-    { key: 'removed', title: t('access.roles.removed'), tone: 'error' as const, items: capabilityChanges.value.removed.map((item) => ({ key: item.key, label: capabilityLabel(item.key) })) },
+    { key: 'removed', title: t('access.roles.removed'), tone: 'destructive' as const, items: capabilityChanges.value.removed.map((item) => ({ key: item.key, label: capabilityLabel(item.key) })) },
     { key: 'retained', title: t('access.roles.retained'), tone: 'neutral' as const, items: capabilityChanges.value.retained.map((item) => ({ key: item.key, label: item.sources.length ? withSources(item) : capabilityLabel(item.key) })) },
   ].filter((group) => group.items.length)
 })

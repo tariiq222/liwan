@@ -35,7 +35,7 @@ const retainedPermissions = computed(() => selected.value.filter((key) => props.
 const hint = computed(() => props.role.protected ? t('access.protectedRole') : !canEdit.value ? t('access.readOnly') : '')
 const changeGroups = computed(() => [
   { key: 'added', title: t('access.roles.added'), tone: 'success' as const, keys: addedPermissions.value },
-  { key: 'removed', title: t('access.roles.removed'), tone: 'error' as const, keys: removedPermissions.value },
+  { key: 'removed', title: t('access.roles.removed'), tone: 'destructive' as const, keys: removedPermissions.value },
   { key: 'retained', title: t('access.roles.retained'), tone: 'neutral' as const, keys: retainedPermissions.value },
 ].filter((group) => group.keys.length))
 function showError(error: unknown) {
