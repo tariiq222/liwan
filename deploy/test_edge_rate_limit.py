@@ -6,6 +6,8 @@ publishing ports, starting compose stacks, or contacting application services.
 """
 from __future__ import annotations
 
+import functools
+import hashlib
 import json
 import os
 import re
@@ -24,7 +26,9 @@ COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
 DEDICATED_ZONES = ('webvue_auth', 'webvue_api', 'webvue_odoo', 'webvue_web')
 ZONES = ('webvue_auth', 'webvue_api', 'webvue_odoo_image', 'webvue_odoo', 'webvue_web')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
-CADDY_IMAGE = 'webvue-accept-caddy:28b6c04-r2'
+CADDY_IMAGE_REPOSITORY = 'webvue-caddy-test'
+DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
+                      'error during connect', 'failed to connect to the docker api')
 
 # Independent review observations: expected singleton sets also detect overlaps.
 SHARED_ZONE_CASES = (
@@ -62,19 +66,37 @@ def _find_handlers(obj: object, handler_name: str) -> list[dict]:
     return found
 
 
-def _caddy_container(script: str) -> subprocess.CompletedProcess:
+def _docker(args: list[str], *, stdin: str | None = None, timeout: int) -> subprocess.CompletedProcess:
     if not shutil.which('docker'):
         raise unittest.SkipTest('docker executable unavailable')
-    result = subprocess.run(
-        ['docker', 'run', '--rm', '-i', CADDY_IMAGE, 'sh', '-s'],
-        input=script, capture_output=True, text=True, timeout=60,
-    )
+    result = subprocess.run(['docker', *args], input=stdin, capture_output=True, text=True, timeout=timeout)
+    if result.returncode and any(reason in result.stderr.lower() for reason in DOCKER_UNAVAILABLE):
+        raise unittest.SkipTest(f'docker daemon unavailable: {result.stderr.strip()}')
+    return result
+
+
+@functools.cache
+def _caddy_image() -> str:
+    """Tag the proxy image by its Dockerfile digest and build it when absent.
+
+    The Dockerfile copies nothing from a build context, so it is built from stdin
+    and its content alone determines the image.
+    """
+    recipe = DOCKERFILE.read_text(encoding='utf-8')
+    if re.search(r'^\s*(ADD|COPY)(?!\s+--from=)', recipe, re.MULTILINE | re.IGNORECASE):
+        raise AssertionError('deploy/proxy/Dockerfile reads its build context; hash those inputs too')
+    image = f'{CADDY_IMAGE_REPOSITORY}:{hashlib.sha256(recipe.encode()).hexdigest()[:16]}'
+    if _docker(['image', 'inspect', image], timeout=30).returncode:
+        built = _docker(['build', '-t', image, '-'], stdin=recipe, timeout=1800)
+        if built.returncode:
+            raise AssertionError(f'Caddy image build exit {built.returncode}: {built.stderr}')
+    return image
+
+
+def _caddy_container(script: str) -> subprocess.CompletedProcess:
+    result = _docker(['run', '--rm', '-i', _caddy_image(), 'sh', '-s'], stdin=script, timeout=60)
     if result.returncode:
-        # Missing image/module, invalid configuration and probe failures are not skips.
-        unavailable = ('cannot connect to the docker daemon', 'is the docker daemon running',
-                       'error during connect', 'failed to connect to the docker api')
-        if any(reason in result.stderr.lower() for reason in unavailable):
-            raise unittest.SkipTest(f'docker daemon unavailable: {result.stderr.strip()}')
+        # Invalid configuration and probe failures are not skips.
         raise AssertionError(f'Caddy container exit {result.returncode}: {result.stderr}')
     return result
 
