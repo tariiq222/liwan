@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { WEBVUE_MIDNIGHT } from '@/utils/webvuePalette'
+import { WEBVUE_BLUE } from '@/utils/webvuePalette'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
 
 const PRESETS = [
-  { key: 'default', color: WEBVUE_MIDNIGHT, labelKey: 'settings.branding.presets.default' },
+  { key: 'default', color: WEBVUE_BLUE, labelKey: 'settings.branding.presets.default' },
   { key: 'blue', color: '#0055ff', labelKey: 'settings.branding.presets.blue' },
   { key: 'teal', color: '#0f766e', labelKey: 'settings.branding.presets.teal' },
   { key: 'amber', color: '#b45309', labelKey: 'settings.branding.presets.amber' },
@@ -18,13 +18,13 @@ const hydrated = useHydrated()
 const { data: branding, isLoading, error, refetch } = useBrandingAdmin()
 const update = useUpdateBranding()
 
-const color = ref(WEBVUE_MIDNIGHT)
-const savedColor = ref(WEBVUE_MIDNIGHT)
+const color = ref(WEBVUE_BLUE)
+const savedColor = ref(WEBVUE_BLUE)
 const dirty = ref(false)
 const validationError = ref('')
 
 function loadSaved(value: { primary_color: string }) {
-  savedColor.value = normalizeHex(value.primary_color) ?? WEBVUE_MIDNIGHT
+  savedColor.value = normalizeHex(value.primary_color) ?? WEBVUE_BLUE
   color.value = savedColor.value
   dirty.value = false
 }
@@ -51,7 +51,7 @@ function cancel() {
 function resetDefault() {
   validationError.value = ''
   dirty.value = true
-  color.value = WEBVUE_MIDNIGHT
+  color.value = WEBVUE_BLUE
 }
 
 async function retryLoad() {
