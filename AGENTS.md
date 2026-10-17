@@ -179,7 +179,11 @@ another application) needs the owner's approval, recorded by the owner as an
   clean. Manual integration uses `git merge --no-ff`. The local checked entrypoint is
   `npm run merge:main -- codex/<area>-<slug>`: it creates the no-ff merge commit in an
   isolated candidate, runs all twelve checks, then fast-forwards `main` to that exact
-  tested merge commit. It never pushes or cleans up worktrees. Review and owner
+  tested merge commit. It never pushes or cleans up worktrees.
+  `npm run ship -- codex/<area>-<slug>` runs that gate, removes the merged task's worktree,
+  branch and scratch database, and pushes main only after the owner answers y in a terminal;
+  agents run it only with the owner's authorization for that integration and never answer the
+  push prompt. Review and owner
   authorization still apply; direct Git can bypass this tool. Removing the merged branch
   and its worktree also needs the owner's
   authorization, and happens only after the content is preserved and no process uses it; unmerged work

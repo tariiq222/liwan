@@ -3,7 +3,7 @@
 
     python3 -B tools/wt.py new <area>-<slug> [--base main] [--no-install] [--resume]
     python3 -B tools/wt.py status
-    python3 -B tools/wt.py gc [--apply]
+    python3 -B tools/wt.py gc [--apply] [--branch codex/<area>-<slug>]
 
 ``new`` creates ``.worktrees/<area>-<slug>``, the only location for task worktrees, under the main
 checkout (also when run from a worktree) on branch ``codex/<area>-<slug>``, installs independent ``node_modules`` and ``.nuxt`` (never symlinked), and writes the
@@ -16,7 +16,9 @@ database name (written before the install, so a failed install keeps its ports;
 merged into main with commits of their own, clean and held by no process, plus the scratch databases
 of those worktrees nobody is connected to; it only prints unless ``--apply`` is given, which needs the
 owner's authorization. Unmerged, dirty, current, in-use and missing worktrees and databases it cannot
-tie to a worktree (``webvue_scratch_e2e``, hand-named ones) are never touched.
+tie to a worktree (``webvue_scratch_e2e``, hand-named ones) are never touched. ``--branch`` limits ``gc``
+to that one branch's worktree and scratch database, says why a worktree it names is kept, and deletes the
+local branch when it has no worktree and is merged into main.
 """
 from __future__ import annotations
 
@@ -51,6 +53,10 @@ INSTALL = (
 
 class WorktreeError(Exception):
     """A refused or failed step; the message is shown to the user."""
+
+
+class WorktreeKept(WorktreeError):
+    """``gc --branch`` found the named worktree but must keep it; the message says why."""
 
 
 def clean_env(environ):
@@ -324,12 +330,25 @@ def in_use(worktree, busy):
     return any(inside(p, worktree.path.resolve()) for p in busy)
 
 
+def keep_reason(worktree, busy, current):
+    """Why ``gc`` keeps this worktree, or ``None`` when it may be removed (never main or the current one)."""
+    reasons = (
+        (worktree.is_main, 'it is the main checkout'),
+        (worktree.missing, 'its folder is missing'),
+        (not worktree.branch, 'it has no branch'),
+        (not worktree.missing and inside(current.resolve(), worktree.path.resolve()),
+         'it is the current directory; run this from the main checkout'),
+        (worktree.dirty, 'it has uncommitted changes'),
+        (not worktree.missing and in_use(worktree, busy), 'a process is running in it'),
+        (not worktree.merged, 'its branch is not merged into %s' % MAIN),
+        (not worktree.own_commits, 'its branch has no commits of its own'),
+    )
+    return next((text for failed, text in reasons if failed), None)
+
+
 def removable(worktrees, busy, current):
-    """Merged, clean worktrees with commits of their own that no process holds; never main or the current one."""
-    return [
-        w for w in worktrees
-        if w.branch and not w.is_main and not w.missing and w.merged and w.own_commits and not w.dirty
-        and not inside(current.resolve(), w.path.resolve()) and not in_use(w, busy)]
+    """Merged, clean worktrees with commits of their own that no process holds."""
+    return [w for w in worktrees if keep_reason(w, busy, current) is None]
 
 
 def scratch_databases():
@@ -367,7 +386,7 @@ def try_each(steps):
     return done, failures
 
 
-def apply_gc(root, victims, databases):
+def apply_gc(root, victims, databases, stale_branches=()):
     if sh(['git', 'branch', '--show-current'], root) != MAIN:
         message = 'the main checkout %s is not on %s; refusing to delete branches' % (root, MAIN)
         raise WorktreeError(message)
@@ -379,26 +398,50 @@ def apply_gc(root, victims, databases):
             failures += try_each([('branch %s' % w.branch, ['git', 'branch', '-d', w.branch], root)])[1]
         else:
             kept.add(w.database)
+    for name in stale_branches:
+        failures += try_each([('branch %s' % name, ['git', 'branch', '-d', name], root)])[1]
     for name in sorted(set(databases) - kept):
         failures += try_each([('database %s' % name, ['dropdb', '--if-exists', name], root)])[1]
     return failures
 
 
-def gc(root, apply, current):
+def merged_local_branch(root, branch):
+    """Whether ``branch`` exists locally and is merged into main; a missing branch is not an error."""
+    if run(['git', 'rev-parse', '--verify', '--quiet', 'refs/heads/' + branch], root)[0]:
+        return False
+    return run(['git', 'merge-base', '--is-ancestor', 'refs/heads/' + branch, MAIN], root)[0] == 0
+
+
+def gc(root, apply, current, branch=None):
+    if branch is not None and (not branch.startswith('codex/') or check_branch(branch)):
+        message = '--branch must be a local codex/<area>-<slug> task branch'
+        raise WorktreeError(message)
     worktrees = inspect_all(root)
-    victims = removable(worktrees, busy_paths(), current)
+    busy = busy_paths()
+    victims = removable(worktrees, busy, current)
+    scope = [w for w in worktrees if branch is None or w.branch == branch]
+    victims = [w for w in victims if w in scope]
     survivors = [w for w in worktrees if w not in victims]
-    databases = abandoned_databases([w for w in worktrees if w.missing] + victims, survivors)
+    databases = abandoned_databases([w for w in scope if w.missing] + victims, survivors)
     lines = ['%s worktree %s (branch %s)' % ('removing' if apply else 'would remove', w.path, w.branch) for w in victims]
     lines += ['%s database %s' % ('dropping' if apply else 'would drop', name) for name in databases]
-    lines += ['skipped: folder missing for %s (run git worktree prune)' % w.path for w in worktrees if w.missing]
-    if not victims and not databases:
+    lines += ['skipped: folder missing for %s (run git worktree prune)' % w.path for w in scope if w.missing]
+    stale_branches = []
+    if branch:
+        kept = [w for w in scope if not w.missing and w not in victims]
+        lines += ['kept: worktree %s (branch %s): %s' % (w.path, w.branch, keep_reason(w, busy, current)) for w in kept]
+        if kept:
+            raise WorktreeKept('\n'.join(lines))
+        if not scope and merged_local_branch(root, branch):
+            stale_branches.append(branch)
+            lines.append('%s branch %s' % ('deleting' if apply else 'would delete', branch))
+    if not victims and not databases and not stale_branches:
         return '\n'.join(lines + ['nothing to clean'])
     if not apply:
         lines.append('removing a worktree also deletes its ignored files (.env.worktree, .nuxt, node_modules)')
         lines.append('dry run; repeat with --apply to do it')
         return '\n'.join(lines)
-    failures = apply_gc(root, victims, databases)
+    failures = apply_gc(root, victims, databases, stale_branches)
     if failures:
         raise WorktreeError('\n'.join(lines + ['failed:'] + failures))
     return '\n'.join(lines)
@@ -415,13 +458,14 @@ def main(argv=None):
     sub.add_parser('status')
     collect = sub.add_parser('gc')
     collect.add_argument('--apply', action='store_true', help='remove what is listed (needs the owner\'s authorization)')
+    collect.add_argument('--branch', help='only this branch\'s worktree and scratch database (codex/<area>-<slug>)')
     args = parser.parse_args(argv)
     if args.command == 'status':
         root = repo_root()
         sys.stdout.write(format_status(inspect_all(root), root) + '\n')
         return 0
     if args.command == 'gc':
-        sys.stdout.write(gc(repo_root(), args.apply, Path.cwd()) + '\n')
+        sys.stdout.write(gc(repo_root(), args.apply, Path.cwd(), args.branch) + '\n')
         return 0
     path, branch, nuxt, odoo = create(args.name, args.base, not args.no_install, args.resume)
     sys.stdout.write('worktree %s on %s\nNuxt port %d, Odoo port %d, see %s/.env.worktree\n' % (path, branch, nuxt, odoo, path))
