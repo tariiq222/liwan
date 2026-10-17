@@ -16,8 +16,10 @@ bypasses them; the binding gates are ``npm test`` and the merge policies.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from git_policy import check_subject
@@ -28,6 +30,8 @@ UI_SOURCE_ROOTS = ('apps/web/', 'apps/vendor-admin/', 'packages/ui/', 'packages/
 REPO = Path(__file__).resolve().parents[1]
 MARKER = '# webvue-hook'
 HOOKS = ('pre-commit', 'commit-msg')
+JEV_TIMEOUT_SECONDS = 200
+JEV_TASK = 'staged changes about to be committed'
 AUTOSQUASH = ('fixup!', 'squash!', 'amend!', 'Squashed commit')
 STUB = """#!/bin/sh
 {marker}
@@ -72,6 +76,28 @@ def staged_paths():
     return out.stdout.splitlines()
 
 
+def advisory_jev():
+    """Print the advisory Jev scores for the staged diff; never changes the commit outcome.
+
+    Skipped with ``WEBVUE_SKIP_JEV=1``. A missing server, key or timeout is reported on stderr only.
+    """
+    if os.environ.get('WEBVUE_SKIP_JEV'):
+        return
+    staged = subprocess.run(['git', 'diff', '--cached'], cwd=REPO, capture_output=True, text=True, check=True).stdout
+    if not staged.strip():
+        return
+    with tempfile.TemporaryDirectory() as folder:
+        diff_file = Path(folder) / 'staged.diff'
+        diff_file.write_text(staged, encoding='utf-8')
+        argv = ['node', 'tools/jev_review.mjs', '--diff', str(diff_file), '--task', JEV_TASK]
+        try:
+            result = subprocess.run(argv, cwd=REPO, capture_output=True, text=True, check=False, timeout=JEV_TIMEOUT_SECONDS)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            sys.stderr.write('pre-commit: jev review skipped (%s)\n' % error)
+            return
+    sys.stderr.write('pre-commit: jev review (advisory)\n%s\n' % (result.stdout + result.stderr).strip())
+
+
 def pre_commit():
     failed = 0
     for name, argv in plan_pre_commit(staged_paths()):
@@ -84,6 +110,8 @@ def pre_commit():
         if result.returncode:
             failed += 1
             sys.stderr.write('pre-commit: %s failed\n%s\n' % (name, (result.stdout + result.stderr).strip()[-1500:]))
+    if not failed:
+        advisory_jev()
     return 1 if failed else 0
 
 

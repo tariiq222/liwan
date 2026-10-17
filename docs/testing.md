@@ -35,7 +35,7 @@ Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret gu
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
 `type(scope): subject` rule) into the shared `.git/hooks`, so every worktree gets them. It leaves
 `core.hooksPath` and the existing Git LFS hooks alone, refuses to overwrite a hook that is not
-its own, and `git commit --no-verify` still bypasses it. The merge gates stay binding.
+its own, and `git commit --no-verify` still bypasses it. When the checks pass, `pre-commit` also prints the advisory Jev scores for the staged diff (never blocks; `WEBVUE_SKIP_JEV=1` skips it). The merge gates stay binding.
 
 `tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
 module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them

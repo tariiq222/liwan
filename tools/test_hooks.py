@@ -57,6 +57,30 @@ class TestHooks(unittest.TestCase):
             self.assertEqual(hooks.pre_commit(), 1)
         self.assertIn('tool not found: python3', err.getvalue())
 
+    def test_jev_runs_after_passing_checks_and_never_fails_the_commit(self):
+        ok = mock.Mock(returncode=0, stdout='', stderr='')
+        with mock.patch.object(hooks, 'staged_paths', return_value=[]), \
+                mock.patch.object(hooks.subprocess, 'run', return_value=ok), \
+                mock.patch.object(hooks, 'advisory_jev') as jev:
+            self.assertEqual(hooks.pre_commit(), 0)
+        jev.assert_called_once()
+
+    def test_jev_failure_is_reported_without_blocking(self):
+        diff = mock.Mock(returncode=0, stdout='diff --git a/x b/x\n', stderr='')
+        calls = [diff, hooks.subprocess.TimeoutExpired('node', 1)]
+        with mock.patch.object(hooks.subprocess, 'run', side_effect=calls), \
+                mock.patch.dict(hooks.os.environ, {}, clear=False), \
+                mock.patch.object(hooks.sys, 'stderr', io.StringIO()) as err:
+            hooks.os.environ.pop('WEBVUE_SKIP_JEV', None)
+            hooks.advisory_jev()
+        self.assertIn('jev review skipped', err.getvalue())
+
+    def test_jev_can_be_skipped(self):
+        with mock.patch.dict(hooks.os.environ, {'WEBVUE_SKIP_JEV': '1'}), \
+                mock.patch.object(hooks.subprocess, 'run') as run:
+            hooks.advisory_jev()
+        run.assert_not_called()
+
 
 if __name__ == '__main__':
     unittest.main()
