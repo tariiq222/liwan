@@ -14,12 +14,19 @@ const languages = [{ code: 'ar', name: 'العربية' }, { code: 'en', name: '
 const modes: AppearanceMode[] = ['light', 'dark']
 const sizes: FontSize[] = ['small', 'medium', 'large']
 const modeIcons: Record<AppearanceMode, string> = { light: 'i-lucide-sun', dark: 'i-lucide-moon' }
+const sizeGlyphClass: Record<FontSize, string> = { small: 'text-xs', medium: 'text-base', large: 'text-xl' }
 const { me } = useMe()
 const { connected } = useBus()
 const hydrated = useHydrated()
 
 const initials = computed(() => (me.value?.name ?? '?').trim().slice(0, 1))
 const navPreferenceKey = computed(() => `webvue-nav:${me.value?.id ?? 'anonymous'}`)
+
+function chooseLanguage(code: (typeof languages)[number]['code']) {
+  if (locale.value === code) return
+  localeCookie.value = code
+  void setLocale(code)
+}
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST', body: {} })
@@ -31,8 +38,8 @@ async function logout() {
   await navigateTo('/login')
 }
 
-// Checkbox items toggle; each group behaves as a radio, so only a newly checked entry changes the preference.
-type AccountMenuItem = DropdownMenuItem & { webvueIcon?: string }
+// Language, mode and size are each one row of buttons (a radio group) in a custom slot that keeps the menu open.
+type AccountMenuItem = DropdownMenuItem & { webvueIcon?: string, slot?: 'language' | 'mode' | 'size' }
 const iconOf = (item: DropdownMenuItem) => (item as AccountMenuItem).webvueIcon
 const items = computed<AccountMenuItem[][]>(() => [
   [
@@ -40,35 +47,13 @@ const items = computed<AccountMenuItem[][]>(() => [
   ],
   [
     { type: 'label' as const, label: t('nav.language') },
-    ...languages.map(language => ({
-      type: 'checkbox' as const,
-      label: language.name,
-      checked: locale.value === language.code,
-      onUpdateChecked: (checked: boolean) => {
-        if (!checked) return
-        localeCookie.value = language.code
-        void setLocale(language.code)
-      },
-    })),
+    { slot: 'language' as const, class: 'webvue-appearance-item', onSelect: (event: Event) => event.preventDefault() },
   ],
   [
     { type: 'label' as const, label: t('settings.appearance.mode') },
-    ...modes.map(value => ({
-      type: 'checkbox' as const,
-      label: t(`settings.appearance.${value}`),
-      webvueIcon: modeIcons[value],
-      checked: mode.value === value,
-      onUpdateChecked: (checked: boolean) => { if (checked) setMode(value) },
-    })),
-  ],
-  [
+    { slot: 'mode' as const, class: 'webvue-appearance-item', onSelect: (event: Event) => event.preventDefault() },
     { type: 'label' as const, label: t('settings.appearance.fontSize') },
-    ...sizes.map(value => ({
-      type: 'checkbox' as const,
-      label: t(`settings.appearance.${value}`),
-      checked: fontSize.value === value,
-      onUpdateChecked: (checked: boolean) => { if (checked) setFontSize(value) },
-    })),
+    { slot: 'size' as const, class: 'webvue-appearance-item', onSelect: (event: Event) => event.preventDefault() },
   ],
   [
     { label: t('nav.logout'), color: 'error' as const, webvueIcon: 'i-lucide-log-out', onSelect: () => { void logout() } },
@@ -105,7 +90,7 @@ const items = computed<AccountMenuItem[][]>(() => [
         <UAvatar size="sm" :text="initials" :alt="me?.name ?? t('nav.account')" />
         <ClientOnly>
           <span
-            class="absolute -bottom-0.5 -end-0.5 block size-2.5 rounded-full ring-2 ring-background"
+            class="absolute -bottom-0.5 -start-0.5 block size-2.5 rounded-full ring-2 ring-(--ui-bg)"
             :class="connected ? 'webvue-status-dot-success' : 'bg-(--ui-text-dimmed)'"
             :title="connected ? t('bus.connected') : t('bus.disconnected')"
             :aria-label="connected ? t('bus.connected') : t('bus.disconnected')"
@@ -115,9 +100,61 @@ const items = computed<AccountMenuItem[][]>(() => [
       </span>
       <span class="account-copy">
         <span class="account-name">{{ me?.name }}</span>
-        <span class="account-role">{{ me?.company.name }}</span>
       </span>
     </UButton>
+    <template #language>
+      <div role="radiogroup" :aria-label="t('nav.language')" class="webvue-appearance-row">
+        <UButton
+          v-for="language in languages"
+          :key="language.code"
+          type="button"
+          role="radio"
+          color="neutral"
+          :variant="locale === language.code ? 'subtle' : 'ghost'"
+          :aria-checked="locale === language.code"
+          :label="language.name"
+          class="webvue-appearance-option"
+          @click.stop="chooseLanguage(language.code)"
+        />
+      </div>
+    </template>
+    <template #mode>
+      <div role="radiogroup" :aria-label="t('settings.appearance.mode')" class="webvue-appearance-row">
+        <UButton
+          v-for="value in modes"
+          :key="value"
+          type="button"
+          role="radio"
+          color="neutral"
+          :variant="mode === value ? 'subtle' : 'ghost'"
+          :aria-checked="mode === value"
+          :aria-label="t(`settings.appearance.${value}`)"
+          :title="t(`settings.appearance.${value}`)"
+          :icon="modeIcons[value]"
+          class="webvue-appearance-option"
+          @click.stop="setMode(value)"
+        />
+      </div>
+    </template>
+    <template #size>
+      <div role="radiogroup" :aria-label="t('settings.appearance.fontSize')" class="webvue-appearance-row">
+        <UButton
+          v-for="value in sizes"
+          :key="value"
+          type="button"
+          role="radio"
+          color="neutral"
+          :variant="fontSize === value ? 'subtle' : 'ghost'"
+          :aria-checked="fontSize === value"
+          :aria-label="t(`settings.appearance.${value}`)"
+          :title="t(`settings.appearance.${value}`)"
+          class="webvue-appearance-option"
+          @click.stop="setFontSize(value)"
+        >
+          <span aria-hidden="true" class="font-semibold leading-none" :class="sizeGlyphClass[value]">A</span>
+        </UButton>
+      </div>
+    </template>
     <template #item-leading="{ item }">
       <UIcon v-if="iconOf(item)" :name="iconOf(item)!" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
     </template>
