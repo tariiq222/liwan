@@ -231,7 +231,6 @@ class UiPolicyTest(unittest.TestCase):
             (UI + 'assets/css/tokens.css', ':root { --brand: #123456; }'),
             (UI + 'assets/css/components.css', '.card { color: #123456; }'),
             (UI + 'assets/css/shell.css', '@font-face { font-family: WebVue; }'),
-            (APP + 'utils/brandTheme.ts', 'export const brand = "#123456"'),
             (UI + 'app.config.ts', 'export default { ui: { colors: { primary: "#123456" } } }'),
         ):
             with self.subTest(path=path):

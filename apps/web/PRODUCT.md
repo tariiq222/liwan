@@ -80,7 +80,7 @@ updating the definition does not implement or authorize them automatically.
 - Meetings: list, calendar, recurring series, minutes; print stays outside the record sheet.
 - Chat: conversation workspace (not the record-sheet recipe).
 - HR: employees, departments/org, documents. No payroll or time logging.
-- Settings: appearance, users, roles, access log, institution branding (primary-only in the customer UI; ignore the backend's legacy `secondary_color` field; name and logo remain Odoo system-admin).
+- Settings: appearance, users, roles, access log, institution branding (one document colour for invoices, reports and printouts; it never themes the interface, which keeps the fixed WebVue palette; ignore the backend's legacy `secondary_color` field; name and logo remain Odoo system-admin).
 - Authorization is capability-based, not role-name-based.
 - Default locale Arabic / RTL-first; English secondary. Business screens are real routes: direct link, refresh, back with list filters. Overlay exceptions: global search dialog, notification popover (latest five, then `/notifications`), unsaved-draft guard, value-selection menus, inline destroy confirm. Do not stack business dialogs.
 - Presentation follows DESIGN.md; contracts and security in `../../CLAUDE.md` are not visual.

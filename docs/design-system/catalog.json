@@ -4900,11 +4900,6 @@
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
           "context": "apps/web/app/layouts/default.vue:46"
-        },
-        {
-          "id": "BrightTenant",
-          "name": "لون مؤسسة ساطع",
-          "context": "apps/web/app/layouts/default.vue:46"
         }
       ]
     }

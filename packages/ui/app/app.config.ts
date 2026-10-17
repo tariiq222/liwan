@@ -1,13 +1,13 @@
 export default defineAppConfig({
   ui: {
-    // Tasmim recipes (DESIGN.md «وصفات الثيم المعتمدة»). Colours: tenant primary
-    // from settings (utils/brandTheme.ts), slate neutral, WebVue midnight/lime in
+    // Tasmim recipes (DESIGN.md «وصفات الثيم المعتمدة»). Colours: the fixed
+    // WebVue primary (the company colour is for documents only), slate neutral, WebVue midnight/lime in
     // tokens.css. Sizes come from tokens: --webvue-control-h, --webvue-row-h,
     // --ui-radius (rounded-md = 9px, rounded-lg = 12px, rounded-xl = 18px at the 14px root).
     colors: { primary: 'brand', neutral: 'slate' },
 
     // The 32px control floor applies to the default (md) size only; xs/sm stay compact.
-    // Dark mode: the solid primary paints from --primary-solid (brandTheme.ts darkSolid), not the
+    // Dark mode: the solid primary paints from --primary-solid (fixed value in tokens.css), not the
     // greyed --brand-link that text-primary and focus keep (owner amendment 4, CP2).
     button: { slots: { base: 'rounded-full transition-colors duration-150 motion-reduce:transition-none' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } }, compoundVariants: [{ size: 'md', square: true, class: 'min-w-(--webvue-control-h)' }, { color: 'primary', variant: 'solid', class: 'dark:bg-(--primary-solid) dark:text-(--primary-solid-foreground) dark:hover:bg-(--primary-solid-hover) dark:hover:text-(--primary-solid-hover-foreground) dark:active:bg-(--primary-solid-hover) dark:active:text-(--primary-solid-hover-foreground) dark:disabled:bg-(--primary-solid) dark:aria-disabled:bg-(--primary-solid)' }] },
     input: { slots: { base: 'rounded-lg bg-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },

@@ -12,21 +12,20 @@
 | وصفات Nuxt UI | `packages/ui/app/app.config.ts` |
 | مدخل CSS والخط | `packages/ui/app/assets/css/main.css`؛ يستورد `tokens.css` و`components.css` و`shell.css` وخط IBM Plex Sans Arabic المحلي |
 | توكنات الأسطح والتحكم | `packages/ui/app/assets/css/tokens.css`, `packages/ui/app/assets/css/components.css`, `packages/ui/app/assets/css/shell.css` |
-| لون الهوية | `apps/web/app/utils/brandTheme.ts`؛ الإدخال هو `primary_color` وتُشتق منه حالات التفاعل والروابط والاختيار والرسوم |
+| لون الهوية | `primary_color` يُحفظ للمستندات والتقارير (الفواتير والمطبوعات) فقط؛ ألوان الواجهة ثابتة من `tokens.css` ولا تتبعه |
 | حالة المظهر والخط | `apps/web/app/composables/useAppearance.ts` و`apps/web/app/utils/appearance.ts`؛ الحالة وcookie هنا |
 | الرسوم | `apps/web/app/components/shared/data/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
 | ملكية المكونات | [فهرس المكونات](components.md)؛ كل مسار فيه يبدأ بـ `apps/web/app/components/` |
 
-مدخلات الثيم (كما في DESIGN.md §1): لون الهوية من العميل (الافتراضي أزرق
-ويب فيو `#0046d5`) يغذّي `primary`، والمحايد `slate`، وهوية ويب فيو: الأزرق الليلي للريل
+مدخلات الثيم (كما في DESIGN.md §1): لوحة ويب فيو الثابتة (أزرق ويب فيو
+`#0046d5`) تغذّي `primary`، والمحايد `slate`، وهوية ويب فيو: الأزرق الليلي
 والليموني `#c6f432` في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام،
 ومظهران فقط (فاتح وداكن؛ أي قيمة قديمة مخزنة تُقرأ فاتحًا). الكثافة من
 `--webvue-control-h` (32px) و`--webvue-row-h` (36px)، والزوايا من
 `--ui-radius: 0.285714rem` (6px و8px)، والظلال للطبقات العائمة فقط. الريل ثابت
-بـ `--webvue-rail` ولا يتبع لون العميل. هندسة الغلاف في قسم «الغلاف» أدناه.
-المحايدات وأساليب الحالة منفصلة عن لون الهوية؛ `brandTheme.ts` يشتق عائلة
-`--primary*` و`--chart-*` من اللون الأساسي لكل مظهر، مع إبقاء توكنات النجاح
-والتحذير والخطأ والمعلومة دلالية. الشعار المعتمد في
+بـ `--webvue-rail`. هندسة الغلاف في قسم «الغلاف» أدناه.
+الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
+والتحذير والخطأ والمعلومة ثابتة في `tokens.css` لكل مظهر. الشعار المؤقت في
 `packages/ui/app/components/shared/layout/BrandWordmark.vue`. ولا تُنقل ملفات المصدر المقارن
 أو بياناته أو مساراته التجريبية إلى التشغيل.
 

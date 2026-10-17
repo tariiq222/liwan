@@ -1,8 +1,6 @@
 import { BrandingSchema, type Branding } from '@webvue/contracts'
-import { createBrandTheme } from '@/utils/brandTheme'
 
 export function useBranding() {
-  const { mode } = useAppearance()
   const { data, refresh } = useFetch<Branding>('/api/v1/branding', {
     key: 'branding',
     transform: (raw) => BrandingSchema.parse(raw),
@@ -20,16 +18,9 @@ export function useBranding() {
     // Keep its version so a replacement logo also invalidates the tab icon.
     return `/web/image/res.company/${company}/logo/32x32${query}`
   })
-  const themeStyle = computed(() => Object.entries(createBrandTheme(
-    branding.value?.primary_color ?? '',
-    mode.value,
-  ))
-    .map(([key, value]) => `${key}:${value}`)
-    .join(';'))
   useHead(() => ({
     title: branding.value?.name ?? 'webvue',
     link: faviconUrl.value ? [{ key: 'institution-favicon', rel: 'icon', href: faviconUrl.value }] : [],
-    htmlAttrs: { style: themeStyle.value },
   }))
   return { branding, refresh }
 }

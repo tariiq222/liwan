@@ -2,8 +2,6 @@ import { computed, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useBranding } from '../useBranding'
 
-vi.mock('@/utils/brandTheme', () => import('../../utils/brandTheme'))
-
 afterEach(() => vi.unstubAllGlobals())
 
 describe('institution favicon', () => {
@@ -13,7 +11,6 @@ describe('institution favicon', () => {
     })
     let head: () => { link?: { rel: string, href: string }[] }
     vi.stubGlobal('computed', computed)
-    vi.stubGlobal('useAppearance', () => ({ mode: ref('light') }))
     vi.stubGlobal('useFetch', () => ({ data, refresh: async () => {} }))
     vi.stubGlobal('useHead', (input: typeof head) => { head = input })
     useBranding()
@@ -46,22 +43,10 @@ describe('institution favicon', () => {
     expect(head().link).toContainEqual(expect.objectContaining({ rel: 'icon', href: '/brand/logo.png?v=2' }))
   })
 
-  it('renders the primary family and ignores a stored secondary color', () => {
-    let head!: () => { htmlAttrs?: { style?: string }, link?: { rel: string, href: string }[] }
-    const data = ref<null | { name: string, logo_url: string, primary_color: string, secondary_color?: string | null, font: string }>({
-      name: 'Institution', logo_url: '/brand/logo.png', primary_color: '#001A33', secondary_color: '#d14a00', font: 'IBM_Plex_Sans_Arabic',
-    })
-    vi.stubGlobal('computed', computed)
-    vi.stubGlobal('useAppearance', () => ({ mode: ref('light') }))
-    vi.stubGlobal('useFetch', () => ({ data, refresh: async () => {} }))
-    vi.stubGlobal('useHead', (input: typeof head) => { head = input })
-    useBranding()
-    const style = head().htmlAttrs?.style ?? ''
-    expect(style).toContain('--primary-fill:')
-    expect(style).not.toContain('--webvue-brand-secondary')
-    expect(style).not.toMatch(/(?:^|;)--secondary:/)
-    expect(style).not.toContain('#2563eb')
-    data.value = { ...data.value!, secondary_color: '#00ff00' }
-    expect(head().htmlAttrs?.style).toBe(style)
+  it('never themes the interface from the stored company colours', () => {
+    const { head, data } = setup()
+    expect(head()).not.toHaveProperty('htmlAttrs')
+    data.value = { ...data.value!, primary_color: '#00ff00', secondary_color: '#ff0000' }
+    expect(head()).not.toHaveProperty('htmlAttrs')
   })
 })

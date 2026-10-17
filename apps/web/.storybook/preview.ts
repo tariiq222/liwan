@@ -15,7 +15,6 @@ import { apiHandlers } from '../stories/handlers/api'
 import nuxtUiComponents from 'virtual:webvue-nuxt-ui-components'
 import { useAppearance } from '../app/composables/useAppearance'
 import { htmlAttrsFor, type AppearanceMode, type FontSize } from '../app/utils/appearance'
-import { createBrandTheme, DEFAULT_PRIMARY } from '../app/utils/brandTheme'
 import { __resetState, __setRouter } from './nuxt-shims'
 import { init as initLucideIcons } from './nuxt-icon-client-bundle-shim.mjs'
 
@@ -36,7 +35,6 @@ Object.assign(i18n.global, {
 const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:path(.*)*', component: { render: () => null } }] })
 __setRouter(router)
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5_000 } } })
-let brandKeys: string[] = []
 
 setup((app) => {
   app.use(router)
@@ -48,8 +46,8 @@ setup((app) => {
   for (const [tag, component] of Object.entries(nuxtUiComponents)) app.component(tag, component)
 })
 
-// Same attributes app.vue and useBranding put on <html>, applied once per render.
-function applyDocument(locale: string, mode: AppearanceMode, fontSize: FontSize, primary: string) {
+// Same attributes app.vue puts on <html>, applied once per render.
+function applyDocument(locale: string, mode: AppearanceMode, fontSize: FontSize) {
   const root = document.documentElement
   const current = locales.find(entry => entry.code === locale) ?? locales[0]!
   const attrs = htmlAttrsFor({ mode, fontSize, lang: current.language, dir: current.dir })
@@ -58,10 +56,6 @@ function applyDocument(locale: string, mode: AppearanceMode, fontSize: FontSize,
   root.setAttribute('data-font-size', attrs['data-font-size'])
   if (attrs.lang) root.lang = attrs.lang
   if (attrs.dir) root.dir = attrs.dir
-  brandKeys.forEach(key => root.style.removeProperty(key))
-  const theme = createBrandTheme(primary, mode)
-  brandKeys = Object.keys(theme)
-  for (const [key, value] of Object.entries(theme)) root.style.setProperty(key, value)
 }
 
 const preview: Preview = {
@@ -79,26 +73,13 @@ const preview: Preview = {
       description: 'Font size',
       toolbar: { title: 'Font size', icon: 'paragraph', dynamicTitle: true, items: ['small', 'medium', 'large'] },
     },
-    primary: {
-      description: 'Brand primary colour (createBrandTheme input)',
-      toolbar: {
-        title: 'Brand', icon: 'paintbrush', dynamicTitle: true,
-        items: [
-          { value: DEFAULT_PRIMARY, title: 'Default' },
-          { value: '#2563eb', title: 'Blue' },
-          { value: '#0f766e', title: 'Teal' },
-          { value: '#b45309', title: 'Amber' },
-        ],
-      },
-    },
   },
-  initialGlobals: { locale: 'ar', appearance: 'light', fontSize: 'small', primary: DEFAULT_PRIMARY },
+  initialGlobals: { locale: 'ar', appearance: 'light', fontSize: 'small' },
   decorators: [
     (story, context) => {
       const locale = context.globals.locale === 'en' ? 'en' : 'ar'
       const mode = (context.globals.appearance ?? 'light') as AppearanceMode
       const fontSize = (context.globals.fontSize ?? 'small') as FontSize
-      const primary = String(context.globals.primary ?? DEFAULT_PRIMARY)
       return {
         setup() {
           // Write shared state only when it differs; writing on every render loops on docs pages.
@@ -106,7 +87,7 @@ const preview: Preview = {
           if (appearance.mode.value !== mode) appearance.setMode(mode)
           if (appearance.fontSize.value !== fontSize) appearance.setFontSize(fontSize)
           if (i18n.global.locale.value !== locale) i18n.global.locale.value = locale
-          applyDocument(locale, mode, fontSize, primary)
+          applyDocument(locale, mode, fontSize)
           return () => h(UApp, { locale: locale === 'en' ? en : ar }, () => h(story()))
         },
       }
