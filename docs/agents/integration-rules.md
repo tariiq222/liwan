@@ -32,10 +32,8 @@ Before every integration, including from an older worktree:
 6. Before updating `main`, verify it still points to the recorded baseline.
    If another task advanced it, rebuild and verify the candidate against the
    new tip. For manual integration, promote the verified candidate with `git merge --no-ff`.
-   The approved local gate (`npm run merge:main -- codex/<area>-<slug>`) creates that
-   no-ff merge commit in the candidate before testing, then uses `git merge --ff-only`
-   to advance `main` to the identical tested commit. It never computes a new merge
-   after tests. The gate serializes its own invocations; other writers must coordinate
-   main updates because direct Git commands do not acquire its lock. Then verify the
+   Integration is a GitHub pull request merged with a merge commit once the `ci` workflow
+   (`ci-result`) has passed on the PR; the owner's authorization for that merge is required.
+   Then verify the
    resulting commit and working-tree state. Preserve other active
    worktrees; cleanup still needs separate authorization.

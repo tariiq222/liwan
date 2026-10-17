@@ -82,7 +82,7 @@ class TestCheckFast(unittest.TestCase):
         self.assertEqual(extra(['packages/commercial-contracts/src/a.ts']), {'commercial_contracts_test'} | VENDOR_EXTRA)
 
     def test_root_manifests_and_ci_run_the_full_test(self):
-        for path in ('package.json', 'package-lock.json', '.woodpecker.yml'):
+        for path in ('package.json', 'package-lock.json', '.github/workflows/ci.yml'):
             self.assertEqual(extra([path]), {'npm_test_full'})
             self.assertEqual(dict(plan([path], 'main'))['npm_test_full'], ['npm', 'test'])
         self.assertNotIn('npm_test_full', extra(['apps/web/package.json']))

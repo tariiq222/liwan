@@ -23,10 +23,7 @@
     "e2e:odoo": "E2E_STACK=odoo node tools/e2e_isolated.mjs",
     "e2e:explore": "E2E_COMMAND=explore node tools/e2e_isolated.mjs",
     "e2e:odoo:explore": "E2E_STACK=odoo E2E_COMMAND=explore node tools/e2e_isolated.mjs",
-    "e2e:smoke": "node tools/e2e_isolated.mjs e2e/tests/smoke.e2e.ts",
-    "merge:main": "python3 -B tools/merge_main.py",
-    "ship": "python3 -B tools/ship.py",
-    "check:local": "python3 -B tools/local_ci.py"
+    "e2e:smoke": "node tools/e2e_isolated.mjs e2e/tests/smoke.e2e.ts"
   },
   "overrides": {
     "@nuxtjs/i18n": {

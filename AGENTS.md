@@ -172,28 +172,23 @@ another application) needs the owner's approval, recorded by the owner as an
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
   directory in the same commit.
-- Merging is the orchestrator's job and needs the owner's authorization for that integration. Before
-  merging: merge current `main` into the task branch (never rebase a branch another worker owns); the
-  focused checks and `npm test` pass; `python3 -B tools/git_policy.py --base main` and
-  `python3 -B tools/arch_policy.py --base main` pass (the local merge gate runs these before accepting main); addon or contract changes are reviewed by the `odoo-reviewer` agent; the working tree is
-  clean. Manual integration uses `git merge --no-ff`. The local checked entrypoint is
-  `npm run merge:main -- codex/<area>-<slug>`: it creates the no-ff merge commit in an
-  isolated candidate, runs the CI stages the change can affect (`tools/ci_scope.py`; an unmapped
-  path or `--full` runs all twelve), then fast-forwards `main` to that exact
-  tested merge commit. It never pushes or cleans up worktrees. A `release/19.0.X.Y.Z` tag is cut only
-  from a `main` commit that passed a `--full` gate run (a manual rule, no tool enforces it: check
-  `scope.mode` is `full` in that commit's `.superpowers/merge-main/*/merge.json` before tagging).
-  `npm run ship -- codex/<area>-<slug>` runs that gate, removes the merged task's worktree,
-  branch and scratch database, and pushes main only after the owner answers y in a terminal;
-  agents run it only with the owner's authorization for that integration and never answer the
-  push prompt. Review and owner
-  authorization still apply; direct Git can bypass this tool. Removing the merged branch
-  and its worktree also needs the owner's
-  authorization, and happens only after the content is preserved and no process uses it; unmerged work
-  is tagged `archive/<name>` before its branch is removed.
-- Only `main` and tags are pushed, each push with the owner's explicit authorization. Task branches stay
-  local unless the owner asks for a pull request. `release/19.0.X.Y.Z` tags on `main` are the releases;
-  there is no per-customer branch.
+- Integration goes through a GitHub pull request into `main`. Task branches are pushed only with the owner's
+  explicit authorization, and merging the PR needs the owner's authorization for that integration (a merge
+  commit; never rebase a branch another worker owns). Agents never push or merge without it. Before opening the
+  PR: merge current `main` into the task branch; the focused checks and `npm test` pass;
+  `python3 -B tools/git_policy.py --base main` and `python3 -B tools/arch_policy.py --base main` pass; addon or
+  contract changes are reviewed by the `odoo-reviewer` agent; the working tree is clean.
+- The `ci` workflow (`.github/workflows/ci.yml`) is the only gate. It selects the stages a change can affect with
+  `tools/ci_scope.py` (an unmapped path or a manual run with `full: true` runs all twelve), and its aggregate job
+  `ci-result` is the single check branch protection must require. Branch protection on `main` requiring
+  `ci-result` is a pending owner action in the GitHub settings, not yet in place.
+- A `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was a full run (`workflow_dispatch`
+  with `full: true`, all twelve stages green); a manual rule, no tool enforces it.
+- After a PR is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with
+  the owner's authorization and only after the content is preserved and no process uses it; unmerged work is
+  tagged `archive/<name>` before its branch is removed.
+- Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization.
+  `release/19.0.X.Y.Z` tags on `main` are the releases; there is no per-customer branch.
 
 
 ## Preserve approved work on every merge — 2026-09-08
@@ -313,10 +308,10 @@ worktrees only after their content is preserved and no process is using them.
 
 ## Check commands
 
-The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is Woodpecker
-(`.woodpecker.yml`, twelve steps, each runnable locally); its runner and merge gate
-are in `docs/testing.md` ("Local main merge gate" and "CI pipeline notes"). Fast local loop: `npm run check:fast`,
-`npm run test:odoo`, `npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
+The Odoo scratch-database command block is in `docs/agents/odoo-rules.md`. CI is the GitHub Actions `ci` workflow
+(`.github/workflows/ci.yml`, twelve stages, each a `deploy/ci/<stage>.sh` script runnable locally); see
+`docs/testing.md`. Fast local loop: `npm run check:fast`, `npm run test:odoo`,
+`npm run wt -- new <area>-<slug>`, `npm run hooks:install` (see `docs/testing.md`).
 Web checks and general commands:
 
 Use `npm test` for contracts and web unit tests, `npm -w apps/web run lint`

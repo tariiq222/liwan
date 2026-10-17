@@ -48,29 +48,15 @@ git branch --show-current
 
 التحقق المحلي لا يثبت النشر. الـ remote هو `origin` (`https://github.com/tariiq222/webvue.git`) ويتتبعه `main`؛ قارن `main` مع `origin/main` بعد `git fetch` قبل أي دمج. لا commit أو دمج أو push أو نشر أو حذف عمل دون تفويض الإجراء؛ الدمج يحفظ القرارات السابقة وفق [AGENTS.md](../AGENTS.md).
 
-## CI — Woodpecker (2026-09-29)
+## CI — GitHub Actions
 
-CI is Woodpecker, defined in [`.woodpecker.yml`](../.woodpecker.yml); GitHub
-Actions was removed from the project. The main pipeline runs eleven steps on the
-local instance (`static`, `control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`,
-`odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock`,
-`rtl-stories`) and is portable to any Woodpecker deployment with
-a Docker backend. The Docker image gate lives in
-[`deploy/woodpecker/image.yml`](../deploy/woodpecker/image.yml) and is
-activated by pointing the repository pipeline path at it: it needs an agent
-whose engine can start a privileged dind service, which the local
-rootless-dind engine cannot do (nested rootlesskit fails with
-`newuidmap: Operation not permitted`). Keep it out of `.woodpecker/` because a
-pipeline file whose `when` matches nothing makes the server reject the whole
-webhook.
-`.github/` keeps only non-Actions files (Copilot instructions and hooks). A
-temporary Cloudflare tunnel fronts the instance because GitHub rejects
-`localhost` webhook URLs; if the tunnel or its address changes,
-`WOODPECKER_HOST` must be updated and the server restarted. The migration
-policy is [`migrations.md`](migrations.md). The control-plane live-PG suites
-run serially by design: its `test` script sets `--no-file-parallelism` and a
-60s hook timeout because the suites share one scratch control database and
-TRUNCATE the same tables.
+CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages, each a
+`deploy/ci/<stage>.sh` script, selected per change by `tools/ci_scope.py`. Its aggregate job `ci-result` is the
+single check branch protection on `main` must require; that protection is a pending owner action in the GitHub
+settings. Details are in [`testing.md`](testing.md#ci-workflow). The migration policy is
+[`migrations.md`](migrations.md). The control-plane live-PG suites run serially by design: its `test` script sets
+`--no-file-parallelism` and a 60s hook timeout because the suites share one scratch control database and TRUNCATE
+the same tables.
 
 ## Vendor workspace local integration — 2026-09-23 (historical, superseded)
 

@@ -91,7 +91,7 @@ R3 و R4 تُطبَّقان على هذا التوزيع. الاعتماد ين�
 ### 3.1 (أ) القواعد والحارس — أولاً
 
 - قسم قصير «قواعد المعمارية» في `CLAUDE.md` و`AGENTS.md` بنص واحد، يسرد R1–R10 ويحيل إلى هذه الوثيقة.
-- `tools/arch_policy.py` يفحص R1–R10، ويُضاف إلى خطوة `static` في `.woodpecker.yml`، على نمط `tools/ui_policy.py`.
+- `tools/arch_policy.py` يفحص R1–R10، ويُضاف إلى خطوة `static` في `deploy/ci/static.sh`، على نمط `tools/ui_policy.py`.
 - **خط أساس متناقص:** `tools/arch_baseline.json` يسجّل المخالفات القائمة اليوم. الحارس يرفض أي زيادة،
   ويرفض بقاء بند في الأساس بعد زواله من الكود، فلا يتسع الأساس أبداً.
 - اختبارات الحارس في `tools/test_arch_policy.py`.

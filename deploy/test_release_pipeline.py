@@ -1,7 +1,7 @@
 """Release HTTP unit tests need installed jiti and canonical package imports."""
 import unittest
 
-from deploy.test_woodpecker_pipeline import commands
+from deploy.test_ci_stages import commands
 
 
 class ReleasePipelineTests(unittest.TestCase):

@@ -23,7 +23,7 @@ class UpgradeBaselineTest(unittest.TestCase):
             self.assertEqual(upgrade_baseline.compatible_release(), 'release/19.0.3.0.0')
 
     def test_ci_selects_compatible_source_before_creating_runtime_resources(self):
-        source = (upgrade_baseline.ROOT / '.woodpecker.yml').read_text()
+        source = (upgrade_baseline.ROOT / 'deploy/ci/upgrade.sh').read_text()
         selector = 'BASE_TAG="$(python3 -B tools/upgrade_baseline.py)"'
         self.assertIn(selector, source)
         self.assertLess(source.index(selector), source.index('SCRATCH_DB="webvue_ci_upgrade_scratch"'))
