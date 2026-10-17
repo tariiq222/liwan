@@ -15,7 +15,7 @@ import { useShellModel } from '@/composables/useShellModel'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
-// The 48px neutral header (spec §5): tenant mark, breadcrumb, the ⌘K command palette,
+// The 56px neutral header (spec §5): tenant mark, breadcrumb, the ⌘K command palette,
 // bell, account (which also holds language and appearance).
 // It also hosts the shell's one keyboard listener (useShellShortcuts).
 const { t } = useI18n()
@@ -82,8 +82,10 @@ useShellShortcuts({
       <span v-if="showTenantMark && crumbs.length" class="webvue-shell-header-divider" aria-hidden="true" />
       <ShellBreadcrumb :items="crumbs" />
     </div>
-    <div class="webvue-shell-header-actions">
+    <div class="webvue-shell-header-search">
       <GlobalSearch />
+    </div>
+    <div class="webvue-shell-header-actions">
       <NotificationCenter v-if="can('webvue.notifications')" />
       <AppAccountMenu />
     </div>

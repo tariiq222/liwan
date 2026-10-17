@@ -64,7 +64,7 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 .webvue-shell {
   --shell-duration: 150ms;
   --shell-ease: cubic-bezier(.22, 1, .36, 1);
-  --shell-header-height: 48px;
+  --shell-header-height: 56px;
   --module-rail-width: 64px;
   --context-sidebar-width: 232px;
   min-height: 100svh;
@@ -97,23 +97,37 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .webvue-shell-header-start { display: flex; min-width: 0; flex: 1; align-items: center; gap: 8px; }
 .webvue-shell-brand { display: inline-flex; min-width: 0; flex: none; align-items: center; gap: 8px; color: var(--ui-text-highlighted); font-size: .875rem; font-weight: 600; text-decoration: none; }
-.webvue-shell-brand-logo, .webvue-shell-brand-mark { width: 24px; height: 24px; flex: none; border-radius: 6px; object-fit: contain; }
+.webvue-shell-brand-logo, .webvue-shell-brand-mark { width: 28px; height: 28px; flex: none; border-radius: 8px; object-fit: contain; }
 .webvue-shell-brand-mark { display: grid; place-items: center; background: var(--ui-bg-elevated); font-size: .75rem; }
 .webvue-shell-brand-name { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .webvue-shell-header-divider { width: 1px; height: 16px; flex: none; background: var(--ui-border); }
 .webvue-shell-breadcrumb { min-width: 0; flex: 0 1 auto; overflow: hidden; font-size: .8125rem; }
 .webvue-shell-breadcrumb ol { flex-wrap: nowrap; }
 .webvue-shell-breadcrumb li { min-width: 0; white-space: nowrap; }
-.webvue-shell-header-actions { display: flex; flex: none; align-items: center; gap: 4px; }
-.webvue-shell-header .webvue-search-trigger { width: 15rem; min-width: 0; justify-content: space-between; color: var(--ui-text-muted); }
+.webvue-shell-header-actions { display: flex; flex: none; align-items: center; gap: 8px; }
+/* Search sits in the middle: both sides share the leftover space equally, so it stays centred. */
+.webvue-shell-header-search { min-width: 0; flex: 0 1 28rem; }
+.webvue-shell-header-search + .webvue-shell-header-actions { flex: 1; justify-content: flex-end; }
+.webvue-shell-header .webvue-search-trigger { width: 100%; min-width: 0; height: 38px; padding-inline: 14px; justify-content: space-between; border-radius: 9999px; font-size: .9375rem; color: var(--ui-text-muted); }
+.webvue-shell-header .webvue-search-trigger kbd { border-radius: 6px; }
+/* Apple-style capsules: every header control is fully rounded. */
+.webvue-shell-header :is([data-testid="notification-bell"], [data-slot="header-account"], .webvue-mobile-menu-trigger) { height: 38px; border-radius: 9999px; }
+/* Bell and account share the search field's outlined look. */
+.webvue-shell-header :is([data-testid="notification-bell"], [data-slot="header-account"]) { box-shadow: inset 0 0 0 1px var(--ui-border-accented); }
+.webvue-shell-header [data-testid="notification-bell"] { width: 38px; padding: 0; justify-content: center; }
 .webvue-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 8px; padding-inline: 6px; text-align: start; }
 .webvue-shell-header .account-copy { display: grid; min-width: 0; max-width: 10rem; line-height: 1.25; }
 .webvue-shell-header .account-name, .webvue-shell-header .account-role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .webvue-shell-header .account-name { font-size: .8125rem; font-weight: 600; }
 .webvue-shell-header .account-role { color: var(--ui-text-muted); font-size: .6875rem; }
+@media (hover: none) { .webvue-shell-header .webvue-search-trigger kbd { display: none; } }
 .approved-account-menu { z-index: 80; }
 .approved-account-menu [data-slot="dropdown-menu-item"] { width: 100%; overflow: hidden; white-space: nowrap; }
 .approved-account-menu .webvue-shell-icon { width: 18px; height: 18px; flex: none; }
+/* The row is a control group, not a menu entry: no row highlight, only the buttons react to hover. */
+.approved-account-menu .webvue-appearance-item::before { background: transparent !important; }
+.approved-account-menu .webvue-appearance-row { display: flex; width: 100%; gap: 4px; }
+.approved-account-menu .webvue-appearance-option { flex: 1; justify-content: center; height: 32px; border-radius: 9999px; }
 
 /* Module rail: always WebVue midnight, never tenant-derived (tokens.css). */
 .webvue-module-rail {
@@ -142,7 +156,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border-radius: 6px;
+  border-radius: 18px;
   padding: 6px 2px;
   color: inherit;
   text-decoration: none;
@@ -266,7 +280,6 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 
 @media (max-width: 1100px) and (min-width: 768px) {
   .webvue-shell-brand-name, .webvue-shell-header .account-copy { display: none; }
-  .webvue-shell-header .webvue-search-trigger { width: 11rem; }
 }
 
 /* Below 768px: no rail or sidebar; the header spans the width and the drawer
@@ -282,6 +295,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-shell-header .account-copy,
   .webvue-shell-header .webvue-search-trigger kbd,
   .webvue-shell-header .webvue-search-trigger .webvue-search-trigger-label { display: none; }
+  .webvue-shell-header-search { flex: none; }
+  .webvue-shell-header-search + .webvue-shell-header-actions { flex: none; }
   .webvue-shell-header .webvue-search-trigger { width: 44px; padding: 0; justify-content: center; }
   .webvue-shell-header :is(.webvue-search-trigger, .webvue-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"], [data-testid="appearance-menu"]) { min-height: 44px; min-width: 44px; }
   .webvue-shell-workspace { margin-inline-start: 0; }

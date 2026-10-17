@@ -1,7 +1,7 @@
 /* WebVue identity (midnight + lime), light/dark modes, dense type and shape on
    Nuxt UI's stock theme: the Arabic font and its size modes, the brand primary
    derived at runtime (utils/brandTheme.ts), the fixed shell rail, the chart
-   palette, 32px controls, 36px rows and the 4px radius base. */
+   palette, 32px controls, 36px rows and the 6px radius base. */
 @theme {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   /* Keep pixel sizes stable on the 14px "small" root. */
@@ -15,8 +15,8 @@
 :root {
   color-scheme: light;
   font-size: 14px;
-  /* Official Nuxt UI radius token: 4px base, so rounded-md = 6px and rounded-lg = 8px. */
-  --ui-radius: 0.285714rem;
+  /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
+  --ui-radius: 0.428571rem;
   /* Runtime branding (brandTheme.ts overwrites these from the company colour). */
   --primary: #13234a;
   --primary-foreground: #fff;

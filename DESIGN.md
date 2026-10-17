@@ -31,7 +31,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 - خط IBM Plex Sans Arabic (يغطي اللاتينية أيضًا) بثلاثة أحجام للجذر: 14/16/18 في العربية، و13/15/17 في الإنجليزية (`:root:lang(en)`، أصغر بـ 1px). السلم عند جذر 14px: `--text-xs` 12 / `--text-sm` 13 / `--text-base` 14 / `--text-lg` 16 / `--text-xl` 20 / `--text-2xl` 24. عنوان الصفحة `--text-xl` = 20px، والأرقام الكبيرة `--text-2xl` = 24px.
 - مظهران فقط: فاتح وداكن. أي قيمة مظهر قديمة مخزنة غير فاتح أو داكن تُقرأ فاتحًا، ويظل الخادم يقبلها.
 - الكثافة: `--webvue-control-h` = 32px لارتفاع التحكم، و`--webvue-row-h` = 36px لصف الجدول.
-- الزوايا: `--ui-radius: 0.285714rem`، فيكون `rounded-md` = 6px و`rounded-lg` = 8px عند جذر 14px.
+- الزوايا: `--ui-radius: 0.428571rem` (زوايا ناعمة بأسلوب أبل)، فيكون `rounded-md` = 9px و`rounded-lg` = 12px و`rounded-xl` = 18px عند جذر 14px؛ الأزرار والشارات والتبويبات كبسولات `rounded-full`.
 - الظلال للطبقات العائمة فقط (قوائم، popover، قوائم الاختيار، النوافذ). لا ظل في حالة السكون.
 
 التخصيص الوحيد هو جدول «وصفات الثيم المعتمدة» أدناه في `packages/ui/app/app.config.ts`؛ أي إضافة تُوثَّق فيه أولًا.
@@ -48,7 +48,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 
 المحايدات والزوايا والارتفاعات من توكنات ويب فيو ووصفات المكتبة. الأسطح المسطّحة في الصفحات تستخدم أدوات المكتبة نفسها: `rounded-lg ring ring-default bg-default`. لون الهوية يأتي من الإعدادات عبر `utils/brandTheme.ts` (الافتراضي `DEFAULT_PRIMARY` المصدَّر من `utils/brandTheme.ts`، وقيمته `WEBVUE_MIDNIGHT` من `utils/webvuePalette.ts`) ولا يُثبت في الصفحات.
 
-هندسة الغلاف (`shell.css`، خطة «تصميم» 2): هيدر محايد بارتفاع `48px`، شريط موديولات بعرض `64px` بالأزرق الليلي الثابت (`--webvue-rail`)، قائمة سياقية بعرض `232px` (`48px` مطوية، و`400px` للوحة جانبية عريضة مثل المحادثات، و`320px` بين `768px` و`1100px`)، والمقاسات بالبكسل فلا تكبر مع حجم الخط. المحتوى: القوائم والجداول واللوحات بعرض كامل (`webvue-page-width-list`)، والتفاصيل `68rem` والنماذج `58rem`، وحشوة `.webvue-shell-main` هي `20px 24px 48px` (`16px 12px` على الجوال، وحشوة سفلية تراعي المنطقة الآمنة)، والصفحات ذات اللوحة الجانبية (المحادثات) بحشوة `0`. نقطة الجوال `768px`؛ تحتها يختفي الشريط والقائمة ويظهر درج واحد بعرض `min(320px, calc(100vw - 48px))` من جهة بداية القراءة.
+هندسة الغلاف (`shell.css`، خطة «تصميم» 2): هيدر محايد بارتفاع `56px`، شريط موديولات بعرض `64px` بالأزرق الليلي الثابت (`--webvue-rail`)، قائمة سياقية بعرض `232px` (`48px` مطوية، و`400px` للوحة جانبية عريضة مثل المحادثات، و`320px` بين `768px` و`1100px`)، والمقاسات بالبكسل فلا تكبر مع حجم الخط. المحتوى: القوائم والجداول واللوحات بعرض كامل (`webvue-page-width-list`)، والتفاصيل `68rem` والنماذج `58rem`، وحشوة `.webvue-shell-main` هي `20px 24px 48px` (`16px 12px` على الجوال، وحشوة سفلية تراعي المنطقة الآمنة)، والصفحات ذات اللوحة الجانبية (المحادثات) بحشوة `0`. نقطة الجوال `768px`؛ تحتها يختفي الشريط والقائمة ويظهر درج واحد بعرض `min(320px, calc(100vw - 48px))` من جهة بداية القراءة.
 
 ## 2. اللون
 
@@ -103,26 +103,26 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 
 ### وصفات الثيم المعتمدة
 
-طبقة تحسين واحدة هادئة فوق وصفات المكتبة، كلها في `packages/ui/app/app.config.ts` والتوكنات في `tokens.css` (`--ui-radius: 0.285714rem` و`--webvue-control-h` و`--webvue-row-h`). أي وصفة غير مذكورة هنا غير معتمدة؛ فحص `tools/ui_policy.py` يحصر مفاتيح الملف. حد ارتفاع التحكم (32px) يخص الحجم `md` فقط، أما `xs` و`sm` فيبقيان مدمجين.
+طبقة تحسين واحدة هادئة فوق وصفات المكتبة، كلها في `packages/ui/app/app.config.ts` والتوكنات في `tokens.css` (`--ui-radius: 0.428571rem` و`--webvue-control-h` و`--webvue-row-h`). أي وصفة غير مذكورة هنا غير معتمدة؛ فحص `tools/ui_policy.py` يحصر مفاتيح الملف. حد ارتفاع التحكم (32px) يخص الحجم `md` فقط، أما `xs` و`sm` فيبقيان مدمجين.
 
 | المكوّن | الوصفة | القصد |
 |---|---|---|
 | `colors` | `primary: 'brand'`، `neutral: 'slate'` | لون العميل يغذّي الأساسي والمحايد slate |
-| `UButton` | `rounded-md transition-colors duration-150 motion-reduce:transition-none`؛ الحجم `md`: `min-h-(--webvue-control-h)`؛ المربع `md`: `min-w-(--webvue-control-h)` | زر 32px بزوايا 6px وانتقال لطيف، وزر أيقونة مربع بلا ظل |
-| `UInput`/`UInputNumber` | `rounded-md bg-default`؛ الحجم `md`: `min-h-(--webvue-control-h)` | حقل بسطح الصفحة وحد أدنى 32px |
-| `UTextarea` | `rounded-md bg-default` | حقل متعدد الأسطر بنفس شكل الحقول |
-| `USelect`/`USelectMenu` | قاعدة `rounded-md bg-default` والحجم `md` `min-h-(--webvue-control-h)`؛ المحتوى `rounded-lg shadow-lg ring ring-default` وطبقة القوائم | قائمة عائمة هي طبقة الظل الوحيدة هنا |
-| `UCard` | `rounded-lg bg-default ring ring-default shadow-none`؛ رأس وتذييل `px-4 py-3`، جسم `p-3 sm:p-4` | بطاقة بحد رفيع بلا ظل سكون وحشو مدمج |
+| `UButton` | `rounded-full transition-colors duration-150 motion-reduce:transition-none`؛ الحجم `md`: `min-h-(--webvue-control-h)`؛ المربع `md`: `min-w-(--webvue-control-h)` | زر 32px كبسولة وانتقال لطيف، وزر أيقونة مربع بلا ظل |
+| `UInput`/`UInputNumber` | `rounded-lg bg-default`؛ الحجم `md`: `min-h-(--webvue-control-h)` | حقل بسطح الصفحة وحد أدنى 32px |
+| `UTextarea` | `rounded-lg bg-default` | حقل متعدد الأسطر بنفس شكل الحقول |
+| `USelect`/`USelectMenu` | قاعدة `rounded-lg bg-default` والحجم `md` `min-h-(--webvue-control-h)`؛ المحتوى `rounded-xl shadow-lg ring ring-default` وطبقة القوائم | قائمة عائمة هي طبقة الظل الوحيدة هنا |
+| `UCard` | `rounded-xl bg-default ring ring-default shadow-none`؛ رأس وتذييل `px-4 py-3`، جسم `p-3 sm:p-4` | بطاقة بحد رفيع بلا ظل سكون وحشو مدمج |
 | `UTable` | `th`: `h-(--webvue-row-h) bg-elevated/60 px-3 py-0 text-xs font-medium text-muted`؛ `td`: `h-(--webvue-row-h) px-3 py-0 text-sm`؛ `tr`: `hover:bg-elevated/50`، المختار `bg-primary/5` | صف 36px، رأس هادئ ومرور واضح |
-| `UBadge` | `rounded-md`؛ `defaultVariants: { variant: 'subtle' }`؛ الحجمان `xs` و`sm`: `text-xs/4 px-1.5 py-0.5`؛ `compoundVariants` للنوعين `soft` و`subtle`: النص `text-<لون>-800` فاتحًا و`dark:text-<لون>` داكنًا؛ وللنوع `solid`: تعبئة 600/700 بنص أبيض (تحذير: `text-slate-900`) فاتحًا و`dark:bg-<لون> dark:text-inverted` داكنًا | شارة ناعمة بزوايا 6px ونص ≥ 12px و4.5:1 على خلفيتها؛ الاختبار `badgeContrast.test.ts` يحرس ذلك |
+| `UBadge` | `rounded-full`؛ `defaultVariants: { variant: 'subtle' }`؛ الحجمان `xs` و`sm`: `text-xs/4 px-1.5 py-0.5`؛ `compoundVariants` للنوعين `soft` و`subtle`: النص `text-<لون>-800` فاتحًا و`dark:text-<لون>` داكنًا؛ وللنوع `solid`: تعبئة 600/700 بنص أبيض (تحذير: `text-slate-900`) فاتحًا و`dark:bg-<لون> dark:text-inverted` داكنًا | شارة ناعمة كبسولة ونص ≥ 12px و4.5:1 على خلفيتها؛ الاختبار `badgeContrast.test.ts` يحرس ذلك |
 | `UProgress` | `rounded-full` للقاعدة والمؤشر؛ المؤشر `data-[state=complete]:bg-webvue-lime` | شريط تقدم pill بلون العميل، ليموني عند الاكتمال |
 | `UAvatar` | `ring-2 ring-bg` | تراكب الصور الرمزية بحلقة سطح |
-| `UTabs` | القائمة `rounded-md`، المؤشر والمشغّل `rounded-sm` | تبويبات مدمجة بمؤشر واضح |
-| `UDropdownMenu` | `rounded-lg shadow-lg ring ring-default` وطبقة القوائم | طبقة عائمة بظل |
-| `UPopover` | `rounded-lg shadow-lg ring ring-default` وطبقة القوائم | طبقة عائمة بظل |
+| `UTabs` | القائمة والمؤشر والمشغّل `rounded-full` | تبويبات مدمجة بمؤشر واضح |
+| `UDropdownMenu` | `rounded-xl shadow-lg ring ring-default` وطبقة القوائم | طبقة عائمة بظل |
+| `UPopover` | `rounded-xl shadow-lg ring ring-default` وطبقة القوائم | طبقة عائمة بظل |
 | `UTooltip` | `rounded-md` وطبقة القوائم | تلميح هادئ بلا ظل |
 | `USlideover` | طبقة z الخاصة باللوحات فقط | ترتيب الطبقات دون تغيير شكل |
-| `UModal` | `rounded-lg shadow-xl`، غطاء `backdrop-blur-xs`، طبقتا z | نافذة عائمة بظل، وهي الطبقة الأعلى |
+| `UModal` | `rounded-2xl shadow-xl`، غطاء `backdrop-blur-xs`، طبقتا z | نافذة عائمة بظل، وهي الطبقة الأعلى |
 
 المصدر التنفيذي في العميل: `packages/ui/app/assets/css/main.css` الذي يستورد `tokens.css` (مدخلات الثيم والكثافة) و`components.css` (قواعد الغلاف فقط) و`shell.css` (هندسة الغلاف)، و`packages/ui/app/app.config.ts` (الألوان والوصفات وطبقات z)، و`apps/web/app/utils/brandTheme.ts` لاشتقاق اللون. لا وصفة مكوّن مخصصة خارج `app.config.ts`؛ فحص `tools/ui_policy.py` يحرس ذلك.
 
@@ -130,7 +130,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 
 غلاف واحد في `layouts/default.vue` (غلاف مخصص لويب فيو). الصفحات لا تضيف هيدرًا أو سايدبارًا عامًا.
 
-- هيدر ثابت `48px` محايد: علامة الجهة (شعارها واسمها، رابط للرئيسية)، مسار الصفحة (الموديول › القسم › عنوان الصفحة؛ آخر عنصر بلا رابط، وعنوان الصفحة يظهر بعد الترطيب)، زر لوحة الأوامر مع `⌘K`، زر المظهر، الإشعارات، الحساب. على `/vendor/*` شارة «الكونسول». مسار الصفحة يملكه `shell/ShellBreadcrumb.vue` وحده؛ لا تبني صفحة مسارًا خاصًا (`ui_policy` يسمح بوسم breadcrumb في `ShellBreadcrumb.vue` و`ShellHeader.vue` فقط).
+- هيدر ثابت `56px` محايد: علامة الجهة (شعارها واسمها، رابط للرئيسية)، مسار الصفحة (الموديول › القسم › عنوان الصفحة؛ آخر عنصر بلا رابط، وعنوان الصفحة يظهر بعد الترطيب)، زر لوحة الأوامر مع `⌘K`، زر المظهر، الإشعارات، الحساب. على `/vendor/*` شارة «الكونسول». مسار الصفحة يملكه `shell/ShellBreadcrumb.vue` وحده؛ لا تبني صفحة مسارًا خاصًا (`ui_policy` يسمح بوسم breadcrumb في `ShellBreadcrumb.vue` و`ShellHeader.vue` فقط).
 - شريط الموديولات على بداية القراءة بعرض ثابت `64px`، أزرق ليلي في الوضعين (`#13234a` فاتح، `#0d1a38` داكن) ولا يتبع لون المؤسسة؛ في أعلاه علامة «ويب فيو» النصية. كل موديول أيقونة فوق تسمية صغيرة، والنشط طبقة بيضاء شفافة مع شريط ليموني على حافة بداية الشريط. لا حالة توسيع للشريط (لا زر توسيع ولا `module-rail-toggle`). الإعدادات في خانة الأدوات أسفله. الليموني في الغلاف محصور في شريط النشط ونقطة العلامة وحلقات التركيز في الشريط.
 - قائمة سياقية بجانب الشريط من `useShellModel()` و`sidebarModel()`: إجراءات الإنشاء المثبتة في رأسها، ثم الروابط، ويجوز تقسيمها إلى أقسام بعناوين صغيرة (`section` في رابط الـmanifest) وعدّادات صغيرة بجانب الرابط عبر الخاصية `counts` في `ContextSidebar`؛ الحاويات تمرر `{}` اليوم وعدّاد «مهامي» مؤجل. تُطوى افتراضيًا بين 768 و1023px دون تفضيل صريح، ويقدّم اختيار المستخدم المحفوظ على الافتراضي؛ تغيير عرض الشاشة لا يكتب التفضيل. تُطوى إلى أيقونات بزر أسفلها أو بالمفتاح `[` (بقيمة `event.code` فيعمل على لوحة المفاتيح العربية، ويُتجاهل أثناء الكتابة أو مع مفاتيح التعديل أو مع نافذة/قائمة مفتوحة)، وتُحفظ الحالة في كوكي `webvue-context-sidebar` (`open|closed`) يقرؤه الخادم فيرسمها من أول إطار.
 - التطبيق يضيف إلى الغلاف عبر `app/modules/<app>/manifest.ts` فقط: `sidebarPanel` لمحتوى القائمة (قائمة المحادثات)، وروابط السياق مع `section` اختياري. الغلاف لا يستورد مكونات تطبيق (R3، يفحصه `arch_policy` على `components/shell` وعلى الـlayouts).

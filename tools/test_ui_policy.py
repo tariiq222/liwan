@@ -427,7 +427,7 @@ class StaticGateTest(unittest.TestCase):
             APP + "app.vue": "<template><NuxtPage /></template>",
             UI + "app.config.ts": "export default defineAppConfig({\n  ui: {\n"
                                    "    colors: { primary: 'brand', neutral: 'slate' },\n  },\n})",
-            UI + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.285714rem;\n"
+            UI + "assets/css/tokens.css": ":root { --color-brand-500: #06c; --ui-radius: 0.428571rem;\n"
                                            "  --webvue-midnight: #13234a; --webvue-lime: #c8f031;\n"
                                            "  --status-success: green; --status-warning: amber; --status-info: blue;\n"
                                            "  --status-danger: red; --status-danger-foreground: white;\n"

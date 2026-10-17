@@ -55,7 +55,7 @@ test('shell follows the approved neutral frame and independent desktop collapse'
   const main = page.getByTestId('shell-main')
   await expect(page.locator('main h1')).toHaveCount(1)
   await expect(header.locator('h1')).toHaveCount(0)
-  await expect(header).toHaveCSS('height', '48px')
+  await expect(header).toHaveCSS('height', '56px')
   await expect(rail).toHaveCSS('width', '64px')
   await expect(context).toHaveCSS('width', '232px')
   await expect(page.locator('main [data-slot="root"][class*="ring-default"]').first()).toBeVisible()
