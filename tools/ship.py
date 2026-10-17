@@ -1,6 +1,6 @@
 """Close a task: merge gate, clean up its worktree, branch and scratch database, push main.
 
-    python3 -B tools/ship.py codex/<area>-<slug> [--no-push] [--no-clean]
+    python3 -B tools/ship.py codex/<area>-<slug> [--no-push] [--no-clean] [--full]
 
 Runs ``merge_main.merge_branch`` (an already merged branch is fine), then ``wt.py gc --apply --branch``
 for that one task, then offers to push main to origin. Running it is the owner's authorization for the
@@ -39,8 +39,14 @@ def confirm(count: int) -> bool:
     return answer.strip().lower() in ANSWERS_YES
 
 
-def push_main(repo: Path) -> None:
-    main = merge_main.worktrees(repo)['refs/heads/main']
+def main_checkout(repo: Path) -> Path:
+    main = merge_main.worktrees(repo).get('refs/heads/main')
+    if main is None:
+        raise merge_main.GateError('main must have a local checkout')
+    return main
+
+
+def push_main(main: Path) -> None:
     remote = fetch_origin(main)
     pending = merge_main.git(main, 'log', '--oneline', 'refs/remotes/origin/main..refs/heads/main')
     if not pending:
@@ -74,9 +80,11 @@ def clean_task(branch: str) -> bool:
     return True
 
 
-def ship_branch(repo: Path, branch: str, *, clean: bool, push: bool) -> int:
+def ship_branch(repo: Path, branch: str, *, clean: bool, push: bool, full: bool = False) -> int:
     try:
-        result = merge_main.merge_branch(repo, branch)
+        # Resolved before cleanup, which may remove the worktree this script runs from.
+        main = main_checkout(repo)
+        result = merge_main.merge_branch(repo, branch, full=full)
     except merge_main.GateError as error:
         print(f'ship: merge gate stopped: {error}', file=sys.stderr)
         return 1
@@ -87,7 +95,7 @@ def ship_branch(repo: Path, branch: str, *, clean: bool, push: bool) -> int:
     succeeded = clean_task(branch) if clean else True
     if push:
         try:
-            push_main(repo)
+            push_main(main)
         except (merge_main.GateError, ShipError) as error:
             print(f'ship: push failed: {error}', file=sys.stderr)
             return 1
@@ -99,11 +107,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('branch', help='local codex/<area>-<slug> branch')
     parser.add_argument('--no-push', action='store_true', help='do not offer to push main')
     parser.add_argument('--no-clean', action='store_true', help='keep the task worktree, branch and scratch database')
+    parser.add_argument('--full', action='store_true', help='run all twelve CI stages whatever the change')
     args = parser.parse_args(argv)
     try:
         with merge_main.terminate_as_interrupt():
             return ship_branch(Path(__file__).resolve().parents[1], args.branch,
-                               clean=not args.no_clean, push=not args.no_push)
+                               clean=not args.no_clean, push=not args.no_push, full=args.full)
     except OSError as error:
         print(f'ship: {error}', file=sys.stderr)
         return 1

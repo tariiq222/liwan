@@ -12,6 +12,7 @@ import sys
 import uuid
 from pathlib import Path
 
+import ci_scope
 from git_policy import check_branch
 
 
@@ -135,13 +136,21 @@ def merge_lock(main: Path):
             fcntl.flock(lock, fcntl.LOCK_UN)
 
 
-def verify_candidate(candidate: Path, base: str, commit: str, report_dir: Path) -> None:
+def candidate_scope(candidate: Path, base: str, commit: str, full: bool) -> dict:
+    """The stages the change needs, derived here so a receipt cannot claim a smaller set."""
+    try:
+        return ci_scope.scope(ci_scope.changed_paths(candidate, base, commit), full)
+    except ci_scope.ScopeError as error:
+        raise GateError(str(error)) from error
+
+
+def verify_candidate(candidate: Path, base: str, commit: str, report_dir: Path, scope: dict) -> None:
     runner = candidate / 'tools/local_ci.py'
     if not runner.is_file():
         raise GateError('local CI runner is missing from the candidate')
     report_dir.mkdir()
     command = [sys.executable, '-B', str(runner), '--base', base, '--commit', commit,
-               '--report-dir', str(report_dir)]
+               '--report-dir', str(report_dir), *(['--full'] if scope['mode'] == 'full' else [])]
     with (report_dir / 'runner.log').open('w') as log:
         try:
             process = subprocess.Popen(command, cwd=candidate, stdout=log,
@@ -168,6 +177,8 @@ def verify_candidate(candidate: Path, base: str, commit: str, report_dir: Path) 
         raise GateError(f'local CI runner receipt is missing or invalid: {report_dir}') from error
     if (receipt.get('base'), receipt.get('commit'), receipt.get('status')) != (base, commit, 'passed'):
         raise GateError('local CI runner did not certify this exact candidate')
+    if receipt.get('scope') != scope:
+        raise GateError('local CI runner receipt scope does not match the change')
 
 
 def remove_candidate(main: Path, candidate: Path, result: dict) -> None:
@@ -180,7 +191,7 @@ def remove_candidate(main: Path, candidate: Path, result: dict) -> None:
         result['candidate_removed'] = True
 
 
-def merge_branch(repo: Path, source: str) -> dict:
+def merge_branch(repo: Path, source: str, *, full: bool = False) -> dict:
     if not source.startswith('codex/') or check_branch(source):
         raise GateError('source must be a local codex/<area>-<slug> task branch')
     trees = worktrees(repo)
@@ -223,9 +234,10 @@ def merge_branch(repo: Path, source: str) -> dict:
             commit = git(candidate, 'rev-parse', 'HEAD')
             result.update(commit=commit, tree=git(candidate, 'rev-parse', 'HEAD^{tree}'))
             require_no_collisions(main, base, commit)
+            result['scope'] = candidate_scope(candidate, base, commit, full)
             result['status'] = 'checking'
             report_path.write_text(json.dumps(result, indent=2) + '\n')
-            verify_candidate(candidate, base, commit, run_dir / 'checks')
+            verify_candidate(candidate, base, commit, run_dir / 'checks', result['scope'])
             require_clean(candidate, 'candidate', untracked=True)
             if git(candidate, 'rev-parse', 'HEAD') != commit:
                 raise GateError('candidate moved during checks')
@@ -267,11 +279,12 @@ def merge_branch(repo: Path, source: str) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('branch', help='local codex/<area>-<slug> branch')
+    parser.add_argument('--full', action='store_true', help='run all twelve CI stages whatever the change')
     args = parser.parse_args(argv)
 
     try:
         with terminate_as_interrupt():
-            result = merge_branch(Path(__file__).resolve().parents[1], args.branch)
+            result = merge_branch(Path(__file__).resolve().parents[1], args.branch, full=args.full)
     except (GateError, OSError, KeyboardInterrupt) as error:
         print(f'Merge gate stopped: {error}', file=sys.stderr)
         return 1

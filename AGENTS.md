@@ -178,8 +178,11 @@ another application) needs the owner's approval, recorded by the owner as an
   `python3 -B tools/arch_policy.py --base main` pass (the local merge gate runs these before accepting main); addon or contract changes are reviewed by the `odoo-reviewer` agent; the working tree is
   clean. Manual integration uses `git merge --no-ff`. The local checked entrypoint is
   `npm run merge:main -- codex/<area>-<slug>`: it creates the no-ff merge commit in an
-  isolated candidate, runs all twelve checks, then fast-forwards `main` to that exact
-  tested merge commit. It never pushes or cleans up worktrees.
+  isolated candidate, runs the CI stages the change can affect (`tools/ci_scope.py`; an unmapped
+  path or `--full` runs all twelve), then fast-forwards `main` to that exact
+  tested merge commit. It never pushes or cleans up worktrees. A `release/19.0.X.Y.Z` tag is cut only
+  from a `main` commit that passed a `--full` gate run (a manual rule, no tool enforces it: check
+  `scope.mode` is `full` in that commit's `.superpowers/merge-main/*/merge.json` before tagging).
   `npm run ship -- codex/<area>-<slug>` runs that gate, removes the merged task's worktree,
   branch and scratch database, and pushes main only after the owner answers y in a terminal;
   agents run it only with the owner's authorization for that integration and never answer the

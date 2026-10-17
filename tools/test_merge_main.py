@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import ci_scope
 import merge_main
 
 
@@ -51,7 +52,7 @@ class MergeMainTests(unittest.TestCase):
         self.git('commit', '-m', subject, cwd=repo)
 
     def run_gate(self, verifier=None):
-        def success(candidate, base, commit, report_dir):
+        def success(candidate, base, commit, report_dir, scope):
             self.assertEqual(base, self.base)
             self.assertEqual(self.git('rev-parse', 'HEAD', cwd=candidate), commit)
             self.assertEqual((candidate / 'main-only.txt').read_text(), 'approved\n')
@@ -306,14 +307,18 @@ class MergeMainTests(unittest.TestCase):
         self.assertEqual(len(reports), 1)
         self.assertIn('failed', reports[0].read_text())
 
-    def test_runner_must_certify_exact_commit_and_success(self):
+    def test_runner_must_certify_exact_commit_success_and_scope(self):
         runner = self.repo / 'tools/local_ci.py'
         runner.parent.mkdir()
+        scope = ci_scope.scope([], False)
+        good = {'base': self.base, 'commit': self.source, 'status': 'passed', 'scope': scope}
         for label, code, receipt in (
             ('missing', 0, None),
-            ('stale', 0, {'base': self.base, 'commit': 'stale', 'status': 'passed'}),
-            ('failed', 1, {'base': self.base, 'commit': self.source, 'status': 'passed'}),
-            ('passed', 0, {'base': self.base, 'commit': self.source, 'status': 'passed'}),
+            ('stale', 0, {**good, 'commit': 'stale'}),
+            ('failed', 1, good),
+            ('no-scope', 0, {key: good[key] for key in ('base', 'commit', 'status')}),
+            ('smaller-scope', 0, {**good, 'scope': ci_scope.scope(['odoo-addons/x.py'], False) | {'stages': ['static']}}),
+            ('passed', 0, good),
         ):
             with self.subTest(label=label):
                 runner.write_text(
@@ -324,11 +329,43 @@ class MergeMainTests(unittest.TestCase):
                     + f'sys.exit({code})\n')
                 report = Path(self.tmp.name) / ('report-' + label)
                 if label == 'passed':
-                    merge_main.verify_candidate(self.repo, self.base, self.source, report)
+                    merge_main.verify_candidate(self.repo, self.base, self.source, report, scope)
                 else:
                     with self.assertRaises(merge_main.GateError):
-                        merge_main.verify_candidate(self.repo, self.base, self.source, report)
+                        merge_main.verify_candidate(self.repo, self.base, self.source, report, scope)
         self.assert_main_unchanged()
+
+    def test_full_scope_is_passed_to_the_runner_and_must_be_certified(self):
+        runner = self.repo / 'tools/local_ci.py'
+        runner.parent.mkdir()
+        full = ci_scope.scope([], True)
+        receipt = {'base': self.base, 'commit': self.source, 'status': 'passed', 'scope': full}
+        runner.write_text(
+            'import json, pathlib, sys\n'
+            'p = pathlib.Path(sys.argv[sys.argv.index("--report-dir") + 1])\n'
+            f'(p / "report.json").write_text({json.dumps(receipt)!r})\n'
+            '(p / "argv.json").write_text(json.dumps(sys.argv))\n')
+        report = Path(self.tmp.name) / 'report-full'
+        merge_main.verify_candidate(self.repo, self.base, self.source, report, full)
+        self.assertIn('--full', json.loads((report / 'argv.json').read_text()))
+        with self.assertRaisesRegex(merge_main.GateError, 'scope'):
+            merge_main.verify_candidate(self.repo, self.base, self.source, Path(self.tmp.name) / 'report-sel',
+                                        ci_scope.scope([], False))
+
+    def test_scope_is_derived_from_the_candidate_diff_and_recorded(self):
+        seen = []
+        result = self.run_gate(lambda *args: seen.append(args[4]))
+        self.assertEqual(seen, [result['scope']])
+        self.assertEqual(result['scope'], ci_scope.scope(['feature.txt'], False))
+        self.assertEqual(json.loads(Path(result['report']).read_text())['scope'], result['scope'])
+
+    def test_full_flag_selects_every_stage(self):
+        seen = []
+        with patch.object(merge_main, 'verify_candidate', side_effect=lambda *args: seen.append(args[4])):
+            result = merge_main.merge_branch(self.repo, self.branch, full=True)
+        self.assertEqual(seen[0]['mode'], 'full')
+        self.assertEqual(result['scope']['stages'], list(ci_scope.STAGES))
+        self.assertEqual(result['scope']['skipped'], [])
 
     def test_missing_runner_is_a_failure(self):
         with self.assertRaisesRegex(merge_main.GateError, 'runner'):

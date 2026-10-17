@@ -57,7 +57,7 @@ class ShipTests(unittest.TestCase):
     def branch_exists(self):
         return bool(self.git('branch', '--list', self.branch))
 
-    def ship(self, *flags, tty=True, answer='y', verifier=None):
+    def ship(self, *flags, tty=True, answer='y', verifier=None, repo=None):
         """``(exit code, stdout)``; the CI runner, process and database lookups are stubbed."""
         out = io.StringIO()
         self.stderr = io.StringIO()
@@ -69,7 +69,7 @@ class ShipTests(unittest.TestCase):
                 patch('sys.stdin', new=Mock(isatty=Mock(return_value=tty))), \
                 patch('builtins.input', new=asked), \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(self.stderr):
-            code = ship.ship_branch(self.repo, self.branch, clean='--no-clean' not in flags, push='--no-push' not in flags)
+            code = ship.ship_branch(repo or self.repo, self.branch, clean='--no-clean' not in flags, push='--no-push' not in flags)
         self.asked = asked
         return code, out.getvalue()
 
@@ -84,6 +84,12 @@ class ShipTests(unittest.TestCase):
         self.assertEqual(self.origin_main(), self.git('rev-parse', 'main'))
         self.assertIn(f"pushed {self.git('rev-parse', 'main')}", output)
         self.assertEqual(list((self.repo / '.superpowers/merge-main').glob('*/candidate')), [])
+
+    def test_push_works_when_run_from_the_removed_task_worktree(self):
+        code, output = self.ship(repo=self.task)
+        self.assertEqual(code, 0, self.stderr.getvalue())
+        self.assert_cleaned()
+        self.assertEqual(self.origin_main(), self.git('rev-parse', 'main'))
 
     def test_answering_no_pushes_nothing(self):
         code, output = self.ship(answer='n')
@@ -122,6 +128,12 @@ class ShipTests(unittest.TestCase):
         self.assertTrue(self.branch_exists())
         self.assertEqual(self.origin_main(), self.origin_before)
         self.asked.assert_not_called()
+
+    def test_full_flag_reaches_the_merge_gate(self):
+        for argv, expected in (([self.branch, '--full'], True), ([self.branch], False)):
+            with self.subTest(argv=argv), patch.object(ship, 'ship_branch', return_value=0) as shipped:
+                self.assertEqual(ship.main(argv), 0)
+                self.assertIs(shipped.call_args.kwargs['full'], expected)
 
     def test_no_push_still_cleans(self):
         code, output = self.ship('--no-push')
