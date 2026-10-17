@@ -36,10 +36,13 @@ const route = useRoute()
 type NotificationFilter = 'all' | 'unread' | 'mentions'
 const filter = computed<NotificationFilter>(() => (route.query.filter === 'unread' || route.query.filter === 'mentions' ? route.query.filter : 'all'))
 const filters = computed(() => (['all', 'unread', 'mentions'] as const).map(id => ({
-  id,
+  value: id,
   label: t(`notifications.filter${id[0]!.toUpperCase()}${id.slice(1)}`),
-  to: { path: route.path, query: { ...route.query, filter: id === 'all' ? undefined : id } },
 })))
+const router = useRouter()
+function setFilter(id: string) {
+  void router.replace({ path: route.path, query: { ...route.query, filter: id === 'all' ? undefined : id } })
+}
 const items = computed(() => allItems.value.filter((item) => {
   if (filter.value === 'unread') return !item.is_read
   if (filter.value === 'mentions') return item.kind === 'mention'
@@ -136,39 +139,29 @@ async function retryNextPage() {
       />
     </template>
 
-    <template #filters>
-      <nav :aria-label="t('nav.notificationsFilters')" class="flex flex-wrap items-center gap-2" data-testid="notification-filters">
-        <UButton
-          v-for="entry in filters"
-          :key="entry.id"
-          :to="entry.to"
-          replace
-          size="sm"
-          :color="filter === entry.id ? 'primary' : 'neutral'"
-          :variant="filter === entry.id ? 'subtle' : 'ghost'"
-          :aria-current="filter === entry.id ? 'page' : undefined"
-          :label="entry.label"
-        />
-      </nav>
-    </template>
-
     <SharedPageState
       :loading="isLoading && !allItems.length"
       :error="hasQueryError && !allItems.length ? queryError : null"
-      :empty="!items.length"
-      :empty-text="emptyText"
       @retry="retryNotifications"
     >
-      <div class="rounded-card ring ring-default bg-default overflow-hidden">
-        <ul ref="listEl" class="grid gap-0">
+      <SharedListCard>
+        <template #filters>
+          <SharedSegmentedControl
+            :model-value="filter"
+            :items="filters"
+            :label="t('nav.notificationsFilters')"
+            data-testid="notification-filters"
+            @update:model-value="setFilter"
+          />
+        </template>
+        <ul v-if="items.length" ref="listEl" class="divide-y divide-default">
           <li v-for="item in items" :key="item.id">
             <UButton
               data-shortcut-row
               type="button"
               color="neutral"
               variant="ghost"
-              class="grid w-full gap-1 rounded-none border-b border-default p-3 text-start transition-colors hover:bg-elevated"
-              :class="item.is_read ? 'bg-default' : 'bg-primary/5'"
+              class="grid w-full gap-1 rounded-none px-(--webvue-card-pad-dense) py-3 text-start transition-colors hover:bg-elevated"
               :disabled="!hydrated || actionPending"
               :data-testid="`notification-${item.id}`"
               @click="openNotification(item)"
@@ -181,14 +174,15 @@ async function retryNextPage() {
                   {{ t('notifications.unread') }}
                 </span>
               </span>
-              <span v-if="itemTitle(item)" class="font-medium">{{ itemTitle(item) }}</span>
+              <span v-if="itemTitle(item)" :class="item.is_read ? 'font-medium' : 'font-semibold text-highlighted'">{{ itemTitle(item) }}</span>
               <span v-if="isUserWrittenNotificationKind(item.kind)" class="line-clamp-3 text-sm text-muted">{{ item.body }}</span>
               <span v-else-if="itemSecondary(item)" class="line-clamp-3 text-sm text-muted">{{ itemSecondary(item) }}</span>
               <time v-if="notificationTimestamp(item)" class="text-xs text-muted" :datetime="notificationTimestamp(item)?.datetime">{{ notificationTimestamp(item)?.label }}</time>
             </UButton>
           </li>
         </ul>
-        <div v-if="hasQueryError && items.length && !isFetchNextPageError" class="grid gap-2 py-4 text-center" role="alert">
+        <div v-else class="p-4"><SharedEmptyState :title="emptyText" /></div>
+        <div v-if="hasQueryError && items.length && !isFetchNextPageError" class="grid gap-2 border-t border-default py-4 text-center" role="alert">
           <p class="text-sm text-error">{{ queryErrorMessage }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryNotifications" />
         </div>
@@ -196,10 +190,11 @@ async function retryNextPage() {
           <p class="text-sm text-error">{{ queryErrorMessage }}</p>
           <UButton type="button" color="neutral" variant="outline" class="mx-auto" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('notifications.retry')" @click="retryNextPage" />
         </div>
-        <div v-else-if="hasNextPage" class="border-t border-default p-4 text-center">
-          <UButton color="neutral" variant="outline" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('app.loadMore')" @click="fetchNextPage()" />
-        </div>
-      </div>
+        <template v-if="items.length" #footer>
+          <span class="tabular-nums" data-testid="notification-count">{{ t('notifications.shown', { n: items.length }, items.length) }}</span>
+          <UButton v-if="hasNextPage && !isFetchNextPageError" color="neutral" variant="outline" size="sm" :disabled="!hydrated || actionPending || isFetchingNextPage" :label="t('app.loadMore')" @click="fetchNextPage()" />
+        </template>
+      </SharedListCard>
     </SharedPageState>
   </SharedListPage>
 </template>

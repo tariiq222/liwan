@@ -137,6 +137,7 @@
   },
   "search": {
     "allProviders": "All search scopes",
+    "providerFilter": "Search scope",
     "description": "Search pages, projects and tasks…",
     "close": "Close search",
     "tasks": "Tasks",

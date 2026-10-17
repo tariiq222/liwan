@@ -30,6 +30,12 @@ const RecordStub = defineComponent({
   },
 })
 
+const ListCardStub = defineComponent({
+  setup(_, { slots }) {
+    return () => h('div', [slots.default?.(), slots.footer?.()])
+  },
+})
+
 function loadPage(setup: () => Record<string, unknown>) {
   const parsed = parse(source, { filename })
   if (!parsed.descriptor.template) throw new Error('no template')
@@ -50,6 +56,8 @@ async function renderPage(setup: () => Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(loadPage(setup)) })
   app.component('Button', Passthrough)
   app.component('SharedRecordPage', RecordStub)
+  app.component('SharedListCard', ListCardStub)
+  app.component('SharedEmptyState', defineComponent({ inheritAttrs: false, props: ['title'], setup: (props, { attrs }) => () => h('p', attrs, props.title) }))
   app.component('ArrowLeft', defineComponent({ setup: () => () => null }))
   app.component('ArrowRight', defineComponent({ setup: () => () => null }))
   return renderToString(app)

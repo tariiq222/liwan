@@ -8,6 +8,7 @@
     "filterAll": "All",
     "filterUnread": "Unread",
     "filterMentions": "Mentions",
+    "shown": "{n} notification | {n} notifications",
     "emptyFiltered": "No notifications in this filter",
     "assignment": "You were assigned to the task “{task}”",
     "comment": "New comment on the task",
