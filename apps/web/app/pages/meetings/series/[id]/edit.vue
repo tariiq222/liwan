@@ -98,11 +98,12 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form ref="formElement" novalidate v-if="query.data.value" class="space-y-8" @submit.prevent="save">
+      <form ref="formElement" novalidate v-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
         <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsForbidden')" />
-        <SharedFormSection :title="t('meetingsUx.seriesDefaultsTitle')" class="space-y-4">
+        <SharedFormSection panel :title="t('meetingsUx.seriesDefaultsTitle')">
+          <div class="grid gap-(--webvue-gap-card)">
           <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined">
             <UInput id="series-settings-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.name" required />
           </UFormField>
@@ -112,22 +113,25 @@ async function save() {
           <UFormField :label="t('meetingsUi.url')" name="meetingUrl" :error="visibleErrors.meetingUrl ? t(`meetingsUx.errors.${visibleErrors.meetingUrl}`) : undefined">
             <UInput id="series-settings-url" v-model="meetingUrl" dir="ltr" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.meetingUrl" />
           </UFormField>
+          </div>
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUi.sectionPeople')">
+        <SharedFormSection panel :title="t('meetingsUi.sectionPeople')">
           <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="known" :disabled="!hydrated || isPending || !canEdit" />
         </SharedFormSection>
-        <SharedFormSection :title="t('meetingsUx.scheduleSummaryTitle')" aria-readonly="true" class="space-y-4">
-          <dl class="grid gap-2 text-sm">
-            <div><dt class="font-medium">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd>{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
-            <div><dt class="font-medium">{{ t('meetingsUi.untilMode') }}</dt><dd>{{ termination }}</dd></div>
+        <SharedFormSection panel :title="t('meetingsUx.scheduleSummaryTitle')" :description="t('meetingsUx.seriesSettingsScope')" aria-readonly="true">
+          <dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+            <div><dt class="text-xs text-muted">{{ t('meetingsUi.recurrenceLabel') }}</dt><dd class="text-highlighted">{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</dd></div>
+            <div><dt class="text-xs text-muted">{{ t('meetingsUi.untilMode') }}</dt><dd class="text-highlighted">{{ termination }}</dd></div>
           </dl>
-          <p class="text-sm text-muted">{{ t('meetingsUx.seriesSettingsScope') }}</p>
         </SharedFormSection>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.seriesSettingsSaveError')" />
+<SharedFormActions>
+          <p v-if="!loaded || dirty" class="text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
         <p v-if="loaded && !dirty" class="text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
-        <SharedFormActions class="justify-end">
-          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+          <div class="ms-auto flex flex-wrap items-center gap-2">
+            <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+            <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+          </div>
         </SharedFormActions>
       </form>
     </SharedPageState>
