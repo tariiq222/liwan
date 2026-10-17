@@ -86,15 +86,15 @@ async function save() {
   <SharedCreatePanel :title="t('meetingsUi.newResolution')" :back-to="backTo">
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !query.data.value" @retry="query.refetch">
     <UAlert v-if="query.data.value && !canCreate" color="neutral" variant="subtle" :title="t('meetingMinutesForm.readOnlyMeeting')" />
-    <div v-else-if="hasReceipt" class="grid gap-4">
+    <div v-else-if="hasReceipt" class="grid gap-(--webvue-gap-card)">
       <UAlert :color="createdResolutionId || receiptId ? 'success' : 'warning'" :title="t(createdResolutionId || receiptId ? 'meetingsUx.recommendationCreated' : 'meetingsUx.recommendationReturn.unavailable')" />
       <UButton v-if="createdResolutionId || receiptId" type="button" class="w-fit" :disabled="!hydrated" :label="t('meetingsUx.returnAfterRecommendation')" @click="save" />
       <UButton v-else color="neutral" :to="backTo" :label="t('app.back')" />
     </div>
-    <form ref="formElement" novalidate v-else-if="query.data.value" class="space-y-8" @submit.prevent="save">
+    <form ref="formElement" novalidate v-else-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <p v-if="editorContext" class="rounded-control bg-elevated/50 p-3 text-sm">{{ t('meetingsUx.recommendationEditorContext', { name: query.data.value.name }) }}</p>
-      <SharedFormSection :title="t('meetingsUi.resolutions')">
+      <UAlert v-if="editorContext" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.recommendationEditorContext', { name: query.data.value.name })" />
+      <SharedFormSection panel :title="t('meetingsUi.resolutions')">
         <div class="webvue-form-grid">
           <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
             <UInput id="res-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
@@ -132,9 +132,12 @@ async function save() {
       </SharedFormSection>
       <UAlert v-if="attemptedSubmit && Object.keys(formErrors).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.keys(formErrors).length })" />
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
-      <SharedFormActions class="justify-end">
-        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || !canCreate || isPending" :loading="isPending" :label="t('meetingsUx.createRecommendation')" />
+<SharedFormActions>
+        <p class="text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
+        <div class="ms-auto flex flex-wrap items-center gap-2">
+          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+          <UButton type="submit" :disabled="!hydrated || !canCreate || isPending" :loading="isPending" :label="t('meetingsUx.createRecommendation')" />
+        </div>
       </SharedFormActions>
     </form>
     </SharedPageState>

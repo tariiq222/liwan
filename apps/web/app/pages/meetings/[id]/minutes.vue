@@ -111,11 +111,9 @@ function createRecommendation(topicKey?: string) {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUx.minutesEditorTitle')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form novalidate v-if="query.data.value" class="space-y-8" @submit.prevent="save(false)">
+      <form novalidate v-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
-        <p class="rounded-control bg-elevated/50 px-3 py-2 text-sm ring ring-default">
-          {{ t('meetingsUx.minutesEditorContext', { name: query.data.value.name }) }}
-        </p>
+        <UAlert color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.minutesEditorContext', { name: query.data.value.name })" />
         <UAlert v-if="recommendationReturn" :color="recommendationReturn === 'unavailable' ? 'warning' : 'info'" variant="subtle" :title="t(`meetingsUx.recommendationReturn.${recommendationReturn}`)" />
         <p v-if="lifecycleLocked && query.data.value.can_manage" role="alert" class="text-sm text-muted">{{ t('meetingsUx.minutesEditorReopen') }} <UButton color="primary" variant="link" class="p-0" :to="backTo" :label="t('meetingsUx.openMeetingForReopen')" /></p>
         <UAlert v-else-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.minutesEditorForbidden')" />
@@ -146,18 +144,20 @@ function createRecommendation(topicKey?: string) {
           <SharedRichText v-if="agenda" :html="agenda" size="sm" />
           <p v-else class="text-sm text-muted">{{ t('meetingsUi.emptyAgenda') }}</p>
         </SharedRecordSection>
-        <details :open="Boolean(minutes)" class="rounded-card bg-default p-4 ring ring-default">
-          <summary class="cursor-pointer font-medium text-highlighted">{{ t('meetingsUx.additionalNotes') }}</summary>
-          <UFormField class="mt-4" name="minutes" :error="serverErrors.minutes">
+        <SharedSubCard as="details" :open="Boolean(minutes)">
+          <summary class="cursor-pointer text-sm font-semibold text-highlighted">{{ t('meetingsUx.additionalNotes') }}</summary>
+          <UFormField name="minutes" :error="serverErrors.minutes" class="pt-(--webvue-subcard-pad)">
             <ClientOnly><DescriptionEditor :model-value="minutes" :task-id="-query.data.value.id" :aria-label="t('meetingsUx.additionalNotes')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" /></ClientOnly>
           </UFormField>
-        </details>
+        </SharedSubCard>
         <UAlert v-if="attemptedSubmit && structuredValidationErrors.length" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingMinutesForm.validation.invalid')" />
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
-        <p v-if="loaded && !dirty" class="text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
-        <SharedFormActions class="justify-end">
-          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || lifecycleLocked || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+<SharedFormActions>
+          <p v-if="loaded && !dirty" class="text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
+          <div class="ms-auto flex flex-wrap items-center gap-2">
+            <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+            <UButton type="submit" :disabled="!hydrated || isPending || !canEdit || lifecycleLocked || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+          </div>
         </SharedFormActions>
       </form>
     </SharedPageState>

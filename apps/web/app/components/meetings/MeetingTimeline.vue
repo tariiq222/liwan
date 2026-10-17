@@ -15,7 +15,9 @@ const props = withDefaults(defineProps<{
   preserveOrder?: boolean
   returnTo?: string
   now?: Date
-}>(), { nextMeetingId: null, view: 'timeline', preserveOrder: false, returnTo: undefined, now: undefined })
+  /** The table has no card of its own: the caller's SharedListCard draws it. */
+  bare?: boolean
+}>(), { nextMeetingId: null, view: 'timeline', preserveOrder: false, returnTo: undefined, now: undefined, bare: false })
 
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -23,7 +25,7 @@ const hydrated = useHydrated()
 const now = computed(() => props.now ?? new Date())
 const groups = computed(() => groupMeetingsByMonth(props.meetings, locale.value, now.value, t('meetingTimeline.unknownDate'), props.preserveOrder))
 const tableColumns = computed<TableColumn<MeetingListItem>[]>(() => [
-  { accessorKey: 'reference', header: () => recordNumberHeader(t) },
+  { accessorKey: 'reference', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
   { accessorKey: 'name', header: t('meetingTimeline.session') },
   { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
   { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
@@ -62,9 +64,10 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
 </script>
 
 <template>
-  <SharedEmptyState v-if="!meetings.length" :title="t('meetingTimeline.empty')" />
+  <div v-if="!meetings.length" class="p-(--webvue-card-pad)"><SharedEmptyState :title="t('meetingTimeline.empty')" /></div>
   <SharedDataTable
     v-else-if="view === 'table'"
+    :bare="bare"
     :rows="meetings"
     :columns="tableColumns"
     row-key="id"
@@ -75,14 +78,16 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
     </template>
     <template #name-cell="{ row }">
       <div class="flex min-w-0 flex-wrap items-center gap-2">
-        <NuxtLink :to="meetingTo(row.original)" class="min-w-0 font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+        <NuxtLink :to="meetingTo(row.original)" class="min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
         <UBadge v-if="row.original.id === nextMeetingId" color="primary" variant="subtle">{{ t('meetingTimeline.next') }}</UBadge>
       </div>
     </template>
     <template #meeting_date-cell="{ row }"><span class="text-muted">{{ meetingDate(row.original) }}</span></template>
     <template #state-cell="{ row }">
-      <SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" />
-      <span class="ms-2 text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span>
+      <div class="flex flex-wrap items-center gap-2">
+        <SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" />
+        <span class="text-xs text-muted">{{ t(`meetingTimeline.phase.${phase(row.original)}`) }}</span>
+      </div>
     </template>
     <template #open_resolution_count-cell="{ row }">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</template>
     <template #actions-cell="{ row }"><UButton color="primary" variant="link" size="sm" class="p-0" :to="meetingTo(row.original, 'minutes')" :label="t('meetingTimeline.openMinutes')" />
@@ -101,15 +106,15 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
       </div>
     </template>
   </SharedDataTable>
-  <div v-else class="space-y-6">
+  <div v-else class="grid gap-(--webvue-gap-card) p-(--webvue-card-pad)">
     <section v-for="group in groups" :key="group.key" :aria-labelledby="`meeting-month-${group.key}`">
-      <h3 :id="`meeting-month-${group.key}`" class="mb-2 text-sm font-semibold text-muted">{{ group.label }}</h3>
+      <h3 :id="`meeting-month-${group.key}`" class="mb-2 text-sm font-semibold text-highlighted">{{ group.label }}</h3>
       <ol class="relative ms-2 border-s border-default">
         <li v-for="meeting in group.meetings" :key="meeting.id" class="relative ms-4 border-b border-default pb-4 ps-5 pt-1 last:border-b-0" :class="meeting.id === nextMeetingId ? 'rounded-control bg-primary/10' : ''">
-          <span class="absolute -start-[5px] top-3 size-2 rounded-full" :class="meeting.id === nextMeetingId ? 'bg-primary ring-4 ring-primary/20' : 'bg-accented'" aria-hidden="true" />
+          <span class="absolute -start-1 top-3 size-2 rounded-full" :class="meeting.id === nextMeetingId ? 'bg-primary ring-4 ring-primary/20' : 'bg-accented'" aria-hidden="true" />
           <div class="flex min-w-0 flex-wrap items-start gap-2">
             <RecordNumber :value="meeting.reference || meeting.id" class="shrink-0" />
-            <UButton color="primary" variant="link" class="min-w-0 flex-1 p-0 font-medium whitespace-normal text-start" :to="meetingTo(meeting)">{{ meeting.name }}</UButton>
+            <UButton color="primary" variant="link" class="min-w-0 flex-1 p-0 font-semibold whitespace-normal text-start" :to="meetingTo(meeting)">{{ meeting.name }}</UButton>
             <UBadge v-if="meeting.id === nextMeetingId" color="primary" variant="subtle">{{ t('meetingTimeline.next') }}</UBadge>
             <SharedStatusBadge v-bind="meetingStateBadgeProps(meeting.state, t)" />
           </div>

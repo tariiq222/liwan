@@ -151,15 +151,11 @@ async function save() {
 
 <template>
   <SharedCreatePanel :title="t('meetingsUi.new')" :back-to="backTo">
-    <form ref="formElement" novalidate class="space-y-8" @submit.prevent="save">
+    <form ref="formElement" novalidate class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
-      <p v-if="context.series || context.project" class="rounded-control bg-elevated/50 px-3 py-2 text-sm ring ring-default">
-        <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
-        <span v-if="context.series && context.project"> · </span>
-        <span v-if="context.project">{{ t('meetingsUx.context.project', { name: context.project }) }}</span>
-      </p>
-      <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
+      <UAlert v-if="context.series || context.project" color="neutral" variant="subtle" icon="i-lucide-info" :title="[context.series && t('meetingsUx.context.series', { name: context.series }), context.project && t('meetingsUx.context.project', { name: context.project })].filter(Boolean).join(' · ')" />
+      <SharedFormSection panel :title="t('meetingsUi.sectionSchedule')">
         <div class="webvue-form-grid">
           <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="meeting-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
@@ -184,19 +180,22 @@ async function save() {
           </UFormField>
         </div>
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.sectionPeople')">
+      <SharedFormSection panel :title="t('meetingsUi.sectionPeople')">
         <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="seriesPeople" :attendees-error="serverErrors.attendees" :secretary-error="serverErrors.secretary" :disabled="!hydrated || isPending || seriesDefaultsLoading" />
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.agenda')">
+      <SharedFormSection panel :title="t('meetingsUi.agenda')">
         <ClientOnly>
           <DescriptionEditor :model-value="agenda" :task-id="0" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending" @draft="agenda = $event.html" />
         </ClientOnly>
       </SharedFormSection>
       <UAlert v-if="seriesDefaultsError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUi.seriesDefaultsError')" />
       <UAlert v-else-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
-      <SharedFormActions class="justify-end">
-        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError" :loading="isPending" :label="t('meetingsUx.createMeeting')" />
+      <SharedFormActions>
+        <p class="me-auto text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+          <UButton type="submit" :disabled="!hydrated || isPending || seriesDefaultsLoading || !!seriesDefaultsError" :loading="isPending" :label="t('meetingsUx.createMeeting')" />
+        </div>
       </SharedFormActions>
     </form>
   </SharedCreatePanel>

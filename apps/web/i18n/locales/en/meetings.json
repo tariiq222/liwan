@@ -6,7 +6,6 @@
     "emptyAttachments": "This meeting has no attachments.",
     "new": "New meeting",
     "search": "Search meetings",
-    "totalSeries": "{count} series",
     "searchValue": "Search: {value}",
     "clear": "Clear filters",
     "title": "Meeting title",
@@ -99,6 +98,9 @@
       "weekly": "Weekly",
       "biweekly": "Every two weeks",
       "monthly": "Monthly"
+    },
+    "footer": {
+      "results": "{shown} of 1 result | {shown} of {total} results"
     }
   },
   "meetingsUx": {
@@ -133,8 +135,6 @@
     "timeUnavailable": "Time not set",
     "calendarTruncated": "This month has {count} meeting. | This month has {count} meetings; only the first 2,000 are shown.",
     "calendarCoverageUnknown": "The total could not be confirmed. Review the loaded entries before treating this calendar as complete.",
-    "countLoading": "Loading series count…",
-    "countUnavailable": "Series count unavailable",
     "attendees": "Attendees",
     "termination": "Series end",
     "noNextMeeting": "No upcoming live meeting is scheduled.",
@@ -182,13 +182,11 @@
     "openMeetingForReopen": "Open the meeting page",
     "browserTimeZone": "Times use your browser timezone: {zone}.",
     "currentPreviousFollowUp": "Current follow-up from earlier meetings",
-    "currentFollowUpOrigin": "From current record: {name}",
     "snapshotOrigin": "Captured from: {name}",
     "dayCardTitle": "Day events",
     "dayCardHint": "Select a day in the calendar to see its meetings.",
     "dayCardEmpty": "No meetings on this day.",
     "dayCardCount": "{count} meeting | {count} meetings",
-    "dayCardView": "View",
     "dayCardSelect": "Show meetings on {date}",
     "openTaskNewTab": "Open task — new tab",
     "listView": "List",
@@ -223,7 +221,9 @@
     },
     "unchangedDraft": "No changes to save.",
     "recommendationCreated": "The recommendation was created and saved.",
-    "returnAfterRecommendation": "Continue back to the meeting"
+    "returnAfterRecommendation": "Continue back to the meeting",
+    "requiredHint": "Fields marked with a star are required.",
+    "openOnly": "Open only"
   },
   "meetingsFilters": {
     "searchMeetings": "Search title, reference, or location",
@@ -253,7 +253,8 @@
     "allMeetings": "All meetings",
     "scope": "Meeting scope",
     "removeFilter": "Remove filter",
-    "retry": "Retry"
+    "retry": "Retry",
+    "clearSearch": "Clear search"
   },
   "meetingTimeline": {
     "unknownDate": "Date unavailable",
@@ -299,7 +300,9 @@
     "overdueFollowup": "Overdue",
     "noFollowup": "No follow-up recommendations match these filters.",
     "historyTitle": "Series history",
-    "historyHint": "Audited activity for this periodic meeting series."
+    "historyHint": "Audited activity for this periodic meeting series.",
+    "openTile": "Open recommendations",
+    "overdueTile": "Overdue recommendations"
   },
   "meetingMinutesForm": {
     "metadata": "Meeting information",
@@ -379,6 +382,7 @@
     "print": "Print",
     "printPreview": "Preview and print",
     "signature": "Signature",
-    "readOnlyMeeting": "This meeting is finalized or cancelled and cannot be edited."
+    "readOnlyMeeting": "This meeting is finalized or cancelled and cannot be edited.",
+    "selectedVersion": "Shown"
   }
 }

@@ -139,17 +139,12 @@ async function save() {
   <SharedPageContainer width="form">
     <SharedPageHeader :title="t('meetingsUi.edit')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
-      <form ref="formElement" novalidate v-if="query.data.value" class="space-y-8" @submit.prevent="save">
+      <form ref="formElement" novalidate v-if="query.data.value" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
       <UAlert v-if="!canEdit" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('meetingsUx.editForbidden')" />
-        <p v-if="context.series || context.project" class="rounded-control bg-elevated/50 px-3 py-2 text-sm ring ring-default">
-        <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
-        <span v-if="context.series && context.project"> · </span>
-        <span v-if="context.project">{{ t('meetingsUx.context.project', { name: context.project }) }}</span>
-        </p>
-      <p class="text-xs text-muted">{{ t('meetingsUx.browserTimeZone', { zone: browserTimeZone }) }}</p>
-      <SharedFormSection :title="t('meetingsUi.sectionSchedule')">
+      <UAlert v-if="context.series || context.project" color="neutral" variant="subtle" icon="i-lucide-info" :title="[context.series && t('meetingsUx.context.series', { name: context.series }), context.project && t('meetingsUx.context.project', { name: context.project })].filter(Boolean).join(' · ')" />
+      <SharedFormSection panel :title="t('meetingsUi.sectionSchedule')" :description="t('meetingsUx.browserTimeZone', { zone: browserTimeZone })">
         <div class="webvue-form-grid">
           <UFormField class="sm:col-span-2" :label="t('meetingsUi.title')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
             <UInput id="edit-name" v-model="name" class="w-full" :disabled="!hydrated || isPending || !canEdit" :aria-invalid="!!visibleErrors.name" required />
@@ -183,18 +178,21 @@ async function save() {
           </UFormField>
         </div>
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.sectionPeople')">
+      <SharedFormSection panel :title="t('meetingsUi.sectionPeople')">
         <MeetingPeopleFields v-model:attendee-ids="attendeeIds" v-model:secretary-id="secretaryId" :known="known" :attendees-error="serverErrors.attendees" :secretary-error="serverErrors.secretary" :disabled="!hydrated || isPending || !canEdit" />
       </SharedFormSection>
-      <SharedFormSection :title="t('meetingsUi.agenda')">
+      <SharedFormSection panel :title="t('meetingsUi.agenda')">
         <ClientOnly>
           <DescriptionEditor :model-value="agenda" :task-id="query.data.value.id" :aria-label="t('meetingsUx.agendaLabel')" :readonly="isPending || !canEdit" @draft="agenda = $event.html" />
         </ClientOnly>
       </SharedFormSection>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="submitError" />
-      <SharedFormActions class="justify-end">
-        <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || isPending || !canEdit" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+      <SharedFormActions>
+        <p class="me-auto text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+          <UButton type="submit" :disabled="!hydrated || isPending || !canEdit" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+        </div>
       </SharedFormActions>
     </form>
     </SharedPageState>

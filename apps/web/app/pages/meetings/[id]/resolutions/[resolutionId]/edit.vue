@@ -102,9 +102,9 @@ async function save() {
     <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="backTo" />
     <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
       <UAlert v-if="resolution && !canEditDecision && !canEditResult" color="neutral" variant="subtle" :title="t('meetingsUi.resolutionReadOnly')" />
-      <form ref="formElement" novalidate v-else-if="resolution" class="space-y-8" @submit.prevent="save">
+      <form ref="formElement" novalidate v-else-if="resolution" class="grid gap-(--webvue-gap-card)" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
-        <SharedFormSection v-if="canEditDecision" :title="t('meetingsUi.resolutions')">
+        <SharedFormSection v-if="canEditDecision" panel :title="t('meetingsUi.resolutions')">
           <div class="webvue-form-grid">
             <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
               <UInput id="resolution-name" v-model="name" class="w-full" :aria-invalid="Boolean(visibleErrors.name)" :disabled="!hydrated || isPending" required />
@@ -140,17 +140,20 @@ async function save() {
             </UFormField>
           </div>
         </SharedFormSection>
-        <SharedFormSection v-if="canEditResult" :title="t('meetingsUi.result')">
+        <SharedFormSection v-if="canEditResult" panel :title="t('meetingsUi.result')">
           <ClientOnly>
             <DescriptionEditor :model-value="result" :task-id="0" :readonly="isPending" :aria-label="t('meetingsUx.completionNotes')" @draft="result = $event.html" />
           </ClientOnly>
         </SharedFormSection>
         <UAlert v-if="attemptedSubmit && Object.keys(formErrors).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.keys(formErrors).length })" />
         <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
-        <p v-if="loaded && !dirty" class="text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
-        <SharedFormActions class="justify-end">
-          <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
-          <UButton type="submit" :disabled="!canSave || isPending || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+<SharedFormActions>
+          <p v-if="!loaded || dirty" class="text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
+          <p v-if="loaded && !dirty" class="text-xs text-muted">{{ t('meetingsUx.unchangedDraft') }}</p>
+          <div class="ms-auto flex flex-wrap items-center gap-2">
+            <UButton type="button" color="neutral" variant="outline" :to="backTo" :label="t('app.cancel')" />
+            <UButton type="submit" :disabled="!canSave || isPending || !dirty" :loading="isPending" :label="t('meetingsUx.saveChanges')" />
+          </div>
         </SharedFormActions>
       </form>
     </SharedPageState>
