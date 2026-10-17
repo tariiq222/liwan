@@ -51,9 +51,9 @@ git branch --show-current
 ## CI — GitHub Actions
 
 CI is the `ci` workflow in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): twelve stages, each a
-`deploy/ci/<stage>.sh` script, selected per change by `tools/ci_scope.py`. Its aggregate job `ci-result` is the
-single check branch protection on `main` must require; that protection is a pending owner action in the GitHub
-settings. Details are in [`testing.md`](testing.md#ci-workflow). The migration policy is
+`deploy/ci/<stage>.sh` script, selected per change by `tools/ci_scope.py`. Its aggregate job `ci-result` gates the
+`automerge` job, which merges every non-draft PR once it passes (owner decision 2026-10-17, valid until the first
+server deployment; branch protection is not available on the current plan). Details are in [`testing.md`](testing.md#ci-workflow). The migration policy is
 [`migrations.md`](migrations.md). The control-plane live-PG suites run serially by design: its `test` script sets
 `--no-file-parallelism` and a 60s hook timeout because the suites share one scratch control database and TRUNCATE
 the same tables.

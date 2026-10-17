@@ -48,10 +48,11 @@ Integration into `main` is a GitHub pull request. The `ci` workflow
 (`.github/workflows/ci.yml`) is the only gate: it runs on pull requests and can be started by hand
 (`workflow_dispatch`, input `full`). Each stage is a job that runs `deploy/ci/<stage>.sh`, so a stage
 can also be run locally from a clean checkout. The aggregate job `ci-result` passes only when every
-selected stage passed; it is the single check that branch protection on `main` must require.
-Branch protection requiring `ci-result` is a pending owner action in the GitHub settings, not yet in
-place. Merging a PR still needs the owner's authorization and the preservation steps in
-[`agents/integration-rules.md`](agents/integration-rules.md).
+selected stage passed. Owner decision 2026-10-17: until the first server deployment every non-draft PR is
+merged automatically with a merge commit by the `automerge` job once `ci-result` has passed (GitHub branch
+protection and auto-merge are unavailable on this private repository's plan). The owner will replace this
+before deployment. The preservation steps in [`agents/integration-rules.md`](agents/integration-rules.md)
+still apply before a PR is opened.
 
 The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
 `odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and

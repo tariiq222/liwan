@@ -337,3 +337,19 @@ jobs:
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
           # Stages the change cannot affect are skipped; scope and static always run.
           echo "$NEEDS" | jq -e '.scope.result == "success" and .static.result == "success" and all(.[]; .result == "success" or .result == "skipped")' > /dev/null
+
+  # The repository is private on a plan without branch protection, so the merge is a job here instead of GitHub auto-merge.
+  # Owner decision 2026-10-17: every pull request merges once ci-result passes, until the first server deployment.
+  automerge:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && needs.ci-result.result == 'success'
+    needs: ci-result
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge the pull request with a merge commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --merge

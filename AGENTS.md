@@ -173,15 +173,16 @@ another application) needs the owner's approval, recorded by the owner as an
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
   directory in the same commit.
 - Integration goes through a GitHub pull request into `main`. Task branches are pushed only with the owner's
-  explicit authorization, and merging the PR needs the owner's authorization for that integration (a merge
-  commit; never rebase a branch another worker owns). Agents never push or merge without it. Before opening the
+  explicit authorization (a merge commit; never rebase a branch another worker owns). Owner decision
+  2026-10-17, valid until the first server deployment: every non-draft PR is merged automatically by the
+  `automerge` job of the `ci` workflow once `ci-result` passes; agents never merge by hand. Before opening the
   PR: merge current `main` into the task branch; the focused checks and `npm test` pass;
   `python3 -B tools/git_policy.py --base main` and `python3 -B tools/arch_policy.py --base main` pass; addon or
   contract changes are reviewed by the `odoo-reviewer` agent; the working tree is clean.
 - The `ci` workflow (`.github/workflows/ci.yml`) is the only gate. It selects the stages a change can affect with
   `tools/ci_scope.py` (an unmapped path or a manual run with `full: true` runs all twelve), and its aggregate job
-  `ci-result` is the single check branch protection must require. Branch protection on `main` requiring
-  `ci-result` is a pending owner action in the GitHub settings, not yet in place.
+  `ci-result` gates that merge. GitHub branch protection is unavailable on the repository's current plan, so no
+  server-side protection exists; do not claim it does.
 - A `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was a full run (`workflow_dispatch`
   with `full: true`, all twelve stages green); a manual rule, no tool enforces it.
 - After a PR is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with

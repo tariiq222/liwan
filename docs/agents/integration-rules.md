@@ -33,7 +33,8 @@ Before every integration, including from an older worktree:
    If another task advanced it, rebuild and verify the candidate against the
    new tip. For manual integration, promote the verified candidate with `git merge --no-ff`.
    Integration is a GitHub pull request merged with a merge commit once the `ci` workflow
-   (`ci-result`) has passed on the PR; the owner's authorization for that merge is required.
+   (`ci-result`) has passed on the PR. Until the first server deployment the `automerge` job does this merge
+   on the owner's standing authorization of 2026-10-17; agents do not merge by hand.
    Then verify the
    resulting commit and working-tree state. Preserve other active
    worktrees; cleanup still needs separate authorization.
