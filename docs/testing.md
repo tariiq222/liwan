@@ -44,15 +44,14 @@ changes) and only ever creates, clones or drops `webvue_scratch_*` databases. St
 
 ## CI workflow
 
-Integration into `main` is a GitHub pull request. The `ci` workflow
-(`.github/workflows/ci.yml`) is the only gate: it runs on pull requests and can be started by hand
-(`workflow_dispatch`, input `full`). Each stage is a job that runs `deploy/ci/<stage>.sh`, so a stage
+Integration into `main` is a direct push after local checks (owner decision 2026-10-17, valid until the first
+server deployment). The `ci` workflow (`.github/workflows/ci.yml`) is a safety net, not a gate: it runs on pull
+requests and can be started by hand (`workflow_dispatch`, input `full`), which is the step that follows each push. Each stage is a job that runs `deploy/ci/<stage>.sh`, so a stage
 can also be run locally from a clean checkout. The aggregate job `ci-result` passes only when every
-selected stage passed. Owner decision 2026-10-17: until the first server deployment every non-draft PR is
-merged automatically with a merge commit by the `automerge` job once `ci-result` has passed (GitHub branch
-protection and auto-merge are unavailable on this private repository's plan). The owner will replace this
-before deployment. The preservation steps in [`agents/integration-rules.md`](agents/integration-rules.md)
-still apply before a PR is opened.
+selected stage passed. The `automerge` job still merges a non-draft PR whose `ci-result` passed, but direct
+push is the normal route (GitHub branch protection and auto-merge are unavailable on this private repository's
+plan). The owner will replace this before deployment. The preservation steps in
+[`agents/integration-rules.md`](agents/integration-rules.md) apply before every integration.
 
 The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
 `odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and

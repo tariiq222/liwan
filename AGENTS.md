@@ -172,20 +172,22 @@ another application) needs the owner's approval, recorded by the owner as an
   `feat fix refactor perf test docs ci build chore` and `scope` from the `<area>` list. One logical change
   per commit. No `wip` commit reaches `main`. A schema change carries its version bump and migration
   directory in the same commit.
-- Integration goes through a GitHub pull request into `main`. Task branches are pushed only with the owner's
-  explicit authorization (a merge commit; never rebase a branch another worker owns). Owner decision
-  2026-10-17, valid until the first server deployment: every non-draft PR is merged automatically by the
-  `automerge` job of the `ci` workflow once `ci-result` passes; agents never merge by hand. Before opening the
-  PR: merge current `main` into the task branch; the focused checks and `npm test` pass;
-  `python3 -B tools/git_policy.py --base main` and `python3 -B tools/arch_policy.py --base main` pass; addon or
-  contract changes are reviewed by the `odoo-reviewer` agent; the working tree is clean.
-- The `ci` workflow (`.github/workflows/ci.yml`) is the only gate. It selects the stages a change can affect with
-  `tools/ci_scope.py` (an unmapped path or a manual run with `full: true` runs all twelve), and its aggregate job
-  `ci-result` gates that merge. GitHub branch protection is unavailable on the repository's current plan, so no
-  server-side protection exists; do not claim it does.
+- Integration is a direct push of `main` (owner decision 2026-10-17, valid until the first server deployment):
+  no pull request and no CI gate before the push. The orchestrator builds the combined result in an isolated
+  integration worktree (merge current `origin/main` first, a merge commit per branch; never rebase a branch another
+  worker owns), runs the checks below on that result, verifies `main` still points to the recorded baseline,
+  fast-forwards local `main` to the exact tested commit and pushes it, each step with the owner's authorization for
+  that integration. Checks before the push: the focused checks and `npm test` (plus
+  `npm -w apps/vendor-admin run test` after `npx nuxt prepare` there); `python3 -B tools/git_policy.py --base main`
+  and `python3 -B tools/arch_policy.py --base main`; the Odoo tests of every addon the change touches against a
+  scratch database; addon or contract changes reviewed by the `odoo-reviewer` agent; the working tree clean.
+- The `ci` workflow (`.github/workflows/ci.yml`) is a safety net after the push, not a gate: start it by hand
+  (`workflow_dispatch`, `full: true` runs all twelve stages; the default selects the stages a change can affect with
+  `tools/ci_scope.py`). If a stage fails, fix forward or `git revert` the merge. GitHub branch protection is
+  unavailable on the repository's current plan, so no server-side protection exists; do not claim it does.
 - A `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was a full run (`workflow_dispatch`
   with `full: true`, all twelve stages green); a manual rule, no tool enforces it.
-- After a PR is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with
+- After a branch is merged, removing its worktree, branch and scratch database is `python3 -B tools/wt.py gc`, only with
   the owner's authorization and only after the content is preserved and no process uses it; unmerged work is
   tagged `archive/<name>` before its branch is removed.
 - Only `main`, tags and authorized task branches are pushed, each push with the owner's explicit authorization.

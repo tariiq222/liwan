@@ -31,10 +31,9 @@ Before every integration, including from an older worktree:
    and regression-test update.
 6. Before updating `main`, verify it still points to the recorded baseline.
    If another task advanced it, rebuild and verify the candidate against the
-   new tip. For manual integration, promote the verified candidate with `git merge --no-ff`.
-   Integration is a GitHub pull request merged with a merge commit once the `ci` workflow
-   (`ci-result`) has passed on the PR. Until the first server deployment the `automerge` job does this merge
-   on the owner's standing authorization of 2026-10-17; agents do not merge by hand.
-   Then verify the
+   new tip. Promote the verified candidate to local `main` with `git merge --ff-only` (the candidate already holds
+   the `git merge --no-ff` commits), then push `main` directly. Until the first server deployment there is no pull
+   request and no CI gate (owner decision 2026-10-17); a manual `ci` run with `full: true` follows the push as a
+   safety net. Then verify the
    resulting commit and working-tree state. Preserve other active
    worktrees; cleanup still needs separate authorization.
