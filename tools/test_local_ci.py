@@ -8,6 +8,10 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import local_ci
 
 SCRIPT = Path(__file__).with_name('local_ci.py')
 STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
@@ -133,6 +137,57 @@ if Path(MODE).read_text() == 'cli-failure': sys.exit(4)
                 result = self.run_ci(FAKE_MODE=mode)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(self.receipt()['status'], 'failed')
+
+    def test_waits_for_published_postgres_before_provisioning_roles(self):
+        self.executable('psql', '''import json,sys
+args=sys.argv[1:]
+if args == ['--version']: print('PostgreSQL 16.0'); sys.exit(0)
+with open(CALLS, 'a') as out: out.write(json.dumps(['psql', *args])+'\\n')
+marker=Path(CALLS).with_name('tcp-attempts')
+if args[args.index('-U')+1] == 'postgres':
+ count=int(marker.read_text())+1 if marker.exists() else 1
+ marker.write_text(str(count))
+ sys.exit(2 if count == 1 else 0)
+if not marker.exists() or int(marker.read_text()) < 2: sys.exit(2)
+''')
+        result = self.run_ci()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.receipt()['status'], 'passed')
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
+        probes = [i for i, call in enumerate(calls) if call[0] == 'psql'
+                  and call[call.index('-U') + 1] == 'postgres']
+        role = next(i for i, call in enumerate(calls) if call[0] == 'exec'
+                    and call[-1].startswith('CREATE ROLE'))
+        self.assertEqual(len(probes), 2)
+        self.assertLess(probes[-1], role)
+
+    def test_postgres_timeout_never_starts_pipeline_and_cleans_owned_resources(self):
+        self.executable('psql', '''import json,sys
+args=sys.argv[1:]
+if args == ['--version']: print('PostgreSQL 16.0'); sys.exit(0)
+with open(CALLS, 'a') as out: out.write(json.dumps(['psql', *args])+'\\n')
+if args[args.index('-U')+1] == 'postgres': sys.exit(2)
+''')
+        previous = Path.cwd()
+        try:
+            os.chdir(self.repo)
+            with patch.dict(os.environ, self.env), patch.object(local_ci.time, 'sleep'):
+                result = local_ci.run(SimpleNamespace(base=self.commit, commit=self.commit,
+                                                     report_dir=str(self.report)))
+        finally:
+            os.chdir(previous)
+        self.assertEqual(result, 1)
+        self.assertEqual(self.receipt()['status'], 'failed')
+        self.assertEqual(self.receipt()['stages'], [])
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
+        probes = [call for call in calls if call[0] == 'psql'
+                  and call[call.index('-U') + 1] == 'postgres']
+        self.assertEqual(len(probes), 60)
+        self.assertFalse(any(call[0] == 'woodpecker' for call in calls))
+        self.assertFalse(any(call[0] == 'exec' and call[-1].startswith('CREATE ROLE')
+                             for call in calls))
+        self.assertTrue(any(call[:2] == ['rm', '-fv'] for call in calls))
+        self.assertTrue(any(call[:2] == ['network', 'rm'] for call in calls))
 
     def test_node_version_mismatch_fails_before_resources(self):
         self.executable('node', "print('v24.0.0')\n")
