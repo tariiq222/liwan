@@ -113,6 +113,8 @@ elif "SELECT state" in ' '.join(args): print('installed')
                 self.assertIn('--db_host=127.0.0.1', odoo)
                 self.assertIn('--http-port=' + wanted_port, odoo)
                 self.assertEqual(odoo[odoo.index('-i') + 1], wanted_modules)
+                # Committed Odoo concurrency fixtures require this safe prefix.
+                self.assertTrue(odoo[odoo.index('-d') + 1].startswith('webvue_scratch_'))
                 self.assertEqual(odoo[1], str(self.odoo / 'odoo-bin'))
                 for drop in (x for x in calls if x[0] == 'dropdb'):
                     self.assertEqual(drop[drop.index('-p') + 1], '55432')

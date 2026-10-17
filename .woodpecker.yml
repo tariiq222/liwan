@@ -106,7 +106,7 @@ steps:
         set -euo pipefail
         export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
         source deploy/woodpecker/stage.sh odoo
-        SCRATCH_DB="webvue_ci_scratch_${CI_PIPELINE_NUMBER}"
+        SCRATCH_DB="webvue_scratch_ci_${CI_PIPELINE_NUMBER}"
         MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
         TAGS="/$${MODULES//,/,/}"
         SCRATCH_ROOT="$(mktemp -d)"
