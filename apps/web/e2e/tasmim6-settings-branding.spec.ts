@@ -14,7 +14,7 @@ test.describe('Plan 6d: branding', () => {
       await expect(page.getByTestId('settings-layout')).toBeVisible()
       await expect(page.getByTestId('branding-form')).toBeVisible()
       await expect(page.getByTestId('branding-color')).toBeVisible()
-      await expect(page.getByTestId('branding-preview')).toBeVisible()
+      await expect(page.getByTestId('branding-preview')).toHaveCount(0)
       await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
     })
 
@@ -57,7 +57,7 @@ test.describe('Plan 6d: branding', () => {
 
   test.describe('phone', () => {
     test.use({ viewport: { width: 390, height: 844 } })
-    test('on a 390px phone the form and the preview fit the width', async ({ page }) => {
+    test('on a 390px phone the form fits the width', async ({ page }) => {
       await openShell(page, '/settings/branding')
       await expect(page.getByTestId('branding-color')).toBeVisible()
       expect(await fitsWidth(page)).toBe(true)

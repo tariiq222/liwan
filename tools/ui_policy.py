@@ -122,7 +122,6 @@ THEME_OWNERS = {
     UI + 'assets/css/tokens.css',
     UI + 'assets/css/components.css',
     UI + 'assets/css/shell.css',
-    APP + 'utils/brandTheme.ts',
     UI + 'app.config.ts',
 }
 RETIRED_CSS = {
@@ -677,18 +676,16 @@ def scoped_style_errors(current: dict[str, str]) -> list[str]:
 # Arabic is the default locale and English is secondary: a key present in one
 # catalogue and missing from the other ships an untranslated screen.
 # A filled secondary button competes with the page's primary action, so chrome
-# actions carry a quiet variant instead. The branding preview renders sample
-# buttons at every rank on purpose.
+# actions carry a quiet variant instead.
 BUTTON_TAG = re.compile(r'<UButton\b[^>]*>', re.S)
 SECONDARY_COLOR = re.compile(r'color=["\']secondary["\']')
 QUIET_VARIANT = re.compile(r'variant=["\'](?:outline|ghost|soft|subtle|link)["\']')
-BUTTON_RANK_OWNERS = {COMPONENTS + 'settings/BrandingPreview.vue'}
 
 
 def button_rank_errors(current: dict[str, str]) -> list[str]:
     errors = []
     for path, source in sorted(current.items()):
-        if not path.startswith(APP_SOURCES) or not path.endswith('.vue') or path in BUTTON_RANK_OWNERS:
+        if not path.startswith(APP_SOURCES) or not path.endswith('.vue'):
             continue
         for match in BUTTON_TAG.finditer(source):
             if SECONDARY_COLOR.search(match.group()) and not QUIET_VARIANT.search(match.group()):

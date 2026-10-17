@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { createBrandTheme, DEFAULT_PRIMARY } from '@/utils/brandTheme'
+import { WEBVUE_MIDNIGHT } from '@/utils/webvuePalette'
 import { ApiError } from '@/composables/useApi'
 import { buildBrandingPatch, normalizeHex } from '@/composables/colorHex'
 import { useBrandingAdmin, useUpdateBranding } from '@/composables/useBrandingAdmin'
-import BrandingPreview from '@/components/settings/BrandingPreview.vue'
 
 const PRESETS = [
-  { key: 'default', color: DEFAULT_PRIMARY, labelKey: 'settings.branding.presets.default' },
+  { key: 'default', color: WEBVUE_MIDNIGHT, labelKey: 'settings.branding.presets.default' },
   { key: 'blue', color: '#0055ff', labelKey: 'settings.branding.presets.blue' },
   { key: 'teal', color: '#0f766e', labelKey: 'settings.branding.presets.teal' },
   { key: 'amber', color: '#b45309', labelKey: 'settings.branding.presets.amber' },
@@ -19,13 +18,13 @@ const hydrated = useHydrated()
 const { data: branding, isLoading, error, refetch } = useBrandingAdmin()
 const update = useUpdateBranding()
 
-const color = ref(DEFAULT_PRIMARY)
-const savedColor = ref(DEFAULT_PRIMARY)
+const color = ref(WEBVUE_MIDNIGHT)
+const savedColor = ref(WEBVUE_MIDNIGHT)
 const dirty = ref(false)
 const validationError = ref('')
 
 function loadSaved(value: { primary_color: string }) {
-  savedColor.value = normalizeHex(value.primary_color) ?? DEFAULT_PRIMARY
+  savedColor.value = normalizeHex(value.primary_color) ?? WEBVUE_MIDNIGHT
   color.value = savedColor.value
   dirty.value = false
 }
@@ -34,21 +33,10 @@ watch(branding, (value) => {
   if (value && !dirty.value) loadSaved(value)
 }, { immediate: true })
 
-const previewName = computed(() => branding.value?.name ?? '')
-const previewColor = computed(() => normalizeHex(color.value) ?? savedColor.value)
-const previewLogo = computed(() => branding.value?.logo_url ?? '')
+const swatchColor = computed(() => normalizeHex(color.value) ?? savedColor.value)
 const isBusy = computed(() => update.isPending.value)
 const primaryValid = computed(() => normalizeHex(color.value) !== null)
 const colorValid = computed(() => primaryValid.value)
-const usageTheme = computed(() => {
-  const primary = normalizeHex(color.value)
-  return primary ? createBrandTheme(primary, 'light') : null
-})
-const chartsNotDistinct = computed(() => {
-  const theme = usageTheme.value
-  if (!theme) return false
-  return new Set([1, 2, 3, 4, 5, 6].map((index) => theme[`--chart-${index}`])).size < 6
-})
 
 function markDirty() {
   dirty.value = true
@@ -63,7 +51,7 @@ function cancel() {
 function resetDefault() {
   validationError.value = ''
   dirty.value = true
-  color.value = DEFAULT_PRIMARY
+  color.value = WEBVUE_MIDNIGHT
 }
 
 async function retryLoad() {
@@ -113,7 +101,7 @@ onBeforeUnmount(() => update.reset())
           <UInput id="branding-color" v-model="color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!primaryValid" :disabled="!hydrated || isBusy" @update:model-value="markDirty" />
           <UPopover>
             <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="!hydrated || isBusy">
-              <span class="size-5 rounded border border-default" :style="{ backgroundColor: previewColor }" />
+              <span class="size-5 rounded border border-default" :style="{ backgroundColor: swatchColor }" />
             </UButton>
             <template #content><UColorPicker v-model="color" class="p-3" :disabled="isBusy" @update:model-value="markDirty" /></template>
           </UPopover>
@@ -136,7 +124,6 @@ onBeforeUnmount(() => update.reset())
           </UButton>
         </div>
       </div>
-      <UAlert v-if="chartsNotDistinct" color="warning" :title="t('settings.branding.chartsNotDistinct')" />
       <UAlert v-if="validationError" role="alert" color="error" variant="subtle" :title="validationError" />
       <SharedFormActions >
         <UButton type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
@@ -150,7 +137,5 @@ onBeforeUnmount(() => update.reset())
         </UButton>
       </SharedFormActions>
     </form>
-
-    <BrandingPreview :name="previewName" :color="previewColor" :logo-url="previewLogo" />
   </div>
 </template>

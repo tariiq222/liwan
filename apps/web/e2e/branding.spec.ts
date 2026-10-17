@@ -1,16 +1,8 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const ADMIN_LOGIN = process.env.E2E_ADMIN_LOGIN ?? 'admin'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'admin'
 const LIGHT_SMALL_APPEARANCE = encodeURIComponent(JSON.stringify({ mode: 'light', fontSize: 'small' }))
-
-const PRIMARY_COLOURS = ['#6758e8', '#0055ff', '#ffffff', '#000000', '#ffff00'] as const
-const PREVIEW_MODES = {
-  light: { label: 'فاتح', surface: '#ffffff' },
-  dark: { label: 'داكن', surface: '#0a1124' },
-} as const
-
-type PreviewMode = keyof typeof PREVIEW_MODES
 
 function logoUrlWithoutCacheVersion(value: string | null, baseURL: string) {
   if (!value) return null
@@ -42,158 +34,21 @@ async function logoBytes(page: Page, logoUrl: string, baseURL: string) {
   return Buffer.from(result.bytes)
 }
 
-function hexToRgb(hex: string) {
-  const value = hex.trim()
-  if (value.startsWith('rgb')) return value
-  const n = Number.parseInt(value.replace('#', ''), 16)
-  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`
+async function uiPrimary(page: Page) {
+  return page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
 }
 
-function parseCssColor(value: string) {
-  const match = value.match(/^rgba?\(([^)]+)\)$/i)
-  if (!match) return null
-  const parts = match[1]!.replace('/', ' ').split(/[\s,]+/).filter(Boolean)
-  const parseChannel = (channel: string) => channel.endsWith('%') ? Number.parseFloat(channel) * 2.55 : Number(channel)
-  const channels = parts.slice(0, 3).map(parseChannel)
-  const alphaValue = parts[3] ?? '1'
-  const alpha = alphaValue.endsWith('%') ? Number.parseFloat(alphaValue) / 100 : Number(alphaValue)
-  if (channels.length !== 3 || channels.some(channel => !Number.isFinite(channel)) || !Number.isFinite(alpha)) return null
-  return { channels: channels as [number, number, number], alpha: Math.max(0, Math.min(1, alpha)) }
-}
-
-function cssChannels(value: string): [number, number, number] | null {
-  return parseCssColor(value)?.channels ?? null
-}
-
-function compositeBackground(backgrounds: string[]) {
-  let composited: { channels: [number, number, number]; alpha: number } | null = null
-  for (const background of [...backgrounds].reverse()) {
-    const parsed = parseCssColor(background)
-    if (!parsed) continue
-    if (!composited) {
-      composited = parsed
-      continue
-    }
-    const foregroundAlpha = parsed.alpha
-    const remainingAlpha = 1 - foregroundAlpha
-    composited = {
-      channels: parsed.channels.map((channel, index) => (
-        channel * foregroundAlpha + composited!.channels[index]! * remainingAlpha
-      )) as [number, number, number],
-      alpha: foregroundAlpha + composited.alpha * remainingAlpha,
-    }
-  }
-  if (!composited || composited.alpha === 0) return null
-  return `rgb(${composited.channels.map(channel => Math.round(channel)).join(', ')})`
-}
-
-function relativeLuminance(value: string) {
-  const channels = cssChannels(value)
-  if (!channels) return null
-  const linear = channels.map(channel => {
-    const normalized = channel / 255
-    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
-  })
-  return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!
-}
-
-function contrastRatio(first: string, second: string) {
-  const firstLuminance = relativeLuminance(first)
-  const secondLuminance = relativeLuminance(second)
-  if (firstLuminance === null || secondLuminance === null) return null
-  const light = Math.max(firstLuminance, secondLuminance)
-  const dark = Math.min(firstLuminance, secondLuminance)
-  return (light + 0.05) / (dark + 0.05)
-}
-
-async function computedColours(element: Locator, placeholder = false) {
-  return element.evaluate((node, usePlaceholder) => {
-    // Browsers may report color-mix as oklab/oklch. Canvas resolves the actual
-    // sRGB colour and alpha so translucent selection backgrounds are measured.
-    const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = 1
-    const context = canvas.getContext('2d')!
-    const rgba = (css: string) => {
-      context.clearRect(0, 0, 1, 1)
-      context.fillStyle = css
-      context.fillRect(0, 0, 1, 1)
-      const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data
-      return `rgba(${red}, ${green}, ${blue}, ${alpha! / 255})`
-    }
-    const backgrounds = []
-    for (let current: Element | null = node; current; current = current.parentElement) {
-      backgrounds.push(rgba(getComputedStyle(current).backgroundColor))
-    }
-    backgrounds.push(rgba(getComputedStyle(document.documentElement).backgroundColor))
-    return { backgrounds, color: rgba(getComputedStyle(node, usePlaceholder ? '::placeholder' : null).color) }
-  }, placeholder)
-}
-
-async function expectReadable(element: Locator, label: string) {
-  await expect.poll(async () => {
-    const colours = await computedColours(element)
-    const background = compositeBackground(colours.backgrounds)
-    return background ? contrastRatio(background, colours.color) ?? 0 : 0
-  }, { message: label }).toBeGreaterThanOrEqual(4.5)
-}
-
-async function expectBackgroundContrast(element: Locator, surface: Locator, label: string) {
-  await expect.poll(async () => {
-    const [elementColours, surfaceColours] = await Promise.all([
-      computedColours(element),
-      computedColours(surface),
-    ])
-    const elementBackground = compositeBackground(elementColours.backgrounds)
-    const surfaceBackground = compositeBackground(surfaceColours.backgrounds)
-    return elementBackground && surfaceBackground ? contrastRatio(elementBackground, surfaceBackground) ?? 0 : 0
-  }, { message: label }).toBeGreaterThanOrEqual(3)
-}
-
-async function expectPlaceholderReadable(input: Locator, label: string) {
-  await expect.poll(async () => {
-    const colours = await computedColours(input, true)
-    const background = compositeBackground(colours.backgrounds)
-    return background ? contrastRatio(background, colours.color) ?? 0 : 0
-  }, { message: label }).toBeGreaterThanOrEqual(4.5)
-}
-
-async function previewSnapshot(preview: Locator) {
-  return preview.evaluate((root) => {
-    const style = getComputedStyle(root)
-    const read = (element: Element | null) => {
-      if (!element) return null
-      const styles = getComputedStyle(element)
-      return { background: styles.backgroundColor, color: styles.color }
-    }
-    return {
-      primary: style.getPropertyValue('--primary').trim(),
-      background: style.backgroundColor,
-      action: read(root.querySelector('[data-testid="branding-preview-action"]')),
-      selected: read([...root.querySelectorAll('span')].find(element => element.textContent?.trim() === 'عنصر مختار') ?? null),
-      charts: [...root.querySelectorAll('span.size-5.rounded-full')].map(element => getComputedStyle(element).backgroundColor),
-      status: read([...root.querySelectorAll('[data-slot="root"]')].pop() ?? null),
-    }
-  })
-}
-
-async function choosePreviewMode(preview: Locator, mode: PreviewMode) {
-  await preview.getByRole('button', { name: PREVIEW_MODES[mode].label, exact: true }).click()
-  await expect(preview).toHaveCSS('background-color', hexToRgb(PREVIEW_MODES[mode].surface))
-}
-
-test('branding draft previews, cancels, resets, and saves the primary color explicitly', async ({ page, baseURL }) => {
+test('document colour draft cancels, resets, and saves explicitly without theming the interface', async ({ page, baseURL }) => {
   const runtimeBaseURL = await loginAsAdmin(page, baseURL)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/settings/branding')
 
   const colour = page.getByTestId('branding-color')
-  const preview = page.getByTestId('branding-preview')
   const settingsBranding = page.locator('.webvue-settings-branding')
   await expect(colour).toBeVisible()
   await expect(settingsBranding).toHaveCount(1)
   await expect(settingsBranding).toBeVisible()
-  await expect(preview).toBeVisible()
-  await expect.poll(async () => (await preview.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(300)
+  await expect(page.getByTestId('branding-preview')).toHaveCount(0)
   await expect(page.getByRole('status', { name: 'جارٍ تحميل إعدادات الهوية' })).toHaveCount(0)
   await expect(page.getByTestId('branding-name')).toHaveCount(0)
   await expect(page.getByTestId('branding-logo')).toHaveCount(0)
@@ -207,22 +62,16 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   const savedLogoBytes = savedLogo ? await logoBytes(page, savedLogo, runtimeBaseURL) : null
   const savedColour = await colour.inputValue()
   const initialTitle = await page.title()
-  const initialPrimary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())
+  const initialPrimary = await uiPrimary(page)
   const shellBrand = page.getByTestId('shell-header').locator('.webvue-shell-brand')
   await expect(shellBrand).toBeVisible()
   expect(await shellBrand.getAttribute('aria-label')).toContain(savedName)
 
   try {
   await colour.fill('#ffffff')
-  await expect(preview).toContainText(savedName)
-  await expect(preview).toHaveAttribute('data-preview-primary', '#ffffff')
-  const previewFillFg = await preview.evaluate((el) => getComputedStyle(el).getPropertyValue('--primary-fill-foreground').trim())
-  const previewAction = preview.getByTestId('branding-preview-action')
-  await expect(previewAction).toHaveCSS('color', hexToRgb(previewFillFg))
-  await expectBackgroundContrast(previewAction, preview, 'white preview primary fill')
   await expect(shellBrand).toBeVisible()
   expect(await page.title()).toBe(initialTitle)
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).toBe(initialPrimary)
+  expect(await uiPrimary(page)).toBe(initialPrimary)
 
   let invalidPatchCount = 0
   const onInvalidRequest = (request: { url(): string; method(): string }) => {
@@ -251,29 +100,6 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   await expect(colour).toHaveValue('#13234a')
   page.off('request', onResetRequest)
   expect(resetPatchCount).toBe(0)
-  await expect(preview).toContainText(savedName)
-
-  await colour.fill('#ffffff')
-  const savedWhite = page.waitForResponse((response) => (
-    response.url().includes('/api/v1/admin/branding') && response.request().method() === 'PATCH'
-  ))
-  await page.getByTestId('branding-submit').click()
-  const savedWhiteResponse = await savedWhite
-  expect(savedWhiteResponse.status()).toBe(200)
-  expect(savedWhiteResponse.request().postDataJSON()).toEqual({ primary_color: '#ffffff' })
-  const productionPrimary = page.getByTestId('branding-submit')
-  await page.mouse.move(0, 0)
-  const fill = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary-fill').trim())
-  const fillFg = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary-fill-foreground').trim())
-  await expect(productionPrimary).toHaveCSS('background-color', hexToRgb(fill))
-  await expect(productionPrimary).toHaveCSS('color', hexToRgb(fillFg))
-  await expectReadable(productionPrimary, 'saved white primary action')
-  await expectBackgroundContrast(productionPrimary, preview, 'white saved primary fill')
-  const restBg = await productionPrimary.evaluate((el) => getComputedStyle(el).backgroundColor)
-  const fillHover = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary-fill-hover').trim())
-  await productionPrimary.hover()
-  if (fillHover) await expect(productionPrimary).toHaveCSS('background-color', hexToRgb(fillHover))
-  else await expect(productionPrimary).not.toHaveCSS('background-color', restBg)
 
   await colour.fill('#123456')
   const saved = page.waitForResponse((response) => (
@@ -288,7 +114,8 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   await expect(page.getByTestId('shell-header').locator('.webvue-shell-brand')).toBeVisible()
   expect(await page.getByTestId('shell-header').locator('.webvue-shell-brand').getAttribute('aria-label')).toContain(savedName)
   await expect(page).toHaveTitle(savedName)
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).toBe('#123456')
+  // The saved colour is for documents; the interface keeps the fixed WebVue palette.
+  expect(await uiPrimary(page)).toBe(initialPrimary)
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
   await expect(page.getByTestId('branding-suggest-secondary')).toHaveCount(0)
   const afterSave = await (await page.request.get('/api/v1/admin/branding')).json() as { name: string; logo_url: string | null; primary_color: string }
@@ -313,14 +140,13 @@ test('branding draft previews, cancels, resets, and saves the primary color expl
   }
 })
 
-test('legacy secondary branding data cannot affect the rendered primary theme', async ({ page, baseURL }) => {
+test('legacy secondary branding data cannot reach the form or the interface theme', async ({ page, baseURL }) => {
   await loginAsAdmin(page, baseURL)
   await page.goto('/settings/branding')
-  const preview = page.getByTestId('branding-preview')
   const primary = page.getByTestId('branding-color')
-  await expect(preview).toBeVisible()
+  await expect(primary).toBeVisible()
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
-  const before = await previewSnapshot(preview)
+  const before = { colour: await primary.inputValue(), ui: await uiPrimary(page) }
 
   const addLegacySecondary = async (route: import('@playwright/test').Route) => {
     const response = await route.fetch()
@@ -333,62 +159,9 @@ test('legacy secondary branding data cannot affect the rendered primary theme', 
     await route.continue()
   })
   await page.reload()
-  await expect(primary).toHaveValue(before.primary)
+  await expect(primary).toHaveValue(before.colour)
   await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
-  expect(await previewSnapshot(preview)).toEqual(before)
-})
-
-test('primary color matrix keeps preview actions, selection, charts, and semantic status readable', async ({ page, baseURL }) => {
-  await loginAsAdmin(page, baseURL)
-  const savedAppearance = (await (await page.request.get('/api/v1/me')).json()).appearance
-  try {
-    expect((await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'small' } })).status()).toBe(200)
-    await page.goto('/settings/branding')
-    const colour = page.getByTestId('branding-color')
-    const preview = page.getByTestId('branding-preview')
-    const action = preview.getByTestId('branding-preview-action')
-    const selected = preview.locator('span').filter({ hasText: /^عنصر مختار$/ })
-    const placeholder = preview.locator('input[placeholder]').first()
-    const status = preview.locator('[data-slot="root"]').last()
-    const statusByMode = new Map<PreviewMode, { background: string; color: string }>()
-
-    await expect(page.locator('html')).toHaveClass(/dark/)
-    await expect(page.getByTestId('branding-secondary-color')).toHaveCount(0)
-    for (const primary of PRIMARY_COLOURS) {
-      await colour.fill(primary)
-      await expect(preview).toHaveAttribute('data-preview-primary', primary)
-      for (const mode of Object.keys(PREVIEW_MODES) as PreviewMode[]) {
-        await choosePreviewMode(preview, mode)
-        await expect(placeholder).toBeVisible()
-        await expectPlaceholderReadable(placeholder, `${primary}/${mode} preview placeholder`)
-        await expect(action).toBeVisible()
-        await expectReadable(action, `${primary}/${mode} primary action`)
-        await action.hover()
-        await expectReadable(action, `${primary}/${mode} hovered primary action`)
-
-        const box = await action.boundingBox()
-        if (box) {
-          await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-          await page.mouse.down()
-          await expectReadable(action, `${primary}/${mode} active primary action`)
-          await page.mouse.up()
-        }
-
-        await expectReadable(selected, `${primary}/${mode} selected text`)
-        const snapshot = await previewSnapshot(preview)
-        expect(snapshot.primary).toBe(primary)
-        expect(snapshot.charts).toHaveLength(6)
-        expect(new Set(snapshot.charts).size, `${primary}/${mode} chart colors`).toBe(6)
-        await expect(status).toBeVisible()
-        const statusColours = await computedColours(status)
-        const priorStatus = statusByMode.get(mode)
-        if (priorStatus) expect(statusColours).toEqual(priorStatus)
-        else statusByMode.set(mode, statusColours)
-      }
-    }
-  } finally {
-    expect((await page.request.patch('/api/v1/me/appearance', { data: savedAppearance })).status()).toBe(200)
-  }
+  expect(await uiPrimary(page)).toBe(before.ui)
 })
 
 test('branding presets and colour picker expose translated keyboard labels', async ({ page, baseURL }) => {

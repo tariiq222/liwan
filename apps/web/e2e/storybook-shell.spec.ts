@@ -61,19 +61,6 @@ test.describe('Tasmim shell (desktop)', () => {
     })
   }
 
-  for (const [appearance, midnight] of [['light', 'rgb(19, 35, 74)'], ['dark', 'rgb(13, 26, 56)']] as const) {
-    test(`rail stays midnight under a bright tenant primary (${appearance})`, async ({ page }) => {
-      await open(page, 'shell-shellframe--bright-tenant', `locale:ar;appearance:${appearance}`)
-      // Precondition: the tenant colour really reached the document.
-      const primary = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim().toLowerCase())
-      expect(primary).not.toBe('')
-      expect(primary).not.toBe('#13234a')
-      const rail = page.getByTestId('module-rail')
-      await expect(rail).toHaveCSS('background-color', midnight)
-      expect(await rail.evaluate(element => getComputedStyle(element).backgroundImage)).not.toContain('255, 0, 255')
-      await expect(rail.locator('[data-slot="indicator"]')).toHaveCSS('background-color', 'rgb(200, 240, 49)')
-    })
-  }
   for (const [locale, dir] of LOCALES) {
     test(`a collapsed sidebar is 48px icons with hidden labels (${locale})`, async ({ page }) => {
       await open(page, 'shell-shellframe--collapsed', `locale:${locale};appearance:light`)

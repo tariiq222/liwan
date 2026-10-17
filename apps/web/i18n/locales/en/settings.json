@@ -10,33 +10,12 @@
     "branding": {
       "title": "Company identity",
       "name": "Company name",
-      "color": "Primary color",
+      "color": "Document and report color",
       "logo": "Logo",
       "logoHint": "PNG or JPEG, up to 1 MiB",
       "save": "Save color",
       "saving": "Saving…",
-      "saved": "Organisation colour saved",
-      "preview": {
-        "title": "Live preview",
-        "hint": "Chrome and the main action use primary; selection, progress and charts use primary-derived tones — before you save",
-        "action": "Primary action",
-        "selection": "Selected item",
-        "progress": "Progress",
-        "sample": "Sample project",
-        "notice": "Status colors stay fixed and do not follow the brand color",
-        "states": {
-          "done": "Done",
-          "active": "In progress",
-          "risk": "At risk",
-          "late": "Overdue",
-          "draft": "Draft"
-        },
-        "charts": "Data",
-        "modes": {
-          "light": "Light",
-          "dark": "Dark"
-        }
-      },
+      "saved": "Document color saved",
       "errors": {
         "invalid": "Enter a valid name and six-digit color",
         "logoFormat": "Use a PNG or JPEG image",
@@ -46,11 +25,11 @@
         "invalidColor": "Enter a six-digit colour",
         "load": "Branding settings could not be loaded"
       },
-      "colorPicker": "Choose primary colour",
+      "colorPicker": "Choose document color",
       "loading": "Loading branding settings",
       "retry": "Try again",
       "cancel": "Cancel changes",
-      "resetDefault": "Reset default colors",
+      "resetDefault": "Reset default color",
       "presets": {
         "label": "Colour presets",
         "default": "webvue default",
@@ -58,9 +37,8 @@
         "teal": "Teal",
         "amber": "Amber"
       },
-      "managedIdentity": "The institution name and logo are managed by the system administrator. You can customize the primary color here.",
-      "primaryHint": "Chrome, primary action, focus, selection, progress, and charts.",
-      "chartsNotDistinct": "The six chart colours are not all distinct."
+      "managedIdentity": "The institution name and logo are managed by the system administrator. Here you set the company color used in documents and reports such as invoices and printouts. It does not change the interface colors.",
+      "primaryHint": "Used in invoices, reports and printouts only. It does not change the interface colors."
     },
     "projects": {
       "title": "Project settings",

@@ -3,7 +3,6 @@ import { useI18n } from 'vue-i18n'
 import AppSidebar from '../../app/components/shell/AppSidebar.vue'
 import ShellFrame from '@webvue/ui/app/components/shell/ShellFrame.vue'
 import ShellHeader from '../../app/components/shell/ShellHeader.vue'
-import { createBrandTheme } from '../../app/utils/brandTheme'
 import { __getRouter, useCookie } from '../../.storybook/nuxt-shims'
 import { shellHandlers } from '../handlers/shell'
 import { storyContext } from '../support/context'
@@ -23,11 +22,10 @@ const at = (path: string) => async () => {
 }
 
 // The sidebar state is set in setup: the global loader resets the shim state (cookie included) concurrently with story loaders.
-const frame = (sidebar: 'open' | 'closed' = 'open', before?: () => void) => ({
+const frame = (sidebar: 'open' | 'closed' = 'open') => ({
   components: { AppSidebar, ShellFrame, ShellHeader },
   setup: () => {
     useCookie<'open' | 'closed'>('webvue-context-sidebar').value = sidebar
-    before?.()
     return { t: useI18n().t }
   },
   template: `<ShellFrame>
@@ -49,14 +47,4 @@ export const Collapsed: Story = {
   parameters: storyContext('apps/web/app/layouts/default.vue:46', 'القائمة السياقية بعرض 48px: يبقى زر الطي والأيقونات فقط.'),
   loaders: [at('/tasks')],
   render: () => frame('closed'),
-}
-
-export const BrightTenant: Story = {
-  name: 'لون مؤسسة ساطع',
-  parameters: storyContext('apps/web/app/layouts/default.vue:46', 'لون المؤسسة لا يغيّر شريط الموديولات (المواصفة §3).'),
-  loaders: [at('/tasks')],
-  render: (_args, { globals }) => frame('open', () => {
-    const theme = createBrandTheme('#ff00ff', globals.appearance === 'dark' ? 'dark' : 'light')
-    for (const [key, value] of Object.entries(theme)) document.documentElement.style.setProperty(key, value)
-  }),
 }

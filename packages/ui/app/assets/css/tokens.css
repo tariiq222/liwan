@@ -1,6 +1,6 @@
 /* WebVue identity (midnight + lime), light/dark modes, dense type and shape on
-   Nuxt UI's stock theme: the Arabic font and its size modes, the brand primary
-   derived at runtime (utils/brandTheme.ts), the fixed shell rail, the chart
+   Nuxt UI's stock theme: the Arabic font and its size modes, the fixed brand primary
+   (the company colour never themes the interface), the fixed shell rail, the chart
    palette, 32px controls, 36px rows and the 4px radius base. */
 @theme {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
@@ -17,7 +17,7 @@
   font-size: 14px;
   /* Official Nuxt UI radius token: 4px base, so rounded-md = 6px and rounded-lg = 8px. */
   --ui-radius: 0.285714rem;
-  /* Runtime branding (brandTheme.ts overwrites these from the company colour). */
+  /* Fixed WebVue primary family; nothing overwrites it at runtime. */
   --primary: #13234a;
   --primary-foreground: #fff;
   --primary-hover: #2f3c5f;
@@ -32,7 +32,7 @@
   --primary-fill-active-foreground: var(--primary-active-foreground);
   --primary-soft: color-mix(in srgb, var(--primary-fill) 18%, var(--ui-bg));
   --primary-soft-foreground: var(--ui-text);
-  /* Solid primary button in dark mode (brandTheme.ts darkSolid); light keeps the stock button. */
+  /* Solid primary button in dark mode (fixed values in .dark); light keeps the stock button. */
   --primary-solid: var(--brand-link);
   --primary-solid-foreground: #fff;
   --primary-solid-hover: var(--primary-hover);
@@ -40,7 +40,7 @@
   --brand-link: #13234a;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
-  /* Charts: series 1 follows the tenant primary (brandTheme.ts); 2-6 are the fixed categorical palette. */
+  /* Charts: a fixed categorical palette. */
   --chart-1: #13234a;
   --chart-2: #0d9488;
   --chart-3: #d97706;
@@ -151,7 +151,7 @@
   --webvue-rail-deep: #112247;
   --rail-hover: #223a72;
   --webvue-rail-edge: rgb(255 255 255 / 14%);
-  /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (brandTheme.ts darkLink; the runtime overwrites these). */
+  /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (fixed values). */
   --brand-link: #8da6e2;
   --ring: #8da6e2;
   --sidebar-ring: #8da6e2;
@@ -166,15 +166,14 @@
   --chart-status-warning: #fbbf24;
   --chart-status-error: #f87171;
   --chart-status-neutral: #94a3b8;
-  /* Default-midnight dark solid primary; brandTheme.ts overwrites it from the company colour. */
+  /* Dark solid primary of the default midnight. */
   --primary-solid: #3c66cd;
   --primary-solid-foreground: #ffffff;
   --primary-solid-hover: #3154a8;
   --primary-solid-hover-foreground: #ffffff;
   --unread-count-foreground: var(--ui-bg);
 }
-/* `primary: 'brand'` in app.config reads this palette; brandTheme.ts keeps
-   --primary/--brand-link in sync with the institution colour. */
+/* `primary: 'brand'` in app.config reads this palette, derived from the fixed --primary. */
 :root {
   --color-brand-50: color-mix(in srgb, var(--primary) 5%, white);
   --color-brand-100: color-mix(in srgb, var(--primary) 10%, white);

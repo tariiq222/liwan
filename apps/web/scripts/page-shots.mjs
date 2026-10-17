@@ -18,7 +18,7 @@ await page.getByRole('button', { name: /دخول|Sign in|Log in|تسجيل/i }).
 await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 20_000 })
 for (const mode of modes) {
   // The app reads the mode from the `webvue-appearance` cookie on the server, so
-  // branding contrast (brandTheme.ts) is computed for the real mode.
+  // the shots render the real mode.
   await context.addCookies([{ name: 'webvue-appearance', value: encodeURIComponent(JSON.stringify({ mode, fontSize: 'small' })), domain: 'localhost', path: '/' }])
   for (const path of paths) {
     for (const width of widths) {
