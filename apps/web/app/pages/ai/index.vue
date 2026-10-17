@@ -116,22 +116,26 @@ watch(status, (now, before) => {
     <AiRunList v-if="!showUnavailable && !isDesktop" disclosure />
     <SharedEmptyState v-if="showUnavailable" :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
     <section v-else class="flex min-h-[60svh] flex-col gap-4" :aria-label="t('ai.title')">
-      <div class="flex flex-1 flex-col gap-4" role="log" aria-live="polite">
-        <SharedEmptyState v-if="items.length === 0" :title="t('ai.thread.empty')" :description="t('ai.description')" data-testid="ai-empty" />
-        <template v-for="(item, index) in items" :key="index">
-          <AiMessage v-if="item.kind === 'user'" role="user" :text="item.text" />
-          <template v-else-if="item.kind === 'assistant'">
-            <AiMessage role="assistant" :text="item.text" :streaming="item.streaming" />
-            <AiRecordCards v-if="item.records.length" :records="item.records" />
+      <SharedRecordSection variant="panel" class="flex-1">
+        <div class="flex flex-col gap-4" role="log" aria-live="polite">
+          <SharedEmptyState v-if="items.length === 0" :title="t('ai.thread.empty')" :description="t('ai.description')" data-testid="ai-empty" />
+          <template v-for="(item, index) in items" :key="index">
+            <AiMessage v-if="item.kind === 'user'" role="user" :text="item.text" />
+            <template v-else-if="item.kind === 'assistant'">
+              <AiMessage role="assistant" :text="item.text" :streaming="item.streaming" />
+              <AiRecordCards v-if="item.records.length" :records="item.records" />
+            </template>
+            <AiToolTrace v-else-if="item.kind === 'tool'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming" @retry="decide(item.callId, 'approved')" />
+            <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming || item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
+            <AiDraftCard v-else :summary="summary(item)" :state="item.state" @open="openDraft(item)" @discard="decide(item.callId, 'rejected')" />
           </template>
-          <AiToolTrace v-else-if="item.kind === 'tool'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming" @retry="decide(item.callId, 'approved')" />
-          <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming || item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
-          <AiDraftCard v-else :summary="summary(item)" :state="item.state" @open="openDraft(item)" @discard="decide(item.callId, 'rejected')" />
-        </template>
-      </div>
+        </div>
+      </SharedRecordSection>
       <AiLimitNotice v-if="limit" :limit="limit" />
-      <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-      <AiComposer :disabled="composerDisabled" :pending="streaming" @send="onSend" />
+      <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
+      <SharedRecordSection variant="panel" class="sticky bottom-4 z-10">
+        <AiComposer :disabled="composerDisabled" :pending="streaming" @send="onSend" />
+      </SharedRecordSection>
     </section>
   </SharedPageContainer>
 </template>

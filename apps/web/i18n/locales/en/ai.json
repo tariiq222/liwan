@@ -34,10 +34,7 @@
       "title": "I prepared a draft",
       "hint": "Review it on its real page and submit it yourself. Nothing is sent before that.",
       "open": "Open the draft",
-      "discard": "Discard the draft",
-      "badge": "Draft from WebVue AI",
-      "attest": "I read the whole content, I approve it and I take responsibility for it",
-      "attestRequired": "Confirm you read and approve the draft before submitting"
+      "discard": "Discard the draft"
     },
     "limits": {
       "monthly": "Your company reached its WebVue AI message limit for this month.",

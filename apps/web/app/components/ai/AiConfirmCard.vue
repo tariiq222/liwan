@@ -8,24 +8,16 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ approve: []; reject: [] }>()
 const { t } = useI18n()
+const hydrated = useHydrated()
 </script>
 
 <template>
-  <SharedInlineConfirm
-    v-if="props.state === 'pending'"
-    :title="t('ai.confirm.title')"
-    :description="props.note ? `${props.summary} — ${props.note}` : props.summary"
-    :confirm-label="t('ai.confirm.approve')"
-    :cancel-label="t('ai.confirm.reject')"
-    :disabled="props.disabled"
-    :pending="props.disabled"
-    color="primary"
-    data-testid="ai-confirm"
-    @confirm="emit('approve')"
-    @cancel="emit('reject')"
-  />
-  <p v-else :data-state="props.state" class="flex items-center gap-2 text-sm text-muted" data-testid="ai-confirm">
-    <UIcon :name="props.state === 'approved' ? 'i-lucide-check' : 'i-lucide-x'" aria-hidden="true" class="size-4 shrink-0" />
-    <span class="min-w-0 break-words">{{ props.summary }} — {{ t(props.state === 'approved' ? 'ai.confirm.approved' : 'ai.confirm.rejected') }}</span>
-  </p>
+  <SharedRecordSection v-if="props.state === 'pending'" variant="action" :title="t('ai.confirm.title')" role="alert" data-testid="ai-confirm">
+    <p class="break-words text-sm text-highlighted">{{ props.note ? `${props.summary} — ${props.note}` : props.summary }}</p>
+    <div class="mt-3 flex w-full flex-wrap justify-end gap-2">
+      <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || props.disabled" :label="t('ai.confirm.reject')" data-testid="inline-confirm-cancel" @click="emit('reject')" />
+      <UButton type="button" :disabled="!hydrated || props.disabled" :loading="props.disabled" :label="t('ai.confirm.approve')" data-testid="inline-confirm-action" @click="emit('approve')" />
+    </div>
+  </SharedRecordSection>
+  <AiResolvedLine v-else :summary="props.summary" :state="props.state" data-testid="ai-confirm" />
 </template>
