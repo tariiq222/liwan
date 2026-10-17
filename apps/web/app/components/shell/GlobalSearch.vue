@@ -163,7 +163,7 @@ function onAfterLeave() {
     :description="t('search.description')"
     :content="{ onCloseAutoFocus }"
     @after:leave="onAfterLeave"
-    :ui="{ content: 'webvue-search-dialog max-w-2xl max-h-[min(620px,calc(100dvh-2rem))] gap-0 divide-y-0 overflow-hidden rounded-xl p-0', overlay: 'webvue-search-overlay' }"
+    :ui="{ content: 'webvue-search-dialog max-w-2xl max-h-[min(620px,calc(100dvh-2rem))] gap-0 divide-y-0 overflow-hidden rounded-card p-0', overlay: 'webvue-search-overlay' }"
   >
     <UButton
       :aria-label="t('app.search')"

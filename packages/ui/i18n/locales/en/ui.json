@@ -58,6 +58,9 @@
     "selectAll": "Select all rows",
     "selectRow": "Select row",
     "selectedCount": "Selected: {count}",
+    "sortAscending": "Sorted ascending",
+    "sortDescending": "Sorted descending",
+    "sortNone": "Not sorted",
     "today": "Today",
     "untitled": "Untitled",
     "view": "View"

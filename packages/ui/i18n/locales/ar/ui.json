@@ -58,6 +58,9 @@
     "selectAll": "تحديد كل الصفوف",
     "selectRow": "تحديد الصف",
     "selectedCount": "المحدد: {count}",
+    "sortAscending": "مرتّب تصاعديًا",
+    "sortDescending": "مرتّب تنازليًا",
+    "sortNone": "غير مرتّب",
     "today": "اليوم",
     "untitled": "بلا عنوان",
     "view": "طريقة العرض"

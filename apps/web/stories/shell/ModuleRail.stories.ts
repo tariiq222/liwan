@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   name: 'المشاريع نشطة',
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:46'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:50'),
   render: args => ({ components: { ModuleRail }, setup: () => ({ args }), template: '<div class="webvue-shell"><ModuleRail v-bind="args" /></div>' }),
 }
 

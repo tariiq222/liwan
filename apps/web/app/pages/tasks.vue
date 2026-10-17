@@ -4,6 +4,9 @@ import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
 import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
 import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
+import { taskAttributeQuery, withTaskAttributeFilters } from '@/composables/taskFilterParams'
+import { normalizeTaskSort } from '@/composables/taskSort'
+import type { TaskListParams } from '@/composables/useTasks'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
@@ -44,7 +47,22 @@ function taskTo(id: number) {
 
 // Filters persist per browser; useTaskFilters centralizes the localStorage key/defaults so the
 // detail page's prev/next lookup reads the exact cache entry this table queries with.
-const params = useTaskFilters()
+const filters = useTaskFilters()
+// The sort is not a stored filter: it lives in the URL (`?sort=`), so refresh, back and direct links keep it, and cycling a
+// header to "none" removes the key. The board has no columns to sort, so it queries without it.
+// `assignee`, `deadline` and `priority` are stored like the other filters and mirrored in the URL: a key present in the URL
+// wins over the stored value (a shared link shows what it was made for), an absent one falls back to it.
+const params = computed<TaskListParams>({
+  get: () => ({ ...withTaskAttributeFilters(filters.value, route.query), sort: normalizeTaskSort(route.query.sort) }),
+  set: ({ sort: _sort, ...rest }) => {
+    filters.value = rest
+    void router.replace({ query: { ...route.query, ...taskAttributeQuery(rest) } })
+  },
+})
+const boardParams = computed<TaskListParams>(() => ({ ...params.value, sort: undefined }))
+function onSort(sort: string | undefined) {
+  void router.replace({ query: { ...route.query, sort } })
+}
 
 const createTo = computed(() => can('pmo.tasks.create') ? { path: '/tasks/new', query: returnToQuery(route.fullPath) } : undefined)
 function openCreate() {
@@ -61,24 +79,23 @@ function openCreate() {
     :create-to="createTo"
     :create-label="t('tasks.new')"
     :views="views"
+    views-in-filters
   >
     <template #actions>
       <UButton color="neutral" variant="ghost" :to="{ path: '/tasks', query: { ...returnToQuery(route.fullPath), scope: 'archived' } }" data-testid="tasks-archived-link">
         {{ t('taskLifecycle.archivedTasks') }}
       </UButton>
     </template>
-    <!-- The board has no card to hold the toolbar, so it keeps it above; the table carries it in its header. -->
-    <template v-if="isBoard" #filters>
-      <TaskToolbar v-model="params" />
-    </template>
     <!-- Query data may resolve after SSR markup is emitted but before client hydration starts. Mount
-         the dynamic result surface (and the toolbar in its header) only after this page has hydrated so
-         no control's first click is lost; the toolbar's selects stay disabled until then. -->
+         the dynamic surface (and the toolbar in the card header) only after this page has hydrated so
+         no control's first click is lost; the toolbar's selects stay disabled until then. One card and one
+         filter row serve both views: switching only swaps what is under the row. -->
     <TaskKpiStrip v-if="hydrated" :params="params" />
-    <TaskTable v-if="hydrated && !isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate">
+    <SharedListCard v-if="hydrated" :fill="isBoard">
       <template #filters><TaskToolbar v-model="params" embedded /></template>
-    </TaskTable>
-    <TaskBoard v-else-if="hydrated" :params="params" @open="id => router.push(taskTo(id))" />
+      <TaskTable v-if="!isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="onSort" />
+      <TaskBoard v-else :params="boardParams" @open="id => router.push(taskTo(id))" />
+    </SharedListCard>
   </SharedListPage>
   <NuxtPage />
 </template>

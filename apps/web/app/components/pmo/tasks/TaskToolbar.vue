@@ -2,7 +2,8 @@
 import type { TaskState } from '@webvue/contracts'
 import { refDebounced } from '@vueuse/core'
 import type { TaskListParams } from '@/composables/useTasks'
-import { STATE_LABEL_KEY } from '@/composables/taskState'
+import { PRIORITY_LABEL_KEY, STATE_LABEL_KEY } from '@/composables/taskState'
+import { parsePriorities, TASK_DEADLINES, TASK_PRIORITIES, taskAttributeFilterCount, type TaskPriority } from '@/composables/taskFilterParams'
 import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 
@@ -25,7 +26,41 @@ function patch(changes: Partial<TaskListParams>) {
 
 const selectedStates = computed(() => props.modelValue.state ?? [])
 const selectedProject = computed(() => (projects.value ?? []).find((project) => project.id === props.modelValue.project_id) ?? null)
-const activeFilterCount = computed(() => Number(Boolean(props.modelValue.q)) + selectedStates.value.length + Number(!props.hideProjectFilter && Boolean(props.modelValue.project_id)))
+const activeFilterCount = computed(() => Number(Boolean(props.modelValue.q)) + selectedStates.value.length + Number(!props.hideProjectFilter && Boolean(props.modelValue.project_id)) + taskAttributeFilterCount(props.modelValue))
+
+// Priority is a multi-select (an empty selection is "all"); assignee and deadline are single choices whose
+// "all" item clears the filter, so the closed trigger shows the field's name until something is chosen.
+const selectedPriorities = computed(() => props.modelValue.priority ?? [])
+const priorityItems = computed(() => TASK_PRIORITIES.map((p) => ({ value: p, label: t(PRIORITY_LABEL_KEY[p]) })))
+function onPrioritiesChange(value: TaskPriority[]) {
+  patch({ priority: parsePriorities(value) })
+}
+function removePriority(p: TaskPriority) {
+  patch({ priority: parsePriorities(selectedPriorities.value.filter((priority) => priority !== p)) })
+}
+
+// A person picked from a link (`?assignee=<id>`) stays applied; choosing one here is not offered yet.
+const assigneeValue = computed(() => (typeof props.modelValue.assignee === 'number' ? 'person' : props.modelValue.assignee))
+const assigneeItems = computed(() => [
+  { value: 'all', label: t('tasks.filters.assigneeAll') },
+  { value: 'me', label: t('tasks.filters.assigneeMe') },
+  { value: 'none', label: t('tasks.filters.assigneeNone') },
+  ...(typeof props.modelValue.assignee === 'number' ? [{ value: 'person', label: t('tasks.filters.assigneePerson'), disabled: true }] : []),
+])
+function onAssigneeChange(value: string) {
+  if (value === 'person') return
+  patch({ assignee: value === 'me' || value === 'none' ? value : undefined })
+}
+
+const DEADLINE_LABEL_KEY = { overdue: 'tasks.filters.deadlineOverdue', today: 'tasks.deadline.today', week: 'tasks.filters.deadlineWeek', none: 'tasks.deadline.none' } as const
+const deadlineItems = computed(() => [
+  { value: 'all', label: t('tasks.filters.deadlineAll') },
+  ...TASK_DEADLINES.map((d) => ({ value: d, label: t(DEADLINE_LABEL_KEY[d]) })),
+])
+function onDeadlineChange(value: string) {
+  patch({ deadline: TASK_DEADLINES.find((d) => d === value) })
+}
+const assigneeChipLabel = computed(() => t(assigneeValue.value === 'me' ? 'tasks.filters.assigneeMe' : assigneeValue.value === 'none' ? 'tasks.filters.assigneeNone' : 'tasks.filters.assigneePerson'))
 
 // A multi-select dropdown: an empty selection is "all states" (no filter).
 const stateItems = computed(() => ALL_STATES.value.map((s) => ({ value: s, label: t(STATE_LABEL_KEY[s]) })))
@@ -60,7 +95,7 @@ watch(
 
 function clearFilters() {
   search.value = ''
-  patch({ q: undefined, state: undefined, project_id: props.hideProjectFilter ? props.modelValue.project_id : undefined })
+  patch({ q: undefined, state: undefined, project_id: props.hideProjectFilter ? props.modelValue.project_id : undefined, assignee: undefined, deadline: undefined, priority: undefined })
 }
 
 function clearSearch() {
@@ -78,10 +113,11 @@ const projectItems = computed(() => [
   <div class="w-full min-w-0">
   <FilterBar class="w-full" :embedded="embedded" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
     <template #search>
-      <div class="relative min-w-48 flex-1">
-        <UIcon name="i-lucide-search" class="pointer-events-none absolute start-2 top-1/2 size-4.5 -translate-y-1/2 text-muted" aria-hidden="true" />
-        <UInput v-model="search" :disabled="!hydrated" :aria-label="t('tasks.filters.search')" :placeholder="t('tasks.filters.search')" class="w-full" :ui="{ base: 'ps-8' }" />
-      </div>
+      <UInput v-model="search" icon="i-lucide-search" :disabled="!hydrated" :aria-label="t('tasks.filters.search')" :placeholder="t('tasks.filters.search')" class="min-w-48 flex-1">
+        <template v-if="search" #trailing>
+          <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('tasks.filters.clearSearch')" class="-me-1" @click="clearSearch" />
+        </template>
+      </UInput>
     </template>
 
     <template #default>
@@ -110,21 +146,63 @@ const projectItems = computed(() => [
         :aria-label="t('tasks.filters.projectLabel')"
         @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
       />
+
+      <USelect
+        multiple
+        icon="i-lucide-flag"
+        class="w-full md:w-40"
+        data-testid="task-filter-priority"
+        :disabled="!hydrated"
+        :items="priorityItems"
+        :model-value="selectedPriorities"
+        :placeholder="t('tasks.filters.priorityLabel')"
+        :aria-label="t('tasks.filters.priorityLabel')"
+        @update:model-value="onPrioritiesChange"
+      >
+        <template v-if="selectedPriorities.length > 1" #default>{{ t('tasks.filters.selectedPriorities', { count: selectedPriorities.length }) }}</template>
+      </USelect>
+
+      <USelect
+        icon="i-lucide-user"
+        class="w-full md:w-40"
+        data-testid="task-filter-assignee"
+        :disabled="!hydrated"
+        :items="assigneeItems"
+        :model-value="assigneeValue"
+        :placeholder="t('tasks.filters.assigneeLabel')"
+        :aria-label="t('tasks.filters.assigneeLabel')"
+        @update:model-value="onAssigneeChange"
+      />
+
+      <USelect
+        icon="i-lucide-calendar-clock"
+        class="w-full md:w-40"
+        data-testid="task-filter-deadline"
+        :disabled="!hydrated"
+        :items="deadlineItems"
+        :model-value="modelValue.deadline"
+        :placeholder="t('tasks.filters.deadlineLabel')"
+        :aria-label="t('tasks.filters.deadlineLabel')"
+        @update:model-value="onDeadlineChange"
+      />
     </template>
 
     <!-- The embedded bar shows each choice in its dropdown, so no chip row repeats it. -->
     <template v-if="!embedded" #active>
-      <div v-if="modelValue.q || selectedStates.length || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
+      <div v-if="modelValue.q || selectedStates.length || selectedPriorities.length || modelValue.assignee !== undefined || modelValue.deadline || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
         <SharedFilterChip v-if="modelValue.q" :label="t('tasks.filters.searchValue', { value: modelValue.q })" @remove="clearSearch" />
         <SharedFilterChip v-for="state in selectedStates" :key="state" :label="t(STATE_LABEL_KEY[state])" @remove="removeState(state)" />
         <SharedFilterChip v-if="!hideProjectFilter && selectedProject" :label="selectedProject.name" @remove="patch({ project_id: undefined })" />
+        <SharedFilterChip v-for="priority in selectedPriorities" :key="`priority-${priority}`" :label="t('tasks.filters.chip', { label: t('tasks.filters.priorityLabel'), value: t(PRIORITY_LABEL_KEY[priority]) })" @remove="removePriority(priority)" />
+        <SharedFilterChip v-if="modelValue.assignee !== undefined" :label="t('tasks.filters.chip', { label: t('tasks.filters.assigneeLabel'), value: assigneeChipLabel })" @remove="patch({ assignee: undefined })" />
+        <SharedFilterChip v-if="modelValue.deadline" :label="t('tasks.filters.chip', { label: t('tasks.filters.deadlineLabel'), value: t(DEADLINE_LABEL_KEY[modelValue.deadline]) })" @remove="patch({ deadline: undefined })" />
       </div>
     </template>
 
     <template #actions><slot name="actions" /></template>
 
     <template #view>
-      <div role="group" data-testid="task-scope" class="inline-flex items-center gap-0.5 rounded-md bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.filters.scopeLabel')">
+      <div role="group" data-testid="task-scope" class="inline-flex items-center gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.filters.scopeLabel')">
         <UButton
           v-for="scope in [{ value: false, label: t('tasks.filters.open') }, { value: true, label: t('tasks.filters.closed') }]"
           :key="String(scope.value)"

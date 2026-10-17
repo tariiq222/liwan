@@ -1,6 +1,6 @@
 <template>
   <SharedFilterField :label="label">
-    <div :class="layout === 'segment' ? 'inline-flex items-center gap-0.5 rounded-md p-0.5 ring ring-default bg-default w-full' : 'flex flex-wrap gap-1.5'">
+    <div :class="layout === 'segment' ? 'inline-flex items-center gap-0.5 rounded-full p-0.5 ring ring-default bg-default w-full' : 'flex flex-wrap gap-1.5'">
       <UButton
         v-for="item in items"
         :key="item.value"

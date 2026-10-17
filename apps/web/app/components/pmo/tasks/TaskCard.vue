@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { deadlineLabel, deadlineTone } from '@/composables/taskState'
-import { taskDaysRemaining } from './taskDeadline'
-import type { Task } from '@webvue/contracts'
+import type { Task, TaskDetail } from '@webvue/contracts'
+import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
+import { deadlineTagView } from './taskDeadline'
 import type { BoardStage } from '@/composables/boardStages'
-import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
+import { PRIORITY_LABEL_KEY, PRIORITY_TONE } from '@/composables/taskState'
 
 const props = withDefaults(defineProps<{
-  task: Task
+  // A list task; the subtask progress and attachment count show when the object carries them (a task detail does).
+  task: Task & Partial<Pick<TaskDetail, 'subtasks' | 'attachments'>>
   stages?: BoardStage[]
   currentStageId?: number | null
   // Explicit "move to" menu entries (the board passes status transitions); without them the card lists `stages`.
@@ -25,24 +26,16 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-// Same short-initials rule as the activity timeline (Timeline.vue): first
-// letter of up to the first two words, uppercased.
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (!parts.length) return '?'
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join('')
-}
-
-// Only priority '2'/'3' (high/urgent) get a visible flag — a normal/important
-// card stays quiet, matching the badge vocabulary elsewhere (deadline tones,
-// state colors) of reserving color for things that need attention.
-const PRIORITY_TONE: Record<string, string> = {
-  '2': 'text-brand-link',
-  '3': 'text-error',
-}
+// Subtask progress: done is a closed subtask that was not cancelled, the rule the KPI summary uses.
+const subtaskProgress = computed(() => {
+  const subtasks = props.task.subtasks ?? []
+  if (!subtasks.length) return null
+  const done = subtasks.filter(sub => sub.is_closed && sub.state !== 'cancelled').length
+  return { done, total: subtasks.length, percent: Math.round((done / subtasks.length) * 100) }
+})
+const priority = computed(() => props.task.priority as '0' | '1' | '2' | '3')
+const deadline = computed(() => deadlineTagView(props.task, t))
+const attachmentCount = computed(() => props.task.attachments?.length ?? 0)
 
 const moveItems = computed(() => props.moveTargets ?? (props.task.can_write
   ? props.stages.map((stage) => ({
@@ -68,51 +61,60 @@ function onCardKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <UCard
+  <div
     :data-testid="`board-card-${task.id}`"
     :data-task-id="task.id"
     :data-readonly="!task.can_write"
     role="button"
     tabindex="0"
-    :ui="{ body: 'space-y-2 px-3 py-3' }"
-    class="shrink-0 cursor-pointer gap-2 transition-colors hover:ring-brand-border"
+    class="group relative flex shrink-0 cursor-pointer flex-col gap-2 rounded-control border border-default bg-default p-3.5 transition duration-150 hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     @click="onCardClick"
     @keydown="onCardKeydown"
   >
-    <div class="flex items-start justify-between gap-2">
-      <p class="line-clamp-2 text-sm font-medium">{{ task.name }}</p>
+    <div class="flex items-center gap-2">
+      <span
+        v-bind="statusPillAttrs(PRIORITY_TONE[priority])"
+        class="justify-center"
+        style="width: 1.571rem; height: 1.571rem; padding: 0"
+        role="img"
+        :aria-label="t(PRIORITY_LABEL_KEY[priority])"
+        :title="t(PRIORITY_LABEL_KEY[priority])"
+        data-testid="card-priority"
+      ><UIcon name="i-lucide-flag" class="size-3.5" aria-hidden="true" /></span>
+      <SharedRecordNumber :value="`#${task.id}`" />
       <UDropdownMenu v-if="moveItems.length" :items="moveItems" :content="{ align: 'end' }">
         <UButton
           type="button"
           square
+          size="sm"
           color="neutral"
-          variant="outline"
-          icon="i-lucide-more-horizontal"
+          variant="ghost"
+          class="ms-auto rounded-full opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 motion-reduce:transition-none pointer-coarse:opacity-100"
+          icon="i-lucide-ellipsis"
           :aria-label="t('tasks.detail.menu')"
           @click.stop
         />
       </UDropdownMenu>
     </div>
 
-    <p v-if="showProject && task.project" class="truncate text-xs text-muted">{{ task.project.name }}</p>
+    <p class="line-clamp-2 text-sm font-semibold text-highlighted" :title="task.name">{{ task.name }}</p>
+    <p v-if="showProject && task.project" class="flex min-w-0 items-center gap-1 text-xs text-muted">
+      <UIcon name="i-lucide-folder" class="size-3.5 shrink-0" aria-hidden="true" /><span class="truncate">{{ task.project.name }}</span>
+    </p>
 
-    <div class="flex items-center justify-between gap-2 pt-1">
-      <div class="flex items-center gap-2">
-        <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(taskDaysRemaining(task), task.is_closed)" :label="deadlineLabel(taskDaysRemaining(task), t)" />
-        <UIcon
-          name="i-lucide-flag"
-          v-if="PRIORITY_TONE[task.priority]"
-          role="img"
-          :aria-hidden="false"
-          class="size-3.5"
-          :class="PRIORITY_TONE[task.priority]"
-          :aria-label="t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3'])"
-          :title="t(PRIORITY_LABEL_KEY[task.priority as '0' | '1' | '2' | '3'])"
-        />
-      </div>
-      <div class="flex">
-        <UAvatar v-for="a in task.assignees" :key="a.id" :text="initials(a.name)" class="-ms-2 size-6 border-2 border-default text-xs first:ms-0" />
+    <div v-if="subtaskProgress" class="grid gap-1" data-testid="card-subtasks">
+      <p class="flex items-center gap-1 text-xs text-muted tabular-nums"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ subtaskProgress.done }} / {{ subtaskProgress.total }}</p>
+      <div role="progressbar" :aria-label="t('tasks.card.subtasks')" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="subtaskProgress.percent" class="h-1 overflow-hidden rounded-full bg-(--ui-border-muted)">
+        <div class="h-full rounded-full bg-primary" :style="{ width: `${subtaskProgress.percent}%` }" />
       </div>
     </div>
-  </UCard>
+
+    <div class="flex min-h-7 items-center gap-2">
+      <SharedStatusBadge v-if="deadline" v-bind="deadline" data-testid="deadline-badge" size="sm" :aria-label="`${deadline.label} ${deadline.title ?? ''}`.trim()" />
+      <span v-if="attachmentCount > 0" class="flex items-center gap-1 text-xs text-muted tabular-nums" data-testid="card-attachments" :title="t('tasks.card.attachments')">
+        <UIcon name="i-lucide-paperclip" class="size-3.5" aria-hidden="true" />{{ attachmentCount }}
+      </span>
+      <SharedPersonAvatar v-if="task.assignees.length" class="ms-auto" :people="task.assignees" />
+    </div>
+  </div>
 </template>

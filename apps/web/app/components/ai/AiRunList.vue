@@ -129,7 +129,7 @@ const actionsOf = (run: AiRunSummary) => [
     >
       <div class="flex flex-col gap-2 p-3">
         <UButton to="/ai" block color="neutral" variant="soft" class="max-md:min-h-[44px]" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
-        <div role="group" :aria-label="t('ai.history.views.label')" class="grid grid-cols-2 gap-0.5 rounded-md bg-elevated/40 p-0.5 ring ring-default">
+        <div role="group" :aria-label="t('ai.history.views.label')" class="grid grid-cols-2 gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default">
           <UButton
             v-for="view in views"
             :key="view.testId"

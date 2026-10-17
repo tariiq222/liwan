@@ -42,4 +42,31 @@ export const EmbeddedInCardHeader: Story = {
     template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--webvue-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="status" multiple :items="items" :placeholder="t('projects.filters.allStatuses')" :aria-label="t('projects.filters.allStatuses')" class="w-full md:w-44" /></template></FilterBar></div></div></PageContainer></main>`,
   }),
 }
+export const EmbeddedTaskFilters: Story = {
+  name: 'مدمج: فلاتر المهام (الأولوية والمسؤول والموعد)',
+  args: { activeCount: 2 },
+  render: args => ({
+    components: { FilterBar, PageContainer },
+    setup() {
+      const { t } = useI18n()
+      const priority = ref(['3', '2'])
+      const assignee = ref('me')
+      const priorityItems = computed(() => ['3', '2', '1', '0'].map(value => ({ value, label: t(`tasks.priority.${value}`) })))
+      const assigneeItems = computed(() => [
+        { value: 'all', label: t('tasks.filters.assigneeAll') },
+        { value: 'me', label: t('tasks.filters.assigneeMe') },
+        { value: 'none', label: t('tasks.filters.assigneeNone') },
+      ])
+      const deadlineItems = computed(() => [
+        { value: 'all', label: t('tasks.filters.deadlineAll') },
+        { value: 'overdue', label: t('tasks.filters.deadlineOverdue') },
+        { value: 'today', label: t('tasks.deadline.today') },
+        { value: 'week', label: t('tasks.filters.deadlineWeek') },
+        { value: 'none', label: t('tasks.deadline.none') },
+      ])
+      return { args, t, priority, assignee, priorityItems, assigneeItems, deadlineItems, deadline: ref(undefined), search: ref('') }
+    },
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><div class="overflow-hidden rounded-card bg-default ring ring-default"><div class="border-b border-default px-(--webvue-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #search><UInput v-model="search" :placeholder="t('tasks.filters.search')" :aria-label="t('tasks.filters.search')" icon="i-lucide-search" class="w-full min-w-52" /></template><template #default><USelect v-model="priority" multiple icon="i-lucide-flag" :items="priorityItems" :placeholder="t('tasks.filters.priorityLabel')" :aria-label="t('tasks.filters.priorityLabel')" class="w-full md:w-40" /><USelect v-model="assignee" icon="i-lucide-user" :items="assigneeItems" :placeholder="t('tasks.filters.assigneeLabel')" :aria-label="t('tasks.filters.assigneeLabel')" class="w-full md:w-40" /><USelect v-model="deadline" icon="i-lucide-calendar-clock" :items="deadlineItems" :placeholder="t('tasks.filters.deadlineLabel')" :aria-label="t('tasks.filters.deadlineLabel')" class="w-full md:w-40" /></template></FilterBar></div></div></PageContainer></main>`,
+  }),
+}
 export const Disabled: Story = { name: 'معطّل', args: { disabled: true, activeCount: 1 } }

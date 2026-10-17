@@ -79,6 +79,21 @@
   .rounded-card, .rounded-control { corner-shape: superellipse(2); }
 }
 
+/* The embedded filter row (SharedFilterBar `embedded`, inside a list card) is pill-shaped end to end: the search input and
+   every select/dropdown trigger take the full pill, like the segmented groups beside them. Forms and panels keep 12px. */
+[data-variant="embedded"] .rounded-control {
+  border-radius: 9999px;
+  corner-shape: round;
+}
+/* Padding 14px, icon 16px, gap 8px: a leading or trailing icon sits in the 14px gutter and the text clears it by 8px. */
+[data-variant="embedded"] [data-slot="leading"] { padding-inline-start: 1rem; }
+[data-variant="embedded"] [data-slot="trailing"] { padding-inline-end: 1rem; }
+[data-variant="embedded"] [data-slot="leadingIcon"],
+[data-variant="embedded"] [data-slot="trailingIcon"] { width: 16px; height: 16px; flex-shrink: 0; }
+[data-variant="embedded"] .rounded-control { padding-inline: 1rem; }
+[data-variant="embedded"] .rounded-control[class*="ps-"] { padding-inline-start: 38px; }
+[data-variant="embedded"] .rounded-control[class*="pe-"] { padding-inline-end: 38px; }
+
 /* Semantic status surfaces: theme tokens, not ad-hoc Tailwind palettes. */
 .webvue-status-text-warning { color: var(--status-warning-foreground); }
 
@@ -388,3 +403,21 @@ html { caret-color: var(--brand-link); }
 .webvue-pill[data-interactive]:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .webvue-pill { transition: none; } }
 .webvue-pill [data-slot="leadingIcon"] { width: 0.929rem; height: 0.929rem; flex: none; }
+
+/* Thin scrollbars that stay out of the way (the board's columns and its horizontal scroll). */
+.webvue-thin-scroll { scrollbar-width: thin; scrollbar-color: var(--ui-border-accented) transparent; }
+/* A board column that is receiving a dragged card: primary tint and a dashed 1.5px primary border; the card's placeholder too. */
+.webvue-board-column:has(.webvue-card-ghost) { background-color: color-mix(in srgb, var(--primary) 6%, var(--ui-bg-elevated)); outline: 1.5px dashed var(--primary); outline-offset: -1.5px; }
+.webvue-card-ghost { opacity: 0.6; border-style: dashed; border-color: var(--primary); }
+
+/* The screen-sized list card (SharedListCard `fill`): docked under the floating header, as tall as the area below it. */
+.webvue-list-card-fill { display: flex; flex-direction: column; }
+@media (min-width: 768px) {
+  .webvue-list-card-fill {
+    position: sticky;
+    inset-block-start: var(--shell-top);
+    height: max(420px, calc(100svh - var(--shell-top) - var(--shell-inset)));
+    /* The main area pads 48px below the page; the docked card ends one shell inset above the viewport bottom instead. */
+    margin-block-end: calc(var(--shell-inset) - 48px);
+  }
+}

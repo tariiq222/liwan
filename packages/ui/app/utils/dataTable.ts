@@ -1,5 +1,38 @@
+import { h, type VNode } from 'vue'
 // Relative import: this module is unit-tested directly under plain vitest.
 import { ROW_SELECTOR } from '../composables/shortcuts/keymap'
+
+/** A server-side sort: `column` is the server's key for the column (see SharedDataTable's `sortKeys`). */
+export interface TableSort { column: string; direction: 'asc' | 'desc' }
+export type SortDirection = TableSort['direction'] | null
+
+/** Click order of a sortable header: ascending, descending, then none. */
+export function nextSortDirection(current: SortDirection): SortDirection {
+  return current === null ? 'asc' : current === 'asc' ? 'desc' : null
+}
+
+const ARIA_SORT = { asc: 'ascending', desc: 'descending' } as const
+
+/**
+ * Sets `aria-sort` on the header cells (UTable renders no such attribute): `states` is one entry per header cell,
+ * `undefined` for a column that is not sortable, which gets no attribute.
+ */
+export function markSortHeaders(root: ParentNode, states: readonly (SortDirection | undefined)[]): void {
+  const cells = Array.from(root.querySelectorAll<HTMLElement>('thead th'))
+  states.forEach((state, index) => {
+    const cell = cells[index]
+    if (!cell) return
+    if (state === undefined) cell.removeAttribute('aria-sort')
+    else cell.setAttribute('aria-sort', state === null ? 'none' : ARIA_SORT[state])
+  })
+}
+
+/** What a column's `header` renders to: a string or a render function of the header context. */
+export function headerContent(column: { columnDef: { header?: unknown } }, context: unknown): VNode {
+  const header = column.columnDef.header
+  const content = typeof header === 'function' ? (header as (ctx: unknown) => unknown)(context) : header
+  return typeof content === 'string' ? h('span', content) : (content as VNode | undefined) ?? h('span')
+}
 
 /** How SharedDataTable names a row: a field holding its id, or a function of the row. */
 export type RowKey<T> = keyof T | ((row: T) => string | number)

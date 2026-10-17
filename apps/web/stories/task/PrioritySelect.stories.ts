@@ -9,7 +9,7 @@ const meta = {
   title: 'Task/PrioritySelect',
   component: PrioritySelect,
   args: { task: makeTask() },
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:144', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px. التغيير يرسل PATCH إلى MSW.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:171', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px. التغيير يرسل PATCH إلى MSW.'),
   render: args => ({
     components: { PrioritySelect, StateMenu },
     setup: () => ({ task: useStoryTask(() => args.task) }),

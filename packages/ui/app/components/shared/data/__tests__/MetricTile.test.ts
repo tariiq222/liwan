@@ -21,6 +21,19 @@ describe('SharedMetricTile', () => {
     expect(html).toContain('py-3.5')
   })
 
+  it('draws a clamped progress bar in the tone colour, and none when undefined', async () => {
+    const half = await render({ density: 'compact', tone: 'success', progress: 50 })
+    expect(half).toContain('role="progressbar"')
+    expect(half).toContain('aria-valuenow="50"')
+    expect(half).toContain('aria-label="Overdue"')
+    expect(half).toContain('bg-success')
+    expect(half).toContain('width:50%')
+    expect(await render({ progress: 180 })).toContain('aria-valuenow="100"')
+    expect(await render({ progress: -5 })).toContain('aria-valuenow="0"')
+    expect(await render({ progress: Number.NaN })).not.toContain('progressbar')
+    expect(await render({})).not.toContain('progressbar')
+  })
+
   it('only the danger tone turns the figure red, and the tile has no border or tint of its own', async () => {
     const danger = await render({ density: 'compact', tone: 'danger' })
     expect(danger).toContain('text-status-danger-foreground')

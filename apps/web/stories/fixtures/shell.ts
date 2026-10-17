@@ -39,9 +39,26 @@ const settingsLinks: ShellContextLink[] = contextLinksForModule('settings', shel
   .map(link => ({ ...link, active: link.id === 'users', section: link.id === 'branding' ? 'settings.branding.title' : 'nav.systemAdministration' }))
 export const sectionedSidebar = { createLinks: [] as ShellContextLink[], sections: groupSections(settingsLinks), showNav: true }
 
+
+/** The quick views card as the shell hands it over: labels already translated (the tasks list). */
+export const quickViewItems = [
+  { id: 'assigned', label: 'المسندة إليّ', icon: 'i-lucide-user', to: '/tasks?assignee=me', active: false },
+  { id: 'today', label: 'اليوم', icon: 'i-lucide-sun', to: '/tasks?deadline=today', active: true },
+  { id: 'week', label: 'هذا الأسبوع', icon: 'i-lucide-calendar-range', to: '/tasks?deadline=week', active: false },
+  { id: 'overdue', label: 'المتأخرة', icon: 'i-lucide-circle-alert', to: '/tasks?deadline=overdue', active: false, count: 3 },
+  { id: 'urgent', label: 'عاجلة', icon: 'i-lucide-flame', to: '/tasks?priority=3', active: false },
+  { id: 'done', label: 'المنجزة', icon: 'i-lucide-circle-check', to: '/tasks?closed=1', active: false },
+]
+export const quickActionItems = [
+  { id: 'new-task-pmo', label: 'مهمة جديدة', icon: 'i-lucide-plus', to: '/tasks/new', primary: true },
+  { id: 'archived-tasks', label: 'المهام المؤرشفة', icon: 'i-lucide-archive', to: '/tasks?scope=archived' },
+]
+
 export const mobileDrawer = {
   modules: shellRail.all,
   activeId: 'projects',
   createLinks: projectsSidebar.createLinks,
   sections: projectsSidebar.sections,
+  quickViews: quickViewItems,
+  quickActions: quickActionItems,
 }

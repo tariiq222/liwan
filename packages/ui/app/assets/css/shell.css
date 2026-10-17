@@ -69,7 +69,7 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
   --shell-header-height: 56px;
   --shell-gap: 16px;
   --shell-top: calc(var(--shell-inset) + var(--shell-header-height) + var(--shell-gap));
-  --module-rail-width: 64px;
+  --module-rail-width: 76px;
   --context-sidebar-width: 230px;
   --context-sidebar-gap: var(--shell-inset);
   min-height: 100svh;
@@ -191,7 +191,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-module-rail-icon .webvue-shell-icon { width: 20px; height: 20px; }
 .webvue-module-rail-link:hover .webvue-module-rail-icon { background: var(--webvue-chip); }
 .webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon { background: var(--webvue-rail-active); }
-.webvue-module-rail-link[data-active="true"]::before { content: ''; position: absolute; inset-block: 12px; inset-inline-start: -6px; width: 4px; border-radius: 4px; background: var(--ui-primary); pointer-events: none; }
+.webvue-module-rail-link[data-active="true"]::before { content: ''; position: absolute; inset-block-start: 22px; inset-inline-start: -4px; width: 8px; height: 8px; border-radius: 9999px; background: var(--ui-primary); pointer-events: none; }
 .webvue-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 14px; }
 .webvue-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 12px; font-weight: inherit; line-height: 16px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 @media (forced-colors: active) {
@@ -199,8 +199,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-module-rail-link[data-active="true"]::before { forced-color-adjust: none; background: Highlight; }
 }
 
-/* Context sidebar: a white floating card beside the rail. */
-.webvue-context-sidebar {
+/* The column beside the rail: the context sidebar card, then the quick views card 12px under it. The cards hug their
+   content and the column never exceeds the viewport; a card taller than its share scrolls inside. */
+.webvue-context-column {
   position: fixed;
   inset-block-start: var(--shell-top);
   inset-inline-start: calc(var(--shell-inset) * 2 + var(--module-rail-width));
@@ -209,13 +210,22 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   width: var(--context-sidebar-width);
   max-height: calc(100svh - var(--shell-top) - var(--shell-inset));
   flex-direction: column;
+  gap: var(--shell-inset);
+  transition: width var(--shell-duration) var(--shell-ease);
+}
+/* Context sidebar: a white floating card beside the rail. */
+.webvue-context-sidebar {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 0 1 auto;
+  flex-direction: column;
   overflow: hidden;
   background: var(--context-surface);
   border: 1px solid var(--ui-border);
   border-radius: var(--radius-card);
   box-shadow: var(--webvue-shell-shadow);
   color: var(--ui-text);
-  transition: width var(--shell-duration) var(--shell-ease);
 }
 .webvue-context-enter-active, .webvue-context-leave-active { transition: opacity 120ms ease; }
 .webvue-context-enter-from, .webvue-context-leave-to { opacity: 0; }
@@ -233,8 +243,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-context-nav { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; gap: 12px; overflow-y: auto; padding: 0 8px 8px; }
 .webvue-context-section { display: grid; gap: 2px; }
 .webvue-context-section-title { margin: 0; padding: 4px 12px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
-.webvue-context-row { position: relative; display: flex; align-items: center; }
-.webvue-context-link {
+.webvue-context-row, .webvue-quick-row { position: relative; display: flex; align-items: center; }
+:is(.webvue-context-link, .webvue-quick-link) {
   position: relative;
   display: flex;
   width: 100%;
@@ -251,22 +261,47 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   text-decoration: none;
   transition: background-color var(--shell-duration) ease, color var(--shell-duration) ease;
 }
-.webvue-context-link:hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
-.webvue-context-chip { display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 9999px; background: var(--webvue-chip); color: var(--webvue-rail-ink); }
-.webvue-context-link[data-active="true"] .webvue-context-chip { background: var(--webvue-chip-active); color: var(--webvue-rail-active-ink); }
-.webvue-context-link[data-active="true"] { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); font-weight: 600; }
-.webvue-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
+:is(.webvue-context-link, .webvue-quick-link):hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
+:is(.webvue-context-chip, .webvue-quick-chip) { display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 9999px; background: var(--webvue-chip); color: var(--webvue-rail-ink); }
+:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] :is(.webvue-context-chip, .webvue-quick-chip) { background: var(--webvue-chip-active); color: var(--webvue-rail-active-ink); }
+:is(.webvue-context-link, .webvue-quick-link)[data-active="true"] { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); font-weight: 600; }
+:is(.webvue-context-link, .webvue-quick-link):focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 @media (forced-colors: active) {
-  .webvue-context-link[data-active="true"] { outline: 2px solid Highlight; }
+  :is(.webvue-context-link, .webvue-quick-link)[data-active="true"] { outline: 2px solid Highlight; }
 }
-.webvue-context-count { position: absolute; inset-inline-end: 12px; padding: 1px 8px; border-radius: 9999px; background: var(--ui-bg-elevated); color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
-.webvue-context-row:has(.webvue-context-count) .webvue-context-link { padding-inline-end: 52px; }
+:is(.webvue-context-count, .webvue-quick-count) { position: absolute; inset-inline-end: 12px; padding: 1px 8px; border-radius: 9999px; background: var(--ui-bg-elevated); color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
+:is(.webvue-context-row, .webvue-quick-row):has(:is(.webvue-context-count, .webvue-quick-count)) :is(.webvue-context-link, .webvue-quick-link) { padding-inline-end: 52px; }
 .webvue-context-panel { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.webvue-quick-views {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--context-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--webvue-shell-shadow);
+  color: var(--ui-text);
+}
+.webvue-quick-group { display: grid; gap: 2px; }
+.webvue-quick-divider { height: 0; margin: 4px 8px; border: 0; border-block-start: 1px solid var(--ui-border); }
+/* The create action reads as a link: the plus chip and the label take the brand link colour. */
+.webvue-quick-action[data-primary="true"] { color: var(--brand-link); font-weight: 600; }
+.webvue-quick-action[data-primary="true"] .webvue-quick-chip { background: var(--brand-soft); color: var(--brand-link); }
+/* In the mobile drawer the section is flat: no card, no fixed height. */
+.webvue-quick-views[data-surface="drawer"] { overflow: visible; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
 /* Collapsed: a 64px icon-only bar. Labels, counts, headings and create actions drop out; the toggle stays. */
 @media (min-width: 768px) {
   .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link { justify-content: center; padding-inline: 0; }
+  .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-count { display: none; }
+  .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link { justify-content: center; padding-inline: 0; }
+  .webvue-quick-views[data-surface="card"][data-expanded="false"] .webvue-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
@@ -318,7 +353,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
    (components.css .webvue-mobile-menu) carries modules and sections. */
 @media (max-width: 767px) {
   .webvue-shell { --module-rail-width: 0px; --context-sidebar-width: 0px; --context-sidebar-gap: 0px; }
-  .webvue-module-rail, .webvue-context-sidebar { display: none !important; }
+  .webvue-module-rail, .webvue-context-column { display: none !important; }
   .webvue-shell-header { gap: 4px; padding-inline: 4px 8px; }
   .webvue-mobile-menu-trigger { display: inline-flex; flex: none; }
   .webvue-shell-header-divider,
@@ -383,5 +418,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-context-sidebar[data-preference="auto"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-link { justify-content: center; padding-inline: 0; }
+  .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) .webvue-quick-views[data-surface="card"] .webvue-quick-count { display: none; }
+  .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) .webvue-quick-views[data-surface="card"] .webvue-quick-link { justify-content: center; padding-inline: 0; }
+  .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) .webvue-quick-views[data-surface="card"] .webvue-quick-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }

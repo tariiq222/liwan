@@ -6,7 +6,7 @@ import * as errorState from '../../../../utils/errorState'
 import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
 interface Row { id: number; name: string; manager: string }
-interface Column { id?: string; accessorKey?: string; header?: string }
+interface Column { id?: string; accessorKey?: string; header?: string; meta?: { sortable?: boolean } }
 const rows: Row[] = [{ id: 1, name: 'Alpha', manager: 'Sara' }, { id: 2, name: 'Portal', manager: 'Omar' }]
 const columns: Column[] = [{ accessorKey: 'name', header: 'Name' }, { accessorKey: 'manager', header: 'Manager' }]
 const slot = <P>(render: (props: P) => VNode) => render as (...args: unknown[]) => VNode
@@ -20,7 +20,7 @@ const TableStub = Vue.defineComponent({
     const id = (column: Column) => column.id ?? column.accessorKey!
     return () => h('table', [
       props.caption ? h('caption', props.caption) : null,
-      h('thead', h('tr', (props.columns as Column[]).map(column => h('th', slots[`${id(column)}-header`]?.({ table }) ?? column.header ?? '')))),
+      h('thead', h('tr', (props.columns as Column[]).map(column => h('th', slots[`${id(column)}-header`]?.({ table, column: { columnDef: { header: column.header } } }) ?? column.header ?? '')))),
       h('tbody', (props.data as Record<string, unknown>[]).map(original => h('tr', { 'data-slot': 'tr' }, (props.columns as Column[]).map(column => {
         const row = { original, getValue: (key: string) => original[key], getIsSelected: () => false, toggleSelected: () => {} }
         return h('td', slots[`${id(column)}-cell`]?.({ row }) ?? String(original[id(column)] ?? ''))
@@ -53,6 +53,51 @@ const options = (patch: SharedRenderOptions = {}): SharedRenderOptions => ({
 const render = (props: Record<string, unknown>, slots: Record<string, (...args: unknown[]) => VNode> = {}, patch?: SharedRenderOptions) =>
   renderShared('DataTable', { rows, columns, rowKey: 'id', ...props }, slots, options(patch))
 
+describe('SharedDataTable sorting', () => {
+  const sortable: Column[] = [{ accessorKey: 'name', header: 'Name', meta: { sortable: true } }, { accessorKey: 'manager', header: 'Manager' }]
+
+  it('renders a sortable header as a button and leaves the others plain text', async () => {
+    const html = await render({ columns: sortable })
+    expect(html.match(/data-slot="sort-button"/g)).toHaveLength(1)
+    expect(html).toMatch(/<button[^>]*data-slot="sort-button"[^>]*data-sort="none"[^>]*>[\s\S]*Name[\s\S]*states.sortNone/)
+    expect(html).toContain('<th>Manager</th>')
+  })
+
+  it('shows the active direction from `sort`, keyed through sortKeys', async () => {
+    const asc = await render({ columns: sortable, sort: { column: 'project_name', direction: 'asc' }, sortKeys: { name: 'project_name' } })
+    expect(asc).toContain('data-sort="asc"')
+    expect(asc).toContain('i-lucide-chevron-up')
+    expect(asc).toContain('states.sortAscending')
+    const desc = await render({ columns: sortable, sort: { column: 'name', direction: 'desc' } })
+    expect(desc).toContain('data-sort="desc"')
+    expect(desc).toContain('i-lucide-chevron-down')
+    const other = await render({ columns: sortable, sort: { column: 'manager', direction: 'asc' } })
+    expect(other).toContain('data-sort="none"')
+    expect(other).toContain('i-lucide-chevrons-up-down')
+  })
+
+  it('keeps the sort buttons disabled until hydrated and adds none on the phone rows', async () => {
+    const html = await render({ columns: sortable }, { 'mobile-row': slot<{ row: Row }>(({ row }) => h('span', row.name)) }, { hydrated: false })
+    expect(html).toMatch(/data-slot="sort-button"[^>]*disabled/)
+    expect(html.slice(html.indexOf('<ul'))).not.toContain('sort-button')
+  })
+})
+
+describe('sort helpers', () => {
+  it('cycles ascending, descending, none', () => {
+    expect(dataTable.nextSortDirection(null)).toBe('asc')
+    expect(dataTable.nextSortDirection('asc')).toBe('desc')
+    expect(dataTable.nextSortDirection('desc')).toBeNull()
+  })
+
+  it('sets aria-sort per header cell and none on unsortable ones', () => {
+    const cells = [0, 1, 2].map(() => { const attrs: Record<string, string> = {}; return { attrs, setAttribute: (k: string, v: string) => { attrs[k] = v }, removeAttribute: (k: string) => { delete attrs[k] } } })
+    cells[2]!.attrs['aria-sort'] = 'stale'
+    dataTable.markSortHeaders({ querySelectorAll: () => cells } as unknown as ParentNode, ['asc', null, undefined])
+    expect(cells.map(cell => cell.attrs['aria-sort'])).toEqual(['ascending', 'none', undefined])
+  })
+})
+
 describe('SharedDataTable', () => {
   it('renders filters, the table, marked mobile rows and pagination', async () => {
     const html = await render({ page: 1, pages: 3, caption: 'Projects' }, {
@@ -70,18 +115,18 @@ describe('SharedDataTable', () => {
     expect(html).toMatch(/data-ui-list="[^"]*flex-wrap/)
   })
 
-  it('embeds the filters in the card header and shows the footer under the table', async () => {
-    const html = await render({ embeddedFilters: true }, { filters: () => h('input', { 'aria-label': 'Search' }), footer: () => h('span', 'Of 2 results') })
-    expect(html).toContain('data-embedded-filters')
-    expect(html).toContain('border-b border-default')
-    expect(html).toContain('data-slot="data-table-footer"')
-    expect(html.indexOf('data-slot="data-table-filters"')).toBeLessThan(html.indexOf('<table'))
-    expect(html.indexOf('<table')).toBeLessThan(html.indexOf('Of 2 results'))
+  it('draws its own card unless bare, and shows the footer under the table', async () => {
+    const own = await render({}, { footer: () => h('span', 'Of 2 results') })
+    expect(own).toContain('rounded-card')
+    expect(own).toContain('data-slot="data-table-footer"')
+    expect(own.indexOf('<table')).toBeLessThan(own.indexOf('Of 2 results'))
+    const bare = await render({ bare: true }, { footer: () => h('span', 'Of 2 results') })
+    expect(bare).not.toContain('rounded-card')
+    expect(bare).toContain('data-slot="data-table-footer"')
   })
 
-  it('keeps the embedded filters when the table is empty', async () => {
-    const html = await render({ embeddedFilters: true, rows: [] }, { filters: () => h('input', { 'aria-label': 'Search' }), footer: () => h('span', 'Of 0 results') })
-    expect(html).toContain('aria-label="Search"')
+  it('shows no footer when the table is empty', async () => {
+    const html = await render({ bare: true, rows: [] }, { footer: () => h('span', 'Of 0 results') })
     expect(html).not.toContain('data-slot="data-table-footer"')
   })
 

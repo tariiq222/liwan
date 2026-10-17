@@ -31,6 +31,8 @@ const isListRoute = computed(() => {
 // Only ever evaluated inside the v-else of the not-found branch below, which
 // is what rules out a null projectId here.
 const params = computed<TaskListParams>(() => projectTaskParams(projectId.value!, route.query))
+// The board has no columns to sort, so it queries without the URL's sort.
+const boardParams = computed<TaskListParams>(() => ({ ...params.value, sort: undefined }))
 const stageSource = computed(() => ({ kind: 'project' as const, stages: project.value?.stages ?? [] }))
 const canCreate = computed(() => can('pmo.tasks.create') && project.value?.active === true)
 
@@ -109,21 +111,18 @@ function openCreate() {
       :create-label="t('tasks.new')"
       create-test-id="project-header-create"
       :views="views"
+      views-in-filters
     >
-      <template v-if="isBoard" #filters>
-        <TaskToolbar :model-value="params" hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" />
-      </template>
       <section class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
-        <TaskKpiStrip :params="params" />
-        <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate">
-          <template #filters><TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" /></template>
-        </TaskTable>
-        <div v-else class="overflow-hidden rounded-card bg-default ring ring-default">
-          <TaskBoard :params="params" :stage-source="stageSource" embedded @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
-        </div>
         <div class="flex justify-end">
           <NuxtLink :to="{ path: '/tasks', query: { scope: 'archived', project_id: projectId, returnTo: route.fullPath } }" class="text-sm text-muted hover:underline">{{ t('taskLifecycle.archivedTasks') }}</NuxtLink>
         </div>
+        <TaskKpiStrip :params="params" />
+        <SharedListCard :fill="isBoard">
+          <template #filters><TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" /></template>
+          <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />
+          <TaskBoard v-else :params="boardParams" :stage-source="stageSource" @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
+        </SharedListCard>
       </section>
     </SharedListPage>
   </template>

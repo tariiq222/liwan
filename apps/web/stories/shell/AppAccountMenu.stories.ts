@@ -13,6 +13,6 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   name: 'الحساب',
-  parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:90'),
+  parameters: storyContext('apps/web/app/components/shell/ShellHeader.vue:94'),
   render: () => ({ components: { AppAccountMenu }, template: '<div class="webvue-shell-header-actions"><AppAccountMenu /></div>' }),
 }

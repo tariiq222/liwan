@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useEventListener, useMediaQuery } from '@vueuse/core'
 import ModuleRail from '@webvue/ui/app/components/shell/ModuleRail.vue'
+import ShellQuickViews from '@webvue/ui/app/components/shell/ShellQuickViews.vue'
 import ContextSidebar from './ContextSidebar.vue'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellModel } from '@/composables/useShellModel'
+import { useQuickViews } from '@/composables/useQuickViews'
 import { sidebarModel } from '@/composables/nav/sidebarModel'
 import { isSidebarToggleShortcut } from '@/composables/nav/sidebarShortcut'
 import { overlayOwnsEscape } from '@webvue/ui/app/composables/useEscapeBack'
@@ -13,6 +15,8 @@ import { hasNoContextSidebar } from './noContextRoutes'
 const route = useRoute()
 const showContext = computed(() => !hasNoContextSidebar(route.path))
 const { me } = useMe()
+const { t } = useI18n()
+const quick = useQuickViews()
 const { activeModule, rail, homePath, contextTitle, contextLabelKey, contextLinks, panel, panelView, motionKey, projectId, project, createTo } = useShellModel()
 const { expanded, hydrated, toggle, preference } = useContextSidebar()
 const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
@@ -44,20 +48,29 @@ watch([() => route.fullPath, () => project.data.value, () => me.value, hydrated]
 
 <template>
   <ModuleRail :modules="rail.primary" :utility="rail.utility" :active-id="activeModule" :home-to="homePath" />
-  <ContextSidebar
-    v-if="showContext"
-    :title="contextTitle"
-    :create-links="createLinks"
-    :sections="model.sections"
-    :show-nav="model.showNav"
-    :counts="counts"
-    :expanded="expanded"
-    :preference="preference"
-    :hydrated="hydrated"
-    :panel="panelView"
-    :render-panel="isDesktop"
-    :panel-width="panel?.width ?? 'default'"
-    :motion-key="motionKey"
-    @toggle="toggle"
-  />
+  <div v-if="showContext" class="webvue-context-column">
+    <ContextSidebar
+      :title="contextTitle"
+      :create-links="createLinks"
+      :sections="model.sections"
+      :show-nav="model.showNav"
+      :counts="counts"
+      :expanded="expanded"
+      :preference="preference"
+      :hydrated="hydrated"
+      :panel="panelView"
+      :render-panel="isDesktop"
+      :panel-width="panel?.width ?? 'default'"
+      :motion-key="motionKey"
+      @toggle="toggle"
+    />
+    <ShellQuickViews
+      :label="t('nav.quickViews')"
+      :views-label="t('nav.quickViewsList')"
+      :actions-label="t('nav.quickActionsList')"
+      :views="quick.views.value"
+      :actions="quick.actions.value"
+      :collapsed="!expanded"
+    />
+  </div>
 </template>

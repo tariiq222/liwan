@@ -9,7 +9,7 @@ const hydrated = useHydrated()
 </script>
 
 <template>
-  <div role="group" data-slot="view-switch" class="inline-flex items-center gap-0.5 rounded-md bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('states.view')">
+  <div role="group" data-slot="view-switch" class="inline-flex items-center gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('states.view')">
     <UTooltip v-for="option in props.options" :key="option.value" :text="option.label">
       <UButton
         type="button"

@@ -2,9 +2,10 @@
 import type { SlideoverProps } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
+import ShellQuickViews from '@webvue/ui/app/components/shell/ShellQuickViews.vue'
 import SidebarCreateAction from '@/components/shell/SidebarCreateAction.vue'
 import type { ShellContextLink } from '@/composables/nav/shellModules'
-import type { ShellRailItem } from '@webvue/ui/app/types/shell'
+import type { ShellQuickItem, ShellRailItem } from '@webvue/ui/app/types/shell'
 import type { ShellContextSection } from '@/composables/nav/sidebarModel'
 
 // The one mobile drawer (< 768px): modules, then the current module's create
@@ -15,6 +16,8 @@ const props = defineProps<{
   title: string
   createLinks: ShellContextLink[]
   sections: ShellContextSection[]
+  quickViews: ShellQuickItem[]
+  quickActions: ShellQuickItem[]
 }>()
 const open = defineModel<boolean>('open', { default: false })
 const { t, te, localeProperties } = useI18n()
@@ -31,6 +34,10 @@ watch(() => route.fullPath, () => { open.value = false })
 
 function closeIfCurrent(to: RouteLocationRaw) {
   if (router.resolve(to).fullPath === route.fullPath) open.value = false
+}
+
+function onQuickActivate(item: ShellQuickItem) {
+  closeIfCurrent(item.to)
 }
 
 function onModuleActivate(item: ShellRailItem) {
@@ -122,6 +129,21 @@ function onModuleActivate(item: ShellRailItem) {
           </UButton>
         </template>
       </nav>
+      <template v-if="props.quickViews.length || props.quickActions.length">
+        <USeparator class="my-4" />
+        <h2 class="webvue-mobile-title">{{ t('nav.quickViews') }}</h2>
+        <ShellQuickViews
+          surface="drawer"
+          test-id-prefix="mobile-"
+          :label="t('nav.quickViews')"
+          :views-label="t('nav.quickViewsList')"
+          :actions-label="t('nav.quickActionsList')"
+          :views="props.quickViews"
+          :actions="props.quickActions"
+          :collapsed="false"
+          @navigate="onQuickActivate"
+        />
+      </template>
     </template>
   </USlideover>
 </template>

@@ -19,13 +19,13 @@ type Story = StoryObj<typeof meta>
 const render = (titleKey: string) => (args: Story['args']) => ({
   components: { ContextSidebar },
   setup: () => ({ args, t: useI18n().t }),
-  template: `<div class="webvue-shell min-h-svh"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div>`,
+  template: `<div class="webvue-shell min-h-svh"><div class="webvue-context-column"><ContextSidebar v-bind="args" :title="t('${titleKey}')" /></div></div>`,
 })
 
-export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:47'), render: render('nav.projects') }
+export const Projects: Story = { name: 'المشاريع مع عدّاد', parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:52'), render: render('nav.projects') }
 export const WithSections: Story = {
   name: 'أقسام بعناوين',
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:47'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:52'),
   args: { createLinks: sectionedSidebar.createLinks, sections: sectionedSidebar.sections, counts: {} },
   render: render('nav.settings'),
 }

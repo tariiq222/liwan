@@ -1,5 +1,13 @@
 {
   "tasks": {
+    "quickViews": {
+      "assigned": "المسندة إليّ",
+      "today": "اليوم",
+      "week": "هذا الأسبوع",
+      "overdue": "المتأخرة",
+      "urgent": "عاجلة",
+      "done": "المنجزة"
+    },
     "title": "مهام المشاريع المسندة إليّ",
     "description": "تابع المهام المسندة إليك، حالتها، ومواعيدها من مكان واحد.",
     "table": "جدول",
@@ -31,7 +39,20 @@
       "stateLabel": "الحالة",
       "projectLabel": "المشروع",
       "search": "بحث في العناوين…",
+      "chip": "{label}: {value}",
+      "priorityLabel": "الأولوية",
+      "selectedPriorities": "لا أولويات | أولوية واحدة | أولويتان | {count} أولويات | {count} أولوية | {count} أولوية",
+      "assigneeLabel": "المسؤول",
+      "assigneeAll": "الكل",
+      "assigneeMe": "أنا",
+      "assigneeNone": "غير مسندة",
+      "assigneePerson": "شخص محدد",
+      "deadlineLabel": "الموعد",
+      "deadlineAll": "الكل",
+      "deadlineOverdue": "متأخرة",
+      "deadlineWeek": "هذا الأسبوع",
       "searchValue": "بحث: {value}",
+      "clearSearch": "مسح البحث",
       "clear": "مسح الفلاتر"
     },
     "empty": {
@@ -225,11 +246,16 @@
       "open": "المهام المفتوحة",
       "overdue": "المهام المتأخرة",
       "done": "المهام المنجزة",
-      "percentOfTotal": "{percent}٪ من الإجمالي"
+      "percentOfTotal": "{percent}٪ من الإجمالي",
+      "percentDone": "{percent}٪ منجزة"
     },
     "footer": {
       "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة"
     },
-    "descriptionHint": "الوصف"
+    "descriptionHint": "الوصف",
+    "card": {
+      "subtasks": "المهام الفرعية",
+      "attachments": "المرفقات"
+    }
   }
 }

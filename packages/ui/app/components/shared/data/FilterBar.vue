@@ -21,7 +21,10 @@
         <div data-slot="controls" class="flex min-w-0 flex-wrap items-start gap-x-6 gap-y-3 md:contents"><slot /></div>
       </div>
       <UButton v-if="activeCount > 0" type="button" color="neutral" variant="ghost" icon="i-lucide-rotate-ccw" :label="resolvedClearLabel" :aria-label="resolvedClearLabel" :title="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')" />
-      <div v-if="$slots.view" data-slot="view" class="ms-auto flex flex-wrap items-center gap-2"><slot name="view" /></div>
+      <div v-if="$slots.view || listView?.view.value" data-slot="view" class="ms-auto flex flex-wrap items-center gap-2">
+        <slot name="view" />
+        <ViewSwitch v-if="listView?.view.value" :model-value="listView.view.value" :options="[...listView.options]" @update:model-value="listView.setView" />
+      </div>
       <div v-if="$slots.actions" data-slot="filter-actions" class="flex shrink-0 flex-wrap items-center gap-2"><slot name="actions" /></div>
     </div>
     <div v-if="activeCount > 0 && $slots.active" data-slot="active-row" class="flex flex-wrap items-center gap-2 text-xs text-muted"><slot name="active" /></div>
@@ -45,11 +48,14 @@
 </template>
 
 <script setup lang="ts">
+import { LIST_VIEW_KEY } from '../../../utils/listView'
+import ViewSwitch from './ViewSwitch.vue'
 // The one list toolbar (DESIGN.md §6): a visible search, then a trigger that shows the
 // filter fields under the bar (Esc closes them and returns focus), a count and a clear
 // action. `inline` lays every control in one row for embedded toolbars. `embedded` is the toolbar of a card
 // header (DataTable `embedded-filters`): the search, the fields (compact dropdowns), the clear action and the view
-// in one calm row from md up; on phones the fields keep the collapsible panel.
+// in one calm row from md up; on phones the fields keep the collapsible panel. Inside a SharedListPage with
+// `viewsInFilters` it also draws the page's view switch at the end of the row.
 const props = withDefaults(defineProps<{
   inline?: boolean
   embedded?: boolean
@@ -64,6 +70,7 @@ const props = withDefaults(defineProps<{
   defaultOpen: false,
 })
 defineEmits<{ clear: [] }>()
+const listView = inject(LIST_VIEW_KEY, null)
 const { t } = useI18n()
 const hydrated = useHydrated()
 const expanded = ref(props.defaultOpen)

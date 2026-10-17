@@ -103,7 +103,7 @@ function toggle(node: DepartmentTreeNode) {
       </UButton>
       <div
         v-if="canManage || canReadEmployees || canReadDocuments"
-        class="ms-auto flex min-w-0 shrink-0 items-center gap-0.5 rounded-md border border-default bg-elevated p-0.5 max-sm:basis-full max-sm:justify-end"
+        class="ms-auto flex min-w-0 shrink-0 items-center gap-0.5 rounded-full border border-default bg-elevated p-0.5 max-sm:basis-full max-sm:justify-end"
         role="group"
         :aria-label="node.department.name"
       >

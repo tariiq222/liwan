@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Task } from '@webvue/contracts'
 import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
-import { PRIORITY_LABEL_KEY } from '@/composables/taskState'
+import { PRIORITY_LABEL_KEY, PRIORITY_TONE } from '@/composables/taskState'
 import { useUpdateTask } from '@/composables/useTasks'
 
 // Ruling: priority has four values, so this is a compact Select (not the
@@ -20,10 +20,10 @@ const hydrated = useHydrated()
 
 const PRIORITIES = ['0', '1', '2', '3'] as const
 const BADGE = {
-  '0': { icon: 'i-lucide-minus', tone: 'neutral' },
-  '1': { icon: 'i-lucide-chevron-up', tone: 'info' },
-  '2': { icon: 'i-lucide-chevrons-up', tone: 'warning' },
-  '3': { icon: 'i-lucide-flame', tone: 'destructive' },
+  '0': { icon: 'i-lucide-minus', tone: PRIORITY_TONE['0'] },
+  '1': { icon: 'i-lucide-chevron-up', tone: PRIORITY_TONE['1'] },
+  '2': { icon: 'i-lucide-chevrons-up', tone: PRIORITY_TONE['2'] },
+  '3': { icon: 'i-lucide-flame', tone: PRIORITY_TONE['3'] },
 } as const
 
 const items = computed(() => PRIORITIES.map((p) => ({ label: t(PRIORITY_LABEL_KEY[p]), value: p })))

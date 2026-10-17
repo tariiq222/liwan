@@ -57,6 +57,13 @@ describe('SharedListPage', () => {
     expect(html).toMatch(/<button[^>]*aria-label="Table view"[^>]*aria-pressed="false"/)
   })
 
+  it('viewsInFilters leaves the switch to the embedded filter bar', async () => {
+    const html = await renderShared('ListPage', { title: 'Tasks', views, viewsInFilters: true }, showView, options({ view: 'board' }))
+    expect(html).toContain('view:board')
+    expect(html).not.toContain('aria-label="Board view"')
+    expect(html).not.toContain('list-page-toolbar')
+  })
+
   it('falls back to the first view for a query value the list does not offer', async () => {
     expect(await renderShared('ListPage', { title: 'Tasks', views }, showView, options({ view: 'gantt' }))).toContain('view:table')
   })

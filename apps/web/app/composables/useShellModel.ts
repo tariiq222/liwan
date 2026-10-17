@@ -36,7 +36,7 @@ export function useShellModel() {
   const panelComponent = computed(() => panel.value ? panelView(panel.value) : null)
   const motionKey = computed(() => `module:${contextModule.value ?? 'none'}`)
 
-  function createTo(link: ShellContextLink): RouteLocationRaw {
+  function createTo(link: Pick<ShellContextLink, 'id' | 'to'>): RouteLocationRaw {
     return createLinkTo(link, { path: route.path, fullPath: route.fullPath, query: route.query, params: route.params })
   }
 

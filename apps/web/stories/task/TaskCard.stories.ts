@@ -11,6 +11,15 @@ const tasks = [
   makeTask({ id: 103, name: 'تحديث سجل المخاطر', state: 'done', is_closed: true, priority: '0', date_deadline: null, days_remaining: null, assignees: [{ id: 9, name: 'محمد العتيبي' }], allowed_transitions: [] }),
 ]
 
+// The board's list payload carries no subtasks or attachments; a task detail does, and the card then shows both rows.
+const subtask = (id: number, state: 'in_progress' | 'done' | 'cancelled') => makeTask({ id, name: `مهمة فرعية ${id}`, state, is_closed: state !== 'in_progress' })
+const richTask = {
+  ...makeTask({ id: 104, name: 'إعداد خطة الإطلاق التجريبي وتنسيق الفرق المعنية قبل نهاية الأسبوع', priority: '3', date_deadline: '2026-09-10', days_remaining: -3, is_overdue: true, assignees: [{ id: 2, name: 'Admin' }, { id: 7, name: 'سارة القحطاني' }, { id: 9, name: 'محمد العتيبي' }, { id: 11, name: 'فاطمة الزهراني' }] }),
+  subtasks: [subtask(201, 'done'), subtask(202, 'done'), subtask(203, 'cancelled'), subtask(204, 'in_progress')],
+  attachments: [{ id: 1, name: 'a.pdf', mimetype: 'application/pdf', url: '/web/content/1' }, { id: 2, name: 'b.png', mimetype: 'image/png', url: '/web/content/2' }],
+}
+const noDeadline = makeTask({ id: 105, name: 'مهمة بلا موعد', priority: '0', date_deadline: null, days_remaining: null, assignees: [] })
+
 const meta = {
   title: 'Task/TaskCard',
   component: TaskCard,
@@ -30,3 +39,12 @@ export const InBoardColumn: Story = {
 }
 
 export const ProjectBoard: Story = { ...InBoardColumn, name: 'في لوحة المشروع (بلا اسم المشروع)', args: { showProject: false } }
+
+export const RichCard: Story = {
+  name: 'بطاقة غنية (فرعية ومرفقات وكومة مسؤولين)',
+  render: args => ({
+    components: { TaskCard },
+    setup: () => ({ args, richTask, noDeadline }),
+    template: '<div class="flex w-[21.4286rem] flex-col gap-2.5 rounded-card bg-muted p-2.5"><TaskCard :task="richTask" :stages="args.stages" :current-stage-id="args.currentStageId" /><TaskCard :task="noDeadline" :stages="args.stages" :show-project="false" /></div>',
+  }),
+}

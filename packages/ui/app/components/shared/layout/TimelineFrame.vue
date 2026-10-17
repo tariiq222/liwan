@@ -39,7 +39,7 @@ function pick(value: string) {
           <UIcon name="i-lucide-chevron-right" class="size-4.5 rtl:-scale-x-100" aria-hidden="true" />
         </UButton>
       </div>
-      <div v-if="props.scales?.length" role="group" :aria-label="t('states.scale')" data-testid="timeline-scale" class="inline-flex items-center gap-0.5 rounded-md bg-default p-0.5 ring ring-default">
+      <div v-if="props.scales?.length" role="group" :aria-label="t('states.scale')" data-testid="timeline-scale" class="inline-flex items-center gap-0.5 rounded-full bg-default p-0.5 ring ring-default">
         <UButton
           v-for="option in props.scales"
           :key="option.value"

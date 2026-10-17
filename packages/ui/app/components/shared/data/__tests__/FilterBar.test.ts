@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import * as Vue from 'vue'
 import { h } from 'vue'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -30,6 +31,11 @@ describe('FilterBar', () => {
     expect(html).toContain('md:contents!')
     expect(html).toContain('aria-expanded="false"')
     for (const text of ['Task search', 'Task states', 'Done', 'Selected state']) expect(html.split(text)).toHaveLength(2)
+  })
+  it('embedded draws the list page view switch at the end of the row when one is provided', async () => {
+    const withSwitch = await renderFilter('FilterBar', { embedded: true }, { search: () => h('input') }, true, { view: Vue.computed(() => 'table'), options: [{ value: 'table', label: 'Table', icon: 'x' }], setView: () => {} })
+    expect(withSwitch).toContain('data-slot="view-switch"')
+    expect(await renderFilter('FilterBar', { embedded: true }, { search: () => h('input') })).not.toContain('view-switch')
   })
   it('disables the inline clear action until hydration', async () => {
     expect(await renderFilter('FilterBar', { inline: true, activeCount: 1 }, {}, false)).toMatch(/<button\b[^>]*disabled/)

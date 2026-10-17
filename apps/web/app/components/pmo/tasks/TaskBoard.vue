@@ -16,9 +16,8 @@ function isBoardCapped(loadedCount: number, cap: number, hasNextPage: boolean): 
   return loadedCount > cap || (loadedCount >= cap && hasNextPage)
 }
 
-const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource; embedded?: boolean }>(), {
+const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource }>(), {
   stageSource: () => ({ kind: 'personal' }),
-  embedded: false,
 })
 const emit = defineEmits<{ open: [id: number] }>()
 
@@ -197,9 +196,9 @@ function dropGroup(lane: Lane) {
 </script>
 
 <template>
-  <div :class="embedded ? 'space-y-2 p-4' : 'rounded-card ring ring-default bg-default overflow-hidden space-y-2 p-4'">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <div role="group" data-testid="board-grouping" class="inline-flex items-center gap-0.5 rounded-md bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.kanban.groupBy')">
+  <div class="flex min-h-0 flex-1 flex-col gap-2 p-4">
+    <div class="flex flex-none flex-wrap items-center justify-between gap-2">
+      <div role="group" data-testid="board-grouping" class="inline-flex items-center gap-0.5 rounded-full bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.kanban.groupBy')">
         <UButton
           v-for="option in groupingOptions"
           :key="option.value"
@@ -218,12 +217,10 @@ function dropGroup(lane: Lane) {
     <SharedPageState v-else-if="stageError" :error="stageError" @retry="refetchPersonalStages" />
     <SharedPageState v-else-if="isLoading || stageLoading" loading />
     <!--
-      A fixed board height with per-column vertical scroll (rather than
-      letting the whole page grow with the tallest column) keeps every
-      column's header and drop target reachable regardless of how many
-      cards a column holds - the board only scrolls horizontally, per spec.
+      The board fills the list card (SharedListCard `fill`, screen-sized): it scrolls horizontally, and each column
+      scrolls vertically inside itself, so a column's header and drop target stay reachable whatever its card count.
     -->
-    <div v-else class="flex min-h-105 items-start gap-3 overflow-x-auto pb-2" :class="embedded ? 'h-[calc(100vh-340px)]' : 'h-[calc(100vh-260px)]'">
+    <div v-else class="webvue-thin-scroll flex min-h-105 flex-1 items-stretch gap-3 overflow-x-auto pb-2">
       <template v-for="lane in lanes" :key="lane.key">
         <!-- Collapsed folded column: name + count, expands on click. -->
         <UButton
@@ -235,7 +232,7 @@ function dropGroup(lane: Lane) {
           :data-stage-id="lane.key"
           :aria-expanded="false"
           :aria-label="t('tasks.kanban.expand', { name: lane.title })"
-          class="flex h-full w-12 shrink-0 flex-col items-center gap-2 rounded-control border border-default bg-elevated/30 p-2 text-muted hover:bg-elevated"
+          class="flex w-12 shrink-0 flex-col items-center gap-2 rounded-card bg-elevated p-2 text-muted hover:bg-elevated"
           @click="toggleFold(lane.stage!.id)"
         >
           <span data-testid="board-column-count" class="text-xs font-medium">{{ countOf(lane.key) }}</span>
@@ -246,9 +243,9 @@ function dropGroup(lane: Lane) {
           v-else
           data-testid="board-column"
           :data-stage-id="lane.key"
-          class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-control border border-default bg-elevated/30 p-2"
+          class="webvue-board-column flex w-[21.4286rem] shrink-0 flex-col gap-2.5 rounded-card bg-elevated p-2.5"
         >
-          <div class="flex items-center justify-between px-1">
+          <div class="sticky top-0 z-10 flex items-center gap-2 px-1 pb-0.5">
             <UButton
               v-if="lane.stage?.fold"
               type="button"
@@ -263,14 +260,15 @@ function dropGroup(lane: Lane) {
               {{ lane.title }}
             </UButton>
             <h3 v-else-if="lane.state" data-testid="board-column-title" class="text-sm font-medium"><SharedStatusBadge v-bind="stateBadge(lane.state)" /></h3>
-            <h3 v-else data-testid="board-column-title" class="text-sm font-medium" :class="lane.unstaged && 'text-muted'">{{ lane.title }}</h3>
-            <span class="text-xs text-muted">{{ countOf(lane.key) }}</span>
+            <h3 v-else data-testid="board-column-title" class="text-sm font-medium"><SharedStatusBadge tone="neutral" :label="lane.title" :class="lane.unstaged && 'text-muted'" /></h3>
+            <span class="text-xs text-muted tabular-nums">{{ countOf(lane.key) }}</span>
           </div>
           <VueDraggable
             v-model="columns[lane.key]!"
-            class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"
+            class="webvue-thin-scroll flex min-h-16 flex-1 flex-col gap-2.5 overflow-y-auto max-md:max-h-[70svh]"
             :group="dropGroup(lane)"
             :animation="150"
+            ghost-class="webvue-card-ghost"
             filter="[data-readonly=true]"
             @add="(e: any) => onColumnAdd(e, lane)"
           >

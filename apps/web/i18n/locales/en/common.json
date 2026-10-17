@@ -16,6 +16,9 @@
     "empty": "No workspaces are currently available for your account."
   },
   "nav": {
+    "quickViews": "Quick views and actions",
+    "quickViewsList": "Quick views",
+    "quickActionsList": "Page actions",
     "today": "Today",
     "tasks": "Assigned project tasks",
     "projects": "Projects",

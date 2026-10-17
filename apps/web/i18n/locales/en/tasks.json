@@ -1,5 +1,13 @@
 {
   "tasks": {
+    "quickViews": {
+      "assigned": "Assigned to me",
+      "today": "Today",
+      "week": "This week",
+      "overdue": "Overdue",
+      "urgent": "Urgent",
+      "done": "Completed"
+    },
     "title": "Assigned project tasks",
     "description": "Track assigned tasks, status, and deadlines in one place.",
     "table": "Table",
@@ -31,7 +39,20 @@
       "stateLabel": "State",
       "projectLabel": "Project",
       "search": "Search titles…",
+      "chip": "{label}: {value}",
+      "priorityLabel": "Priority",
+      "selectedPriorities": "{count} priority | {count} priorities",
+      "assigneeLabel": "Assignee",
+      "assigneeAll": "All",
+      "assigneeMe": "Me",
+      "assigneeNone": "Unassigned",
+      "assigneePerson": "Specific person",
+      "deadlineLabel": "Deadline",
+      "deadlineAll": "All",
+      "deadlineOverdue": "Overdue",
+      "deadlineWeek": "This week",
       "searchValue": "Search: {value}",
+      "clearSearch": "Clear search",
       "clear": "Clear filters"
     },
     "empty": {
@@ -225,11 +246,16 @@
       "open": "Open tasks",
       "overdue": "Overdue tasks",
       "done": "Done tasks",
-      "percentOfTotal": "{percent}% of total"
+      "percentOfTotal": "{percent}% of total",
+      "percentDone": "{percent}% done"
     },
     "footer": {
       "results": "{shown} of 1 result | {shown} of {total} results"
     },
-    "descriptionHint": "Description"
+    "descriptionHint": "Description",
+    "card": {
+      "subtasks": "Subtasks",
+      "attachments": "Attachments"
+    }
   }
 }

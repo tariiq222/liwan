@@ -11,6 +11,7 @@ import { useNav, type ShellContextLink } from '@/composables/nav/shellModules'
 import { sidebarModel } from '@/composables/nav/sidebarModel'
 import { clickPageCreate, createShortcutTarget, focusListSearch } from '@/composables/shortcuts/targets'
 import { usePageHeaderTitle } from '@webvue/ui/app/composables/usePageHeader'
+import { useQuickViews } from '@/composables/useQuickViews'
 import { useShellModel } from '@/composables/useShellModel'
 import { useContextSidebar } from '@/composables/useShellNavigation'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
@@ -37,6 +38,7 @@ const crumbs = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hyd
 const mobileOpen = ref(false)
 const mobile = computed(() => sidebarModel({ links: contextLinks.value, moduleLabelKey: contextLabelKey.value, path: route.path, panel: null, surface: 'mobile' }))
 const mobileCreateLinks = computed(() => mobile.value.createLinks.map(link => ({ ...link, to: createTo(link) })))
+const quick = useQuickViews()
 const { me } = useMe()
 useShellShortcuts({
   'focus-search': () => focusListSearch(document),
@@ -73,6 +75,8 @@ useShellShortcuts({
         :title="contextTitle"
         :create-links="mobileCreateLinks"
         :sections="mobile.sections"
+        :quick-views="quick.views.value"
+        :quick-actions="quick.actions.value"
       />
       <NuxtLink v-if="showTenantMark" :to="homePath" class="webvue-shell-brand" :aria-label="`${tenantName || t('app.productName')} — ${t('nav.home')}`">
         <img v-if="branding?.logo_url" :src="branding.logo_url" alt="" class="webvue-shell-brand-logo">

@@ -66,6 +66,9 @@ export function taskStateBadge(state: TaskState): StatusBadgeEntry {
   return statusBadgeEntry(TASK_STATE_BADGES, state)
 }
 
+/** The pill tone of each priority: urgent danger, very high warning, high info, normal neutral. */
+export const PRIORITY_TONE: Record<'0' | '1' | '2' | '3', StatusTone> = { '0': 'neutral', '1': 'info', '2': 'warning', '3': 'destructive' }
+
 export interface DeadlineTag { tone: StatusTone; icon: string }
 
 /** The deadline tag: overdue is danger (time exceeded), today warning (alarm), a future date success (time remaining), a closed task neutral (calendar); no deadline has no tag. */

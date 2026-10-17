@@ -7,6 +7,11 @@ export default defineAppConfig({
     // textareas, small inner blocks); buttons, badges, tabs and progress stay rounded-full. --ui-radius drives the rest of the scale.
     colors: { primary: 'brand', neutral: 'slate' },
 
+    // tailwind-merge only knows the stock radius scale, so without this a recipe default such as rounded-md survives next
+    // to our rounded-control / rounded-card and wins the cascade. Registering both names as radius theme values puts them
+    // in the same conflict group as every rounded-* utility (the later class wins).
+    tv: { twMergeConfig: { extend: { theme: { radius: ['card', 'control'] } } } },
+
     // The 32px control floor applies to the default (md) size only; xs/sm stay compact.
     // The solid primary paints from --primary-solid (#0066cc, white label >= 4.5:1) in both modes; the accent
     // --primary (#007ff8) is for fills, icons and rings without text. text-primary and focus keep --brand-link.
@@ -14,14 +19,14 @@ export default defineAppConfig({
     input: { slots: { base: 'rounded-control bg-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
     inputNumber: { slots: { base: 'rounded-control bg-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
     textarea: { slots: { base: 'rounded-control bg-default' } },
-    select: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-xl shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
-    selectMenu: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-xl shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
+    select: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-control shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
+    selectMenu: { slots: { base: 'rounded-control bg-default', content: 'z-[var(--webvue-ui-z-menu)] rounded-control shadow-lg ring ring-default' }, variants: { size: { md: { base: 'min-h-(--webvue-control-h)' } } } },
 
     // Surfaces: hairline ring, no resting shadow, 20px padding (--webvue-card-pad).
     card: { slots: { root: 'rounded-card bg-default ring ring-default shadow-none', header: 'px-(--webvue-card-pad) py-3 sm:px-(--webvue-card-pad)', body: 'p-(--webvue-card-pad) sm:p-(--webvue-card-pad)', footer: 'px-(--webvue-card-pad) py-3 sm:px-(--webvue-card-pad)' } },
     table: {
       slots: {
-        th: 'h-(--webvue-row-h) bg-muted px-(--webvue-card-pad) py-0 text-xs font-medium text-muted',
+        th: 'h-[40px] bg-muted px-(--webvue-card-pad) py-0 text-xs font-medium text-muted',
         td: 'h-(--webvue-row-h) px-(--webvue-card-pad) py-0 text-sm',
         tr: 'transition-colors duration-150 motion-reduce:transition-none hover:bg-(--webvue-row-hover) data-[selected=true]:bg-primary/5',
       },
@@ -36,13 +41,24 @@ export default defineAppConfig({
     // The brand fills the bar in both modes (--ui-primary is the readable brand tone); a finished bar turns lime.
     progress: { slots: { base: 'rounded-full', indicator: 'rounded-full data-[state=complete]:bg-webvue-lime' } },
     avatar: { slots: { root: 'ring-2 ring-bg' } },
-    tabs: { slots: { list: 'rounded-full', indicator: 'rounded-full', trigger: 'rounded-full' } },
+    tabs: { slots: { list: 'rounded-full', indicator: 'rounded-full', trigger: 'rounded-full', content: 'rounded-control' } },
 
     // Floating layers carry the only shadows.
-    dropdownMenu: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-xl shadow-lg ring ring-default' } },
-    popover: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-xl shadow-lg ring ring-default' } },
-    tooltip: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-md' } },
-    slideover: { slots: { content: 'z-[var(--webvue-ui-z-sheet)]' } },
-    modal: { slots: { content: 'z-[80] rounded-2xl shadow-xl', overlay: 'z-[79] backdrop-blur-xs' } },
+    dropdownMenu: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-control shadow-lg ring ring-default' } },
+    popover: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-control shadow-lg ring ring-default' } },
+    tooltip: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-control' } },
+    contextMenu: { slots: { content: 'z-[var(--webvue-ui-z-menu)] rounded-control shadow-lg ring ring-default' } },
+    modal: { slots: { content: 'z-[80] shadow-xl', overlay: 'z-[79] backdrop-blur-xs' }, variants: { fullscreen: { false: { content: 'rounded-card' } } } },
+    // Inset drawers and panels float over the canvas, so they take the card radius too.
+    slideover: { slots: { content: 'z-[var(--webvue-ui-z-sheet)]' }, variants: { inset: { true: { content: 'rounded-card' } } } },
+    toast: { slots: { root: 'rounded-card' } },
+    alert: { slots: { root: 'rounded-card' } },
+    pageCard: { slots: { root: 'rounded-card' } },
+    listbox: { slots: { root: 'rounded-control' } },
+    fileUpload: { slots: { base: 'rounded-card' } },
+    inputMenu: { slots: { base: 'rounded-control', content: 'z-[var(--webvue-ui-z-menu)] rounded-control' } },
+    inputTags: { slots: { base: 'rounded-control' } },
+    inputDate: { slots: { base: 'rounded-control' } },
+    inputTime: { slots: { base: 'rounded-control' } },
   },
 })

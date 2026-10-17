@@ -1400,17 +1400,17 @@
         {
           "id": "InTaskRow",
           "name": "في صف المهمة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:144"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:171"
         },
         {
           "id": "AsTableBadge",
           "name": "شارة في خلية الجدول",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:144"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:171"
         },
         {
           "id": "ReadOnly",
           "name": "بلا صلاحية تعديل",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:144"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:171"
         }
       ]
     },
@@ -1441,17 +1441,17 @@
         {
           "id": "InTaskRow",
           "name": "في صف المهمة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:143"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:170"
         },
         {
           "id": "NoTransitions",
           "name": "بلا انتقالات متاحة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:143"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:170"
         },
         {
           "id": "TransitionForbidden",
           "name": "انتقال مرفوض",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:143"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:170"
         }
       ]
     },
@@ -1463,7 +1463,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; } & Partial<Pick<{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; description_html: string; allocated_hours: number; age_days: number; cycle_days: number | null; subtasks: { id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }[]; depends_on: { id: number; name: string; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; can_manage_dependencies: boolean; milestone: { id: number; name: string; } | null; created_at: string; updated_at: string; planned_start: string | null; deliverables: { name: string; done: boolean; }[]; allowed_actions: (\"approve\" | \"write\" | \"read\" | \"archive\" | \"request_completion\" | \"accept_completion\" | \"return_completion\" | \"withdraw_completion\")[]; completion_pending: boolean; completion_revision: number; completion_return_note: string | null; completion_policy: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; completion_blocked_reason: \"no_reviewer\" | \"reviewer_ineligible\" | null; }, \"attachments\" | \"subtasks\">>",
           "required": true
         },
         {
@@ -1503,9 +1503,7 @@
       ],
       "slots": [],
       "nuxtUi": [
-        "UAvatar",
         "UButton",
-        "UCard",
         "UDropdownMenu",
         "UIcon"
       ],
@@ -1518,6 +1516,11 @@
         {
           "id": "ProjectBoard",
           "name": "في لوحة المشروع (بلا اسم المشروع)",
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+        },
+        {
+          "id": "RichCard",
+          "name": "بطاقة غنية (فرعية ومرفقات وكومة مسؤولين)",
           "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
         }
       ]
@@ -1541,9 +1544,14 @@
       ],
       "stories": [
         {
+          "id": "FilteredCountsOnly",
+          "name": "فلتر يحدد النسب (متأخرة أو حالة): أرقام فقط",
+          "context": "apps/web/app/pages/tasks.vue:95"
+        },
+        {
           "id": "AboveTaskTable",
           "name": "فوق جدول المهام",
-          "context": "apps/web/app/pages/tasks.vue:77"
+          "context": "apps/web/app/pages/tasks.vue:95"
         }
       ]
     },
@@ -2204,7 +2212,7 @@
         {
           "id": "Default",
           "name": "الحساب",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:94"
         }
       ]
     },
@@ -2328,22 +2336,22 @@
         {
           "id": "Projects",
           "name": "المشاريع مع عدّاد",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:47"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
         },
         {
           "id": "WithSections",
           "name": "أقسام بعناوين",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:47"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
         },
         {
           "id": "Collapsed",
           "name": "مطوية",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:47"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
         },
         {
           "id": "AutomaticTablet",
           "name": "طي تلقائي على التابلت",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:47"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:52"
         }
       ]
     },
@@ -2366,32 +2374,32 @@
         {
           "id": "Default",
           "name": "زر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         },
         {
           "id": "PaletteMain",
           "name": "لوحة الأوامر",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         },
         {
           "id": "PaletteSearch",
           "name": "نتائج البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         },
         {
           "id": "PaletteError",
           "name": "تعذّر البحث",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         },
         {
           "id": "PaletteShortcuts",
           "name": "اختصارات لوحة المفاتيح",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         },
         {
           "id": "PaletteReadOnly",
           "name": "قارئ بلا صلاحية إنشاء",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:86"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:90"
         }
       ]
     },
@@ -2427,6 +2435,16 @@
           "required": true
         },
         {
+          "name": "quickViews",
+          "type": "ShellQuickItem[]",
+          "required": true
+        },
+        {
+          "name": "quickActions",
+          "type": "ShellQuickItem[]",
+          "required": true
+        },
+        {
           "name": "open",
           "type": "boolean",
           "required": false,
@@ -2450,7 +2468,7 @@
         {
           "id": "Open",
           "name": "القائمة مفتوحة",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:69"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:71"
         }
       ]
     },
@@ -2898,10 +2916,24 @@
           "default": "\"dense\""
         },
         {
-          "name": "embeddedFilters",
+          "name": "bare",
           "type": "boolean",
           "required": false,
-          "default": "false"
+          "default": "false",
+          "description": "No card of its own: the table sits inside a SharedListCard."
+        },
+        {
+          "name": "sort",
+          "type": "TableSort | null",
+          "required": false,
+          "default": "null",
+          "description": "The active server sort, or null for the default order."
+        },
+        {
+          "name": "sortKeys",
+          "type": "Record<string, string>",
+          "required": false,
+          "description": "Column id -> the server's sort key, for a sortable column whose key differs from its id."
         }
       ],
       "events": [
@@ -2916,6 +2948,10 @@
         {
           "name": "update:selected",
           "payload": "[keys: (string | number)[]]"
+        },
+        {
+          "name": "update:sort",
+          "payload": "[sort: TableSort | null]"
         }
       ],
       "slots": [
@@ -2928,6 +2964,7 @@
       "nuxtUi": [
         "UButton",
         "UCheckbox",
+        "UIcon",
         "UTable"
       ],
       "stories": [
@@ -2942,13 +2979,28 @@
           "context": "unused"
         },
         {
-          "id": "EmbeddedFiltersAndFooter",
-          "name": "فلاتر في ترويسة البطاقة وتذييل بعدد النتائج",
+          "id": "InListCard",
+          "name": "داخل بطاقة قائمة: فلاتر في الترويسة وتذييل بعدد النتائج",
           "context": "unused"
         },
         {
-          "id": "EmbeddedEmpty",
-          "name": "فلاتر مدمجة وحالة فارغة داخل البطاقة",
+          "id": "InListCardEmpty",
+          "name": "داخل بطاقة قائمة: حالة فارغة",
+          "context": "unused"
+        },
+        {
+          "id": "Sortable",
+          "name": "عمود قابل للترتيب (بلا ترتيب، ينقر فيصير تصاعديًا ثم تنازليًا ثم يعود)",
+          "context": "unused"
+        },
+        {
+          "id": "SortedAscending",
+          "name": "مرتّب تصاعديًا",
+          "context": "unused"
+        },
+        {
+          "id": "SortedDescending",
+          "name": "مرتّب تنازليًا",
           "context": "unused"
         },
         {
@@ -3054,6 +3106,11 @@
         {
           "id": "EmbeddedInCardHeader",
           "name": "مدمج في ترويسة بطاقة (صف واحد)",
+          "context": "apps/web/app/pages/projects/index.vue:263"
+        },
+        {
+          "id": "EmbeddedTaskFilters",
+          "name": "مدمج: فلاتر المهام (الأولوية والمسؤول والموعد)",
           "context": "apps/web/app/pages/projects/index.vue:263"
         },
         {
@@ -3251,6 +3308,12 @@
           "type": "\"success\" | \"neutral\" | \"warning\" | \"danger\"",
           "required": false,
           "default": "\"neutral\""
+        },
+        {
+          "name": "progress",
+          "type": "number",
+          "required": false,
+          "description": "0-100: a slim bar under the caption in the tone colour; clamped, and hidden when undefined."
         }
       ],
       "events": [],
@@ -4367,6 +4430,37 @@
       ]
     },
     {
+      "name": "SharedListCard",
+      "file": "packages/ui/app/components/shared/layout/ListCard.vue",
+      "story": "apps/web/stories/shared/ListCard.stories.ts",
+      "title": "Shared/ListCard",
+      "props": [
+        {
+          "name": "fill",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "filters",
+        "default"
+      ],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Fill",
+          "name": "بحجم الشاشة (لوحة أو خط زمني)",
+          "context": "apps/web/app/pages/tasks.vue:94"
+        },
+        {
+          "id": "WithFilters",
+          "name": "مع صف فلاتر",
+          "context": "apps/web/app/pages/tasks.vue:94"
+        }
+      ]
+    },
+    {
       "name": "SharedListPage",
       "file": "packages/ui/app/components/shared/layout/ListPage.vue",
       "story": "apps/web/stories/shared/ListPage.stories.ts",
@@ -4402,6 +4496,12 @@
           "name": "views",
           "type": "ListViewOption[]",
           "required": false
+        },
+        {
+          "name": "viewsInFilters",
+          "type": "boolean",
+          "required": false,
+          "description": "The view switch is drawn by the embedded SharedFilterBar in the card header, not in a row above the list."
         },
         {
           "name": "hideHeader",
@@ -4897,15 +4997,15 @@
       ],
       "events": [
         {
+          "name": "today",
+          "payload": "[]"
+        },
+        {
           "name": "next",
           "payload": "[]"
         },
         {
           "name": "prev",
-          "payload": "[]"
-        },
-        {
-          "name": "today",
           "payload": "[]"
         },
         {
@@ -4970,12 +5070,12 @@
         {
           "id": "Default",
           "name": "المشاريع نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:50"
         },
         {
           "id": "SettingsActive",
           "name": "الإعدادات نشطة",
-          "context": "apps/web/app/components/shell/AppSidebar.vue:46"
+          "context": "apps/web/app/components/shell/AppSidebar.vue:50"
         }
       ]
     },
@@ -5000,12 +5100,12 @@
         {
           "id": "Trail",
           "name": "ثلاثة مستويات",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:87"
         },
         {
           "id": "Single",
           "name": "مستوى واحد",
-          "context": "apps/web/app/components/shell/ShellHeader.vue:83"
+          "context": "apps/web/app/components/shell/ShellHeader.vue:87"
         }
       ]
     },
@@ -5038,6 +5138,86 @@
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
           "context": "apps/web/app/layouts/default.vue:46"
+        }
+      ]
+    },
+    {
+      "name": "ShellQuickViews",
+      "file": "packages/ui/app/components/shell/ShellQuickViews.vue",
+      "story": "apps/web/stories/shell/ShellQuickViews.stories.ts",
+      "title": "Shell/ShellQuickViews",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "views",
+          "type": "ShellQuickItem[]",
+          "required": true
+        },
+        {
+          "name": "actions",
+          "type": "ShellQuickItem[]",
+          "required": true
+        },
+        {
+          "name": "collapsed",
+          "type": "boolean",
+          "required": true
+        },
+        {
+          "name": "surface",
+          "type": "\"card\" | \"drawer\"",
+          "required": false,
+          "description": "`card` floats under the context sidebar; `drawer` is the flat section of the mobile drawer."
+        },
+        {
+          "name": "testIdPrefix",
+          "type": "string",
+          "required": false,
+          "description": "Prefix of the test ids, so the drawer copy and the card never share one."
+        },
+        {
+          "name": "viewsLabel",
+          "type": "string",
+          "required": false,
+          "description": "Name of the views group, read by assistive technology only."
+        },
+        {
+          "name": "actionsLabel",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "navigate",
+          "payload": "[item: ShellQuickItem]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UIcon",
+        "UTooltip"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "مهام: عروض وإجراءات",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:67"
+        },
+        {
+          "id": "ActionsOnly",
+          "name": "إجراءات فقط",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:67"
+        },
+        {
+          "id": "Collapsed",
+          "name": "مطوية (أيقونات)",
+          "context": "apps/web/app/components/shell/AppSidebar.vue:67"
         }
       ]
     }

@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RouteLocationRaw } from 'vue-router'
 import { useRowNavigation } from '../../../composables/useRowNavigation'
-import { clickedRowIndex, dataRowKey, markTableRows, rowSelectionState, selectedFromRowSelection } from '../../../utils/dataTable'
+import { clickedRowIndex, dataRowKey, headerContent, markSortHeaders, markTableRows, nextSortDirection, rowSelectionState, selectedFromRowSelection, type SortDirection, type TableSort } from '../../../utils/dataTable'
 import PageState from '../feedback/PageState.vue'
 import Pagination from './Pagination.vue'
 
@@ -14,9 +14,12 @@ import Pagination from './Pagination.vue'
  * The selected count (and `bulk`'s `selected`) includes keys selected on other pages.
  * The table sits in one card (18px radius, hairline ring). `density` picks the variant: `dense` (lists, the
  * default) pads cells 16px on a 44px row, `comfortable` (home and overview pages) 20px on a 52px row.
- * `embeddedFilters` moves the `filters` slot into the card's header (one calm row, a hairline below it);
- * the loading and empty states then sit inside that same card. The `footer` slot is the card's last row,
+ * `bare` drops the table's own card: the caller wraps it in a SharedListCard, whose header row carries the embedded
+ * filter bar. The `footer` slot is the card's last row,
  * shown with the table (a result count and a load-more or paging control); `emptyAction` is the empty state's action.
+ * Sorting is the server's: a column with `meta: { sortable: true }` renders its header as a button that cycles
+ * ascending, descending, none and emits `update:sort` ({column, direction} or null; `column` is `sortKeys[id]`, else the
+ * column id). The table never reorders rows itself, and the phone rows have no headers, so they carry no sort control.
  */
 const props = withDefaults(defineProps<{
   rows: T[]
@@ -33,15 +36,21 @@ const props = withDefaults(defineProps<{
   /** The table's accessible name (sr-only caption) and the mobile list's label. */
   caption?: string
   density?: 'dense' | 'comfortable'
-  embeddedFilters?: boolean
+  /** No card of its own: the table sits inside a SharedListCard. */
+  bare?: boolean
+  /** The active server sort, or null for the default order. */
+  sort?: TableSort | null
+  /** Column id -> the server's sort key, for a sortable column whose key differs from its id. */
+  sortKeys?: Record<string, string>
 }>(), {
+  sort: null,
   loading: false,
   density: 'dense',
-  embeddedFilters: false,
+  bare: false,
   selectable: false,
   selected: () => [],
 })
-const emit = defineEmits<{ 'update:page': [page: number]; 'update:selected': [keys: (string | number)[]]; retry: [] }>()
+const emit = defineEmits<{ 'update:page': [page: number]; 'update:selected': [keys: (string | number)[]]; 'update:sort': [sort: TableSort | null]; retry: [] }>()
 const slots = useSlots()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -56,7 +65,7 @@ const tableColumns = computed<TableColumn<T>[]>(() => props.selectable
 const densityClass = computed(() => props.density === 'dense'
   ? '[--webvue-card-pad:var(--webvue-card-pad-dense)]'
   : '[--webvue-row-h:var(--webvue-row-h-comfortable)]')
-// The ring and radius sit on the card around the table, or on the card around the filters when they are embedded.
+// The ring and radius sit on the card around the table, unless the caller's SharedListCard draws it.
 const surfaceClass = 'overflow-hidden rounded-card bg-default ring ring-default'
 const rowId = (row: T) => String(dataRowKey(row, props.rowKey))
 const rowSelection = computed({
@@ -82,9 +91,31 @@ function cellSlotNames() {
   return Object.keys(slots).filter(name => name.endsWith('-cell'))
 }
 
-// UTable takes no row attributes (Table.vue:316-322), so its rendered rows are marked after each patch.
+const columnId = (column: TableColumn<T>) => (column as { id?: string; accessorKey?: string }).id ?? (column as { accessorKey?: string }).accessorKey
+const sortableIds = computed(() => props.columns.filter(column => (column.meta as { sortable?: boolean } | undefined)?.sortable).map(columnId).filter((id): id is string => !!id))
+const sortKey = (id: string) => props.sortKeys?.[id] ?? id
+const directionOf = (id: string): SortDirection => (props.sort && props.sort.column === sortKey(id) ? props.sort.direction : null)
+const sortLabel = (id: string) => {
+  const direction = directionOf(id)
+  return t(direction === 'asc' ? 'states.sortAscending' : direction === 'desc' ? 'states.sortDescending' : 'states.sortNone')
+}
+const SORT_ICON = { asc: 'i-lucide-chevron-up', desc: 'i-lucide-chevron-down' } as const
+function cycleSort(id: string) {
+  const direction = nextSortDirection(directionOf(id))
+  emit('update:sort', direction ? { column: sortKey(id), direction } : null)
+}
+
+// UTable takes no row attributes (Table.vue:316-322) and no header attributes, so its rendered rows and the sortable
+// header cells (`aria-sort`) are marked after each patch.
 function markRows() {
-  void nextTick(() => { if (tableHost.value) markTableRows(tableHost.value) })
+  void nextTick(() => {
+    if (!tableHost.value) return
+    markTableRows(tableHost.value)
+    markSortHeaders(tableHost.value, tableColumns.value.map((column) => {
+      const id = columnId(column)
+      return id && sortableIds.value.includes(id) ? directionOf(id) : undefined
+    }))
+  })
 }
 
 function onClick(event: MouseEvent) {
@@ -96,6 +127,8 @@ function onClick(event: MouseEvent) {
   if (row) void navigateTo(props.rowTo(row))
 }
 
+watch(() => props.sort, markRows)
+
 function clear() {
   emit('update:selected', [])
 }
@@ -103,7 +136,7 @@ function clear() {
 
 <template>
   <div data-slot="data-table" class="grid min-w-0 gap-(--webvue-gap-card)">
-    <div v-if="$slots.filters && !props.embeddedFilters" data-slot="data-table-filters" class="min-w-0"><slot name="filters" /></div>
+    <div v-if="$slots.filters" data-slot="data-table-filters" class="min-w-0"><slot name="filters" /></div>
     <div
       v-if="props.selectable && props.selected.length > 0 && $slots.bulk"
       role="toolbar"
@@ -115,75 +148,87 @@ function clear() {
       <slot name="bulk" :selected="props.selected" :clear="clear" />
       <UButton type="button" color="neutral" variant="ghost" size="sm" class="ms-auto" :disabled="!hydrated" @click="clear">{{ t('states.clearSelection') }}</UButton>
     </div>
-    <div :class="props.embeddedFilters ? `min-w-0 ${surfaceClass}` : 'contents'" :data-embedded-filters="props.embeddedFilters || undefined">
-      <div v-if="$slots.filters && props.embeddedFilters" data-slot="data-table-filters" class="min-w-0 border-b border-default px-(--webvue-card-pad-dense) py-3"><slot name="filters" /></div>
-      <PageState :loading="props.loading && !props.rows.length" :error="props.error" :keep-content="props.rows.length > 0" :empty="props.rows.length === 0" :empty-text="props.emptyText" @retry="emit('retry')">
-        <template v-if="$slots.emptyAction" #emptyAction><slot name="emptyAction" /></template>
-        <div ref="body" data-slot="data-table-body" class="min-w-0" @click="onClick">
-          <div :class="[props.embeddedFilters ? '' : surfaceClass, densityClass]" :data-density="props.density">
-            <div ref="tableHost" class="overflow-x-auto" :class="{ 'hidden md:block': $slots['mobile-row'] }">
-              <UTable
-                v-model:row-selection="rowSelection"
-                :data="props.rows"
-                :columns="tableColumns"
-                :get-row-id="rowId"
-                :caption="props.caption"
-                :ui="{ caption: 'sr-only' }"
-                :class="rowClass"
-                @vue:mounted="markRows"
-                @vue:updated="markRows"
-              >
-                <template v-if="props.selectable" #select-header="{ table }">
-                  <UCheckbox
-                    :model-value="table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected()"
-                    :aria-label="t('states.selectAll')"
-                    :disabled="!hydrated"
-                    @update:model-value="(value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(value === true)"
-                  />
-                </template>
-                <template v-if="props.selectable" #select-cell="{ row }">
-                  <UCheckbox
-                    :model-value="row.getIsSelected()"
-                    :aria-label="t('states.selectRow')"
-                    :disabled="!hydrated"
-                    @update:model-value="(value: boolean | 'indeterminate') => row.toggleSelected(value === true)"
-                  />
-                </template>
-                <template v-if="linkSlot" #[linkSlot]="{ row }">
-                  <NuxtLink
-                    :to="props.rowTo!(row.original)"
-                    class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >{{ row.getValue(primaryColumn!) }}</NuxtLink>
-                </template>
-                <template v-for="name in cellSlotNames()" :key="name" #[name]="cell">
-                  <slot :name="name" v-bind="cell" />
-                </template>
-              </UTable>
-            </div>
-            <ul
-              v-if="$slots['mobile-row']"
-              class="divide-y divide-default md:hidden"
-              :aria-label="props.caption"
+    <PageState :loading="props.loading && !props.rows.length" :error="props.error" :keep-content="props.rows.length > 0" :empty="props.rows.length === 0" :empty-text="props.emptyText" @retry="emit('retry')">
+      <template v-if="$slots.emptyAction" #emptyAction><slot name="emptyAction" /></template>
+      <div ref="body" data-slot="data-table-body" class="min-w-0" @click="onClick">
+        <div :class="[props.bare ? '' : surfaceClass, densityClass]" :data-density="props.density">
+          <div ref="tableHost" class="overflow-x-auto" :class="{ 'hidden md:block': $slots['mobile-row'] }">
+            <UTable
+              v-model:row-selection="rowSelection"
+              :data="props.rows"
+              :columns="tableColumns"
+              :get-row-id="rowId"
+              :caption="props.caption"
+              :ui="{ caption: 'sr-only' }"
+              :class="rowClass"
+              @vue:mounted="markRows"
+              @vue:updated="markRows"
             >
-              <li
-                v-for="(row, index) in props.rows"
-                :key="rowId(row)"
-                data-shortcut-row
-                :data-row-index="index"
-                tabindex="-1"
-                class="p-4 outline-none focus-visible:bg-elevated/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-                :class="{ 'cursor-pointer': props.rowTo }"
-              >
-                <slot name="mobile-row" :row="row" />
-              </li>
-            </ul>
-            <div v-if="$slots.footer" data-slot="data-table-footer" class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-(--webvue-card-pad) py-3 text-sm text-muted">
-              <slot name="footer" />
-            </div>
+              <template v-if="props.selectable" #select-header="{ table }">
+                <UCheckbox
+                  :model-value="table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected()"
+                  :aria-label="t('states.selectAll')"
+                  :disabled="!hydrated"
+                  @update:model-value="(value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(value === true)"
+                />
+              </template>
+              <template v-if="props.selectable" #select-cell="{ row }">
+                <UCheckbox
+                  :model-value="row.getIsSelected()"
+                  :aria-label="t('states.selectRow')"
+                  :disabled="!hydrated"
+                  @update:model-value="(value: boolean | 'indeterminate') => row.toggleSelected(value === true)"
+                />
+              </template>
+              <template v-for="id in sortableIds" :key="`${id}-header`" #[`${id}-header`]="header">
+                <button
+                  type="button"
+                  data-slot="sort-button"
+                  :data-sort="directionOf(id) ?? 'none'"
+                  :disabled="!hydrated"
+                  class="-ms-2 inline-flex h-7 max-w-full cursor-pointer items-center gap-1 rounded-control px-2 font-medium transition-colors duration-150 hover:bg-elevated hover:text-highlighted focus-visible:outline-2 focus-visible:outline-primary motion-reduce:transition-none disabled:cursor-default"
+                  :class="directionOf(id) ? 'text-highlighted' : ''"
+                  @click="cycleSort(id)"
+                >
+                  <component :is="headerContent(header.column, header)" />
+                  <UIcon :name="directionOf(id) ? SORT_ICON[directionOf(id)!] : 'i-lucide-chevrons-up-down'" class="size-3.5 shrink-0" :class="directionOf(id) ? '' : 'text-dimmed'" aria-hidden="true" />
+                  <span class="sr-only">{{ sortLabel(id) }}</span>
+                </button>
+              </template>
+              <template v-if="linkSlot" #[linkSlot]="{ row }">
+                <NuxtLink
+                  :to="props.rowTo!(row.original)"
+                  class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >{{ row.getValue(primaryColumn!) }}</NuxtLink>
+              </template>
+              <template v-for="name in cellSlotNames()" :key="name" #[name]="cell">
+                <slot :name="name" v-bind="cell" />
+              </template>
+            </UTable>
+          </div>
+          <ul
+            v-if="$slots['mobile-row']"
+            class="divide-y divide-default md:hidden"
+            :aria-label="props.caption"
+          >
+            <li
+              v-for="(row, index) in props.rows"
+              :key="rowId(row)"
+              data-shortcut-row
+              :data-row-index="index"
+              tabindex="-1"
+              class="p-4 outline-none focus-visible:bg-elevated/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+              :class="{ 'cursor-pointer': props.rowTo }"
+            >
+              <slot name="mobile-row" :row="row" />
+            </li>
+          </ul>
+          <div v-if="$slots.footer" data-slot="data-table-footer" class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-(--webvue-card-pad) py-3 text-sm text-muted">
+            <slot name="footer" />
           </div>
         </div>
-      </PageState>
-    </div>
+      </div>
+    </PageState>
     <Pagination
       v-if="props.page !== undefined && props.pages !== undefined"
       :page="props.page"

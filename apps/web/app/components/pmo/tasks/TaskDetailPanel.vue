@@ -3,6 +3,8 @@ import { deadlineLabel, deadlineTone } from '@/composables/taskState'
 import { taskDaysRemaining } from './taskDeadline'
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
+import { withTaskAttributeFilters } from '@/composables/taskFilterParams'
+import { normalizeTaskSort } from '@/composables/taskSort'
 import { useTaskFilters } from '@/composables/useTaskFilters'
 import { shortcutKey } from '@webvue/ui/app/composables/shortcuts/keymap'
 import type { TaskListParams } from '@/composables/useTasks'
@@ -42,7 +44,8 @@ const { data: task, error, refetch } = useTask(idRef)
 // in the list rather than whichever list happened to be cached first.
 // Decided once per instance: the two branches are different composables.
 const localFilters = props.siblingParams ? null : useTaskFilters()
-const filterParams = computed<TaskListParams>(() => props.siblingParams ?? localFilters!.value)
+// The list's sort and attribute filters travel in the URL, so prev/next follows the list as it was shown.
+const filterParams = computed<TaskListParams>(() => props.siblingParams ?? { ...withTaskAttributeFilters(localFilters!.value, route.query), sort: normalizeTaskSort(route.query.sort) })
 const siblings = useTaskSiblings(idRef, filterParams)
 const hydrated = useHydrated()
 const toast = useToast()

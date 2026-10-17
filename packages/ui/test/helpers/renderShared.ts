@@ -85,7 +85,7 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
   const t = fakeT(options.messages)
   const autoImports: Record<string, unknown> = {
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, shallowRef: Vue.shallowRef, nextTick: Vue.nextTick,
-    toRef: Vue.toRef, useId: Vue.useId, useSlots: Vue.useSlots, onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount,
+    toRef: Vue.toRef, provide: Vue.provide, inject: Vue.inject, useId: Vue.useId, useSlots: Vue.useSlots, onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount,
     useI18n: () => ({ t, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHydrated: () => Vue.ref(options.hydrated ?? true),
     ...options.globals,

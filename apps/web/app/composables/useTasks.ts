@@ -12,12 +12,16 @@ import {
 } from '@webvue/contracts'
 import { daysRemaining } from './taskState'
 import { invalidateProjectCaches } from './projectKeys'
+import { taskAttributeQuery, type TaskAssignee, type TaskDeadline, type TaskPriority } from './taskFilterParams'
 
 export interface TaskListParams {
   closed: boolean
   state?: TaskState[]
   project_id?: number
   q?: string
+  assignee?: TaskAssignee
+  deadline?: TaskDeadline
+  priority?: TaskPriority[]
   sort?: string
   // undefined = true: مهامي. false = every task of `project_id` the user can read (project screen).
   mine?: boolean
@@ -29,10 +33,12 @@ export const PAGE = 50
 // The list filters that decide which tasks a summary counts: `closed` and paging do not.
 export function summaryQuery(p: TaskListParams) {
   return {
-    filter: p.mine === false ? undefined : 'mine',
+    // An `assignee` filter names the people itself, so it replaces the "mine" scope instead of narrowing it.
+    filter: p.mine === false || p.assignee !== undefined ? undefined : 'mine',
     state: p.state?.join(','),
     project_id: p.project_id,
     q: p.q || undefined,
+    ...taskAttributeQuery(p),
   }
 }
 
@@ -103,11 +109,8 @@ export function useTasks(params: Ref<TaskListParams>) {
     queryFn: ({ pageParam }) =>
       $api('/api/v1/tasks', {
         query: {
-          filter: params.value.mine === false ? undefined : 'mine',
+          ...summaryQuery(params.value),
           closed: params.value.closed ? 1 : 0,
-          state: params.value.state?.join(','),
-          project_id: params.value.project_id,
-          q: params.value.q || undefined,
           sort: params.value.sort,
           limit: PAGE,
           offset: pageParam,
