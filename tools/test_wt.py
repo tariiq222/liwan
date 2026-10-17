@@ -316,6 +316,81 @@ class TestStatusAndGc(unittest.TestCase):
             self.assertEqual(wt.gc(Path('/r'), True, Path('/x')), 'nothing to clean')
 
 
+    def _gc_branch(self, worktrees, branch, busy=(), merged_branch=False, apply=False, current='/elsewhere'):
+        calls = []
+
+        def fake(argv, cwd):
+            calls.append(argv)
+            return 'main'
+
+        with mock.patch.object(wt, 'inspect_all', return_value=worktrees), \
+                mock.patch.object(wt, 'busy_paths', return_value=set(busy)), \
+                mock.patch.object(wt, 'scratch_databases', return_value={'webvue_scratch_pmo_a': 0, 'webvue_scratch_pmo_b': 0}), \
+                mock.patch.object(wt, 'merged_local_branch', return_value=merged_branch), \
+                mock.patch.object(wt, 'sh', side_effect=fake):
+            return wt.gc(Path('/r'), apply, Path(current), branch), calls
+
+    def test_gc_branch_limits_victims_and_databases_to_that_branch(self):
+        other = worktree(path=Path('/r/.worktrees/pmo-b'), branch='codex/pmo-b', database='webvue_scratch_pmo_b')
+        text, calls = self._gc_branch([worktree(), other], 'codex/pmo-a', apply=True)
+        self.assertIn('removing worktree /r/.worktrees/pmo-a', text)
+        self.assertNotIn('pmo-b', text)
+        self.assertIn(['git', 'branch', '-d', 'codex/pmo-a'], calls)
+        self.assertIn(['dropdb', '--if-exists', 'webvue_scratch_pmo_a'], calls)
+        self.assertNotIn(['dropdb', '--if-exists', 'webvue_scratch_pmo_b'], calls)
+
+    def test_gc_branch_raises_with_the_reason_when_the_worktree_is_kept(self):
+        cases = (
+            (worktree(dirty=True), (), '/elsewhere', 'uncommitted changes'),
+            (worktree(merged=False), (), '/elsewhere', 'not merged into main'),
+            (worktree(), (Path('/r/.worktrees/pmo-a'),), '/elsewhere', 'process is running'),
+            (worktree(), (), '/r/.worktrees/pmo-a/apps', 'run this from the main checkout'),
+            (worktree(own_commits=False), (), '/elsewhere', 'no commits of its own'),
+        )
+        for entry, busy, current, reason in cases:
+            for apply in (False, True):
+                with self.subTest(reason=reason, apply=apply):
+                    calls = []
+                    with self.assertRaises(wt.WorktreeKept) as caught:
+                        _, calls = self._gc_branch([entry], 'codex/pmo-a', busy=busy, apply=apply, current=current)
+                    self.assertIn('kept: worktree /r/.worktrees/pmo-a (branch codex/pmo-a): ', str(caught.exception))
+                    self.assertIn(reason, str(caught.exception))
+                    self.assertEqual(calls, [])
+
+    def test_keep_reason_is_the_single_source_for_removable(self):
+        self.assertIsNone(wt.keep_reason(worktree(), set(), Path('/elsewhere')))
+        self.assertEqual(wt.keep_reason(worktree(is_main=True), set(), Path('/elsewhere')), 'it is the main checkout')
+        self.assertIn('no branch', wt.keep_reason(worktree(branch=None), set(), Path('/elsewhere')))
+        self.assertIn('missing', wt.keep_reason(worktree(missing=True), set(), Path('/elsewhere')))
+
+    def test_gc_branch_deletes_a_merged_branch_without_a_worktree(self):
+        text, calls = self._gc_branch([worktree(branch='codex/pmo-b')], 'codex/pmo-a', merged_branch=True, apply=True)
+        self.assertIn('deleting branch codex/pmo-a', text)
+        self.assertEqual(calls, [['git', 'branch', '--show-current'], ['git', 'branch', '-d', 'codex/pmo-a']])
+        dry, calls = self._gc_branch([], 'codex/pmo-a', merged_branch=True)
+        self.assertIn('would delete branch codex/pmo-a', dry)
+        self.assertEqual(calls, [])
+
+    def test_gc_branch_without_worktree_or_merged_branch_cleans_nothing(self):
+        text, calls = self._gc_branch([worktree()], 'codex/pmo-x', apply=True)
+        self.assertEqual(text, 'nothing to clean')
+        self.assertEqual(calls, [])
+
+    def test_gc_branch_must_be_a_codex_task_branch(self):
+        for name in ('main', 'feature/x', 'codex/Bad Name', 'codex/nope'):
+            with self.subTest(name=name), self.assertRaises(WorktreeError):
+                self._gc_branch([worktree()], name)
+
+    def test_merged_local_branch_needs_an_existing_merged_branch(self):
+        with mock.patch.object(wt, 'run', side_effect=[(1, ''), (0, '')]) as run:
+            self.assertFalse(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
+            run.assert_called_once()
+        with mock.patch.object(wt, 'run', side_effect=[(0, ''), (1, '')]):
+            self.assertFalse(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
+        with mock.patch.object(wt, 'run', side_effect=[(0, ''), (0, '')]):
+            self.assertTrue(wt.merged_local_branch(Path('/r'), 'codex/pmo-a'))
+
+
 class TestCleanEnv(unittest.TestCase):
     def test_drops_npm_run_variables_and_keeps_the_rest(self):
         env = {

@@ -26,7 +26,7 @@ Use these while iterating; `npm test` and the Odoo/CI gates stay binding before 
 | `npm run test:odoo` | Odoo tests of the changed addons and their dependents on a scratch database cloned from a cached template (`tools/odoo_test.py`). Options: `--addons a,b`, `--all`, `--base`, `--dry-run`, `--keep-db`. |
 | `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, plus a summary line (`tools/wt.py`). |
-| `npm run wt -- gc [--apply]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`webvue_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. |
+| `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`webvue_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
 | `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` step. |
 | `npm run review:jev -- --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against `main` (`tools/jev_review.mjs`; `--base <ref>`, `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Never a gate: see `REVIEW.md`. |
 | `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` step. |
@@ -63,14 +63,33 @@ same existing tested merge commit. This is an explicit local entrypoint for the 
 rules in [`agents/integration-rules.md`](agents/integration-rules.md); code review and the
 owner's merge authorization remain required.
 
-Reports and candidate worktrees stay in the ignored `.superpowers/merge-main/<run>/`
-directory: `merge.json`, `checks/report.json`, `checks/pipeline.log` and `checks/runner.log`.
-Failures, conflicts and interruptions before promotion leave main unchanged and preserve the
+Reports stay in the ignored `.superpowers/merge-main/<run>/` directory: `merge.json`,
+`checks/report.json`, `checks/pipeline.log` and `checks/runner.log`. After a successful
+promotion the candidate worktree is removed (`candidate_removed` in `merge.json`). Failures,
+conflicts and interruptions before promotion leave main unchanged and keep the
 candidate for diagnosis. If interruption occurs during promotion, inspect `actual_main` in
-`merge.json`; the gate records the resulting ref and never resets another writer's work. Cleanup needs
-separate authorization. No push occurs. The lock serializes calls to this command; direct
+`merge.json`; the gate records the resulting ref and never resets another writer's work. `merge:main` alone
+never pushes or removes the task worktree. The lock serializes calls to this command; direct
 Git commands can bypass it, so other main writers must coordinate integrations. This is
 not server-enforced branch protection.
+
+## Closing a task: `npm run ship`
+
+```sh
+npm run ship -- codex/<area>-<slug> [--no-push] [--no-clean]
+```
+
+`ship` runs the merge gate above (an already merged branch continues), then
+`wt gc --apply --branch` for that one task (worktree, branch and scratch database), then
+offers to push `main` to `origin`. Running it is the owner's authorization for the merge and
+the cleanup of that one task. A gate failure stops before any cleanup or push. A cleanup
+failure is reported and makes the exit code 1, but the push step still runs.
+
+The push lists the commits ahead of `origin/main`, refuses a main that is not a fast-forward,
+and asks `Push N commit(s) to origin/main? [y/N]`; only `y` or `yes` typed on a terminal pushes
+(`git push origin refs/heads/main:refs/heads/main`, never forced) and the result is verified
+against `origin/main`. Without a terminal (agents, CI) the push is skipped and
+`git push origin main` is left to the owner. Agents never answer the prompt.
 
 ## CI pipeline notes
 

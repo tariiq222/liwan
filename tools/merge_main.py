@@ -30,6 +30,27 @@ def git(repo: Path, *args: str) -> str:
     return result.stdout.rstrip('\n')
 
 
+FETCH_MAIN_REF = 'refs/heads/main:refs/remotes/origin/main'
+
+
+@contextlib.contextmanager
+def terminate_as_interrupt():
+    """Turn SIGTERM into KeyboardInterrupt so cleanup and report writing still run."""
+    def interrupted(signum, frame):
+        raise KeyboardInterrupt(f'interrupted by signal {signum}')
+    previous = signal.signal(signal.SIGTERM, interrupted)
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+
+def fetch_origin_main(main: Path) -> str:
+    """Fetch origin's main and return its commit."""
+    git(main, 'fetch', '--no-tags', 'origin', FETCH_MAIN_REF)
+    return git(main, 'rev-parse', 'refs/remotes/origin/main')
+
+
 def worktrees(repo: Path) -> dict[str, Path]:
     found = {}
     current = None
@@ -149,6 +170,16 @@ def verify_candidate(candidate: Path, base: str, commit: str, report_dir: Path) 
         raise GateError('local CI runner did not certify this exact candidate')
 
 
+def remove_candidate(main: Path, candidate: Path, result: dict) -> None:
+    """Drop the detached candidate once main holds its commit; reports and checks stay."""
+    try:
+        git(main, 'worktree', 'remove', '--force', str(candidate))
+    except GateError as error:
+        result.update(candidate_removed=False, candidate_error=str(error))
+    else:
+        result['candidate_removed'] = True
+
+
 def merge_branch(repo: Path, source: str) -> dict:
     if not source.startswith('codex/') or check_branch(source):
         raise GateError('source must be a local codex/<area>-<slug> task branch')
@@ -166,8 +197,7 @@ def merge_branch(repo: Path, source: str) -> dict:
             require_clean(source_tree, 'source worktree', untracked=True)
         source_sha = git(main, 'rev-parse', '--verify', f'refs/heads/{source}^{{commit}}')
         if 'origin' in git(main, 'remote').splitlines():
-            git(main, 'fetch', '--no-tags', 'origin', 'refs/heads/main:refs/remotes/origin/main')
-            remote = git(main, 'rev-parse', 'refs/remotes/origin/main')
+            remote = fetch_origin_main(main)
             if git(main, 'merge-base', remote, 'refs/heads/main') != remote:
                 raise GateError('main is behind or diverged from origin/main; integrate it first')
         base = git(main, 'rev-parse', 'refs/heads/main')
@@ -219,7 +249,6 @@ def merge_branch(repo: Path, source: str) -> dict:
                 raise GateError('main changed during promotion; inspect its actual state')
             require_clean(main, 'main after promotion', untracked=False)
             result['status'] = 'merged'
-            return result
         except BaseException as error:
             promotion_started = result['status'] in ('promoting', 'promoted')
             result.update(status='promotion_interrupted' if promotion_started else 'failed',
@@ -229,6 +258,10 @@ def merge_branch(repo: Path, source: str) -> dict:
             raise
         finally:
             report_path.write_text(json.dumps(result, indent=2) + '\n')
+        # Main already holds the commit; an interrupt here must not turn the report into a failure.
+        remove_candidate(main, candidate, result)
+        report_path.write_text(json.dumps(result, indent=2) + '\n')
+        return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -236,16 +269,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('branch', help='local codex/<area>-<slug> branch')
     args = parser.parse_args(argv)
 
-    def interrupted(signum, frame):
-        raise KeyboardInterrupt(f'interrupted by signal {signum}')
-    previous = signal.signal(signal.SIGTERM, interrupted)
     try:
-        result = merge_branch(Path(__file__).resolve().parents[1], args.branch)
+        with terminate_as_interrupt():
+            result = merge_branch(Path(__file__).resolve().parents[1], args.branch)
     except (GateError, OSError, KeyboardInterrupt) as error:
         print(f'Merge gate stopped: {error}', file=sys.stderr)
         return 1
-    finally:
-        signal.signal(signal.SIGTERM, previous)
     print(json.dumps(result, indent=2))
     return 0
 

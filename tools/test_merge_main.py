@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import signal
 import subprocess
 import tempfile
 import unittest
@@ -72,7 +73,9 @@ class MergeMainTests(unittest.TestCase):
                          [self.base, self.source])
         self.assertEqual(self.git('rev-parse', 'HEAD^{tree}'), result['tree'])
         self.assertEqual((self.repo / 'notes.txt').read_text(), 'private notes\n')
-        self.assertTrue(Path(result['candidate']).is_dir())
+        self.assertTrue(result['candidate_removed'])
+        self.assertFalse(Path(result['candidate']).exists())
+        self.assertNotIn(result['candidate'], self.git('worktree', 'list', '--porcelain'))
         self.assertTrue(Path(result['report']).is_file())
 
     def test_failed_checks_leave_main_untouched(self):
@@ -81,6 +84,35 @@ class MergeMainTests(unittest.TestCase):
         with self.assertRaisesRegex(merge_main.GateError, 'checks failed'):
             self.run_gate(fail)
         self.assert_main_unchanged()
+
+    def test_failed_checks_preserve_the_candidate_for_diagnosis(self):
+        def fail(*args):
+            raise merge_main.GateError('checks failed')
+        with self.assertRaises(merge_main.GateError):
+            self.run_gate(fail)
+        report = json.loads(next((self.repo / '.superpowers/merge-main').glob('*/merge.json')).read_text())
+        self.assertEqual(report['status'], 'failed')
+        self.assertTrue(Path(report['candidate']).is_dir())
+        self.assertNotIn('candidate_removed', report)
+
+    def test_interrupt_while_removing_the_candidate_keeps_the_merged_report(self):
+        with patch.object(merge_main, 'remove_candidate', side_effect=KeyboardInterrupt), \
+                self.assertRaises(KeyboardInterrupt):
+            self.run_gate()
+        report = json.loads(next((self.repo / '.superpowers/merge-main').glob('*/merge.json')).read_text())
+        self.assertEqual(report['status'], 'merged')
+        self.assertEqual(self.git('rev-parse', 'HEAD'), report['commit'])
+
+    def test_report_records_the_candidate_removal(self):
+        result = self.run_gate()
+        self.assertTrue(json.loads(Path(result['report']).read_text())['candidate_removed'])
+
+    def test_sigterm_becomes_keyboard_interrupt_and_is_restored(self):
+        before = signal.getsignal(signal.SIGTERM)
+        with merge_main.terminate_as_interrupt():
+            with self.assertRaisesRegex(KeyboardInterrupt, 'signal'):
+                signal.raise_signal(signal.SIGTERM)
+        self.assertEqual(signal.getsignal(signal.SIGTERM), before)
 
     def test_conflict_is_confined_to_candidate(self):
         self.write(self.task, 'shared.txt', 'feature conflict\n')
