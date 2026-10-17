@@ -121,8 +121,12 @@ Docker image build, Docker Compose runtime, live HTTP health and Caddy validatio
 
 ## Registry authority and revisions
 
-`{schemaVersion:1,snapshotRevision:positiveInteger,targets:[{host,tenantId,database,
+`{schemaVersion:1,snapshotRevision:nonNegativeInteger,targets:[{host,tenantId,database,
 filestore,enabled,registryRevision}]}`. Host must be canonical lowercase ASCII.
+`{schemaVersion:1,snapshotRevision:0,targets:[]}` is the only valid empty registry: the
+deny-all bootstrap snapshot. Guard refuses every host until the first onboarding
+publication replaces it with revision 1. A fresh deployment seeds that file before
+starting guard; no tenant needs to exist first. Any populated snapshot has revision >= 1.
 Global snapshot revision is CAS publication control; registryRevision is per tenant.
 The resolver preserves existing global host/id/database/filestore uniqueness checks.
 `mutateRegistry` requires explicit trusted management authority + actor, CAS revision,
