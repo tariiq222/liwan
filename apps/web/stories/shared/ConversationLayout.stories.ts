@@ -12,7 +12,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     a11y: { test: 'error' },
-    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue:90', 'قالب المحادثة: من 768px تكون القائمة لوحة الشريط السياقي ويعرض القالب المحادثة فقط؛ تحتها تملأ القائمة الصفحة حتى تُختار محادثة. من 1280px تكون المعلومات جانبية؛ دون ذلك تستخدم المنطقة المتاحة وتحل محل المحادثة مع حفظ المسودة.'),
+    ...storyContext('apps/web/app/components/chat/ChatWorkspace.vue:91', 'قالب المحادثة: من 768px تكون القائمة لوحة الشريط السياقي ويعرض القالب المحادثة فقط؛ تحتها تملأ القائمة الصفحة حتى تُختار محادثة. من 1280px تكون المعلومات جانبية؛ دون ذلك تستخدم المنطقة المتاحة وتحل محل المحادثة مع حفظ المسودة.'),
   },
   args: { hasSelection: true, infoOpen: false },
   render: args => ({

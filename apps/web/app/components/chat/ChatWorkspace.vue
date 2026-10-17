@@ -9,7 +9,8 @@ import MessageComposer from '@/components/chat/MessageComposer.vue'
 import { ApiError } from '@/composables/useApi'
 import { applyChatAccessFailure, chatKeys } from '@/composables/useChat'
 import { chatTypingEvent } from '@/composables/useBus'
-import { initialsFor, isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
+import { isFatalChatStatus, parseChatListRoute, serializeChatListRoute, type ChatListRoute } from '@/utils/chatState'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import type { ChatMessage } from '@webvue/contracts'
 
 // The conversation screen on SharedConversationLayout. From 768px the list is the shell's context-sidebar panel
@@ -99,7 +100,7 @@ function updateRoute(next: ChatListRoute) {
             <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
           </UButton>
         </UTooltip>
-        <span class="webvue-chat-avatar shrink-0">{{ initialsFor(data?.name || '') }}</span>
+        <UAvatar v-bind="avatarProps(data?.name, props.conversationId)" size="lg" class="shrink-0" />
         <div class="min-w-0 flex-1 text-start">
           <h1 class="truncate text-lg font-semibold text-highlighted">{{ data?.name || t('chat.title') }}</h1>
           <p class="truncate text-xs text-muted">{{ typingLabel || (data?.type ? t(`chat.${data.type}`) : '') }}</p>
@@ -167,7 +168,7 @@ function updateRoute(next: ChatListRoute) {
     </template>
 
     <template #info="{ headingLevel }">
-      <header class="flex shrink-0 items-center gap-2 border-b border-default p-3">
+      <header class="webvue-chat-thread-header">
         <UTooltip :text="t('app.back')">
           <UButton color="neutral" variant="ghost" square :to="threadTo" :aria-label="t('app.back')">
             <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />

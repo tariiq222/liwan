@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
 import { ApiError } from '@/composables/useApi'
-import { CHAT_PAGE_SIZE, initialsFor, nextListOffset, parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { parseChatListRoute, serializeChatListRoute } from '@/utils/chatState'
 
 const { t } = useI18n()
-const toast = useToast()
 const hydrated = useHydrated()
 const route = useRoute()
 const listQuery = computed(() => serializeChatListRoute(parseChatListRoute(route.query)))
@@ -12,28 +12,24 @@ const router = useRouter()
 const sourcePaths = useRecordListPaths(['/chat'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const wantGroup = computed(() => route.query.kind === 'group')
-const q = ref('')
-const recipientOffset = ref(0)
 const selected = ref<{ id: number; name: string }[]>([])
 const groupName = ref('')
 const submitError = ref('')
 let submitting = false
-const { data } = useChatRecipients(q, recipientOffset)
 const { mutateAsync: create, isPending } = useCreateConversation()
-const recipients = computed(() => data.value?.items ?? [])
-watch(q, () => { recipientOffset.value = 0 })
+const selectedIds = computed(() => selected.value.map(item => item.id))
 function snapshot() {
   return JSON.stringify([selected.value.map(item => item.id), groupName.value])
 }
 const baseline = ref(snapshot())
 const dirty = computed(() => snapshot() !== baseline.value)
 
-function toggle(person: { id: number; name: string }) {
-  if (selected.value.some(item => item.id === person.id)) {
-    selected.value = selected.value.filter(item => item.id !== person.id)
-    return
-  }
-  selected.value = [...selected.value, person]
+function setSelected(people: { id: number; name: string }[]) {
+  selected.value = people
+}
+
+function removePerson(id: number) {
+  selected.value = selected.value.filter(item => item.id !== id)
 }
 
 async function submit() {
@@ -65,7 +61,7 @@ async function submit() {
     await nextTick()
     await navigateTo({ path: `/chat/${conversation.id}`, query: { ...listQuery.value, returnTo: router.resolve(backTo.value).fullPath } }, { replace: true })
   } catch (error) {
-    toast.add({ title: error instanceof ApiError ? error.message : t('errors.generic'), color: 'error' })
+    submitError.value = error instanceof ApiError ? error.message : t('errors.generic')
   } finally { submitting = false }
 }
 </script>
@@ -76,27 +72,25 @@ async function submit() {
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection :title="t('chat.recipients')" class="space-y-4">
         <UFormField :label="t('chat.recipientSearch')" name="recipientSearch">
-          <UInput id="chat-recipient-search" v-model="q" class="w-full" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
+          <SharedPersonPicker
+            id="chat-recipient-search"
+            :model-value="selectedIds"
+            multiple
+            value-key="user_id"
+            :known="selected"
+            :placeholder="t('chat.recipientSearch')"
+            @resolve="setSelected"
+          />
         </UFormField>
-        <ul class="max-h-64 overflow-y-auto rounded-control border border-default">
-          <li v-for="person in recipients" :key="person.id">
-            <UButton
-              type="button"
-              color="neutral"
-              variant="ghost"
-              class="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              :aria-pressed="selected.some(item => item.id === person.id)"
-              :disabled="!hydrated"
-              @click="toggle(person)"
-            >
-              <span class="grid size-9 shrink-0 place-items-center rounded-full bg-elevated text-xs font-semibold">{{ initialsFor(person.name) }}</span>
-              <span class="min-w-0 flex-1 truncate">{{ person.name }}</span>
-              <UIcon v-if="selected.some(item => item.id === person.id)" name="i-lucide-check" class="size-4 text-brand-link" aria-hidden="true" />
-            </UButton>
+        <ul v-if="selected.length" class="flex flex-wrap gap-2" :aria-label="t('chat.selected')">
+          <li v-for="person in selected" :key="person.id">
+            <UBadge color="neutral" variant="subtle" size="lg" class="gap-1">
+              <UAvatar v-bind="avatarProps(person.name, person.id)" size="2xs" />
+              <span>{{ person.name }}</span>
+              <UButton type="button" color="neutral" variant="link" size="xs" square icon="i-lucide-x" :aria-label="t('chat.removeRecipient', { name: person.name })" :disabled="!hydrated" @click="removePerson(person.id)" />
+            </UBadge>
           </li>
         </ul>
-        <SharedPagination :page="Math.floor(recipientOffset / CHAT_PAGE_SIZE) + 1" :pages="Math.max(1, Math.ceil((data?.total ?? 0) / CHAT_PAGE_SIZE))" @update:page="recipientOffset = nextListOffset(0, data?.total ?? 0, ($event - 1) * CHAT_PAGE_SIZE)" />
-        <p class="text-sm text-muted"><span class="font-medium text-highlighted">{{ t('chat.selected') }}:</span> {{ selected.map(item => item.name).join(', ') || '—' }}</p>
       </SharedFormSection>
       <SharedFormSection v-if="wantGroup || selected.length !== 1" :title="t('chat.groupName')" class="space-y-2">
         <UFormField :label="selected.length ? t('chat.groupName') : t('chat.channel')" name="groupName">

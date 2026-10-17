@@ -35,6 +35,7 @@
   "recipients": "People",
   "recipientSearch": "Search people",
   "selected": "Selected",
+  "removeRecipient": "Remove {name}",
   "groupName": "Group name",
   "groupNamePlaceholder": "Optional group name",
   "create": "Start chat",

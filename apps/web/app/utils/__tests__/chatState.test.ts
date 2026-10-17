@@ -6,7 +6,6 @@ import {
   chatCacheScope,
   chatListQuery,
   chatPollInterval,
-  initialsFor,
   isFatalChatStatus,
   mergeMessages,
   messageDayKey,
@@ -105,7 +104,6 @@ describe('visible read and polling fail-closed', () => {
     expect(nextListOffset(0, 120, CHAT_PAGE_SIZE)).toBe(50)
     expect(nextListOffset(50, 120, CHAT_PAGE_SIZE)).toBe(100)
     expect(nextListOffset(100, 120, CHAT_PAGE_SIZE)).toBe(100)
-    expect(initialsFor('Sara Peer')).toBe('SP')
     expect(messageDayKey('2026-09-07T10:00:00Z')).toBe('2026-09-07')
   })
 })

@@ -29,7 +29,7 @@ export const InMessage: Story = {
 
 export const InConversationInfo: Story = {
   name: 'في معلومات المحادثة',
-  parameters: storyContext('apps/web/app/components/chat/ChatInfoPanel.vue:123'),
+  parameters: storyContext('apps/web/app/components/chat/ChatInfoPanel.vue:133'),
   render: () => ({
     components: { ChatAttachment, FormSection },
     setup: () => ({ attachments }),
