@@ -206,6 +206,19 @@ The runner is `e2e` (config: `e2e.config.ts`, models: `e2e/models.ts`, tests:
   verdicts from the text observation; `extract` and screenshot-only judgments fall back to `google/gemini-3.7-flash`.
   The key comes from `JEV_API_KEY` or `~/.config/jev-review/api-key`; the instruction and the accessibility tree of the
   page go to `api.typesafe.ai`, so test data only.
+- The `ultrafast` agent (`e2e/jev-ultrafast.ts`) is an alternative brain for `agent.act` steps, a port of the
+  [jev-ultrafast](https://github.com/browser-use/jev-ultrafast) policy. One request per turn lets Jev pick an operation
+  (`CLICK`, `TYPE_TEXT`, `SELECT`, scroll, `WAIT`, `DONE`, `BLOCKED`) and an indexed element. Run it with
+  `npm run e2e -- --agent ultrafast` (`--agent` is forwarded to `e2e run`). The TypeSafe key (`JEV_API_KEY` or
+  `~/.config/jev-review/api-key`) is the only key it needs; it calls no other model. It never replays or records the
+  cache and stops after three actions that change nothing.
+  - Limitation: Jev cannot generate text, so `TYPE_TEXT` selects instead of generating. Code finds candidates in the
+    step instruction (quoted text, then every run of up to four words), Jev selects one in the same request, and the
+    code types it verbatim, or blocks with `AUTOMATION_UNSUPPORTED` when none fits. A value must appear literally in
+    the instruction; generated or reformatted values are not possible.
+  - A custom executor also receives `agent.assert`, which it blocks as `AUTOMATION_UNSUPPORTED`, so run tests that use
+    `assert` with the default agent; `waitFor` and `extract` keep using the Jev judge.
+  - The instruction and the accessibility text of the page go to `api.typesafe.ai`, so test data only.
 - `npm run e2e:dev` runs the runner directly against an already-running dev server. Use
   it only deliberately and never for state-changing tests.
 

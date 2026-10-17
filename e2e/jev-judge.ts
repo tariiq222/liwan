@@ -27,8 +27,8 @@ export const JEV_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 export const JEV_MODEL = 'jev-preview';
 
 const JUDGMENT_PROTOCOL = 'agent-judgment-2';
-const KEY_ENV = 'JEV_API_KEY';
-const KEY_FILE = path.join(os.homedir(), '.config', 'jev-review', 'api-key');
+export const JEV_KEY_ENV = 'JEV_API_KEY';
+export const JEV_KEY_FILE = path.join(os.homedir(), '.config', 'jev-review', 'api-key');
 const HTTP_TOO_MANY_REQUESTS = 429;
 const HTTP_OVERLOADED = 529;
 const HTTP_SERVER_ERROR_FLOOR = 500;
@@ -62,11 +62,11 @@ export type JevJudgeOptions = {
 type JevAnswer = { choice: Verdict; probabilities: Record<string, number>; confidence: number };
 type JevResult = { answer: JevAnswer; inputTokens: number; outputTokens: number };
 
-function keyFromEnvOrFile(): string | undefined {
-  const fromEnv = process.env[KEY_ENV]?.trim();
+export function resolveJevKey(): string | undefined {
+  const fromEnv = process.env[JEV_KEY_ENV]?.trim();
   if (fromEnv) return fromEnv;
   try {
-    return readFileSync(KEY_FILE, 'utf8').trim() || undefined;
+    return readFileSync(JEV_KEY_FILE, 'utf8').trim() || undefined;
   } catch (cause) {
     if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw cause;
@@ -105,7 +105,7 @@ function explain(answer: JevAnswer): string {
   return `jev: ${answer.choice} (p=${digits(probability)}, confidence ${digits(answer.confidence)})`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -146,29 +146,39 @@ async function failure(response: Response, requestBody: unknown): Promise<APICal
   });
 }
 
+/** One authenticated POST to the Jev endpoint; a non-2xx answer throws an `APICallError`. */
+export async function postJev(
+  send: typeof fetch,
+  key: string,
+  body: unknown,
+  abortSignal: AbortSignal | undefined,
+): Promise<unknown> {
+  const response = await send(JEV_ENDPOINT, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: abortSignal,
+  });
+  if (!response.ok) throw await failure(response, body);
+  return response.json();
+}
+
 export function jevJudge(options: JevJudgeOptions): LanguageModelV4 {
   const { fallback } = options;
-  const resolveKey = options.resolveKey ?? keyFromEnvOrFile;
+  const resolveKey = options.resolveKey ?? resolveJevKey;
   const send = options.fetch ?? globalThis.fetch;
 
   async function ask(evidence: Evidence, abortSignal: AbortSignal | undefined): Promise<JevResult> {
     const key = resolveKey();
     if (!key) {
-      throw new Error(`e2e Jev judge: no API key. Set ${KEY_ENV} or write the key to ${KEY_FILE}.`);
+      throw new Error(`e2e Jev judge: no API key. Set ${JEV_KEY_ENV} or write the key to ${JEV_KEY_FILE}.`);
     }
     const body = {
       model: JEV_MODEL,
       state: { instruction: evidence.instruction, observation: evidence.observation },
       questions: { verdict: QUESTION },
     };
-    const response = await send(JEV_ENDPOINT, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: abortSignal,
-    });
-    if (!response.ok) throw await failure(response, body);
-    return parseResult(await response.json());
+    return parseResult(await postJev(send, key, body, abortSignal));
   }
 
   return {
