@@ -83,12 +83,6 @@ export function messageDayKey(iso: string): string {
   return iso.slice(0, 10)
 }
 
-export function initialsFor(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (!parts.length) return '?'
-  return parts.slice(0, 2).map(part => part[0]).join('').toUpperCase()
-}
-
 export function needsMessageCatchUp(lastKnownId: number | undefined, incoming: ChatMessage[]): boolean {
   if (!lastKnownId || !incoming.length) return false
   return incoming.length >= CHAT_PAGE_SIZE

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
+import OperationStepRow from '@/components/operations/OperationStepRow.vue'
 import { operationsStateTone } from '@/composables/operations/state'
 import { useOperationProcess, useOperationProcessMutation } from '@/composables/operations/useOperations'
 import { createOperationSubmitGuard, operationErrorKey, operationId } from '@/composables/operations/forms'
@@ -29,17 +30,33 @@ async function confirmDecision() {
 async function refresh() { if (disabled.value) return; selected.value = null; error.value = null; await query.refetch() }
 </script>
 <template>
-  <SharedPageContainer width="detail">
-    <SharedPageHeader :title="process?.name ?? t('operations.process')" :back-to="backTo" :back-label="t('operations.nav.processes')"><template #actions><template v-if="process && can('operations.processes.manage')"><UButton color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/operations/processes/${process.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" /><UButton v-if="process.state === 'draft'" :disabled="disabled" :label="t('operations.publish')" @click="choose('publish')" /><UButton v-if="process.state !== 'archived'" color="error" variant="outline" :disabled="disabled" :label="t('operations.archive')" @click="choose('archive')" /></template></template></SharedPageHeader>
-    <SharedPageState :loading="id !== null && query.isPending.value" :error="id === null ? { status: 404 } : query.error.value" @retry="hydrated && query.refetch()">
-      <template v-if="process">
-        <SharedStatusBadge :tone="operationsStateTone(process.state)" :label="t(`operations.states.${process.state}`)" />
-        <UAlert v-if="error" role="alert" color="error" :title="t(`operations.errors.${operationErrorKey(error)}`)"><template #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="refresh" /></template></UAlert>
-        <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'archive' ? 'operations.archiveHelp' : 'operations.publishHelp')" :confirm-label="t(`operations.${selected}`)" :color="selected === 'archive' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="selected = null" />
-        <SharedFormSection :title="t('operations.description')"><p class="whitespace-pre-wrap text-sm leading-7">{{ process.description || t('operations.noDescription') }}</p></SharedFormSection>
-        <SharedFormSection :title="t('operations.result')"><p class="text-sm">{{ t(`operations.executionKinds.${process.execution_kind === 'approval' || process.execution_kind === 'pmo_completion' ? process.execution_kind : 'other'}`) }}</p></SharedFormSection>
-        <SharedFormSection :title="t('operations.stages')"><ol class="space-y-3"><li v-for="(step, index) in process.steps" :key="index" class="rounded-card p-4 ring ring-default"><h3 class="font-medium">{{ index + 1 }}. {{ step.name }}</h3><p class="mt-1 text-sm text-muted">{{ step.reviewers.map(person => person.name).join('، ') }}</p></li></ol></SharedFormSection>
-      </template>
-    </SharedPageState>
-  </SharedPageContainer>
+  <SharedRecordPage
+    :title="process?.name ?? t('operations.process')"
+    :back-to="backTo"
+    :back-label="t('operations.nav.processes')"
+    :loading="id !== null && query.isPending.value"
+    :error="id === null ? { status: 404 } : query.error.value"
+    @retry="hydrated && query.refetch()"
+  >
+    <template v-if="process && can('operations.processes.manage')" #actions>
+      <UButton color="neutral" variant="outline" :disabled="disabled" :to="recordChildTo(`/operations/processes/${process.id}/edit`, route.query, sourcePaths, route.hash)" :label="t('operations.edit')" />
+      <UButton v-if="process.state === 'draft'" :disabled="disabled" :label="t('operations.publish')" @click="choose('publish')" />
+      <UButton v-if="process.state !== 'archived'" color="error" variant="outline" :disabled="disabled" :label="t('operations.archive')" @click="choose('archive')" />
+    </template>
+    <template v-if="process">
+      <UAlert v-if="error" role="alert" color="error" :title="t(`operations.errors.${operationErrorKey(error)}`)"><template #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="refresh" /></template></UAlert>
+      <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'archive' ? 'operations.archiveHelp' : 'operations.publishHelp')" :confirm-label="t(`operations.${selected}`)" :color="selected === 'archive' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="selected = null" />
+      <SharedRecordSection variant="panel" :title="t('operations.description')"><p class="whitespace-pre-wrap text-sm leading-7">{{ process.description || t('operations.noDescription') }}</p></SharedRecordSection>
+      <SharedRecordSection variant="panel" :title="t('operations.stages')">
+        <ol class="space-y-3"><OperationStepRow v-for="(step, index) in process.steps" :key="index" :number="index + 1" :name="step.name" :reviewers="step.reviewers" /></ol>
+      </SharedRecordSection>
+    </template>
+    <template v-if="process" #aside>
+      <SharedPropertiesPanel>
+        <SharedPropertyRow :label="t('operations.state')"><SharedStatusBadge :tone="operationsStateTone(process.state)" :label="t(`operations.states.${process.state}`)" /></SharedPropertyRow>
+        <SharedPropertyRow :label="t('operations.result')" :value="t(`operations.executionKinds.${process.execution_kind === 'approval' || process.execution_kind === 'pmo_completion' ? process.execution_kind : 'other'}`)" />
+        <SharedPropertyRow :label="t('operations.stages')" :value="t('operations.stageCount', { count: process.steps.length }, process.steps.length)" />
+      </SharedPropertiesPanel>
+    </template>
+  </SharedRecordPage>
 </template>

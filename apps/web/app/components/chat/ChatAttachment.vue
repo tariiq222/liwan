@@ -8,7 +8,7 @@ const { t } = useI18n()
 <template>
   <a
     :href="props.attachment.url"
-    class="inline-flex min-h-8 items-center gap-2 rounded-lg border border-default bg-default px-2 py-1 text-sm text-start shadow-sm hover:bg-elevated"
+    class="inline-flex min-h-8 items-center gap-2 rounded-control bg-default px-2 py-1 text-sm text-start ring ring-default hover:bg-elevated"
     :download="props.attachment.name"
   >
     <span class="truncate">{{ props.attachment.name }}</span>

@@ -120,7 +120,13 @@
     },
     "reloadDraft": "تحديث البيانات واستبدال المسودة؟",
     "reloadDraftHelp": "ستُستبدل تغييراتك غير المحفوظة بأحدث نسخة من السجل.",
-    "recordNumber": "رقم السجل",
-    "searchTargets": "البحث في السجلات المرتبطة"
+    "searchTargets": "البحث في السجلات المرتبطة",
+    "requester": "مقدم الطلب",
+    "createdAt": "تاريخ الطلب",
+    "footer": {
+      "results": "لا نتائج | عرض {shown} من نتيجة واحدة | عرض {shown} من نتيجتين | عرض {shown} من {total} نتائج | عرض {shown} من {total} نتيجة | عرض {shown} من {total} نتيجة"
+    },
+    "decisionNeeded": "قرارك مطلوب على هذا الطلب",
+    "nextStep": "الخطوة التالية"
   }
 }

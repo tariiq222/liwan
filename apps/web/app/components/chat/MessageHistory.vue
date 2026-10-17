@@ -3,11 +3,11 @@ import { ChatMessageListSchema, type ChatMessage } from '@webvue/contracts'
 import ChatAttachment from '@/components/chat/ChatAttachment.vue'
 import { ApiError } from '@/composables/useApi'
 import { formatDate, formatTime } from '@webvue/ui/app/utils/formatDate'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import {
   CHAT_PAGE_SIZE,
   CHAT_POLL_MS,
   CHAT_REACTIONS,
-  initialsFor,
   isFatalChatStatus,
   mergeMessages,
   messageDayKey,
@@ -282,7 +282,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
             :class="row.item.author.id === me?.id ? 'ms-auto items-end' : 'me-auto items-start'"
           >
             <span v-if="!direct && row.item.author.id !== me?.id" class="flex items-center gap-2 px-1 text-xs font-medium text-muted">
-              <span class="webvue-chat-avatar webvue-chat-avatar-sm">{{ initialsFor(row.item.author.name) }}</span>
+              <UAvatar v-bind="avatarProps(row.item.author.name, row.item.author.id)" size="xs" />
               <span>{{ row.item.author.name }}</span>
             </span>
             <div

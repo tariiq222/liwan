@@ -16,13 +16,13 @@ function recordPath(record: AiRecordRef): string | null {
   <section :aria-label="t('ai.thread.records')" class="flex flex-col gap-2">
     <h2 class="text-xs font-medium text-muted">{{ t('ai.thread.records') }}</h2>
     <ul class="flex flex-wrap gap-2">
-      <li v-for="record in props.records" :key="`${record.type}:${record.id}`" data-testid="ai-record">
-        <NuxtLink v-if="recordPath(record)" :to="recordPath(record)!" class="inline-flex max-w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-highlighted ring ring-default hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary">
+      <SharedSubCard v-for="record in props.records" :key="`${record.type}:${record.id}`" as="li" class="max-w-full py-2 text-sm text-highlighted" data-testid="ai-record">
+        <NuxtLink v-if="recordPath(record)" :to="recordPath(record)!" class="inline-flex max-w-full items-center gap-2 rounded-control hover:text-primary focus-visible:ring-2 focus-visible:ring-primary">
           <UIcon :name="record.type === 'project' ? 'i-lucide-folder-kanban' : 'i-lucide-square-check'" aria-hidden="true" class="size-4 shrink-0 text-muted" />
           <span class="truncate">{{ record.label }}</span>
         </NuxtLink>
-        <span v-else class="inline-flex max-w-full items-center rounded-lg px-3 py-2 text-sm text-highlighted ring ring-default"><span class="truncate">{{ record.label }}</span></span>
-      </li>
+        <span v-else class="block truncate">{{ record.label }}</span>
+      </SharedSubCard>
     </ul>
   </section>
 </template>

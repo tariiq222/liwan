@@ -10,6 +10,11 @@ import { useAiRunActions, useAiRuns } from '@/composables/useAiRuns'
 // The selected one is the `?run=` of the route; the page reacts to the route, so the rows only link. A row can be renamed in
 // place or archived (both reversible); the archived ones are one toggle away and an open conversation stays open when archived.
 const props = defineProps<{ disclosure?: boolean }>()
+// Touch targets below 768px are 44px (DESIGN.md); the inline disclosure body is capped so it scrolls inside itself.
+const TOUCH_TARGET = 'max-md:min-h-[44px]'
+const TOUCH_TARGET_BUTTONS = 'max-md:[&_button]:min-h-[44px]'
+const TOUCH_TARGET_ROW_ACTION = 'max-md:[&_button]:min-h-[44px] max-md:[&_button]:min-w-[44px]'
+const DISCLOSURE_BODY = 'h-[min(26rem,60svh)] border-t border-default'
 const route = useRoute()
 const { t } = useI18n()
 const toast = useToast()
@@ -110,7 +115,7 @@ const actionsOf = (run: AiRunSummary) => [
       color="neutral"
       variant="ghost"
       size="lg"
-      class="min-h-[44px] justify-between"
+      :class="[TOUCH_TARGET, 'justify-between']"
       icon="i-lucide-messages-square"
       :trailing-icon="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
       :label="t('ai.history.title')"
@@ -123,15 +128,15 @@ const actionsOf = (run: AiRunSummary) => [
     <div
       v-if="expanded"
       id="ai-run-list-body"
-      :class="['flex min-h-0 flex-col', disclosure ? 'h-[min(26rem,60svh)] border-t border-default' : 'flex-1']"
+      :class="['flex min-h-0 flex-col', disclosure ? DISCLOSURE_BODY : 'flex-1']"
       data-testid="ai-run-list-body"
       @click="closeOnNavigate"
     >
       <div class="flex flex-col gap-2 p-3">
-        <UButton to="/ai" block color="neutral" variant="soft" class="max-md:min-h-[44px]" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
+        <UButton to="/ai" block color="neutral" variant="soft" :class="TOUCH_TARGET" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
         <SharedSegmentedControl
           block
-          class="max-md:[&_button]:min-h-[44px]"
+          :class="TOUCH_TARGET_BUTTONS"
           :label="t('ai.history.views.label')"
           :items="views"
           :model-value="showArchived ? 'archived' : 'active'"
@@ -179,7 +184,7 @@ const actionsOf = (run: AiRunSummary) => [
                   <span v-if="hint(run)" :class="run.status === 'failed' ? 'text-error' : 'text-warning'">{{ hint(run) }}</span>
                 </span>
               </NuxtLink>
-              <div class="shrink-0 pe-2 pt-1.5 max-md:self-center max-md:pt-0 max-md:[&_button]:min-h-[44px] max-md:[&_button]:min-w-[44px]">
+              <div :class="['shrink-0 pe-2 pt-1.5 max-md:self-center max-md:pt-0', TOUCH_TARGET_ROW_ACTION]">
                 <SharedRowActions :actions="actionsOf(run)" :label="t('ai.history.actions.menu', { title: titleOf(run) })" />
               </div>
             </template>

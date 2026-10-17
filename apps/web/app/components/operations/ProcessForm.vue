@@ -76,20 +76,22 @@ async function reload() {
   <form class="space-y-6" novalidate @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
     <UAlert v-if="process?.state === 'published'" color="warning" :title="t('operations.editPublishedNotice')" />
-    <SharedFormSection :title="t('operations.processInformation')">
+    <SharedFormSection panel :title="t('operations.processInformation')">
       <div class="grid gap-4"><UFormField name="name" :label="t('operations.name')" required :error="fieldError('name')"><UInput v-model="name" class="w-full" :disabled="disabled" required /></UFormField><UFormField name="description" :label="t('operations.description')" :error="fieldError('description')"><UTextarea v-model="description" class="w-full" :rows="4" :disabled="disabled" /></UFormField><UFormField name="execution_kind" :label="t('operations.result')" :error="fieldError('execution_kind')"><USelect v-model="executionKind" :items="kindItems" class="w-full" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" /></UFormField></div>
     </SharedFormSection>
-    <SharedFormSection :title="t('operations.stages')" :description="t('operations.stageOrderHelp')">
-      <ol class="space-y-4"><li v-for="(step, index) in steps" :key="index" class="space-y-3 rounded-card bg-default p-4 ring ring-default">
-        <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="font-medium text-highlighted">{{ t('operations.stageNumber', { number: index + 1 }) }}</h3><div class="flex gap-1"><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-up" :aria-label="t('operations.moveUp')" :disabled="disabled || index === 0" @click="move(index, -1)" /><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-down" :aria-label="t('operations.moveDown')" :disabled="disabled || index === steps.length - 1" @click="move(index, 1)" /><UButton type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('operations.removeStage')" :disabled="disabled" @click="steps.splice(index, 1)" /></div></div>
+    <SharedFormSection panel :title="t('operations.stages')" :description="t('operations.stageOrderHelp')">
+      <div class="space-y-3">
+      <ol class="space-y-3"><SharedSubCard v-for="(step, index) in steps" :key="index" as="li" class="space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-semibold text-highlighted">{{ t('operations.stageNumber', { number: index + 1 }) }}</h3><div class="flex gap-1"><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-up" :aria-label="t('operations.moveUp')" :disabled="disabled || index === 0" @click="move(index, -1)" /><UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-arrow-down" :aria-label="t('operations.moveDown')" :disabled="disabled || index === steps.length - 1" @click="move(index, 1)" /><UButton type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('operations.removeStage')" :disabled="disabled" @click="steps.splice(index, 1)" /></div></div>
         <UFormField :name="`steps.${index}.name`" :label="t('operations.stageName')" required :error="fieldError(`steps.${index}.name`)"><UInput v-model="step.name" class="w-full" :disabled="disabled" /></UFormField>
         <UFormField :name="`steps.${index}.reviewer_ids`" :label="t('operations.reviewers')" required :error="fieldError(`steps.${index}.reviewer_ids`)"><SharedPersonPicker :model-value="step.reviewer_ids" multiple value-key="user_id" :known="step.reviewers" :disabled="disabled" :aria-label="t('operations.reviewers')" @update:model-value="value => setReviewers(index, value)" /></UFormField>
-      </li></ol>
+      </SharedSubCard></ol>
       <p v-if="fieldError('steps')" role="alert" class="text-sm text-error">{{ fieldError('steps') }}</p>
       <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="disabled" :label="t('operations.addStage')" @click="steps.push({ name: '', reviewer_ids: [], reviewers: [] })" />
+      </div>
     </SharedFormSection>
     <UAlert v-if="error || kinds.error.value" role="alert" color="error" variant="subtle" :title="t(`operations.errors.${operationErrorKey(error ?? kinds.error.value)}`)"><template v-if="refresh && operationErrorKey(error) === 'conflict'" #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="requestReload" /></template></UAlert>
     <SharedInlineConfirm v-if="reloadRequested" :title="t('operations.reloadDraft')" :description="t('operations.reloadDraftHelp')" :confirm-label="t('operations.refresh')" color="warning" :disabled="disabled" :pending="pending" @confirm="reload" @cancel="reloadRequested = false" />
-    <SharedFormActions class="flex flex-wrap justify-end gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="disabled" :label="t('operations.cancel')" /><UButton type="submit" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" :loading="pending" :label="t(process ? 'operations.save' : 'operations.create')" /></SharedFormActions>
+    <SharedFormActions><div class="ms-auto flex flex-wrap gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="disabled" :label="t('operations.cancel')" /><UButton type="submit" :disabled="disabled || kinds.isPending.value || !!kinds.error.value" :loading="pending" :label="t(process ? 'operations.save' : 'operations.create')" /></div></SharedFormActions>
   </form>
 </template>

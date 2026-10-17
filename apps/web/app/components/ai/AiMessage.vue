@@ -14,11 +14,12 @@ const MarkdownBody = () => renderMarkdownBlocks(blocks.value)
 </script>
 
 <template>
+  <!-- The assistant's answer is the page's content: full width, no box. The user's message is a compact tinted bubble. -->
   <article
     :data-role="props.role"
     :aria-busy="props.streaming || undefined"
-    class="flex max-w-full min-w-0 flex-col gap-1 rounded-lg p-3 ring ring-default sm:max-w-[85%]"
-    :class="props.role === 'user' ? 'bg-elevated self-start' : 'bg-default self-end'"
+    class="flex min-w-0 flex-col gap-1"
+    :class="props.role === 'user' ? 'max-w-prose self-start rounded-control bg-elevated px-3 py-2' : 'w-full'"
   >
     <p class="text-xs font-medium text-muted">{{ props.role === 'user' ? t('ai.thread.you') : t('ai.thread.assistant') }}</p>
     <template v-if="props.text">

@@ -3,7 +3,8 @@ import { useMediaQuery } from '@vueuse/core'
 import EmptyState from '@webvue/ui/app/components/shared/feedback/EmptyState.vue'
 import { ApiError } from '@/composables/useApi'
 import { formatTime } from '@webvue/ui/app/utils/formatDate'
-import { CHAT_PAGE_SIZE, initialsFor, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { CHAT_PAGE_SIZE, isFatalChatStatus, nextListOffset, serializeChatListRoute, type ChatFilter, type ChatListRoute } from '@/utils/chatState'
 
 const props = defineProps<{
   routeState: ChatListRoute
@@ -23,7 +24,6 @@ const quietEmpty = computed(() => noConversations.value && isDesktop.value)
 const q = ref(props.routeState.q)
 const timeFmt = { format: (value: Date) => formatTime(value) }
 const listQuery = computed(() => serializeChatListRoute(props.routeState))
-const filters: ChatFilter[] = ['all', 'unread', 'groups', 'channels', 'starred']
 watch(() => props.routeState.q, value => { q.value = value })
 watch(error, (value) => {
   if (value instanceof ApiError && isFatalChatStatus(value.status)) emit('denied')
@@ -35,13 +35,13 @@ function setFilter(filter: ChatListRoute['filter']) {
 function applySearch() {
   emit('update:routeState', { ...props.routeState, q: q.value, offset: 0 })
 }
-function filterLabel(filter: ChatFilter) {
-  if (filter === 'unread') return t('chat.filterUnread')
-  if (filter === 'groups') return t('chat.filterGroups')
-  if (filter === 'channels') return t('chat.filterChannels')
-  if (filter === 'starred') return t('chat.filterStarred')
-  return t('chat.filterAll')
-}
+const filterItems = computed(() => [
+  { value: 'all', label: t('chat.filterAll') },
+  { value: 'unread', label: t('chat.filterUnread') },
+  { value: 'groups', label: t('chat.filterGroups') },
+  { value: 'channels', label: t('chat.filterChannels') },
+  { value: 'starred', label: t('chat.filterStarred') },
+])
 const currentPage = computed(() => Math.floor(props.routeState.offset / CHAT_PAGE_SIZE) + 1)
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / CHAT_PAGE_SIZE)))
 function goToPage(next: number) {
@@ -88,19 +88,12 @@ function conversationTo(id: number) {
         </UTooltip>
       </div>
     </header>
-    <div class="webvue-chat-list-filters" role="toolbar" :aria-label="t('chat.filters')">
-      <UButton
-        v-for="filter in filters"
-        :key="filter"
-        type="button"
-        color="neutral"
-        :variant="props.routeState.filter === filter ? 'soft' : 'ghost'"
-        class="shrink-0"
-        :aria-pressed="props.routeState.filter === filter"
-        :data-active="props.routeState.filter === filter"
-        :disabled="!hydrated"
-        @click="setFilter(filter)"
-        :label="filterLabel(filter)"
+    <div class="webvue-chat-list-filters">
+      <SharedSegmentedControl
+        :model-value="props.routeState.filter"
+        :items="filterItems"
+        :label="t('chat.filters')"
+        @update:model-value="setFilter($event as ChatFilter)"
       />
     </div>
     <!-- With no conversations at all, the thread column carries the single empty state (with its start action); below 768px the list is the only column, so it carries it. -->
@@ -127,7 +120,7 @@ function conversationTo(id: number) {
             :aria-current="props.selectedId === item.id ? 'page' : undefined"
           >
             <span class="relative shrink-0">
-              <span class="webvue-chat-avatar">{{ initialsFor(item.name) }}</span>
+              <UAvatar v-bind="avatarProps(item.name, item.id)" size="xl" />
               <span
                 v-if="item.type === 'direct' && item.im_status"
                 class="absolute end-0 bottom-0 z-10 size-3 rounded-full border-2 border-(--ui-bg)"

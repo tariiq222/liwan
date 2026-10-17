@@ -106,7 +106,7 @@ onUnmounted(() => {
       <span>{{ t('chat.replyingTo', { name: props.replyTo.author.name }) }}</span>
       <UButton type="button" color="neutral" variant="ghost" size="xs" :label="t('app.cancel')" @click="emit('clear-reply')" />
     </p>
-    <ul v-if="mentionChoices.length" class="rounded-md border border-default bg-default text-sm">
+    <ul v-if="mentionChoices.length" class="overflow-hidden rounded-control bg-default text-sm ring ring-default">
       <li v-for="person in mentionChoices" :key="person.id">
         <UButton type="button" color="neutral" variant="ghost" class="w-full justify-start px-3 py-1 text-start" :label="person.name" @click="pickMention(person)" />
       </li>

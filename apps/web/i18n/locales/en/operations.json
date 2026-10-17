@@ -120,7 +120,13 @@
     },
     "reloadDraft": "Refresh data and replace this draft?",
     "reloadDraftHelp": "Your unsaved changes will be replaced with the latest record.",
-    "recordNumber": "Record number",
-    "searchTargets": "Search related records"
+    "searchTargets": "Search related records",
+    "requester": "Requester",
+    "createdAt": "Requested on",
+    "footer": {
+      "results": "{shown} of 1 result | {shown} of {total} results"
+    },
+    "decisionNeeded": "Your decision is needed",
+    "nextStep": "Next step"
   }
 }
