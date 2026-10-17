@@ -32,8 +32,8 @@ class LocalCiTest(unittest.TestCase):
         self.git('init', '-q')
         self.git('config', 'user.name', 'CI test')
         self.git('config', 'user.email', 'ci@example.invalid')
-        (self.repo / '.woodpecker.yml').write_text('steps:\n' + ''.join(
-            f'  - name: {stage}\n    image: bash\n    commands: [true]\n' for stage in STAGES))
+        (self.repo / '.woodpecker.yml').write_text('when:\n  event: [manual]\n\nsteps:\n' + ''.join(
+            f'  # about {stage}\n  - name: {stage}\n    image: bash\n    commands: [true]\n\n' for stage in STAGES))
         upstream = self.root / 'odoo'
         upstream.mkdir()
         subprocess.run(['git', 'init', '-q', str(upstream)], check=True)
@@ -68,7 +68,7 @@ if sys.argv[1] == 'rm' and len(sys.argv[1:]) != 3: sys.exit(1)
 if Path(MODE).read_text() == 'docker-failure' and sys.argv[1] == 'info': sys.exit(7)
 if Path(MODE).read_text() == 'compose-failure' and sys.argv[1:3] == ['compose','version']: sys.exit(9)
 ''')
-        self.executable('woodpecker-cli', '''import json,os,pathlib,sys
+        self.executable('woodpecker-cli', '''import json,os,pathlib,re,sys
 args=sys.argv[1:]
 metadata=json.loads(pathlib.Path(args[args.index('--metadata-file')+1]).read_text())
 assert metadata['repo']=={'owner':'tariiq222','name':'webvue','branch':'main'}
@@ -76,10 +76,11 @@ with open(CALLS, 'a') as out: out.write(json.dumps(['woodpecker', *args])+'\\n')
 run=pathlib.Path(args[args.index('--env')+1].split('=',1)[1])
 config=json.loads((run/'config.json').read_text())
 assert 'SHOULD_NOT_REACH_CI_API_KEY' not in os.environ
-names=['static','ai-service','control-plane','vendor-admin','odoo','odoo-tasks-standalone','odoo-tasks-bridge','upgrade','restore-drill','image','e2e-mock','rtl-stories']
+names=re.findall(r'^  - name: (\\S+)', pathlib.Path(args[-1]).read_text(), re.M)
+with open(CALLS, 'a') as out: out.write(json.dumps(['steps', *names])+'\\n')
 for name in names:
  if Path(MODE).read_text() == 'missing-stage' and name == 'image': continue
- code=3 if Path(MODE).read_text() == 'failed-stage' and name == 'image' else 0
+ code=3 if (Path(MODE).read_text(), name) in (('failed-stage','image'), ('failed-vendor-admin','vendor-admin')) else 0
  (run/'stages'/f'{name}.json').write_text(json.dumps({'name':name,'exit_code':code,'run_id':'stale-run' if Path(MODE).read_text()=='stale-receipt' else config['run_id'],'commit':config['commit'],'result':'no_baseline' if name=='upgrade' else 'checked'}))
 print('PIPELINE_OUTPUT')
 if Path(MODE).read_text() == 'cli-failure': sys.exit(4)
@@ -102,10 +103,22 @@ if Path(MODE).read_text() == 'cli-failure': sys.exit(4)
         path.write_text(f'#!{sys.executable}\nfrom pathlib import Path\nCALLS={str(self.calls)!r}\nMODE={str(self.mode)!r}\n' + body)
         path.chmod(0o755)
 
-    def run_ci(self, **env):
+    def change(self, name):
+        """Commit one new file and return the previous commit, the base of a one-file change."""
+        base = self.commit
+        path = self.repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('changed\n')
+        self.git('add', name)
+        self.git('commit', '-qm', 'change')
+        self.commit = self.git('rev-parse', 'HEAD')
+        return base
+
+    def run_ci(self, *, base=None, full=True, **env):
         self.mode.write_text(env.pop('FAKE_MODE', 'success'))
-        return subprocess.run([sys.executable, '-B', str(SCRIPT), '--base', self.commit,
-                               '--commit', self.commit, '--report-dir', str(self.report)],
+        return subprocess.run([sys.executable, '-B', str(SCRIPT), '--base', base or self.commit,
+                               '--commit', self.commit, '--report-dir', str(self.report),
+                               *(['--full'] if full else [])],
                               cwd=self.repo, env={**self.env, **env}, capture_output=True, text=True, check=False)
 
     def receipt(self):
@@ -119,6 +132,9 @@ if Path(MODE).read_text() == 'cli-failure': sys.exit(4)
         self.assertEqual(report['base'], self.commit)
         self.assertEqual(report['commit'], self.commit)
         self.assertEqual([x['name'] for x in report['stages']], list(STAGES))
+        self.assertEqual({x['status'] for x in report['stages']}, {'passed'})
+        self.assertEqual(report['scope'], {'mode': 'full', 'stages': list(STAGES), 'skipped': []})
+        self.assertIn('Running 12 of twelve Woodpecker stages', result.stdout)
         self.assertIn('PIPELINE_OUTPUT', (self.report / 'pipeline.log').read_text())
         calls = [json.loads(x) for x in self.calls.read_text().splitlines()]
         cli = next(x for x in calls if x[0] == 'woodpecker')
@@ -137,6 +153,54 @@ if Path(MODE).read_text() == 'cli-failure': sys.exit(4)
                 result = self.run_ci(FAKE_MODE=mode)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(self.receipt()['status'], 'failed')
+
+    def steps_run(self):
+        calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
+        return next(call[1:] for call in calls if call[0] == 'steps')
+
+    def test_scoped_run_executes_only_the_selected_stages_and_records_the_rest_as_skipped(self):
+        base = self.change('apps/ai-service/src/a.py')
+        result = self.run_ci(base=base, full=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Running 2 of twelve Woodpecker stages: static, ai-service', result.stdout)
+        report = self.receipt()
+        self.assertEqual(report['status'], 'passed')
+        self.assertEqual(report['scope'], {'mode': 'selected', 'stages': ['static', 'ai-service'],
+                                           'skipped': list(STAGES[2:])})
+        self.assertEqual(self.steps_run(), ['static', 'ai-service'])
+        self.assertEqual([x['name'] for x in report['stages']], list(STAGES))
+        self.assertEqual([x['status'] for x in report['stages']], ['passed', 'passed'] + ['skipped'] * 10)
+        self.assertEqual(report['stages'][2], {'name': 'control-plane', 'status': 'skipped',
+                                               'reason': 'not affected by the change'})
+        cli = next(json.loads(x) for x in self.calls.read_text().splitlines() if x.startswith('["woodpecker"'))
+        self.assertNotEqual(cli[-1], '.woodpecker.yml')
+
+    def test_scope_comes_from_the_diff_so_a_full_path_runs_every_stage(self):
+        base = self.change('deploy/odoo/new.sh')
+        result = self.run_ci(base=base, full=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.receipt()['scope']['mode'], 'selected')
+        self.assertEqual(self.steps_run(), list(STAGES))
+        cli = next(json.loads(x) for x in self.calls.read_text().splitlines() if x.startswith('["woodpecker"'))
+        self.assertEqual(cli[-1], '.woodpecker.yml')
+
+    def test_empty_diff_runs_static_only_and_full_overrides_it(self):
+        result = self.run_ci(full=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.receipt()['scope']['stages'], ['static'])
+        self.assertEqual(self.steps_run(), ['static'])
+
+    def test_failed_selected_stage_fails_the_gate_but_an_unselected_one_cannot(self):
+        base = self.change('apps/vendor-admin/pages/a.vue')
+        result = self.run_ci(base=base, full=False, FAKE_MODE='failed-vendor-admin')
+        self.assertNotEqual(result.returncode, 0)
+        report = self.receipt()
+        self.assertEqual(report['status'], 'failed')
+        self.assertEqual({x['name']: x['status'] for x in report['stages']}['vendor-admin'], 'failed')
+        shutil.rmtree(self.report)
+        result = self.run_ci(base=base, full=False, FAKE_MODE='failed-stage')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual({x['name']: x['status'] for x in self.receipt()['stages']}['image'], 'skipped')
 
     def test_waits_for_published_postgres_before_provisioning_roles(self):
         self.executable('psql', '''import json,sys
@@ -173,7 +237,7 @@ if args[args.index('-U')+1] == 'postgres': sys.exit(2)
             os.chdir(self.repo)
             with patch.dict(os.environ, self.env), patch.object(local_ci.time, 'sleep'):
                 result = local_ci.run(SimpleNamespace(base=self.commit, commit=self.commit,
-                                                     report_dir=str(self.report)))
+                                                     report_dir=str(self.report), full=True))
         finally:
             os.chdir(previous)
         self.assertEqual(result, 1)

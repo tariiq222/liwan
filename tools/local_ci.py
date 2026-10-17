@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Execute the complete Woodpecker pipeline with isolated local resources."""
+"""Execute the Woodpecker stages a change can affect (all twelve with --full) with isolated local resources."""
 from __future__ import annotations
 
 import argparse
@@ -17,9 +17,8 @@ import tempfile
 import time
 from pathlib import Path
 
-REQUIRED_STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
-                   'odoo-tasks-standalone', 'odoo-tasks-bridge', 'upgrade',
-                   'restore-drill', 'image', 'e2e-mock', 'rtl-stories')
+import ci_scope
+
 TOOLS = ('git', 'bash', 'node', 'npm', 'python3', 'ruff', 'semgrep', 'psql',
          'pg_dump', 'pg_restore', 'createdb', 'dropdb', 'curl', 'docker', 'woodpecker-cli')
 
@@ -59,7 +58,7 @@ def preflight(base, commit, env):
     if output(['git', 'status', '--porcelain', '--untracked-files=all'], env=env):
         fail('candidate checkout must be clean')
     stages = re.findall(r'^  - name: ([a-z][a-z0-9-]*)\s*$', Path('.woodpecker.yml').read_text(encoding='utf-8'), re.M)
-    if tuple(stages) != REQUIRED_STAGES:
+    if tuple(stages) != ci_scope.STAGES:
         fail('pipeline must contain all twelve required stages in order')
     for path in ('node_modules', 'apps/web/node_modules', 'apps/web/.nuxt',
                  'apps/vendor-admin/node_modules', 'apps/vendor-admin/.nuxt', 'apps/ai-service/.venv'):
@@ -93,9 +92,27 @@ def free_ports(count):
             sock.close()
 
 
-def stage_results(run_dir, run_id, commit):
+def pipeline_file(run_dir, selected):
+    """The pipeline with only the selected steps; every step stays defined in `.woodpecker.yml`.
+
+    `static` is always selected and first, so the YAML anchor it defines survives the filtering.
+    """
+    source = Path('.woodpecker.yml')
+    if tuple(selected) == ci_scope.STAGES:
+        return source
+    header, *steps = re.split(r'(?m)^(?=  - name: )', source.read_text(encoding='utf-8'))
+    kept = [step for step in steps if re.match(r'  - name: ([a-z][a-z0-9-]*)', step)[1] in selected]
+    filtered = run_dir / 'pipeline.yml'
+    filtered.write_text(header + ''.join(kept), encoding='utf-8')
+    return filtered
+
+
+def stage_results(run_dir, run_id, commit, selected):
     results = []
-    for name in REQUIRED_STAGES:
+    for name in ci_scope.STAGES:
+        if name not in selected:
+            results.append({'name': name, 'status': 'skipped', 'reason': 'not affected by the change'})
+            continue
         path = run_dir / 'stages' / (name + '.json')
         result = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {'name': name, 'status': 'missing'}
         valid = (result.get('name') == name and result.get('run_id') == run_id
@@ -153,6 +170,8 @@ def run(args):
         run_dir = Path(temporary)
         try:
             upstream, python = preflight(args.base, args.commit, env)
+            report['scope'] = ci_scope.scope(ci_scope.changed_paths(Path('.'), args.base, args.commit, env), args.full)
+            selected = report['scope']['stages']
             output(['docker', 'info'], env=env)
             owned = True
             output(['docker', 'network', 'create', network], env=env)
@@ -209,12 +228,13 @@ def run(args):
                        '--commit-branch', 'main', '--commit-ref', 'refs/heads/main',
                        '--commit-sha', args.commit, '--prev-commit-sha', args.base,
                        '--pipeline-number', str(time.time_ns() // 1000000),
-                       '--env', 'WEBVUE_CI_RUN_DIR=' + str(run_dir), '.woodpecker.yml']
-            sys.stdout.write('Running all twelve Woodpecker stages; log: ' + str(report_dir / 'pipeline.log') + '\n')
+                       '--env', 'WEBVUE_CI_RUN_DIR=' + str(run_dir), str(pipeline_file(run_dir, selected))]
+            sys.stdout.write(f"Running {len(selected)} of twelve Woodpecker stages: {', '.join(selected)}; log: "
+                             + str(report_dir / 'pipeline.log') + '\n')
             sys.stdout.flush()
             report['pipeline_exit_code'] = execute_pipeline(command, env, log)
-            report['stages'] = stage_results(run_dir, run_id, args.commit)
-            if report['pipeline_exit_code'] or any(stage['status'] != 'passed' for stage in report['stages']):
+            report['stages'] = stage_results(run_dir, run_id, args.commit, selected)
+            if report['pipeline_exit_code'] or any(stage['status'] == 'failed' for stage in report['stages']):
                 fail('pipeline failed or a required stage did not complete successfully')
             if output(['git', 'rev-parse', 'HEAD'], env=env) != args.commit or output(
                     ['git', 'status', '--porcelain', '--untracked-files=all'], env=env):
@@ -243,6 +263,7 @@ def main():
     parser.add_argument('--base', required=True)
     parser.add_argument('--commit', required=True)
     parser.add_argument('--report-dir', required=True)
+    parser.add_argument('--full', action='store_true', help='run all twelve stages whatever the change')
     args = parser.parse_args()
 
     def interrupted(*_):

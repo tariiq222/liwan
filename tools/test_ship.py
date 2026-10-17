@@ -123,6 +123,12 @@ class ShipTests(unittest.TestCase):
         self.assertEqual(self.origin_main(), self.origin_before)
         self.asked.assert_not_called()
 
+    def test_full_flag_reaches_the_merge_gate(self):
+        for argv, expected in (([self.branch, '--full'], True), ([self.branch], False)):
+            with self.subTest(argv=argv), patch.object(ship, 'ship_branch', return_value=0) as shipped:
+                self.assertEqual(ship.main(argv), 0)
+                self.assertIs(shipped.call_args.kwargs['full'], expected)
+
     def test_no_push_still_cleans(self):
         code, output = self.ship('--no-push')
         self.assertEqual(code, 0)

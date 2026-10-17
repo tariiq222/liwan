@@ -57,7 +57,8 @@ parents) stops the gate. The command fetches `origin/main` when origin is config
 refuses a main that is behind or diverged.
 
 The gate records exact main/source commits, creates an isolated detached worktree and an
-actual no-ff merge commit, and checks that commit. All twelve CI stages must complete.
+actual no-ff merge commit, and checks that commit. Only the CI stages the change can affect
+run (see "Change-scoped stages" below); every selected stage must complete.
 Only after success and fresh branch/cleanliness checks does it fast-forward main to the
 same existing tested merge commit. This is an explicit local entrypoint for the integration
 rules in [`agents/integration-rules.md`](agents/integration-rules.md); code review and the
@@ -68,18 +69,38 @@ Reports stay in the ignored `.superpowers/merge-main/<run>/` directory: `merge.j
 promotion the candidate worktree is removed (`candidate_removed` in `merge.json`). Failures,
 conflicts and interruptions before promotion leave main unchanged and keep the
 candidate for diagnosis. If interruption occurs during promotion, inspect `actual_main` in
-`merge.json`; the gate records the resulting ref and never resets another writer's work. `merge:main` alone
+`merge.json` (which also records the stage `scope`); the gate records the resulting ref and never resets another writer's work. `merge:main` alone
 never pushes or removes the task worktree. The lock serializes calls to this command; direct
 Git commands can bypass it, so other main writers must coordinate integrations. This is
 not server-enforced branch protection.
 
+### Change-scoped stages
+
+The twelve stages take about 33 minutes, so the gate runs only the stages the changed files can
+affect. `tools/local_ci.py` lists the files changed between `--base` and `--commit` itself
+(`git diff --name-only --no-renames`, so deletions and both sides of a rename count) and runs the
+matching steps of `.woodpecker.yml`, which stays the single definition of every step. The path-to-stage
+map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static` always runs, and **a path
+with no rule runs all twelve stages** (that includes any `tools/` file not listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
+
+```sh
+python3 -B tools/ci_scope.py --base main
+```
+
+`report.json` records `scope` (`mode`, `stages`, `skipped`) and lists every unselected stage as
+`skipped`; the receipt passes only when every selected stage passed. `merge_main.py` derives the same
+scope from the candidate diff and rejects a receipt that claims a smaller one. Add `--full` to
+`merge:main`, `ship` or `check:local` to run all twelve stages whatever the change; a `release/19.0.X.Y.Z`
+tag is cut only from a `main` commit that passed a `--full` gate run. This is a manual rule, no tool
+enforces it: check that `scope.mode` is `full` in that commit's `.superpowers/merge-main/*/merge.json` before tagging.
+
 ## Closing a task: `npm run ship`
 
 ```sh
-npm run ship -- codex/<area>-<slug> [--no-push] [--no-clean]
+npm run ship -- codex/<area>-<slug> [--no-push] [--no-clean] [--full]
 ```
 
-`ship` runs the merge gate above (an already merged branch continues), then
+`ship` runs the merge gate above (an already merged branch continues; `--full` is passed through), then
 `wt gc --apply --branch` for that one task (worktree, branch and scratch database), then
 offers to push `main` to `origin`. Running it is the owner's authorization for the merge and
 the cleanup of that one task. A gate failure stops before any cleanup or push. A cleanup
@@ -93,7 +114,7 @@ against `origin/main`. Without a terminal (agents, CI) the push is skipped and
 
 ## CI pipeline notes
 
-`.woodpecker.yml` is the single source of twelve local check stages: `static`, `ai-service`,
+`.woodpecker.yml` is the single source of twelve local check stages (a gate run executes the subset described under "Change-scoped stages"): `static`, `ai-service`,
 `control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`,
 `upgrade`, `restore-drill`, `image`, `e2e-mock` and `rtl-stories`. Woodpecker CLI executes
 them locally without a CI server, inbound webhook, Cloudflare tunnel or GitHub Actions.
@@ -272,7 +293,7 @@ Local evidence only; it does not establish deployment readiness.
 
 ## Continuous release verification
 
-The existing twelve-stage pipeline remains unchanged in scope. The static stage
+The existing twelve-stage pipeline remains unchanged in scope; the merge gate selects from it as described under "Change-scoped stages". The static stage
 runs canonical release unit discovery after dependency installation (the real H3
 handler probes load jiti), and shared/dedicated guard regressions. Root deployment
 tests run separately with `PYTHONPATH=deploy` for their existing top-level helper imports, to avoid importing the same package as `releases.*` instead
