@@ -17,9 +17,9 @@ async function save(body: RequestFormPayload) {
 }
 </script>
 <template>
-  <SharedPageContainer width="list"><RequestList :scope="backgroundScope" background /></SharedPageContainer>
+  <SharedListPage :title="t(`operations.nav.${backgroundScope}`)" hide-header><RequestList :scope="backgroundScope" background /></SharedListPage>
   <SharedCreatePanel :title="t('operations.newRequest')" :back-to="backTo">
     <RequestForm v-if="can('operations.requests.create')" :processes="processes.data.value?.items ?? []" :loading="processes.isPending.value" :process-error="processes.error.value" :back-to="backTo" :save="save" @saved="record => navigateTo({ path: `/operations/${record.id}`, query: { returnTo: backTo } }, { replace: true })" />
-    <UAlert v-else color="error" :title="t('operations.errors.forbidden')" />
+    <SharedForbiddenState v-else :description="t('operations.errors.forbidden')" />
   </SharedCreatePanel>
 </template>

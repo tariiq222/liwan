@@ -103,7 +103,7 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 
 | السطح | المكونات الفعلية | المسؤولية الحالية |
 | --- | --- | --- |
-| صفحة `/ai` | `apps/web/app/components/ai/AiMessage.vue`, `apps/web/app/components/ai/AiRecordCards.vue`, `apps/web/app/components/ai/AiToolTrace.vue`, `apps/web/app/components/ai/AiConfirmCard.vue` (تأكيد مضمّن عبر `SharedInlineConfirm`), `apps/web/app/components/ai/AiDraftCard.vue`, `apps/web/app/components/ai/AiLimitNotice.vue`, `apps/web/app/components/ai/AiComposer.vue`, `apps/web/app/components/ai/AiRunList.vue` (لوحة الشريط الجانبي: محادثات المستخدم السابقة، مع تغيير الاسم في مكانه والأرشفة وعرض المؤرشفة؛ وتحت 768px تعرضها صفحة `/ai` بالخاصية `disclosure` قسمًا قابلًا للطي) (قصص: `apps/web/stories/ai/AiThread.stories.ts`, `apps/web/stories/ai/AiCards.stories.ts`, `apps/web/stories/ai/AiRunList.stories.ts`) | محادثة المساعد: الرسائل وبطاقات السجلات وأثر الأدوات وبطاقات التأكيد والمسودة وإشعار الحدود ومربع الكتابة وسجل المحادثات |
+| صفحة `/ai` | `apps/web/app/components/ai/AiMessage.vue`, `apps/web/app/components/ai/AiRecordCards.vue`, `apps/web/app/components/ai/AiToolTrace.vue`, `apps/web/app/components/ai/AiResolvedLine.vue` (سطر النتيجة بعد القرار، مشترك بين البطاقتين), `apps/web/app/components/ai/AiConfirmCard.vue` (كتلة قرار بنمط `SharedRecordSection action`), `apps/web/app/components/ai/AiDraftCard.vue`, `apps/web/app/components/ai/AiLimitNotice.vue`, `apps/web/app/components/ai/AiComposer.vue`, `apps/web/app/components/ai/AiRunList.vue` (لوحة الشريط الجانبي: محادثات المستخدم السابقة، مع تغيير الاسم في مكانه والأرشفة وعرض المؤرشفة؛ وتحت 768px تعرضها صفحة `/ai` بالخاصية `disclosure` قسمًا قابلًا للطي) (قصص: `apps/web/stories/ai/AiThread.stories.ts`, `apps/web/stories/ai/AiCards.stories.ts`, `apps/web/stories/ai/AiRunList.stories.ts`) | محادثة المساعد: الرسائل وبطاقات السجلات وأثر الأدوات وبطاقات التأكيد والمسودة وإشعار الحدود ومربع الكتابة وسجل المحادثات |
 
 ## المؤسسة والوصول والحساب
 
@@ -188,8 +188,9 @@ Storybook هو فهرس المكونات الملزم: كل وكيل يأخذ ا
 
 | المكوّن | الوظيفة | القصة | مكونات الأساس |
 | --- | --- | --- | --- |
-| `apps/web/app/components/operations/RequestList.vue` | طلباتي، بانتظار موافقتي، متابعة التنفيذ مع فلاتر الرابط | `apps/web/stories/operations/RequestList.stories.ts` | `SharedFilterBar`, `SharedFilterField`, `SharedPageState`, `SharedRecordNumber`, `SharedPagination`, `UButton` |
-| `apps/web/app/components/operations/ProcessList.vue` | الإجراءات المنشورة والمسودات بحسب الصلاحية | `apps/web/stories/operations/ProcessList.stories.ts` | `SharedPageHeader`, `SharedPageState`, `SharedRecordNumber`, `SharedPagination`, `UButton` |
+| `apps/web/app/components/operations/RequestList.vue` | طلباتي، بانتظار موافقتي، متابعة التنفيذ مع فلاتر الرابط | `apps/web/stories/operations/RequestList.stories.ts` | `SharedListCard`, `SharedFilterBar`, `SharedDataTable`, `SharedListFooter`, `SharedPersonAvatar`, `SharedStatusBadge`, `SharedForbiddenState`, `SharedRecordNumber` |
+| `apps/web/app/components/operations/ProcessList.vue` | الإجراءات المنشورة والمسودات بحسب الصلاحية | `apps/web/stories/operations/ProcessList.stories.ts` | `SharedListCard`, `SharedFilterBar`, `SharedDataTable`, `SharedListFooter`, `SharedStatusBadge`, `SharedForbiddenState`, `SharedRecordNumber` |
+| `apps/web/app/components/operations/OperationStepRow.vue` | مرحلة موافقة للقراءة فقط: رقمها واسمها ومراجعوها وحالتها | — | `SharedSubCard`, `SharedPersonAvatar`, `SharedStatusBadge` |
 | `apps/web/app/components/operations/RequestForm.vue` | إنشاء الطلب وتعديل مسودته واختيار السجل المرتبط | `apps/web/stories/operations/RequestForm.stories.ts` | `SharedFormSection`, `SharedUnsavedChanges`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/web/app/components/operations/ProcessForm.vue` | ترتيب المراحل والمراجعين ونتيجة الإجراء | `apps/web/stories/operations/ProcessForm.stories.ts` | `SharedFormSection`, `SharedPersonPicker`, `SharedUnsavedChanges`, `UFormField`, `UButton` |
 

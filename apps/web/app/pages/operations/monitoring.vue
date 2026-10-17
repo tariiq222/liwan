@@ -1,4 +1,6 @@
 <script setup lang="ts">
 import RequestList from '@/components/operations/RequestList.vue'
+import { useRequestListPage } from '@/composables/operations/listPage'
+const page = useRequestListPage('monitoring')
 </script>
-<template><SharedPageContainer width="list"><RequestList scope="monitoring" /></SharedPageContainer></template>
+<template><SharedListPage v-bind="page"><RequestList scope="monitoring" /></SharedListPage></template>

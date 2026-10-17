@@ -14,9 +14,9 @@ const mutation = useOperationProcessMutation()
 function save(body: OperationProcessBody) { return mutation.mutateAsync({ action: 'create', body }) }
 </script>
 <template>
-  <SharedPageContainer width="list"><ProcessList background /></SharedPageContainer>
+  <SharedListPage :title="t('operations.nav.processes')" hide-header><ProcessList background /></SharedListPage>
   <SharedCreatePanel :title="t('operations.newProcess')" :back-to="backTo">
     <ProcessForm v-if="can('operations.processes.manage')" :back-to="backTo" :save="save" @saved="process => navigateTo({ path: `/operations/processes/${process.id}`, query: { returnTo: backTo } }, { replace: true })" />
-    <UAlert v-else color="error" :title="t('operations.errors.forbidden')" />
+    <SharedForbiddenState v-else :description="t('operations.errors.forbidden')" />
   </SharedCreatePanel>
 </template>

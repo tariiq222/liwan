@@ -1,54 +1,96 @@
 <script setup lang="ts">
-import { refDebounced } from '@vueuse/core'
+import type { TableColumn } from '@nuxt/ui'
+import type { OperationRequestSummary } from '@webvue/contracts'
+import { formatDate } from '@webvue/ui/app/utils/formatDate'
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { useOperationRequests, type OperationScope } from '@/composables/operations/useOperations'
 import { operationListLocation, safeOperationReturnTo, operationStateChoices, operationStateFromSelection } from '@/composables/operations/forms'
 import { operationsStateTone } from '@/composables/operations/state'
+import { useRouteListFilters } from '@/composables/useRouteListFilters'
+
+// One of the three request lists (mine, pending my approval, monitoring) on the list template: a card with the search and
+// the state filter in its header row, a bare table and the result count with the pager. `background` is the list behind
+// the create panel: it reads its filters from the panel's returnTo. The page owns the SharedListPage shell.
 const props = defineProps<{ scope: OperationScope; background?: boolean }>()
+const PAGE_SIZE = 20
 const route = useRoute()
-const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
-const hydrated = useHydrated()
 const path = computed(() => props.scope === 'mine' ? '/operations' : `/operations/${props.scope}`)
+const { hydrated, filterQuery, page, search, committedSearch, update } = useRouteListFilters({ background: () => props.background, fallbackPath: () => path.value, safeReturnTo: safeOperationReturnTo })
 const allowed = computed(() => can(props.scope === 'pending' ? 'operations.requests.review' : props.scope === 'monitoring' ? 'operations.monitoring.read' : 'operations.requests.read'))
-const filterQuery = computed(() => props.background && typeof route.query.returnTo === 'string' ? Object.fromEntries(new URLSearchParams(safeOperationReturnTo(route.query.returnTo, path.value).split('?')[1]?.split('#')[0] ?? '')) : route.query)
-const page = computed(() => Math.max(1, Number.isSafeInteger(Number(filterQuery.value.page)) ? Number(filterQuery.value.page) : 1))
 const selectedState = computed(() => operationStateFromSelection(filterQuery.value.state))
-const q = ref(typeof filterQuery.value.q === 'string' ? filterQuery.value.q : '')
-watch(() => filterQuery.value.q, value => { q.value = typeof value === 'string' ? value : '' })
-const params = computed(() => ({ scope: props.scope, q: typeof filterQuery.value.q === 'string' ? filterQuery.value.q : undefined, state: selectedState.value || undefined, limit: 20, offset: (page.value - 1) * 20 }))
+const params = computed(() => ({ scope: props.scope, q: committedSearch.value || undefined, state: selectedState.value || undefined, limit: PAGE_SIZE, offset: (page.value - 1) * PAGE_SIZE }))
 const query = useOperationRequests(params, allowed)
 const items = computed(() => query.data.value?.items ?? [])
-const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / 20)))
+const total = computed(() => query.data.value?.total ?? 0)
+const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const backTo = computed(() => operationListLocation(path.value, route.query, route.hash))
-async function update(values: Record<string, string | undefined>) {
-  if (!hydrated.value) return
-  await router.replace({ path: route.path, query: { ...route.query, ...values }, hash: route.hash })
-}
-const search = refDebounced(q, 300)
-watch(search, value => { if (value.trim() !== String(filterQuery.value.q ?? '').trim()) void update({ q: value.trim() || undefined, page: undefined }) })
+const requestTo = (item: OperationRequestSummary) => ({ path: `/operations/${item.id}`, query: { returnTo: backTo.value } })
 const stateItems = computed(() => operationStateChoices(t))
+const activeCount = computed(() => Number(!!committedSearch.value) + Number(!!selectedState.value))
+const hasFilters = computed(() => activeCount.value > 0)
+function clearFilters() {
+  search.value = ''
+  void update({ q: undefined, state: undefined, page: undefined })
+}
+
+const WIDTH = {
+  number: 'w-[48px] min-w-[48px] px-2',
+  title: 'min-w-[240px]',
+  process: 'w-[18%] min-w-[160px]',
+  requester: 'w-[152px] min-w-[152px]',
+  state: 'w-[144px] min-w-[144px]',
+  date: 'w-[128px] min-w-[128px]',
+}
+function column(id: string, header: TableColumn<OperationRequestSummary>['header'], width: string, fit = false): TableColumn<OperationRequestSummary> {
+  const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
+  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<OperationRequestSummary>['meta'] }
+}
+const columns = computed<TableColumn<OperationRequestSummary>[]>(() => [
+  column('record_number', () => recordNumberHeader(t), WIDTH.number, true),
+  column('name', t('operations.name'), WIDTH.title),
+  column('process', t('operations.process'), WIDTH.process),
+  column('requester', t('operations.requester'), WIDTH.requester, true),
+  column('state', t('operations.state'), WIDTH.state, true),
+  column('created_at', t('operations.createdAt'), WIDTH.date, true),
+])
 </script>
+
 <template>
-  <div class="min-w-0 space-y-5">
-    <SharedPageHeader v-if="!background" :title="t(`operations.nav.${scope}`)">
-      <template #actions><UButton v-if="can('operations.requests.create')" :to="{ path: '/operations/new', query: { returnTo: backTo } }" :disabled="!hydrated" icon="i-lucide-plus" :label="t('operations.newRequest')" /></template>
-    </SharedPageHeader>
-    <UAlert v-if="!allowed" color="error" :title="t('operations.errors.forbidden')" />
-    <template v-else>
-      <SharedFilterBar :active-count="Number(!!filterQuery.q) + Number(!!selectedState)" :default-open="!!selectedState" :disabled="!hydrated" @clear="update({ q: undefined, state: undefined, page: undefined })">
-        <template #search><form @submit.prevent="update({ q: q.trim() || undefined, page: undefined })"><UInput v-model="q" class="w-full" icon="i-lucide-search" :placeholder="t('operations.searchRequests')" :aria-label="t('operations.searchRequests')" :disabled="!hydrated" /></form></template>
-        <SharedFilterField :label="t('operations.state')" for="operation-state-filter"><USelect id="operation-state-filter" :model-value="selectedState ?? 'all'" :items="stateItems" :aria-label="t('operations.state')" :disabled="!hydrated" @update:model-value="value => update({ state: operationStateFromSelection(value), page: undefined })" /></SharedFilterField>
+  <SharedForbiddenState v-if="!allowed" :description="t('operations.errors.forbidden')" />
+  <SharedListCard v-else-if="hydrated">
+    <template #filters>
+      <SharedFilterBar embedded class="w-full" :active-count="activeCount" :default-open="!!selectedState" :disabled="!hydrated" @clear="clearFilters">
+        <template #search><form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })"><UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('operations.searchRequests')" :aria-label="t('operations.searchRequests')" :disabled="!hydrated" /></form></template>
+        <USelect class="w-full md:w-48" :model-value="selectedState ?? 'all'" :items="stateItems" :aria-label="t('operations.state')" :disabled="!hydrated" @update:model-value="value => update({ state: operationStateFromSelection(value), page: undefined })" />
       </SharedFilterBar>
-      <SharedPageState :loading="query.isPending.value" :error="query.error.value" :empty="!items.length" :empty-text="t('operations.emptyRequests')" @retry="hydrated && query.refetch()">
-        <ul class="divide-y divide-default rounded-card bg-default ring ring-default">
-          <li v-for="item in items" :key="item.id" class="flex min-w-0 flex-wrap items-start justify-between gap-3 p-4">
-            <div class="min-w-0 flex-1"><div class="flex min-w-0 items-baseline gap-2"><span class="sr-only">{{ t('operations.recordNumber') }}</span><SharedRecordNumber :value="item.id" /><UButton color="neutral" variant="link" class="max-w-full p-0 text-start" :label="item.name" :disabled="!hydrated" :to="{ path: `/operations/${item.id}`, query: { returnTo: backTo } }" /></div><p class="mt-1 text-sm text-muted">{{ item.process.name }} · {{ item.requester.name }}</p></div>
-            <SharedStatusBadge :tone="operationsStateTone(item.state)" :label="t(`operations.states.${item.state}`)" />
-          </li>
-        </ul>
-      </SharedPageState>
-      <SharedPagination :page="page" :pages="pages" :disabled="!hydrated || query.isFetching.value" @update:page="value => update({ page: String(value) })" />
     </template>
-  </div>
+    <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
+    <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--webvue-card-pad-dense)" :title="t(hasFilters ? 'app.noResults' : 'operations.emptyRequests')" />
+    <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,792px)] [&_table]:table-fixed">
+      <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="requestTo" :loading="query.isPending.value" :caption="t(`operations.nav.${scope}`)">
+        <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>
+        <template #name-cell="{ row }">
+          <NuxtLink :to="requestTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name" @click.stop>{{ row.original.name }}</NuxtLink>
+        </template>
+        <template #process-cell="{ row }"><span class="text-muted">{{ row.original.process.name }}</span></template>
+        <template #requester-cell="{ row }">
+          <span class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.requester]" /><span class="min-w-0 truncate text-sm">{{ row.original.requester.name }}</span></span>
+        </template>
+        <template #state-cell="{ row }"><SharedStatusBadge :tone="operationsStateTone(row.original.state)" :label="t(`operations.states.${row.original.state}`)" /></template>
+        <template #created_at-cell="{ row }"><time class="text-sm text-muted" :datetime="row.original.created_at">{{ formatDate(row.original.created_at) }}</time></template>
+        <template #mobile-row="{ row }">
+          <NuxtLink :to="requestTo(row)" class="flex min-w-0 flex-col gap-2">
+            <span class="flex min-w-0 items-center gap-2"><SharedRecordNumber :value="row.id" /><span class="min-w-0 truncate font-semibold text-highlighted">{{ row.name }}</span></span>
+            <span class="truncate text-sm text-muted">{{ row.process.name }} · {{ row.requester.name }}</span>
+            <span class="flex items-center justify-between gap-2"><SharedStatusBadge :tone="operationsStateTone(row.state)" :label="t(`operations.states.${row.state}`)" /><time class="text-sm text-muted" :datetime="row.created_at">{{ formatDate(row.created_at) }}</time></span>
+          </NuxtLink>
+        </template>
+      </SharedDataTable>
+    </div>
+    <template v-if="!query.error.value && items.length" #footer>
+      <SharedListFooter :count-label="t('operations.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="!hydrated || query.isFetching.value" @update:page="value => update({ page: String(value) })" />
+    </template>
+  </SharedListCard>
 </template>
