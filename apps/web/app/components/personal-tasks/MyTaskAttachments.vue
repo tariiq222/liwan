@@ -55,7 +55,7 @@ async function deleteFile(attachmentId: number) {
 </script>
 
 <template>
-  <SharedRecordSection data-testid="my-task-attachments" :title="t('myTasks.attachments.title')">
+  <SharedRecordSection variant="panel" data-testid="my-task-attachments" :title="t('myTasks.attachments.title')">
     <template #actions>
       <span class="text-xs text-muted">{{ t('myTasks.attachments.count', { count: props.count }, props.count) }}</span>
     </template>

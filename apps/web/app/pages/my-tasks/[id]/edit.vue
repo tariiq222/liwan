@@ -45,6 +45,8 @@ async function save(body: MyTaskBody) {
 <template>
   <SharedRecordPage :title="t('myTasks.form.editTitle')" :back-to="backTo" :back-label="t(taskId === null ? 'myTasks.detail.back' : 'myTasks.form.backToTask')" :loading="!task && isLoading" :error="pageError" :keep-content="!!task" @retry="refetch">
     <SharedForbiddenState v-if="task && !task.allowed_actions.write" />
-    <MyTaskForm v-else-if="task" :key="task.id" ref="form" :task="task" :pending="isPending" :error="error" @update="save" @cancel="router.push(backTo)" />
+    <SharedFormSection v-else-if="task" panel>
+      <MyTaskForm :key="task.id" ref="form" :task="task" :pending="isPending" :error="error" @update="save" @cancel="router.push(backTo)" />
+    </SharedFormSection>
   </SharedRecordPage>
 </template>

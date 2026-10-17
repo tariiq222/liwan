@@ -69,7 +69,7 @@ async function submit() {
 </script>
 
 <template>
-  <SharedRecordSection v-if="open" data-testid="my-task-convert" :title="t('myTasks.convert.title')" :description="t('myTasks.convert.description')">
+  <SharedRecordSection v-if="open" variant="action" data-testid="my-task-convert" :title="t('myTasks.convert.title')" :description="t('myTasks.convert.description')">
     <template #actions><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('app.close')" :disabled="isPending" @click="emit('close')" /></template>
     <SharedPageState v-if="loadingTargets || targetsError" :loading="loadingTargets" :error="targetsError" @retry="refetch" />
     <SharedEmptyState v-else-if="targets && !targets.total && !q && projectId === null" :title="t('myTasks.convert.empty')" />

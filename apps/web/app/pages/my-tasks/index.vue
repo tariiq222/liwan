@@ -4,7 +4,6 @@ import type { RouteLocationNormalized } from 'vue-router'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import MyTaskRow from '@/components/personal-tasks/MyTaskRow.vue'
-import { sectionTabsUi } from '@webvue/ui/app/utils/sectionTabs'
 import type { MyTaskListPage } from '@webvue/contracts'
 import { useMyTaskList } from '@/composables/useMyTaskList'
 import { errorStateKind } from '@webvue/ui/app/utils/errorState'
@@ -116,11 +115,7 @@ watch(debouncedSearch, value => {
   flushSearch()
 })
 
-const tabItems = computed(() => MY_TASK_TABS.map(value => ({
-  label: t(`myTasks.list.tabs.${value}`),
-  value,
-  disabled: !hydrated.value,
-})))
+const tabItems = computed(() => MY_TASK_TABS.map(value => ({ value, label: t(`myTasks.list.tabs.${value}`) })))
 const scopeItems = computed(() => MY_TASK_SCOPES.map(value => ({ value, label: t(`myTasks.list.filters.${value}`) })))
 const sortItems = computed(() => MY_TASK_SORTS.map(value => ({ value, label: t(`myTasks.list.sort.${value}`) })))
 
@@ -157,6 +152,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'assignees', header: t('tasks.columns.assignees'), meta: { class: { th: 'w-40', td: 'py-3' } } },
 ])
 const createTo = computed(() => can('tasks.tasks.create') ? { path: '/my-tasks/new', query: { returnTo: liveListPath.value } } : undefined)
+const showEmptyAction = computed(() => !!(state.value.q || state.value.scope !== 'all' || (state.value.tab === 'open' && createTo.value)))
 function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { void router.push(rowTo(task)).catch(() => undefined) }
 </script>
 
@@ -168,63 +164,68 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
     :create-label="t('myTasks.new')"
     create-test-id="my-tasks-new"
   >
-    <template #filters>
-      <div class="space-y-3">
-        <p v-if="state.tab === 'closed'" class="text-sm text-muted">{{ t('myTasks.list.closedHint') }}</p>
-        <div class="w-full min-w-0" data-testid="my-tasks-toolbar">
-          <FilterBar class="w-full" default-open :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-            <template #search>
-              <UInput v-model="search" :disabled="!hydrated" :placeholder="t('myTasks.list.search')" :aria-label="t('myTasks.list.search')" icon="i-lucide-search" class="w-full" />
-            </template>
-            <SharedFilterChoice class="w-full sm:w-auto" :label="t('myTasks.list.scope')" :items="scopeItems" :model-value="state.scope" layout="segment" :disabled="!hydrated" @update:model-value="update({ scope: $event as MyTaskListState['scope'] })" />
-            <SharedFilterField class="w-full sm:w-48" :label="t('myTasks.list.sort.label')" for="my-tasks-sort">
-              <USelect id="my-tasks-sort" :model-value="state.sort" :items="sortItems" class="w-full" :disabled="!hydrated" @update:model-value="update({ sort: $event as MyTaskListState['sort'] })" />
-            </SharedFilterField>
-            <template #view>
-              <UTabs :model-value="state.tab" :items="tabItems" :content="false" variant="link" :ui="sectionTabsUi" :aria-label="t('myTasks.title')" data-testid="my-tasks-tabs" @update:model-value="update({ tab: $event as MyTaskListState['tab'] })" />
-              <SharedViewSwitch :model-value="view" :options="views" @update:model-value="setView" />
-            </template>
-            <template #actions>
-              <UBadge v-if="displayed" color="neutral" variant="subtle" data-testid="my-tasks-total">{{ t('myTasks.list.total', { count: total }, total) }}</UBadge>
-            </template>
-          </FilterBar>
-        </div>
-      </div>
-    </template>
-
     <UAlert v-if="inlineError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('myTasks.list.loadError')">
       <template #actions>
         <UButton color="neutral" variant="outline" type="button" :disabled="!hydrated" @click="retryInline">{{ t('app.retry') }}</UButton>
       </template>
     </UAlert>
-    <SharedDataTable
-      v-if="view === 'table'"
-      :rows="items"
-      :columns="columns"
-      :row-key="task => `${task.source}:${task.id}`"
-      :row-to="rowTo"
-      :loading="query.isLoading.value"
-      :error="items.length ? null : query.error.value"
-      :empty-text="emptyText"
-      :caption="t('myTasks.title')"
-      @retry="query.refetch()"
-    >
-      <template #name-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="name" @open="openLiveTask" /></template>
-      <template #state-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="state" /></template>
-      <template #deadline-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="deadline" /></template>
-      <template #assignees-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="assignees" /></template>
-    </SharedDataTable>
-    <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :keep-content="items.length > 0" :empty="!items.length" :empty-text="emptyText" @retry="query.refetch()">
-      <ul ref="cardList" class="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
-        <li v-for="(task, index) in items" :key="`${task.source}:${task.id}`" data-shortcut-row :data-row-index="index" tabindex="-1" class="min-w-0 rounded-card bg-default p-4 ring ring-default outline-none focus-visible:ring-2 focus-visible:ring-primary">
-          <MyTaskRow :task="task" :to="rowTo(task)" :today="today" part="card" @open="openLiveTask" />
-        </li>
-      </ul>
-    </SharedPageState>
-    <div v-if="!items.length && !query.isLoading.value && !query.error.value" class="flex justify-center gap-2">
-      <UButton v-if="state.q || state.scope !== 'all'" type="button" color="neutral" variant="outline" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
-      <UButton v-else-if="state.tab === 'open' && createTo" :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />
-    </div>
-    <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="update({ offset: ($event - 1) * MY_TASK_PAGE_SIZE })" />
+    <SharedListCard>
+      <template #filters>
+        <div class="space-y-3">
+          <div class="w-full min-w-0" data-testid="my-tasks-toolbar">
+            <FilterBar class="w-full" embedded default-open :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+              <template #search>
+                <UInput v-model="search" :disabled="!hydrated" :placeholder="t('myTasks.list.search')" :aria-label="t('myTasks.list.search')" icon="i-lucide-search" class="w-full" />
+              </template>
+              <SharedSegmentedControl :label="t('myTasks.list.scope')" :items="scopeItems" :model-value="state.scope" @update:model-value="update({ scope: $event as MyTaskListState['scope'] })" />
+              <USelect id="my-tasks-sort" :model-value="state.sort" :items="sortItems" class="w-full md:w-44" :aria-label="t('myTasks.list.sort.label')" :disabled="!hydrated" @update:model-value="update({ sort: $event as MyTaskListState['sort'] })" />
+              <template #view>
+                <SharedSegmentedControl data-testid="my-tasks-tabs" :label="t('myTasks.title')" :items="tabItems" :model-value="state.tab" @update:model-value="update({ tab: $event as MyTaskListState['tab'] })" />
+                <SharedViewSwitch :model-value="view" :options="views" @update:model-value="setView" />
+              </template>
+            </FilterBar>
+          </div>
+          <p v-if="state.tab === 'closed'" class="text-sm text-muted">{{ t('myTasks.list.closedHint') }}</p>
+        </div>
+      </template>
+
+      <SharedDataTable
+        v-if="view === 'table'"
+        bare
+        :rows="items"
+        :columns="columns"
+        :row-key="task => `${task.source}:${task.id}`"
+        :row-to="rowTo"
+        :loading="query.isLoading.value"
+        :error="items.length ? null : query.error.value"
+        :empty-text="emptyText"
+        :caption="t('myTasks.title')"
+        @retry="query.refetch()"
+      >
+        <template v-if="showEmptyAction" #emptyAction>
+          <UButton v-if="state.q || state.scope !== 'all'" type="button" color="neutral" variant="outline" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
+          <UButton v-else :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />
+        </template>
+        <template #name-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="name" @open="openLiveTask" /></template>
+        <template #state-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="state" /></template>
+        <template #deadline-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="deadline" /></template>
+        <template #assignees-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="assignees" /></template>
+      </SharedDataTable>
+      <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :keep-content="items.length > 0" :empty="!items.length" :empty-text="emptyText" @retry="query.refetch()">
+        <template v-if="showEmptyAction" #emptyAction>
+          <UButton v-if="state.q || state.scope !== 'all'" type="button" color="neutral" variant="outline" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
+          <UButton v-else :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />
+        </template>
+        <ul ref="cardList" class="grid min-w-0 gap-4 p-(--webvue-card-pad-dense) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
+          <li v-for="(task, index) in items" :key="`${task.source}:${task.id}`" data-shortcut-row :data-row-index="index" tabindex="-1" class="min-w-0 rounded-card bg-default p-4 ring ring-default outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <MyTaskRow :task="task" :to="rowTo(task)" :today="today" part="card" @open="openLiveTask" />
+          </li>
+        </ul>
+      </SharedPageState>
+
+      <template v-if="displayed" #footer>
+        <SharedListFooter :count-label="t('myTasks.list.total', { count: total }, total)" count-test-id="my-tasks-total" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="update({ offset: ($event - 1) * MY_TASK_PAGE_SIZE })" />
+      </template>
+    </SharedListCard>
   </SharedListPage>
 </template>

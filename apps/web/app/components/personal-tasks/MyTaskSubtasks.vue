@@ -60,7 +60,7 @@ async function toggle(item: { id: number; done?: boolean }) {
 </script>
 
 <template>
-  <SharedRecordSection data-testid="my-task-subtasks" :title="t('myTasks.subtasks.title')">
+  <SharedRecordSection variant="panel" data-testid="my-task-subtasks" :title="t('myTasks.subtasks.title')">
     <template #actions>
       <span v-if="progress.total" class="text-xs text-muted"><span data-testid="my-task-subtasks-progress">{{ t('myTasks.subtasks.progress', progress) }}</span><span v-if="progress.cancelled"> · {{ t('myTasks.subtasks.cancelledCount', { count: progress.cancelled }) }}</span></span>
     </template>

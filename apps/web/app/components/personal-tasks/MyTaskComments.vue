@@ -49,7 +49,7 @@ async function submit() {
 </script>
 
 <template>
-  <SharedRecordSection data-testid="my-task-comments" :title="t('myTasks.comments.title')">
+  <SharedRecordSection variant="panel" data-testid="my-task-comments" :title="t('myTasks.comments.title')">
     <SharedCommentThread
       :comments="comments"
       :empty-text="t('myTasks.comments.empty')"

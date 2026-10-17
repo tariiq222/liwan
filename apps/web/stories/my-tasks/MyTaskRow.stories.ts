@@ -23,3 +23,8 @@ export const Cards: Story = {
     template: `<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><li v-for="item in tasks" :key="item.id" class="min-w-0 rounded-card bg-default p-4 ring ring-default"><MyTaskRow v-bind="args" :task="item" :to="item.href" part="card" /></li></ul>`,
   }),
 }
+
+export const DeadlineToday: Story = { name: 'موعد اليوم', args: { part: 'deadline', task: { ...task, date_deadline: '2026-10-15T00:00:00Z' } } }
+export const DeadlineUpcoming: Story = { name: 'موعد قادم', args: { part: 'deadline', task: { ...task, date_deadline: '2026-10-25T00:00:00Z' } } }
+export const NoDeadline: Story = { name: 'بلا موعد', args: { part: 'deadline', task: { ...task, date_deadline: null } } }
+export const Assignees: Story = { name: 'مكلّفون متعددون', args: { part: 'assignees', task: { ...task, assignees: [{ id: 2, name: 'أحمد', user_id: 2 }, { id: 3, name: 'سارة', user_id: 3 }, { id: 4, name: 'خالد', user_id: 4 }, { id: 5, name: 'منى', user_id: 5 }] } } }

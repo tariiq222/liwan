@@ -21,14 +21,18 @@ function openLive(event: MouseEvent) {
   emit('open', event, props.task)
 }
 const { t, locale } = useI18n()
-const MAX_AVATARS = 3
 const STATE_TONE = { open: 'info', done: 'success', cancelled: 'destructive' } as const
 const day = computed(() => deadlineDay(props.task.date_deadline))
 const overdue = computed(() => props.today !== null && isOverdue(props.task.date_deadline, props.task.state, props.today))
-const shown = computed(() => props.task.assignees.slice(0, MAX_AVATARS))
-const hidden = computed(() => props.task.assignees.length - shown.value.length)
-// One letter: two joined Arabic letters do not fit an extra-small avatar and clip.
-const initials = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
+// The deadline pill follows the main task table: a closed task is calm, overdue is destructive, today warns, later is fine.
+// Before mount `today` is null, so nothing is styled as urgent during SSR.
+const deadlinePill = computed(() => {
+  if (props.task.state !== 'open') return { tone: 'neutral', icon: 'i-lucide-calendar-check' } as const
+  if (overdue.value) return { tone: 'destructive', icon: 'i-lucide-timer-off' } as const
+  if (props.today === null) return { tone: 'neutral', icon: 'i-lucide-calendar' } as const
+  return day.value === props.today ? { tone: 'warning', icon: 'i-lucide-alarm-clock' } as const : { tone: 'success', icon: 'i-lucide-hourglass' } as const
+})
+const deadlineText = computed(() => formatCalendarDate(props.task.date_deadline, locale.value))
 </script>
 
 <template>
@@ -38,8 +42,8 @@ const initials = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
         <UIcon name="i-lucide-flag" class="size-4" aria-hidden="true" />
         <span class="sr-only">{{ t('myTasks.priority.high') }}</span>
       </span>
-      <NuxtLink :to="to" @click.capture="openLive" class="min-w-0 break-words font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :class="task.state !== 'open' ? 'text-muted' : 'text-primary'">{{ task.name }}</NuxtLink>
-      <SharedStatusBadge v-if="part === 'card'" class="ms-auto shrink-0" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
+      <NuxtLink :to="to" @click.capture="openLive" class="min-w-0 break-words text-base font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :class="task.state !== 'open' ? 'text-muted' : 'text-highlighted'">{{ task.name }}</NuxtLink>
+      <SharedStatusBadge v-if="part === 'card'" class="ms-auto shrink-0" size="sm" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
     </div>
     <p class="flex min-w-0 items-center gap-1 text-sm text-muted">
       <UIcon :name="task.project ? 'i-lucide-folder-kanban' : 'i-lucide-user'" class="size-3.5 shrink-0" aria-hidden="true" />
@@ -51,21 +55,12 @@ const initials = (name: string) => name.trim().charAt(0).toUpperCase() || '?'
     </div>
   </div>
 
-  <SharedStatusBadge v-else-if="part === 'state'" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
+  <SharedStatusBadge v-else-if="part === 'state'" size="sm" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
 
-  <div v-else-if="part === 'deadline'" class="flex flex-wrap items-center gap-2 text-sm" data-testid="my-task-deadline" :data-overdue="overdue">
-    <span class="inline-flex items-center gap-1.5 whitespace-nowrap tabular-nums" :class="overdue ? 'text-error' : 'text-muted'">
-      <UIcon v-if="day" name="i-lucide-calendar" class="size-4 shrink-0" aria-hidden="true" />
-      <time v-if="day" :datetime="day" dir="ltr">{{ formatCalendarDate(task.date_deadline, locale) }}</time>
-      <span v-else>{{ t('myTasks.list.noDeadline') }}</span>
-    </span>
-    <SharedStatusBadge v-if="overdue" tone="destructive" size="sm" :label="t('myTasks.list.overdue')" />
+  <div v-else-if="part === 'deadline'" class="text-sm" data-testid="my-task-deadline" :data-overdue="overdue">
+    <SharedStatusBadge v-if="day" v-bind="deadlinePill" size="sm" :label="deadlineText" :aria-label="overdue ? `${t('myTasks.list.overdue')} ${deadlineText}` : deadlineText" :title="overdue ? t('myTasks.list.overdue') : undefined" dir="ltr" />
+    <span v-else class="text-muted">{{ t('myTasks.list.noDeadline') }}</span>
   </div>
 
-  <div v-else-if="task.assignees.length" class="flex shrink-0 items-center" role="group" :aria-label="t('myTasks.list.assignees')">
-    <UAvatar v-for="person in shown" :key="person.id" :text="initials(person.name)" :alt="person.name" :title="person.name" size="xs" class="-ms-1 border-2 border-default first:ms-0" />
-    <span v-if="task.assignees.length === 1" class="ms-2 max-w-28 truncate text-sm" :title="task.assignees[0]?.name">{{ task.assignees[0]?.name }}</span>
-    <span v-if="hidden > 0" class="ms-1 text-xs text-muted" dir="ltr">+{{ hidden }}</span>
-  </div>
-  <span v-else class="text-muted">—</span>
+  <SharedPersonAvatar v-else :people="task.assignees" />
 </template>

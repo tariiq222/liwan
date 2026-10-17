@@ -20,11 +20,11 @@ const meta = {
         <PropertyRow :label="t('myTasks.detail.priority')" :value="t('myTasks.priority.normal')" />
         <PropertyRow :label="t('myTasks.detail.assignees')" value="أحمد" />
       </PropertiesPanel></template>
-      <RecordSection :title="t('myTasks.detail.description')"><p>{{ t('myTasks.detail.noDescription') }}</p></RecordSection>
-      <RecordSection :title="t('myTasks.subtasks.title')"><EmptyState :title="t('myTasks.subtasks.empty')" /></RecordSection>
-      <RecordSection :title="t('myTasks.attachments.title')"><EmptyState :title="t('myTasks.attachments.empty')" /></RecordSection>
-      <RecordSection :title="t('myTasks.comments.title')"><EmptyState :title="t('myTasks.comments.empty')" /></RecordSection>
-      <RecordSection :title="t('myTasks.detail.info')"><PropertiesPanel>
+      <RecordSection variant="panel" :title="t('myTasks.detail.description')"><p>{{ t('myTasks.detail.noDescription') }}</p></RecordSection>
+      <RecordSection variant="panel" :title="t('myTasks.subtasks.title')"><EmptyState :title="t('myTasks.subtasks.empty')" /></RecordSection>
+      <RecordSection variant="panel" :title="t('myTasks.attachments.title')"><EmptyState :title="t('myTasks.attachments.empty')" /></RecordSection>
+      <RecordSection variant="panel" :title="t('myTasks.comments.title')"><EmptyState :title="t('myTasks.comments.empty')" /></RecordSection>
+      <RecordSection variant="tinted" :title="t('myTasks.detail.info')"><PropertiesPanel>
         <PropertyRow :label="t('myTasks.detail.creator')" value="أحمد" />
         <PropertyRow :label="t('myTasks.detail.createdAt')" value="2026-10-15" />
       </PropertiesPanel></RecordSection>
