@@ -113,7 +113,7 @@ function createRecommendation(topicKey?: string) {
     <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form novalidate v-if="query.data.value" class="space-y-8" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
-        <p class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
+        <p class="rounded-control bg-elevated/50 px-3 py-2 text-sm ring ring-default">
           {{ t('meetingsUx.minutesEditorContext', { name: query.data.value.name }) }}
         </p>
         <UAlert v-if="recommendationReturn" :color="recommendationReturn === 'unavailable' ? 'warning' : 'info'" variant="subtle" :title="t(`meetingsUx.recommendationReturn.${recommendationReturn}`)" />
@@ -146,7 +146,7 @@ function createRecommendation(topicKey?: string) {
           <SharedRichText v-if="agenda" :html="agenda" size="sm" />
           <p v-else class="text-sm text-muted">{{ t('meetingsUi.emptyAgenda') }}</p>
         </SharedRecordSection>
-        <details :open="Boolean(minutes)" class="rounded-lg bg-default p-4 ring ring-default">
+        <details :open="Boolean(minutes)" class="rounded-card bg-default p-4 ring ring-default">
           <summary class="cursor-pointer font-medium text-highlighted">{{ t('meetingsUx.additionalNotes') }}</summary>
           <UFormField class="mt-4" name="minutes" :error="serverErrors.minutes">
             <ClientOnly><DescriptionEditor :model-value="minutes" :task-id="-query.data.value.id" :aria-label="t('meetingsUx.additionalNotes')" :readonly="!canEdit || lifecycleLocked || isPending" @draft="minutes = $event.html" /></ClientOnly>

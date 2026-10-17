@@ -58,7 +58,7 @@ function hasInformativeSummary(event: MeetingEvent) {
     <h2 id="meeting-event-list-title" class="sr-only">{{ t('meetingMinutesForm.history') }}</h2>
     <SharedPageState :loading="loading" :error="error" :empty="!events.length" :empty-text="t('meetingMinutesForm.noHistory')" @retry="emit('retry')">
       <ol class="grid gap-2">
-        <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-lg bg-default p-3 ring ring-default">
+        <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 rounded-card bg-default p-3 ring ring-default">
           <div class="flex min-w-0 flex-wrap items-center justify-between gap-2"><span class="font-medium text-highlighted">{{ kindLabel(event.kind) }}</span><time class="text-xs text-muted" :datetime="event.occurred_at">{{ occurredAt(event.occurred_at) }}</time></div>
           <span v-if="event.meeting_name" class="text-xs text-muted">{{ event.meeting_name }}</span>
           <p v-if="hasInformativeSummary(event)" class="whitespace-pre-wrap break-words text-sm">{{ event.summary }}</p>

@@ -33,7 +33,7 @@ test.describe('Tasmim context sidebar', () => {
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
     await toggle.click()
     await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(48)
+    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(64)
     expect((await context.cookies()).find(cookie => cookie.name === 'webvue-context-sidebar')?.value).toBe('closed')
 
     const hydrate = await beforeHydration(page, '/tasks')
@@ -43,7 +43,7 @@ test.describe('Tasmim context sidebar', () => {
     await expect(toggle).toBeEnabled()
     await toggle.click()
     await expect(sidebar).toHaveAttribute('data-expanded', 'true')
-    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(232)
+    await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(230)
   })
 
   test('[ toggles the sidebar by physical key, also on an Arabic layout, but not while typing', async ({ page }) => {

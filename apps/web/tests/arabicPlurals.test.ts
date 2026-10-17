@@ -42,12 +42,14 @@ describe('Arabic plural forms', () => {
 
   it('renders days with the right noun form', () => {
     const key = 'tasks.deadline.inDays'
-    expect(t(key, 1)).toBe('خلال يوم واحد')
-    expect(t(key, 2)).toBe('خلال يومين')
-    expect(t(key, 5)).toBe('خلال 5 أيام')
-    expect(t(key, 120)).toBe('خلال 120 يومًا')
-    expect(t(key, 100)).toBe('خلال 100 يوم')
-    expect(t('tasks.deadline.overdueDays', 11)).toBe('متأخرة 11 يومًا')
+    expect(t(key, 1)).toBe('متبقي يوم واحد')
+    expect(t(key, 2)).toBe('متبقي يومان')
+    expect(t(key, 5)).toBe('متبقي 5 أيام')
+    expect(t(key, 120)).toBe('متبقي 120 يومًا')
+    expect(t(key, 100)).toBe('متبقي 100 يوم')
+    expect(t('tasks.deadline.overdueDays', 1)).toBe('تجاوز يومًا واحدًا')
+    expect(t('tasks.deadline.overdueDays', 2)).toBe('تجاوز يومين')
+    expect(t('tasks.deadline.overdueDays', 11)).toBe('تجاوز 11 يومًا')
   })
 
   it('renders recommendations and combined phrases', () => {

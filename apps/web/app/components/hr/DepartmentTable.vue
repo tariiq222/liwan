@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { HrDepartment } from '@/composables/useHrDepartments'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
-import { avatarProps } from '@/utils/avatarTone'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 // The list view of /hr/departments on SharedDataTable. A row opens its department through `rowTo`

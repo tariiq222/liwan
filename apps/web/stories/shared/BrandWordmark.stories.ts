@@ -20,6 +20,16 @@ export const OnRail: Story = {
   render: args => ({
     components: { BrandWordmark },
     setup: () => ({ args }),
-    template: '<div class="bg-webvue-rail p-4"><BrandWordmark v-bind="args" /></div>',
+    template: '<div class="bg-webvue-midnight p-4"><BrandWordmark v-bind="args" /></div>',
+  }),
+}
+
+export const MarkOnRail: Story = {
+  parameters: storyContext('unused', 'العلامة وحدها بلا الاسم، في أسفل الشريط الجانبي تحت الإعدادات.'),
+  args: { size: 'md', inverted: true, markOnly: true },
+  render: args => ({
+    components: { BrandWordmark },
+    setup: () => ({ args }),
+    template: '<div class="bg-webvue-midnight p-4"><BrandWordmark v-bind="args" /></div>',
   }),
 }

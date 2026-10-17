@@ -78,7 +78,7 @@ async function submit() {
         <UFormField :label="t('chat.recipientSearch')" name="recipientSearch">
           <UInput id="chat-recipient-search" v-model="q" class="w-full" :placeholder="t('chat.recipientSearch')" :disabled="!hydrated" />
         </UFormField>
-        <ul class="max-h-64 overflow-y-auto rounded-lg border border-default">
+        <ul class="max-h-64 overflow-y-auto rounded-control border border-default">
           <li v-for="person in recipients" :key="person.id">
             <UButton
               type="button"

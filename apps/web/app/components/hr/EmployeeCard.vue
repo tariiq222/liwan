@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HrEmployee } from '@webvue/contracts'
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
-import { avatarProps } from '@/utils/avatarTone'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 
 // The employee record's main column: the overview (avatar, job line, department, manager and status) and,
 // for a reader who may see account status, the account block. The contact facts are EmployeeProperties
@@ -14,7 +14,7 @@ const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
 
 <template>
   <SharedRecordSection :title="t('hr.card.overview')">
-    <div class="flex items-center gap-4 rounded-lg bg-default p-4 ring ring-default">
+    <div class="flex items-center gap-4 rounded-card bg-default p-4 ring ring-default">
       <UAvatar v-bind="avatarProps(employee.name, employee.id)" size="xl" />
       <div class="min-w-0 flex-1 space-y-1.5">
         <div class="flex flex-wrap items-center gap-2">
@@ -31,7 +31,7 @@ const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
     </div>
   </SharedRecordSection>
   <SharedRecordSection v-if="canSeeAccess" :title="t('hr.card.account')">
-    <div class="space-y-3 rounded-lg bg-default p-4 ring ring-default">
+    <div class="space-y-3 rounded-card bg-default p-4 ring ring-default">
       <div class="flex items-center justify-between gap-3 text-sm">
         <span class="text-muted">{{ t('hr.card.account') }}</span>
         <SharedStatusBadge data-testid="hr-access-badge" :tone="hrAccessBadge(employee.access).tone" :label="t(hrAccessBadge(employee.access).labelKey)" />

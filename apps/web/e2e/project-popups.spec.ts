@@ -176,7 +176,7 @@ test('desktop sidebar keeps project navigation and collapses independently of th
   await page.screenshot({ path: testInfo.outputPath('project-sidebar-collapsed.png'), fullPage: true })
   await toggle.click()
   await expect(sidebar).toHaveAttribute('data-expanded', 'true')
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(232)
+  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(230)
 })
 
 test('task opens over project and browser back returns to the filtered workspace', async ({ page }) => {

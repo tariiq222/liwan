@@ -29,7 +29,7 @@ const color = (taskId: number, stakeholderId: number) => {
 </script>
 
 <template>
-  <section data-testid="raci-matrix" class="max-w-full overflow-x-auto overscroll-x-contain rounded-lg bg-default ring ring-default">
+  <section data-testid="raci-matrix" class="max-w-full overflow-x-auto overscroll-x-contain rounded-card bg-default ring ring-default">
     <table class="w-full min-w-max text-start text-sm">
       <caption class="p-3 text-start">{{ t('projects.governance.raci.matrixHelp') }}</caption>
       <thead>

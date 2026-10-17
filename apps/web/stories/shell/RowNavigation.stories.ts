@@ -19,7 +19,7 @@ export const Demo: StoryObj = {
       useRowNavigation(list)
       return { list, rows: projectRefs, t: useI18n().t }
     },
-    template: `<ul ref="list" class="max-w-md divide-y divide-default rounded-lg ring ring-default" :aria-label="t('nav.projects')">
+    template: `<ul ref="list" class="max-w-md divide-y divide-default rounded-card ring ring-default" :aria-label="t('nav.projects')">
       <li v-for="row in rows" :key="row.id" data-shortcut-row tabindex="-1" class="px-3 py-2 outline-none focus-visible:bg-elevated focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
         <a :href="'#project-' + row.id" class="text-highlighted">{{ row.name }}</a>
       </li>

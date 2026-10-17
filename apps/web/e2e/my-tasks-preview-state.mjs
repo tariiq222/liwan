@@ -20,7 +20,7 @@ export function createMyTasksPreview() {
   const fail = (message, field, status = 422) => reply({ code: status === 404 ? 'not_found' : 'invalid', message, ...(field ? { field } : {}) }, status)
   const listItem = task => ({ id: task.id, name: task.name, state: task.state, priority: task.priority, date_deadline: task.date_deadline, assignees: task.assignees, source: task.project ? 'project' : 'personal', project: task.project ?? null, href: task.project ? `/projects/${task.project.id}/tasks/${task.id}` : `/my-tasks/${task.id}` })
   const pmoRow = task => ({
-    id: task.id, name: task.name, project: task.project, state: wireState(task), priority: task.priority === 'high' ? '1' : '0',
+    id: task.id, name: task.name, description_excerpt: '', project: task.project, state: wireState(task), priority: task.priority === 'high' ? '1' : '0',
     date_deadline: task.date_deadline, days_remaining: null, is_overdue: false, is_closed: task.state !== 'open', personal_stage: null, stage: null,
     assignees: task.assignees.map(({ id, name }) => ({ id, name })), tags: [], can_write: false, can_approve: false, allowed_transitions: [],
   })

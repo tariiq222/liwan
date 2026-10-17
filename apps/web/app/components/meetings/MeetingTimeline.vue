@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
 import type { MeetingListItem } from '@webvue/contracts'
 import RecordNumber from '@webvue/ui/app/components/shared/data/RecordNumber.vue'
@@ -22,7 +23,7 @@ const hydrated = useHydrated()
 const now = computed(() => props.now ?? new Date())
 const groups = computed(() => groupMeetingsByMonth(props.meetings, locale.value, now.value, t('meetingTimeline.unknownDate'), props.preserveOrder))
 const tableColumns = computed<TableColumn<MeetingListItem>[]>(() => [
-  { accessorKey: 'reference', header: t('app.recordNumber') },
+  { accessorKey: 'reference', header: () => recordNumberHeader(t) },
   { accessorKey: 'name', header: t('meetingTimeline.session') },
   { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
   { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
@@ -104,7 +105,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
     <section v-for="group in groups" :key="group.key" :aria-labelledby="`meeting-month-${group.key}`">
       <h3 :id="`meeting-month-${group.key}`" class="mb-2 text-sm font-semibold text-muted">{{ group.label }}</h3>
       <ol class="relative ms-2 border-s border-default">
-        <li v-for="meeting in group.meetings" :key="meeting.id" class="relative ms-4 border-b border-default pb-4 ps-5 pt-1 last:border-b-0" :class="meeting.id === nextMeetingId ? 'rounded-lg bg-primary/10' : ''">
+        <li v-for="meeting in group.meetings" :key="meeting.id" class="relative ms-4 border-b border-default pb-4 ps-5 pt-1 last:border-b-0" :class="meeting.id === nextMeetingId ? 'rounded-control bg-primary/10' : ''">
           <span class="absolute -start-[5px] top-3 size-2 rounded-full" :class="meeting.id === nextMeetingId ? 'bg-primary ring-4 ring-primary/20' : 'bg-accented'" aria-hidden="true" />
           <div class="flex min-w-0 flex-wrap items-start gap-2">
             <RecordNumber :value="meeting.reference || meeting.id" class="shrink-0" />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { useProjectRegister, useDeleteProjectRegister } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
 import { REGISTER_PRIORITY_TONE, REGISTER_STATUS_TONE, registerScoreTone } from '@/components/pmo/projects/governance/state'
@@ -84,7 +85,7 @@ function itemLabel(items: { value: string; label: string }[], value: string) {
   return items.find(item => item.value === value)?.label ?? value
 }
 const columns = computed(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t) },
   { accessorKey: 'title', header: t('projects.governance.register.itemTitle') },
   { accessorKey: 'kind', header: t('projects.governance.register.kind') },
   { accessorKey: 'priority', header: t('projects.governance.register.priority') },

@@ -30,7 +30,7 @@ const actionLabels: Record<AuditAction, string> = {
     <SharedPageState v-else :empty="!event.data.value" :empty-text="t('access.notFound')">
       <template v-if="event.data.value">
         <SharedRecordSection v-for="side in (['before', 'after'] as const)" :id="side" :key="side" :title="t(`access.audit.${side}`)">
-          <div class="overflow-hidden rounded-lg bg-default ring ring-default">
+          <div class="overflow-hidden rounded-card bg-default ring ring-default">
             <pre class="overflow-x-auto p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre>
           </div>
         </SharedRecordSection>

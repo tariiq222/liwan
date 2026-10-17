@@ -197,7 +197,7 @@ function dropGroup(lane: Lane) {
 </script>
 
 <template>
-  <div :class="embedded ? 'space-y-2 p-4' : 'rounded-lg ring ring-default bg-default overflow-hidden space-y-2 p-4'">
+  <div :class="embedded ? 'space-y-2 p-4' : 'rounded-card ring ring-default bg-default overflow-hidden space-y-2 p-4'">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <div role="group" data-testid="board-grouping" class="inline-flex items-center gap-0.5 rounded-md bg-elevated/40 p-0.5 ring ring-default" :aria-label="t('tasks.kanban.groupBy')">
         <UButton
@@ -235,7 +235,7 @@ function dropGroup(lane: Lane) {
           :data-stage-id="lane.key"
           :aria-expanded="false"
           :aria-label="t('tasks.kanban.expand', { name: lane.title })"
-          class="flex h-full w-12 shrink-0 flex-col items-center gap-2 rounded-lg border border-default bg-elevated/30 p-2 text-muted hover:bg-elevated"
+          class="flex h-full w-12 shrink-0 flex-col items-center gap-2 rounded-control border border-default bg-elevated/30 p-2 text-muted hover:bg-elevated"
           @click="toggleFold(lane.stage!.id)"
         >
           <span data-testid="board-column-count" class="text-xs font-medium">{{ countOf(lane.key) }}</span>
@@ -246,7 +246,7 @@ function dropGroup(lane: Lane) {
           v-else
           data-testid="board-column"
           :data-stage-id="lane.key"
-          class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-elevated/30 p-2"
+          class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-control border border-default bg-elevated/30 p-2"
         >
           <div class="flex items-center justify-between px-1">
             <UButton

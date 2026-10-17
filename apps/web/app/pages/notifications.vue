@@ -159,7 +159,7 @@ async function retryNextPage() {
       :empty-text="emptyText"
       @retry="retryNotifications"
     >
-      <div class="rounded-lg ring ring-default bg-default overflow-hidden">
+      <div class="rounded-card ring ring-default bg-default overflow-hidden">
         <ul ref="listEl" class="grid gap-0">
           <li v-for="item in items" :key="item.id">
             <UButton

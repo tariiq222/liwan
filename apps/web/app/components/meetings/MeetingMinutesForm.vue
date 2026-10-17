@@ -87,7 +87,7 @@ function readAgenda() {
 
 <template>
   <div class="grid gap-5" data-testid="meeting-minutes-form">
-    <section class="grid gap-3 rounded-lg bg-elevated/50 p-4 ring ring-default">
+    <section class="grid gap-3 rounded-card bg-elevated/50 p-4 ring ring-default">
       <h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.metadata') }}</h3>
       <dl class="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ meeting.name || '—' }}</dd></div>
@@ -119,7 +119,7 @@ function readAgenda() {
         <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="readonly || pending || modelValue.topics.length >= 100 || !hydrated" :label="t('meetingMinutesForm.addTopic')" @click="addTopic" />
       </div>
       <SharedEmptyState v-if="!modelValue.topics.length" :title="t('meetingMinutesForm.noTopics')" />
-      <article v-for="(topic, index) in modelValue.topics" :id="`meeting-minutes-topic-${topic.key}`" tabindex="-1" :key="topic.key" class="grid gap-3 rounded-lg bg-default p-4 ring ring-default">
+      <article v-for="(topic, index) in modelValue.topics" :id="`meeting-minutes-topic-${topic.key}`" tabindex="-1" :key="topic.key" class="grid gap-3 rounded-card bg-default p-4 ring ring-default">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h5 class="font-medium text-highlighted">{{ t('meetingMinutesForm.topicNumber', { number: index + 1 }) }}</h5>
           <div class="flex flex-wrap items-center gap-1">
@@ -140,7 +140,7 @@ function readAgenda() {
         <UButton v-if="!readonly" type="button" color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution', topic.key)" />
         <div class="grid gap-1">
           <span :id="`minutes-topic-resolutions-${topic.key}`" class="text-sm font-medium text-highlighted">{{ t('meetingMinutesForm.recommendations') }}</span>
-          <fieldset :aria-labelledby="`minutes-topic-resolutions-${topic.key}`" class="grid gap-2 rounded-lg p-3 ring ring-default">
+          <fieldset :aria-labelledby="`minutes-topic-resolutions-${topic.key}`" class="grid gap-2 rounded-control p-3 ring ring-default">
             <legend class="sr-only">{{ t('meetingMinutesForm.recommendations') }}</legend>
             <label v-for="item in availableRecommendations(index)" :key="item.id" class="flex min-w-0 items-start gap-2 text-sm">
               <UCheckbox :model-value="topic.resolution_ids.includes(item.id)" :disabled="readonly || pending || !hydrated" :aria-label="item.name" @update:model-value="toggleRecommendation(index, item.id, Boolean($event))" />
@@ -182,7 +182,7 @@ function readAgenda() {
       </div>
     </section>
 
-    <div v-if="!readonly" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-default p-3">
+    <div v-if="!readonly" class="flex flex-wrap items-center justify-between gap-2 rounded-control border border-dashed border-default p-3">
       <span class="text-sm text-muted">{{ t('meetingMinutesForm.addRecommendationHint') }}</span>
       <UButton type="button" color="neutral" variant="outline" :disabled="pending || !hydrated" :label="t('meetingMinutesForm.saveAndCreateRecommendation')" @click="emit('save-and-create-resolution')" />
     </div>

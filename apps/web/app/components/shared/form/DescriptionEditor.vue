@@ -122,7 +122,7 @@ function applyLink() {
 
 <template>
   <ClientOnly>
-    <div data-editor="description" class="overflow-hidden rounded-lg border border-default bg-default shadow-sm">
+    <div data-editor="description" class="overflow-hidden rounded-card border border-default bg-default shadow-sm">
       <div v-if="!readonly" class="flex items-center gap-1 border-b border-default bg-elevated/30 p-1">
         <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.bold')" :variant="editor?.isActive('bold') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bold')" type="button" @click="toggleBold">
           <UIcon name="i-lucide-bold" class="size-4.5" aria-hidden="true" />

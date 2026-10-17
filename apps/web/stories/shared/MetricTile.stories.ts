@@ -17,3 +17,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Row: Story = { name: 'صف مؤشرات' }
+export const CompactStrip: Story = {
+  name: 'شريط مدمج بنبرات (مؤشرات قائمة المهام)',
+  render: () => ({
+    components: { MetricTile },
+    template: `<div class="grid max-w-5xl grid-cols-2 gap-(--webvue-gap-card) lg:grid-cols-4"><MetricTile density="compact" icon="i-lucide-list-checks" label="إجمالي المهام" :value="128" value-dir="ltr" /><MetricTile density="compact" tone="warning" icon="i-lucide-clock" label="المهام المفتوحة" :value="82" hint="64٪ من الإجمالي" value-dir="ltr" /><MetricTile density="compact" tone="danger" icon="i-lucide-circle-alert" label="المهام المتأخرة" :value="18" hint="14٪ من الإجمالي" value-dir="ltr" /><MetricTile density="compact" tone="success" icon="i-lucide-circle-check" label="المهام المنجزة" :value="28" hint="22٪ من الإجمالي" value-dir="ltr" /></div>`,
+  }),
+}

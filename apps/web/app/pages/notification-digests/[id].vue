@@ -76,7 +76,7 @@ async function retryNextPage() {
       <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
     </div>
     <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted" data-testid="digest-empty">{{ t('tasks.digest.empty') }}</p>
-    <div v-else class="overflow-hidden rounded-lg bg-default ring ring-default">
+    <div v-else class="overflow-hidden rounded-card bg-default ring ring-default">
       <ul class="divide-y divide-default">
         <li v-for="task in items" :key="task.id">
           <UButton

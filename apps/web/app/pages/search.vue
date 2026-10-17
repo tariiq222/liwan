@@ -54,7 +54,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
     <template v-for="section in sections" :key="section.provider.id">
       <div v-if="query.trim() && section.visible.value && (section.waiting.value || section.error.value)"><SharedPageState :loading="section.waiting.value && !section.rows.value.length" :error="section.error.value" @retry="section.refetch()" /></div>
       <SharedRecordSection v-if="query.trim() && section.visible.value && section.rows.value.length" :title="t(section.provider.labelKey)">
-        <div class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+        <div class="divide-y divide-default overflow-hidden rounded-card bg-default ring ring-default">
           <NuxtLink v-for="row in section.rows.value" :key="row.id" :to="{ path: row.to, query: { returnTo: route.fullPath } }" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="section.provider.icon" aria-hidden="true" class="size-4.5 shrink-0 text-muted" /><span class="min-w-0 flex-1 truncate">{{ row.label }}</span><UIcon name="i-lucide-arrow-left" aria-hidden="true" class="size-4.5 shrink-0 text-muted ltr:rotate-180" /></NuxtLink>
         </div>
         <p v-if="section.truncated.value && section.provider.truncatedKey" role="status" class="text-sm text-muted">{{ t(section.provider.truncatedKey) }}</p>
@@ -62,7 +62,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
       </SharedRecordSection>
     </template>
     <SharedRecordSection v-if="nav.length" :title="t('nav.goTo')">
-      <div class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+      <div class="divide-y divide-default overflow-hidden rounded-card bg-default ring ring-default">
         <template v-for="item in visibleNav" :key="item.to">
           <a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></a>
           <NuxtLink v-else :to="item.to" class="flex items-center gap-3 p-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></NuxtLink>

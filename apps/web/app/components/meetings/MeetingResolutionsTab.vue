@@ -161,7 +161,7 @@ async function confirmResolutionAction() {
         <SharedEmptyState v-if="!meeting.resolutions.length" :title="t('meetingsUi.emptyResolutions')" />
         <SharedEmptyState v-else-if="!filteredResolutions.length" :title="t('meetingsUx.noMatchingRecommendations')" />
         <ul v-else class="grid min-w-0 gap-3">
-          <li v-for="item in filteredResolutions" :key="item.id" class="grid min-w-0 gap-3 rounded-lg bg-default p-4 ring ring-default">
+          <li v-for="item in filteredResolutions" :key="item.id" class="grid min-w-0 gap-3 rounded-card bg-default p-4 ring ring-default">
             <div class="grid min-w-0 gap-2">
               <h3 class="break-words font-semibold text-highlighted">{{ item.name }}</h3>
               <div class="flex min-w-0 flex-wrap gap-1.5">

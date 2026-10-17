@@ -19,59 +19,60 @@ test.describe('Tasmim shell (desktop)', () => {
 
   for (const [locale, dir] of LOCALES) {
     for (const fontSize of ['small', 'large'] as const) {
-      test(`frame is 48/64/232 and mirrors in ${locale} at ${fontSize} text`, async ({ page }) => {
+      test(`floating frame is 56/64/230 with 12px insets and mirrors in ${locale} at ${fontSize} text`, async ({ page }) => {
         await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light;fontSize:${fontSize}`)
         await expect(page.locator('html')).toHaveAttribute('dir', dir)
         const header = await box(page, 'shell-header')
         const rail = await box(page, 'module-rail')
         const sidebar = await box(page, 'context-sidebar')
-        expect(header.height).toBeCloseTo(48, 0)
+        expect(header.height).toBeCloseTo(56, 0)
+        expect(header.y).toBeCloseTo(12, 0)
+        expect(header.x).toBeCloseTo(12, 0)
+        expect(header.x + header.width).toBeCloseTo(1428, 0)
         expect(rail.width).toBeCloseTo(64, 0)
-        expect(rail.y).toBeCloseTo(0, 0)
-        expect(rail.height).toBeCloseTo(900, 0)
-        expect(sidebar.width).toBeCloseTo(232, 0)
-        expect(sidebar.y).toBeCloseTo(48, 0)
+        expect(rail.y).toBeCloseTo(84, 0)
+        expect(rail.y + rail.height).toBeCloseTo(888, 0)
+        expect(sidebar.width).toBeCloseTo(230, 0)
+        expect(sidebar.y).toBeCloseTo(84, 0)
+        expect(sidebar.y + sidebar.height).toBeCloseTo(888, 0)
+        // The sidebar sits right beside the rail, 12px apart, both on the inline-start side.
         if (dir === 'rtl') {
-          expect(rail.x + rail.width).toBeCloseTo(1440, 0)
-          expect(header.x).toBeCloseTo(0, 0)
-          expect(header.x + header.width).toBeCloseTo(rail.x, 0)
-          expect(sidebar.x + sidebar.width).toBeCloseTo(rail.x, 0)
+          expect(rail.x + rail.width).toBeCloseTo(1428, 0)
+          expect(sidebar.x + sidebar.width).toBeCloseTo(rail.x - 12, 0)
         } else {
-          expect(rail.x).toBeCloseTo(0, 0)
-          expect(header.x).toBeCloseTo(64, 0)
-          expect(header.x + header.width).toBeCloseTo(1440, 0)
-          expect(sidebar.x).toBeCloseTo(64, 0)
+          expect(rail.x).toBeCloseTo(12, 0)
+          expect(sidebar.x).toBeCloseTo(rail.x + rail.width + 12, 0)
         }
         await expect(page.getByTestId('module-rail-toggle')).toHaveCount(0)
       })
     }
 
-    test(`the active module carries a lime bar on the rail's inline-start edge (${locale})`, async ({ page }) => {
-      await open(page, 'shell-shellframe--default', `locale:${locale};appearance:dark`)
-      const rail = await box(page, 'module-rail')
+    test(`the active module has a tinted round icon circle (${locale})`, async ({ page }) => {
+      await open(page, 'shell-shellframe--default', `locale:${locale};appearance:light`)
       const active = page.getByTestId('module-rail').locator('[aria-current="page"]')
       await expect(active).toHaveCount(1)
-      const bar = active.locator('[data-slot="indicator"]')
-      const barBox = (await bar.boundingBox())!
-      expect(barBox.width).toBeCloseTo(3, 0)
-      if (dir === 'rtl') expect(barBox.x + barBox.width).toBeCloseTo(rail.x + rail.width, 0)
-      else expect(barBox.x).toBeCloseTo(rail.x, 0)
-      await expect(bar).toHaveCSS('background-color', 'rgb(200, 240, 49)')
-      await expect(page.getByTestId('module-rail').locator('[data-slot="indicator"]')).toHaveCount(1)
+      await expect(active.locator('[data-slot="icon"]')).toHaveCSS('border-radius', '9999px')
+      await expect(page.getByTestId('module-rail')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
     })
   }
 
   for (const [locale, dir] of LOCALES) {
-    test(`a collapsed sidebar is 48px icons with hidden labels (${locale})`, async ({ page }) => {
+    test(`a collapsed sidebar is a 64px icon bar with hidden labels (${locale})`, async ({ page }) => {
       await open(page, 'shell-shellframe--collapsed', `locale:${locale};appearance:light`)
       const sidebar = page.getByTestId('context-sidebar')
       await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-      expect((await box(page, 'context-sidebar')).width).toBeCloseTo(48, 0)
+      expect((await box(page, 'context-sidebar')).width).toBeCloseTo(64, 0)
       await expect(page.getByTestId('context-sidebar-toggle')).toHaveAttribute('aria-expanded', 'false')
       await expect(page.getByTestId('context-link-tasks')).toHaveAccessibleName(locale === 'ar' ? 'مهامي' : 'My tasks')
       const main = (await box(page, 'shell-main'))
-      if (dir === 'rtl') expect(main.x + main.width).toBeCloseTo(1440 - 64 - 48, 0)
-      else expect(main.x).toBeCloseTo(64 + 48, 0)
+      // Inline-start: 12 + 64 + 12 + 64 + 12; inline-end: 12.
+      if (dir === 'rtl') {
+        expect(main.x + main.width).toBeCloseTo(1440 - 164, 0)
+        expect(main.x).toBeCloseTo(12, 0)
+      } else {
+        expect(main.x).toBeCloseTo(164, 0)
+        expect(main.x + main.width).toBeCloseTo(1440 - 12, 0)
+      }
     })
   }
 
@@ -143,9 +144,9 @@ test.describe('Tasmim shell (390px)', () => {
         await expect(page.getByTestId('module-rail')).toBeHidden()
         await expect(page.getByTestId('context-sidebar')).toBeHidden()
         const header = await box(page, 'shell-header')
-        expect(header.x).toBeCloseTo(0, 0)
-        expect(header.width).toBeCloseTo(390, 0)
-        expect(header.height).toBeCloseTo(48, 0)
+        expect(header.x).toBeCloseTo(12, 0)
+        expect(header.width).toBeCloseTo(366, 0)
+        expect(header.height).toBeCloseTo(56, 0)
         for (const control of await page.getByTestId('shell-header').getByRole('button').all()) {
           const area = (await control.boundingBox())!
           expect(area.height).toBeGreaterThanOrEqual(44)

@@ -43,7 +43,7 @@ describe('the print sheet', () => {
     for (const selector of ['.webvue-shell-header', '.webvue-module-rail', '.webvue-context-sidebar', '.webvue-mobile-menu-trigger', '.webvue-print-hide']) {
       expect(declarations(print, selector).get('display'), selector).toBe('none !important')
     }
-    expect(declarations(print, '.webvue-shell-workspace').get('margin-inline-start')).toBe('0 !important')
+    expect(declarations(print, '.webvue-shell-workspace').get('margin-inline')).toBe('0 !important')
     expect(declarations(print, '.webvue-shell-workspace').get('padding-block-start')).toBe('0 !important')
   })
 

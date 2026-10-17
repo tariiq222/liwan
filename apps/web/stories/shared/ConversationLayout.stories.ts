@@ -32,7 +32,7 @@ const meta = {
       </template>
       <template #thread>
         <div class="flex-1 overflow-y-auto bg-muted p-4">
-          <p class="max-w-sm rounded-lg bg-default p-3 text-sm text-default">صباح الخير، أرفقت مسودة الخطة.</p>
+          <p class="max-w-sm rounded-card bg-default p-3 text-sm text-default">صباح الخير، أرفقت مسودة الخطة.</p>
         </div>
       </template>
       <template #composer>

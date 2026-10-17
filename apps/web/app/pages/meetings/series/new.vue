@@ -113,7 +113,7 @@ async function save() {
     <form ref="formElement" novalidate class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
-      <p v-if="context" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">{{ t('meetingsUx.context.project', { name: context }) }}</p>
+      <p v-if="context" class="rounded-control bg-elevated/50 px-3 py-2 text-sm ring ring-default">{{ t('meetingsUx.context.project', { name: context }) }}</p>
       <SharedFormSection :title="t('meetingsUi.sectionSchedule')" class="space-y-4">
         <UFormField :label="t('meetingsUx.seriesName')" name="name" required :error="serverErrors.name || (visibleErrors.name ? t(`meetingsUx.errors.${visibleErrors.name}`) : undefined)">
           <UInput id="series-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.name" required />
@@ -151,7 +151,7 @@ async function save() {
             <UInput v-if="untilMode === 'count'" id="series-count" v-model="untilCount" type="number" min="1" max="60" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.untilCount" />
             <SharedDateField v-else id="series-until-date" v-model="untilDateField" class="w-full" :disabled="!hydrated || isPending" :aria-invalid="!!visibleErrors.untilDate" />
           </UFormField>
-          <div v-if="preview.length" class="rounded-lg bg-elevated/50 p-3 text-sm ring ring-default">
+          <div v-if="preview.length" class="rounded-control bg-elevated/50 p-3 text-sm ring ring-default">
             <p class="font-medium text-highlighted">{{ t('meetingsUx.previewTitle') }}</p>
             <ul class="mt-2 grid max-h-48 gap-1 overflow-y-auto" tabindex="0">
               <li v-for="(item, index) in preview" :key="item.start">{{ t('meetingsUx.previewItem', { index: index + 1, start: item.start.replace('T', ' '), end: item.end.replace('T', ' ') }) }}</li>

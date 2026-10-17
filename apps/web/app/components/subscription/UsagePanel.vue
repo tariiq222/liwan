@@ -14,7 +14,7 @@ const rows = computed(() => props.usage.metrics.map(m => ({ m, f: usageFigure(m,
       <span v-if="usage.observed_at" class="ms-2">{{ t('subscription.usage.observed') }} <bdi dir="ltr">{{ usage.observed_at }}</bdi></span>
     </p>
     <dl class="grid gap-3 sm:grid-cols-2">
-      <div v-for="{ m, f } in rows" :key="m.key" class="rounded-lg p-3 ring ring-default" data-testid="usage-metric" :data-known="f.known">
+      <div v-for="{ m, f } in rows" :key="m.key" class="rounded-control p-3 ring ring-default" data-testid="usage-metric" :data-known="f.known">
         <dt class="text-sm text-muted">{{ usageMetricLabel(m, t, te) }}</dt>
         <dd class="mt-1 font-semibold tabular-nums">
           <span v-if="!f.known" class="text-muted">{{ t('subscription.usage.unavailable') }}</span>

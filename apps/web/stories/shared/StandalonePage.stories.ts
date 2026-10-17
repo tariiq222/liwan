@@ -23,8 +23,8 @@ type Story = StoryObj<typeof meta>
 
 const DOCUMENT = `
   <dl class="grid gap-3 sm:grid-cols-2">
-    <div class="grid gap-1 rounded-lg p-3 ring ring-default"><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd dir="ltr" class="text-highlighted">2026-10-05</dd></div>
-    <div class="grid gap-1 rounded-lg p-3 ring ring-default"><dt class="text-xs text-muted">{{ t('meetingMinutesForm.chairperson') }}</dt><dd class="text-highlighted">سارة القحطاني</dd></div>
+    <div class="grid gap-1 rounded-control p-3 ring ring-default"><dt class="text-xs text-muted">{{ t('meetingMinutesForm.date') }}</dt><dd dir="ltr" class="text-highlighted">2026-10-05</dd></div>
+    <div class="grid gap-1 rounded-control p-3 ring ring-default"><dt class="text-xs text-muted">{{ t('meetingMinutesForm.chairperson') }}</dt><dd class="text-highlighted">سارة القحطاني</dd></div>
   </dl>
   <p class="text-sm leading-7 text-default">اطّلع المجتمعون على خطة الربع الرابع، واتفقوا على مراجعة الميزانية قبل نهاية الشهر وتوزيع المهام على الفرق.</p>
   <template #footer>

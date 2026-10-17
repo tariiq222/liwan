@@ -5,7 +5,7 @@ const headingId = useId()
 </script>
 
 <template>
-  <section data-slot="properties-panel" class="rounded-lg bg-default px-4 py-3 ring ring-default" :aria-labelledby="props.title ? headingId : undefined">
+  <section data-slot="properties-panel" class="rounded-card bg-default px-4 py-3 ring ring-default" :aria-labelledby="props.title ? headingId : undefined">
     <h2 v-if="props.title" :id="headingId" class="text-sm font-semibold text-highlighted">{{ props.title }}</h2>
     <dl class="divide-y divide-default"><slot /></dl>
   </section>

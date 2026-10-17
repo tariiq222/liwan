@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
 import type { AccessAuditSummary } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
@@ -35,7 +36,7 @@ const eventTo = (event: AccessAuditSummary) => props.toFor(event.id)
 const when = (event: AccessAuditSummary) => formatWebVueDateTime(event.occurred_at, locale.value)
 const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: eventTo(event) }]
 const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t) },
   { accessorKey: 'occurred_at', header: t('access.audit.columns.time') },
   { accessorKey: 'actor', header: t('access.audit.columns.actor') },
   { accessorKey: 'action', header: t('access.audit.columns.action') },

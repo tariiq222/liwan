@@ -9,8 +9,7 @@
     "saving": "Saving…",
     "saved": "Saved",
     "saveChanges": "Save changes",
-    "loadMore": "Load more",
-    "recordNumber": "No."
+    "loadMore": "Load more"
   },
   "home": {
     "description": "Choose a workspace or start an action.",

@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import {
   TaskDetailSchema,
   TaskListSchema,
+  TaskSummarySchema,
   type Task,
   type TaskCreate,
   type TaskDetail,
@@ -25,9 +26,20 @@ export interface TaskListParams {
 // Page size for both the infinite list and the offset math in getNextPageParam.
 export const PAGE = 50
 
+// The list filters that decide which tasks a summary counts: `closed` and paging do not.
+export function summaryQuery(p: TaskListParams) {
+  return {
+    filter: p.mine === false ? undefined : 'mine',
+    state: p.state?.join(','),
+    project_id: p.project_id,
+    q: p.q || undefined,
+  }
+}
+
 export const taskKeys = {
   all: ['tasks'] as const,
   list: (p: TaskListParams) => ['tasks', 'list', p] as const,
+  summary: (p: TaskListParams) => ['tasks', 'summary', summaryQuery(p)] as const,
   detail: (id: number) => ['tasks', 'detail', id] as const,
   timeline: (id: number) => ['tasks', 'timeline', id] as const,
   stages: ['me', 'personal-stages'] as const,
@@ -78,6 +90,12 @@ export function applyPatchToTask<T extends Task>(task: T, patch: TaskPatch, reso
   return next
 }
 
+/** Every task list and KPI summary is stale after a task changes. */
+export function invalidateTaskLists(qc: { invalidateQueries: (filters: { queryKey: readonly unknown[] }) => unknown }) {
+  qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+  qc.invalidateQueries({ queryKey: ['tasks', 'summary'] })
+}
+
 export function useTasks(params: Ref<TaskListParams>) {
   const { $api } = useApi()
   return useInfiniteQuery({
@@ -101,6 +119,15 @@ export function useTasks(params: Ref<TaskListParams>) {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0)
       return loaded < last.total ? loaded : undefined
     },
+  })
+}
+
+// The KPI strip: total/open/overdue/done for the tasks the list filters select (the same keys as `useTasks`).
+export function useTaskSummary(params: Ref<TaskListParams>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => taskKeys.summary(params.value)),
+    queryFn: () => $api('/api/v1/tasks/summary', { query: summaryQuery(params.value), schema: TaskSummarySchema }),
   })
 }
 
@@ -142,7 +169,7 @@ export function useUpdateTask() {
       qc.setQueryData(taskKeys.detail(id), detail)
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })
@@ -159,7 +186,7 @@ export function useTransitionTask() {
       $api(`/api/v1/tasks/${id}/transition`, { method: 'POST', body: { state }, schema: TaskDetailSchema }),
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       qc.invalidateQueries({ queryKey: taskKeys.timeline(id) })
       invalidateProjectCaches(qc)
     },
@@ -195,7 +222,7 @@ export function useCreateTask() {
   return useMutation({
     mutationFn: (body: TaskCreate) => $api('/api/v1/tasks', { method: 'POST', body, schema: TaskDetailSchema }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })
@@ -209,7 +236,7 @@ export function useRequestTaskCompletion() {
       $api(`/api/v1/tasks/${id}/completion/request`, { method: 'POST', body: {}, schema: TaskDetailSchema }),
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })
@@ -223,7 +250,7 @@ export function useAcceptTaskCompletion() {
       $api(`/api/v1/tasks/${id}/completion/accept`, { method: 'POST', body: { revision }, schema: TaskDetailSchema }),
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })
@@ -237,7 +264,7 @@ export function useReturnTaskCompletion() {
       $api(`/api/v1/tasks/${id}/completion/return`, { method: 'POST', body: { revision, note }, schema: TaskDetailSchema }),
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })
@@ -251,7 +278,7 @@ export function useWithdrawTaskCompletion() {
       $api(`/api/v1/tasks/${id}/completion/withdraw`, { method: 'POST', body: { revision }, schema: TaskDetailSchema }),
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })
@@ -264,7 +291,7 @@ export function useArchiveTask() {
     mutationFn: ({ id }: { id: number }) => $api(`/api/v1/tasks/${id}/archive`, { method: 'POST', body: {}, schema: TaskDetailSchema }),
     onSuccess: (detail, { id }) => {
       qc.setQueryData(taskKeys.detail(id), detail)
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })

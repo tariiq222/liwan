@@ -3,7 +3,7 @@ import { ProjectStatusSchema, TaskStateSchema } from '@webvue/contracts'
 import { useI18n } from 'vue-i18n'
 import StatusBadge from '@webvue/ui/app/components/shared/data/StatusBadge.vue'
 import { projectStatusBadge } from '../../app/composables/projectStatus'
-import { deadlineLabel, deadlineTone, taskStateBadge } from '../../app/composables/taskState'
+import { deadlineLabel, deadlineTag, taskStateBadge } from '../../app/composables/taskState'
 import { accessStateBadge } from '../../app/utils/accessStateBadge'
 import { hrAccessBadge } from '../../app/utils/hrAccessBadge'
 import { subscriptionStateBadge } from '../../app/utils/subscription'
@@ -24,6 +24,11 @@ const row = (template: string, data: () => Record<string, unknown>): Story['rend
   template: `<div class="flex flex-wrap items-center gap-2" style="max-width: 640px">${template}</div>`,
 })
 
+export const Tones: Story = {
+  name: 'النبرات الدلالية',
+  parameters: storyContext('apps/web/app/components/pmo/tasks/StateMenu.vue:36', 'نص الشارة لون منفصل عن لون المؤشر (الحلقة والتعبئة الناعمة)، ويحقق 4.5:1 على تعبئته في الوضعين.'),
+  render: row('<StatusBadge v-for="tone in tones" :key="tone" :tone="tone" :label="tone" />', () => ({ tones: ['success', 'info', 'warning', 'destructive', 'neutral', 'primary'] })),
+}
 export const ProjectStatus: Story = {
   name: 'حالة المشروع',
   parameters: storyContext('apps/web/app/components/pmo/projects/ProjectTable.vue:66'),
@@ -37,7 +42,7 @@ export const TaskState: Story = {
 export const Deadline: Story = {
   name: 'موعد المهمة',
   parameters: storyContext('apps/web/app/components/pmo/tasks/TaskCard.vue:101'),
-  render: row('<StatusBadge v-for="(c, i) in cases" :key="i" :tone="deadlineTone(c[0], c[1])" :label="deadlineLabel(c[0], t)" />', () => ({ cases: [[-3, false], [0, false], [1, false], [10, false], [-3, true], [null, false]], deadlineTone, deadlineLabel })),
+  render: row('<template v-for="(c, i) in cases" :key="i"><StatusBadge v-if="deadlineTag(c[0], c[1])" v-bind="deadlineTag(c[0], c[1])" size="sm" class="h-7 gap-1 font-medium" :label="deadlineLabel(c[0], t)" /><span v-else class="text-muted">—</span></template>', () => ({ cases: [[-3, false], [0, false], [1, false], [10, false], [-3, true], [null, false]], deadlineTag, deadlineLabel })),
 }
 export const AccessState: Story = {
   name: 'حالة الوصول',

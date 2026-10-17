@@ -64,4 +64,10 @@ describe('BrandWordmark', () => {
     expect(html.match(/<span class="([^"]*)"/)?.[1]).toContain(text)
     expect(html.match(/<svg[^>]*class="([^"]*)"/)?.[1]).toContain(mark)
   })
+
+  it('renders the mark alone when markOnly is set', async () => {
+    const html = await render({ markOnly: true })
+    expect(html.replace(/<svg[\s\S]*?<\/svg>/, '').replace(/<[^>]+>/g, '').trim()).toBe('')
+    expect(html.match(/<path /g)).toHaveLength(3)
+  })
 })

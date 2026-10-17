@@ -40,7 +40,7 @@ definePageMeta({ middleware: 'customer-commercial' })
             <SharedPropertyRow :label="t('subscription.summary.cadence')" :value="data.sub.applied.cadence.count === 1 ? t(`subscription.cadence.${data.sub.applied.cadence.unit}.one`) : t(`subscription.cadence.${data.sub.applied.cadence.unit}.many`, { count: data.sub.applied.cadence.count })" />
             <SharedPropertyRow v-if="data.sub.renewal_at" :label="t('subscription.summary.renewal')"><bdi dir="ltr">{{ data.sub.renewal_at }}</bdi></SharedPropertyRow><SharedPropertyRow v-else :label="t('subscription.summary.renewal')" :value="null" />
           </SharedPropertiesPanel>
-          <div v-if="data.sub.pending_order || data.sub.target" class="mt-4 rounded-lg bg-elevated p-3" data-testid="pending-change">
+          <div v-if="data.sub.pending_order || data.sub.target" class="mt-4 rounded-control bg-elevated p-3" data-testid="pending-change">
             <p class="font-medium">{{ t('subscription.summary.pending') }}</p>
             <p class="text-sm text-muted">{{ t('subscription.summary.pendingHint') }}</p>
             <UButton v-if="data.sub.pending_order" class="mt-2" size="sm" color="neutral" variant="outline" :to="{ path: '/subscription/status', query: { order: data.sub.pending_order.id } }">{{ t('subscription.summary.viewStatus') }}</UButton>

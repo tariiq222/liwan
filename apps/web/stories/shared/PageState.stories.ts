@@ -11,7 +11,7 @@ const meta = {
   render: args => ({
     components: { SettingsPage, PageState },
     setup: () => ({ args }),
-    template: `<main class="webvue-shell-main"><SettingsPage width="list"><div id="results" class="webvue-settings-anchor"><PageState v-bind="args"><div class="rounded-lg ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsPage></main>`,
+    template: `<main class="webvue-shell-main"><SettingsPage width="list"><div id="results" class="webvue-settings-anchor"><PageState v-bind="args"><div class="rounded-card ring ring-default bg-default overflow-hidden p-5 text-sm">{{ $t('app.noResults') }}</div></PageState></div></SettingsPage></main>`,
   }),
 } satisfies Meta<typeof PageState>
 export default meta

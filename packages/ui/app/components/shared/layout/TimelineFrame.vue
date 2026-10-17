@@ -28,7 +28,7 @@ function pick(value: string) {
         <slot name="actions" />
       </template>
     </SharedPageHeader>
-    <div data-template="timeline-toolbar" class="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-default p-3 ring ring-default">
+    <div data-template="timeline-toolbar" class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-default p-3 ring ring-default">
       <div class="flex items-center gap-2" role="group" :aria-label="t('states.period')">
         <UButton type="button" color="neutral" variant="ghost" square data-testid="timeline-prev" :disabled="!hydrated" :aria-label="t('states.previous')" @click="emit('prev')">
           <UIcon name="i-lucide-chevron-left" class="size-4.5 rtl:-scale-x-100" aria-hidden="true" />

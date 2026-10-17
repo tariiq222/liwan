@@ -10,7 +10,7 @@ const headingId = computed(() => `${props.id ?? generated}-title`)
   <section
     :id="props.id"
     data-slot="record-section"
-    :class="props.panel ? 'webvue-record-panel min-w-0 rounded-lg bg-default ring ring-default' : 'space-y-3'"
+    :class="props.panel ? 'webvue-record-panel min-w-0 rounded-card bg-default ring ring-default' : 'space-y-3'"
     :aria-labelledby="headingId"
   >
     <header :class="props.panel ? 'flex flex-wrap items-center justify-between gap-3 border-b border-default px-4 py-3' : 'flex flex-wrap items-start justify-between gap-3'">

@@ -20,7 +20,7 @@ export function useContextSidebar() {
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 365,
   })
-  return contextSidebarState(cookie, useHydrated(), useMediaQuery('(min-width: 1024px)', { ssrWidth: 1024 }))
+  return contextSidebarState(cookie, useHydrated(), useMediaQuery('(min-width: 1100px)', { ssrWidth: 1100 }))
 }
 
 export function useShellNavigation(identity: MaybeRefOrGetter<AccessIdentity>) {

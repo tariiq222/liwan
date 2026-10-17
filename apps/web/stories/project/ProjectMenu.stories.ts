@@ -11,7 +11,7 @@ const meta = {
   render: args => ({
     components: { ProjectMenu },
     setup: () => ({ args }),
-    template: `<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><article class="flex flex-col gap-4 rounded-lg ring ring-default bg-default overflow-hidden p-5"><p class="font-semibold text-highlighted">{{ args.project.name }}</p><div class="mt-auto flex items-center justify-between gap-3 border-t border-default pt-3 text-xs text-muted"><span class="truncate">{{ args.project.manager?.name ?? '—' }}</span><span class="inline-flex shrink-0 items-center gap-2"><span>{{ args.project.date_end ?? '—' }}</span><ProjectMenu v-bind="args" /></span></div></article></div>`,
+    template: `<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><article class="flex flex-col gap-4 rounded-card ring ring-default bg-default overflow-hidden p-5"><p class="font-semibold text-highlighted">{{ args.project.name }}</p><div class="mt-auto flex items-center justify-between gap-3 border-t border-default pt-3 text-xs text-muted"><span class="truncate">{{ args.project.manager?.name ?? '—' }}</span><span class="inline-flex shrink-0 items-center gap-2"><span>{{ args.project.date_end ?? '—' }}</span><ProjectMenu v-bind="args" /></span></div></article></div>`,
   }),
 } satisfies Meta<typeof ProjectMenu>
 export default meta

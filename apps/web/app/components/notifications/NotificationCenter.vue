@@ -61,7 +61,7 @@ async function openNotification(item: BellNotification) {
   <UPopover
     v-model:open="open"
     :content="{ align: 'end', sideOffset: 12 }"
-    :ui="{ content: 'webvue-notification-preview flex max-h-[min(600px,80dvh)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg p-0' }"
+    :ui="{ content: 'webvue-notification-preview flex max-h-[min(600px,80dvh)] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-control p-0' }"
   >
     <UButton
       data-testid="notification-bell"
@@ -104,7 +104,7 @@ async function openNotification(item: BellNotification) {
               type="button"
               color="neutral"
               variant="ghost"
-              class="h-auto min-w-0 w-full justify-start rounded-lg p-3"
+              class="h-auto min-w-0 w-full justify-start rounded-control p-3"
               :class="!item.is_read ? 'bg-brand-soft/50' : ''"
               :disabled="isPending"
               @click="openNotification(item)"

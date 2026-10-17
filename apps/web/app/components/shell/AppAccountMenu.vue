@@ -87,10 +87,10 @@ const items = computed<AccountMenuItem[][]>(() => [
       :aria-label="me?.name ? t('nav.account') + ': ' + me.name : t('nav.account')"
     >
       <span class="relative shrink-0">
-        <UAvatar size="sm" :text="initials" :alt="me?.name ?? t('nav.account')" />
+        <UAvatar size="sm" class="header-avatar text-xs" :text="initials" :alt="me?.name ?? t('nav.account')" />
         <ClientOnly>
           <span
-            class="absolute -bottom-0.5 -start-0.5 block size-2.5 rounded-full ring-2 ring-(--ui-bg)"
+            class="absolute -end-px -top-px block size-2.5 rounded-full ring-2 ring-(--ui-bg)"
             :class="connected ? 'webvue-status-dot-success' : 'bg-(--ui-text-dimmed)'"
             :title="connected ? t('bus.connected') : t('bus.disconnected')"
             :aria-label="connected ? t('bus.connected') : t('bus.disconnected')"

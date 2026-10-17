@@ -165,7 +165,7 @@ function projectDetail(p) {
 
 function task(id, name, state, extra = {}) {
   return {
-    id, name, project: { id: 1, name: 'مشروع ألفا' }, state, priority: '1',
+    id, name, description_excerpt: '', project: { id: 1, name: 'مشروع ألفا' }, state, priority: '1',
     date_deadline: extra.date_deadline ?? '2035-01-15',
     days_remaining: extra.days_remaining ?? 120,
     is_overdue: Boolean(extra.is_overdue), is_closed: state === 'done' || state === 'cancelled',
@@ -394,6 +394,10 @@ async function handle(req, res) {
   if (method === 'POST' && match(path, '/api/v1/notifications/:id/read')) return json(res, 200, { updated: 1 })
   if (method === 'POST' && path === '/api/v1/notifications/read-all') return json(res, 200, { updated: 2 })
   if (method === 'GET' && path === '/api/v1/tasks') return json(res, 200, { items: TASKS, total: TASKS.length })
+  if (method === 'GET' && path === '/api/v1/tasks/summary') {
+    const done = TASKS.filter(task => task.is_closed).length
+    return json(res, 200, { total: TASKS.length, open: TASKS.length - done, overdue: TASKS.filter(task => !task.is_closed && task.is_overdue).length, done })
+  }
   if (method === 'GET' && path === '/api/v1/projects') {
     if (url.searchParams.get('minimal') === '1') {
       return json(res, 200, PROJECTS.map(p => ({ id: p.id, name: p.name })))

@@ -150,5 +150,5 @@ function toggle(node: DepartmentTreeNode) {
       </div>
     </div>
   </UCard>
-  <p v-else class="rounded-lg ring ring-default bg-default overflow-hidden py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
+  <p v-else class="rounded-card ring ring-default bg-default overflow-hidden py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
 </template>

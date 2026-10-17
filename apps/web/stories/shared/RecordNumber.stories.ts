@@ -24,7 +24,7 @@ export const InTableCell: Story = {
       const columns = computed(() => [{ accessorKey: 'id', header: '#' }, { accessorKey: 'name', header: t('projects.governance.stakeholders') }])
       return { rows, columns }
     },
-    template: `<section class="rounded-lg ring ring-default bg-default overflow-hidden"><div class="min-w-0 overflow-x-auto"><UTable :data="rows" :columns="columns"><template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template></UTable></div></section>`,
+    template: `<section class="rounded-card ring ring-default bg-default overflow-hidden"><div class="min-w-0 overflow-x-auto"><UTable :data="rows" :columns="columns"><template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template></UTable></div></section>`,
   }),
 }
 

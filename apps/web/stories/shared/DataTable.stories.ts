@@ -23,7 +23,7 @@ const meta = {
 export default meta
 type Story = StoryObj
 
-const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; selectable?: boolean; selected?: number[] } = {}) => ({
+const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; selectable?: boolean; selected?: number[]; density?: 'dense' | 'comfortable'; embedded?: boolean } = {}) => ({
   components: { DataTable, FilterBar, PageContainer },
   setup() {
     const { t } = useI18n()
@@ -32,14 +32,15 @@ const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; select
       { accessorKey: 'name', header: t('projects.columns.name') },
       { accessorKey: 'manager', header: t('projects.columns.manager') },
     ])
-    return { t, columns, selected, rows: state.rows ?? rows, loading: state.loading ?? false, error: state.error, selectable: state.selectable ?? false, rowTo: (row: Row) => `/projects/${row.id}` }
+    return { t, columns, selected, rows: state.rows ?? rows, loading: state.loading ?? false, error: state.error, selectable: state.selectable ?? false, density: state.density ?? 'dense', embedded: state.embedded ?? false, rowTo: (row: Row) => `/projects/${row.id}` }
   },
   template: `<main class="webvue-shell-main"><PageContainer width="list">
     <DataTable v-model:selected="selected" :rows="rows" :columns="columns" row-key="id" :row-to="rowTo" :caption="t('projects.title')"
-      :loading="loading" :error="error" :selectable="selectable" :page="1" :pages="3" :empty-text="t('projects.empty')">
+      :loading="loading" :error="error" :selectable="selectable" :density="density" :embedded-filters="embedded" :page="embedded ? undefined : 1" :pages="embedded ? undefined : 3" :empty-text="t('projects.empty')">
       <template #filters>
-        <FilterBar inline><template #search><UInput icon="i-lucide-search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" /></template></FilterBar>
+        <FilterBar :inline="!embedded" :embedded="embedded"><template #search><UInput icon="i-lucide-search" :placeholder="t('projects.filters.search')" :aria-label="t('projects.filters.search')" /></template></FilterBar>
       </template>
+      <template v-if="embedded" #footer><span class="tabular-nums">{{ rows.length }} / 128</span><UButton color="neutral" variant="outline" size="sm">{{ t('app.loadMore') }}</UButton></template>
       <template #bulk="{ clear }">
         <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-archive" @click="clear">{{ t('projects.menu.archive') }}</UButton>
       </template>
@@ -53,6 +54,9 @@ const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; select
 })
 
 export const Default: Story = { name: 'جدول بروابط الصفوف', render: () => table() }
+export const Comfortable: Story = { name: 'مريح (الرئيسية ولوحات النظرة العامة)', render: () => table({ density: 'comfortable' }) }
+export const EmbeddedFiltersAndFooter: Story = { name: 'فلاتر في ترويسة البطاقة وتذييل بعدد النتائج', render: () => table({ embedded: true }) }
+export const EmbeddedEmpty: Story = { name: 'فلاتر مدمجة وحالة فارغة داخل البطاقة', render: () => table({ rows: [], embedded: true }) }
 export const Selectable: Story = { name: 'تحديد وشريط إجراءات', render: () => table({ selectable: true, selected: [2] }) }
 export const Loading: Story = { name: 'تحميل', render: () => table({ rows: [], loading: true }) }
 export const Empty: Story = { name: 'فارغ', render: () => table({ rows: [] }) }

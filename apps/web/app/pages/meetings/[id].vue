@@ -295,7 +295,7 @@ function displayValue(value: string | null | undefined) {
     </div>
 
     <template v-if="query.data.value" #summary>
-      <div class="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 rounded-lg bg-default p-4 ring ring-default">
+      <div class="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 rounded-card bg-default p-4 ring ring-default">
         <SharedStatusBadge v-bind="meetingStateBadgeProps(query.data.value.state, t)" data-testid="meeting-state-badge" />
         <span class="inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-highlighted"><span>{{ formatMeetingDate(query.data.value.meeting_date, locale) }}</span><span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime, locale)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span></span>
         <span class="text-sm text-muted">{{ t('meetingsUi.organizer') }}: {{ displayValue(query.data.value.organizer?.name) }}</span>

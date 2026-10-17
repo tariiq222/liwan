@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { LocationQueryRaw } from 'vue-router'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
+import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
 import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
 import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
 import { ApiError } from '@/composables/useApi'
@@ -109,12 +110,15 @@ function openCreate() {
       create-test-id="project-header-create"
       :views="views"
     >
-      <template #filters>
-        <TaskToolbar :model-value="params" embedded collapsible hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" />
+      <template v-if="isBoard" #filters>
+        <TaskToolbar :model-value="params" hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" />
       </template>
       <section class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
-        <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate" />
-        <div v-else class="overflow-hidden rounded-lg bg-default ring ring-default">
+        <TaskKpiStrip :params="params" />
+        <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate">
+          <template #filters><TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" /></template>
+        </TaskTable>
+        <div v-else class="overflow-hidden rounded-card bg-default ring ring-default">
           <TaskBoard :params="params" :stage-source="stageSource" embedded @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
         </div>
         <div class="flex justify-end">

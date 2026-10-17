@@ -6,7 +6,7 @@ import { STATE_LABEL_KEY } from '@/composables/taskState'
 import { useProjects } from '@/composables/useProjects'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 
-const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; embedded?: boolean; collapsible?: boolean }>()
+const props = defineProps<{ modelValue: TaskListParams; hideProjectFilter?: boolean; embedded?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [TaskListParams]; search: [string] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -27,21 +27,10 @@ const selectedStates = computed(() => props.modelValue.state ?? [])
 const selectedProject = computed(() => (projects.value ?? []).find((project) => project.id === props.modelValue.project_id) ?? null)
 const activeFilterCount = computed(() => Number(Boolean(props.modelValue.q)) + selectedStates.value.length + Number(!props.hideProjectFilter && Boolean(props.modelValue.project_id)))
 
-// "All states" is the first chip and stands for an empty state filter. Picking
-// it clears the selection; picking a state while "all" is shown replaces it.
-const stateChoiceItems = computed(() => [
-  { value: 'all', label: t('tasks.filters.allStates') },
-  ...ALL_STATES.value.map((s) => ({ value: s, label: t(STATE_LABEL_KEY[s]) })),
-])
-const stateChoiceValue = computed(() => (selectedStates.value.length ? [...selectedStates.value] : ['all']))
-function onStatesChange(value: string | string[]) {
-  const next = Array.isArray(value) ? value : [value]
-  if (selectedStates.value.length && next.includes('all')) {
-    patch({ state: undefined })
-    return
-  }
-  const states = ALL_STATES.value.filter((s) => next.includes(s))
-  patch({ state: states.length ? states : undefined })
+// A multi-select dropdown: an empty selection is "all states" (no filter).
+const stateItems = computed(() => ALL_STATES.value.map((s) => ({ value: s, label: t(STATE_LABEL_KEY[s]) })))
+function onStatesChange(value: TaskState[]) {
+  patch({ state: value.length ? value : undefined })
 }
 // Switching scope drops a state filter the other scope cannot contain, so it never silently empties the list.
 function setScope(closed: boolean) {
@@ -87,7 +76,7 @@ const projectItems = computed(() => [
 
 <template>
   <div class="w-full min-w-0">
-  <FilterBar class="w-full" :inline="embedded && !collapsible" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+  <FilterBar class="w-full" :embedded="embedded" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
     <template #search>
       <div class="relative min-w-48 flex-1">
         <UIcon name="i-lucide-search" class="pointer-events-none absolute start-2 top-1/2 size-4.5 -translate-y-1/2 text-muted" aria-hidden="true" />
@@ -96,29 +85,35 @@ const projectItems = computed(() => [
     </template>
 
     <template #default>
-      <SharedFilterChoice
-        class="w-full"
-        :label="t('tasks.filters.stateLabel')"
-        :items="stateChoiceItems"
-        :model-value="stateChoiceValue"
+      <USelect
+        multiple
+        class="w-full md:w-44"
+        data-testid="task-filter-state"
         :disabled="!hydrated"
+        :items="stateItems"
+        :model-value="selectedStates"
+        :placeholder="t('tasks.filters.allStates')"
+        :aria-label="t('tasks.filters.stateLabel')"
         @update:model-value="onStatesChange"
-      />
+      >
+        <template v-if="selectedStates.length > 1" #default>{{ t('tasks.filters.selectedStates', { count: selectedStates.length }) }}</template>
+      </USelect>
 
-      <SharedFilterField v-if="!hideProjectFilter" :label="t('tasks.filters.projectLabel')" for="task-filter-project">
-        <USelect
-          id="task-filter-project"
-          class="w-full"
-          :disabled="!hydrated"
-          :items="projectItems"
-          :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
-          :placeholder="t('tasks.filters.allProjects')"
-          @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
-        />
-      </SharedFilterField>
+      <USelect
+        v-if="!hideProjectFilter"
+        id="task-filter-project"
+        class="w-full md:w-44"
+        :disabled="!hydrated"
+        :items="projectItems"
+        :model-value="modelValue.project_id ? String(modelValue.project_id) : 'all'"
+        :placeholder="t('tasks.filters.allProjects')"
+        :aria-label="t('tasks.filters.projectLabel')"
+        @update:model-value="(v) => patch({ project_id: v === 'all' ? undefined : Number(v) })"
+      />
     </template>
 
-    <template #active>
+    <!-- The embedded bar shows each choice in its dropdown, so no chip row repeats it. -->
+    <template v-if="!embedded" #active>
       <div v-if="modelValue.q || selectedStates.length || (!hideProjectFilter && selectedProject)" class="flex flex-wrap items-center gap-2">
         <SharedFilterChip v-if="modelValue.q" :label="t('tasks.filters.searchValue', { value: modelValue.q })" @remove="clearSearch" />
         <SharedFilterChip v-for="state in selectedStates" :key="state" :label="t(STATE_LABEL_KEY[state])" @remove="removeState(state)" />

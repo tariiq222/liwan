@@ -57,7 +57,7 @@ test('shell follows the approved neutral frame and independent desktop collapse'
   await expect(header.locator('h1')).toHaveCount(0)
   await expect(header).toHaveCSS('height', '56px')
   await expect(rail).toHaveCSS('width', '64px')
-  await expect(context).toHaveCSS('width', '232px')
+  await expect(context).toHaveCSS('width', '230px')
   await expect(page.locator('main [data-slot="root"][class*="ring-default"]').first()).toBeVisible()
   await expect(page.getByTestId('context-link-new-project')).toBeVisible()
 
@@ -84,7 +84,7 @@ test('shell follows the approved neutral frame and independent desktop collapse'
       create: create ? css(create) : null,
     }
   })
-  // Tasmim: the header and the canvas share one neutral surface; the header is set apart by its bottom border.
+  // Floating shell: the header is a white card set apart from the canvas by a hairline border.
   expect(surfaces.header.borderWidth).toBeGreaterThanOrEqual(1)
   expect(surfaces.header.borderColor).toBe(surfaces.header.uiBorder)
   expect(surfaces.card).not.toBeNull()
@@ -105,10 +105,10 @@ test('shell follows the approved neutral frame and independent desktop collapse'
   await expect(page.getByTestId('module-rail-toggle')).toHaveCount(0)
   const contextToggle = page.getByTestId('context-sidebar-toggle')
   await contextToggle.click()
-  await expect(context).toHaveCSS('width', '48px')
+  await expect(context).toHaveCSS('width', '64px')
   await expect(rail).toHaveCSS('width', '64px')
   await contextToggle.click()
-  await expect(context).toHaveCSS('width', '232px')
+  await expect(context).toHaveCSS('width', '230px')
   await expect(rail).toHaveCSS('width', '64px')
   await expect(context).toBeVisible()
 })

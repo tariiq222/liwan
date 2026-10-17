@@ -293,6 +293,7 @@ const candidate = {
 const task = {
   id: 101,
   name: 'متابعة اعتماد خطة التنفيذ',
+  description_excerpt: '',
   project: PROJECT,
   state: 'in_progress',
   priority: '1',

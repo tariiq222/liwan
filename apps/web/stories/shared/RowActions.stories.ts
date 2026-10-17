@@ -18,7 +18,7 @@ const meta = {
   render: args => ({
     components: { RowActions },
     setup: () => ({ args }),
-    template: '<div class="max-w-3xl rounded-lg ring ring-default bg-default"><div class="flex items-center justify-between gap-4 p-4"><div><p class="font-medium text-highlighted">اعتماد الخطة</p><p class="text-sm text-muted">الموعد 2026/10/01</p></div><RowActions v-bind="args" /></div></div>',
+    template: '<div class="max-w-3xl rounded-card ring ring-default bg-default"><div class="flex items-center justify-between gap-4 p-4"><div><p class="font-medium text-highlighted">اعتماد الخطة</p><p class="text-sm text-muted">الموعد 2026/10/01</p></div><RowActions v-bind="args" /></div></div>',
   }),
 } satisfies Meta<typeof RowActions>
 export default meta

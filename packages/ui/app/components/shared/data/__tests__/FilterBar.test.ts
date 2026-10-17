@@ -19,6 +19,18 @@ describe('FilterBar', () => {
     expect(html).toContain('aria-label="Clear filters"')
     for (const text of ['Task search', 'Task states', 'Timeline', 'New task', 'Selected state']) expect(html.split(text)).toHaveLength(2)
   })
+  it('embedded keeps the fields in the row from md up and collapsible on phones', async () => {
+    const html = await renderFilter('FilterBar', { embedded: true, activeCount: 1 }, {
+      search: () => h('input', { 'aria-label': 'Task search' }),
+      default: () => h('button', 'Task states'),
+      view: () => h('button', 'Done'),
+      active: () => h('span', 'Selected state'),
+    })
+    expect(html).toContain('data-variant="embedded"')
+    expect(html).toContain('md:contents!')
+    expect(html).toContain('aria-expanded="false"')
+    for (const text of ['Task search', 'Task states', 'Done', 'Selected state']) expect(html.split(text)).toHaveLength(2)
+  })
   it('disables the inline clear action until hydration', async () => {
     expect(await renderFilter('FilterBar', { inline: true, activeCount: 1 }, {}, false)).toMatch(/<button\b[^>]*disabled/)
   })

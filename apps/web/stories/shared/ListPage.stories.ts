@@ -62,7 +62,7 @@ const makePage = (withBack: boolean) => ({
         </template>
       </DataTable>
       <ul v-else class="grid gap-3 sm:grid-cols-3" :aria-label="t('projects.filters.boardView')">
-        <li v-for="row in rows" :key="row.id" class="rounded-lg bg-default p-4 ring ring-default">
+        <li v-for="row in rows" :key="row.id" class="rounded-card bg-default p-4 ring ring-default">
           <p class="font-medium text-highlighted">{{ row.name }}</p>
           <p class="mt-1 text-sm text-muted">{{ row.manager }}</p>
         </li>

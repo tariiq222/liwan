@@ -3,7 +3,7 @@ import type { Component } from 'vue'
 import type { ShellContextLink } from '@/composables/nav/shellModules'
 import { contextLinkTestId, type ShellContextSection } from '@/composables/nav/sidebarModel'
 
-// The context sidebar (Tasmim spec §5). Props only: AppSidebar derives what it
+// The floating context sidebar; its round toggle lives in the heading. Props only: AppSidebar derives what it
 // shows from useShellModel(); an application's panel arrives as `panel`.
 const props = defineProps<{
   title: string
@@ -58,6 +58,27 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
               />
             </UTooltip>
           </div>
+          <UTooltip :text="t(props.expanded ? 'nav.collapseContext' : 'nav.expandContext')" :kbds="['[']">
+            <UButton
+              type="button"
+              color="neutral"
+              variant="ghost"
+              square
+              size="sm"
+              class="webvue-context-toggle"
+              data-testid="context-sidebar-toggle"
+              :disabled="!props.hydrated"
+              :aria-expanded="props.expanded"
+              :aria-controls="navigationId"
+              aria-keyshortcuts="["
+              :aria-label="t(props.expanded ? 'nav.collapseContext' : 'nav.expandContext')"
+              @click="emit('toggle')"
+            >
+              <template #leading>
+                <UIcon :name="props.expanded ? 'i-lucide-chevron-left' : 'i-lucide-chevron-right'" class="webvue-shell-icon shrink-0 rtl:-scale-x-100" aria-hidden="true" />
+              </template>
+            </UButton>
+          </UTooltip>
         </div>
 
         <nav v-if="props.showNav" class="webvue-context-nav" data-fresh-navigation :aria-label="props.title">
@@ -78,7 +99,7 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
                   :data-testid="contextLinkTestId(link.id)"
                 >
                   <template #leading>
-                    <UIcon :name="link.icon" class="webvue-shell-icon size-4.5 shrink-0" aria-hidden="true" />
+                    <span class="webvue-context-chip" aria-hidden="true"><UIcon :name="link.icon" class="webvue-shell-icon size-4 shrink-0" /></span>
                   </template>
                   <span data-slot="label">{{ t(link.labelKey) }}</span>
                 </UButton>
@@ -92,29 +113,6 @@ const countLabel = (value: number) => (value > 99 ? '99+' : String(value))
           <component :is="props.panel" />
         </div>
 
-        <div class="webvue-context-footer">
-          <UTooltip :text="t(props.expanded ? 'nav.collapseContext' : 'nav.expandContext')" :kbds="['[']">
-            <UButton
-              type="button"
-              color="neutral"
-              variant="ghost"
-              square
-              size="sm"
-              class="webvue-context-toggle"
-              data-testid="context-sidebar-toggle"
-              :disabled="!props.hydrated"
-              :aria-expanded="props.expanded"
-              :aria-controls="navigationId"
-              aria-keyshortcuts="["
-              :aria-label="t(props.expanded ? 'nav.collapseContext' : 'nav.expandContext')"
-              @click="emit('toggle')"
-            >
-              <template #leading>
-                <UIcon :name="props.expanded ? 'i-lucide-panel-left-close' : 'i-lucide-panel-left-open'" class="webvue-shell-icon size-4.5 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
-              </template>
-            </UButton>
-          </UTooltip>
-        </div>
       </div>
     </Transition>
   </aside>

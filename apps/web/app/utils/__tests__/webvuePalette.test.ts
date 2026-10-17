@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { contrastRatio, DARK_SURFACES, WEBVUE_BLUE, WEBVUE_LIME, WEBVUE_LIME_FOREGROUND } from '../webvuePalette'
 
-// Mirrors --webvue-rail in tokens.css: the fixed midnight rail is CSS-only.
+// Mirrors --webvue-midnight in tokens.css (CSS-only).
 const RAIL = '#13234a'
 
 describe('WebVue palette', () => {

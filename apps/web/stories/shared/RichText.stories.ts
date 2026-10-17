@@ -12,7 +12,7 @@ const meta = {
   render: args => ({
     components: { RichText },
     setup: () => ({ args }),
-    template: '<div class="max-w-2xl rounded-lg ring ring-default bg-default p-5"><RichText v-bind="args" /></div>',
+    template: '<div class="max-w-2xl rounded-card ring ring-default bg-default p-5"><RichText v-bind="args" /></div>',
   }),
 } satisfies Meta<typeof RichText>
 export default meta

@@ -89,7 +89,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
           <h3 class="font-semibold text-highlighted">{{ t('meetingMinutesForm.topics') }}</h3>
           <div class="grid min-w-0 gap-4 print:hidden">
             <p v-if="!form.topics.length" class="text-sm text-muted">{{ t('meetingMinutesForm.noTopics') }}</p>
-            <article v-for="topic in form.topics" :key="topic.key" class="grid min-w-0 gap-3 rounded-lg p-4 ring ring-default">
+            <article v-for="topic in form.topics" :key="topic.key" class="grid min-w-0 gap-3 rounded-card p-4 ring ring-default">
               <h4 class="break-words font-semibold text-highlighted">{{ topic.title || t('meetingMinutesForm.untitledTopic') }}</h4>
               <p class="whitespace-pre-wrap break-words text-sm">{{ topic.discussion || '—' }}</p>
               <p v-if="topic.project_id" class="text-xs text-muted">{{ t('meetingsUx.linkedProject') }}</p>
@@ -100,7 +100,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
             </article>
             <section v-if="unassignedRecommendations.length" class="grid gap-3">
               <h4 class="font-medium">{{ t('meetingMinutesForm.unassigned') }}</h4>
-              <article v-for="item in unassignedRecommendations" :key="item.id" class="grid gap-1 rounded-lg p-3 text-sm ring ring-default"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.project?.name, item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline, locale) : ''].filter(Boolean).join(' · ') }}</p></article>
+              <article v-for="item in unassignedRecommendations" :key="item.id" class="grid gap-1 rounded-control p-3 text-sm ring ring-default"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.project?.name, item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline, locale) : ''].filter(Boolean).join(' · ') }}</p></article>
             </section>
           </div>
           <div class="hidden print:block print:overflow-visible">
@@ -137,7 +137,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
         <section class="grid gap-2"><h3 class="font-semibold text-highlighted">{{ t('meetingsUi.minutes') }}</h3><p class="whitespace-pre-wrap text-sm">{{ legacyMinutesText || '—' }}</p></section>
         <section class="grid gap-2">
           <h3 class="font-semibold text-highlighted">{{ t('meetingsUi.resolutions') }}</h3>
-          <div class="grid gap-3 print:hidden"><p v-if="!legacyRecommendations.length" class="text-sm text-muted">{{ t('meetingsUi.emptyResolutions') }}</p><article v-for="item in legacyRecommendations" :key="item.id" class="grid gap-1 rounded-lg p-3 text-sm ring ring-default"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline, locale) : ''].filter(Boolean).join(' · ') }}</p></article></div>
+          <div class="grid gap-3 print:hidden"><p v-if="!legacyRecommendations.length" class="text-sm text-muted">{{ t('meetingsUi.emptyResolutions') }}</p><article v-for="item in legacyRecommendations" :key="item.id" class="grid gap-1 rounded-control p-3 text-sm ring ring-default"><p class="break-words font-medium">{{ item.name }}</p><p class="text-muted">{{ [item.responsible?.name, item.execution_period, item.deadline ? formatMeetingDate(item.deadline, locale) : ''].filter(Boolean).join(' · ') }}</p></article></div>
           <div class="hidden print:block print:overflow-visible">
             <table class="meeting-minutes-topic-table min-w-[700px] w-full text-sm">
               <thead><tr><th>{{ t('meetingMinutesForm.recommendations') }}</th><th>{{ t('meetingsUi.responsible') }}</th><th>{{ t('meetingMinutesForm.executionPeriod') }}</th><th>{{ t('meetingsUi.deadline') }}</th></tr></thead>

@@ -10,11 +10,11 @@ const meta = {
   title: 'Task/StateMenu',
   component: StateMenu,
   args: { task: makeTask() },
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:129', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:143', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px.'),
   render: args => ({
     components: { PrioritySelect, StateMenu },
     setup: () => ({ task: useStoryTask(() => args.task) }),
-    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu :task="task" /><PrioritySelect :task="task" /></div></article></div>`,
+    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu :task="task" /><PrioritySelect :task="task" variant="badge" /></div></article></div>`,
   }),
 } satisfies Meta<typeof StateMenu>
 export default meta

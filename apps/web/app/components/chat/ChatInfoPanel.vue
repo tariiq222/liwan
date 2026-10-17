@@ -100,7 +100,7 @@ async function confirmLeave() {
       </div>
     </SharedFormSection>
     <SharedFormSection :title="t('chat.members')">
-      <ul v-if="members?.items.length" class="divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+      <ul v-if="members?.items.length" class="divide-y divide-default overflow-hidden rounded-card bg-default ring ring-default">
         <li v-for="member in members.items" :key="member.id" class="flex items-center justify-between gap-2 p-3 text-start">
           <span>{{ member.name }}{{ member.im_status === 'online' ? ` · ${t('chat.online')}` : '' }}</span>
         </li>

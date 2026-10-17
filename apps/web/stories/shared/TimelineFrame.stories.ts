@@ -36,7 +36,7 @@ export const Calendar: Story = {
     template: `<main class="webvue-shell-main">
       <TimelineFrame :title="t('nav.meetingCalendar')" :range-label="rangeLabel" @prev="shift(-1)" @next="shift(1)" @today="today">
         <template #actions><UButton icon="i-lucide-plus" :label="t('meetingsUi.new')" /></template>
-        <div class="rounded-lg bg-default p-6 text-sm text-muted ring ring-default">{{ t('meetingsUi.empty') }}</div>
+        <div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('meetingsUi.empty') }}</div>
       </TimelineFrame>
     </main>`,
   }),
@@ -63,7 +63,7 @@ export const Schedule: Story = {
     template: `<main class="webvue-shell-main">
       <TimelineFrame v-model:scale="scale" :title="t('projects.schedule.title')" :range-label="rangeLabel" :scales="scales" @prev="shift(-1)" @next="shift(1)" @today="today">
         <template #actions><UButton icon="i-lucide-plus" :label="t('tasks.new')" /></template>
-        <div class="rounded-lg bg-default p-6 text-sm text-muted ring ring-default">{{ t('projects.schedule.empty') }}</div>
+        <div class="rounded-card bg-default p-6 text-sm text-muted ring ring-default">{{ t('projects.schedule.empty') }}</div>
       </TimelineFrame>
     </main>`,
   }),

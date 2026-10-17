@@ -17,7 +17,7 @@ test('tablet defaults collapse before interaction and only explicit toggles pers
   await enterFoundation(page, '/projects')
   const sidebar = page.getByTestId('context-sidebar')
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(48)
+  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(64)
   expect((await context.cookies()).find(cookie => cookie.name === 'webvue-context-sidebar')).toBeUndefined()
   await page.getByTestId('context-sidebar-toggle').click()
   await expect(sidebar).toHaveAttribute('data-expanded', 'true')
@@ -25,13 +25,13 @@ test('tablet defaults collapse before interaction and only explicit toggles pers
   await page.reload()
   await expect(sidebar).toHaveAttribute('data-expanded', 'true')
   await page.getByTestId('context-sidebar-toggle').click()
-  await page.setViewportSize({ width: 1023, height: 1000 })
+  await page.setViewportSize({ width: 1099, height: 1000 })
   await page.reload()
   await expect(sidebar).toHaveAttribute('data-expanded', 'false')
-  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(48)
+  await expect.poll(async () => Math.round((await sidebar.boundingBox())!.width)).toBe(64)
 })
 
-for (const width of [767, 1024]) {
+for (const width of [767, 1100]) {
   test(`navigation at ${width}px uses the expected surface`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 })
     await enterFoundation(page, '/projects')

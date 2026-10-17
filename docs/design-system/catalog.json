@@ -1375,7 +1375,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
           "required": true
         },
         {
@@ -1385,7 +1385,7 @@
         },
         {
           "name": "variant",
-          "type": "\"outline\" | \"soft\"",
+          "type": "\"outline\" | \"soft\" | \"badge\"",
           "required": false,
           "default": "\"soft\""
         }
@@ -1393,18 +1393,24 @@
       "events": [],
       "slots": [],
       "nuxtUi": [
+        "UIcon",
         "USelect"
       ],
       "stories": [
         {
           "id": "InTaskRow",
           "name": "في صف المهمة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:130"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:144"
+        },
+        {
+          "id": "AsTableBadge",
+          "name": "شارة في خلية الجدول",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:144"
         },
         {
           "id": "ReadOnly",
           "name": "بلا صلاحية تعديل",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:130"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:144"
         }
       ]
     },
@@ -1416,7 +1422,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
           "required": true
         },
         {
@@ -1428,7 +1434,6 @@
       "events": [],
       "slots": [],
       "nuxtUi": [
-        "UButton",
         "UDropdownMenu",
         "UIcon"
       ],
@@ -1436,17 +1441,17 @@
         {
           "id": "InTaskRow",
           "name": "في صف المهمة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:143"
         },
         {
           "id": "NoTransitions",
           "name": "بلا انتقالات متاحة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:143"
         },
         {
           "id": "TransitionForbidden",
           "name": "انتقال مرفوض",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:129"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:143"
         }
       ]
     },
@@ -1458,7 +1463,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
           "required": true
         },
         {
@@ -1514,6 +1519,31 @@
           "id": "ProjectBoard",
           "name": "في لوحة المشروع (بلا اسم المشروع)",
           "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+        }
+      ]
+    },
+    {
+      "name": "TaskKpiStrip",
+      "file": "apps/web/app/components/pmo/tasks/TaskKpiStrip.vue",
+      "story": "apps/web/stories/task/TaskKpiStrip.stories.ts",
+      "title": "Task/TaskKpiStrip",
+      "props": [
+        {
+          "name": "params",
+          "type": "TaskListParams",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "USkeleton"
+      ],
+      "stories": [
+        {
+          "id": "AboveTaskTable",
+          "name": "فوق جدول المهام",
+          "context": "apps/web/app/pages/tasks.vue:77"
         }
       ]
     },
@@ -2860,6 +2890,18 @@
           "type": "string",
           "required": false,
           "description": "The table's accessible name (sr-only caption) and the mobile list's label."
+        },
+        {
+          "name": "density",
+          "type": "\"dense\" | \"comfortable\"",
+          "required": false,
+          "default": "\"dense\""
+        },
+        {
+          "name": "embeddedFilters",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
         }
       ],
       "events": [
@@ -2879,7 +2921,9 @@
       "slots": [
         "filters",
         "bulk",
-        "mobile-row"
+        "emptyAction",
+        "mobile-row",
+        "footer"
       ],
       "nuxtUi": [
         "UButton",
@@ -2890,6 +2934,21 @@
         {
           "id": "Default",
           "name": "جدول بروابط الصفوف",
+          "context": "unused"
+        },
+        {
+          "id": "Comfortable",
+          "name": "مريح (الرئيسية ولوحات النظرة العامة)",
+          "context": "unused"
+        },
+        {
+          "id": "EmbeddedFiltersAndFooter",
+          "name": "فلاتر في ترويسة البطاقة وتذييل بعدد النتائج",
+          "context": "unused"
+        },
+        {
+          "id": "EmbeddedEmpty",
+          "name": "فلاتر مدمجة وحالة فارغة داخل البطاقة",
           "context": "unused"
         },
         {
@@ -2922,6 +2981,11 @@
       "props": [
         {
           "name": "inline",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "embedded",
           "type": "boolean",
           "required": false
         },
@@ -2985,6 +3049,11 @@
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
+          "context": "apps/web/app/pages/projects/index.vue:263"
+        },
+        {
+          "id": "EmbeddedInCardHeader",
+          "name": "مدمج في ترويسة بطاقة (صف واحد)",
           "context": "apps/web/app/pages/projects/index.vue:263"
         },
         {
@@ -3170,6 +3239,18 @@
           "type": "\"ltr\" | \"rtl\"",
           "required": false,
           "description": "`ltr` for numbers and unmarked dates; bidi-marked dates inherit the locale direction."
+        },
+        {
+          "name": "density",
+          "type": "\"default\" | \"compact\"",
+          "required": false,
+          "default": "\"default\""
+        },
+        {
+          "name": "tone",
+          "type": "\"success\" | \"neutral\" | \"warning\" | \"danger\"",
+          "required": false,
+          "default": "\"neutral\""
         }
       ],
       "events": [],
@@ -3184,6 +3265,11 @@
         {
           "id": "Row",
           "name": "صف مؤشرات",
+          "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:34"
+        },
+        {
+          "id": "CompactStrip",
+          "name": "شريط مدمج بنبرات (مؤشرات قائمة المهام)",
           "context": "apps/web/app/components/pmo/projects/finance/FinanceSummaryCards.vue:34"
         }
       ]
@@ -3235,6 +3321,47 @@
           "id": "Fetching",
           "name": "أثناء التحميل",
           "context": "apps/web/app/pages/projects/index.vue:313"
+        }
+      ]
+    },
+    {
+      "name": "SharedPersonAvatar",
+      "file": "packages/ui/app/components/shared/data/PersonAvatar.vue",
+      "story": "apps/web/stories/shared/PersonAvatar.stories.ts",
+      "title": "Shared/PersonAvatar",
+      "props": [
+        {
+          "name": "people",
+          "type": "{ id: number; name: string; src?: string | undefined; }[]",
+          "required": true
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": false,
+          "default": "3"
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UAvatar"
+      ],
+      "stories": [
+        {
+          "id": "Single",
+          "name": "شخص واحد",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:117"
+        },
+        {
+          "id": "Stack",
+          "name": "كومة متراكبة (1 إلى 6)",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:117"
+        },
+        {
+          "id": "Nobody",
+          "name": "بلا مسؤول",
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:117"
         }
       ]
     },
@@ -3438,12 +3565,12 @@
         {
           "id": "InTaskTable",
           "name": "داخل جدول المهام",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:75"
+          "context": "packages/ui/app/components/shared/feedback/PageState.vue:22"
         },
         {
           "id": "InTaskListMobile",
           "name": "داخل قائمة المهام على الجوال",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:75"
+          "context": "packages/ui/app/components/shared/feedback/PageState.vue:22"
         }
       ]
     },
@@ -4035,6 +4162,12 @@
           "type": "boolean",
           "required": false,
           "default": "false"
+        },
+        {
+          "name": "markOnly",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
         }
       ],
       "events": [],
@@ -4049,6 +4182,11 @@
         {
           "id": "OnRail",
           "name": "OnRail",
+          "context": "unused"
+        },
+        {
+          "id": "MarkOnRail",
+          "name": "MarkOnRail",
           "context": "unused"
         }
       ]

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { layerFile } from '@webvue/ui/test/helpers/layerFile'
-import { contrastRatio, DARK_SURFACES } from '../webvuePalette'
+import { contrastRatio, DARK_SURFACES, STATUS_TEXT } from '../webvuePalette'
 
 // Tailwind v4 default palette steps behind the Nuxt UI semantic colours
 // (success: green, warning: yellow, error: red, info/secondary: blue).
@@ -28,14 +28,20 @@ function tint(colour: string, surface: string, alpha = 0.1) {
 const config = readFileSync(layerFile('app/app.config.ts'), 'utf8')
 const badge = config.match(/^\s*badge:.*$/m)?.[0] ?? ''
 
-// The text step the badge recipe sets for a tone and mode; the Nuxt UI default otherwise.
-function textStep(tone: string, variant: string, mode: 'light' | 'dark'): number {
+const STATUS_TOKEN: Record<string, keyof typeof STATUS_TEXT.light> = { success: 'success', warning: 'warning', error: 'danger', info: 'info' }
+
+// The text colour the badge recipe sets for a tone and mode: a --status-*-foreground token (resolved to its
+// palette value), a palette step, or the Nuxt UI default step.
+function textColour(tone: string, variant: string, mode: 'light' | 'dark'): string {
   const entry = new RegExp(`\\{[^{}]*color: '${tone}'[^{}]*variant: '${variant}'[^{}]*class: '([^']*)'`).exec(badge)
   const classes = entry?.[1]?.split(/\s+/) ?? []
+  if (tone in STATUS_TOKEN) {
+    expect(classes, `${tone} ${variant}`).toContain(`text-status-${STATUS_TOKEN[tone]}-foreground`)
+    return STATUS_TEXT[mode][STATUS_TOKEN[tone]!]
+  }
   const prefix = mode === 'dark' ? 'dark:' : ''
   const match = classes.find(c => new RegExp(`^${prefix}text-${tone}-\\d+$`).test(c))
-  if (match) return Number(match.split('-').pop())
-  return TONE_STEP[mode]
+  return PALETTE[tone]![match ? Number(match.split('-').pop()) : TONE_STEP[mode]]!
 }
 
 describe('subtle and soft badge text contrast', () => {
@@ -44,8 +50,7 @@ describe('subtle and soft badge text contrast', () => {
       for (const mode of ['light', 'dark'] as const) {
         it(`${tone} ${variant} text reaches 4.5:1 on its tint in ${mode} mode`, () => {
           const background = tint(PALETTE[tone]![TONE_STEP[mode]]!, SURFACE[mode])
-          const step = textStep(tone, variant, mode)
-          expect(contrastRatio(PALETTE[tone]![step]!, background), `${tone}-${step}`).toBeGreaterThanOrEqual(4.5)
+          expect(contrastRatio(textColour(tone, variant, mode), background), tone).toBeGreaterThanOrEqual(4.5)
         })
       }
     }

@@ -70,6 +70,21 @@ describe('SharedDataTable', () => {
     expect(html).toMatch(/data-ui-list="[^"]*flex-wrap/)
   })
 
+  it('embeds the filters in the card header and shows the footer under the table', async () => {
+    const html = await render({ embeddedFilters: true }, { filters: () => h('input', { 'aria-label': 'Search' }), footer: () => h('span', 'Of 2 results') })
+    expect(html).toContain('data-embedded-filters')
+    expect(html).toContain('border-b border-default')
+    expect(html).toContain('data-slot="data-table-footer"')
+    expect(html.indexOf('data-slot="data-table-filters"')).toBeLessThan(html.indexOf('<table'))
+    expect(html.indexOf('<table')).toBeLessThan(html.indexOf('Of 2 results'))
+  })
+
+  it('keeps the embedded filters when the table is empty', async () => {
+    const html = await render({ embeddedFilters: true, rows: [] }, { filters: () => h('input', { 'aria-label': 'Search' }), footer: () => h('span', 'Of 0 results') })
+    expect(html).toContain('aria-label="Search"')
+    expect(html).not.toContain('data-slot="data-table-footer"')
+  })
+
   it('shows the table on every width when there is no mobile row slot', async () => {
     const html = await render({})
     expect(html).not.toContain('hidden md:block')

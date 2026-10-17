@@ -76,7 +76,7 @@ const signatures = computed(() => [t('meetingMinutesForm.chairperson'), t('meeti
           </div>
         </header>
         <div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
-          <div v-for="fact in facts" :key="fact.key" class="grid gap-0.5 rounded-lg border border-default px-2.5 py-2">
+          <div v-for="fact in facts" :key="fact.key" class="grid gap-0.5 rounded-control border border-default px-2.5 py-2">
             <span class="text-xs text-muted">{{ fact.label }}</span>
             <strong :dir="fact.ltr ? 'ltr' : undefined">{{ fact.value }}</strong>
           </div>

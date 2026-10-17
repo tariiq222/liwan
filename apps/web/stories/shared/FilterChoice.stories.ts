@@ -18,7 +18,7 @@ const meta = {
   render: args => ({
     components: { FilterChoice },
     setup: () => ({ args, value: ref(args.modelValue) }),
-    template: '<div class="max-w-md rounded-lg ring ring-default bg-default p-4"><FilterChoice v-bind="args" v-model="value" /></div>',
+    template: '<div class="max-w-md rounded-card ring ring-default bg-default p-4"><FilterChoice v-bind="args" v-model="value" /></div>',
   }),
 } satisfies Meta<typeof FilterChoice>
 export default meta

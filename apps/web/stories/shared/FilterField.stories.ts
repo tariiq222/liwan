@@ -12,7 +12,7 @@ const meta = {
   render: args => ({
     components: { DateField, FilterField },
     setup: () => ({ args, q: ref(''), from: ref<string | null>(null) }),
-    template: '<div class="flex flex-wrap gap-4 rounded-lg ring ring-default bg-default p-4"><FilterField v-bind="args"><UInput id="story-organizer" v-model="q" icon="i-lucide-search" placeholder="بحث عن منظّم" class="w-full" /></FilterField><FilterField label="من تاريخ" for="story-from"><DateField id="story-from" v-model="from" class="w-full" /></FilterField></div>',
+    template: '<div class="flex flex-wrap gap-4 rounded-card ring ring-default bg-default p-4"><FilterField v-bind="args"><UInput id="story-organizer" v-model="q" icon="i-lucide-search" placeholder="بحث عن منظّم" class="w-full" /></FilterField><FilterField label="من تاريخ" for="story-from"><DateField id="story-from" v-model="from" class="w-full" /></FilterField></div>',
   }),
 } satisfies Meta<typeof FilterField>
 export default meta

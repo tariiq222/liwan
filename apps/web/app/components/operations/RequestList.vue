@@ -41,7 +41,7 @@ const stateItems = computed(() => operationStateChoices(t))
         <SharedFilterField :label="t('operations.state')" for="operation-state-filter"><USelect id="operation-state-filter" :model-value="selectedState ?? 'all'" :items="stateItems" :aria-label="t('operations.state')" :disabled="!hydrated" @update:model-value="value => update({ state: operationStateFromSelection(value), page: undefined })" /></SharedFilterField>
       </SharedFilterBar>
       <SharedPageState :loading="query.isPending.value" :error="query.error.value" :empty="!items.length" :empty-text="t('operations.emptyRequests')" @retry="hydrated && query.refetch()">
-        <ul class="divide-y divide-default rounded-lg bg-default ring ring-default">
+        <ul class="divide-y divide-default rounded-card bg-default ring ring-default">
           <li v-for="item in items" :key="item.id" class="flex min-w-0 flex-wrap items-start justify-between gap-3 p-4">
             <div class="min-w-0 flex-1"><div class="flex min-w-0 items-baseline gap-2"><span class="sr-only">{{ t('operations.recordNumber') }}</span><SharedRecordNumber :value="item.id" /><UButton color="neutral" variant="link" class="max-w-full p-0 text-start" :label="item.name" :disabled="!hydrated" :to="{ path: `/operations/${item.id}`, query: { returnTo: backTo } }" /></div><p class="mt-1 text-sm text-muted">{{ item.process.name }} · {{ item.requester.name }}</p></div>
             <SharedStatusBadge :tone="operationsStateTone(item.state)" :label="t(`operations.states.${item.state}`)" />

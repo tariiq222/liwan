@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
 import type { Project, ProjectStatus } from '@webvue/contracts'
 import type { RouteLocationRaw } from 'vue-router'
@@ -26,7 +27,7 @@ const projectBadge = (status: ProjectStatus | null) => { const entry = projectSt
 const hydrated = useHydrated()
 
 const columns = computed<TableColumn<ProjectListItem>[]>(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t) },
   { accessorKey: 'name', header: t('projects.columns.name') },
   { accessorKey: 'manager', header: t('projects.columns.manager') },
   { accessorKey: 'status', header: t('projects.columns.status') },

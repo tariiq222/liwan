@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import { accessBadge } from '@/components/access/accessBadge'
 import type { TableColumn } from '@nuxt/ui'
 import type { RoleSummary } from '@webvue/contracts'
@@ -32,7 +33,7 @@ function actionsFor(role: RoleSummary): RowAction[] {
 }
 
 const columns = computed<TableColumn<RoleSummary>[]>(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t) },
   { accessorKey: 'name', header: t('access.roles.columns.name') },
   { accessorKey: 'description', header: t('access.roles.columns.description') },
   { accessorKey: 'type', header: t('access.roles.columns.type') },

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
 import { useProjectStakeholders, useDeleteProjectStakeholder } from '@/composables/useProjectGovernance'
 import { governanceFilters } from '@/composables/projectGovernanceKeys'
@@ -49,7 +50,7 @@ function clearFilters() {
 }
 
 const columns = computed(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t) },
   { accessorKey: 'name', header: t('projects.governance.stakeholder.name') },
   { accessorKey: 'organization', header: t('projects.governance.stakeholder.organization') },
   { accessorKey: 'role', header: t('projects.governance.stakeholder.role') },

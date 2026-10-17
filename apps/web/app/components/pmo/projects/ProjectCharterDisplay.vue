@@ -125,7 +125,7 @@ function budgetAmount(): string {
           </ul>
         </SharedRecordSection>
 
-        <UCollapsible v-if="hasLegacyDetails" class="rounded-lg bg-default ring ring-default" data-testid="charter-legacy-details">
+        <UCollapsible v-if="hasLegacyDetails" class="rounded-card bg-default ring ring-default" data-testid="charter-legacy-details">
           <UButton
             color="neutral"
             variant="ghost"

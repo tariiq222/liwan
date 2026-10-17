@@ -1,7 +1,8 @@
 /* WebVue identity (midnight + lime), light/dark modes, dense type and shape on
    Nuxt UI's stock theme: the Arabic font and its size modes, the fixed brand primary
    (the company colour never themes the interface), the fixed shell rail, the chart
-   palette, 32px controls, 36px rows and the 6px radius base. */
+   palette, 32px controls, 44px rows, the soft 18px card / 12px control radii and the 4px spacing
+   grid (8px steps). */
 @theme {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   /* Keep pixel sizes stable on the 14px "small" root. */
@@ -11,6 +12,11 @@
   --text-lg: 1.142857rem;
   --text-xl: 1.428571rem;
   --text-2xl: 1.714286rem;
+  /* Shape, Apple-style soft curves at the 14px root: rounded-card (18px) for cards, panels and table containers,
+     rounded-control (12px) for inputs, selects, textareas, small inner blocks and chips. Buttons, badges, tabs and
+     progress stay rounded-full. Where supported both get the continuous superellipse corner (components.css). */
+  --radius-card: 1.285714rem;
+  --radius-control: 0.857143rem;
 }
 :root {
   color-scheme: light;
@@ -18,30 +24,33 @@
   /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
   --ui-radius: 0.428571rem;
   /* Fixed WebVue primary family; nothing overwrites it at runtime. */
-  --primary: #0046d5;
+  --primary: #007ff8;
   --primary-foreground: #fff;
-  --primary-hover: #0039af;
+  --primary-hover: #0052a3;
   --primary-hover-foreground: #fff;
-  --primary-active: #003091;
+  --primary-active: #00478f;
   --primary-active-foreground: #fff;
-  --primary-fill: var(--primary);
-  --primary-fill-foreground: var(--primary-foreground);
-  --primary-fill-hover: var(--primary-hover);
-  --primary-fill-hover-foreground: var(--primary-hover-foreground);
-  --primary-fill-active: var(--primary-active);
-  --primary-fill-active-foreground: var(--primary-active-foreground);
-  --primary-soft: color-mix(in srgb, var(--primary-fill) 18%, var(--ui-bg));
+  /* Text-bearing solid fills (white label) use the deeper --primary-solid family; --primary stays the accent. */
+  --primary-fill: var(--primary-solid);
+  --primary-fill-foreground: var(--primary-solid-foreground);
+  --primary-fill-hover: var(--primary-solid-hover);
+  --primary-fill-hover-foreground: var(--primary-solid-hover-foreground);
+  --primary-fill-active: var(--primary-solid-active);
+  --primary-fill-active-foreground: var(--primary-solid-active-foreground);
+  --primary-soft: color-mix(in srgb, var(--primary) 18%, var(--ui-bg));
   --primary-soft-foreground: var(--ui-text);
-  /* Solid primary button in dark mode (fixed values in .dark); light keeps the stock button. */
-  --primary-solid: var(--brand-link);
+  /* Solid primary button, in both modes: #0066cc under white text is 5.57:1 (the accent #007ff8 is for fills without text). */
+  --primary-solid: #0066cc;
   --primary-solid-foreground: #fff;
-  --primary-solid-hover: var(--primary-hover);
-  --primary-solid-hover-foreground: var(--primary-hover-foreground);
-  --brand-link: #0046d5;
+  --primary-solid-hover: #0052a3;
+  --primary-solid-hover-foreground: #fff;
+  --primary-solid-active: #00478f;
+  --primary-solid-active-foreground: #fff;
+  --brand-link: #0066cc;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
   /* Charts: a fixed categorical palette. */
-  --chart-1: #0046d5;
+  --chart-1: #007ff8;
   --chart-2: #0d9488;
   --chart-3: #d97706;
   --chart-4: #8b5cf6;
@@ -53,16 +62,35 @@
   --chart-status-warning: #d97706;
   --chart-status-error: #dc2626;
   --chart-status-neutral: #64748b;
-  /* WebVue identity and density. 2.285714rem = 32px and 2.571429rem = 36px at the 14px root. */
+  /* Hairline of cards, tables and dividers; --ui-border drives every ring-default and border-default. */
+  --ui-border: #e6e9f2;
+  /* WebVue identity and density, at the 14px root. Controls 32px. Tables: a row is 44px and cells use
+     the card padding; the dense list variant (default) pads cells 16px, the comfortable variant (home and
+     overview pages) 20px and a 52px row. Cards pad 20px. Cards sit 16px apart and page sections 32px apart. */
   --webvue-midnight: #13234a;
   --webvue-lime: #c6f432;
   --webvue-lime-foreground: #13234a;
   --webvue-control-h: 2.285714rem;
-  --webvue-row-h: 2.571429rem;
-  /* Shell: fixed midnight rail (not tenant-derived) and surfaces. */
-  --webvue-rail: #13234a;
-  --webvue-rail-deep: #0d1a38;
-  --rail-hover: #1f3160;
+  --webvue-row-h: 3.142857rem;
+  --webvue-row-h-comfortable: 3.714286rem;
+  --webvue-card-pad: 1.428571rem;
+  --webvue-card-pad-dense: 1.142857rem;
+  --webvue-gap-card: 1.142857rem;
+  --webvue-gap-section: 2.285714rem;
+  /* Shell: a white floating module rail (fixed WebVue blue accents, not tenant-derived) and surfaces. */
+  --webvue-rail-border: #d8deec;
+  --webvue-rail-ink: #475569;
+  --webvue-rail-active: #d9ecff;
+  /* Round icon chips (rail circles on hover, context sidebar links). */
+  --webvue-chip: #f1f4fa;
+  --webvue-chip-active: #d9ecff;
+  --webvue-rail-active-ink: #0066cc;
+  /* Floating shell cards (header, rail, context sidebar) lift off the canvas with these shadows; the active context link is tinted. */
+  --webvue-shell-shadow: 0 12px 32px rgb(15 23 42 / 8%);
+  --webvue-rail-shadow: 0 12px 32px rgb(15 23 42 / 10%);
+  --webvue-nav-active: #e8f3ff;
+  /* Table row under the pointer: a very light blue tint (dark mode: a lighter layer on the surface). */
+  --webvue-row-hover: #f3f6ff;
   /* Page canvas: a slate tint behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
   --webvue-canvas: #f6f7fb;
   --shell-background: var(--webvue-canvas);
@@ -98,21 +126,22 @@
   --webvue-surface-soft: var(--ui-bg-muted);
   --webvue-text: var(--ui-text);
   --webvue-border: var(--ui-border);
-  /* Semantic status colours follow the library's own. */
+  /* Semantic status colours: the indicator (dot, ring, soft fill) follows the library's own; the badge TEXT is a
+     separate darker tone (-foreground), >= 4.5:1 on its soft fill (guarded in tokens.test.ts). */
   --status-success: var(--ui-success);
-  --status-success-foreground: var(--ui-success);
+  --status-success-foreground: #166534;
   --status-success-soft: color-mix(in srgb, var(--status-success) 12%, var(--ui-bg));
   --status-success-border: color-mix(in srgb, var(--status-success) 28%, var(--ui-border));
   --status-warning: var(--ui-warning);
-  --status-warning-foreground: var(--ui-warning);
+  --status-warning-foreground: #92400e;
   --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, var(--ui-bg));
   --status-warning-border: color-mix(in srgb, var(--status-warning) 32%, var(--ui-border));
   --status-info: var(--ui-info);
-  --status-info-foreground: var(--ui-info);
+  --status-info-foreground: #075985;
   --status-info-soft: color-mix(in srgb, var(--status-info) 12%, var(--ui-bg));
   --status-info-border: color-mix(in srgb, var(--status-info) 28%, var(--ui-border));
   --status-danger: var(--ui-error);
-  --status-danger-foreground: var(--ui-error);
+  --status-danger-foreground: #991b1b;
   --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, var(--ui-bg));
   --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, var(--ui-border));
   --unread-count-foreground: #fff;
@@ -146,16 +175,22 @@
   --ui-text-toned: #cbd5e1;
   --ui-text-dimmed: #94a3b8;
   --webvue-canvas: #070d1c;
-  /* The rail is a clearly lighter midnight than the page canvas and carries an edge line (shell.css). */
-  --webvue-rail: #172b5c;
-  --webvue-rail-deep: #112247;
-  --rail-hover: #223a72;
-  --webvue-rail-edge: rgb(255 255 255 / 14%);
+  /* The rail stays WebVue blue, clearly lighter than the page canvas, with an edge line (shell.css). */
+  --webvue-rail-border: #2c3b5e;
+  --webvue-rail-ink: #cbd5e1;
+  --webvue-rail-active: #1b2d5c;
+  --webvue-chip: #15203b;
+  --webvue-chip-active: #223a73;
+  --webvue-rail-active-ink: #66b5ff;
+  --webvue-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
+  --webvue-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);
+  --webvue-nav-active: #16264d;
+  --webvue-row-hover: #111c38;
   /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (fixed values). */
-  --brand-link: #7aa6ff;
-  --ring: #7aa6ff;
-  --sidebar-ring: #7aa6ff;
-  --chart-1: #7aa6ff;
+  --brand-link: #66b5ff;
+  --ring: #66b5ff;
+  --sidebar-ring: #66b5ff;
+  --chart-1: #66b5ff;
   --chart-2: #2dd4bf;
   --chart-3: #fbbf24;
   --chart-4: #a78bfa;
@@ -166,12 +201,12 @@
   --chart-status-warning: #fbbf24;
   --chart-status-error: #f87171;
   --chart-status-neutral: #94a3b8;
-  /* Dark solid primary of the WebVue blue. */
-  --primary-solid: #0a5bff;
-  --primary-solid-foreground: #ffffff;
-  --primary-solid-hover: #084bd1;
-  --primary-solid-hover-foreground: #ffffff;
   --unread-count-foreground: var(--ui-bg);
+  /* Light status text on the dark soft fills. */
+  --status-success-foreground: #86efac;
+  --status-warning-foreground: #fcd34d;
+  --status-info-foreground: #7dd3fc;
+  --status-danger-foreground: #fca5a5;
 }
 /* `primary: 'brand'` in app.config reads this palette, derived from the fixed --primary. */
 :root {
@@ -194,7 +229,6 @@
   --color-webvue-midnight: var(--webvue-midnight);
   --color-webvue-lime: var(--webvue-lime);
   --color-webvue-lime-foreground: var(--webvue-lime-foreground);
-  --color-webvue-rail: var(--webvue-rail);
   --color-webvue-canvas: var(--webvue-canvas);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
@@ -204,8 +238,14 @@
   --color-brand-link: var(--brand-link);
   --color-brand-soft: var(--brand-soft);
   --color-brand-border: var(--brand-border);
+  --color-status-success-soft: var(--status-success-soft);
+  --color-status-info-soft: var(--status-info-soft);
+  --color-status-warning-soft: var(--status-warning-soft);
+  --color-status-danger-soft: var(--status-danger-soft);
   --color-status-success: var(--status-success);
   --color-status-success-foreground: var(--status-success-foreground);
   --color-status-warning: var(--status-warning);
   --color-status-warning-foreground: var(--status-warning-foreground);
+  --color-status-info-foreground: var(--status-info-foreground);
+  --color-status-danger-foreground: var(--status-danger-foreground);
 }

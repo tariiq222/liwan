@@ -35,7 +35,7 @@ async function run(phase: ProjectPhase) {
 </script>
 
 <template>
-  <section v-if="isVisible" class="webvue-print-hide flex flex-col gap-3 rounded-lg border border-default p-4" data-testid="project-phase-gate">
+  <section v-if="isVisible" class="webvue-print-hide flex flex-col gap-3 rounded-card border border-default p-4" data-testid="project-phase-gate">
     <p v-if="isClosed" class="font-medium text-highlighted" data-testid="project-phase-closed-notice">{{ t('projects.phase.closedNotice') }}</p>
     <template v-else-if="state.next">
       <h2 class="text-base font-semibold text-highlighted">{{ t('projects.phase.gateTitle', { phase: phaseLabel(state.next) }) }}</h2>

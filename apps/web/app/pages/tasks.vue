@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import TaskArchivedList from '@/components/pmo/tasks/TaskArchivedList.vue'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
+import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
 import TaskTable from '@/components/pmo/tasks/TaskTable.vue'
 import TaskToolbar from '@/components/pmo/tasks/TaskToolbar.vue'
 import { useTaskFilters } from '@/composables/useTaskFilters'
@@ -62,17 +63,21 @@ function openCreate() {
     :views="views"
   >
     <template #actions>
-      <UButton color="neutral" variant="outline" :to="{ path: '/tasks', query: { ...returnToQuery(route.fullPath), scope: 'archived' } }" data-testid="tasks-archived-link">
+      <UButton color="neutral" variant="ghost" :to="{ path: '/tasks', query: { ...returnToQuery(route.fullPath), scope: 'archived' } }" data-testid="tasks-archived-link">
         {{ t('taskLifecycle.archivedTasks') }}
       </UButton>
     </template>
-    <template #filters>
-      <TaskToolbar v-model="params" collapsible />
+    <!-- The board has no card to hold the toolbar, so it keeps it above; the table carries it in its header. -->
+    <template v-if="isBoard" #filters>
+      <TaskToolbar v-model="params" />
     </template>
     <!-- Query data may resolve after SSR markup is emitted but before client hydration starts. Mount
-         the dynamic result surface only after this page has hydrated so the toolbar controls above
-         keep their listeners and their first click is never lost. -->
-    <TaskTable v-if="hydrated && !isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate" />
+         the dynamic result surface (and the toolbar in its header) only after this page has hydrated so
+         no control's first click is lost; the toolbar's selects stay disabled until then. -->
+    <TaskKpiStrip v-if="hydrated" :params="params" />
+    <TaskTable v-if="hydrated && !isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate">
+      <template #filters><TaskToolbar v-model="params" embedded /></template>
+    </TaskTable>
     <TaskBoard v-else-if="hydrated" :params="params" @open="id => router.push(taskTo(id))" />
   </SharedListPage>
   <NuxtPage />

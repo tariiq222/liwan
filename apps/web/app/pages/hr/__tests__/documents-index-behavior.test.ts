@@ -28,7 +28,7 @@ async function loadPage() {
   let documentParams: Vue.ComputedRef<Record<string, unknown>> | undefined
   const require = (name: string) => {
     if (name === 'vue') return Vue
-    if (name === '@webvue/ui/app/components/shared/data/FilterBar.vue' || name === '@webvue/ui/app/components/shared/data/RecordNumber.vue') return {}
+    if (name === '@webvue/ui/app/components/shared/data/FilterBar.vue' || name === '@webvue/ui/app/components/shared/data/RecordNumber.vue' || name === '@webvue/ui/app/utils/recordNumberHeader') return {}
     if (name === '@vueuse/core') return { refDebounced: (value: Vue.Ref<string>) => value }
     if (name === '@/composables/useHrDocuments') return { useHrDocuments: (params: Vue.ComputedRef<Record<string, unknown>>) => {
       documentParams = params

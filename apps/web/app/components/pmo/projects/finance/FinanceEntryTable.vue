@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
 import { h } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
@@ -28,7 +29,7 @@ function openLiveEntry(event: MouseEvent, item: FinanceEntry) {
 }
 const budgets = computed(() => new Map(props.items.filter(item => item.kind === 'budget').map(item => [item.id, item.title])))
 const columns = computed<TableColumn<FinanceEntry>[]>(() => [
-  { id: 'record', header: t('app.recordNumber') },
+  { id: 'record', header: () => recordNumberHeader(t) },
   { id: 'title', header: t('projects.finance.columns.title') },
   { id: 'kind', header: t('projects.finance.columns.kind') },
   { id: 'amount', header: t('projects.finance.columns.amount') },

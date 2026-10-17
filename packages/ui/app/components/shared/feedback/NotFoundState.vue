@@ -7,7 +7,7 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <div role="alert" data-slot="not-found-state" class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-default px-6 py-10 text-center">
+  <div role="alert" data-slot="not-found-state" class="flex flex-col items-center gap-3 rounded-card border border-dashed border-default px-6 py-10 text-center">
     <UIcon name="i-lucide-search-x" class="size-6 text-muted" aria-hidden="true" />
     <p class="font-medium text-highlighted">{{ t('errors.notFound') }}</p>
     <p class="max-w-prose text-sm text-muted">{{ t('states.notFoundHint') }}</p>

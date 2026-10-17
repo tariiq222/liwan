@@ -224,7 +224,7 @@ function setHistoryPage(page: number) {
                 <UButton color="error" variant="subtle" size="sm" :to="{ query: { ...route.query, tab: 'followup', followup_state: 'overdue', followup_page: undefined } }" :label="t('meetingsUi.overdueCount', { count: query.data.value.overdue_resolution_count })" />
               </div>
               <div class="grid w-full min-w-0 gap-3 sm:grid-cols-2">
-                <div class="rounded-lg p-3 ring ring-default">
+                <div class="rounded-control p-3 ring ring-default">
                   <p class="text-sm text-muted">{{ t('meetingsUi.nextMeeting') }}</p>
                   <div v-if="upcoming" class="mt-1 grid gap-1">
                     <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${upcoming.id}`, query: returnToQuery(route.fullPath) }">{{ upcoming.name }}</UButton>
@@ -232,7 +232,7 @@ function setHistoryPage(page: number) {
                   </div>
                   <p v-else class="mt-1 text-sm text-muted">{{ t('meetingsUx.noNextMeeting') }}</p>
                 </div>
-                <div class="rounded-lg p-3 ring ring-default">
+                <div class="rounded-control p-3 ring ring-default">
                   <p class="text-sm text-muted">{{ t('meetingTimeline.lastCompleted') }}</p>
                   <div v-if="previous" class="mt-1 grid gap-1">
                     <UButton color="primary" variant="link" class="w-fit p-0 font-medium whitespace-normal text-start" :to="{ path: `/meetings/${previous.id}`, query: returnToQuery(route.fullPath) }">{{ previous.name }}</UButton>
@@ -289,7 +289,7 @@ function setHistoryPage(page: number) {
           </template>
         </FilterBar>
         <SharedPageState :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch">
-          <ul class="grid divide-y divide-default overflow-hidden rounded-lg bg-default ring ring-default">
+          <ul class="grid divide-y divide-default overflow-hidden rounded-card bg-default ring ring-default">
             <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 p-4">
               <div class="flex flex-wrap items-start justify-between gap-2">
                 <div class="grid min-w-0 gap-0.5">

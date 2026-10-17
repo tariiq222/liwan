@@ -53,8 +53,7 @@ export function daysRemaining(deadlineIso: string | null | undefined, now: Date 
 export function deadlineLabel(days: number | null, t: (key: string, params?: Record<string, unknown>, plural?: number) => string): string {
   if (days === null) return t('tasks.deadline.none')
   if (days === 0) return t('tasks.deadline.today')
-  if (days === 1) return t('tasks.deadline.tomorrow')
-  if (days > 1) return t('tasks.deadline.inDays', { n: days }, days)
+  if (days > 0) return t('tasks.deadline.inDays', { n: days }, days)
   return t('tasks.deadline.overdueDays', { n: Math.abs(days) }, Math.abs(days))
 }
 
@@ -65,6 +64,16 @@ const TASK_STATE_BADGES = Object.fromEntries(
 /** The badge for a task state; an unknown state from a newer server is neutral and shows its raw value. */
 export function taskStateBadge(state: TaskState): StatusBadgeEntry {
   return statusBadgeEntry(TASK_STATE_BADGES, state)
+}
+
+export interface DeadlineTag { tone: StatusTone; icon: string }
+
+/** The deadline tag: overdue is danger (time exceeded), today warning (alarm), a future date success (time remaining), a closed task neutral (calendar); no deadline has no tag. */
+export function deadlineTag(daysRemaining: number | null, isClosed: boolean): DeadlineTag | null {
+  if (daysRemaining === null) return null
+  if (isClosed) return { tone: 'neutral', icon: 'i-lucide-calendar-check' }
+  if (daysRemaining > 0) return { tone: 'success', icon: 'i-lucide-hourglass' }
+  return daysRemaining < 0 ? { tone: 'destructive', icon: 'i-lucide-timer-off' } : { tone: 'warning', icon: 'i-lucide-alarm-clock' }
 }
 
 /** A closed task is never urgent; otherwise overdue is destructive and the next two days warn. */

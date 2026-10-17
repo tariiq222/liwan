@@ -65,7 +65,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useUploadDocumentAttachment: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
     useSsrQuerySeed: () => undefined, navigateTo: navigate,
     ApiError: class ApiError extends Error {},
-    TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, FilterBar: {}, DocumentEditor: {},
+    TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, TaskKpiStrip: {}, FilterBar: {}, DocumentEditor: {},
     projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', ProjectWorkspaceTabs: {}, ProjectPhaseStepper: {},
     ...overrides,
   }

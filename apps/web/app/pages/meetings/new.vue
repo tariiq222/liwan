@@ -154,7 +154,7 @@ async function save() {
     <form ref="formElement" novalidate class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />
-      <p v-if="context.series || context.project" class="rounded-lg bg-elevated/50 px-3 py-2 text-sm ring ring-default">
+      <p v-if="context.series || context.project" class="rounded-control bg-elevated/50 px-3 py-2 text-sm ring ring-default">
         <span v-if="context.series">{{ t('meetingsUx.context.series', { name: context.series }) }}</span>
         <span v-if="context.series && context.project"> · </span>
         <span v-if="context.project">{{ t('meetingsUx.context.project', { name: context.project }) }}</span>

@@ -240,7 +240,7 @@ async function submit() {
     <UCollapsible
       v-model:open="optionalOpen"
       :data-testid="projectQuick ? 'task-create-optional' : undefined"
-      :class="projectQuick ? 'rounded-lg border border-default p-4' : undefined"
+      :class="projectQuick ? 'rounded-card border border-default p-4' : undefined"
     >
       <UButton v-if="projectQuick" type="button" color="neutral" variant="ghost" class="w-full justify-between font-semibold" trailing-icon="i-lucide-chevron-down" :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }">{{ t('tasks.quick.optional') }}</UButton>
       <template #content>

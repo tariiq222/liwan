@@ -1,9 +1,9 @@
 /* Shared page geometry from the approved executable Nuxt UI reference. */
 /* Full-height workspaces can override the default grid with Tailwind flex. */
-.webvue-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 1.75rem; }
+.webvue-page-stack { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--webvue-gap-section); }
 .webvue-page-stack > * { min-width: 0; }
 /* Shared composition for project sections and their routed record workflows. */
-.webvue-page-stack[data-workspace-area="true"] { gap: 1.5rem; align-content: start; }
+.webvue-page-stack[data-workspace-area="true"] { align-content: start; }
 [data-workspace-area="true"] [data-slot="page-header"] { min-height: 2.25rem; align-items: center; }
 [data-workspace-area="true"] .webvue-form-footer { justify-content: flex-end; }
 
@@ -57,42 +57,62 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
   .webvue-form-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Tasmim application frame (spec 2026-10-11 §5): a 48px neutral header, a
-   64px module rail that is always WebVue midnight, a 232px context sidebar that
-   collapses to 48px, one drawer below 768px. Geometry is px so the frame does
-   not grow with the user's font size; text inside it uses rem. */
+/* Floating shell (owner-approved 2026-10-17): the header, the 64px module rail and the
+   context sidebar are cards floating 12px off the viewport edge (16px below the header) on the page canvas. The
+   rail sits at the inline start with the 230px context sidebar right beside it, 12px apart
+   (64px when collapsed, collapsing by itself below 1100px); one drawer below 768px. Geometry is px so
+   the frame does not grow with the user's font size; text inside it uses rem. */
 .webvue-shell {
-  --shell-duration: 150ms;
-  --shell-ease: cubic-bezier(.22, 1, .36, 1);
+  --shell-duration: 200ms;
+  --shell-ease: ease;
+  --shell-inset: 12px;
   --shell-header-height: 56px;
+  --shell-gap: 16px;
+  --shell-top: calc(var(--shell-inset) + var(--shell-header-height) + var(--shell-gap));
   --module-rail-width: 64px;
-  --context-sidebar-width: 232px;
+  --context-sidebar-width: 230px;
+  --context-sidebar-gap: var(--shell-inset);
   min-height: 100svh;
   background: var(--webvue-canvas);
 }
 html[dir="rtl"] body { padding-right: 0 !important; }
+/* A frame without a context sidebar gives its end side to the page. */
+.webvue-shell[data-sidebar="none"] { --context-sidebar-width: 0px; --context-sidebar-gap: 0px; }
+/* The canvas behind the floating header is blurred so scrolled content never collides with it. */
+.webvue-shell::before {
+  content: '';
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 59;
+  height: calc(var(--shell-top) - var(--shell-inset) / 2);
+  background: color-mix(in srgb, var(--webvue-canvas) 82%, transparent);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
 @media (min-width: 768px) {
   .webvue-shell:has(.webvue-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 400px; }
-  .webvue-shell:has(.webvue-context-sidebar[data-expanded="false"]) { --context-sidebar-width: 48px; }
+  .webvue-shell:has(.webvue-context-sidebar[data-expanded="false"]) { --context-sidebar-width: 64px; }
 }
-@media (min-width: 768px) and (max-width: 1100px) {
+@media (min-width: 768px) and (max-width: 1099px) {
   .webvue-shell:has(.webvue-context-sidebar[data-panel-width="wide"][data-expanded="true"]) { --context-sidebar-width: 320px; }
 }
 
-/* Header: neutral, from the rail to the inline end. */
+/* Header: a white floating card across the top. */
 .webvue-shell-header {
   position: fixed;
-  inset-block-start: 0;
-  inset-inline-start: var(--module-rail-width);
-  inset-inline-end: 0;
-  z-index: 60;
+  inset-block-start: var(--shell-inset);
+  inset-inline: var(--shell-inset);
+  z-index: 62;
   display: flex;
   height: var(--shell-header-height);
   align-items: center;
   gap: 12px;
-  padding-inline: 12px;
+  padding-inline: 16px;
   background: var(--ui-bg);
-  border-block-end: 1px solid var(--ui-border);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--webvue-shell-shadow);
   color: var(--ui-text);
 }
 .webvue-shell-header-start { display: flex; min-width: 0; flex: 1; align-items: center; gap: 8px; }
@@ -114,8 +134,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-shell-header :is([data-testid="notification-bell"], [data-slot="header-account"], .webvue-mobile-menu-trigger) { height: 38px; border-radius: 9999px; }
 /* Bell and account share the search field's outlined look. */
 .webvue-shell-header :is([data-testid="notification-bell"], [data-slot="header-account"]) { box-shadow: inset 0 0 0 1px var(--ui-border-accented); }
-.webvue-shell-header [data-testid="notification-bell"] { width: 38px; padding: 0; justify-content: center; }
-.webvue-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 8px; padding-inline: 6px; text-align: start; }
+.webvue-shell-header [data-testid="notification-bell"] { width: 38px; padding: 0; justify-content: center; overflow: visible; }
+.webvue-shell-header .header-account { display: flex; min-width: 0; align-items: center; gap: 10px; padding-inline: 6px 14px; text-align: start; }
+.webvue-shell-header .header-avatar { width: 30px; height: 30px; }
 .webvue-shell-header .account-copy { display: grid; min-width: 0; max-width: 10rem; line-height: 1.25; }
 .webvue-shell-header .account-name, .webvue-shell-header .account-role { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .webvue-shell-header .account-name { font-size: .8125rem; font-weight: 600; }
@@ -129,76 +150,89 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .approved-account-menu .webvue-appearance-row { display: flex; width: 100%; gap: 4px; }
 .approved-account-menu .webvue-appearance-option { flex: 1; justify-content: center; height: 32px; border-radius: 9999px; }
 
-/* Module rail: always WebVue midnight, never tenant-derived (tokens.css). */
+/* Module rail: a white floating card; the active module is marked in WebVue blue, never tenant-derived (tokens.css). */
 .webvue-module-rail {
   position: fixed;
-  inset-block: 0;
-  inset-inline-start: 0;
+  inset-block: var(--shell-top) var(--shell-inset);
+  inset-inline-start: var(--shell-inset);
   z-index: 61;
   display: flex;
   width: var(--module-rail-width);
   flex-direction: column;
-  background: var(--webvue-rail);
-  background-image: linear-gradient(180deg, var(--webvue-rail) 0%, var(--webvue-rail-deep) 100%);
-  color: rgb(255 255 255 / 72%);
-  border-inline-end: 1px solid var(--webvue-rail-edge, transparent);
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  box-shadow: var(--webvue-rail-shadow);
+  background: var(--ui-bg);
+  color: var(--webvue-rail-ink);
+  border: 1px solid var(--webvue-rail-border);
 }
-.webvue-module-rail-brand { display: grid; height: var(--shell-header-height); flex: none; place-items: center; color: #fff; text-decoration: none; }
-.webvue-module-rail-brand:focus-visible { outline: 2px solid var(--webvue-lime); outline-offset: -4px; }
-.webvue-module-rail-links, .webvue-module-rail-utility { display: flex; flex-direction: column; gap: 2px; padding: 8px 4px; }
+.webvue-module-rail-brand { display: grid; height: var(--shell-header-height); flex: none; border-block-start: 1px solid var(--ui-border); place-items: center; color: var(--ui-primary); text-decoration: none; }
+.webvue-module-rail-brand:focus-visible { outline: 2px solid var(--ring); outline-offset: -4px; }
+.webvue-module-rail-links, .webvue-module-rail-utility { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; }
 .webvue-module-rail-links { min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
-.webvue-module-rail-utility { flex: none; border-block-start: 1px solid rgb(255 255 255 / 12%); }
+.webvue-module-rail-utility { flex: none; }
 .webvue-module-rail-link {
   position: relative;
   display: flex;
-  min-height: 52px;
+  min-height: 60px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  border-radius: 18px;
-  padding: 6px 2px;
-  color: inherit;
+  gap: 2px;
+  padding: 4px 2px;
+  color: var(--webvue-rail-ink);
   text-decoration: none;
-  transition: background-color var(--shell-duration) ease, color var(--shell-duration) ease;
+  transition: color var(--shell-duration) ease;
 }
-.webvue-module-rail-link:hover { background: var(--rail-hover); color: #fff; }
-.webvue-module-rail-link[data-active="true"] { background: rgb(255 255 255 / 12%); color: #fff; }
-.webvue-module-rail-link:focus-visible { outline: 2px solid var(--webvue-lime); outline-offset: -2px; }
-.webvue-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 11px; font-weight: 500; line-height: 14px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
-.webvue-module-rail-link[data-active="true"] [data-slot="label"] { font-weight: 600; }
-/* The bar sits on the rail's own inline-start edge: 4px out of the link, through the nav padding. */
-.webvue-module-rail-indicator { position: absolute; inset-block: 12px; inset-inline-start: -4px; width: 3px; border-start-end-radius: 3px; border-end-end-radius: 3px; background: var(--webvue-lime); }
+.webvue-module-rail-link:hover { color: var(--webvue-rail-active-ink); }
+.webvue-module-rail-link[data-active="true"] { color: var(--webvue-rail-active-ink); font-weight: 600; }
+/* Icons live in 36px round circles; the active one is tinted and a 4px bar marks the card's inline-start edge. */
+.webvue-module-rail-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 9999px; transition: background-color var(--shell-duration) ease; }
+.webvue-module-rail-icon .webvue-shell-icon { width: 20px; height: 20px; }
+.webvue-module-rail-link:hover .webvue-module-rail-icon { background: var(--webvue-chip); }
+.webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon { background: var(--webvue-rail-active); }
+.webvue-module-rail-link[data-active="true"]::before { content: ''; position: absolute; inset-block: 12px; inset-inline-start: -6px; width: 4px; border-radius: 4px; background: var(--ui-primary); pointer-events: none; }
+.webvue-module-rail-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 14px; }
+.webvue-module-rail-link [data-slot="label"] { max-width: 100%; overflow: hidden; font-size: 12px; font-weight: inherit; line-height: 16px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 @media (forced-colors: active) {
-  .webvue-module-rail-indicator { forced-color-adjust: none; background: Highlight; }
+  .webvue-module-rail-link[data-active="true"] .webvue-module-rail-icon { outline: 2px solid Highlight; }
+  .webvue-module-rail-link[data-active="true"]::before { forced-color-adjust: none; background: Highlight; }
 }
 
-/* Context sidebar. */
+/* Context sidebar: a white floating card beside the rail. */
 .webvue-context-sidebar {
   position: fixed;
-  inset-block-start: var(--shell-header-height);
-  inset-block-end: 0;
-  inset-inline-start: var(--module-rail-width);
+  inset-block-start: var(--shell-top);
+  inset-inline-start: calc(var(--shell-inset) * 2 + var(--module-rail-width));
   z-index: 40;
   display: flex;
   width: var(--context-sidebar-width);
+  max-height: calc(100svh - var(--shell-top) - var(--shell-inset));
   flex-direction: column;
   overflow: hidden;
   background: var(--context-surface);
-  border-inline-end: 1px solid var(--ui-border);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--webvue-shell-shadow);
   color: var(--ui-text);
   transition: width var(--shell-duration) var(--shell-ease);
 }
 .webvue-context-enter-active, .webvue-context-leave-active { transition: opacity 120ms ease; }
 .webvue-context-enter-from, .webvue-context-leave-to { opacity: 0; }
-.webvue-context-sidebar-inner { display: flex; min-height: 0; flex: 1; flex-direction: column; }
-.webvue-context-heading { display: flex; height: 44px; flex: none; align-items: center; gap: 8px; padding-inline: 12px 8px; }
+.webvue-context-sidebar-inner { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; }
+/* The card hugs its list; a sidebar panel (chat) fills the height instead. */
+.webvue-context-sidebar[data-panel="true"][data-expanded="true"] { height: calc(100svh - var(--shell-top) - var(--shell-inset)); }
+.webvue-context-sidebar[data-panel="true"][data-expanded="true"] .webvue-context-sidebar-inner { flex: 1; }
+.webvue-context-heading { display: flex; height: 56px; flex: none; align-items: center; gap: 8px; padding-inline: 16px 12px; }
 .webvue-context-heading h2 { min-width: 0; flex: 1; margin: 0; overflow: hidden; font-size: .875rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .webvue-context-create-actions { display: flex; gap: 2px; }
 .webvue-context-create-icon { color: var(--brand-link); }
-.webvue-context-nav { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 12px; overflow-y: auto; padding: 4px 8px 8px; }
-.webvue-context-section { display: grid; gap: 1px; }
-.webvue-context-section-title { margin: 0; padding: 4px 8px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
+.webvue-context-toggle { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border-radius: 9999px; border: 1px solid var(--ui-border); color: var(--ui-text-muted); }
+.webvue-context-toggle .webvue-shell-icon { width: 16px; height: 16px; }
+.webvue-context-toggle:hover { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); }
+.webvue-context-nav { display: flex; min-height: 0; flex: 0 1 auto; flex-direction: column; gap: 12px; overflow-y: auto; padding: 0 8px 8px; }
+.webvue-context-section { display: grid; gap: 2px; }
+.webvue-context-section-title { margin: 0; padding: 4px 12px; color: var(--ui-text-muted); font-size: .75rem; font-weight: 500; }
 .webvue-context-row { position: relative; display: flex; align-items: center; }
 .webvue-context-link {
   position: relative;
@@ -207,8 +241,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   min-height: var(--webvue-control-h);
   align-items: center;
   justify-content: start;
-  gap: 8px;
-  border-radius: 6px;
+  gap: 10px;
+  border-radius: var(--radius-control);
   padding-block: 0;
   padding-inline: 8px;
   color: var(--ui-text-muted);
@@ -218,24 +252,22 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   transition: background-color var(--shell-duration) ease, color var(--shell-duration) ease;
 }
 .webvue-context-link:hover { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); }
-.webvue-context-link[data-active="true"] { background: var(--ui-bg-elevated); color: var(--ui-text-highlighted); font-weight: 500; }
-.webvue-context-link[data-active="true"]::before { content: ''; position: absolute; inset-block: 6px; inset-inline-start: 0; width: 2px; border-radius: 2px; background: var(--ui-primary); pointer-events: none; }
+.webvue-context-chip { display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 9999px; background: var(--webvue-chip); color: var(--webvue-rail-ink); }
+.webvue-context-link[data-active="true"] .webvue-context-chip { background: var(--webvue-chip-active); color: var(--webvue-rail-active-ink); }
+.webvue-context-link[data-active="true"] { background: var(--webvue-nav-active); color: var(--webvue-rail-active-ink); font-weight: 600; }
 .webvue-context-link:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; }
 @media (forced-colors: active) {
-  .webvue-context-link[data-active="true"]::before { forced-color-adjust: none; background: Highlight; }
+  .webvue-context-link[data-active="true"] { outline: 2px solid Highlight; }
 }
-.webvue-context-count { position: absolute; inset-inline-end: 8px; color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
-.webvue-context-row:has(.webvue-context-count) .webvue-context-link { padding-inline-end: 36px; }
+.webvue-context-count { position: absolute; inset-inline-end: 12px; padding: 1px 8px; border-radius: 9999px; background: var(--ui-bg-elevated); color: var(--ui-text-muted); font-size: .75rem; font-variant-numeric: tabular-nums; pointer-events: none; }
+.webvue-context-row:has(.webvue-context-count) .webvue-context-link { padding-inline-end: 52px; }
 .webvue-context-panel { display: flex; min-height: 0; flex: 1; flex-direction: column; }
-.webvue-context-footer { display: flex; flex: none; justify-content: flex-end; padding: 6px 8px; border-block-start: 1px solid var(--ui-border-muted); }
-.webvue-context-toggle { color: var(--ui-text-muted); }
+/* Collapsed: a 64px icon-only bar. Labels, counts, headings and create actions drop out; the toggle stays. */
 @media (min-width: 768px) {
   .webvue-context-sidebar[data-expanded="false"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
-  .webvue-context-sidebar[data-expanded="false"] .webvue-context-heading { padding-inline: 0; }
-  .webvue-context-sidebar[data-expanded="false"] .webvue-context-nav { padding-inline: 8px; }
+  .webvue-context-sidebar[data-expanded="false"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-expanded="false"] .webvue-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .webvue-context-sidebar[data-expanded="false"] .webvue-context-footer { justify-content: center; padding-inline: 0; }
 }
 
 /* Chat pages keep their conversation layout beside the wide sidebar panel. */
@@ -265,9 +297,9 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 .webvue-chat-row:hover .webvue-chat-msg-actions, .webvue-chat-row:focus-within .webvue-chat-msg-actions { opacity: 1; }
 
-/* Workspace. */
-.webvue-shell-workspace { min-height: 100svh; margin-inline-start: calc(var(--module-rail-width) + var(--context-sidebar-width)); padding-block-start: var(--shell-header-height); background: var(--webvue-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
-.webvue-shell-main { --webvue-pad-x: 24px; --webvue-pad-top: 20px; min-height: calc(100svh - var(--shell-header-height)); min-width: 0; background: var(--webvue-canvas); padding: var(--webvue-pad-top) var(--webvue-pad-x) 48px; }
+/* Workspace: leaves the rail and the context sidebar on the inline start. */
+.webvue-shell-workspace { min-height: 100svh; margin-inline: calc(var(--shell-inset) * 2 + var(--module-rail-width) + var(--context-sidebar-width) + var(--context-sidebar-gap)) var(--shell-inset); padding-block-start: calc(var(--shell-top) - var(--shell-inset)); background: var(--webvue-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
+.webvue-shell-main { --webvue-pad-x: 12px; --webvue-pad-top: 24px; min-height: calc(100svh - var(--shell-top) + var(--shell-inset)); min-width: 0; background: var(--webvue-canvas); padding: var(--webvue-pad-top) var(--webvue-pad-x) 48px; }
 /* A full-bleed white band at the top of a page (the project frame): cancels the main padding and re-applies it inside, so content stays aligned with the page below. */
 .webvue-page-band { margin: calc(-1 * var(--webvue-pad-top)) calc(-1 * var(--webvue-pad-x)) 0; padding: 16px var(--webvue-pad-x) 0; }
 /* Under a page band the detail and form widths start at the band's inline edge instead of centring, so records line up with the frame. */
@@ -278,16 +310,16 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 [data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
 [data-slot="table-row"]:last-child { border-block-end: 0; }
 
-@media (max-width: 1100px) and (min-width: 768px) {
+@media (max-width: 1099px) and (min-width: 768px) {
   .webvue-shell-brand-name, .webvue-shell-header .account-copy { display: none; }
 }
 
 /* Below 768px: no rail or sidebar; the header spans the width and the drawer
    (components.css .webvue-mobile-menu) carries modules and sections. */
 @media (max-width: 767px) {
-  .webvue-shell { --module-rail-width: 0px; --context-sidebar-width: 0px; }
+  .webvue-shell { --module-rail-width: 0px; --context-sidebar-width: 0px; --context-sidebar-gap: 0px; }
   .webvue-module-rail, .webvue-context-sidebar { display: none !important; }
-  .webvue-shell-header { inset-inline-start: 0; gap: 4px; padding-inline: 4px 8px; }
+  .webvue-shell-header { gap: 4px; padding-inline: 4px 8px; }
   .webvue-mobile-menu-trigger { display: inline-flex; flex: none; }
   .webvue-shell-header-divider,
   .webvue-shell-breadcrumb,
@@ -299,7 +331,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   .webvue-shell-header-search + .webvue-shell-header-actions { flex: none; }
   .webvue-shell-header .webvue-search-trigger { width: 44px; padding: 0; justify-content: center; }
   .webvue-shell-header :is(.webvue-search-trigger, .webvue-mobile-menu-trigger, [data-testid="notification-bell"], [data-slot="header-account"], [data-testid="appearance-menu"]) { min-height: 44px; min-width: 44px; }
-  .webvue-shell-workspace { margin-inline-start: 0; }
+  .webvue-shell-workspace { margin-inline: 0; }
   .webvue-shell-main { --webvue-pad-x: 12px; --webvue-pad-top: 16px; padding: var(--webvue-pad-top) var(--webvue-pad-x) max(16px, env(safe-area-inset-bottom)); }
 }
 
@@ -345,22 +377,11 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   [data-slot="record-summary"] [data-slot="properties-panel"] dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px; }
 }
 
-/* Match the automatic tablet width before hydration without writing a preference. */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) { --context-sidebar-width: 48px; }
-}
-@media (min-width: 768px) and (max-width: 1023px) {
+/* Match the automatic narrow-desktop width before hydration without writing a preference. */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .webvue-shell:has(.webvue-context-sidebar[data-preference="auto"]) { --context-sidebar-width: 64px; }
   .webvue-context-sidebar[data-preference="auto"] :is(.webvue-context-heading h2, .webvue-context-create-actions, .webvue-context-section-title, .webvue-context-count) { display: none; }
-  .webvue-context-sidebar[data-preference="auto"] .webvue-context-heading { padding-inline: 0; }
-  .webvue-context-sidebar[data-preference="auto"] .webvue-context-nav { padding-inline: 8px; }
+  .webvue-context-sidebar[data-preference="auto"] .webvue-context-heading { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-link { justify-content: center; padding-inline: 0; }
   .webvue-context-sidebar[data-preference="auto"] .webvue-context-link [data-slot="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .webvue-context-sidebar[data-preference="auto"] .webvue-context-footer { justify-content: center; padding-inline: 0; }
-}
-
-@media (pointer: coarse) and (min-width: 768px) {
-  .webvue-context-sidebar[data-expanded="false"] .webvue-context-nav { padding-inline: 2px; }
-}
-@media (pointer: coarse) and (min-width: 768px) and (max-width: 1023px) {
-  .webvue-context-sidebar[data-preference="auto"] .webvue-context-nav { padding-inline: 2px; }
 }

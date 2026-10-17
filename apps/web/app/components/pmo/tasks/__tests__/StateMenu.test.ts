@@ -58,7 +58,8 @@ function loadStateMenu() {
       const onSelect = (state: string) => state
       const items = computed(() => states.value.map((s) => ({ label: t(STATE_LABEL_KEY[s]), onSelect: () => onSelect(s) })))
       const stateBadge = (state: string) => ({ tone: 'info', label: state })
-      return { states, hydrated, isPending, t, onSelect, STATE_LABEL_KEY, items, stateBadge }
+      const statusPillAttrs = (tone: string) => ({ class: 'webvue-pill', 'data-tone': tone })
+      return { states, hydrated, isPending, t, onSelect, STATE_LABEL_KEY, items, stateBadge, statusPillAttrs }
     },
     render,
   })

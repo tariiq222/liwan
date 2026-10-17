@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import type { ProjectStatus } from '@webvue/contracts'
 import { projectStatusBadge } from '@/composables/projectStatus'
 import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
@@ -42,7 +43,7 @@ const projectListQuery = computed(() => ({
   status: typeof route.query.status === 'string' ? route.query.status : undefined,
 }))
 const columns = computed<TableColumn<DashboardProject>[]>(() => [
-  { id: 'record', header: t('app.recordNumber') },
+  { id: 'record', header: () => recordNumberHeader(t) },
   { id: 'project', header: t('projects.dashboard.recentProject') },
   { id: 'status', header: t('projects.dashboard.recentStatus') },
   { id: 'progress', header: t('projects.dashboard.recentProgress') },

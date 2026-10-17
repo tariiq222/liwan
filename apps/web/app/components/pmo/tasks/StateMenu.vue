@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { taskStateBadge } from '@/composables/taskState'
+import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
 import { badgeLabel } from '@webvue/ui/app/utils/statusBadge'
 import type { Task, TaskState } from '@webvue/contracts'
 import { STATE_LABEL_KEY } from '@/composables/taskState'
@@ -33,11 +34,11 @@ const items = computed(() => states.value.map((s) => ({ label: t(STATE_LABEL_KEY
 </script>
 
 <template>
-  <SharedStatusBadge v-if="!states.length" v-bind="stateBadge(task.state)" />
+  <SharedStatusBadge v-if="!states.length" class="min-w-25 justify-center" v-bind="stateBadge(task.state)" />
   <UDropdownMenu v-else :items="items" :content="{ align: 'start' }">
-    <UButton type="button" color="neutral" variant="ghost" class="inline-flex items-center disabled:opacity-60" :disabled="isPending || !hydrated">
-      <UIcon v-if="isPending" name="i-lucide-loader-2" class="size-4 animate-spin text-muted" aria-hidden="true" />
-      <SharedStatusBadge v-else v-bind="stateBadge(task.state)" />
-    </UButton>
+    <button type="button" v-bind="statusPillAttrs(stateBadge(task.state).tone, true)" class="min-w-25 justify-center disabled:opacity-60" :disabled="isPending || !hydrated">
+      <UIcon v-if="isPending" name="i-lucide-loader-2" class="size-3.5 animate-spin" aria-hidden="true" />
+      <template v-else>{{ stateBadge(task.state).label }}</template>
+    </button>
   </UDropdownMenu>
 </template>

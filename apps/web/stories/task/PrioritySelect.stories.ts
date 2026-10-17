@@ -9,15 +9,23 @@ const meta = {
   title: 'Task/PrioritySelect',
   component: PrioritySelect,
   args: { task: makeTask() },
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:130', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px. التغيير يرسل PATCH إلى MSW.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskTable.vue:144', 'صف المهمة على الجوال تحت 768px، فالغلاف بعرض 375px. التغيير يرسل PATCH إلى MSW.'),
   render: args => ({
     components: { PrioritySelect, StateMenu },
     setup: () => ({ task: useStoryTask(() => args.task) }),
-    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu :task="task" /><PrioritySelect :task="task" /></div></article></div>`,
+    template: `<div class="divide-y divide-default" style="width: 375px"><article class="space-y-3 p-4"><div class="flex flex-wrap items-center gap-2"><StateMenu :task="task" /><PrioritySelect :task="task" variant="badge" /></div></article></div>`,
   }),
 } satisfies Meta<typeof PrioritySelect>
 export default meta
 type Story = StoryObj<typeof meta>
 
 export const InTaskRow: Story = { name: 'في صف المهمة' }
+export const AsTableBadge: Story = {
+  name: 'شارة في خلية الجدول',
+  render: args => ({
+    components: { PrioritySelect },
+    setup: () => ({ tasks: ['0', '1', '2', '3'].map(priority => useStoryTask(() => ({ ...args.task, id: Number(priority) + 500, priority } as typeof args.task))) }),
+    template: `<div class="flex flex-wrap items-center gap-3"><PrioritySelect v-for="task in tasks" :key="task.id" :task="task" variant="badge" /></div>`,
+  }),
+}
 export const ReadOnly: Story = { name: 'بلا صلاحية تعديل', args: { task: makeTask({ can_write: false }) } }

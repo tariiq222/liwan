@@ -23,6 +23,6 @@ export const Table: StoryObj = {
       data: [{ id: 1, name: 'مشروع ألفا', status: 'on_track' }, { id: 2, name: 'تطوير البوابة', status: 'at_risk' }],
       columns: [{ accessorKey: 'id', header: '#' }, { accessorKey: 'name', header: 'Name' }, { accessorKey: 'status', header: 'Status' }],
     }),
-    template: '<div class="rounded-lg ring ring-default bg-default overflow-hidden"><UTable :data="data" :columns="columns" /></div>',
+    template: '<div class="rounded-card ring ring-default bg-default overflow-hidden"><UTable :data="data" :columns="columns" /></div>',
   }),
 }

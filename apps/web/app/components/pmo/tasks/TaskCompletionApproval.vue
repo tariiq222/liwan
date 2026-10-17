@@ -91,7 +91,7 @@ async function withdraw() {
 </script>
 
 <template>
-  <section v-if="showSection" data-testid="task-completion" class="space-y-3 rounded-lg border p-3">
+  <section v-if="showSection" data-testid="task-completion" class="space-y-3 rounded-control border p-3">
     <h2 class="text-sm font-medium">{{ t('tasks.completion.title') }}</h2>
     <p
       v-if="blockedReason === 'no_reviewer'"

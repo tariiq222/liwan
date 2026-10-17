@@ -99,7 +99,7 @@ const actionsOf = (run: AiRunSummary) => [
 
 <template>
   <section
-    :class="disclosure ? 'rounded-lg ring ring-default' : 'flex h-full min-h-0 flex-col'"
+    :class="disclosure ? 'rounded-control ring ring-default' : 'flex h-full min-h-0 flex-col'"
     data-testid="ai-run-list"
     :aria-label="t('ai.history.title')"
   >

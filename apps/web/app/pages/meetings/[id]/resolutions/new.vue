@@ -93,7 +93,7 @@ async function save() {
     </div>
     <form ref="formElement" novalidate v-else-if="query.data.value" class="space-y-8" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <p v-if="editorContext" class="rounded-lg bg-elevated/50 p-3 text-sm">{{ t('meetingsUx.recommendationEditorContext', { name: query.data.value.name }) }}</p>
+      <p v-if="editorContext" class="rounded-control bg-elevated/50 p-3 text-sm">{{ t('meetingsUx.recommendationEditorContext', { name: query.data.value.name }) }}</p>
       <SharedFormSection :title="t('meetingsUi.resolutions')">
         <div class="webvue-form-grid">
           <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">

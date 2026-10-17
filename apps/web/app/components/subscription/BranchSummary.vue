@@ -5,7 +5,7 @@ const { t } = useI18n()
 </script>
 <template>
   <div class="space-y-3" data-slot="branch-summary">
-    <ul class="divide-y divide-default rounded-lg ring ring-default">
+    <ul class="divide-y divide-default rounded-card ring ring-default">
       <li class="flex items-center justify-between gap-3 p-3"><span>{{ t('subscription.branches.hq') }}</span><SharedStatusBadge tone="neutral" variant="subtle" :label="t('subscription.branches.billing.included')" /></li>
       <li v-for="b in summary.items.filter(i => i.kind === 'extra')" :key="b.id" class="flex flex-wrap items-center justify-between gap-3 p-3" data-testid="branch-row">
         <span class="min-w-0 font-medium">{{ b.name }}</span>

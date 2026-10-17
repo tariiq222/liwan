@@ -2,7 +2,7 @@
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import type { TableColumn } from '@nuxt/ui'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
-import { avatarProps } from '@/utils/avatarTone'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import { useHrDepartments } from '@/composables/useHrDepartments'
 import { useArchiveHrEmployee, useHrEmployees, useUnarchiveHrEmployee, type HrEmployee } from '@/composables/useHrEmployees'
@@ -176,7 +176,7 @@ function clearFilters() {
       @cancel="pendingArchiveId = null"
     />
 
-    <div v-if="!isLoading && !error && items.length === 0" class="overflow-hidden rounded-lg bg-default p-6 ring ring-default">
+    <div v-if="!isLoading && !error && items.length === 0" class="overflow-hidden rounded-card bg-default p-6 ring ring-default">
       <SharedEmptyState :title="t(hasActiveFilters ? 'hr.directory.filteredEmpty' : 'hr.directory.empty')" :description="hasActiveFilters ? t('hr.directory.filteredEmptyHint') : undefined">
         <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('hr.directory.clear')" @click="clearFilters" /></template>
       </SharedEmptyState>

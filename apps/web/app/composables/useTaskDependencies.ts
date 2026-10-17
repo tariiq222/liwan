@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { DependencyCandidateListSchema, DependencyListSchema, TaskDetailSchema, type TaskDetail } from '@webvue/contracts'
 import type { Ref } from 'vue'
-import { taskKeys } from './useTasks'
+import { invalidateTaskLists, taskKeys } from './useTasks'
 import { invalidateProjectCaches } from './projectKeys'
 
 const PAGE = 50
@@ -47,7 +47,7 @@ export function useUpdateTaskDependencies() {
       qc.setQueryData(taskKeys.detail(id), detail)
       qc.invalidateQueries({ queryKey: dependencyKeys.detail(id) })
       qc.invalidateQueries({ queryKey: ['tasks', 'dependency-candidates', id] })
-      qc.invalidateQueries({ queryKey: ['tasks', 'list'] })
+      invalidateTaskLists(qc)
       invalidateProjectCaches(qc)
     },
   })

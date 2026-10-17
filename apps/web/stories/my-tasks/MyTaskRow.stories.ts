@@ -20,6 +20,6 @@ export const Cards: Story = {
   render: args => ({
     components: { MyTaskRow },
     setup: () => ({ args, tasks: [task, { ...task, id: 8, name: 'مراجعة العقد مع فريق المشروع', source: 'project', project: { id: 1, name: 'مشروع الأفق' }, href: '/projects/1/tasks/8', priority: 'normal' }, { ...task, id: 9, name: 'ترتيب الملفات', state: 'done', date_deadline: null }] }),
-    template: `<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><li v-for="item in tasks" :key="item.id" class="min-w-0 rounded-lg bg-default p-4 ring ring-default"><MyTaskRow v-bind="args" :task="item" :to="item.href" part="card" /></li></ul>`,
+    template: `<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><li v-for="item in tasks" :key="item.id" class="min-w-0 rounded-card bg-default p-4 ring ring-default"><MyTaskRow v-bind="args" :task="item" :to="item.href" part="card" /></li></ul>`,
   }),
 }

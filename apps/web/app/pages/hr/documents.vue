@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { recordNumberHeader } from '@webvue/ui/app/utils/recordNumberHeader'
 import type { TableColumn } from '@nuxt/ui'
 import type { LocationQueryRaw, RouteLocationNormalized } from 'vue-router'
 import FilterBar from '@webvue/ui/app/components/shared/data/FilterBar.vue'
@@ -45,7 +46,7 @@ const hasActiveFilters = computed(() => Boolean(search.value.trim() || departmen
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(departmentId.value)))
 
 const columns = computed<TableColumn<HrDocument>[]>(() => [
-  { accessorKey: 'id', header: t('app.recordNumber') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t) },
   { accessorKey: 'name', header: t('hr.docs.columns.name') },
   { accessorKey: 'department', header: t('hr.docs.columns.department') },
 ])

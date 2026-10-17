@@ -56,8 +56,7 @@
     "deadline": {
       "none": "No deadline",
       "today": "Today",
-      "tomorrow": "Tomorrow",
-      "inDays": "In {n} day | In {n} days",
+      "inDays": "{n} day left | {n} days left",
       "overdueDays": "{n} day overdue | {n} days overdue"
     },
     "detail": {
@@ -219,6 +218,18 @@
       "optional": "Optional details"
     },
     "nameRequired": "Enter a task name.",
-    "projectRequired": "Select a project for this task."
+    "projectRequired": "Select a project for this task.",
+    "kpi": {
+      "label": "Task summary",
+      "total": "Total tasks",
+      "open": "Open tasks",
+      "overdue": "Overdue tasks",
+      "done": "Done tasks",
+      "percentOfTotal": "{percent}% of total"
+    },
+    "footer": {
+      "results": "{shown} of 1 result | {shown} of {total} results"
+    },
+    "descriptionHint": "Description"
   }
 }

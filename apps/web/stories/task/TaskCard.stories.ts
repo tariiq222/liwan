@@ -25,7 +25,7 @@ export const InBoardColumn: Story = {
   render: args => ({
     components: { TaskCard },
     setup: () => ({ args, tasks, stageName: computed(() => args.stages.find(stage => stage.id === args.currentStageId)?.name ?? '') }),
-    template: `<div class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-lg border border-default bg-elevated/30 p-2"><div class="flex items-center justify-between px-1"><h3 class="text-sm font-medium text-muted">{{ stageName }}</h3><span class="text-xs text-muted">{{ tasks.length }}</span></div><div class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"><TaskCard v-for="task in tasks" :key="task.id" :task="task" :stages="args.stages" :current-stage-id="args.currentStageId" :show-project="args.showProject" @open="args.onOpen" @move="args.onMove" /></div></div>`,
+    template: `<div class="flex h-full w-72 shrink-0 flex-col gap-2 rounded-control border border-default bg-elevated/30 p-2"><div class="flex items-center justify-between px-1"><h3 class="text-sm font-medium text-muted">{{ stageName }}</h3><span class="text-xs text-muted">{{ tasks.length }}</span></div><div class="flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto"><TaskCard v-for="task in tasks" :key="task.id" :task="task" :stages="args.stages" :current-stage-id="args.currentStageId" :show-project="args.showProject" @open="args.onOpen" @move="args.onMove" /></div></div>`,
   }),
 }
 

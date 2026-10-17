@@ -2,8 +2,8 @@
 import BrandWordmark from '../shared/layout/BrandWordmark.vue'
 import type { ShellRailItem } from '../../types/shell'
 
-// The module rail (spec §3, §5): always WebVue midnight, 64px, icon over a small
-// label; the active module carries a lime bar on the rail's inline-start edge.
+// The module rail: a white floating card, 64px, a 20px icon over a 12px label, and the logo
+// mark alone at the bottom, under settings. The active module is tinted blue with a bar on the card's inline-start edge.
 const props = defineProps<{
   modules: ShellRailItem[]
   utility: ShellRailItem[]
@@ -19,9 +19,6 @@ const groups = computed(() => [
 
 <template>
   <aside data-testid="module-rail" data-fresh-navigation class="webvue-module-rail" :aria-label="t('nav.modules')">
-    <NuxtLink :to="props.homeTo" class="webvue-module-rail-brand" :aria-label="`${t('brand.name')} — ${t('nav.home')}`">
-      <BrandWordmark size="sm" inverted />
-    </NuxtLink>
     <nav v-for="group in groups" :key="group.key" :class="group.class" :aria-label="group.label">
       <NuxtLink
         v-for="item in group.items"
@@ -33,11 +30,15 @@ const groups = computed(() => [
         :aria-label="t(item.labelKey)"
         :title="t(item.labelKey)"
       >
-        <span v-if="item.id === props.activeId" data-slot="indicator" class="webvue-module-rail-indicator" aria-hidden="true" />
-        <UIcon :name="item.icon" class="webvue-shell-icon" aria-hidden="true" />
+        <span data-slot="icon" class="webvue-module-rail-icon" aria-hidden="true">
+          <UIcon :name="item.icon" class="webvue-shell-icon" />
+        </span>
         <!-- Up to two lines instead of an ellipsis: «My to-dos» must stay readable at 64px. -->
         <span data-slot="label" class="line-clamp-2 whitespace-normal! text-balance break-words">{{ t(item.labelKey) }}</span>
       </NuxtLink>
     </nav>
+    <NuxtLink :to="props.homeTo" class="webvue-module-rail-brand" :aria-label="`${t('brand.name')} — ${t('nav.home')}`">
+      <BrandWordmark size="md" mark-only />
+    </NuxtLink>
   </aside>
 </template>

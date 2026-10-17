@@ -475,7 +475,7 @@ function discardToServer() {
         :require-end-date="mode === 'create' && !!createDefaults?.require_end_date_on_create"
       />
 
-      <div v-if="stale" role="alert" data-testid="charter-stale-write" class="rounded-lg border border-warning/30 bg-warning/5 space-y-3 p-3 text-sm">
+      <div v-if="stale" role="alert" data-testid="charter-stale-write" class="rounded-control border border-warning/30 bg-warning/5 space-y-3 p-3 text-sm">
         <p>{{ t('projects.charter.staleWrite') }}</p>
         <p>{{ t('projects.charter.staleWriteHint') }}</p>
         <div class="flex flex-wrap gap-2">
@@ -500,7 +500,7 @@ function discardToServer() {
       </div>
       <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
-      <div v-if="attestRequired && isLastStep" class="rounded-lg border border-default p-3" data-testid="project-create-attest">
+      <div v-if="attestRequired && isLastStep" class="rounded-control border border-default p-3" data-testid="project-create-attest">
         <UCheckbox v-model="attested" :label="t('projects.create.aiAttest')" :disabled="pending" required />
         <p v-if="!attested" class="mt-1 text-xs text-muted">{{ t('projects.create.aiAttestRequired') }}</p>
       </div>

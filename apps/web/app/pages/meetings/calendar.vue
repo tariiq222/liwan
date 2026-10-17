@@ -245,7 +245,7 @@ function goToday() {
         {{ t('meetingsUx.calendarCoverageUnknown') }}
       </p>
       <SharedPageState :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch">
-        <div class="@container min-w-0 overflow-hidden rounded-lg bg-default ring ring-default">
+        <div class="@container min-w-0 overflow-hidden rounded-card bg-default ring ring-default">
           <div class="@min-[600px]:hidden">
             <div v-if="!agenda.length" class="p-3"><SharedEmptyState :title="t('meetingsUi.empty')" /></div>
             <ul v-else class="grid divide-y divide-default">

@@ -40,11 +40,11 @@ describe('deadlineLabel', () => {
     expect(deadlineLabel(0, t)).toBe('tasks.deadline.today')
   })
 
-  it('returns the "tomorrow" key for 1', () => {
-    expect(deadlineLabel(1, t)).toBe('tasks.deadline.tomorrow')
+  it('returns "inDays" with n=1 for tomorrow', () => {
+    expect(deadlineLabel(1, t)).toBe('tasks.deadline.inDays:{"n":1}')
   })
 
-  it('returns "inDays" with n for values above 1', () => {
+  it('returns "inDays" with n for later days', () => {
     expect(deadlineLabel(5, t)).toBe('tasks.deadline.inDays:{"n":5}')
   })
 

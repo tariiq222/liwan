@@ -50,7 +50,7 @@ LAYER_COMPONENTS = frozenset(
         'StandalonePage', 'TimelineFrame')]
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
-        'RecordNumber', 'RowActions', 'StatusBadge', 'ViewSwitch')]
+        'PersonAvatar', 'RecordNumber', 'RowActions', 'StatusBadge', 'ViewSwitch')]
     + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'RichText', 'UnsavedChanges')]
     + ['shell/' + name + '.vue' for name in ('ModuleRail', 'ShellBreadcrumb', 'ShellFrame')]
 )
@@ -110,7 +110,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'subscription/BranchSummary.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/ConversationLayout.vue',
-    'shared/data/InvoiceLines.vue',
+    'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue',
 ))
 STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
