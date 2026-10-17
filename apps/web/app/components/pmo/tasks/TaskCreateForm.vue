@@ -2,10 +2,10 @@
 import { ApiError } from '@/composables/useApi'
 import { useProject, useProjects } from '@/composables/useProjects'
 import { useMilestones } from '@/composables/useMilestones'
-import { useCreateTask } from '@/composables/useTasks'
+import { useCreateTask, useTransitionTask, useUpdateTask } from '@/composables/useTasks'
 import { isDirtySnapshot } from '@/lib/formDirty'
 import { validateTaskDates } from '@/utils/projectDateBounds'
-import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy, type TaskDeliverable } from '@/utils/taskCreatePolicy'
+import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy, type TaskCreatePreset, type TaskDeliverable } from '@/utils/taskCreatePolicy'
 
 const props = defineProps<{
   mode?: 'default' | 'project'
@@ -14,12 +14,17 @@ const props = defineProps<{
   projectStart?: string | null
   projectEnd?: string | null
   canManage?: boolean
+  // The board column the '+' was pressed in: applied to the new task right after it is created.
+  preset?: TaskCreatePreset
 }>()
 const emit = defineEmits<{ created: [id: number]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const { data: projects } = useProjects()
 const { mutateAsync, isPending } = useCreateTask()
+const { mutateAsync: moveToStage } = useUpdateTask()
+const { mutateAsync: transition } = useTransitionTask()
+const toast = useToast()
 
 const name = ref('')
 const description = ref('')
@@ -152,6 +157,17 @@ function focusError() {
   const ids: Record<string, string> = { name: 'new-task-name', project_id: 'new-task-project', milestone_id: 'new-task-milestone', planned_start: 'new-task-planned-start', date_deadline: 'new-task-deadline' }
   void nextTick(() => { document.getElementById(ids[errorField.value ?? ''] ?? '')?.focus() })
 }
+// The create endpoint takes neither a stage nor a state, so the column preset goes through the two existing
+// endpoints after the task exists. A refused step leaves the task created and tells the user.
+async function applyPreset(id: number) {
+  const { state, stage } = props.preset ?? {}
+  try {
+    if (stage) await moveToStage({ id, patch: stage.kind === 'personal' ? { personal_stage_type_id: stage.id } : { stage_id: stage.id } })
+    if (state) await transition({ id, state })
+  } catch {
+    toast.add({ title: t('tasks.createPresetFailed'), color: 'warning' })
+  }
+}
 let submitting = false
 async function submit() {
   if (!hydrated.value || isPending.value || submitting) return
@@ -191,6 +207,7 @@ async function submit() {
       deliverables: deliverables.value,
     }))
     submitted.value = true
+    await applyPreset(created.id)
     emit('created', created.id)
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('errors.generic')

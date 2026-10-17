@@ -1,4 +1,4 @@
-import type { TaskCreate } from '@webvue/contracts'
+import type { TaskCreate, TaskState } from '@webvue/contracts'
 
 export type TaskDeliverable = { name: string; done: boolean }
 
@@ -61,4 +61,30 @@ export function plainTextToTaskHtml(value: string): string {
     "'": '&#39;',
   })[character] ?? character)
   return escaped.replace(/\r\n|\r|\n/g, '<br>')
+}
+
+export type TaskCreatePreset = { state?: TaskState; stage?: { kind: 'personal' | 'project'; id: number } }
+
+// The board's column '+' opens the create route with `preset_state` / `preset_stage` (not `state`, which the
+// project task list already uses as its filter). A new task starts in progress, so only the other open states
+// are presets; done and cancelled columns have no '+'.
+export const CREATE_PRESET_STATES: readonly TaskState[] = ['waiting', 'changes_requested', 'approved']
+
+/** The valid presets in a create route's query: anything else, including a stage the board does not have, is ignored. */
+export function parseTaskCreatePreset(query: Record<string, unknown>, kind: 'personal' | 'project', stageIds: readonly number[]): TaskCreatePreset {
+  const preset: TaskCreatePreset = {}
+  const state = Array.isArray(query.preset_state) ? query.preset_state[0] : query.preset_state
+  if (CREATE_PRESET_STATES.includes(state as TaskState)) preset.state = state as TaskState
+  const raw = Array.isArray(query.preset_stage) ? query.preset_stage[0] : query.preset_stage
+  const id = typeof raw === 'string' && /^[1-9]\d*$/.test(raw) ? Number(raw) : null
+  if (id !== null && stageIds.includes(id)) preset.stage = { kind, id }
+  return preset
+}
+
+/** The create route's query for a board column: `preset_state` for a status column, `preset_stage` for a stage column. */
+export function taskCreatePresetQuery(column: { state?: TaskState; stageId?: number }): { preset_state?: string; preset_stage?: string } {
+  return {
+    ...(column.state ? { preset_state: column.state } : {}),
+    ...(column.stageId ? { preset_stage: String(column.stageId) } : {}),
+  }
 }

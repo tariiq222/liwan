@@ -11,20 +11,15 @@ const tasks = [
   makeTask({ id: 103, name: 'تحديث سجل المخاطر', state: 'done', is_closed: true, priority: '0', date_deadline: null, days_remaining: null, assignees: [{ id: 9, name: 'محمد العتيبي' }], allowed_transitions: [] }),
 ]
 
-// The board's list payload carries no subtasks or attachments; a task detail does, and the card then shows both rows.
-const subtask = (id: number, state: 'in_progress' | 'done' | 'cancelled') => makeTask({ id, name: `مهمة فرعية ${id}`, state, is_closed: state !== 'in_progress' })
-const richTask = {
-  ...makeTask({ id: 104, name: 'إعداد خطة الإطلاق التجريبي وتنسيق الفرق المعنية قبل نهاية الأسبوع', priority: '3', date_deadline: '2026-09-10', days_remaining: -3, is_overdue: true, assignees: [{ id: 2, name: 'Admin' }, { id: 7, name: 'سارة القحطاني' }, { id: 9, name: 'محمد العتيبي' }, { id: 11, name: 'فاطمة الزهراني' }] }),
-  subtasks: [subtask(201, 'done'), subtask(202, 'done'), subtask(203, 'cancelled'), subtask(204, 'in_progress')],
-  attachments: [{ id: 1, name: 'a.pdf', mimetype: 'application/pdf', url: '/web/content/1' }, { id: 2, name: 'b.png', mimetype: 'image/png', url: '/web/content/2' }],
-}
+// The list payload carries the subtask and attachment counts, so a list card shows both rows (3 of 4 subtasks done is not a cancelled one).
+const richTask = makeTask({ id: 104, name: 'إعداد خطة الإطلاق التجريبي وتنسيق الفرق المعنية قبل نهاية الأسبوع', priority: '3', date_deadline: '2026-09-10', days_remaining: -3, is_overdue: true, assignees: [{ id: 2, name: 'Admin' }, { id: 7, name: 'سارة القحطاني' }, { id: 9, name: 'محمد العتيبي' }, { id: 11, name: 'فاطمة الزهراني' }], subtask_count: 4, subtask_done_count: 2, attachment_count: 2 })
 const noDeadline = makeTask({ id: 105, name: 'مهمة بلا موعد', priority: '0', date_deadline: null, days_remaining: null, assignees: [] })
 
 const meta = {
   title: 'Task/TaskCard',
   component: TaskCard,
   args: { task: tasks[0]!, stages: boardStages, currentStageId: 11, showProject: true, onOpen: fn(), onMove: fn() },
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskBoard.vue:277', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/pmo/tasks/TaskBoard.vue:277`؛ بطاقة لكل مهمة.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskBoard.vue:301', 'عمود اللوحة `w-72 p-2 border` من `apps/web/app/components/pmo/tasks/TaskBoard.vue:301`؛ بطاقة لكل مهمة.'),
 } satisfies Meta<typeof TaskCard>
 export default meta
 type Story = StoryObj<typeof meta>

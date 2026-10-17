@@ -34,7 +34,7 @@ function loadSetup(path: string, props: Record<string, unknown>, deps: SetupDeps
   }).outputText
   const names = [
     'Vue', '_defineComponent', 'ref', 'computed', 'shallowRef', 'watch', 'nextTick',
-    'useI18n', 'useHydrated', 'ApiError', 'isDirtySnapshot', 'useProjects', 'useProject', 'useMilestones', 'validateMilestoneDates', 'validateTaskDates', 'buildTaskCreatePayload', 'validateTaskCreatePolicy', 'buildMilestonePatch', 'useCreateTask',
+    'useI18n', 'useHydrated', 'ApiError', 'isDirtySnapshot', 'useProjects', 'useProject', 'useMilestones', 'validateMilestoneDates', 'validateTaskDates', 'buildTaskCreatePayload', 'validateTaskCreatePolicy', 'buildMilestonePatch', 'useCreateTask', 'useUpdateTask', 'useTransitionTask',
     'formatCalendarDate', 'fromCalendarDate', 'toCalendarDate', 'useCreateMilestone',
     'useUpdateMilestone', 'useCreateProjectUpdate', 'PROJECT_STATUSES', 'PROJECT_STATUS_LABEL_KEY',
     'toast', 'useToast', 'DescriptionEditor', 'moveId', 'stageMoveIndex',
@@ -60,6 +60,8 @@ function loadSetup(path: string, props: Record<string, unknown>, deps: SetupDeps
     validateTaskCreatePolicy,
     buildMilestonePatch,
     useCreateTask: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+    useUpdateTask: () => ({ mutateAsync: vi.fn() }),
+    useTransitionTask: () => ({ mutateAsync: vi.fn() }),
     formatCalendarDate: () => '',
     fromCalendarDate: () => null,
     toCalendarDate: () => undefined,

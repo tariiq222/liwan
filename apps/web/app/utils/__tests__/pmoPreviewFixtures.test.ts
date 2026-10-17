@@ -9,7 +9,7 @@ import { projectsPreviewData } from '../../../e2e/projects-ui-preview-data.mjs'
 
 const CURRENCY = { id: 1, name: 'SAR', symbol: 'ر.س', decimal_places: 2 }
 const TASKS = [101, 102, 103, 104].map(id => ({
-  id, name: `مهمة ${id}`, description_excerpt: '', project: { id: 1, name: 'مشروع ألفا' }, state: 'in_progress', priority: '1', date_deadline: '2035-01-15',
+  id, name: `مهمة ${id}`, description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0, project: { id: 1, name: 'مشروع ألفا' }, state: 'in_progress', priority: '1', date_deadline: '2035-01-15',
   days_remaining: 120, is_overdue: false, is_closed: false, personal_stage: null, stage: { id: 11, name: 'جديد' },
   assignees: [{ id: 2, name: 'Admin' }], tags: [], can_write: true, can_approve: true, allowed_transitions: ['done'],
 }))

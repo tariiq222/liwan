@@ -20,7 +20,7 @@ export const boardStages = [
 
 export function makeTask(overrides: Partial<Task> = {}): Task {
   return TaskSchema.parse({
-    id: 101, name: 'إعداد تقرير الربع الثالث', description_excerpt: 'جمع أرقام الربع ومراجعتها مع الإدارة المالية قبل الإرسال', project: { id: 1, name: 'مشروع ألفا' }, state: 'in_progress', priority: '2',
+    id: 101, name: 'إعداد تقرير الربع الثالث', description_excerpt: 'جمع أرقام الربع ومراجعتها مع الإدارة المالية قبل الإرسال', subtask_count: 0, subtask_done_count: 0, attachment_count: 0, project: { id: 1, name: 'مشروع ألفا' }, state: 'in_progress', priority: '2',
     date_deadline: '2026-09-15', days_remaining: 2, is_overdue: false, is_closed: false,
     personal_stage: null, stage: { id: 11, name: 'جديد' },
     assignees: [{ id: 2, name: 'Admin' }, { id: 7, name: 'سارة القحطاني' }], tags: [tags[0]!],

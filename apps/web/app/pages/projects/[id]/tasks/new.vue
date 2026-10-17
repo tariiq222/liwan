@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { owningListBack } from '@/utils/recordListOrigin'
 import TaskCreateForm from '@/components/pmo/tasks/TaskCreateForm.vue'
+import { parseTaskCreatePreset } from '@/utils/taskCreatePolicy'
 import { ApiError } from '@/composables/useApi'
 import { useProject } from '@/composables/useProjects'
 
@@ -21,6 +22,7 @@ const { data: project, isLoading, error, refetch } = useProject(projectId)
 const notFound = computed(() => projectId.value === null || (error.value instanceof ApiError && [403, 404].includes(error.value.status)))
 const sourcePaths = useProjectRecordListPaths(projectId, () => [`/projects/${projectId.value}/tasks`])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+const preset = computed(() => parseTaskCreatePreset(route.query, 'project', (project.value?.stages ?? []).map(stage => stage.id)))
 function created(id: number) {
   toast.add({ title: t('tasks.created'), color: 'success', icon: 'i-lucide-circle-check' })
   router.replace({ path: `/projects/${projectId.value}/tasks/${id}`, query: { returnTo: router.resolve(backTo.value).fullPath } })
@@ -40,7 +42,7 @@ function created(id: number) {
       :empty-text="t('tasks.notFound')"
       @retry="refetch"
     >
-      <TaskCreateForm mode="project" :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" @created="created" @cancel="router.push(backTo)" />
+      <TaskCreateForm mode="project" :project-id="projectId" :milestone-id="milestoneId" :project-start="project?.date_start" :project-end="project?.date_end" :can-manage="project?.can_manage" :preset="preset" @created="created" @cancel="router.push(backTo)" />
     </SharedPageState>
     <p v-if="!hydrated" class="sr-only">{{ t('tasks.loading') }}</p>
   </SharedCreatePanel>

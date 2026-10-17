@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Task, TaskState } from '@webvue/contracts'
+import type { RouteLocationRaw } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
 import type { BoardStage, StageSource } from '@/composables/boardStages'
 import { moveTo, stageOf } from '@/composables/boardStages'
@@ -16,8 +17,14 @@ function isBoardCapped(loadedCount: number, cap: number, hasNextPage: boolean): 
   return loadedCount > cap || (loadedCount >= cap && hasNextPage)
 }
 
-const props = withDefaults(defineProps<{ params: TaskListParams; stageSource?: StageSource }>(), {
+const props = withDefaults(defineProps<{
+  params: TaskListParams
+  stageSource?: StageSource
+  // The create route for a column (the page adds its own return target); absent when the user cannot create tasks.
+  createTo?: (column: { state?: TaskState; stageId?: number }) => RouteLocationRaw
+}>(), {
   stageSource: () => ({ kind: 'personal' }),
+  createTo: undefined,
 })
 const emit = defineEmits<{ open: [id: number] }>()
 
@@ -190,6 +197,11 @@ function toggleFold(stageId: number) {
 function isCollapsed(stage?: BoardStage): boolean {
   return !!stage?.fold && !expandedFolded.value.has(stage.id)
 }
+// A done or cancelled column cannot take a new task, so it has no '+'.
+function laneCreateTo(lane: Lane): RouteLocationRaw | undefined {
+  if (!props.createTo || lane.state === 'done' || lane.state === 'cancelled') return undefined
+  return props.createTo({ state: lane.state, stageId: lane.stage?.id })
+}
 function dropGroup(lane: Lane) {
   return lane.unstaged && kind.value === 'project' ? { name: 'tasks', put: false } : 'tasks'
 }
@@ -262,6 +274,20 @@ function dropGroup(lane: Lane) {
             <h3 v-else-if="lane.state" data-testid="board-column-title" class="text-sm font-medium"><SharedStatusBadge v-bind="stateBadge(lane.state)" /></h3>
             <h3 v-else data-testid="board-column-title" class="text-sm font-medium"><SharedStatusBadge tone="neutral" :label="lane.title" :class="lane.unstaged && 'text-muted'" /></h3>
             <span class="text-xs text-muted tabular-nums">{{ countOf(lane.key) }}</span>
+            <UButton
+              v-if="laneCreateTo(lane)"
+              :to="laneCreateTo(lane)"
+              square
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-plus"
+              class="ms-auto size-8 rounded-full"
+              data-testid="board-column-add"
+              :data-stage-id="lane.key"
+              :aria-label="t('tasks.kanban.addToColumn')"
+              :title="t('tasks.kanban.addToColumn')"
+            />
           </div>
           <VueDraggable
             v-model="columns[lane.key]!"

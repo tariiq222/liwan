@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildTaskCreatePayload, plainTextToTaskHtml, validateTaskCreatePolicy } from '../taskCreatePolicy'
+import { buildTaskCreatePayload, parseTaskCreatePreset, plainTextToTaskHtml, taskCreatePresetQuery, validateTaskCreatePolicy } from '../taskCreatePolicy'
 
 const taskFormSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../components/pmo/tasks/TaskCreateForm.vue'), 'utf8')
 const projectTaskPageSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../pages/projects/[id]/tasks/new.vue'), 'utf8')
@@ -65,4 +65,41 @@ describe('guided task creation policy', () => {
     expect(buildTaskCreatePayload({ name: 'Quick task', projectId: 7 })).not.toHaveProperty('priority')
   })
 
+})
+
+describe('board column create presets', () => {
+  it('accepts only the non-default open states and stages the board has', () => {
+    expect(parseTaskCreatePreset({ preset_state: 'waiting', preset_stage: '12' }, 'project', [11, 12])).toEqual({ state: 'waiting', stage: { kind: 'project', id: 12 } })
+    expect(parseTaskCreatePreset({ preset_state: 'approved' }, 'personal', [])).toEqual({ state: 'approved' })
+    expect(parseTaskCreatePreset({ preset_state: ['changes_requested', 'done'] }, 'personal', [])).toEqual({ state: 'changes_requested' })
+  })
+
+  it('ignores everything else', () => {
+    for (const query of [{ preset_state: 'done' }, { preset_state: 'cancelled' }, { preset_state: 'in_progress' }, { preset_state: 'bogus' }, { state: 'waiting' }, { preset_stage: '99' }, { preset_stage: '0' }, { preset_stage: '-1' }, { preset_stage: '1.5' }, { preset_stage: '12abc' }, { preset_stage: '' }]) {
+      expect(parseTaskCreatePreset(query, 'personal', [11, 12])).toEqual({})
+    }
+  })
+
+  it('builds the create query for a status or a stage column', () => {
+    expect(taskCreatePresetQuery({ state: 'waiting' })).toEqual({ preset_state: 'waiting' })
+    expect(taskCreatePresetQuery({ stageId: 12 })).toEqual({ preset_stage: '12' })
+    expect(taskCreatePresetQuery({})).toEqual({})
+  })
+})
+
+describe('board column add button wiring', () => {
+  const boardSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../components/pmo/tasks/TaskBoard.vue'), 'utf8')
+
+  it('renders a labelled round button only for columns that can take a new task', () => {
+    expect(boardSource).toContain('data-testid="board-column-add"')
+    expect(boardSource).toContain('i-lucide-plus')
+    expect(boardSource).toContain("t('tasks.kanban.addToColumn')")
+    expect(boardSource).toMatch(/lane\.state === 'done' \|\| lane\.state === 'cancelled'/)
+  })
+
+  it('applies the preset through the existing stage and transition endpoints', () => {
+    expect(taskFormSource).toContain('applyPreset(created.id)')
+    expect(taskFormSource).toContain("personal_stage_type_id: stage.id")
+    expect(taskFormSource).toContain('transition({ id, state })')
+  })
 })

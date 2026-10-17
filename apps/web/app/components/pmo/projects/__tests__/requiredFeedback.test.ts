@@ -40,7 +40,7 @@ async function load(file: string, locale = 'ar', props: Record<string, unknown> 
     useHydrated: () => hydrated, useI18n: () => ({ t }), useToast: () => ({ add: vi.fn() }),
     useRoute: () => ({ params: { id: '2' } }), useRouter: () => ({ push }),
     useProjects: () => ({ data: projectList }), useProject: () => ({ data: projectData, isLoading: projectLoading, error: Vue.ref(null) }),
-    useMilestones: () => ({ data: milestoneData, isLoading: Vue.ref(false), error: Vue.ref(null) }), useCreateTask: () => mutation,
+    useMilestones: () => ({ data: milestoneData, isLoading: Vue.ref(false), error: Vue.ref(null) }), useCreateTask: () => mutation, useUpdateTask: () => ({ mutateAsync: update }), useTransitionTask: () => ({ mutateAsync: update }),
     useCreateMilestone: () => mutation, useUpdateMilestone: () => ({ ...mutation, mutateAsync: update }),
     useCreateProjectUpdate: () => mutation, useCreateProjectStakeholder: () => mutation, useUpdateProjectStakeholder: () => ({ ...mutation, mutateAsync: update }),
     useCreateProjectRegister: () => mutation, useUpdateProjectRegister: () => ({ ...mutation, mutateAsync: update }),

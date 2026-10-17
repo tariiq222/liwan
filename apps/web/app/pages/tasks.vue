@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TaskState } from '@webvue/contracts'
 import TaskArchivedList from '@/components/pmo/tasks/TaskArchivedList.vue'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
@@ -8,6 +9,7 @@ import { taskAttributeQuery, withTaskAttributeFilters } from '@/composables/task
 import { normalizeTaskSort } from '@/composables/taskSort'
 import type { TaskListParams } from '@/composables/useTasks'
 import { useTaskFilters } from '@/composables/useTaskFilters'
+import { taskCreatePresetQuery } from '@/utils/taskCreatePolicy'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
@@ -68,6 +70,9 @@ const createTo = computed(() => can('pmo.tasks.create') ? { path: '/tasks/new', 
 function openCreate() {
   router.push({ path: '/tasks/new', query: returnToQuery(route.fullPath) })
 }
+function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
+  return { path: '/tasks/new', query: { ...returnToQuery(route.fullPath), ...taskCreatePresetQuery(column) } }
+}
 </script>
 
 <template>
@@ -94,7 +99,7 @@ function openCreate() {
     <SharedListCard v-if="hydrated" :fill="isBoard">
       <template #filters><TaskToolbar v-model="params" embedded /></template>
       <TaskTable v-if="!isBoard" :params="params" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="onSort" />
-      <TaskBoard v-else :params="boardParams" @open="id => router.push(taskTo(id))" />
+      <TaskBoard v-else :params="boardParams" :create-to="createTo ? columnCreateTo : undefined" @open="id => router.push(taskTo(id))" />
     </SharedListCard>
   </SharedListPage>
   <NuxtPage />

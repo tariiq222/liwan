@@ -165,7 +165,7 @@ function projectDetail(p) {
 
 function task(id, name, state, extra = {}) {
   return {
-    id, name, description_excerpt: '', project: { id: 1, name: 'مشروع ألفا' }, state, priority: '1',
+    id, name, description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0, project: { id: 1, name: 'مشروع ألفا' }, state, priority: '1',
     date_deadline: extra.date_deadline ?? '2035-01-15',
     days_remaining: extra.days_remaining ?? 120,
     is_overdue: Boolean(extra.is_overdue), is_closed: state === 'done' || state === 'cancelled',

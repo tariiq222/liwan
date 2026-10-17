@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TaskState } from '@webvue/contracts'
 import type { LocationQueryRaw } from 'vue-router'
 import TaskBoard from '@/components/pmo/tasks/TaskBoard.vue'
 import TaskKpiStrip from '@/components/pmo/tasks/TaskKpiStrip.vue'
@@ -9,6 +10,7 @@ import { projectIdFromPath } from '@/composables/nav/activeRoute'
 import { projectTaskParams, projectTaskQuery } from '@/composables/projectTaskParams'
 import { useProject } from '@/composables/useProjects'
 import type { TaskListParams } from '@/composables/useTasks'
+import { taskCreatePresetQuery } from '@/utils/taskCreatePolicy'
 import { safeReturnTo } from '@webvue/ui/app/utils/safeReturnTo'
 
 const route = useRoute()
@@ -90,6 +92,11 @@ const createTo = computed(() => ({ path: `/projects/${projectId.value}/tasks/new
 function openCreate() {
   void openTask(`/projects/${projectId.value}/tasks/new`)
 }
+// A column '+' returns to this exact list through returnTo, so the preset keys (and the list filters) never
+// become part of the list URL.
+function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
+  return { path: `/projects/${projectId.value}/tasks/new`, query: { returnTo: route.fullPath, ...taskCreatePresetQuery(column) } }
+}
 </script>
 
 <template>
@@ -121,7 +128,7 @@ function openCreate() {
         <SharedListCard :fill="isBoard">
           <template #filters><TaskToolbar :model-value="params" embedded hide-project-filter @update:model-value="onParams" @search="liveSearch = $event" /></template>
           <TaskTable v-if="!isBoard" :params="params" variant="project" :row-to="task => taskTo(task.id)" @create="openCreate" @update:sort="sort => onParams({ ...params, sort })" />
-          <TaskBoard v-else :params="boardParams" :stage-source="stageSource" @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
+          <TaskBoard v-else :params="boardParams" :stage-source="stageSource" :create-to="canCreate ? columnCreateTo : undefined" @open="(id: number) => openTask(`/projects/${projectId}/tasks/${id}`)" />
         </SharedListCard>
       </section>
     </SharedListPage>

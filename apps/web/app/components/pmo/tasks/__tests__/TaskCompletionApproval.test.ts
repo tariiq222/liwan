@@ -68,7 +68,7 @@ function loadApproval() {
 }
 
 const base: TaskDetail = {
-  id: 1, name: 'Task', description_excerpt: '', project: { id: 4, name: 'Project' }, state: 'in_progress', priority: '0',
+  id: 1, name: 'Task', description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0, project: { id: 4, name: 'Project' }, state: 'in_progress', priority: '0',
   date_deadline: null, days_remaining: null, is_overdue: false, is_closed: false, personal_stage: null,
   stage: null, assignees: [], tags: [], planned_start: null, deliverables: [], description_html: '', allocated_hours: 0, age_days: 0,
   cycle_days: null, subtasks: [], depends_on: [], attachments: [], can_write: true, can_approve: false,

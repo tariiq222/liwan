@@ -5,7 +5,7 @@ import { applyPatchToTask, PAGE, taskKeys } from '../useTasks'
 const baseTask: Task = {
   id: 1, can_write: true, can_approve: false,
   name: 'Write the report',
-  description_excerpt: '',
+  description_excerpt: '', subtask_count: 0, subtask_done_count: 0, attachment_count: 0,
   project: { id: 10, name: 'Q1 Planning' },
   state: 'in_progress',
   priority: '1',

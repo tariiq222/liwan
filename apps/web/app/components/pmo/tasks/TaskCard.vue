@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { Task, TaskDetail } from '@webvue/contracts'
+import type { Task } from '@webvue/contracts'
 import { statusPillAttrs } from '@webvue/ui/app/utils/statusPill'
 import { deadlineTagView } from './taskDeadline'
 import type { BoardStage } from '@/composables/boardStages'
 import { PRIORITY_LABEL_KEY, PRIORITY_TONE } from '@/composables/taskState'
 
 const props = withDefaults(defineProps<{
-  // A list task; the subtask progress and attachment count show when the object carries them (a task detail does).
-  task: Task & Partial<Pick<TaskDetail, 'subtasks' | 'attachments'>>
+  task: Task
   stages?: BoardStage[]
   currentStageId?: number | null
   // Explicit "move to" menu entries (the board passes status transitions); without them the card lists `stages`.
@@ -26,16 +25,14 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-// Subtask progress: done is a closed subtask that was not cancelled, the rule the KPI summary uses.
+// Subtask progress from the list counts; the server counts a done subtask as done, never a cancelled one.
 const subtaskProgress = computed(() => {
-  const subtasks = props.task.subtasks ?? []
-  if (!subtasks.length) return null
-  const done = subtasks.filter(sub => sub.is_closed && sub.state !== 'cancelled').length
-  return { done, total: subtasks.length, percent: Math.round((done / subtasks.length) * 100) }
+  const { subtask_count: total, subtask_done_count: done } = props.task
+  if (total <= 0) return null
+  return { done, total, percent: Math.round((done / total) * 100) }
 })
 const priority = computed(() => props.task.priority as '0' | '1' | '2' | '3')
 const deadline = computed(() => deadlineTagView(props.task, t))
-const attachmentCount = computed(() => props.task.attachments?.length ?? 0)
 
 const moveItems = computed(() => props.moveTargets ?? (props.task.can_write
   ? props.stages.map((stage) => ({
@@ -104,15 +101,15 @@ function onCardKeydown(event: KeyboardEvent) {
 
     <div v-if="subtaskProgress" class="grid gap-1" data-testid="card-subtasks">
       <p class="flex items-center gap-1 text-xs text-muted tabular-nums"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ subtaskProgress.done }} / {{ subtaskProgress.total }}</p>
-      <div role="progressbar" :aria-label="t('tasks.card.subtasks')" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="subtaskProgress.percent" class="h-1 overflow-hidden rounded-full bg-(--ui-border-muted)">
+      <div role="progressbar" :aria-label="t('tasks.card.subtasks')" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="subtaskProgress.percent" class="h-[5px] overflow-hidden rounded-full bg-(--ui-border-muted)">
         <div class="h-full rounded-full bg-primary" :style="{ width: `${subtaskProgress.percent}%` }" />
       </div>
     </div>
 
     <div class="flex min-h-7 items-center gap-2">
       <SharedStatusBadge v-if="deadline" v-bind="deadline" data-testid="deadline-badge" size="sm" :aria-label="`${deadline.label} ${deadline.title ?? ''}`.trim()" />
-      <span v-if="attachmentCount > 0" class="flex items-center gap-1 text-xs text-muted tabular-nums" data-testid="card-attachments" :title="t('tasks.card.attachments')">
-        <UIcon name="i-lucide-paperclip" class="size-3.5" aria-hidden="true" />{{ attachmentCount }}
+      <span v-if="task.attachment_count > 0" class="flex items-center gap-1 text-xs text-muted tabular-nums" data-testid="card-attachments" :title="t('tasks.card.attachments')">
+        <UIcon name="i-lucide-paperclip" class="size-3.5" aria-hidden="true" />{{ task.attachment_count }}
       </span>
       <SharedPersonAvatar v-if="task.assignees.length" class="ms-auto" :people="task.assignees" />
     </div>

@@ -528,7 +528,7 @@
       "props": [
         {
           "name": "meeting",
-          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"cancelled\" | \"confirmed\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; write_date: string; agenda: string; minutes: string; location: string; meeting_url: string; can_edit: boolean; can_manage: boolean; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"open\" | \"in_progress\" | \"cancelled\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; execution_state?: \"done\" | \"open\" | \"in_progress\" | \"cancelled\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; series: { id: number; name: string; } | null; project: { id: number; name: string; } | null; previous_resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"open\" | \"in_progress\" | \"cancelled\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; meeting_id: number; meeting_name: string; execution_state?: \"done\" | \"open\" | \"in_progress\" | \"cancelled\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; minutes_snapshot?: { name: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; location: string; organizer: { id: number; name: string; } | null; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; agenda: string; minutes: string; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"open\" | \"in_progress\" | \"cancelled\"; responsible: { id: number; name: string; } | null; result: string; meeting_name?: string | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; captured_at?: string | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; } | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; }",
+          "type": "{ id: number; name: string; reference: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; state: \"done\" | \"draft\" | \"cancelled\" | \"confirmed\"; organizer: { id: number; name: string; } | null; open_resolution_count: number; series_id: number | null; project_id: number | null; write_date: string; agenda: string; minutes: string; location: string; meeting_url: string; can_edit: boolean; can_manage: boolean; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"in_progress\" | \"cancelled\" | \"open\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; execution_state?: \"done\" | \"in_progress\" | \"cancelled\" | \"open\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; series: { id: number; name: string; } | null; project: { id: number; name: string; } | null; previous_resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"in_progress\" | \"cancelled\" | \"open\"; responsible: { id: number; name: string; } | null; task_id: number | null; result: string; can_update_execution: boolean; can_edit_decision: boolean; meeting_id: number; meeting_name: string; execution_state?: \"done\" | \"in_progress\" | \"cancelled\" | \"open\" | undefined; task_linked?: boolean | undefined; allowed_actions?: (\"cancel\" | \"start\" | \"complete\" | \"reopen\" | \"edit_result\")[] | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; minutes_snapshot?: { name: string; meeting_date: string | null; start_datetime: string | null; end_datetime: string | null; location: string; organizer: { id: number; name: string; } | null; secretary: { id: number; name: string; } | null; attendees: { id: number; name: string; }[]; agenda: string; minutes: string; resolutions: { id: number; name: string; deadline: string | null; priority: \"0\" | \"1\" | \"2\" | \"3\"; state: \"done\" | \"in_progress\" | \"cancelled\" | \"open\"; responsible: { id: number; name: string; } | null; result: string; meeting_name?: string | undefined; execution_period?: string | undefined; project?: { id: number; name: string; } | null | undefined; }[]; captured_at?: string | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; } | null | undefined; minutes_form?: { opening: string; closing: string; chairperson: string; approver_name: string; approver_title: string; topics: { key: string; title: string; discussion: string; project_id: number | null; resolution_ids: number[]; }[]; } | undefined; }",
           "required": true
         },
         {
@@ -1375,7 +1375,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
           "required": true
         },
         {
@@ -1422,7 +1422,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
           "required": true
         },
         {
@@ -1441,17 +1441,17 @@
         {
           "id": "InTaskRow",
           "name": "في صف المهمة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:170"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:131"
         },
         {
           "id": "NoTransitions",
           "name": "بلا انتقالات متاحة",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:170"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:131"
         },
         {
           "id": "TransitionForbidden",
           "name": "انتقال مرفوض",
-          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:170"
+          "context": "apps/web/app/components/pmo/tasks/TaskTable.vue:131"
         }
       ]
     },
@@ -1463,7 +1463,7 @@
       "props": [
         {
           "name": "task",
-          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; } & Partial<Pick<{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; description_html: string; allocated_hours: number; age_days: number; cycle_days: number | null; subtasks: { id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; }[]; depends_on: { id: number; name: string; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; }[]; attachments: { id: number; name: string; mimetype: string; url: string; }[]; can_manage_dependencies: boolean; milestone: { id: number; name: string; } | null; created_at: string; updated_at: string; planned_start: string | null; deliverables: { name: string; done: boolean; }[]; allowed_actions: (\"approve\" | \"write\" | \"read\" | \"archive\" | \"request_completion\" | \"accept_completion\" | \"return_completion\" | \"withdraw_completion\")[]; completion_pending: boolean; completion_revision: number; completion_return_note: string | null; completion_policy: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; completion_blocked_reason: \"no_reviewer\" | \"reviewer_ineligible\" | null; }, \"attachments\" | \"subtasks\">>",
+          "type": "{ id: number; name: string; description_excerpt: string; project: { id: number; name: string; } | null; state: \"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\"; priority: \"0\" | \"1\" | \"2\" | \"3\"; date_deadline: string | null; days_remaining: number | null; is_overdue: boolean; is_closed: boolean; personal_stage: { id: number; name: string; } | null; stage: { id: number; name: string; } | null; assignees: { id: number; name: string; }[]; tags: { id: number; name: string; color: number; }[]; can_write: boolean; can_approve: boolean; allowed_transitions: (\"done\" | \"waiting\" | \"approved\" | \"in_progress\" | \"changes_requested\" | \"cancelled\")[]; subtask_count: number; subtask_done_count: number; attachment_count: number; }",
           "required": true
         },
         {
@@ -1511,17 +1511,17 @@
         {
           "id": "InBoardColumn",
           "name": "داخل عمود اللوحة",
-          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:301"
         },
         {
           "id": "ProjectBoard",
           "name": "في لوحة المشروع (بلا اسم المشروع)",
-          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:301"
         },
         {
           "id": "RichCard",
           "name": "بطاقة غنية (فرعية ومرفقات وكومة مسؤولين)",
-          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:277"
+          "context": "apps/web/app/components/pmo/tasks/TaskBoard.vue:301"
         }
       ]
     },
@@ -1546,12 +1546,12 @@
         {
           "id": "FilteredCountsOnly",
           "name": "فلتر يحدد النسب (متأخرة أو حالة): أرقام فقط",
-          "context": "apps/web/app/pages/tasks.vue:95"
+          "context": "apps/web/app/pages/tasks.vue:98"
         },
         {
           "id": "AboveTaskTable",
           "name": "فوق جدول المهام",
-          "context": "apps/web/app/pages/tasks.vue:95"
+          "context": "apps/web/app/pages/tasks.vue:98"
         }
       ]
     },
