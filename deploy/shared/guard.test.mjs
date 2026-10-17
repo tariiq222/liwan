@@ -116,3 +116,22 @@ test('the web CSRF header passes to the Nuxt hop only; other x-webvue headers st
   assert.equal(odoo.odoo, true); assert.equal(odoo.headers['x-webvue-csrf'], undefined)
   for (const header of ['x-webvue-principal', 'x-webvue-tenant-revision', 'x-webvue-csrf-other']) assert.throws(() => requestPlan(req(0, { [header]: 'forged' }, '/api/commercial/v1/branch-quotes'), registry, token, codec))
 })
+test('guard denies bootstrap hosts and serves the first publication without restart', async t => {
+  const path = join(mkdtempSync(join(tmpdir(), 'webvue-guard-empty-')), 'registry.json')
+  const bootstrap = { schemaVersion: 1, snapshotRevision: 0, targets: [] }
+  writeFileSync(path, JSON.stringify(bootstrap))
+  const backend = http.createServer((_req, res) => res.end('first tenant'))
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  t.after(() => { guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  for (const host of [targets[0].host, 'unknown.example.test']) {
+    const result = await call(url, '/api/v1/me', { host })
+    assert.equal(result.status, 403)
+  }
+  const published = mutateRegistry(bootstrap, targets[0], { actor: 'operator', canManageRegistry: true }, 0)
+  writeFileSync(path, JSON.stringify(published.registry))
+  const result = await call(url, '/api/v1/me', { host: targets[0].host })
+  assert.equal(result.status, 200)
+  assert.equal(result.text, 'first tenant')
+})

@@ -140,7 +140,7 @@ for (const tenant of TENANTS) {
     }
     expect(landed, `tenant ${tenant.name} could not log in (html dir=${dir})`).toBe(true)
 
-    // --- Three authenticated pages: own markers present, other tenant's absent ---
+    // --- Three authenticated pages: no tenant leaks, own markers on record lists ---
     // The edge keys the webvue_auth zone (20 events/min) by the edge socket peer, and
     // every tenant on 127.0.0.1 shares that single bucket. A tenant's own page loads
     // (HTML + the app's bootstrap calls) therefore consume the budget the NEXT
@@ -165,9 +165,10 @@ for (const tenant of TENANTS) {
       }
       expect.soft(body, `${path} must not leak the other tenant`).not.toContain(tenant.otherProject)
       expect.soft(body, `${path} must not leak the other tenant's employee`).not.toContain(tenant.otherEmployee)
-      if (path !== '/hr') {
+      // The workspace launcher lists no records; it gets the no-leak checks above.
+      if (path === '/projects') {
         await expect(page.locator('body')).toContainText(tenant.ownProject, { timeout: 20000 })
-      } else {
+      } else if (path === '/hr') {
         await expect(page.locator('body')).toContainText(tenant.ownEmployee, { timeout: 20000 })
       }
       // Arabic UI assertion: the shared navigation labels are Arabic.

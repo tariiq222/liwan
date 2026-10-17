@@ -37,17 +37,26 @@ gitignored.
 
 ## Image tags
 
-All four images are tagged `webvue-accept-<name>:${WEBVUE_IMAGE_TAG}` where the tag is the
-short HEAD sha. `acceptance.override.yml` selects every image through
-`${WEBVUE_IMAGE_TAG}` (no hardcoded `:stagea` anywhere), so `up.sh` and the override can
-never drift apart.
+All four images use `${WEBVUE_IMAGE_TAG}` (the short HEAD sha); only Caddy has an
+`accept` image name. The base compose and `acceptance.override.yml` select the
+images below through `${WEBVUE_IMAGE_TAG}`, matching the names used by `up.sh`.
 
-| Service | Dockerfile | Extra |
-|---|---|---|
-| odoo | `deploy/odoo/Dockerfile` | build arg `ODOO_COMMIT=$(cat deploy/odoo/ODOO_COMMIT)` |
-| web | `apps/web/Dockerfile` | build arg `WEBVUE_TENANCY_MODE=shared` (Never a dedicated build, per T6-F01) |
-| guard | `deploy/shared/Dockerfile` | — |
-| caddy | `deploy/proxy/Dockerfile` | must show `http.handlers.rate_limit` in `caddy list-modules` |
+| Service | Image | Dockerfile | Extra |
+|---|---|---|---|
+| odoo | `webvue-odoo` | `deploy/odoo/Dockerfile` | build arg `ODOO_COMMIT=$(cat deploy/odoo/ODOO_COMMIT)` |
+| web | `webvue-web` | `apps/web/Dockerfile` | build arg `WEBVUE_TENANCY_MODE=shared` (Never a dedicated build, per T6-F01) |
+| guard | `webvue-guard` | `deploy/shared/Dockerfile` | — |
+| caddy | `webvue-accept-caddy` | `deploy/proxy/Dockerfile` | must show `http.handlers.rate_limit` in `caddy list-modules` |
+
+Build all four from the repository root:
+
+```bash
+export WEBVUE_IMAGE_TAG=$(git rev-parse --short HEAD)
+docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" -t "webvue-odoo:$WEBVUE_IMAGE_TAG" .
+docker build -f apps/web/Dockerfile --build-arg WEBVUE_TENANCY_MODE=shared -t "webvue-web:$WEBVUE_IMAGE_TAG" .
+docker build -f deploy/shared/Dockerfile -t "webvue-guard:$WEBVUE_IMAGE_TAG" .
+docker build -f deploy/proxy/Dockerfile -t "webvue-accept-caddy:$WEBVUE_IMAGE_TAG" .
+```
 
 Build context is always the repository root.
 
@@ -264,7 +273,7 @@ from `webvue_web`. The temporary harness-local variant files have been removed, 
 | 5 | Session cookie flags | `Secure`, `HttpOnly`, `SameSite=Lax`, no `Domain` (secret redacted) |
 | 6 | Cross-tenant cookie | A's cookie on B → 403 and B's cookie on A → 403 |
 | 7 | Fail-closed | unknown host → 403; B with `enabled=false` → 403 with no restart, then restored |
-| 8 | Browser isolation (fails on the committed Caddyfile due to F4; passes only with the asset-exemption variant) | Playwright: Arabic login, `/`, `/projects`, `/hr` show own markers and never the other tenant's, then logout |
+| 8 | Browser isolation | Playwright: Arabic login; `/`, `/projects`, `/hr` never show the other tenant's data; `/projects` shows the own project and `/hr` the own employee (`/` is the workspace launcher and lists no records), then logout |
 | 9 | Rate limit | >20 `webvue_auth` requests → 429 (runs last: it locks the auth zone) |
 
 ## What it does NOT prove
