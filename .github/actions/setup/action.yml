@@ -25,6 +25,11 @@ runs:
       with:
         node-version-file: .nvmrc
         cache: npm
+    - name: Silence the npm update notice
+      if: inputs.node == 'true'
+      shell: bash
+      # Some tests spawn npx with a minimal environment and assert an empty stderr; only the user npmrc reaches them.
+      run: npm config set update-notifier false
     - name: Install npm dependencies
       if: inputs.node == 'true' && inputs.npm-ci == 'true'
       shell: bash

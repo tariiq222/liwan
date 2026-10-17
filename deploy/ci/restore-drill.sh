@@ -16,7 +16,12 @@ cleanup() {
 }
 trap cleanup EXIT
 for db in "$SRC_DB" "$RST_DB" "$RST2_DB"; do dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$db" || true; done
-B="$(dirname "$(command -v pg_dump)")"
+# Debian's pg_wrapper cannot pick a client from the service container's host, so call the versioned binaries when they exist.
+pg_dump_path="$(find /usr/lib/postgresql -path '*/bin/pg_dump' 2>/dev/null | sort -V | tail -1 || true)"
+pg_dump_path="${pg_dump_path:-$(command -v pg_dump)}"
+test -x "$pg_dump_path" || { echo "no postgresql client found" >&2; exit 2; }
+B="$(dirname "$pg_dump_path")"
+export PATH="$B:$PATH"
 export WEBVUE_COMMERCIAL_CONFIG="$W/restore-classification.json"
 python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$WEBVUE_COMMERCIAL_CONFIG"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
