@@ -10,12 +10,12 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
-  parameters: storyContext('unused', 'علامة نصية مؤقتة حتى يتوفر شعار SVG؛ تُستخدم لاحقًا في الشريط الجانبي وصفحة الدخول.'),
+  parameters: storyContext('unused', 'شعار ويب فيو المعتمد: العلامة بلون العميل مع الاسم؛ يُستخدم في الشريط الجانبي وصفحة الدخول.'),
   args: { size: 'md' },
 }
 
 export const OnRail: Story = {
-  parameters: storyContext('unused', 'تعرض العلامة البيضاء فوق خلفية الشريط الجانبي الداكنة.'),
+  parameters: storyContext('unused', 'يعرض الشعار الأبيض فوق خلفية الشريط الجانبي الداكنة.'),
   args: { size: 'lg', inverted: true },
   render: args => ({
     components: { BrandWordmark },

@@ -4,7 +4,7 @@ import re
 
 from odoo.addons.webvue_api.controllers.common import ApiError
 
-DEFAULT_PRIMARY_COLOR = '#13234a'
+DEFAULT_PRIMARY_COLOR = '#0046d5'
 
 
 def parse_branding_vals(payload):

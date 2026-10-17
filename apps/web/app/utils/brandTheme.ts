@@ -1,7 +1,7 @@
 import type { AppearanceMode } from './appearance'
-import { DARK_SURFACES, WEBVUE_MIDNIGHT, contrastRatio, relativeLuminance } from './webvuePalette'
+import { DARK_SURFACES, WEBVUE_BLUE, contrastRatio, relativeLuminance } from './webvuePalette'
 
-export const DEFAULT_PRIMARY = WEBVUE_MIDNIGHT
+export const DEFAULT_PRIMARY = WEBVUE_BLUE
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 

@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { contrastRatio, DARK_SURFACES, WEBVUE_LIME, WEBVUE_LIME_FOREGROUND, WEBVUE_MIDNIGHT } from '../webvuePalette'
+import { contrastRatio, DARK_SURFACES, WEBVUE_BLUE, WEBVUE_LIME, WEBVUE_LIME_FOREGROUND } from '../webvuePalette'
+
+// Mirrors --webvue-rail in tokens.css: the fixed midnight rail is CSS-only.
+const RAIL = '#13234a'
 
 describe('WebVue palette', () => {
+  it('keeps white text readable on the brand blue', () => {
+    expect(contrastRatio('#ffffff', WEBVUE_BLUE)).toBeGreaterThanOrEqual(4.5)
+  })
   it('keeps white text readable on the midnight rail', () => {
-    expect(contrastRatio('#ffffff', WEBVUE_MIDNIGHT)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio('#ffffff', RAIL)).toBeGreaterThanOrEqual(4.5)
   })
   it('keeps midnight text readable on lime fills', () => {
     expect(contrastRatio(WEBVUE_LIME_FOREGROUND, WEBVUE_LIME)).toBeGreaterThanOrEqual(4.5)
   })
   it('keeps lime visible as a bar on the rail', () => {
-    expect(contrastRatio(WEBVUE_LIME, WEBVUE_MIDNIGHT)).toBeGreaterThanOrEqual(3)
+    expect(contrastRatio(WEBVUE_LIME, RAIL)).toBeGreaterThanOrEqual(3)
   })
   it('keeps light body text readable on every dark surface', () => {
     for (const surface of [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated, DARK_SURFACES.accented]) {

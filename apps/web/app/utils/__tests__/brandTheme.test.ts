@@ -243,8 +243,8 @@ describe('createBrandTheme', () => {
 })
 
 describe('WebVue palette in the brand engine', () => {
-  it('defaults to WebVue midnight', () => {
-    expect(DEFAULT_PRIMARY).toBe('#13234a')
+  it('defaults to the WebVue brand blue', () => {
+    expect(DEFAULT_PRIMARY).toBe('#0046d5')
   })
 
   it('no longer derives shell colours from the tenant primary', () => {
@@ -254,7 +254,7 @@ describe('WebVue palette in the brand engine', () => {
     }
   })
 
-  it.each(['#000000', '#ffffff', '#c8f031', '#ffff00', '#13234a', '#0055ff', '#e11d48', '#7c3aed'])(
+  it.each(['#000000', '#ffffff', '#c6f432', '#ffff00', '#0046d5', '#0055ff', '#e11d48', '#7c3aed'])(
     'keeps %s readable on every surface in both modes',
     (primary) => {
       for (const mode of ['light', 'dark'] as const) {
@@ -269,7 +269,7 @@ describe('WebVue palette in the brand engine', () => {
 
   // Owner amendment 4 (CP2): the dark solid primary must stand out from the page, not read as a grey control.
   const PAGE_SURFACES = [DARK_SURFACES.bg, DARK_SURFACES.muted, DARK_SURFACES.elevated]
-  const SAMPLED_PRIMARIES = [DEFAULT_PRIMARY, '#000000', '#4c0519', '#18181b', '#0055ff', '#e11d48', '#7c3aed', '#0f766e', '#a855f7', '#facc15', '#ffffff', '#c8f031']
+  const SAMPLED_PRIMARIES = [DEFAULT_PRIMARY, '#000000', '#4c0519', '#18181b', '#0055ff', '#e11d48', '#7c3aed', '#0f766e', '#a855f7', '#facc15', '#ffffff', '#c6f432']
   function saturation(hex: string): number {
     const [r, g, b] = [1, 3, 5].map(index => Number.parseInt(hex.slice(index, index + 2), 16) / 255) as [number, number, number]
     const max = Math.max(r, g, b)
@@ -294,19 +294,19 @@ describe('WebVue palette in the brand engine', () => {
     }
   })
 
-  it('derives the default dark solid from midnight, never lime, and keeps light mode on midnight', () => {
+  it('derives the default dark solid from the brand blue, never lime, and keeps light mode on the brand blue', () => {
     const dark = createBrandTheme(DEFAULT_PRIMARY, 'dark')
-    expect(dark['--primary-solid']).toBe('#3c66cd')
+    expect(dark['--primary-solid']).toBe('#0a5bff')
     expect(dark['--primary-solid-foreground']).toBe('#ffffff')
-    expect(dark['--primary-solid']).not.toBe('#c8f031')
+    expect(dark['--primary-solid']).not.toBe('#c6f432')
     // Links, text-primary and focus keep the lighter text tone.
     expect(dark['--brand-link']).toBe(darkLink(DEFAULT_PRIMARY))
     // The link keeps the brand hue (periwinkle, not the grey a white mix gives) and stands 4.5:1 off every dark surface.
     expect(saturation(dark['--brand-link']!)).toBeGreaterThanOrEqual(0.4)
     for (const surface of MODE_SURFACES.dark) expect(contrastRatio(dark['--brand-link']!, surface)).toBeGreaterThanOrEqual(4.5)
     const light = createBrandTheme(DEFAULT_PRIMARY, 'light')
-    expect(light['--primary']).toBe('#13234a')
-    expect(light['--brand-link']).toBe('#13234a')
+    expect(light['--primary']).toBe('#0046d5')
+    expect(light['--brand-link']).toBe('#0046d5')
   })
 
   it('keeps a tenant colour that already passes as its own dark solid', () => {
@@ -318,6 +318,6 @@ describe('WebVue palette in the brand engine', () => {
 
 describe('darkSolid input', () => {
   it('treats an invalid colour as the WebVue default', () => {
-    expect(darkSolid('not-a-colour')).toBe(darkSolid('#13234a'))
+    expect(darkSolid('not-a-colour')).toBe(darkSolid('#0046d5'))
   })
 })

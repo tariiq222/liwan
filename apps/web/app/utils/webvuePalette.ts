@@ -1,7 +1,7 @@
-// WebVue's own identity (spec 2026-10-11 §3). Tenant colours replace the
-// primary only; the midnight rail and lime accent stay WebVue's.
-export const WEBVUE_MIDNIGHT = '#13234a'
-export const WEBVUE_LIME = '#c8f031'
+// WebVue's own identity (spec 2026-10-11 §3, brand blue and lime approved 2026-10-17). Tenant colours
+// replace the primary only; the midnight rail and lime accent stay WebVue's.
+export const WEBVUE_BLUE = '#0046d5'
+export const WEBVUE_LIME = '#c6f432'
 export const WEBVUE_LIME_FOREGROUND = '#13234a'
 
 /** Page canvas behind the content cards: light slate tint, and in dark mode darker than the cards (which stay --ui-bg). */

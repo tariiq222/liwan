@@ -18,11 +18,11 @@
   /* Official Nuxt UI radius token: 6px base (Apple-style soft corners), so rounded-md = 9px, rounded-lg = 12px and rounded-xl = 18px. */
   --ui-radius: 0.428571rem;
   /* Runtime branding (brandTheme.ts overwrites these from the company colour). */
-  --primary: #13234a;
+  --primary: #0046d5;
   --primary-foreground: #fff;
-  --primary-hover: #2f3c5f;
+  --primary-hover: #0039af;
   --primary-hover-foreground: #fff;
-  --primary-active: #4a5573;
+  --primary-active: #003091;
   --primary-active-foreground: #fff;
   --primary-fill: var(--primary);
   --primary-fill-foreground: var(--primary-foreground);
@@ -37,11 +37,11 @@
   --primary-solid-foreground: #fff;
   --primary-solid-hover: var(--primary-hover);
   --primary-solid-hover-foreground: var(--primary-hover-foreground);
-  --brand-link: #13234a;
+  --brand-link: #0046d5;
   --brand-soft: color-mix(in srgb, var(--primary) 8%, var(--ui-bg));
   --brand-border: color-mix(in srgb, var(--primary) 24%, var(--ui-border));
   /* Charts: series 1 follows the tenant primary (brandTheme.ts); 2-6 are the fixed categorical palette. */
-  --chart-1: #13234a;
+  --chart-1: #0046d5;
   --chart-2: #0d9488;
   --chart-3: #d97706;
   --chart-4: #8b5cf6;
@@ -55,7 +55,7 @@
   --chart-status-neutral: #64748b;
   /* WebVue identity and density. 2.285714rem = 32px and 2.571429rem = 36px at the 14px root. */
   --webvue-midnight: #13234a;
-  --webvue-lime: #c8f031;
+  --webvue-lime: #c6f432;
   --webvue-lime-foreground: #13234a;
   --webvue-control-h: 2.285714rem;
   --webvue-row-h: 2.571429rem;
@@ -152,10 +152,10 @@
   --rail-hover: #223a72;
   --webvue-rail-edge: rgb(255 255 255 / 14%);
   /* Brand tone on dark surfaces: 4.5:1 on every surface, hue kept (brandTheme.ts darkLink; the runtime overwrites these). */
-  --brand-link: #8da6e2;
-  --ring: #8da6e2;
-  --sidebar-ring: #8da6e2;
-  --chart-1: #8da6e2;
+  --brand-link: #7aa6ff;
+  --ring: #7aa6ff;
+  --sidebar-ring: #7aa6ff;
+  --chart-1: #7aa6ff;
   --chart-2: #2dd4bf;
   --chart-3: #fbbf24;
   --chart-4: #a78bfa;
@@ -166,10 +166,10 @@
   --chart-status-warning: #fbbf24;
   --chart-status-error: #f87171;
   --chart-status-neutral: #94a3b8;
-  /* Default-midnight dark solid primary; brandTheme.ts overwrites it from the company colour. */
-  --primary-solid: #3c66cd;
+  /* Default-blue dark solid primary; brandTheme.ts overwrites it from the company colour. */
+  --primary-solid: #0a5bff;
   --primary-solid-foreground: #ffffff;
-  --primary-solid-hover: #3154a8;
+  --primary-solid-hover: #084bd1;
   --primary-solid-hover-foreground: #ffffff;
   --unread-count-foreground: var(--ui-bg);
 }

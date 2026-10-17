@@ -30,12 +30,17 @@ async function render(props: Record<string, unknown> = {}) {
 }
 
 describe('BrandWordmark', () => {
-  it('renders the product name and a decorative lime dot', async () => {
+  it('renders the product name and a decorative logo mark of three paths', async () => {
     const html = await render()
-    expect(html.replace(/<[^>]+>/g, '').trim()).toBe('ويب فيو')
-    const dot = html.match(/<span[^>]*data-slot="dot"[^>]*>/)?.[0] ?? ''
-    expect(dot).toContain('aria-hidden="true"')
-    expect(dot).toContain('bg-webvue-lime')
+    expect(html.replace(/<svg[\s\S]*?<\/svg>/, '').replace(/<[^>]+>/g, '').trim()).toBe('ويب فيو')
+    const mark = html.match(/<svg[^>]*data-slot="mark"[^>]*>/)?.[0] ?? ''
+    expect(mark).toContain('aria-hidden="true"')
+    expect(html.match(/<path /g)).toHaveLength(3)
+  })
+
+  it('draws the mark in the brand colour, and in white when inverted', async () => {
+    expect((await render()).match(/<svg[^>]*class="([^"]*)"/)?.[1]).toContain('text-primary')
+    expect((await render({ inverted: true })).match(/<svg[^>]*class="([^"]*)"/)?.[1]).toContain('text-white')
   })
 
   it('uses white text when inverted', async () => {
@@ -51,12 +56,12 @@ describe('BrandWordmark', () => {
   })
 
   it.each([
-    ['sm', 'text-sm', 'size-1.5'],
-    ['md', 'text-base', 'size-2'],
-    ['lg', 'text-xl', 'size-2.5'],
-  ])('sizes the %s wordmark and its dot together', async (size, text, dot) => {
+    ['sm', 'text-sm', 'h-4'],
+    ['md', 'text-base', 'h-5'],
+    ['lg', 'text-xl', 'h-7'],
+  ])('sizes the %s wordmark and its mark together', async (size, text, mark) => {
     const html = await render({ size })
     expect(html.match(/<span class="([^"]*)"/)?.[1]).toContain(text)
-    expect(html.match(/<span[^>]*data-slot="dot"[^>]*>/)?.[0]).toContain(dot)
+    expect(html.match(/<svg[^>]*class="([^"]*)"/)?.[1]).toContain(mark)
   })
 })
