@@ -1,6 +1,6 @@
-import { getRequestIP, type H3Event } from 'h3'
+import type { H3Event } from 'h3'
 import { bffFail } from './errors'
-import { devLoginAllowed, LOOPBACK_HOSTS, LOOPBACK_PEERS } from './loopback'
+import { devLoginAllowed, LOOPBACK_HOSTS, LOOPBACK_PEERS, peerAddress } from './loopback'
 
 type RuntimeSettings = {
   controlUrl?: string
@@ -35,7 +35,7 @@ const isSecureOrLoopback = (url: URL): boolean =>
  */
 export function devLoginEnabled(event: H3Event): boolean {
   const settings = useRuntimeConfig(event) as RuntimeSettings
-  const peer = getRequestIP(event, { xForwardedFor: false }) ?? ''
+  const peer = peerAddress(event, settings.adminOrigin) ?? ''
   return LOOPBACK_PEERS.includes(peer) && devLoginAllowed({ devLogin: settings.public?.devLogin, adminOrigin: settings.adminOrigin })
 }
 
