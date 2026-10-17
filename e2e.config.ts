@@ -2,7 +2,13 @@ import type { E2EConfig } from 'e2e';
 import { web } from '@e2e-dev/web';
 import { chatgpt } from 'e2e/oauth/chatgpt';
 import { jevJudge } from './e2e/jev-judge.ts';
+import { jevUltrafast } from './e2e/jev-ultrafast.ts';
 import { models } from './e2e/models.ts';
+
+// Jev (TypeSafe System One) gives the assert/waitFor verdicts from the text
+// observation; extract and screenshot-only judgments fall back to
+// gemini-3.7-flash. Needs JEV_API_KEY or ~/.config/jev-review/api-key.
+const jev = jevJudge({ fallback: models.xkiro.chatModel('google/gemini-3.7-flash') });
 
 export default {
   targets: [
@@ -58,10 +64,14 @@ export default {
       model: models.xkiro.chatModel(
         process.env.E2E_DEFAULT_MODEL ?? 'moonshotai/kimi-k3-agent',
       ),
-      // Jev (TypeSafe System One) gives the assert/waitFor verdicts from the
-      // text observation; extract and screenshot-only judgments fall back to
-      // gemini-3.7-flash. Needs JEV_API_KEY or ~/.config/jev-review/api-key.
-      judge: jevJudge({ fallback: models.xkiro.chatModel('google/gemini-3.7-flash') }),
+      judge: jev,
+    },
+    ultrafast: {
+      // Only the TypeSafe key is needed: Jev picks every operation, target and
+      // typed value (e2e/jev-ultrafast.ts), and `jev` judges waitFor and extract.
+      // The executor blocks assert and never calls a text model.
+      judge: jev,
+      executor: jevUltrafast(),
     },
     fast: {
       model: models.xkiro.chatModel('google/gemini-3.7-flash'),
