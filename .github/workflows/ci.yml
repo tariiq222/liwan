@@ -277,6 +277,8 @@ jobs:
           node: 'false'
           odoo: 'true'
       - run: deploy/ci/restore-drill.sh
+        env:
+          PG_BIN_DIR: /usr/lib/postgresql/16/bin
 
   image:
     needs: scope
