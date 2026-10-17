@@ -86,11 +86,6 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
     :views="views"
     views-in-filters
   >
-    <template #actions>
-      <UButton color="neutral" variant="ghost" :to="{ path: '/tasks', query: { ...returnToQuery(route.fullPath), scope: 'archived' } }" data-testid="tasks-archived-link">
-        {{ t('taskLifecycle.archivedTasks') }}
-      </UButton>
-    </template>
     <!-- Query data may resolve after SSR markup is emitted but before client hydration starts. Mount
          the dynamic surface (and the toolbar in the card header) only after this page has hydrated so
          no control's first click is lost; the toolbar's selects stay disabled until then. One card and one
