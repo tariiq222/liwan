@@ -18,7 +18,7 @@ webvue has four test layers. Pick the cheapest one that proves the change.
 
 ## Fast local loop
 
-Use these while iterating; `npm test` and the Odoo/CI gates stay binding before a merge.
+Use these while iterating; `npm test` and the `ci` workflow stay binding before a merge.
 
 | Command | What it does |
 | --- | --- |
@@ -27,127 +27,70 @@ Use these while iterating; `npm test` and the Odoo/CI gates stay binding before 
 | `npm run wt -- new <area>-<slug>` | New task worktree with its own `node_modules`/`.nuxt`, free ports and a scratch DB name in the git-ignored `.env.worktree` (`tools/wt.py`). |
 | `npm run wt -- status` | One table of every worktree wherever it lives (`*` = outside `.worktrees/`): branch, ahead/behind `main`, merged, dirty, last commit age, `node_modules` size, recorded scratch DB and ports, plus a summary line (`tools/wt.py`). |
 | `npm run wt -- gc [--apply] [--branch codex/<area>-<slug>]` | Dry run by default: lists worktrees+branches merged into `main` with commits of their own, clean, and held by no process, plus the scratch databases of those worktrees that nobody is connected to (`webvue_scratch_e2e`, hand-named and `odoo_test.py` databases are never touched). Removing a worktree also deletes its ignored files (`.env.worktree`, `.nuxt`, `node_modules`). `--apply` runs `git worktree remove`, `git branch -d` and `dropdb`, reports each failure and continues; unmerged, dirty, current, in-use and missing-folder worktrees are skipped. `--apply` needs the owner's authorization. `--branch` limits it to that branch's worktree and scratch database, says why a worktree is kept, and deletes the local branch when it has no worktree and is merged. |
-| `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` step. |
+| `npm run check:semgrep` | Semgrep (`p/python`, `p/typescript`, `p/secrets`) on the source files changed against `main`, tests and generated files excluded (`tools/semgrep_gate.py`). ERROR and secrets findings fail; WARNING is listed only. Needs network for the rulesets, sends no usage data, exits 3 when semgrep or the registry is unavailable. Also runs in the CI `static` stage. |
 | `npm run review:jev -- --task "<what the change does>"` | Advisory Jev quality scores (score and confidence per dimension, plus priorities) for the diff against `main` (`tools/jev_review.mjs`; `--base <ref>`, `--diff <file>`, `--json`, `--previous <file>` for a before/after delta). Needs the local `~/code/jev-review` server and a key in `JEV_API_KEY` or `~/.config/jev-review/api-key`; refuses diffs that touch secret-bearing paths; always exits 0. Never a gate: see `REVIEW.md`. |
-| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` step. |
+| `npm run test:rtl` | Builds Storybook and opens every story in Arabic at 1280 px and 390 px: no page error, `dir=rtl`, no sideways page scroll (`apps/web/e2e-rtl`, config `playwright.rtl.config.ts`). Stories that cannot render are listed with a reason in `KNOWN_BROKEN` and only that list may shrink. Runs in CI as the `rtl-stories` stage. |
 
 Optional local git hooks: `npm run hooks:install` writes `pre-commit` (secret guard, docs and
 architecture policy, plus ui policy and ruff for staged files) and `commit-msg` (the
 `type(scope): subject` rule) into the shared `.git/hooks`, so every worktree gets them. It leaves
 `core.hooksPath` and the existing Git LFS hooks alone, refuses to overwrite a hook that is not
-its own, and `git commit --no-verify` still bypasses it. When the checks pass, `pre-commit` also prints the advisory Jev scores for the staged diff (never blocks; `WEBVUE_SKIP_JEV=1` skips it). The merge gates stay binding.
+its own, and `git commit --no-verify` still bypasses it. When the checks pass, `pre-commit` also prints the advisory Jev scores for the staged diff (never blocks; `WEBVUE_SKIP_JEV=1` skips it). The `ci` workflow stays binding.
 
 `tools/odoo_test.py` builds the template once from the base branch (Odoo commit, release
 module list and the base `odoo-addons` tree form its name, so it is rebuilt when any of them
 changes) and only ever creates, clones or drops `webvue_scratch_*` databases. Stale
 `webvue_scratch_tpl_*` templates are small and can be dropped by hand.
 
-## Local main merge gate
+## CI workflow
 
-After the owner authorizes integration and the candidate diff has been reviewed, use:
+Integration into `main` is a GitHub pull request. The `ci` workflow
+(`.github/workflows/ci.yml`) is the only gate: it runs on pull requests and can be started by hand
+(`workflow_dispatch`, input `full`). Each stage is a job that runs `deploy/ci/<stage>.sh`, so a stage
+can also be run locally from a clean checkout. The aggregate job `ci-result` passes only when every
+selected stage passed. Owner decision 2026-10-17: until the first server deployment every non-draft PR is
+merged automatically with a merge commit by the `automerge` job once `ci-result` has passed (GitHub branch
+protection and auto-merge are unavailable on this private repository's plan). The owner will replace this
+before deployment. The preservation steps in [`agents/integration-rules.md`](agents/integration-rules.md)
+still apply before a PR is opened.
 
-```sh
-npm run merge:main -- codex/<area>-<slug>
-```
-
-The source branch must be committed and its checked-out worktree clean. The canonical
-`main` checkout must have no tracked edits or unfinished Git operations. Untracked main
-files are preserved; a collision with incoming files (including ignored files and symlink
-parents) stops the gate. The command fetches `origin/main` when origin is configured and
-refuses a main that is behind or diverged.
-
-The gate records exact main/source commits, creates an isolated detached worktree and an
-actual no-ff merge commit, and checks that commit. Only the CI stages the change can affect
-run (see "Change-scoped stages" below); every selected stage must complete.
-Only after success and fresh branch/cleanliness checks does it fast-forward main to the
-same existing tested merge commit. This is an explicit local entrypoint for the integration
-rules in [`agents/integration-rules.md`](agents/integration-rules.md); code review and the
-owner's merge authorization remain required.
-
-Reports stay in the ignored `.superpowers/merge-main/<run>/` directory: `merge.json`,
-`checks/report.json`, `checks/pipeline.log` and `checks/runner.log`. After a successful
-promotion the candidate worktree is removed (`candidate_removed` in `merge.json`). Failures,
-conflicts and interruptions before promotion leave main unchanged and keep the
-candidate for diagnosis. If interruption occurs during promotion, inspect `actual_main` in
-`merge.json` (which also records the stage `scope`); the gate records the resulting ref and never resets another writer's work. `merge:main` alone
-never pushes or removes the task worktree. The lock serializes calls to this command; direct
-Git commands can bypass it, so other main writers must coordinate integrations. This is
-not server-enforced branch protection.
+The twelve stages are `static`, `ai-service`, `control-plane`, `vendor-admin`, `odoo`,
+`odoo-tasks-standalone`, `odoo-tasks-bridge`, `upgrade`, `restore-drill`, `image`, `e2e-mock` and
+`rtl-stories`.
 
 ### Change-scoped stages
 
-The twelve stages take about 33 minutes, so the gate runs only the stages the changed files can
-affect. `tools/local_ci.py` lists the files changed between `--base` and `--commit` itself
-(`git diff --name-only --no-renames`, so deletions and both sides of a rename count) and runs the
-matching steps of `.woodpecker.yml`, which stays the single definition of every step. The path-to-stage
-map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static` always runs, and **a path
-with no rule runs all twelve stages** (that includes any `tools/` file not listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
+The twelve stages take about 33 minutes, so a pull request runs only the stages its changed files can
+affect. The path-to-stage map is `RULES` in `tools/ci_scope.py`: the first matching rule wins, `static`
+always runs, and **a path with no rule runs all twelve stages** (that includes any `tools/` file not
+listed in `STATIC_ONLY_TOOLS`). Preview a selection, with the rule behind each changed path:
 
 ```sh
 python3 -B tools/ci_scope.py --base main [--commit codex/<area>-<slug>]
 ```
 
-The preview lists what the branch changed since its merge base with `main`, which is what the
-merge brings in; the gate itself scopes the actual merge commit against `main`.
+A manual `workflow_dispatch` run with `full: true` runs all twelve stages whatever the change. A
+`release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
+twelve stages green. This is a manual rule, no tool enforces it.
 
-`report.json` records `scope` (`mode`, `stages`, `skipped`) and lists every unselected stage as
-`skipped`; the receipt passes only when every selected stage passed. `merge_main.py` derives the same
-scope from the candidate diff and rejects a receipt that claims a smaller one. Add `--full` to
-`merge:main`, `ship` or `check:local` to run all twelve stages whatever the change; a `release/19.0.X.Y.Z`
-tag is cut only from a `main` commit that passed a `--full` gate run. This is a manual rule, no tool
-enforces it: check that `scope.mode` is `full` in that commit's `.superpowers/merge-main/*/merge.json` before tagging.
+### After the merge
 
-## Closing a task: `npm run ship`
+Removing the merged task's worktree, branch and scratch database is `python3 -B tools/wt.py gc`
+(see "Fast local loop"), only with the owner's authorization.
 
-```sh
-npm run ship -- codex/<area>-<slug> [--no-push] [--no-clean] [--full]
-```
+### Stage notes
 
-`ship` runs the merge gate above (an already merged branch continues; `--full` is passed through), then
-`wt gc --apply --branch` for that one task (worktree, branch and scratch database), then
-offers to push `main` to `origin`. Running it is the owner's authorization for the merge and
-the cleanup of that one task. A gate failure stops before any cleanup or push. A cleanup
-failure is reported and makes the exit code 1, but the push step still runs.
+The `odoo` stage covers the release modules; the standalone tasks and tasks/PMO bridge stages cover
+independent installations, each on a disposable PostgreSQL database rather than `odoo19`. The
+control-plane PostgreSQL suites run serially because they share their isolated scratch databases.
+`vendor-admin` has its own prepare, types, tests and build checks. The `image` stage builds and checks
+the deployment image; mock browser tests and RTL stories cover their listed flows, not every possible
+real integration. No paid model calls are required.
 
-The push lists the commits ahead of `origin/main`, refuses a main that is not a fast-forward,
-and asks `Push N commit(s) to origin/main? [y/N]`; only `y` or `yes` typed on a terminal pushes
-(`git push origin refs/heads/main:refs/heads/main`, never forced) and the result is verified
-against `origin/main`. Without a terminal (agents, CI) the push is skipped and
-`git push origin main` is left to the owner. Agents never answer the prompt.
-
-## CI pipeline notes
-
-`.woodpecker.yml` is the single source of twelve local check stages (a gate run executes the subset described under "Change-scoped stages"): `static`, `ai-service`,
-`control-plane`, `vendor-admin`, `odoo`, `odoo-tasks-standalone`, `odoo-tasks-bridge`,
-`upgrade`, `restore-drill`, `image`, `e2e-mock` and `rtl-stories`. Woodpecker CLI executes
-them locally without a CI server, inbound webhook, Cloudflare tunnel or GitHub Actions.
-For a diagnostic run in a disposable clean checkout, use the same runner directly:
-
-```sh
-npm run check:local -- --base <main-sha> --commit <candidate-sha> --report-dir <absolute-new-directory>
-```
-
-The runner requires the local Woodpecker CLI, Node matching `.nvmrc`, Python and the
-pinned Odoo checkout with its Python environment, PostgreSQL client tools, Docker with Compose and
-the pipeline's linters. Docker must already be running; the runner does not start or
-reconfigure it. Dependency installation and image building need network access when
-caches are absent. A missing tool, service failure, failed stage or missing completion
-receipt fails the run. No paid model calls are required.
-
-The runner provides dedicated disposable PostgreSQL and unique run resources rather
-than changing development roles or testing against `odoo19`. Dependencies and generated
-Nuxt output belong to the candidate. The full Odoo stage covers release modules; the
-standalone tasks and tasks/PMO bridge stages cover independent installations. The
-control-plane PostgreSQL suites run serially because they share their isolated scratch
-databases. `vendor-admin` has its own prepare, types, tests and build checks. The image
-stage builds and checks the deployment image; mock browser tests and RTL stories cover
-their listed flows, not every possible real integration.
-
-The upgrade stage reports an explicit absence of a compatible release baseline when
-none exists. That outcome is not evidence of an upgrade having been exercised. Migration
-rules are in [`migrations.md`](migrations.md), and the pinned Odoo source commit is
-[`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT). The separate
-`deploy/woodpecker/image.yml` remains an opt-in pipeline for privileged dind agents.
+The `upgrade` stage reports an explicit absence of a compatible release baseline when none exists. That
+outcome is not evidence of an upgrade having been exercised. Migration rules are in
+[`migrations.md`](migrations.md), and the pinned Odoo source commit is
+[`deploy/odoo/ODOO_COMMIT`](../deploy/odoo/ODOO_COMMIT).
 
 ## Measured timings (2026-10-13, 14-core Mac, warm caches, single runs)
 
@@ -296,7 +239,7 @@ Local evidence only; it does not establish deployment readiness.
 
 ## Continuous release verification
 
-The existing twelve-stage pipeline remains unchanged in scope; the merge gate selects from it as described under "Change-scoped stages". The static stage
+The twelve-stage pipeline remains unchanged in scope; the `ci` workflow selects from it as described under "Change-scoped stages". The static stage
 runs canonical release unit discovery after dependency installation (the real H3
 handler probes load jiti), and shared/dedicated guard regressions. Root deployment
 tests run separately with `PYTHONPATH=deploy` for their existing top-level helper imports, to avoid importing the same package as `releases.*` instead
@@ -309,7 +252,7 @@ node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.te
 ```
 
 Live release acceptance remains an explicit separate local operator command,
-not a thirteenth pipeline stage or a condition that weakens the local merge gate:
+not a thirteenth pipeline stage or a condition that weakens the `ci` workflow:
 
 ```sh
 python3 -m tools.continuous_updates_acceptance.run --config /absolute/operator/local.json --output /absolute/operator/report.json

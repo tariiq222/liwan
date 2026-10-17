@@ -56,9 +56,7 @@ RELEASE_SCHEMA = 3
 # tools are not available). Each list must equal the newest schema-3 release.
 # `python3 -B tools/catalog_check.py --sync-release-copies` rewrites them.
 RELEASE_COPIES = (
-    '.woodpecker.yml',
     'deploy/provision.sh',
-    'deploy/woodpecker/image.yml',
     'tools/shared_acceptance_live/up.sh',
     'deploy/check_isolated.py',
     'deploy/OPERATIONS.md',

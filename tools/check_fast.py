@@ -16,7 +16,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 PY = 'python3'
-FULL_TEST_FILES = ('package.json', 'package-lock.json', '.woodpecker.yml')
+FULL_TEST_FILES = ('package.json', 'package-lock.json', '.github/workflows/ci.yml')
 
 
 class BaseError(Exception):

@@ -1,0 +1,357 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Run all twelve stages instead of the ones the change can affect
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# The Postgres service container is ephemeral and reachable only from its own job, so these are throwaway values.
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: '5432'
+  PGUSER: odoo
+  PGPASSWORD: odoo
+  ODOO_PORT: '8169'
+  TASKS_PORT: '8170'
+  BRIDGE_PORT: '8171'
+  MOCK_PORT: '8172'
+  AI_MOCK_PORT: '8173'
+  WEB_PORT: '3101'
+
+jobs:
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      stages: ${{ steps.select.outputs.stages }}
+      base: ${{ steps.select.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Select the stages
+        id: select
+        env:
+          FULL: ${{ inputs.full }}
+          PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base="${PULL_REQUEST_BASE:-$PUSH_BEFORE}"
+          if [ -z "$base" ] || [ -z "${base//0/}" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            base=origin/main
+          fi
+          if [ "$FULL" = true ]; then
+            stages="$(python3 -B tools/ci_scope.py --full --stages)"
+          else
+            stages="$(python3 -B tools/ci_scope.py --base "$base" --stages)"
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "stages=$stages" >> "$GITHUB_OUTPUT"
+          echo "Base $base, stages $stages"
+
+  static:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'static')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI_BASE_REF: ${{ needs.scope.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          playwright: 'true'
+          python: 'true'
+      - name: Python tools
+        run: python -m pip install --quiet ruff==0.16.3 semgrep==1.170.0
+      - run: deploy/ci/static.sh
+
+  ai-service:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'ai-service')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ODOO_PYTHON: python
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          python: 'true'
+      - run: deploy/ci/ai-service.sh
+
+  control-plane:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'control-plane')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: deploy/ci/control-plane.sh
+
+  vendor-admin:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'vendor-admin')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          npm-ci: 'false'
+      - run: deploy/ci/vendor-admin.sh
+
+  odoo:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'odoo')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          odoo: 'true'
+      - run: deploy/ci/odoo.sh
+
+  odoo-tasks-standalone:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-tasks-standalone')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          odoo: 'true'
+      - run: deploy/ci/odoo-tasks-standalone.sh
+
+  odoo-tasks-bridge:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'odoo-tasks-bridge')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          odoo: 'true'
+      - run: deploy/ci/odoo-tasks-bridge.sh
+
+  upgrade:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'upgrade')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          odoo: 'true'
+      - run: deploy/ci/upgrade.sh
+
+  restore-drill:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'restore-drill')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          node: 'false'
+          odoo: 'true'
+      - run: deploy/ci/restore-drill.sh
+        env:
+          PG_BIN_DIR: /usr/lib/postgresql/16/bin
+
+  image:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'image')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: deploy/ci/image.sh
+
+  e2e-mock:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'e2e-mock')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          playwright: 'true'
+      - run: deploy/ci/e2e-mock.sh
+
+  rtl-stories:
+    needs: scope
+    if: contains(fromJSON(needs.scope.outputs.stages), 'rtl-stories')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          playwright: 'true'
+      - run: deploy/ci/rtl-stories.sh
+
+  ci-result:
+    if: always()
+    needs: [scope, static, ai-service, control-plane, vendor-admin, odoo, odoo-tasks-standalone, odoo-tasks-bridge, upgrade, restore-drill, image, e2e-mock, rtl-stories]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every selected stage to pass
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          # Stages the change cannot affect are skipped; scope and static always run.
+          echo "$NEEDS" | jq -e '.scope.result == "success" and .static.result == "success" and all(.[]; .result == "success" or .result == "skipped")' > /dev/null
+
+  # The repository is private on a plan without branch protection, so the merge is a job here instead of GitHub auto-merge.
+  # Owner decision 2026-10-17: every pull request merges once ci-result passes, until the first server deployment.
+  automerge:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft && needs.ci-result.result == 'success'
+    needs: ci-result
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Merge the pull request with a merge commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --merge
