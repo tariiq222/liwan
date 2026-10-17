@@ -39,8 +39,14 @@ def confirm(count: int) -> bool:
     return answer.strip().lower() in ANSWERS_YES
 
 
-def push_main(repo: Path) -> None:
-    main = merge_main.worktrees(repo)['refs/heads/main']
+def main_checkout(repo: Path) -> Path:
+    main = merge_main.worktrees(repo).get('refs/heads/main')
+    if main is None:
+        raise merge_main.GateError('main must have a local checkout')
+    return main
+
+
+def push_main(main: Path) -> None:
     remote = fetch_origin(main)
     pending = merge_main.git(main, 'log', '--oneline', 'refs/remotes/origin/main..refs/heads/main')
     if not pending:
@@ -76,6 +82,8 @@ def clean_task(branch: str) -> bool:
 
 def ship_branch(repo: Path, branch: str, *, clean: bool, push: bool, full: bool = False) -> int:
     try:
+        # Resolved before cleanup, which may remove the worktree this script runs from.
+        main = main_checkout(repo)
         result = merge_main.merge_branch(repo, branch, full=full)
     except merge_main.GateError as error:
         print(f'ship: merge gate stopped: {error}', file=sys.stderr)
@@ -87,7 +95,7 @@ def ship_branch(repo: Path, branch: str, *, clean: bool, push: bool, full: bool 
     succeeded = clean_task(branch) if clean else True
     if push:
         try:
-            push_main(repo)
+            push_main(main)
         except (merge_main.GateError, ShipError) as error:
             print(f'ship: push failed: {error}', file=sys.stderr)
             return 1
