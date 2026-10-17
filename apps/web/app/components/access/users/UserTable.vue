@@ -18,6 +18,8 @@ const props = defineProps<{
 }>()
 defineEmits<{ retry: [] }>()
 const { t, locale } = useI18n()
+// A row shows the first two roles as pills and the rest as a count; the phone row lists them all.
+const ROLE_PILLS = 2
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
 const rolesOf = (user: AdminUserSummary) => user.assignments.map(assignment => roleLabel(assignment.role)).join('، ') || t('access.users.noRoles')
 const userTo = (user: AdminUserSummary): RouteLocationRaw => props.toFor?.(user) ?? `/settings/users/${user.id}`
@@ -30,7 +32,7 @@ const actionsFor = (user: AdminUserSummary): RowAction[] => [
 ]
 
 const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t) },
+  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'name', header: t('access.users.columns.name') },
   { accessorKey: 'login', header: t('access.users.columns.loginName') },
   { accessorKey: 'employee', header: t('access.users.columns.employee') },
@@ -41,26 +43,41 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
 </script>
 
 <template>
+  <SharedEmptyState v-if="!loading && !error && !users.length" class="m-(--webvue-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
+    v-else
+    bare
     :rows="users" :columns="columns" row-key="id" :row-to="userTo" :loading="loading" :error="error"
-    :empty-text="emptyText" :caption="t('access.users.title')" @retry="$emit('retry')"
+    :caption="t('access.users.title')" @retry="$emit('retry')"
   >
     <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
     <template #name-cell="{ row }">
-      <NuxtLink :to="userTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+      <div class="flex min-w-0 items-center gap-3">
+        <SharedPersonAvatar :people="[{ id: row.original.id, name: row.original.name }]" />
+        <NuxtLink :to="userTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name">{{ row.original.name }}</NuxtLink>
+      </div>
     </template>
     <template #login-cell="{ row }"><bdi dir="ltr">{{ row.original.login }}</bdi></template>
     <template #employee-cell="{ row }">{{ row.original.employee?.name ?? t('access.users.noEmployee') }}</template>
-    <template #roles-cell="{ row }">{{ rolesOf(row.original) }}</template>
+    <template #roles-cell="{ row }">
+      <div v-if="row.original.assignments.length" class="flex flex-wrap items-center gap-1.5">
+        <SharedStatusBadge v-for="assignment in row.original.assignments.slice(0, ROLE_PILLS)" :key="assignment.id" tone="neutral" size="sm" :label="roleLabel(assignment.role)" />
+        <span v-if="row.original.assignments.length > ROLE_PILLS" class="text-xs font-semibold text-muted tabular-nums">+{{ row.original.assignments.length - ROLE_PILLS }}</span>
+      </div>
+      <span v-else class="text-muted">{{ t('access.users.noRoles') }}</span>
+    </template>
     <template #active-cell="{ row }"><SharedStatusBadge :tone="badge(row.original).tone" :label="t(badge(row.original).labelKey)" :icon="badge(row.original).icon" /></template>
     <template #actions-cell="{ row }">
       <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.users.rowActions', { name: row.original.name })" /></div>
     </template>
     <template #mobile-row="{ row }">
       <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
-          <NuxtLink :to="userTo(row)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
+        <div class="flex min-w-0 items-center gap-3">
+          <SharedPersonAvatar :people="[{ id: row.id, name: row.name }]" />
+          <div class="min-w-0">
+            <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
+            <NuxtLink :to="userTo(row)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
+          </div>
         </div>
         <SharedStatusBadge :tone="badge(row).tone" :label="t(badge(row).labelKey)" :icon="badge(row).icon" />
       </div>

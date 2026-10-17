@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AuditAction } from '@webvue/contracts'
+import { auditDiffLines } from '@/components/access/auditDiff'
 import { adminListQuery, adminPathWithQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
 const { t } = useI18n()
@@ -12,6 +13,7 @@ const returnTo = computed(() => {
 const forbidden = computed(() => !can('access.audit.read'))
 const event = useAdminAuditEvent(computed(() => validId.value ? id.value : null), computed(() => !forbidden.value))
 const pageError = computed(() => event.error.value ?? (validId.value || forbidden.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
+const diff = computed(() => auditDiffLines(event.data.value?.before, event.data.value?.after))
 const actionLabels: Record<AuditAction, string> = {
   'user.granted': 'access.audit.actions.userGranted', 'user.roles_changed': 'access.audit.actions.userRolesChanged', 'user.disabled': 'access.audit.actions.userDisabled', 'user.reactivated': 'access.audit.actions.userReactivated', 'user.password_reset': 'access.audit.actions.userPasswordReset', 'employee.archived_access_disabled': 'access.audit.actions.employeeArchived', 'role.created': 'access.audit.actions.roleCreated', 'role.updated': 'access.audit.actions.roleUpdated', 'role.disabled': 'access.audit.actions.roleDisabled', 'role.enabled': 'access.audit.actions.roleEnabled', 'role.deleted': 'access.audit.actions.roleDeleted', 'migration.legacy_admin_preserved': 'access.audit.actions.legacyAdminPreserved',
 }
@@ -29,10 +31,11 @@ const actionLabels: Record<AuditAction, string> = {
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :empty="!event.data.value" :empty-text="t('access.notFound')">
       <template v-if="event.data.value">
-        <SharedRecordSection v-for="side in (['before', 'after'] as const)" :id="side" :key="side" :title="t(`access.audit.${side}`)">
-          <div class="overflow-hidden rounded-card bg-default ring ring-default">
-            <pre class="overflow-x-auto p-3 text-xs leading-6" dir="ltr">{{ JSON.stringify(event.data.value[side], null, 2) }}</pre>
-          </div>
+        <SharedRecordSection v-for="side in (['before', 'after'] as const)" :id="side" :key="side" variant="panel" :title="t(`access.audit.${side}`)">
+          <template #actions>
+            <SharedStatusBadge size="sm" :tone="side === 'before' ? 'error' : 'success'" :label="t(side === 'before' ? 'access.roles.removed' : 'access.roles.added')" />
+          </template>
+          <pre class="overflow-x-auto rounded-control bg-elevated/40 py-2 text-xs leading-6" dir="ltr"><span v-for="(line, index) in diff[side]" :key="index" class="block px-3" :class="line.changed ? (side === 'before' ? 'bg-error/10 text-error' : 'bg-success/10 text-success') : ''">{{ line.text }}</span></pre>
         </SharedRecordSection>
       </template>
     </SharedPageState>

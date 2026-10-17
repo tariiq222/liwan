@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { hrDepartmentBack, hrDepartmentContext } from '@/utils/hrReturnTo'
+import HrIdentityCard from '@/components/hr/HrIdentityCard.vue'
 import DocumentList from '@/components/hr/DocumentList.vue'
 import { useHrDepartment } from '@/composables/useHrDepartments'
 const route = useRoute()
@@ -29,13 +30,19 @@ const editTo = computed(() => ({ path: `/hr/departments/${id.value}/edit`, query
     <template v-if="department && can('hr.departments.manage')" #actions>
       <UButton color="primary" :disabled="!hydrated" :to="editTo" :label="t('hr.depts.edit')" @click="!hydrated && $event.preventDefault()" />
     </template>
+    <HrIdentityCard v-if="department" :id="department.id" :name="department.name" :subtitle="department.manager?.name || t('hr.depts.noManager')">
+      <template #badge>
+        <SharedStatusBadge size="sm" tone="neutral" :label="t('hr.depts.employeeReason', { count: department.employee_count }, department.employee_count)" />
+      </template>
+    </HrIdentityCard>
     <SharedRecordSection v-if="department && can('hr.documents.read')" :title="t('hr.depts.detail')">
       <DocumentList :department-id="id" :can-write="can('hr.documents.manage')" />
     </SharedRecordSection>
-    <template v-if="department" #summary>
-      <SharedPropertiesPanel :title="t('hr.card.overview')">
+    <template v-if="department" #aside>
+      <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('hr.tabs.employees')" :value="department.employee_count" />
         <SharedPropertyRow :label="t('hr.depts.manager')" :value="department.manager?.name || t('hr.depts.noManager')" />
+        <SharedPropertyRow :label="t('hr.depts.children')" :value="department.child_ids.length" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>

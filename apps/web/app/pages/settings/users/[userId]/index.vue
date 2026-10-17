@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { accessBadge } from '@/components/access/accessBadge'
-import type { PermissionDefinition } from '@webvue/contracts'
+import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import CapabilityGroups from '@/components/access/users/CapabilityGroups.vue'
 import { adminListQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
 const router = useRouter()
@@ -17,9 +18,7 @@ const forbidden = computed(() => !can('access.users.read'))
 const query = useAdminUser(computed(() => validId.value ? id.value : null), computed(() => !forbidden.value))
 const pageError = computed(() => query.error.value ?? (validId.value || forbidden.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const catalog = useAdminPermissionCatalog(computed(() => !forbidden.value && can('access.roles.read')))
-const permissionLabels = computed(() => new Map<string, PermissionDefinition['label']>((catalog.data.value?.items ?? []).map((permission) => [permission.key, permission.label])))
-const permissionLabel = (key: string) => permissionLabels.value.get(key)?.[locale.value === 'ar' ? 'ar' : 'en'] ?? permissionLabels.value.get(key)?.ar ?? t('access.roles.unknownPermission')
-const sourceLabel = (source: { role: { name: { ar: string; en: string | null } } }) => source.role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? source.role.name.ar
+const badge = computed(() => accessBadge({ active: query.data.value?.active ?? false, protected: query.data.value?.protected }))
 const tabs = computed(() => {
   const user = query.data.value
   const actions = user?.allowed_actions ?? []
@@ -48,31 +47,38 @@ const tabs = computed(() => {
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :empty="!query.data.value" :empty-text="t('access.notFound')">
       <template v-if="query.data.value">
-        <SharedRecordSection id="roles" :title="t('access.users.rolesAndScopes')">
-          <ul class="space-y-2 text-sm">
-            <li v-for="assignment in query.data.value.assignments" :key="assignment.id">
-              <span class="font-medium">{{ assignment.role.name[locale === 'ar' ? 'ar' : 'en'] ?? assignment.role.name.ar }}</span>
-              <span class="block text-xs text-muted">{{ assignment.scope.name }}</span>
-            </li>
-          </ul>
-          <p v-if="!query.data.value.assignments.length" class="text-sm text-muted">{{ t('access.users.noRoles') }}</p>
+        <SharedRecordSection variant="panel" data-slot="identity-card">
+          <div class="flex items-center gap-4">
+            <UAvatar v-bind="avatarProps(query.data.value.name, query.data.value.id)" size="xl" />
+            <div class="min-w-0 flex-1 space-y-1.5">
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="truncate text-base font-semibold text-highlighted">{{ query.data.value.name }}</p>
+                <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" />
+              </div>
+              <p class="truncate text-sm text-muted"><bdi dir="ltr">{{ query.data.value.login }}</bdi> · {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</p>
+            </div>
+          </div>
         </SharedRecordSection>
-        <SharedRecordSection id="capabilities" :title="t('access.users.capabilities')">
-          <ul class="space-y-2 text-sm">
-            <li v-for="capability in query.data.value.capabilities" :key="capability.key">
-              {{ permissionLabel(capability.key) }}
-              <span v-if="capability.sources.length" class="block text-xs text-muted">{{ capability.sources.map(sourceLabel).join('، ') }}</span>
-            </li>
+        <SharedRecordSection id="roles" variant="panel" :title="t('access.users.rolesAndScopes')">
+          <ul v-if="query.data.value.assignments.length" class="grid gap-2">
+            <SharedSubCard v-for="assignment in query.data.value.assignments" :key="assignment.id" as="li" class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-sm font-semibold text-highlighted">{{ assignment.role.name[locale === 'ar' ? 'ar' : 'en'] ?? assignment.role.name.ar }}</span>
+              <SharedStatusBadge tone="neutral" size="sm" :label="assignment.scope.name" />
+            </SharedSubCard>
           </ul>
+          <p v-else class="text-sm text-muted">{{ t('access.users.noRoles') }}</p>
+        </SharedRecordSection>
+        <SharedRecordSection id="capabilities" variant="panel" :title="t('access.users.capabilities')">
+          <CapabilityGroups :capabilities="query.data.value.capabilities" :permissions="catalog.data.value?.items" />
         </SharedRecordSection>
       </template>
     </SharedPageState>
-    <template v-if="query.data.value && !forbidden" #summary>
+    <template v-if="query.data.value && !forbidden" #aside>
       <SharedPropertiesPanel id="account" :title="t('access.users.account')">
         <SharedPropertyRow :label="t('access.users.loginName')"><bdi dir="ltr">{{ query.data.value.login }}</bdi></SharedPropertyRow>
         <SharedPropertyRow :label="t('access.users.employee')" :value="query.data.value.employee?.name ?? t('access.users.noEmployee')" />
         <SharedPropertyRow :label="t('access.users.columns.status')">
-          <SharedStatusBadge :tone="accessBadge({ active: query.data.value.active, protected: query.data.value.protected }).tone" :label="t(accessBadge({ active: query.data.value.active, protected: query.data.value.protected }).labelKey)" :icon="accessBadge({ active: query.data.value.active, protected: query.data.value.protected }).icon" />
+          <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" />
         </SharedPropertyRow>
       </SharedPropertiesPanel>
     </template>

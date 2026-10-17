@@ -25,6 +25,8 @@ const targetRoles = useAdminRoles({}, computed(() => !forbidden.value && can('ac
 const targetOptions = computed(() => filters.target_type === 'role' ? (targetRoles.data.value?.items ?? []).map((role) => ({ id: role.id, name: role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar })) : (actors.data.value?.items ?? []).map((user) => ({ id: user.id, name: user.name })))
 const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ?? ADMIN_PAGE_SIZE)) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? ADMIN_PAGE_SIZE))))
+const items = computed(() => query.data.value?.items ?? [])
+const total = computed(() => query.data.value?.total ?? 0)
 const activeFilterCount = computed(() => Number(Boolean(filters.from)) + Number(Boolean(filters.to)) + Number(Boolean(filters.actor_id)) + Number(Boolean(filters.target_type)) + Number(Boolean(filters.target_id)) + Number(Boolean(filters.action)))
 function updateFilters() { filters.offset = 0; void router.replace({ query: { ...(filters.from ? { from: filters.from } : {}), ...(filters.to ? { to: filters.to } : {}), ...(filters.actor_id ? { actor_id: filters.actor_id } : {}), ...(filters.target_type ? { target_type: filters.target_type } : {}), ...(filters.target_id ? { target_id: filters.target_id } : {}), ...(filters.action ? { action: filters.action } : {}) } }) }
 function clearFilters() { filters.from = undefined; filters.to = undefined; filters.actor_id = undefined; filters.target_type = undefined; filters.target_id = undefined; filters.action = undefined; updateFilters() }
@@ -42,48 +44,38 @@ function onTargetIdChange(value: unknown) { filters.target_id = value && value !
 function onActionChange(value: unknown) { filters.action = value && value !== allValue ? String(value) : undefined; updateFilters() }
 function auditTo(id: number) { return { path: `/settings/access-log/${id}`, query: route.query } }
 function setDate(key: 'from' | 'to', value: string | null) { filters[key] = value || undefined; updateFilters() }
-function clearDate(key: 'from' | 'to') { setDate(key, null) }
 </script>
 
 <template>
   <SharedListPage data-testid="settings-layout" :title="t('access.audit.title')" :description="forbidden ? undefined : t('access.audit.description')">
-    <template v-if="!forbidden" #filters>
-      <div id="filters" class="w-full min-w-0">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #default>
-            <SharedFilterField :label="t('access.audit.filters.from')" for="access-log-from"><SharedDateField id="access-log-from" :model-value="filters.from ?? null" :max-value="filters.to ?? null" :disabled="!hydrated" @update:model-value="setDate('from', $event)" /></SharedFilterField>
-            <SharedFilterField :label="t('access.audit.filters.to')" for="access-log-to"><SharedDateField id="access-log-to" :model-value="filters.to ?? null" :min-value="filters.from ?? null" :disabled="!hydrated" @update:model-value="setDate('to', $event)" /></SharedFilterField>
-            <SharedFilterField :label="t('access.audit.columns.actor')" for="access-log-actor"><USelect id="access-log-actor" :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :items="actorOptions" class="w-full" :disabled="!hydrated || actors.isLoading.value" @update:model-value="onActorChange" /></SharedFilterField>
-            <SharedFilterChoice :label="t('access.roles.columns.type')" :items="targetTypeOptions" :model-value="filters.target_type ?? allValue" :disabled="!hydrated" @update:model-value="onTargetTypeChange" />
-            <SharedFilterField :label="t('access.audit.columns.target')" for="access-log-target"><USelect id="access-log-target" :model-value="filters.target_id ? String(filters.target_id) : allValue" :items="targetIdOptions" class="w-full" :disabled="!hydrated || !filters.target_type" @update:model-value="onTargetIdChange" /></SharedFilterField>
-            <SharedFilterField :label="t('access.audit.columns.action')" for="access-log-action"><USelect id="access-log-action" :model-value="filters.action ?? allValue" :items="actionSelectOptions" class="w-full" :disabled="!hydrated" @update:model-value="onActionChange" /></SharedFilterField>
-          </template>
-          <template #active>
-            <div v-if="activeFilterCount" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="filters.from" :label="`${t('access.audit.filters.from')}: ${filters.from}`" @remove="clearDate('from')" />
-              <SharedFilterChip v-if="filters.to" :label="`${t('access.audit.filters.to')}: ${filters.to}`" @remove="clearDate('to')" />
-              <SharedFilterChip v-if="filters.actor_id" :label="actors.data.value?.items.find(actor => actor.id === filters.actor_id)?.name ?? t('access.audit.columns.actor')" @remove="onActorChange(allValue)" />
-              <SharedFilterChip v-if="filters.target_type" :label="filters.target_type === 'role' ? t('access.roles.title') : t('access.users.title')" @remove="onTargetTypeChange(allValue)" />
-              <SharedFilterChip v-if="filters.target_id" :label="targetOptions.find(target => target.id === filters.target_id)?.name ?? t('access.audit.columns.target')" @remove="onTargetIdChange(allValue)" />
-              <SharedFilterChip v-if="filters.action" :label="t(actionLabels[filters.action as keyof typeof actionLabels])" @remove="onActionChange(allValue)" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-    </template>
-
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <div v-else class="grid gap-3">
+    <SharedListCard v-else>
+      <template #filters>
+        <div id="filters" class="w-full min-w-0">
+          <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+            <template #default>
+              <SharedFilterField :label="t('access.audit.filters.from')" for="access-log-from"><SharedDateField id="access-log-from" :model-value="filters.from ?? null" :max-value="filters.to ?? null" :disabled="!hydrated" @update:model-value="setDate('from', $event)" /></SharedFilterField>
+              <SharedFilterField :label="t('access.audit.filters.to')" for="access-log-to"><SharedDateField id="access-log-to" :model-value="filters.to ?? null" :min-value="filters.from ?? null" :disabled="!hydrated" @update:model-value="setDate('to', $event)" /></SharedFilterField>
+              <USelect class="w-full md:w-48" :items="actorOptions" :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :aria-label="t('access.audit.columns.actor')" :disabled="!hydrated || actors.isLoading.value" @update:model-value="onActorChange" />
+              <USelect class="w-full md:w-40" :items="targetTypeOptions" :model-value="filters.target_type ?? allValue" :aria-label="t('access.roles.columns.type')" :disabled="!hydrated" @update:model-value="onTargetTypeChange" />
+              <USelect class="w-full md:w-48" :items="targetIdOptions" :model-value="filters.target_id ? String(filters.target_id) : allValue" :aria-label="t('access.audit.columns.target')" :disabled="!hydrated || !filters.target_type" @update:model-value="onTargetIdChange" />
+              <USelect class="w-full md:w-48" :items="actionSelectOptions" :model-value="filters.action ?? allValue" :aria-label="t('access.audit.columns.action')" :disabled="!hydrated" @update:model-value="onActionChange" />
+            </template>
+          </FilterBar>
+        </div>
+      </template>
       <AuditTable
         id="results"
-        :events="query.data.value?.items ?? []"
+        :events="items"
         :loading="query.isLoading.value"
         :error="query.error.value"
         :empty-text="t('access.audit.empty')"
         :to-for="auditTo"
         @retry="query.refetch"
       />
-      <SharedPagination :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
-    </div>
+      <template v-if="query.data.value && items.length" #footer>
+        <SharedListFooter :count-label="t('access.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
+      </template>
+    </SharedListCard>
   </SharedListPage>
 </template>

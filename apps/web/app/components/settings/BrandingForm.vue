@@ -92,23 +92,22 @@ onBeforeUnmount(() => update.reset())
   <div v-else-if="branding" class="webvue-settings-branding">
     <form class="webvue-form" data-testid="branding-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <p data-testid="branding-managed-identity" class="text-sm text-muted">
-        {{ t('settings.branding.managedIdentity') }}
-      </p>
-      <div class="space-y-2">
-        <label for="branding-color">{{ t('settings.branding.color') }}</label>
-        <div class="flex items-center gap-2">
-          <UInput id="branding-color" v-model="color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!primaryValid" :disabled="!hydrated || isBusy" @update:model-value="markDirty" />
-          <UPopover>
-            <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="!hydrated || isBusy">
-              <span class="size-5 rounded border border-default" :style="{ backgroundColor: swatchColor }" />
-            </UButton>
-            <template #content><UColorPicker v-model="color" class="p-3" :disabled="isBusy" @update:model-value="markDirty" /></template>
-          </UPopover>
-        </div>
-        <p class="text-sm text-muted">{{ t('settings.branding.primaryHint') }}</p>
-        <p v-if="color && !primaryValid" role="alert" class="text-sm text-error">{{ t('settings.branding.errors.invalidColor') }}</p>
-        <div class="flex flex-wrap gap-2" :aria-label="t('settings.branding.presets.label')">
+      <SharedFormSection panel :title="t('settings.branding.color')">
+        <p data-testid="branding-managed-identity" class="mb-5 text-sm text-muted">
+          {{ t('settings.branding.managedIdentity') }}
+        </p>
+        <UFormField name="branding-color" :label="t('settings.branding.color')" :help="t('settings.branding.primaryHint')" :error="color && !primaryValid ? t('settings.branding.errors.invalidColor') : undefined">
+          <div class="flex items-center gap-2">
+            <UInput id="branding-color" v-model="color" data-testid="branding-color" dir="ltr" class="min-w-0 flex-1 font-mono" :aria-invalid="!primaryValid" :disabled="!hydrated || isBusy" @update:model-value="markDirty" />
+            <UPopover>
+              <UButton type="button" color="neutral" variant="outline" square data-testid="branding-color-picker" :aria-label="t('settings.branding.colorPicker')" :disabled="!hydrated || isBusy">
+                <span class="size-5 rounded border border-default" :style="{ backgroundColor: swatchColor }" />
+              </UButton>
+              <template #content><UColorPicker v-model="color" class="p-3" :disabled="isBusy" @update:model-value="markDirty" /></template>
+            </UPopover>
+          </div>
+        </UFormField>
+        <div class="mt-3 flex flex-wrap gap-2" role="group" :aria-label="t('settings.branding.presets.label')">
           <UButton
             v-for="preset in PRESETS"
             :key="preset.key"
@@ -123,17 +122,17 @@ onBeforeUnmount(() => update.reset())
             {{ t(preset.labelKey) }}
           </UButton>
         </div>
-      </div>
+      </SharedFormSection>
       <UAlert v-if="validationError" role="alert" color="error" variant="subtle" :title="validationError" />
-      <SharedFormActions >
-        <UButton type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
-          {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
+      <SharedFormActions>
+        <UButton type="button" color="neutral" variant="ghost" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
+          {{ t('settings.branding.resetDefault') }}
         </UButton>
         <UButton type="button" color="neutral" variant="outline" data-testid="branding-cancel" :disabled="!hydrated || isBusy" @click="cancel">
           {{ t('settings.branding.cancel') }}
         </UButton>
-        <UButton type="button" color="neutral" variant="outline" data-testid="branding-default" :disabled="!hydrated || isBusy" @click="resetDefault">
-          {{ t('settings.branding.resetDefault') }}
+        <UButton type="submit" data-testid="branding-submit" :aria-invalid="!colorValid" :disabled="!hydrated || isBusy || !colorValid">
+          {{ update.isPending.value ? t('settings.branding.saving') : t('settings.branding.save') }}
         </UButton>
       </SharedFormActions>
     </form>

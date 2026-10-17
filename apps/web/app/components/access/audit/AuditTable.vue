@@ -36,7 +36,7 @@ const eventTo = (event: AccessAuditSummary) => props.toFor(event.id)
 const when = (event: AccessAuditSummary) => formatWebVueDateTime(event.occurred_at, locale.value)
 const actionsFor = (event: AccessAuditSummary) => [{ label: t('access.view'), to: eventTo(event) }]
 const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t) },
+  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'occurred_at', header: t('access.audit.columns.time') },
   { accessorKey: 'actor', header: t('access.audit.columns.actor') },
   { accessorKey: 'action', header: t('access.audit.columns.action') },
@@ -47,18 +47,21 @@ const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
 </script>
 
 <template>
+  <SharedEmptyState v-if="!loading && !error && !events.length" class="m-(--webvue-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
+    v-else
+    bare
     :rows="events" :columns="columns" row-key="id" :row-to="eventTo" :loading="loading" :error="error"
-    :empty-text="emptyText" :caption="t('access.audit.title')" @retry="$emit('retry')"
+    :caption="t('access.audit.title')" @retry="$emit('retry')"
   >
     <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
     <template #occurred_at-cell="{ row }">
-      <NuxtLink :to="eventTo(row.original)" dir="ltr" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="`${t('access.audit.detailTitle')}: ${when(row.original)}`">{{ when(row.original) }}</NuxtLink>
+      <NuxtLink :to="eventTo(row.original)" dir="ltr" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :aria-label="`${t('access.audit.detailTitle')}: ${when(row.original)}`">{{ when(row.original) }}</NuxtLink>
     </template>
     <template #actor-cell="{ row }">{{ row.original.actor?.name ?? t('access.audit.system') }}</template>
     <template #action-cell="{ row }">{{ actionLabel(row.original.action) }}</template>
     <template #target-cell="{ row }">{{ row.original.target.name }}</template>
-    <template #result-cell><UBadge color="success" variant="subtle">{{ t('access.audit.succeeded') }}</UBadge></template>
+    <template #result-cell><SharedStatusBadge tone="success" :label="t('access.audit.succeeded')" /></template>
     <template #actions-cell="{ row }">
       <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.audit.rowActions', { name: actionLabel(row.original.action) })" /></div>
     </template>
@@ -66,9 +69,9 @@ const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
-          <NuxtLink :to="eventTo(row)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ actionLabel(row.action) }}</NuxtLink>
+          <NuxtLink :to="eventTo(row)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ actionLabel(row.action) }}</NuxtLink>
         </div>
-        <UBadge color="success" variant="subtle">{{ t('access.audit.succeeded') }}</UBadge>
+        <SharedStatusBadge tone="success" :label="t('access.audit.succeeded')" />
       </div>
       <dl class="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
         <div><dt>{{ t('access.audit.columns.time') }}</dt><dd dir="ltr">{{ when(row) }}</dd></div>

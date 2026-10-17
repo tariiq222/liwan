@@ -41,12 +41,13 @@ const departments = useHrDepartments()
 const departmentOptions = computed(() => [{ value: 'all', label: t('hr.docs.allDepartments') }, ...(departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name }))])
 const page = computed(() => Math.floor(committedListParams.value.offset / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
-const selectedDepartment = computed(() => departments.data.value?.items.find(department => department.id === departmentId.value))
-const hasActiveFilters = computed(() => Boolean(search.value.trim() || departmentId.value))
+const items = computed(() => query.data.value?.items ?? [])
+const total = computed(() => query.data.value?.total ?? 0)
+const showEmpty = computed(() => !query.isLoading.value && !query.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(Boolean(departmentId.value)))
 
 const columns = computed<TableColumn<HrDocument>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t) },
+  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'name', header: t('hr.docs.columns.name') },
   { accessorKey: 'department', header: t('hr.docs.columns.department') },
 ])
@@ -171,49 +172,59 @@ function openLiveCreate(event: MouseEvent) {
     create-test-id="hr-document-new"
     @click.capture="openLiveCreate"
   >
-    <template #filters>
-      <div class="w-full min-w-0" data-testid="documents-toolbar">
-        <FilterBar class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
-          <template #search>
-            <UInput v-model="search" :disabled="!hydrated" :placeholder="t('hr.docs.search')" :aria-label="t('hr.docs.search')" icon="i-lucide-search" class="min-w-52" @change="updateFilters" />
-          </template>
-          <template v-if="can('hr.departments.read')" #default>
-            <SharedFilterField :label="t('hr.docs.department')" for="hr-documents-department">
-              <USelect id="hr-documents-department" :model-value="departmentId ? String(departmentId) : 'all'" :items="departmentOptions" class="w-full" :disabled="!hydrated" @update:model-value="onDepartmentChange" />
-            </SharedFilterField>
-          </template>
-          <template #active>
-            <div v-if="hasActiveFilters" class="flex flex-wrap items-center gap-2">
-              <SharedFilterChip v-if="search.trim()" :label="t('hr.directory.searchValue', { value: search })" @remove="clearSearch" />
-              <SharedFilterChip v-if="selectedDepartment" :label="selectedDepartment.name" @remove="onDepartmentChange('all')" />
-            </div>
-          </template>
-        </FilterBar>
-      </div>
-    </template>
-    <SharedDataTable
-      :rows="query.data.value?.items ?? []"
-      :columns="columns"
-      row-key="id"
-      :row-to="documentTo"
-      :loading="query.isLoading.value"
-      :error="query.error.value"
-      :empty-text="t('hr.docs.empty')"
-      :caption="t('hr.docs.title')"
-      :page="page"
-      :pages="pages"
-      @update:page="setPage"
-      @retry="query.refetch"
-    >
-      <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-      <template #name-cell="{ row }"><NuxtLink :to="documentTo(row.original)" @click.capture="openLiveDocument($event, row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink></template>
-      <template #department-cell="{ row }"><span class="text-muted">{{ row.original.department.name }}</span></template>
-      <template #mobile-row="{ row }">
-        <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
-        <NuxtLink :to="documentTo(row)" @click.capture="openLiveDocument($event, row)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.name }}</NuxtLink>
-        <p class="mt-1 text-xs text-muted">{{ row.department.name }}</p>
+    <SharedListCard>
+      <template #filters>
+        <div class="w-full min-w-0" data-testid="documents-toolbar">
+          <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+            <template #search>
+              <UInput v-model="search" :disabled="!hydrated" :placeholder="t('hr.docs.search')" :aria-label="t('hr.docs.search')" icon="i-lucide-search" class="min-w-48 flex-1" @change="updateFilters">
+                <template v-if="search" #trailing>
+                  <UButton type="button" color="neutral" variant="link" size="sm" icon="i-lucide-x" :aria-label="t('hr.docs.clearSearch')" class="-me-1" @click="clearSearch" />
+                </template>
+              </UInput>
+            </template>
+            <template v-if="can('hr.departments.read')" #default>
+              <USelect
+                id="hr-documents-department"
+                class="w-full md:w-48"
+                :model-value="departmentId ? String(departmentId) : 'all'"
+                :items="departmentOptions"
+                :aria-label="t('hr.docs.department')"
+                :disabled="!hydrated"
+                @update:model-value="onDepartmentChange"
+              />
+            </template>
+          </FilterBar>
+        </div>
       </template>
-    </SharedDataTable>
+      <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
+        <SharedEmptyState v-if="showEmpty" class="m-(--webvue-card-pad-dense)" :title="t('hr.docs.empty')" />
+        <SharedDataTable
+          v-else
+          bare
+          :rows="items"
+          :columns="columns"
+          row-key="id"
+          :row-to="documentTo"
+          :loading="query.isLoading.value"
+          :caption="t('hr.docs.title')"
+        >
+          <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
+          <template #name-cell="{ row }">
+            <NuxtLink :to="documentTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="row.original.name" @click.capture="openLiveDocument($event, row.original)">{{ row.original.name }}</NuxtLink>
+          </template>
+          <template #department-cell="{ row }"><SharedStatusBadge tone="neutral" size="sm" :label="row.original.department.name" /></template>
+          <template #mobile-row="{ row }">
+            <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
+            <NuxtLink :to="documentTo(row)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.capture="openLiveDocument($event, row)">{{ row.name }}</NuxtLink>
+            <SharedStatusBadge class="mt-2" tone="neutral" size="sm" :label="row.department.name" />
+          </template>
+        </SharedDataTable>
+      </SharedPageState>
+      <template v-if="query.data.value && !showEmpty" #footer>
+        <SharedListFooter :count-label="t('hr.docs.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="query.isFetching.value" @update:page="setPage" />
+      </template>
+    </SharedListCard>
   </SharedListPage>
   <NuxtPage />
 </template>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
 import type { AdminUserDetail, CapabilitySource, EffectiveCapability, PermissionDefinition, RoleSummary } from '@webvue/contracts'
 import { ApiError } from '@/composables/useApi'
 import { useAdminRoleDetails } from '@/composables/useAdminRoles'
 import { useUpdateAdminUserAccess } from '@/composables/useAdminUsers'
+import CapabilityGroups from '@/components/access/users/CapabilityGroups.vue'
 import { permissionDiff } from '@/components/access/permissionDiff'
 import { builtinRoleDescription } from '@/utils/labelFallback'
 
-const props = defineProps<{ user: AdminUserDetail; roles: RoleSummary[]; permissions?: PermissionDefinition[]; permissionsLoading?: boolean; permissionsError?: unknown }>()
+const props = defineProps<{ user: AdminUserDetail; roles: RoleSummary[]; permissions?: PermissionDefinition[]; permissionsLoading?: boolean; permissionsError?: unknown; cancelTo?: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: []; conflict: [ApiError]; retry: [] }>()
 const { t, te, locale } = useI18n()
 const hydrated = useHydrated()
@@ -22,11 +24,6 @@ const canEdit = computed(() => hydrated.value && companyId.value !== null && pro
 const permissionLabels = computed(() => new Map<string, string>((props.permissions ?? []).map((permission) => [permission.key, permission.label[locale.value === 'ar' ? 'ar' : 'en'] ?? permission.label.ar])))
 const capabilityLabel = (key: string) => permissionLabels.value.get(key) ?? t('access.roles.unknownPermission')
 const roleLabel = (role: { name: { ar: string; en: string | null } }) => role.name[locale.value === 'ar' ? 'ar' : 'en'] ?? role.name.ar
-const currentCapabilities = computed(() => props.user.capabilities.map((capability) => ({
-  key: capability.key,
-  label: capabilityLabel(capability.key),
-  sources: capability.sources.map((source) => roleLabel(source.role)).join('، '),
-})))
 const originalRoleIds = computed(() => props.user.assignments.map((assignment) => assignment.role.id).filter((id): id is number => id !== null))
 const previewRoleIds = computed(() => [...new Set([...originalRoleIds.value, ...selectedRoleIds.value])])
 const roleDetails = useAdminRoleDetails(previewRoleIds, computed(() => hydrated.value && canEdit.value))
@@ -71,6 +68,15 @@ const afterCapabilities = computed<EffectiveCapability[]>(() => {
   return [...byKey.values()]
 })
 const capabilityChanges = computed(() => permissionDiff(beforeCapabilities.value, afterCapabilities.value))
+const changeGroups = computed(() => {
+  const withSources = (item: EffectiveCapability) => `${capabilityLabel(item.key)} · ${item.sources.map((source) => roleLabel(source.role)).join('، ')}`
+  return [
+    { key: 'added', title: t('access.roles.added'), tone: 'success' as const, items: capabilityChanges.value.added.map((item) => ({ key: item.key, label: capabilityLabel(item.key) })) },
+    { key: 'removed', title: t('access.roles.removed'), tone: 'error' as const, items: capabilityChanges.value.removed.map((item) => ({ key: item.key, label: capabilityLabel(item.key) })) },
+    { key: 'retained', title: t('access.roles.retained'), tone: 'neutral' as const, items: capabilityChanges.value.retained.map((item) => ({ key: item.key, label: item.sources.length ? withSources(item) : capabilityLabel(item.key) })) },
+  ].filter((group) => group.items.length)
+})
+const hint = computed(() => props.user.protected ? t('access.protectedUser') : !canEdit.value ? t('access.readOnly') : '')
 const addingAccessAdminRole = computed(() => (roleDetails.data.value ?? []).some((role) => selectedRoleIds.value.includes(role.id) && !originalRoleIds.value.includes(role.id) && ['system_admin', 'access_admin'].includes(role.key)))
 function retryPreview() {
   emit('retry')
@@ -115,10 +121,10 @@ async function save() {
 <template>
   <form class="webvue-form" @submit.prevent="save">
     <SharedUnsavedChanges :dirty="dirty" />
-    <fieldset :disabled="!canEdit || update.isPending.value" class="space-y-5">
+    <fieldset :disabled="!canEdit || update.isPending.value" class="grid min-w-0 gap-(--webvue-gap-card)">
       <legend class="sr-only">{{ t('access.users.rolesTitle') }}</legend>
-      <SharedFormSection :title="t('access.users.rolesTitle')" class="space-y-3">
-        <div class="space-y-3">
+      <SharedFormSection panel :title="t('access.users.rolesTitle')">
+        <div class="grid gap-3">
           <UCheckbox
             v-for="role in roles"
             :key="role.id"
@@ -133,22 +139,33 @@ async function save() {
               <span v-if="!role.active" class="block text-xs text-warning">{{ t('access.roles.disabledExistingAssignments') }}</span>
             </template>
           </UCheckbox>
+          <UAlert v-if="dirty" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('access.users.assignmentDiff', { retained: retainedRoleCount, added: addedRoleCount, removed: removedRoleCount })" />
         </div>
-        <p v-if="props.user.protected" class="text-sm text-muted">{{ t('access.protectedUser') }}</p>
-        <p v-else-if="!canEdit" class="text-sm text-muted">{{ t('access.readOnly') }}</p>
-        <p v-if="dirty" class="text-xs text-muted">{{ t('access.users.assignmentDiff', { retained: retainedRoleCount, added: addedRoleCount, removed: removedRoleCount }) }}</p>
       </SharedFormSection>
-      <SharedFormSection :title="t('access.users.currentCapabilities')" class="space-y-3">
-        <ul class="space-y-1 text-xs"><li v-for="capability in currentCapabilities" :key="capability.key">{{ capability.label }} <span class="text-muted">({{ capability.sources }})</span></li></ul>
+      <SharedFormSection panel :title="t('access.users.currentCapabilities')">
+        <CapabilityGroups :capabilities="props.user.capabilities" :permissions="props.permissions" />
       </SharedFormSection>
-      <SharedFormSection v-if="dirty" :title="t('access.users.capabilityChanges')" class="space-y-3">
-        <div v-if="previewLoading" class="text-xs text-muted">{{ t('access.users.loadingCapabilities') }}</div>
+      <SharedFormSection v-if="dirty" panel :title="t('access.users.capabilityChanges')">
+        <p v-if="previewLoading" class="text-sm text-muted">{{ t('access.users.loadingCapabilities') }}</p>
         <UAlert v-else-if="previewError" role="alert" color="error" variant="subtle" :title="t('access.users.capabilityPreviewError')" :actions="[{ label: t('access.retry'), color: 'neutral', variant: 'outline', onClick: retryPreview }]" />
-        <div v-else class="space-y-1 text-xs"><p v-if="capabilityChanges.added.length">{{ t('access.roles.added') }}: {{ capabilityChanges.added.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.removed.length">{{ t('access.roles.removed') }}: {{ capabilityChanges.removed.map((item) => capabilityLabel(item.key)).join('، ') }}</p><p v-if="capabilityChanges.retained.length">{{ t('access.roles.retained') }}: {{ capabilityChanges.retained.map((item) => `${capabilityLabel(item.key)} (${item.sources.map((source) => source.role.name.ar).join('، ')})`).join('؛ ') }}</p></div>
+        <div v-else class="grid gap-4">
+          <section v-for="change in changeGroups" :key="change.key" class="grid gap-2">
+            <h3 class="text-sm font-semibold text-highlighted">{{ change.title }}</h3>
+            <ul class="flex flex-wrap gap-2">
+              <li v-for="item in change.items" :key="item.key"><SharedStatusBadge size="sm" :tone="change.tone" :label="item.label" /></li>
+            </ul>
+          </section>
+        </div>
       </SharedFormSection>
       <UAlert v-if="addingAccessAdminRole" role="alert" color="warning" variant="subtle" :title="t('access.users.accessAdminWarning')" />
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey.startsWith('access.') || errorKey === 'errors.generic' ? t(errorKey) : errorKey" />
-      <SharedFormActions class="justify-end"><UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value || !previewReady" /></SharedFormActions>
+      <SharedFormActions>
+        <p v-if="hint" class="min-w-0 text-sm text-muted">{{ hint }}</p>
+        <div class="ms-auto flex flex-wrap items-center gap-2">
+          <UButton v-if="cancelTo" :to="cancelTo" color="neutral" variant="outline" :label="t('app.cancel')" />
+          <UButton v-if="canEdit" type="submit" color="primary" :label="t('access.save')" :disabled="!dirty || update.isPending.value || !previewReady" />
+        </div>
+      </SharedFormActions>
     </fieldset>
   </form>
 </template>

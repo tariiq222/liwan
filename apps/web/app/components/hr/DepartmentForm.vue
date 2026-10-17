@@ -11,9 +11,8 @@ const props = defineProps<{
   department?: HrDepartment | null
   departments: HrDepartment[]
   employees: HrEmployee[]
-  backTo?: RouteLocationRaw
+  backTo: RouteLocationRaw
   initialParentId?: number | null
-  panel?: boolean
 }>()
 const emit = defineEmits<{ saved: [department: HrDepartment] }>()
 const { t } = useI18n()
@@ -87,28 +86,34 @@ async function submit() {
   <SharedUnsavedChanges :dirty="dirty" />
   <UForm :state="{ name, parentId, managerId }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
     <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="t('hr.form.saveError')" :description="errorMessage" />
-    <SharedFormSection :panel="props.panel" :title="t('hr.depts.formDescription')">
-      <div class="webvue-form-grid mt-4">
+    <SharedFormSection panel :title="t('hr.depts.general')" :description="t('hr.depts.formDescription')">
+      <div class="webvue-form-grid">
         <UFormField :label="t('hr.depts.name')" name="hr-dept-name" required :error="fieldError('name')">
           <UInput id="hr-dept-name" v-model="name" class="w-full" :disabled="!canManage || !hydrated || pending" required />
         </UFormField>
+      </div>
+    </SharedFormSection>
+    <SharedFormSection panel :title="t('hr.depts.assignment')">
+      <div class="webvue-form-grid">
         <UFormField :label="t('hr.depts.parent')" name="hr-dept-parent" :error="fieldError('parent_id')">
           <USelect id="hr-dept-parent" :model-value="parentId ? String(parentId) : 'none'" :items="parentSelectOptions" class="w-full" :disabled="!canManage || !hydrated || pending" @update:model-value="parentId = idOrNull($event)" />
         </UFormField>
-        <UFormField :label="t('hr.depts.manager')" name="hr-dept-manager" class="sm:col-span-2" :error="fieldError('manager_id')">
-          <UInput v-model="managerSearch" class="w-full" :disabled="!canManage || !hydrated || pending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" icon="i-lucide-search" />
-          <div v-if="employeeQuery.error.value || selectedManagerQuery.error.value" class="mt-2 text-sm text-error">
-            <p>{{ t('hr.depts.managerLoadError') }}</p>
-            <UButton type="button" color="neutral" variant="outline" :label="t('hr.depts.retry')" @click="employeeQuery.refetch(); selectedManagerQuery.refetch()" />
+        <UFormField :label="t('hr.depts.manager')" name="hr-dept-manager-search" class="min-w-0" :error="fieldError('manager_id')">
+          <div class="grid gap-2">
+            <UInput id="hr-dept-manager-search" v-model="managerSearch" class="w-full" :disabled="!canManage || !hydrated || pending" :aria-label="t('hr.depts.managerSearch')" :placeholder="t('hr.depts.managerSearch')" icon="i-lucide-search" />
+            <UAlert v-if="employeeQuery.error.value || selectedManagerQuery.error.value" role="alert" color="error" variant="subtle" :title="t('hr.depts.managerLoadError')">
+              <template #actions><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!canManage || !hydrated || pending" :label="t('hr.depts.retry')" @click="employeeQuery.refetch(); selectedManagerQuery.refetch()" /></template>
+            </UAlert>
+            <p v-else-if="employeeQuery.isFetching.value" class="text-sm text-muted">{{ t('hr.depts.managerLoading') }}</p>
+            <p v-else-if="(employeeQuery.data.value?.total ?? 0) > managerOptions.length" class="text-sm text-muted">{{ t('hr.depts.managerLimitNotice') }}</p>
+            <USelect id="hr-dept-manager" class="w-full" :model-value="managerId ? String(managerId) : 'none'" :items="managerSelectOptions" :disabled="!canManage || !hydrated || pending" @update:model-value="managerId = idOrNull($event)" />
           </div>
-          <p v-else-if="employeeQuery.isFetching.value" class="mt-2 text-xs text-muted">{{ t('hr.depts.managerLoading') }}</p>
-          <p v-else-if="(employeeQuery.data.value?.total ?? 0) > managerOptions.length" class="mt-2 text-xs text-muted">{{ t('hr.depts.managerLimitNotice') }}</p>
-          <USelect :model-value="managerId ? String(managerId) : 'none'" :items="managerSelectOptions" class="mt-2 w-full" :disabled="!canManage || !hydrated || pending" @update:model-value="managerId = idOrNull($event)" />
         </UFormField>
       </div>
     </SharedFormSection>
-    <SharedFormActions class="justify-end">
-      <UButton type="button" color="neutral" variant="outline" :to="props.backTo ?? (props.department ? `/hr/departments/${props.department.id}` : '/hr/departments')" :label="t('app.cancel')" />
+    <SharedFormActions>
+      <span class="me-auto text-xs text-muted">{{ t('hr.depts.formHint') }}</span>
+      <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />
       <UButton type="submit" color="primary" :disabled="!canManage || !hydrated || pending" :loading="pending" :label="t(props.department ? 'app.saveChanges' : 'app.create')" />
     </SharedFormActions>
   </UForm>

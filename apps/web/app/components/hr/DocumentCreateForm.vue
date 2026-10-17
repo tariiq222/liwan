@@ -38,8 +38,8 @@ async function submit() {
   <SharedUnsavedChanges :dirty="dirty" />
   <UForm novalidate :state="{ name, body }" class="webvue-form" method="post" @submit="submit">
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
-    <SharedFormSection :title="t('hr.docs.newTitle')">
-      <div class="grid gap-4 mt-4">
+    <SharedFormSection panel :title="t('hr.docs.newTitle')">
+      <div class="grid gap-4">
         <UFormField :label="t('hr.docs.newTitle')" name="hr-doc-new-name" required :error="titleError">
           <UInput id="hr-doc-new-name" v-model="name" class="w-full" :disabled="!hydrated || isPending" required />
         </UFormField>
@@ -48,9 +48,11 @@ async function submit() {
         </UFormField>
       </div>
     </SharedFormSection>
-    <SharedFormActions class="justify-end">
-      <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />
-      <UButton type="submit" color="primary" :disabled="!hydrated || isPending" :loading="isPending" :label="t('app.create')" />
+    <SharedFormActions>
+      <div class="ms-auto flex flex-wrap items-center gap-2">
+        <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />
+        <UButton type="submit" color="primary" :disabled="!hydrated || isPending" :loading="isPending" :label="t('app.create')" />
+      </div>
     </SharedFormActions>
   </UForm>
 </template>

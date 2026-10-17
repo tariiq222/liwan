@@ -8,6 +8,7 @@
     "protected": "Protected",
     "readOnly": "Read only",
     "save": "Save",
+    "footer": { "results": "{shown} of 1 result | {shown} of {total} results" },
     "previousPage": "Previous",
     "pageOf": "Page {page} of {pages}",
     "nextPage": "Next",
@@ -61,7 +62,7 @@
       "noRoles": "No roles",
       "empty": "No matching accounts.",
       "columns": { "name": "Name", "login": "Login name", "loginName": "Username", "employee": "Employee", "roles": "Roles", "status": "Status", "actions": "Actions" },
-      "filters": { "search": "Search by name or email…", "searchNameLogin": "Search by name or username…", "allStatuses": "All statuses", "allRoles": "All roles", "allDepartments": "All departments" },
+      "filters": { "search": "Search by name or email…", "clearSearch": "Clear search", "searchNameLogin": "Search by name or username…", "allStatuses": "All statuses", "allRoles": "All roles", "allDepartments": "All departments" },
       "resetPassword": "Reset password",
       "disable": "Disable access",
       "reactivate": "Reactivate access",
@@ -122,7 +123,7 @@
       "conflict": "The role changed while you were editing. Reload the latest version.",
       "disabledExistingAssignments": "Disabling a role blocks new assignments only; existing assignments and their capabilities remain effective until explicitly removed.",
       "columns": { "name": "Role name", "description": "Description", "type": "Type", "users": "Users", "status": "Status", "actions": "Actions" },
-      "filters": { "search": "Search by role name…", "allTypes": "All types", "allStatuses": "All statuses" }
+      "filters": { "search": "Search by role name…", "clearSearch": "Clear search", "allTypes": "All types", "allStatuses": "All statuses" }
     },
     "audit": {
       "title": "Access change log",

@@ -33,7 +33,7 @@ function actionsFor(role: RoleSummary): RowAction[] {
 }
 
 const columns = computed<TableColumn<RoleSummary>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t) },
+  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'name', header: t('access.roles.columns.name') },
   { accessorKey: 'description', header: t('access.roles.columns.description') },
   { accessorKey: 'type', header: t('access.roles.columns.type') },
@@ -44,17 +44,20 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
 </script>
 
 <template>
+  <SharedEmptyState v-if="!loading && !error && !roles.length" class="m-(--webvue-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
+    v-else
+    bare
     :rows="roles" :columns="columns" row-key="id" :row-to="roleTo" :loading="loading" :error="error"
-    :empty-text="emptyText" :caption="t('access.roles.title')" @retry="$emit('retry')"
+    :caption="t('access.roles.title')" @retry="$emit('retry')"
   >
     <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
     <template #name-cell="{ row }">
-      <NuxtLink :to="roleTo(row.original)" class="rounded font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ roleLabel(row.original) }}</NuxtLink>
+      <NuxtLink :to="roleTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" :title="roleLabel(row.original)">{{ roleLabel(row.original) }}</NuxtLink>
     </template>
-    <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal">{{ roleDescription(row.original) }}</span></template>
-    <template #type-cell="{ row }">{{ typeLabel(row.original) }}</template>
-    <template #user_count-cell="{ row }">{{ row.original.user_count }}</template>
+    <template #description-cell="{ row }"><span class="max-w-xs whitespace-normal text-muted">{{ roleDescription(row.original) }}</span></template>
+    <template #type-cell="{ row }"><SharedStatusBadge :tone="row.original.type === 'built_in' ? 'info' : 'neutral'" size="sm" :label="typeLabel(row.original)" /></template>
+    <template #user_count-cell="{ row }"><span class="tabular-nums">{{ row.original.user_count }}</span></template>
     <template #active-cell="{ row }"><SharedStatusBadge :tone="badge(row.original).tone" :label="t(badge(row.original).labelKey)" :icon="badge(row.original).icon" /></template>
     <template #actions-cell="{ row }">
       <div class="flex justify-end"><SharedRowActions :actions="actionsFor(row.original)" :label="t('access.roles.rowActions', { name: roleLabel(row.original) })" /></div>
@@ -63,7 +66,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <bdi class="block text-xs text-muted">#{{ row.id }}</bdi>
-          <NuxtLink :to="roleTo(row)" class="font-medium text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ roleLabel(row) }}</NuxtLink>
+          <NuxtLink :to="roleTo(row)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ roleLabel(row) }}</NuxtLink>
         </div>
         <SharedStatusBadge :tone="badge(row).tone" :label="t(badge(row).labelKey)" :icon="badge(row).icon" />
       </div>

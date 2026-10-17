@@ -56,7 +56,7 @@ function toggle(node: DepartmentTreeNode) {
 </script>
 
 <template>
-  <UCard v-if="displayedNodes.length" class="min-w-0" data-testid="hr-department-tree">
+  <div v-if="displayedNodes.length" class="min-w-0" data-testid="hr-department-tree">
     <div
       v-for="node in displayedNodes"
       :key="node.department.id"
@@ -90,11 +90,11 @@ function toggle(node: DepartmentTreeNode) {
         type="button"
         color="neutral"
         variant="ghost"
-        class="min-w-0 flex-1 rounded-md p-1 py-0.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        class="min-w-0 flex-1 rounded-control p-1 py-0.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         :disabled="!hydrated"
         @click="emit('select', node.department.id)"
       >
-        <span class="block text-pretty break-words font-medium">{{ node.department.name }}</span>
+        <span class="block text-pretty break-words text-base font-semibold text-highlighted">{{ node.department.name }}</span>
         <span class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted">
           <span>{{ node.department.manager?.name || $t('hr.depts.noManager') }}</span>
           <span>{{ $t('hr.depts.employeeReason', { count: node.department.employee_count }, node.department.employee_count) }}</span>
@@ -149,6 +149,6 @@ function toggle(node: DepartmentTreeNode) {
         />
       </div>
     </div>
-  </UCard>
-  <p v-else class="rounded-card ring ring-default bg-default overflow-hidden py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
+  </div>
+  <SharedEmptyState v-else class="m-(--webvue-card-pad-dense)" :title="$t('hr.depts.empty')" />
 </template>

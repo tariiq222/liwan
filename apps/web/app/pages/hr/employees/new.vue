@@ -8,7 +8,6 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
-const hydrated = useHydrated()
 const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS)
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const departments = useHrDepartments()
@@ -28,11 +27,7 @@ function created(employee: { id: number }) { void navigateTo({ path: `/hr/employ
       :error="initialDataReady ? undefined : dependencyError"
       @retry="retryDependencies"
     >
-      <EmployeeGeneralForm :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" @saved="created">
-        <template #actions>
-          <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated" :to="backTo" :label="t('app.cancel')" @click="!hydrated && $event.preventDefault()" />
-        </template>
-      </EmployeeGeneralForm>
+      <EmployeeGeneralForm :departments="departments.data.value?.items ?? []" :employees="employees.data.value?.items ?? []" :back-to="backTo" @saved="created" />
     </SharedPageState>
     <SharedPageState v-if="canManage && initialDataReady && dependencyError" :error="dependencyError" @retry="retryDependencies" />
   </SharedCreatePanel>

@@ -64,7 +64,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <UForm :state="{ current, next, confirm }" class="webvue-form webvue-password-form" method="post" @submit="submit">
+  <UForm :state="{ current, next, confirm }" class="webvue-form" method="post" @submit="submit">
     <UFormField :label="t('account.currentPassword')" name="pw-current" :error="currentError ?? undefined">
       <UInput
         id="pw-current" v-model="current" data-testid="pw-current" type="password"
@@ -92,8 +92,8 @@ onBeforeUnmount(() => {
       <template #error><span v-if="formError" role="alert">{{ formError }}</span></template>
     </UFormField>
 
-    <p v-if="success" role="status" class="text-sm text-success">{{ t('account.success') }}</p>
-    <SharedFormActions >
+    <UAlert v-if="success" role="status" color="success" variant="subtle" :title="t('account.success')" />
+    <SharedFormActions>
       <UButton type="submit" data-testid="pw-submit" color="primary" class="w-full sm:w-auto" :label="t('account.submit')" :disabled="disabled" />
     </SharedFormActions>
   </UForm>

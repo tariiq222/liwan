@@ -7,6 +7,7 @@ import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery } from '@/composables/adminSettingsPaths'
 import { accessBadge } from '@/components/access/accessBadge'
+import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,6 +61,24 @@ const tabs = computed(() => [
   ...(can('access.audit.read') ? [{ key: 'role-tab-changes', label: t('access.roles.changes'), to: `/settings/access-log?target_type=role&target_id=${id.value}`, active: false }] : []),
 ])
 const userTo = (user: { id: number }) => ({ path: `/settings/users/${user.id}`, query: { role_id: String(id.value) } })
+const badge = computed(() => accessBadge({ active: role.data.value?.active ?? false, protected: role.data.value?.protected }))
+// Edit is the one primary action (clone for a role that cannot be edited); the rest sit in one menu with delete last.
+const primaryAction = computed(() => {
+  const allowed = role.data.value?.allowed_actions ?? []
+  if (allowed.includes('edit')) return { icon: 'i-lucide-pencil', to: editTo.value, label: t('access.roles.editTitle') }
+  if (allowed.includes('clone')) return { icon: 'i-lucide-copy', to: cloneTo.value, label: t('access.roles.clone') }
+  return null
+})
+const menuActions = computed<RowAction[]>(() => {
+  const allowed = role.data.value?.allowed_actions ?? []
+  const locked = !hydrated.value || actionBusy.value || pendingAction.value !== null
+  return [
+    ...(allowed.includes('edit') && allowed.includes('clone') ? [{ label: t('access.roles.clone'), icon: 'i-lucide-copy', to: cloneTo.value } satisfies RowAction] : []),
+    ...(allowed.includes('disable') ? [{ label: t('access.roles.disable'), icon: 'i-lucide-circle-pause', disabled: locked, onSelect: () => requestAction('disable') } satisfies RowAction] : []),
+    ...(allowed.includes('enable') ? [{ label: t('access.roles.enable'), icon: 'i-lucide-circle-play', disabled: locked, onSelect: () => requestAction('enable') } satisfies RowAction] : []),
+    ...(allowed.includes('delete') ? [{ label: t('access.roles.delete'), icon: 'i-lucide-trash-2', destructive: true, disabled: locked, onSelect: () => requestAction('delete') } satisfies RowAction] : []),
+  ]
+})
 const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('access.roles.builtIn') : t('access.roles.custom'))
 </script>
 
@@ -72,12 +91,9 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
     :error="versionConflict ? null : pageError"
     @retry="role.refetch"
   >
-    <template #actions>
-      <UButton v-if="role.data.value?.allowed_actions.includes('edit')" color="neutral" variant="outline" icon="i-lucide-pencil" :disabled="!role.data.value" :label="t('access.roles.editTitle')" @click="navigateTo(editTo)" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('clone')" color="neutral" variant="outline" icon="i-lucide-copy" :disabled="!role.data.value" :label="t('access.roles.clone')" @click="navigateTo(cloneTo)" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('disable')" color="neutral" variant="outline" :disabled="!hydrated || actionBusy || pendingAction !== null" :label="t('access.roles.disable')" @click="requestAction('disable')" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('enable')" color="neutral" variant="outline" :disabled="!hydrated || actionBusy || pendingAction !== null" :label="t('access.roles.enable')" @click="requestAction('enable')" />
-      <UButton v-if="role.data.value?.allowed_actions.includes('delete')" color="error" variant="outline" icon="i-lucide-trash-2" :disabled="!hydrated || actionBusy || pendingAction !== null" :label="t('access.roles.delete')" @click="requestAction('delete')" />
+    <template v-if="role.data.value" #actions>
+      <UButton v-if="primaryAction" color="primary" :icon="primaryAction.icon" :to="primaryAction.to" :label="primaryAction.label" />
+      <SharedRowActions v-if="menuActions.length" :actions="menuActions" :label="t('access.roles.rowActions', { name: roleName })" />
     </template>
     <template #tabs><SharedRouteTabs :items="tabs" :ariaLabel="t('access.roles.navigation')" /></template>
     <SharedInlineConfirm
@@ -96,7 +112,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
       <template v-if="role.data.value">
         <RolePermissionForm id="permissions" :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" />
         <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" />
-        <SharedRecordSection v-if="can('access.users.read')" id="assigned-users" :title="t('access.roles.assignedUsers')">
+        <SharedRecordSection v-if="can('access.users.read')" id="assigned-users" variant="list" :title="t('access.roles.assignedUsers')">
           <UserTable
             :users="assignedUsers.data.value?.items ?? []"
             :loading="assignedUsers.isLoading.value"
@@ -105,18 +121,18 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
             :to-for="userTo"
             @retry="assignedUsers.refetch"
           />
-          <template v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length">
-            <p class="text-sm text-muted">{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }, assignedUsers.data.value.total) }}</p>
+          <div v-if="assignedUsers.data.value && assignedUsers.data.value.total > assignedUsers.data.value.items.length" class="flex flex-wrap items-center justify-between gap-3 px-(--webvue-card-pad-dense) py-3 text-sm text-muted">
+            <p>{{ t('access.roles.assignedUsersCount', { count: assignedUsers.data.value.total }, assignedUsers.data.value.total) }}</p>
             <UButton color="primary" variant="link" class="p-0" :to="{ path: '/settings/users', query: { role_id: id } }" :label="t('access.roles.viewAllAssignedUsers')" />
-          </template>
+          </div>
         </SharedRecordSection>
       </template>
     </SharedPageState>
-    <template v-if="role.data.value && !forbidden" #summary>
+    <template v-if="role.data.value && !forbidden" #aside>
       <SharedPropertiesPanel :title="t('access.roles.details')">
         <SharedPropertyRow :label="t('access.roles.columns.type')" :value="typeLabel" />
         <SharedPropertyRow :label="t('access.roles.columns.status')">
-          <SharedStatusBadge :tone="accessBadge({ active: role.data.value.active, protected: role.data.value.protected }).tone" :label="t(accessBadge({ active: role.data.value.active, protected: role.data.value.protected }).labelKey)" :icon="accessBadge({ active: role.data.value.active, protected: role.data.value.protected }).icon" />
+          <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" />
         </SharedPropertyRow>
         <SharedPropertyRow :label="t('access.roles.columns.users')" :value="role.data.value.user_count" />
         <SharedPropertyRow :label="t('access.roles.columns.description')" :value="role.data.value.description" />

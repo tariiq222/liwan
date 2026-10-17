@@ -38,9 +38,9 @@ function saved(id: number) {
       @retry="departments.refetch"
     >
       <template v-if="can('hr.departments.manage')" #emptyAction><UButton :to="{ path: '/hr/departments/new', query: { returnTo: route.fullPath } }" :label="t('hr.depts.new')" /></template>
-      <div class="space-y-6">
-        <SharedFormSection :title="t('hr.docs.department')">
-          <UFormField class="mt-4" :label="t('hr.docs.department')" name="new-document-department">
+      <div class="grid gap-(--webvue-gap-card)">
+        <SharedFormSection panel :title="t('hr.docs.department')">
+          <UFormField :label="t('hr.docs.department')" name="new-document-department">
             <USelect
               id="new-document-department"
               :model-value="departmentId ? String(departmentId) : undefined"

@@ -104,27 +104,29 @@ async function submit() {
     <SharedPageState v-if="forbidden" :empty="true" :empty-text="t('access.forbidden')" />
     <UForm v-else :state="{ employeeId, selectedRoleIds, password, passwordConfirmation }" class="webvue-form" method="post" @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
-      <SharedFormSection :title="t('access.users.employee')" class="space-y-4">
-        <UFormField :label="t('access.users.employee')" name="employee-search">
-          <UInput id="employee-search" v-model="candidateParams.q" class="w-full" :placeholder="t('access.users.filters.search')" :disabled="!hydrated || hasRequestedEmployee" icon="i-lucide-search" />
-        </UFormField>
-        <USelect
-          id="employee"
-          :model-value="employeeId ? String(employeeId) : undefined"
-          :items="employeeOptions"
-          class="w-full"
-          :aria-label="t('access.users.chooseEmployee')"
-          :placeholder="t('access.users.chooseEmployee')"
-          :disabled="!hydrated || employees.isLoading.value"
-          @update:model-value="onEmployeeChange"
-        />
-        <p v-if="employees.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingCandidates') }}</p>
-        <UAlert v-else-if="employees.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
-        <UAlert v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" color="error" variant="subtle" :title="t('access.users.alreadyHasAccount')" />
-        <SharedPagination :page="candidatePage" :pages="candidatePages" :disabled="employees.isFetching.value" @update:page="setCandidatePage" />
+      <SharedFormSection panel :title="t('access.users.employee')">
+        <div class="grid gap-4">
+          <UFormField :label="t('access.users.employee')" name="employee-search">
+            <UInput id="employee-search" v-model="candidateParams.q" class="w-full" :placeholder="t('access.users.filters.search')" :disabled="!hydrated || hasRequestedEmployee" icon="i-lucide-search" />
+          </UFormField>
+          <USelect
+            id="employee"
+            :model-value="employeeId ? String(employeeId) : undefined"
+            :items="employeeOptions"
+            class="w-full"
+            :aria-label="t('access.users.chooseEmployee')"
+            :placeholder="t('access.users.chooseEmployee')"
+            :disabled="!hydrated || employees.isLoading.value"
+            @update:model-value="onEmployeeChange"
+          />
+          <p v-if="employees.isLoading.value" class="text-sm text-muted">{{ t('access.users.loadingCandidates') }}</p>
+          <UAlert v-else-if="employees.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
+          <UAlert v-if="selectedCandidate?.user_id && selectedCandidate.access_active !== false" color="error" variant="subtle" :title="t('access.users.alreadyHasAccount')" />
+          <SharedPagination :page="candidatePage" :pages="candidatePages" :disabled="employees.isFetching.value" @update:page="setCandidatePage" />
+        </div>
       </SharedFormSection>
-      <SharedFormSection :title="t('access.users.role')" class="space-y-4">
-        <fieldset class="space-y-3" :disabled="!hydrated || roles.isLoading.value">
+      <SharedFormSection panel :title="t('access.users.role')">
+        <fieldset class="grid gap-3" :disabled="!hydrated || roles.isLoading.value">
           <legend class="sr-only">{{ t('access.users.role') }}</legend>
           <UCheckbox
             v-for="role in availableRoles"
@@ -135,31 +137,38 @@ async function submit() {
             <template #label>{{ role.name[locale === 'ar' ? 'ar' : 'en'] ?? role.name.ar }}</template>
             <template #description><span class="text-xs text-muted">{{ t('access.roles.companyScope') }}</span></template>
           </UCheckbox>
-          <p v-if="roles.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingRoles') }}</p>
+          <p v-if="roles.isLoading.value" class="text-sm text-muted">{{ t('access.users.loadingRoles') }}</p>
           <UAlert v-else-if="roles.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
         </fieldset>
       </SharedFormSection>
-      <p v-if="existingUser.isLoading.value" class="text-xs text-muted">{{ t('access.users.loadingAccount') }}</p>
+      <p v-if="existingUser.isLoading.value" class="text-sm text-muted">{{ t('access.users.loadingAccount') }}</p>
       <UAlert v-else-if="existingUser.error.value" color="error" variant="subtle" :title="t('errors.generic')" />
-      <SharedFormSection :title="t('access.users.password')" class="space-y-4">
-        <UFormField :label="t('access.users.password')" name="password">
-          <UInput id="password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
-        </UFormField>
-        <UFormField :label="t('access.users.passwordConfirmation')" name="password-confirmation" :error="passwordConfirmation && password !== passwordConfirmation ? t('access.users.passwordMismatch') : undefined">
-          <UInput id="password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
-        </UFormField>
+      <SharedFormSection panel :title="t('access.users.password')">
+        <div class="grid gap-4">
+          <UFormField :label="t('access.users.password')" name="password">
+            <UInput id="password" v-model="password" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
+          </UFormField>
+          <UFormField :label="t('access.users.passwordConfirmation')" name="password-confirmation" :error="passwordConfirmation && password !== passwordConfirmation ? t('access.users.passwordMismatch') : undefined">
+            <UInput id="password-confirmation" v-model="passwordConfirmation" type="password" autocomplete="new-password" dir="ltr" class="w-full" :disabled="!hydrated" />
+          </UFormField>
+        </div>
       </SharedFormSection>
-      <SharedFormSection v-if="selectedCapabilities.length" :title="t('access.users.resultingCapabilities')" class="space-y-2">
-        <p class="text-xs text-muted">{{ selectedCapabilities.join('، ') }}</p>
+      <SharedFormSection v-if="selectedCapabilities.length" panel :title="t('access.users.resultingCapabilities')">
+        <ul class="flex flex-wrap gap-2">
+          <li v-for="(capability, index) in selectedCapabilities" :key="index"><SharedStatusBadge tone="neutral" size="sm" :label="capability" /></li>
+        </ul>
       </SharedFormSection>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
-      <SharedFormActions class="justify-end">
-        <UButton
-          type="submit"
-          color="primary"
-          :label="isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount')"
-          :disabled="!hydrated || grant.isPending.value || reactivate.isPending.value || updateAccess.isPending.value || employees.isLoading.value || roles.isLoading.value || existingUser.isLoading.value || !employeeId || selectedRoleIds.length === 0 || !selectedCandidate || (selectedCandidate.user_id !== null && selectedCandidate.access_active !== false) || password.length < 8 || password !== passwordConfirmation"
-        />
+      <SharedFormActions>
+        <div class="ms-auto flex flex-wrap items-center gap-2">
+          <UButton :to="backTo" color="neutral" variant="outline" :label="t('app.cancel')" />
+          <UButton
+            type="submit"
+            color="primary"
+            :label="isReactivation ? t('access.users.reactivateAccount') : t('access.users.grantAccount')"
+            :disabled="!hydrated || grant.isPending.value || reactivate.isPending.value || updateAccess.isPending.value || employees.isLoading.value || roles.isLoading.value || existingUser.isLoading.value || !employeeId || selectedRoleIds.length === 0 || !selectedCandidate || (selectedCandidate.user_id !== null && selectedCandidate.access_active !== false) || password.length < 8 || password !== passwordConfirmation"
+          />
+        </div>
       </SharedFormActions>
     </UForm>
   </SharedCreatePanel>

@@ -136,7 +136,7 @@ onUnmounted(() => {
 <template>
   <section
     ref="chartSection"
-    class="relative flex h-[calc(100svh-14rem)] flex-col overflow-hidden rounded-control ring ring-default bg-default"
+    class="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-default"
     :class="{ 'hr-org-chart-expanded': fullscreen }"
     data-testid="hr-department-org-chart"
     :aria-label="$t('hr.depts.orgChart')"
@@ -236,7 +236,7 @@ onUnmounted(() => {
             :key="box.id"
             :to="{ path: `/hr/departments/${box.id}`, query: returnToQuery(returnTo) }"
             dir="ltr"
-            class="absolute overflow-hidden rounded-control ring ring-default bg-default px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            class="absolute overflow-hidden rounded-control bg-default px-3 py-2 ring ring-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             :class="{ 'pointer-events-none opacity-60': !hydrated }"
             :style="nodeStyle(box)"
             :title="nodeLabel(box)"
@@ -256,6 +256,6 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <p v-else class="py-10 text-center text-sm text-muted">{{ $t('hr.depts.empty') }}</p>
+    <SharedEmptyState v-else class="m-(--webvue-card-pad-dense)" :title="$t('hr.depts.empty')" />
   </section>
 </template>

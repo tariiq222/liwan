@@ -114,7 +114,7 @@ async function submit() {
     <UForm v-else :state="{ nameAr, nameEn, description }" class="webvue-form" method="post" :loading-auto="false" novalidate @submit="submit">
       <SharedUnsavedChanges :dirty="dirty" />
       <SharedFormSection panel :title="t('access.roles.details')">
-        <div class="space-y-4">
+        <div class="grid gap-4">
           <div class="webvue-form-grid">
             <UFormField :label="t('access.roles.nameArabic')" name="name-ar" required :error="nameError"><UInput id="name-ar" v-model="nameAr" class="w-full" required :disabled="!hydrated || create.isPending.value" /></UFormField>
             <UFormField :label="t('access.roles.nameEnglish')" name="name-en"><UInput id="name-en" v-model="nameEn" dir="ltr" class="w-full" :disabled="!hydrated || create.isPending.value" /></UFormField>
@@ -123,11 +123,11 @@ async function submit() {
         </div>
       </SharedFormSection>
       <SharedFormSection panel :title="t('access.roles.permissions')">
-        <fieldset class="space-y-4" :disabled="!hydrated || create.isPending.value">
+        <fieldset class="grid min-w-0 gap-3" :disabled="!hydrated || create.isPending.value">
           <legend class="sr-only">{{ t('access.roles.permissions') }}</legend>
-          <section v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" class="space-y-3">
-            <h3 class="text-sm font-medium">{{ domainLabel(domain) }}</h3>
-            <div class="space-y-3">
+          <SharedSubCard v-for="[domain, domainPermissions] in groupedPermissions" :key="domain" tone="tinted" as="section" class="grid gap-3">
+            <h3 class="text-sm font-semibold text-highlighted">{{ domainLabel(domain) }}</h3>
+            <div class="grid gap-3 md:grid-cols-2">
               <UCheckbox
                 v-for="permission in domainPermissions"
                 :key="permission.key"
@@ -142,13 +142,15 @@ async function submit() {
                 </template>
               </UCheckbox>
             </div>
-          </section>
+          </SharedSubCard>
         </fieldset>
       </SharedFormSection>
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="errorKey" />
       <SharedFormActions>
-        <UButton :to="backTo" color="neutral" variant="outline" :disabled="create.isPending.value" :label="t('app.cancel')" />
-        <UButton type="submit" :disabled="!hydrated || create.isPending.value" :loading="create.isPending.value" :label="t('access.roles.create')" />
+        <div class="ms-auto flex flex-wrap items-center gap-2">
+          <UButton :to="backTo" color="neutral" variant="outline" :disabled="create.isPending.value" :label="t('app.cancel')" />
+          <UButton type="submit" color="primary" :disabled="!hydrated || create.isPending.value" :loading="create.isPending.value" :label="t('access.roles.create')" />
+        </div>
       </SharedFormActions>
     </UForm>
   </SharedCreatePanel>

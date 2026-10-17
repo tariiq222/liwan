@@ -3,6 +3,7 @@ import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { EMPLOYEE_LIST_PATHS } from '@/modules/hr/navigation'
 import EmployeeCard from '@/components/hr/EmployeeCard.vue'
 import EmployeeProperties from '@/components/hr/EmployeeProperties.vue'
+import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 import { useArchiveHrEmployee, useHrEmployee, useUnarchiveHrEmployee } from '@/composables/useHrEmployees'
 const route = useRoute()
 const sourcePaths = useRecordListPaths(EMPLOYEE_LIST_PATHS); const { t } = useI18n(); const { can } = useAccess(); const hydrated = useHydrated()
@@ -23,6 +24,20 @@ async function toggleArchive() {
   else await unarchive(query.data.value.id)
   confirmArchive.value = false
 }
+// Edit is the page's one primary action; the account link and archive sit in the overflow menu, the destructive one last.
+const menuActions = computed<RowAction[]>(() => {
+  const employee = query.data.value
+  if (!employee) return []
+  return [
+    ...(employee.user_id && can('access.users.read') ? [{ label: t('hr.employee.manageAccount'), icon: 'i-lucide-user-cog', to: `/settings/users/${employee.user_id}` } satisfies RowAction] : []),
+    ...(can('hr.employees.archive') ? [{
+      label: employee.active ? t('hr.employee.archive') : t('hr.employee.unarchive'),
+      icon: employee.active ? 'i-lucide-archive' : 'i-lucide-archive-restore',
+      destructive: employee.active,
+      onSelect: () => { confirmArchive.value = !confirmArchive.value },
+    } satisfies RowAction] : []),
+  ]
+})
 </script>
 <template>
   <SharedRecordPage :keep-content="!!query.data.value"
@@ -35,13 +50,8 @@ async function toggleArchive() {
     @retry="query.refetch"
   >
     <template v-if="query.data.value" #actions>
-      <div class="flex flex-wrap items-center gap-2">
-        <UButton v-if="can('hr.employees.manage')" color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="recordChildTo(`/hr/employees/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
-        <UButton v-if="query.data.value.user_id && can('access.users.read')" color="neutral" variant="outline" :disabled="!hydrated" :to="`/settings/users/${query.data.value.user_id}`" :label="t('hr.employee.manageAccount')" @click="!hydrated && $event.preventDefault()" />
-        <div v-if="can('hr.employees.archive')" class="ms-1 border-s border-default ps-3">
-        <UButton color="neutral" variant="ghost" :icon="query.data.value.active ? 'i-lucide-archive' : 'i-lucide-archive-restore'" :disabled="!hydrated || archivePending" :aria-expanded="confirmArchive" :label="query.data.value.active ? t('hr.employee.archive') : t('hr.employee.unarchive')" data-testid="hr-employee-archive" @click="confirmArchive = !confirmArchive" />
-        </div>
-      </div>
+      <UButton v-if="can('hr.employees.manage')" color="primary" icon="i-lucide-pencil" :disabled="!hydrated" :to="recordChildTo(`/hr/employees/${id}/edit`, route.query, sourcePaths, route.hash)" :label="t('app.edit')" @click="!hydrated && $event.preventDefault()" />
+      <SharedRowActions :actions="menuActions" :label="t('hr.directory.rowActions', { name: query.data.value.name })" :disabled="archivePending" />
     </template>
     <SharedInlineConfirm
       v-if="query.data.value && confirmArchive"
@@ -54,7 +64,7 @@ async function toggleArchive() {
       @cancel="confirmArchive = false"
     />
     <EmployeeCard v-if="query.data.value" :employee="query.data.value" />
-    <template v-if="query.data.value" #summary>
+    <template v-if="query.data.value" #aside>
       <EmployeeProperties :employee="query.data.value" />
     </template>
   </SharedRecordPage>
