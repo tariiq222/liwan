@@ -51,13 +51,13 @@ async function submit() {
           <li :class="matchOk ? 'text-success' : ''">{{ t('invite.ruleMatch') }}</li>
         </ul>
       </div>
-      <UButton type="submit" class="w-full justify-center" :disabled="!canSubmit" :loading="pending" :label="t('invite.submit')" />
+      <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!canSubmit" :loading="pending" :label="t('invite.submit')" />
     </form>
     <UAlert v-else-if="state === 'invalid'" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('invite.invalidTitle')" :description="t('invite.invalidBody')" />
     <UAlert v-else-if="state === 'unavailable'" role="alert" color="warning" variant="subtle" icon="i-lucide-cloud-off" :title="t('invite.unavailableTitle')" :description="t('invite.unavailableBody')" />
     <div v-else class="grid gap-4">
       <UAlert role="status" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t('invite.successTitle')" :description="login ? t('invite.successLogin', { login }) : t('invite.successBody')" />
-      <UButton :to="loginHref" class="w-full justify-center" :label="t('invite.signIn')" />
+      <UButton :to="loginHref" size="lg" class="w-full justify-center" :label="t('invite.signIn')" />
     </div>
   </SharedStandalonePage>
 </template>

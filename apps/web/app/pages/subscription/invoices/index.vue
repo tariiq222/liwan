@@ -22,7 +22,8 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <SharedListPage :title="t('subscription.invoices.title')" :description="t('subscription.invoices.description')" back-to="/subscription">
 
 <SharedForbiddenState v-if="!allowed" />
-<SharedDataTable v-if="allowed" :rows="items" :columns="columns" row-key="id" :row-to="invoiceTo" :loading="pending" :error="error" :empty-text="t('subscription.invoices.empty')" :caption="t('subscription.invoices.title')" @retry="refresh">
+<SharedListCard v-if="allowed">
+<SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="invoiceTo" :loading="pending" :error="error" :empty-text="t('subscription.invoices.empty')" :caption="t('subscription.invoices.title')" @retry="refresh">
   <template #number-cell="{ row: { original: inv } }"><NuxtLink :to="invoiceTo(inv)" data-testid="invoice-row" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink></template>
   <template #period-cell="{ row: { original: inv } }"><bdi dir="ltr">{{ inv.period_start }} → {{ inv.period_end }}</bdi></template>
   <template #status-cell="{ row: { original: inv } }"><SharedStatusBadge  :tone="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').tone" :label="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey ? t(invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey) : inv.status" /></template>
@@ -31,6 +32,8 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
           <span class="text-sm text-muted tabular-nums"><bdi dir="ltr">{{ inv.period_start }} → {{ inv.period_end }}</bdi></span>
           <SharedStatusBadge  :tone="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').tone" :label="invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey ? t(invoiceStatusBadge(inv.status, 'subscription.invoices.statuses').labelKey) : inv.status" />
           <span class="font-semibold tabular-nums">{{ formatSubscriptionMoney(inv.total, locale) }}</span></template>
+  <template #footer><SharedListFooter :count-label="t('subscription.invoices.count', { count: items.length }, items.length)" :page="1" :pages="1" /></template>
 </SharedDataTable>
+</SharedListCard>
 </SharedListPage>
 </template>

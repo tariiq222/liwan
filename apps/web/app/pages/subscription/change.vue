@@ -52,18 +52,22 @@ definePageMeta({ middleware: 'customer-commercial' })
     <SharedPageHeader :title="t('subscription.change.title')" :description="t('subscription.change.description')" back-to="/subscription" />
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" :empty="!pending && !error && !plans.length" :empty-text="t('subscription.change.empty')" @retry="refresh">
-      <form class="space-y-6" @submit.prevent="review">
+      <form class="grid gap-(--webvue-gap-card)" @submit.prevent="review">
+        <SharedFormSection panel>
+        <div class="space-y-5">
         <UFormField :label="t('subscription.change.plan')"><USelect v-model="planId" :items="plans.map(p => ({ value: p.id, label: p.name }))" :placeholder="t('subscription.change.pickPlan')" :disabled="!hydrated" class="w-full" /></UFormField>
         <fieldset v-if="bundles.length" class="space-y-2"><legend class="text-sm font-medium">{{ t('subscription.change.bundles') }}</legend>
           <UCheckbox v-for="b in bundles" :key="b.id" :model-value="bundleIds.includes(b.id)" :label="b.name" :disabled="!hydrated" @update:model-value="v => bundleIds = v ? [...bundleIds, b.id] : bundleIds.filter(x => x !== b.id)" />
         </fieldset>
         <UFormField :label="t('subscription.change.cadence')"><USelect v-model="cadenceKey" :items="cadences.map((c: any) => ({ value: `${c.unit}:${c.count}`, label: c.count === 1 ? t(`subscription.cadence.${c.unit}.one`) : t(`subscription.cadence.${c.unit}.many`, { count: c.count }) }))" :disabled="!hydrated" class="w-full" /></UFormField>
         <UFormField :label="t('subscription.change.branches')"><UInputNumber v-model="extra" :min="0" :disabled="!hydrated" /></UFormField>
+        </div>
+        </SharedFormSection>
         <UAlert v-if="notice" role="alert" :color="notice === 'failed' ? 'error' : 'warning'" variant="subtle" :title="t(`subscription.change.${notice}`)"><template v-if="notice !== 'failed'" #actions><UButton size="sm" color="neutral" variant="outline" :disabled="busy" @click="review">{{ t('subscription.change.requote') }}</UButton></template></UAlert>
         <SharedCommercePriceBreakdown :quote="quote" :pending="busy" />
         <p v-if="redirecting" role="status" class="text-sm text-muted">{{ t('subscription.change.redirecting') }}</p>
-        <SharedFormActions class="flex gap-2">
-          <UButton type="submit" :disabled="!hydrated || busy || !planId" :loading="busy && !quote">{{ t('subscription.change.review') }}</UButton>
+        <SharedFormActions>
+          <UButton type="submit" :color="quote ? 'neutral' : 'primary'" :variant="quote ? 'outline' : 'solid'" :disabled="!hydrated || busy || !planId" :loading="busy && !quote">{{ t('subscription.change.review') }}</UButton>
           <UButton v-if="quote" type="button" :disabled="busy || redirecting" :loading="busy" @click="accept">{{ t('subscription.change.accept') }}</UButton>
         </SharedFormActions>
       </form>

@@ -4675,6 +4675,62 @@
       ]
     },
     {
+      "name": "SharedLinkCard",
+      "file": "packages/ui/app/components/shared/layout/LinkCard.vue",
+      "story": "apps/web/stories/shared/LinkCard.stories.ts",
+      "title": "Shared/LinkCard",
+      "props": [
+        {
+          "name": "to",
+          "type": "RouteLocationRaw",
+          "required": true
+        },
+        {
+          "name": "icon",
+          "type": "`i-lucide-${string}`",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "\"success\" | \"neutral\" | \"warning\" | \"primary\" | \"danger\"",
+          "required": false,
+          "default": "\"primary\""
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [
+        "UIcon"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "وجهة",
+          "context": "apps/web/app/pages/index.vue:34"
+        },
+        {
+          "id": "WithoutDescription",
+          "name": "بلا وصف",
+          "context": "apps/web/app/pages/index.vue:34"
+        },
+        {
+          "id": "Tones",
+          "name": "الدرجات",
+          "context": "apps/web/app/pages/index.vue:34"
+        }
+      ]
+    },
+    {
       "name": "SharedListCard",
       "file": "packages/ui/app/components/shared/layout/ListCard.vue",
       "story": "apps/web/stories/shared/ListCard.stories.ts",

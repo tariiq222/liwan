@@ -33,7 +33,7 @@ describe('usage never shows unknown as 0', () => {
   })
   it('panel renders the unavailable label instead of a number', () => {
     const c = read('app/components/subscription/UsagePanel.vue')
-    expect(c).toContain('!f.known'); expect(c).toContain('subscription.usage.unavailable')
+    expect(c).toContain('f.known ?'); expect(c).toContain('subscription.usage.unavailable')
   })
 })
 describe('permission gating', () => {

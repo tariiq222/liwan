@@ -32,7 +32,6 @@
         "name": "Name"
       },
       "overdue": "Overdue",
-      "assignees": "Assignees",
       "loadError": "Could not load the requested tasks. Showing the last loaded results; try again.",
       "closedHint": "Includes completed and cancelled tasks.",
       "tableView": "Table view",

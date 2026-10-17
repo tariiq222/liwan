@@ -178,7 +178,7 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
         <NuxtLink :to="parentLink" class="text-brand-link underline">{{ task.parent!.name }}</NuxtLink>
       </p>
 
-      <SharedRecordSection :title="t('myTasks.detail.description')">
+      <SharedRecordSection variant="panel" :title="t('myTasks.detail.description')">
         <p class="whitespace-pre-wrap break-words text-sm text-default">{{ task.description || t('myTasks.detail.noDescription') }}</p>
       </SharedRecordSection>
 
@@ -186,11 +186,11 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
       <MyTaskAttachments :key="`attachments-${task.id}`" :task-id="task.id" :count="task.attachment_count" :can-write="task.allowed_actions.write && !convertPending" @pending-change="pending.attachments = $event" />
       <MyTaskComments :key="`comments-${task.id}`" :task-id="task.id" :can-write="task.allowed_actions.write && !convertPending" :discard-draft-key="discardDraftKey" @draft-change="drafts.comments = $event" @pending-change="pending.comments = $event" />
       <ConvertToProject v-if="task.allowed_actions.convert" :key="`convert-${task.id}`" :task-id="task.id" :open="convertOpen" :has-draft="hasDraft" :pending-elsewhere="pendingElsewhere || transitioning" :prepare-convert="prepareConvert" @converted="converted = true" @pending-change="convertPending = $event" @close="closeConvert" @resume-writing="resumeWriting" />
-      <SharedRecordSection :title="t('myTasks.detail.info')">
+      <SharedRecordSection variant="tinted" :title="t('myTasks.detail.info')">
         <SharedPropertiesPanel>
-        <SharedPropertyRow :label="t('myTasks.detail.creator')" :value="task.creator.name" />
-        <SharedPropertyRow :label="t('myTasks.detail.createdAt')" :value="formatWebVueDateTime(task.created_at, locale)" />
-        <SharedPropertyRow :label="t('myTasks.detail.updatedAt')" :value="formatWebVueDateTime(task.updated_at, locale)" />
+          <SharedPropertyRow :label="t('myTasks.detail.creator')" :value="task.creator.name" />
+          <SharedPropertyRow :label="t('myTasks.detail.createdAt')" :value="formatWebVueDateTime(task.created_at, locale)" />
+          <SharedPropertyRow :label="t('myTasks.detail.updatedAt')" :value="formatWebVueDateTime(task.updated_at, locale)" />
         </SharedPropertiesPanel>
       </SharedRecordSection>
     </template>

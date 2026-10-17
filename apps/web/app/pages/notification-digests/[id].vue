@@ -68,20 +68,20 @@ async function retryNextPage() {
     <template #actions>
       <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
     </template>
-    <div v-if="idInvalid" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-invalid">
+    <div v-if="idInvalid" class="grid gap-3 rounded-card bg-default py-8 text-center ring ring-default" role="alert" data-testid="digest-invalid">
       <p class="text-sm text-error">{{ t('tasks.digest.invalid') }}</p>
     </div>
-    <div v-else-if="isError && !items.length" class="grid gap-3 py-8 text-center" role="alert" data-testid="digest-error">
+    <div v-else-if="isError && !items.length" class="grid gap-3 rounded-card bg-default py-8 text-center ring ring-default" role="alert" data-testid="digest-error">
       <p class="text-sm text-error">{{ queryErrorMessage }}</p>
       <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
     </div>
-    <p v-else-if="!items.length" class="py-8 text-center text-sm text-muted" data-testid="digest-empty">{{ t('tasks.digest.empty') }}</p>
-    <div v-else class="overflow-hidden rounded-card bg-default ring ring-default">
+    <SharedEmptyState v-else-if="!items.length" bordered :title="t('tasks.digest.empty')" data-testid="digest-empty" />
+    <SharedListCard v-else>
       <ul class="divide-y divide-default">
         <li v-for="task in items" :key="task.id">
           <UButton
             type="button" color="neutral" variant="ghost"
-            class="grid w-full gap-1 rounded-none p-3 text-start hover:bg-elevated"
+            class="grid w-full gap-1 rounded-none px-(--webvue-card-pad-dense) py-3 text-start hover:bg-elevated"
             :disabled="!hydrated"
             :data-testid="`digest-task-${task.id}`"
             @click="openTask(task.id)"
@@ -95,9 +95,10 @@ async function retryNextPage() {
         <p class="text-sm text-error">{{ t('tasks.digest.loadMoreError') }}</p>
         <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-retry-page" :label="t('notifications.retry')" @click="retryNextPage" />
       </div>
-      <div v-else-if="hasNextPage" class="border-t border-default p-4 text-center">
-        <UButton color="neutral" variant="outline" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-load-more" :label="t('app.loadMore')" @click="retryNextPage" />
-      </div>
-    </div>
+      <template #footer>
+        <span class="tabular-nums">{{ t('tasks.digest.count', { n: items.length }, items.length) }}</span>
+        <UButton v-if="hasNextPage && !isFetchNextPageError" color="neutral" variant="outline" size="sm" :disabled="!hydrated || isFetchingNextPage" data-testid="digest-load-more" :label="t('app.loadMore')" @click="retryNextPage" />
+      </template>
+    </SharedListCard>
   </SharedRecordPage>
 </template>
