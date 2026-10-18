@@ -96,7 +96,7 @@ describe('FinanceInvoiceDetailSchema', () => {
   })
 
   it('carries the ZATCA block of a Saudi sale document and is strict about it', () => {
-    const detail = { ...INVOICE, ref: '', lines: [LINE] }
+    const detail = { ...INVOICE, ref: '', debit_origin: null, lines: [LINE] }
     const zatca = { qr_code: 'AQ==', confirmation_datetime: '2026-10-18T09:30:00Z' }
     expect(FinanceInvoiceDetailSchema.parse({ ...detail, zatca })).toEqual({ ...detail, zatca })
     expect(FinanceInvoiceDetailSchema.parse({ ...detail, zatca: { qr_code: null, confirmation_datetime: null } }).zatca)
