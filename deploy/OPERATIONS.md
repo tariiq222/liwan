@@ -115,6 +115,7 @@ python3 deploy/check_isolated.py odoo \
   --scratch-db webvue_scratch_example \
   --scratch-lifecycle CREATE_NEW_SCRATCH \
   --http-port 8169 \
+  --with-oca \
   --modules webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_finance,webvue_integrations_sa,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai \
   --test-tags /webvue_core,/webvue_platform,/webvue_api,/webvue_directory,/webvue_notify,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_finance,/webvue_integrations_sa,/webvue_chat,/webvue_tasks,/webvue_tasks_pmo,/webvue_operations,/webvue_operations_pmo,/webvue_ai,/webvue_pmo_ai
 
@@ -128,6 +129,8 @@ python3 deploy/check_isolated.py e2e \
   --ws-url ws://127.0.0.1:8169/websocket
 ```
 
+`--with-oca` appends the pinned OCA addons (`deploy/oca-addons.json`, fetched with `python3 -B tools/oca_addons.py fetch`):
+`webvue_finance` depends on them, so the `odoo` check cannot install it without them.
 `--stock-addons` is the official extra addons directory (`project`, `hr`).
 Core `base` is not there; it is validated as `<odoo-bin-dir>/odoo/addons/base`
 and prepended on `--addons-path`. Passing the core `odoo/addons` directory as
@@ -227,8 +230,10 @@ PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
 # Set PGPASSWORD through the environment when local PostgreSQL auth requires it;
 # do not put a password on an argv list.
 PGBIN=$(dirname "$(command -v pg_dump)"); WORK=$(mktemp -d)
+# The pinned OCA repositories come last (webvue_finance depends on them).
+OCA_PATH=$(cd "$WORKTREE" && python3 -B tools/oca_addons.py path --check)
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
-  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons,$OCA_PATH" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d webvue_drill_src_scratch --db-filter='^webvue_drill_src_scratch$' \
   --data-dir="$WORK/data" --without-demo=all \

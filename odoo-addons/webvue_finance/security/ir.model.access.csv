@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_finance_assets_read_asset,finance assets read: account.asset,account_asset_management.model_account_asset,group_cap_finance_assets_read,1,0,0,0
+access_finance_assets_read_asset_line,finance assets read: account.asset.line,account_asset_management.model_account_asset_line,group_cap_finance_assets_read,1,0,0,0
+access_finance_assets_read_asset_profile,finance assets read: account.asset.profile,account_asset_management.model_account_asset_profile,group_cap_finance_assets_read,1,0,0,0
+access_finance_assets_read_asset_group,finance assets read: account.asset.group,account_asset_management.model_account_asset_group,group_cap_finance_assets_read,1,0,0,0

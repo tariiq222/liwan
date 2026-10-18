@@ -2,7 +2,9 @@
 from . import (
     access_service,
     feature_registry,
+    mis_report,
     setup_service,
+    statement_report,
     vat_report,
     withholding_report,
 )
