@@ -23,8 +23,8 @@ if TYPE_CHECKING:
 WEBVUE_ADDONS = (
     'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_directory', 'webvue_notify',
     'webvue_pmo', 'webvue_meetings', 'webvue_meetings_pmo', 'webvue_hr', 'webvue_finance',
-    'webvue_chat', 'webvue_tasks', 'webvue_tasks_pmo', 'webvue_operations', 'webvue_operations_pmo',
-    'webvue_ai', 'webvue_pmo_ai',
+    'webvue_integrations_sa', 'webvue_chat', 'webvue_tasks', 'webvue_tasks_pmo',
+    'webvue_operations', 'webvue_operations_pmo', 'webvue_ai', 'webvue_pmo_ai',
 )
 SCRATCH_LIFECYCLE_TOKEN = 'CREATE_NEW_SCRATCH'
 FORBIDDEN_DB_RE = re.compile(

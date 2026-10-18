@@ -8791,6 +8791,140 @@
         ],
         "type": "string"
       },
+      "IntegrationConnectionListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "kind": {
+                  "enum": [
+                    "zatca",
+                    "bank"
+                  ],
+                  "type": "string"
+                },
+                "last_checked": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "provider": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "not_configured",
+                    "pending",
+                    "connected",
+                    "error"
+                  ],
+                  "type": "string"
+                },
+                "status_message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "provider",
+                "state",
+                "last_checked",
+                "status_message"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "IntegrationConnectionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "zatca",
+              "bank"
+            ],
+            "type": "string"
+          },
+          "last_checked": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "not_configured",
+              "pending",
+              "connected",
+              "error"
+            ],
+            "type": "string"
+          },
+          "status_message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "provider",
+          "state",
+          "last_checked",
+          "status_message"
+        ],
+        "type": "object"
+      },
+      "IntegrationKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "zatca",
+          "bank"
+        ],
+        "type": "string"
+      },
+      "IntegrationStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "not_configured",
+          "pending",
+          "connected",
+          "error"
+        ],
+        "type": "string"
+      },
       "LocalizedLabelSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -29277,6 +29411,46 @@
         }
       }
     },
+    "/api/v1/integrations/connections": {
+      "get": {
+        "operationId": "webvue_integrations_sa.IntegrationConnectionController.list_connections.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_connections",
+        "tags": [
+          "webvue_integrations_sa"
+        ],
+        "x-webvue": {
+          "addon": "webvue_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationConnectionController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_connections",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/me": {
       "get": {
         "operationId": "webvue_api.MeController.me.get",
@@ -36840,6 +37014,7 @@
     "webvue_directory",
     "webvue_finance",
     "webvue_hr",
+    "webvue_integrations_sa",
     "webvue_meetings",
     "webvue_meetings_pmo",
     "webvue_notify",
