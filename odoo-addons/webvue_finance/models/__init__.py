@@ -4,4 +4,5 @@ from . import (
     feature_registry,
     setup_service,
     vat_report,
+    withholding_report,
 )

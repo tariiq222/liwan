@@ -2,6 +2,7 @@
 from . import (
     finance_accounts,
     finance_debit_notes,
+    finance_documents,
     finance_entries,
     finance_invoices,
     finance_journals,

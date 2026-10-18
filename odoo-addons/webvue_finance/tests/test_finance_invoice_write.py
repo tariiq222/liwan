@@ -9,7 +9,7 @@ from .write_common import INVOICES, WebVueFinanceWriteCase
 DETAIL_KEYS = {
     'id', 'name', 'move_type', 'state', 'payment_state', 'partner', 'journal', 'invoice_date',
     'invoice_date_due', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_residual',
-    'ref', 'debit_origin', 'lines',
+    'ref', 'debit_origin', 'zatca', 'lines',
 }
 
 

@@ -10,6 +10,7 @@ from .parsing import (
     require_keys,
 )
 from odoo.addons.webvue_api.controllers.common import ApiError
+from odoo.addons.webvue_api.serializers.common import iso
 
 WRITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
 LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id'})
@@ -50,11 +51,26 @@ def dump_invoice_line(line):
     }
 
 
+def dump_invoice_zatca(move):
+    """The ZATCA e-invoicing facts ``l10n_sa`` computes for a Saudi sale document; None for any other.
+
+    ``qr_code`` is the base64 TLV payload of the printed QR code (seller, VAT number, issue time, total
+    and VAT), empty until the document is posted and the company has a VAT number.
+    """
+    if move.country_code != 'SA' or not move.is_sale_document():
+        return None
+    return {
+        'qr_code': move.l10n_sa_qr_code_str or None,
+        'confirmation_datetime': iso(move.l10n_sa_confirmation_datetime),
+    }
+
+
 def dump_invoice_detail(move):
     return {
         **dump_invoice(move),
         'ref': move.ref or '',
         'debit_origin': dump_ref(move.debit_origin_id),
+        'zatca': dump_invoice_zatca(move),
         'lines': [dump_invoice_line(line) for line in move.invoice_line_ids],
     }
 

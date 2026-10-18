@@ -20,6 +20,7 @@ class WebVueFinanceVatReport(models.AbstractModel):
 
         Sales are credit balances, so their sign is flipped; purchases keep the debit sign.
         A reverse-charge tax therefore shows its base and a net tax of zero.
+        Withholding taxes (those of the Saudi 'Withholding Return') are not VAT and never appear.
         A group tax is reported through its individual child taxes (its lines carry the children),
         cash-basis taxes count at the invoice date, and only the given company is read, not its branches.
         """
@@ -33,10 +34,11 @@ class WebVueFinanceVatReport(models.AbstractModel):
             ['tax_ids'], ['balance:sum'],
         )
         taxes = Line._read_group([*period, ('tax_line_id', '!=', False)], ['tax_line_id'], ['balance:sum'])
+        withholding = self.env['webvue.finance.withholding.report']._webvue_withholding_taxes()
         totals = {}
         for field, groups in (('base', bases), ('tax', taxes)):
             for tax, balance in groups:
-                if tax.type_tax_use in VAT_TAX_SCOPES:
+                if tax.type_tax_use in VAT_TAX_SCOPES and tax not in withholding:
                     sign = -1 if tax.type_tax_use == 'sale' else 1
                     totals.setdefault(tax, {'base': 0.0, 'tax': 0.0})[field] = company.currency_id.round(sign * balance) + 0.0
         return totals

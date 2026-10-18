@@ -85,14 +85,25 @@ describe('finance schemas', () => {
 })
 
 describe('FinanceInvoiceDetailSchema', () => {
-  it('adds the reference, the debit origin and the lines to the list shape', () => {
-    const detail = { ...INVOICE, ref: 'PO-1', debit_origin: null, lines: [LINE] }
+  it('adds the reference, the debit origin, the ZATCA block and the lines to the list shape', () => {
+    const detail = { ...INVOICE, ref: 'PO-1', debit_origin: null, zatca: null, lines: [LINE] }
     expect(FinanceInvoiceDetailSchema.parse(detail)).toEqual(detail)
     const note = { ...detail, debit_origin: { id: 3, name: 'INV/2026/0003' } }
     expect(FinanceInvoiceDetailSchema.parse(note)).toEqual(note)
     expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, debit_origin: { id: 3 } })).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse(INVOICE)).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, lines: [{ ...LINE, extra: 1 }] })).toThrow()
+  })
+
+  it('carries the ZATCA block of a Saudi sale document and is strict about it', () => {
+    const detail = { ...INVOICE, ref: '', lines: [LINE] }
+    const zatca = { qr_code: 'AQ==', confirmation_datetime: '2026-10-18T09:30:00Z' }
+    expect(FinanceInvoiceDetailSchema.parse({ ...detail, zatca })).toEqual({ ...detail, zatca })
+    expect(FinanceInvoiceDetailSchema.parse({ ...detail, zatca: { qr_code: null, confirmation_datetime: null } }).zatca)
+      .toEqual({ qr_code: null, confirmation_datetime: null })
+    expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, zatca: { ...zatca, extra: 1 } })).toThrow()
+    expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, zatca: { qr_code: '', confirmation_datetime: null } })).toThrow()
+    expect(() => FinanceInvoiceDetailSchema.parse(detail)).toThrow()
   })
 })
 
