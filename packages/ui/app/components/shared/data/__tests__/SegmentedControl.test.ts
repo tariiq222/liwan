@@ -53,4 +53,39 @@ describe('SharedSegmentedControl', () => {
     clicks.get('closed')!()
     expect(onUpdate).toHaveBeenCalledWith('closed')
   })
+
+  describe('actions mode', () => {
+    const ACTIONS = [
+      { value: 'edit', label: 'Edit', testId: 'act-edit' },
+      { value: 'list', label: 'List', to: '/hr?department_id=1' },
+    ]
+    const NuxtLinkStub = defineComponent({ props: { to: String }, setup: (props, { slots, attrs }) => () => h('a', { href: props.to, ...attrs }, slots.default?.()) })
+
+    it('has no pressed state and renders a link for an item with `to`', async () => {
+      const html = await renderShared('SegmentedControl', { items: ACTIONS, label: 'Actions', mode: 'actions' }, {}, { stubs: { UTooltip: TooltipStub as Component, NuxtLink: NuxtLinkStub as Component } })
+      expect(html).toContain('role="group" aria-label="Actions"')
+      expect(html).toContain('rounded-full')
+      expect(html).not.toContain('aria-pressed')
+      expect(html).toContain('href="/hr?department_id=1"')
+      expect(html).toContain('data-testid="act-edit"')
+    })
+
+    it('emits select (not update:modelValue) with the item value', async () => {
+      const onSelect = vi.fn()
+      const onUpdate = vi.fn()
+      const clicks = new Map<string, () => void>()
+      const UButton = defineComponent({
+        inheritAttrs: false,
+        props: { label: String },
+        setup(props, { attrs }) {
+          clicks.set(String(attrs['data-value']), attrs.onClick as () => void)
+          return () => h('button', null, props.label)
+        },
+      })
+      await renderShared('SegmentedControl', { items: ACTIONS, label: 'Actions', mode: 'actions', onSelect, 'onUpdate:modelValue': onUpdate }, {}, { stubs: { UTooltip: TooltipStub as Component, UButton } })
+      clicks.get('edit')!()
+      expect(onSelect).toHaveBeenCalledWith('edit')
+      expect(onUpdate).not.toHaveBeenCalled()
+    })
+  })
 })

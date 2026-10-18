@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SegmentedItem } from '@webvue/ui/app/components/shared/data/SegmentedControl.vue'
 import { filterDepartmentTree, flattenDepartmentTree, type DepartmentTreeNode } from '@/lib/departmentTree'
 
 const props = defineProps<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
   createChild: [id: number]
 }>()
 
+const { t } = useI18n()
 const expanded = ref(new Set<number>())
 const filteredRoots = computed(() => filterDepartmentTree(props.roots, props.query ?? ''))
 const displayedNodes = computed(() => {
@@ -45,6 +47,23 @@ watch(
   },
   { immediate: true },
 )
+
+function nodeActions(node: DepartmentTreeNode): SegmentedItem[] {
+  const id = node.department.id
+  const items: SegmentedItem[] = []
+  if (props.canManage) {
+    items.push({ value: 'edit', label: t('hr.depts.edit'), icon: 'i-lucide-pencil' })
+    items.push({ value: 'createChild', label: t('hr.depts.newChild'), icon: 'i-lucide-plus' })
+  }
+  if (props.canReadEmployees) items.push({ value: 'employees', label: t('hr.depts.viewEmployees'), icon: 'i-lucide-users', to: `/hr?department_id=${id}` })
+  if (props.canReadDocuments) items.push({ value: 'documents', label: t('hr.depts.viewDocuments'), icon: 'i-lucide-file-text', to: `/hr/documents?department_id=${id}` })
+  return items
+}
+
+function runAction(action: string, id: number) {
+  if (action === 'edit') emit('edit', id)
+  else if (action === 'createChild') emit('createChild', id)
+}
 
 function toggle(node: DepartmentTreeNode) {
   if (!node.children.length) return
@@ -101,53 +120,15 @@ function toggle(node: DepartmentTreeNode) {
           <span v-if="node.children.length">{{ $t('hr.depts.childReason', { count: node.children.length }, node.children.length) }}</span>
         </span>
       </UButton>
-      <div
-        v-if="canManage || canReadEmployees || canReadDocuments"
-        class="ms-auto flex min-w-0 shrink-0 items-center gap-0.5 rounded-full border border-default bg-elevated p-0.5 max-sm:basis-full max-sm:justify-end"
-        role="group"
-        :aria-label="node.department.name"
-      >
-        <UButton
-          v-if="canManage"
-          type="button"
-          color="primary"
-          variant="ghost"
-          square
-          :disabled="!hydrated"
-          :aria-label="$t('hr.depts.edit')"
-          icon="i-lucide-pencil"
-          @click="emit('edit', node.department.id)"
-        />
-        <UButton
-          v-if="canManage"
-          type="button"
-          color="primary"
-          variant="ghost"
-          square
-          :disabled="!hydrated"
-          :aria-label="$t('hr.depts.newChild')"
-          icon="i-lucide-plus"
-          @click="emit('createChild', node.department.id)"
-        />
-        <UButton
-          v-if="canReadEmployees"
-          color="primary"
-          variant="ghost"
-          square
-          :to="`/hr?department_id=${node.department.id}`"
-          :aria-label="$t('hr.depts.viewEmployees')"
-          icon="i-lucide-users"
-        />
-        <UButton
-          v-if="canReadDocuments"
-          color="primary"
-          variant="ghost"
-          square
-          :to="`/hr/documents?department_id=${node.department.id}`"
-          :aria-label="$t('hr.depts.viewDocuments')"
-          icon="i-lucide-file-text"
-        />
-      </div>
+      <SharedSegmentedControl
+        v-if="nodeActions(node).length"
+        mode="actions"
+        icon-only
+        class="ms-auto max-sm:basis-full max-sm:justify-end"
+        :label="node.department.name"
+        :items="nodeActions(node)"
+        @select="runAction($event, node.department.id)"
+      />
     </div>
   </div>
   <SharedEmptyState v-else class="m-(--webvue-card-pad-dense)" :title="$t('hr.depts.empty')" />

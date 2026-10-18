@@ -3670,7 +3670,8 @@
         {
           "name": "modelValue",
           "type": "string",
-          "required": true
+          "required": false,
+          "description": "Toggle mode only: the chosen item."
         },
         {
           "name": "items",
@@ -3697,9 +3698,19 @@
           "name": "block",
           "type": "boolean",
           "required": false
+        },
+        {
+          "name": "mode",
+          "type": "\"toggle\" | \"actions\"",
+          "required": false,
+          "description": "`toggle` (default): a v-model choice. `actions`: plain buttons and links without a selected state."
         }
       ],
       "events": [
+        {
+          "name": "select",
+          "payload": "[value: string]"
+        },
         {
           "name": "update:modelValue",
           "payload": "[value: string]"
@@ -3734,6 +3745,11 @@
         {
           "id": "Disabled",
           "name": "معطّلة",
+          "context": "apps/web/app/components/pmo/tasks/TaskToolbar.vue:209"
+        },
+        {
+          "id": "Actions",
+          "name": "إجراءات (أزرار وروابط)",
           "context": "apps/web/app/components/pmo/tasks/TaskToolbar.vue:209"
         }
       ]

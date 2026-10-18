@@ -49,6 +49,14 @@ const IconStub = defineComponent({
 
 const UIconStub = IconStub
 
+const SegmentedControlStub = defineComponent({
+  props: { label: String, mode: String, items: { type: Array as () => { value: string; label: string; to?: string }[], default: () => [] } },
+  setup(props) {
+    return () => h('div', { role: 'group', 'aria-label': props.label, 'data-mode': props.mode, class: 'rounded-full bg-elevated' },
+      props.items.map(item => (item.to ? h('a', { href: item.to, 'aria-label': item.label }) : h('button', { type: 'button', 'aria-label': item.label }))))
+  },
+})
+
 function departmentNode(
   id: number,
   name: string,
@@ -103,6 +111,13 @@ function loadTree(displayedNodes: DepartmentTreeNode[], options: {
       const hydrated = options.hydrated ?? true
       const isSearching = options.isSearching ?? false
       const emit = (_event: string, _id: number) => undefined
+      const t = (key: string) => key
+      const nodeActions = (node: DepartmentTreeNode) => [
+        ...(canManage ? [{ value: 'edit', label: t('hr.depts.edit') }, { value: 'createChild', label: t('hr.depts.newChild') }] : []),
+        ...(canReadEmployees ? [{ value: 'employees', label: t('hr.depts.viewEmployees'), to: `/hr?department_id=${node.department.id}` }] : []),
+        ...(canReadDocuments ? [{ value: 'documents', label: t('hr.depts.viewDocuments'), to: `/hr/documents?department_id=${node.department.id}` }] : []),
+      ]
+      const runAction = () => undefined
       const isExpanded = (node: DepartmentTreeNode) => isSearching || expanded.has(node.department.id)
       const toggle = (node: DepartmentTreeNode) => {
         if (!node.children.length) return
@@ -120,6 +135,8 @@ function loadTree(displayedNodes: DepartmentTreeNode[], options: {
         isExpanded,
         toggle,
         emit,
+        nodeActions,
+        runAction,
       }
     },
     render,
@@ -136,6 +153,7 @@ async function renderTree(displayedNodes: DepartmentTreeNode[], options?: Parame
   app.component('UButton', UButtonStub)
   app.component('UIcon', UIconStub)
   app.component('NuxtLink', NuxtLinkStub)
+  app.component('SharedSegmentedControl', SegmentedControlStub)
   app.component('ChevronDown', IconStub)
   app.component('FileText', IconStub)
   app.component('Network', IconStub)
@@ -168,6 +186,7 @@ describe('department tree layout and routed actions', () => {
     expect(html).toContain('aria-label="hr.depts.edit"')
     expect(html).toContain('aria-label="hr.depts.newChild"')
     expect(html).toContain(`aria-label="${longName}"`)
+    expect(html).toContain('data-mode="actions"')
     expect(html).toContain('bg-elevated')
     expect(html).toContain('max-sm:basis-full')
   })

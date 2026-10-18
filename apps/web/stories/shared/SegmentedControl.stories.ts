@@ -28,3 +28,7 @@ export const IconOnly: Story = {
 }
 export const Block: Story = { name: 'بملء الصف', args: { block: true }, render: args => ({ components: { SegmentedControl }, setup: () => ({ args, value: ref(args.modelValue) }), template: '<div class="max-w-xs"><SegmentedControl v-bind="args" v-model="value" /></div>' }) }
 export const Disabled: Story = { name: 'معطّلة', args: { disabled: true } }
+export const Actions: Story = {
+  name: 'إجراءات (أزرار وروابط)',
+  args: { mode: 'actions', iconOnly: true, label: 'إجراءات القسم', items: [{ value: 'edit', label: 'تعديل', icon: 'i-lucide-pencil' }, { value: 'add', label: 'إضافة فرع', icon: 'i-lucide-plus' }, { value: 'people', label: 'الموظفون', icon: 'i-lucide-users', to: '/hr' }] },
+}
