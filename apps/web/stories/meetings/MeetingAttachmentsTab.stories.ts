@@ -16,7 +16,7 @@ const listing = (items: typeof attachments) => [
 const meta = {
   title: 'Meetings/MeetingAttachmentsTab',
   component: MeetingAttachmentsTab,
-  parameters: { ...storyContext('apps/web/app/pages/meetings/[id].vue:278'), msw: { handlers: { api: listing(attachments) } } },
+  parameters: { ...storyContext('apps/web/app/pages/meetings/[id].vue:290'), msw: { handlers: { api: listing(attachments) } } },
   args: { meetingId: 7, canEdit: true },
 } satisfies Meta<typeof MeetingAttachmentsTab>
 export default meta

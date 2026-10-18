@@ -26,27 +26,27 @@ const render: Story['render'] = args => ({
 
 export const Populated: Story = {
   name: 'سجل الأحداث',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:236'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:245'),
   render,
 }
 
 export const Paginated: Story = {
   name: 'سجل بصفحات متعددة',
-  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:315'),
+  parameters: storyContext('apps/web/app/pages/meetings/series/[id].vue:302'),
   args: { total: 60, pageSize: 3 },
   render,
 }
 
 export const Empty: Story = {
   name: 'بلا أحداث',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:236'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:245'),
   args: { events: [], total: 0 },
   render,
 }
 
 export const Loading: Story = {
   name: 'جارٍ التحميل',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:236'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:245'),
   args: { events: [], total: 0, loading: true },
   render,
 }

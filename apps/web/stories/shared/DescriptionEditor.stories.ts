@@ -21,14 +21,14 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const InFormSection: Story = { name: 'داخل قسم نموذج', parameters: storyContext('apps/web/app/pages/meetings/new.vue:189') }
+export const InFormSection: Story = { name: 'داخل قسم نموذج', parameters: storyContext('apps/web/app/pages/meetings/new.vue:188') }
 export const WithContent: Story = {
   name: 'بمحتوى منسق',
-  parameters: storyContext('apps/web/app/pages/meetings/new.vue:189'),
+  parameters: storyContext('apps/web/app/pages/meetings/new.vue:188'),
   args: { modelValue: '<p>جدول أعمال <strong>الاجتماع الشهري</strong></p><ul><li>مراجعة المخاطر</li><li>اعتماد الميزانية</li></ul><p><a href="https://example.com">رابط المرجع</a></p>' },
 }
 export const Readonly: Story = {
   name: 'للقراءة فقط',
-  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:131'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id]/minutes.vue:150'),
   args: { readonly: true, modelValue: '<p>محضر معتمد لا يمكن تعديله.</p>' },
 }

@@ -18,7 +18,7 @@ type Story = StoryObj<typeof meta>
 
 export const Form: Story = {
   name: 'نموذج إنشاء',
-  parameters: storyContext('apps/web/app/pages/tasks/new.vue:19'),
+  parameters: storyContext('apps/web/app/pages/tasks/new.vue:23'),
   render: () => ({
     components: { CreatePanel },
     setup: () => ({ t: useI18n().t }),

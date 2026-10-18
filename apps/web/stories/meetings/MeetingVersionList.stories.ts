@@ -26,27 +26,27 @@ const render: Story['render'] = args => ({
 
 export const Populated: Story = {
   name: 'نسخ المحضر',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:248'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:257'),
   render,
 }
 
 export const Selected: Story = {
   name: 'نسخة محددة',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:248'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:257'),
   args: { selectedId: 22 },
   render,
 }
 
 export const Empty: Story = {
   name: 'بلا نسخ',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:248'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:257'),
   args: { versions: [], total: 0 },
   render,
 }
 
 export const Loading: Story = {
   name: 'جارٍ التحميل',
-  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:248'),
+  parameters: storyContext('apps/web/app/pages/meetings/[id].vue:257'),
   args: { versions: [], total: 0, loading: true },
   render,
 }

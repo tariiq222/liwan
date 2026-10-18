@@ -63,4 +63,4 @@ export const ErrorState: Story = { name: 'خطأ', render: () => record({ error:
 // The page supplies its own back control through the header's back slot; Escape still leaves for back-to.
 export const WithBackSlot: Story = { name: 'خانة الرجوع', render: () => record({ backSlot: true }) }
 
-export const OperationalSummary: Story = { name: 'ملخص تشغيلي قبل المحتوى', parameters: storyContext('apps/web/app/components/pmo/tasks/TaskDetailPanel.vue:99'), render: () => record({ summary: true }) }
+export const OperationalSummary: Story = { name: 'ملخص تشغيلي قبل المحتوى', parameters: storyContext('apps/web/app/components/pmo/tasks/TaskDetailPanel.vue:102'), render: () => record({ summary: true }) }

@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/FilterChip',
   component: FilterChip,
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:295', 'شريحة فلتر نشط تحت شريط الفلاتر؛ الضغط عليها يزيل الفلتر.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:290', 'شريحة فلتر نشط تحت شريط الفلاتر؛ الضغط عليها يزيل الفلتر.'),
   args: { label: 'بحث: عقد', disabled: false, onRemove: fn() },
   render: args => ({
     components: { FilterChip },

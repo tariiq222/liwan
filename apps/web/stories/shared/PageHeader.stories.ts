@@ -15,7 +15,7 @@ type Story = StoryObj<typeof meta>
 
 export const WithActions: Story = {
   name: 'مع إجراءات الصفحة',
-  parameters: storyContext('apps/web/app/pages/projects/[id]/settings.vue:19'),
+  parameters: storyContext('apps/web/app/pages/projects/[id]/settings.vue:22'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),

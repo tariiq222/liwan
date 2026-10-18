@@ -25,7 +25,7 @@ const inForm = (error?: string): Story['render'] => args => ({
   template: `<main class="webvue-shell-main"><PageContainer width="form"><form class="space-y-8"><FormSection :title="t('meetingsUi.sectionSchedule')"><div class="webvue-form-grid"><UFormField :label="t('meetingsUi.date')" name="date" required :error="error"><DateField id="meeting-date" v-model="value" class="w-full" :disabled="args.disabled" :min-value="args.minValue" :max-value="args.maxValue" :aria-invalid="!!error" aria-required="true" /></UFormField></div></FormSection></form></PageContainer></main>`,
 })
 
-const formContext = storyContext('apps/web/app/pages/meetings/new.vue:165')
+const formContext = storyContext('apps/web/app/pages/meetings/new.vue:164')
 
 export const InFormField: Story = { name: 'داخل حقل نموذج', parameters: formContext, render: inForm() }
 export const WithValue: Story = { name: 'بقيمة', parameters: formContext, args: { modelValue: '2026-09-13' }, render: inForm() }
@@ -34,7 +34,7 @@ export const Disabled: Story = { name: 'معطّل', parameters: formContext, ar
 
 export const InFilterPopover: Story = {
   name: 'داخل نافذة الفلاتر',
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:277', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:281', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
   render: () => ({
     components: { DateField, FilterBar, PageContainer },
     setup: () => ({ t: useI18n().t, from: ref<string | null>(null) }),

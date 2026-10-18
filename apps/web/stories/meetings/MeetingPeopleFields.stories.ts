@@ -9,7 +9,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Meetings/MeetingPeopleFields',
   component: MeetingPeopleFields,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/meetings/new.vue:185') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/meetings/new.vue:184') },
   args: { attendeeIds: [7], secretaryId: null, disabled: false },
   render: args => ({
     components: { FormSection, MeetingPeopleFields, PageContainer },
