@@ -18,14 +18,20 @@ and the VAT summary.
 | `GET /setup` | `finance.setup.read` |
 | `POST /setup/chart`, `PATCH /setup/company`, `PATCH /setup/fiscal` | `finance.setup.manage` |
 | `GET /reports/vat?date_from&date_to` | `finance.reports.read` |
+| `GET /entries` (`state`, `journal_id`, `date_from`, `date_to`, `q`), `GET /entries/<id>` | `finance.entries.read` |
+| `POST /entries` (201, a draft), `PATCH /entries/<id>`, `DELETE /entries/<id>` (204) | `finance.entries.manage` |
+| `POST /entries/<id>/post`, `/reset-to-draft`, `/unreconcile` | `finance.entries.post` |
+| `POST /invoices/<id>/debit-note` (201, a draft) | `finance.invoices.manage` |
+| `GET /countries` (`q`), `GET /countries/<id>/states` (`q`) | `finance.partners.read` or `finance.setup.read` |
 | `GET /partners` (`q`, `kind=customer\|vendor`, `archived=true\|false`), `GET /partners/<id>` | `finance.partners.read` |
 | `POST /partners` (201), `PATCH /partners/<id>`, `POST /partners/<id>/archive`, `/unarchive` | `finance.partners.manage` |
 
 Every route also requires the `finance.enabled` feature (writes check it as a write). There is
 no partner delete: archive instead. Capability dependencies: `partners.manage` needs
 `partners.read`; `invoices.manage` needs `invoices.read`; `invoices.post` needs `invoices.manage`;
-`payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all twelve capabilities.
+`payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
+`entries.read`; `entries.post` needs `entries.manage`. The built-in `finance_manager` role (and `webvue_core`'s vendor
+support role) holds all fifteen capabilities.
 
 ## Write semantics
 
@@ -73,10 +79,10 @@ elevation below), so each capability
 group implies the least stock group that lets the ORM do the operation (documented per group in
 `security/finance_capability_groups.xml`):
 
-- the four read capabilities, the setup and report capabilities and `partners.read`:
+- the read capabilities (`entries.read` included), the setup and report capabilities and `partners.read`:
   `account.group_account_readonly` (partners: nothing, every internal user reads `res.partner`);
 - `partners.manage`: `base.group_partner_manager`;
-- `invoices.manage`, `invoices.post`, `payments.manage`: `account.group_account_invoice`.
+- `invoices.manage`, `invoices.post`, `payments.manage`, `entries.manage`, `entries.post`: `account.group_account_invoice`.
 
 `account.group_account_manager` is never implied. Consequence: the stock groups are broader than
 the capabilities (any write capability allows ORM writes on every invoice and payment), so only
@@ -86,6 +92,39 @@ the route gates per capability (`tests/test_finance_capability_isolation.py`,
 
 The capability split is route-level and relies on the pending closing of Odoo's generic ORM
 endpoints, which would otherwise let the broader stock groups act directly.
+
+## Journal entries
+
+`/entries` is the manual journal entries of the current company: `move_type = entry` without a payment or bank
+statement origin and without a cash-basis tax origin. Invoices, payments (and their reversals) and the entries Odoo generates (cash-basis, exchange-difference) are 404
+on every entries route, reads included. Entries are in the company currency: a request has no `currency` key, a response reports the company currency code.
+
+- `POST` takes `{journal_id, date, ref?, lines}`; the journal must be a `general` journal of the company, each line is
+  `{account_id, partner_id?, name, debit, credit}` with exactly one of `debit` and `credit` above zero (else 422
+  `invalid` on `lines[i]`) and at least two lines are needed to balance. The totals must be equal in the company
+  currency, else 422 `unbalanced` (`details.debit`, `details.credit`) before Odoo is called. No tax keys exist.
+- `PATCH` of a draft follows the invoice semantics: a body with `lines` replaces every line (and is balance-checked
+  again), a body without keeps them. A non-draft entry answers 422 `not_draft` to `PATCH`, `DELETE` and `post`;
+  `reset-to-draft` on a draft is 422 `invalid_state`.
+- `reset-to-draft` of a posted entry with a reconciled line is 422 `has_reconciliations` (`details.line_ids`):
+  `POST /entries/<id>/unreconcile` first (it removes the reconciliation of the entry's reconciled lines through
+  `remove_move_reconcile`, 422 `invalid_state` when there is none, lock dates mapped like the reset). An entry date in a closed period is 422 `period_locked` (field `date`) on create, `PATCH`
+  and `post`, refused up front because Odoo would silently move the date when posting; a refused reset maps to the same code.
+
+## Debit notes
+
+`POST /invoices/<id>/debit-note` takes the optional `{reason, date, copy_lines}` (date defaults to today in Odoo, the
+lines are not copied by default) and runs the public `account.debit.note` wizard of `account_debit_note`. Only a posted
+customer invoice or vendor bill that is not itself a debit note can be debited: a draft is 422 `not_posted`, a credit
+note or a debit note 422 `invalid_state`. It answers 201 with the new draft invoice (`debit_origin_id` links it to the
+original), which is then posted through the normal `/invoices/<id>/post` route.
+
+## Lookups
+
+`GET /countries` and `GET /countries/<id>/states` feed the partner and company address fields, so either
+`finance.partners.read` or `finance.setup.read` opens them (403 otherwise). `q` matches the name or the code. Names are
+Odoo's translated names, in the language of the request user; nothing is hardcoded. Lists are paged
+(`limit`, `offset`, the shared API maximum), an unknown country is 404.
 
 ## Setup and VAT report routes
 

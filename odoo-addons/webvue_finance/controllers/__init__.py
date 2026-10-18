@@ -1,8 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
     finance_accounts,
+    finance_debit_notes,
+    finance_entries,
     finance_invoices,
     finance_journals,
+    finance_lookups,
     finance_partners,
     finance_payments,
     finance_reports,

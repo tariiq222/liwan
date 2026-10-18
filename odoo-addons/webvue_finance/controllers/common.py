@@ -19,6 +19,12 @@ def require_capability(capability):
         raise ApiError(403, 'forbidden', f'{capability} capability is required')
 
 
+def require_any_capability(capabilities):
+    service = request.env['webvue.access.service']
+    if not any(service._webvue_has_capability(request.env.user, capability) for capability in capabilities):
+        raise ApiError(403, 'forbidden', f'one of {", ".join(capabilities)} capability is required')
+
+
 def parse_choice(value, allowed, field):
     """A query value that must be one of ``allowed``; None when it is absent."""
     if not value:
