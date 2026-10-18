@@ -2,6 +2,8 @@
 # CI stage: back up a scratch release database, restore it, boot Odoo on it, and prove a missing attachment is caught.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+# Pinned OCA repositories (deploy/oca-addons.json), fetched by the setup action; appended after the WebVue addons.
+OCA_PATH="$(python3 -B tools/oca_addons.py path --check)"
 : "${ODOO_ROOT:?}" "${ODOO_PYTHON:?}" "${ODOO_PORT:?}" "${PGHOST:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}"
 W="$(mktemp -d)"
 mkdir -p "$W/data" "$W/restored" "$W/logs"
@@ -22,7 +24,7 @@ export PATH="$B:$PATH"
 export WEBVUE_COMMERCIAL_CONFIG="$W/restore-classification.json"
 python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --output "$WEBVUE_COMMERCIAL_CONFIG"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
-  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" --data-dir="$W/data" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" --data-dir="$W/data" \
   -d "$SRC_DB" -i "$MODULES" \
   --without-demo=all --http-port="$ODOO_PORT" --workers=0 --max-cron-threads=0 --stop-after-init
 python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
@@ -36,7 +38,7 @@ verify "$RST_DB"
 # Classified restored databases must start without a mapping or billing service.
 unset WEBVUE_COMMERCIAL_CONFIG
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
-  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" --data-dir="$W/restored" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" --data-dir="$W/restored" \
   -d "$RST_DB" --http-port="$ODOO_PORT" --workers=0 --max-cron-threads=0 > "$W/restored-odoo.log" 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 1 60); do

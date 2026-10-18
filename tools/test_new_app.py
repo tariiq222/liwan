@@ -46,7 +46,7 @@ ARGS = ['zzprobe', '--name-ar', 'المسبار', '--name-en', 'Probe']
 def seed(root):
     """The slice of the repository the generator reads or edits, plus what the policies scan."""
     skip = shutil.ignore_patterns('__pycache__', '*.pyc', 'static', 'i18n', 'node_modules')
-    for relative in (*REGISTRATION, 'tools/arch_baseline.json', *catalog_check.RELEASE_COPIES):
+    for relative in (*REGISTRATION, 'AGENTS.md', 'tools/arch_baseline.json', 'tools/arch_documented_sudo.json', *catalog_check.RELEASE_COPIES):
         source = REPO / relative
         if source.is_file():
             (root / relative).parent.mkdir(parents=True, exist_ok=True)

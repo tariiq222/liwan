@@ -13,6 +13,7 @@ const document = (overrides: Partial<HrDocument> = {}): HrDocument => ({
   department: { id: 3, name: 'People' },
   body: '<p>Updated</p>',
   attachment_ids: [],
+  expiry_date: null,
   write_date: '2026-09-05T00:00:00Z',
   ...overrides,
 })

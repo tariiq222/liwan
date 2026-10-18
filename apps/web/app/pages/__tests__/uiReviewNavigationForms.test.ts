@@ -137,7 +137,7 @@ describe('reviewed page navigation and form feedback', () => {
 
   it.each([
     ['/projects?q=active', 'nav.projects'], ['/tasks?view=board', 'nav.tasks'],
-    ['/hr?q=name', 'nav.organization'], ['/settings/users', 'nav.settings'],
+    ['/hr?q=name', 'nav.hr'], ['/settings/users', 'nav.settings'],
     ['/account', 'nav.account'], ['/search?q=Example#results', 'app.search'],
     ['/notifications', 'notifications.title'],
   ])('names the summary Back destination for %s', async (returnTo, label) => {

@@ -25,7 +25,7 @@ SHA = re.compile(r'[a-f0-9]{64}\Z')
 IMAGE = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[a-f0-9]{64}\Z')
 SHARED_ENTRYPOINT = ['/opt/venv/bin/python', '/opt/webvue/shared/launch_odoo.py']
 CONFIG = '/etc/odoo/odoo.conf'
-PROTECTED = ('/opt/venv', '/opt/odoo', '/opt/webvue/addons', '/opt/webvue/shared', '/opt/webvue/odoo_secure.py', '/usr/local/bin/webvue-odoo')
+PROTECTED = ('/opt/venv', '/opt/odoo', '/opt/oca', '/opt/webvue/addons', '/opt/webvue/tools', '/opt/webvue/deploy', '/opt/webvue/shared', '/opt/webvue/odoo_secure.py', '/usr/local/bin/webvue-odoo')
 MAX_OUTPUT = 1048576
 
 

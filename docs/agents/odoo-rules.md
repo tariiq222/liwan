@@ -8,8 +8,8 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 - Every Python file starts with `# Part of Odoo. See LICENSE file for full
   copyright and licensing details.` Addon manifests use `'license': 'LGPL-3'`,
   author `Tariq Alwalidi`, and a new addon starts at version `19.0.1.0.0` (later bumps follow
-  `docs/migrations.md`). Do not add OCA or
-  Enterprise dependencies. Keep `ruff check odoo-addons` clean.
+  `docs/migrations.md`). Do not add Enterprise dependencies; OCA dependencies only from the
+  pinned repositories of `deploy/oca-addons.json` (owner decision 2026-10-18). Keep `ruff check odoo-addons` clean.
 - Routes use `@http.route('/api/v1/...', type='json2', auth='user',
   methods=[...], readonly=<bool>)` and `@api_handler`. Errors use
   `{"code": "<snake_case>", "message": "<human>", "field"?: "<name>"}`
@@ -165,6 +165,9 @@ ODOO_ROOT=/Users/tariq/code/odoo
 ODOO_PYTHON="$ODOO_ROOT/.venv/bin/python"
 ODOO_CONF=/absolute/path/to/scratch-only.conf
 WORKTREE=/absolute/path/to/webvue-worktree
+# Pinned OCA addons (deploy/oca-addons.json): fetch once, shared by every worktree (docs/oca-addons.md).
+(cd "$WORKTREE" && python3 -B tools/oca_addons.py fetch)
+OCA_PATH="$(cd "$WORKTREE" && python3 -B tools/oca_addons.py path)"
 SCRATCH_ROOT=$(mktemp -d)
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
 export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
@@ -176,7 +179,7 @@ PGHOST=${PGHOST:-127.0.0.1}; PGPORT=${PGPORT:-5432}; PGUSER=${PGUSER:-tariq}
 MODULES="$(cd "$WORKTREE" && python3 -B tools/catalog_check.py --release-modules)"
 TAGS="/${MODULES//,/,/}"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" -c "$ODOO_CONF" \
-  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$WORKTREE/odoo-addons,$OCA_PATH" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d webvue_scratch --db-filter='^webvue_scratch$' \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \

@@ -2,7 +2,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+import oca_addons
 import odoo_test
 from odoo_test import (
     OdooTestError,
@@ -54,19 +56,32 @@ class TestOdooTest(unittest.TestCase):
         self.assertEqual(require_scratch('webvue_scratch_run_ab12'), 'webvue_scratch_run_ab12')
 
     def test_template_name_changes_with_each_key_part(self):
-        base = template_name('c1', ['a', 'b'], 't1')
-        self.assertEqual(base, template_name('c1', ['b', 'a'], 't1'))
-        self.assertNotEqual(base, template_name('c2', ['a', 'b'], 't1'))
-        self.assertNotEqual(base, template_name('c1', ['a'], 't1'))
-        self.assertNotEqual(base, template_name('c1', ['a', 'b'], 't2'))
+        base = template_name('c1', ['a', 'b'], 't1', 'p1')
+        self.assertEqual(base, template_name('c1', ['b', 'a'], 't1', 'p1'))
+        self.assertNotEqual(base, template_name('c2', ['a', 'b'], 't1', 'p1'))
+        self.assertNotEqual(base, template_name('c1', ['a'], 't1', 'p1'))
+        self.assertNotEqual(base, template_name('c1', ['a', 'b'], 't2', 'p1'))
+        self.assertNotEqual(base, template_name('c1', ['a', 'b'], 't1', 'p2'))
         self.assertTrue(base.startswith('webvue_scratch_tpl_'))
 
+    def test_oca_dirs_fail_closed_when_a_pinned_repository_is_not_fetched(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict('os.environ', {'WEBVUE_OCA_DIR': tmp}):
+            with self.assertRaisesRegex(odoo_test.OdooTestError, 'oca_addons.py fetch'):
+                odoo_test.oca_dirs()
+
+    def test_oca_dirs_return_the_verified_pinned_repositories(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict('os.environ', {'WEBVUE_OCA_DIR': tmp}), \
+                mock.patch.object(oca_addons, 'verify_all') as verify:
+            dirs = odoo_test.oca_dirs()
+        verify.assert_called_once()
+        self.assertTrue(dirs and all(d.parent == Path(tmp) for d in dirs))
+
     def test_template_format_is_part_of_the_key(self):
-        base = template_name('c1', ['a'], 't1')
+        base = template_name('c1', ['a'], 't1', 'p1')
         old = odoo_test.TEMPLATE_FORMAT
         odoo_test.TEMPLATE_FORMAT = old + 1
         try:
-            self.assertNotEqual(base, template_name('c1', ['a'], 't1'))
+            self.assertNotEqual(base, template_name('c1', ['a'], 't1', 'p1'))
         finally:
             odoo_test.TEMPLATE_FORMAT = old
 

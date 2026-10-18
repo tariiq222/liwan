@@ -75,7 +75,8 @@ def build(source, root, report):
     shutil.copytree(source / 'odoo-addons', context / 'odoo-addons',
         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     paths = ['deploy/security/odoo_secure.py', 'deploy/shared/launch_odoo.py',
-        'deploy/shared/validate_odoo_config.py', 'deploy/odoo/entrypoint.sh']
+        'deploy/shared/validate_odoo_config.py', 'deploy/odoo/entrypoint.sh',
+        'tools/oca_addons.py', 'deploy/oca-addons.json']
     for name in paths:
         destination = context / name
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -93,6 +94,8 @@ def build(source, root, report):
         'COPY deploy/security/odoo_secure.py /opt/webvue/odoo_secure.py\n'
         'COPY deploy/shared/launch_odoo.py deploy/shared/validate_odoo_config.py /opt/webvue/shared/\n'
         'COPY deploy/odoo/entrypoint.sh /usr/local/bin/webvue-odoo\n'
+        'COPY tools/oca_addons.py /opt/webvue/tools/oca_addons.py\n'
+        'COPY deploy/oca-addons.json /opt/webvue/deploy/oca-addons.json\n'
         'RUN chmod 0755 /usr/local/bin/webvue-odoo && chmod -R a-w /opt/webvue\n'
         'LABEL webvue.acceptance.kind="cached-base-current-source-overlay" '
         'webvue.acceptance.source-sha256="' + artifact + '"\nUSER 501:501\n')

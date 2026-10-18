@@ -15,6 +15,11 @@ RUN test -n "$ODOO_COMMIT" \
     && git init -q /opt/odoo && cd /opt/odoo \
     && git fetch -q --depth 1 https://github.com/odoo/odoo.git "$ODOO_COMMIT" \
     && git checkout -q FETCH_HEAD && rm -rf .git
+# Pinned OCA repositories (deploy/oca-addons.json), fetched here and never copied into the repository.
+COPY tools/oca_addons.py /tmp/oca/tools/oca_addons.py
+COPY deploy/oca-addons.json /tmp/oca/deploy/oca-addons.json
+RUN python /tmp/oca/tools/oca_addons.py fetch --dest /opt/oca \
+    && find /opt/oca -name .git -prune -exec rm -rf {} +
 COPY deploy/odoo/requirements-python312-linux.txt /tmp/requirements.txt
 RUN python -m venv /opt/venv && /opt/venv/bin/pip install -r /tmp/requirements.txt
 
@@ -24,13 +29,16 @@ ARG WEBVUE_REVISION=unknown
 LABEL sa.webvue.revision=$WEBVUE_REVISION sa.webvue.odoo-commit=$ODOO_COMMIT
 COPY --from=build /opt/odoo /opt/odoo
 COPY --from=build /opt/venv /opt/venv
+COPY --from=build /opt/oca /opt/oca
 COPY odoo-addons /opt/webvue/addons
+COPY tools/oca_addons.py /opt/webvue/tools/oca_addons.py
+COPY deploy/oca-addons.json /opt/webvue/deploy/oca-addons.json
 COPY deploy/security/odoo_secure.py /opt/webvue/odoo_secure.py
 COPY deploy/shared/launch_odoo.py deploy/shared/validate_odoo_config.py /opt/webvue/shared/
 COPY deploy/odoo/entrypoint.sh /usr/local/bin/webvue-odoo
 RUN chmod 0755 /usr/local/bin/webvue-odoo \
     && useradd --system --uid 10001 --home-dir /var/lib/odoo --create-home odoo \
-    && chmod -R a-w /opt/odoo /opt/webvue
+    && chmod -R a-w /opt/odoo /opt/oca /opt/webvue
 ARG TARGETARCH
 COPY deploy/odoo/vendor/wkhtmltox_0.12.6.1-3.bookworm_${TARGETARCH}.deb /tmp/wkhtmltox/
 COPY deploy/odoo/vendor/SHA256SUMS /tmp/wkhtmltox/

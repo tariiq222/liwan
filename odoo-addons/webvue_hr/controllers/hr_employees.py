@@ -28,6 +28,15 @@ def _require(capability):
         raise ApiError(403, 'forbidden', f'{capability} capability is required')
 
 
+def _dump(employee):
+    """Detail shape: the contract block needs management; the list shape never carries it."""
+    return dump_employee(
+        employee,
+        include_access=_can('hr.employees.access_status.read'),
+        include_contract=_can('hr.employees.manage'),
+    )
+
+
 def _admin_employee(employee_id):
     employee = request.env['hr.employee'].with_context(active_test=False).search([
         ('id', '=', int(employee_id)),
@@ -70,6 +79,21 @@ def _validate_employee_relations(vals, employee=None):
         if employee and vals['parent_id'] == employee.id:
             raise ApiError(422, 'invalid', 'an employee cannot manage themselves', field='parent_id')
         _relation('hr.employee', vals['parent_id'], 'parent_id')
+
+
+def _validate_contract_vals(vals, employee):
+    if vals.get('contract_type_id') and not request.env['hr.contract.type'].browse(vals['contract_type_id']).exists():
+        raise ApiError(
+            422, 'invalid', 'contract.contract_type_id does not reference an existing record',
+            field='contract.contract_type_id',
+        )
+    if 'contract_date_start' in vals or 'contract_date_end' in vals:
+        start = vals.get('contract_date_start', employee.contract_date_start)
+        end = vals.get('contract_date_end', employee.contract_date_end)
+        if end and not start:
+            raise ApiError(422, 'invalid', 'contract.end_date needs a start_date', field='contract.end_date')
+        if start and end and end < start:
+            raise ApiError(422, 'invalid', 'contract.end_date is before start_date', field='contract.end_date')
 
 
 class HrEmployeeController(http.Controller):
@@ -125,9 +149,15 @@ class HrEmployeeController(http.Controller):
     @requires_feature('hr.enabled', operation='read')
     def get_employee(self, employee_id):
         _require('hr.employees.read')
-        privileged = _can('hr.employees.archive') or _can('hr.employees.access_status.read')
+        # Deliberate: managing employees implies the full record, archived ones included
+        # (_admin_employee searches with active_test=False); only the archived list needs archive.
+        privileged = (
+            _can('hr.employees.manage')
+            or _can('hr.employees.archive')
+            or _can('hr.employees.access_status.read')
+        )
         employee = _admin_employee(employee_id) if privileged else _public_employee(employee_id)
-        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))
+        return _dump(employee)
 
     @http.route('/api/v1/hr/employees', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -139,7 +169,7 @@ class HrEmployeeController(http.Controller):
         _validate_employee_relations(vals)
         employee = request.env['hr.employee']._webvue_create(vals)
         return request.make_json_response(
-            dump_employee(employee, include_access=_can('hr.employees.access_status.read')),
+            _dump(employee),
             status=201,
         )
 
@@ -155,8 +185,9 @@ class HrEmployeeController(http.Controller):
             raise ApiError(422, 'invalid', 'no fields to update')
         vals = parse_employee_patch(payload)
         _validate_employee_relations(vals, employee)
+        _validate_contract_vals(vals, employee)
         employee._webvue_write(vals)
-        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))
+        return _dump(employee)
 
     @http.route('/api/v1/hr/employees/<int:employee_id>/archive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -166,7 +197,7 @@ class HrEmployeeController(http.Controller):
         _require('hr.employees.archive')
         employee = _admin_employee(employee_id)
         employee._webvue_archive()
-        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))
+        return _dump(employee)
 
     @http.route('/api/v1/hr/employees/<int:employee_id>/unarchive', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -176,4 +207,4 @@ class HrEmployeeController(http.Controller):
         _require('hr.employees.archive')
         employee = _admin_employee(employee_id)
         employee._webvue_unarchive()
-        return dump_employee(employee, include_access=_can('hr.employees.access_status.read'))
+        return _dump(employee)

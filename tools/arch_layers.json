@@ -9,6 +9,7 @@
     "webvue_pmo": 4,
     "webvue_meetings": 4,
     "webvue_hr": 4,
+    "webvue_finance": 4,
     "webvue_chat": 4,
     "webvue_tasks": 4,
     "webvue_operations": 4,
@@ -17,7 +18,8 @@
     "webvue_pmo_ai": 5,
     "base_tier_validation": 3,
     "webvue_operations_pmo": 5,
-    "webvue_registry_probe": 3
+    "webvue_registry_probe": 3,
+    "webvue_integrations_sa": 3
   },
   "exempt": [],
   "web_apps": {
@@ -83,6 +85,14 @@
       ],
       "pages": [
         "operations"
+      ]
+    },
+    "finance": {
+      "components": [
+        "accounting"
+      ],
+      "pages": [
+        "accounting"
       ]
     }
   },

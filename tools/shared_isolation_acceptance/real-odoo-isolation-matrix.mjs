@@ -20,7 +20,7 @@
 // adapter, no MFA, single node, no concurrent production load, no SSR markup
 // crossing against real Odoo-rendered pages.
 import http from 'node:http'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, writeFile, rm, unlink, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -30,6 +30,13 @@ import { test } from 'node:test'
 import { createGuard } from '../../deploy/shared/guard.mjs'
 
 const root = new URL('../../', import.meta.url).pathname
+
+// Stock addons, the WebVue addons and the pinned OCA repositories (deploy/oca-addons.json), verified at their pins.
+function addonsPath() {
+  const oca = spawnSync('python3', ['-B', join(root, 'tools/oca_addons.py'), 'path', '--check'], { cwd: root, encoding: 'utf8' })
+  if (oca.status !== 0) throw new Error(`pinned OCA addons are not ready: ${oca.stderr}`)
+  return `${ODOO_ROOT}/addons,${root}odoo-addons,${oca.stdout.trim()}`
+}
 const ODOO_ROOT = process.env.WEBVUE_ODOO_ROOT || '/Users/tariq/code/odoo'
 const PG_HOST = process.env.WEBVUE_PG_HOST || '127.0.0.1'
 const PG_USER = process.env.WEBVUE_PG_USER || 'odoo'
@@ -85,7 +92,7 @@ async function installTenant(cfg, tenant, dataDir, modules) {
   await run([
     join(ODOO_ROOT, '.venv/bin/python'), join(ODOO_ROOT, 'odoo-bin'),
     '--db_host', PG_HOST, '--db_user', PG_USER, '--db_password', PG_PASSWORD,
-    '--addons-path', `${ODOO_ROOT}/addons,${root}odoo-addons`,
+    '--addons-path', addonsPath(),
     '--data-dir', dataDir, '-d', tenant.database, '-i', modules,
     '--without-demo=all', '--http-port', '0', '--workers=0', '--max-cron-threads=0', '--stop-after-init',
   ], { env: { ...process.env, PGPASSWORD: PG_PASSWORD, WEBVUE_COMMERCIAL_CONFIG: classificationPath }, cwd: root })
@@ -118,7 +125,7 @@ print("SEED_OK", project.id, attachment.id)  # noqa: T201
 `
   const { out } = await run([join(ODOO_ROOT, '.venv/bin/python'), join(ODOO_ROOT, 'odoo-bin'), 'shell',
     '--db_host', PG_HOST, '--db_user', PG_USER, '--db_password', PG_PASSWORD,
-    '--addons-path', `${ODOO_ROOT}/addons,${root}odoo-addons`,
+    '--addons-path', addonsPath(),
     '--data-dir', dataDir, '-d', tenant.database, '--no-http', '--log-level=warn'],
     { env: { ...process.env, PGPASSWORD: PG_PASSWORD }, input: seed, cwd: root })
   const match = out.match(/SEED_OK (\d+) (\d+)/)
@@ -175,7 +182,7 @@ test('real-Odoo ten-tenant isolation matrix: dbfilter-selected live Odoo behind 
   ].join('\n') + '\n')
 
   const odooProc = spawn(join(ODOO_ROOT, '.venv/bin/python'), [join(ODOO_ROOT, 'odoo-bin'), '-c', odooConfPath,
-    '--addons-path', `${ODOO_ROOT}/addons,${root}odoo-addons`],
+    '--addons-path', addonsPath()],
     { env: { ...process.env, PGPASSWORD: PG_PASSWORD }, stdio: ['ignore', 'pipe', 'pipe'] })
   let odooLog = ''
   odooProc.stdout.on('data', c => { odooLog += c })

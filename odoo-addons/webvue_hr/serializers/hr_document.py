@@ -2,11 +2,14 @@
 import base64
 import binascii
 
+from odoo import fields
+
 from odoo.addons.webvue_api.controllers.common import ApiError, parse_positive_int
 from odoo.addons.webvue_api.serializers.common import iso
+from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
 
-CREATE_FIELDS = {'name', 'body', 'department_id'}
-PATCH_FIELDS = {'name', 'body'}
+CREATE_FIELDS = {'name', 'body', 'department_id', 'expiry_date'}
+PATCH_FIELDS = {'name', 'body', 'expiry_date'}
 UPLOAD_FIELDS = {'name', 'datas', 'mimetype'}
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 # Four base64 characters encode three bytes. This is the largest canonical
@@ -26,6 +29,7 @@ def dump_document(doc):
             'mimetype': a.mimetype or '',
             'file_size': a.file_size or 0,
         } for a in doc.attachment_ids],
+        'expiry_date': fields.Date.to_string(doc.expiry_date) or None,
         'write_date': iso(doc.write_date),
     }
 
@@ -62,6 +66,7 @@ def parse_document_create(payload):
         'name': _parse_name(payload.get('name')),
         'body': body,
         'department_id': department_id,
+        'expiry_date': parse_optional_date(payload.get('expiry_date'), 'expiry_date'),
     }
 
 
@@ -74,6 +79,8 @@ def parse_document_patch(payload):
             raise ApiError(422, 'invalid', f"field {key!r} is not writable", field=key)
         if key == 'name':
             vals['name'] = _parse_name(value)
+        elif key == 'expiry_date':
+            vals['expiry_date'] = parse_optional_date(value, 'expiry_date')
         elif value in (None, False):
             vals['body'] = ''
         elif not isinstance(value, str):

@@ -115,7 +115,8 @@ def pick_port(candidates, used, is_free):
 def env_content(nuxt_port, odoo_port, database):
     return (
         '# Per-worktree dev settings; git-ignored. Start Odoo with --http-port=$ODOO_HTTP_PORT, an explicit\n'
-        '# --addons-path and this scratch database, then Nuxt with --port $NUXT_PORT.\n'
+        '# --addons-path and this scratch database, then Nuxt with --port $NUXT_PORT. Append the pinned OCA\n'
+        '# addons (shared by all worktrees, see docs/oca-addons.md): python3 -B tools/oca_addons.py fetch | path.\n'
         'NUXT_PORT=%d\nODOO_HTTP_PORT=%d\n'
         'NUXT_ODOO_URL=http://127.0.0.1:%d\nNUXT_ODOO_DB=%s\n'
         'NUXT_PUBLIC_WS_URL=ws://localhost:%d/websocket\n'

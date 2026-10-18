@@ -25,7 +25,7 @@ STAGES = ('static', 'ai-service', 'control-plane', 'vendor-admin', 'odoo',
 # including tools/webvue_cli/ and tools/shared_saas_lifecycle/ (run by the control-plane tests),
 # is unmapped on purpose, so a new tool runs all twelve stages until it is listed here.
 STATIC_ONLY_TOOLS = (
-    'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_layers.json',
+    'tools/test_*', 'tools/api_surface.py', 'tools/arch_baseline.json', 'tools/arch_documented_sudo.json', 'tools/arch_layers.json',
     'tools/arch_policy.py', 'tools/check_fast.py', 'tools/contracts_jsonschema.mjs',
     'tools/docs_policy.py', 'tools/e2e_isolated.mjs', 'tools/git_policy.py', 'tools/hooks.py',
     'tools/jev_review.mjs', 'tools/migration_guard.py', 'tools/new_app.py',

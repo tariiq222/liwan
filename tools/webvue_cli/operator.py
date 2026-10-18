@@ -42,8 +42,9 @@ PATH_KEYS = frozenset({
     'createdb', 'backup_root', 'release_root', 'classification_file',
 })
 CREATE_MODULES = (
-    'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_directory', 'webvue_notify', 'webvue_pmo',
-    'webvue_meetings', 'webvue_meetings_pmo', 'webvue_hr', 'webvue_chat', 'webvue_tasks', 'webvue_tasks_pmo',
+    'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_directory', 'webvue_notify',
+    'webvue_pmo', 'webvue_meetings', 'webvue_meetings_pmo', 'webvue_hr', 'webvue_finance',
+    'webvue_integrations_sa', 'webvue_chat', 'webvue_tasks', 'webvue_tasks_pmo',
     'webvue_operations', 'webvue_operations_pmo', 'webvue_ai', 'webvue_pmo_ai',
 )
 CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy' / 'catalog' / 'solutions' / 'platform.json'

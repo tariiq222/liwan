@@ -47,7 +47,7 @@ const backTo = computed(() => showFrame.value && activeProjectSection(route.path
 const backLabel = computed(() => {
   const section = backTo.value?.split(/[/?#]/)[1] ?? 'projects'
   const labels: Record<string, string> = {
-    '': 'nav.home', 'my-tasks': 'nav.myTasks', projects: 'nav.projects', tasks: 'nav.tasks', hr: 'nav.organization',
+    '': 'nav.home', 'my-tasks': 'nav.myTasks', projects: 'nav.projects', tasks: 'nav.tasks', hr: 'nav.hr',
     settings: 'nav.settings', account: 'nav.account', search: 'app.search',
     notifications: 'notifications.title', reports: 'nav.reports',
   }
