@@ -117,11 +117,11 @@ describe('tasks app navigation', () => {
 })
 
 describe('module rail', () => {
-  it('orders rail modules home, projects, meetings, chat, organization with utilities anchored after them', () => {
+  it('orders rail modules home, projects, meetings, chat, hr with utilities anchored after them', () => {
     expect(today(visibleShellModules(full).map(item => item.id))).toEqual(['home', 'projects', 'meetings', 'chat', 'hr', 'settings'])
     expect(visibleShellModules(full).find(item => item.id === 'home')?.to).toBe('/')
     expect(visibleShellModules(full).find(item => item.id === 'projects')?.to).toBe('/projects')
-    expect(visibleShellModules(full).find(item => item.id === 'hr')?.labelKey).toBe('nav.organization')
+    expect(visibleShellModules(full).find(item => item.id === 'hr')?.labelKey).toBe('nav.hr')
     expect(visibleShellModules(full).map(item => item.id as string)).not.toContain('tasks')
     expect(visibleShellModules(full).map(item => item.id as string)).not.toContain('reports')
   })
