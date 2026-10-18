@@ -56,7 +56,7 @@ class TestFinanceInvoices(WebVueFinanceCase):
 
     def test_the_detail_carries_the_lines_with_their_taxes(self):
         body = self.api('GET', f'{INVOICES}/{self.invoice.id}').json()
-        self.assertEqual(set(body), INVOICE_KEYS | {'ref', 'lines'})
+        self.assertEqual(set(body), INVOICE_KEYS | {'ref', 'debit_origin', 'lines'})
         (line,) = body['lines']
         self.assertEqual(set(line), LINE_KEYS)
         self.assertEqual((line['price_subtotal'], line['price_total']), (1000, 1150))

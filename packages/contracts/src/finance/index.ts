@@ -42,6 +42,7 @@ export const FinanceInvoiceLineSchema = z.object({
 
 export const FinanceInvoiceDetailSchema = FinanceInvoiceSchema.extend({
   ref: z.string(),
+  debit_origin: FinanceRefSchema.nullable(),
   lines: z.array(FinanceInvoiceLineSchema),
 }).strict()
 
@@ -100,6 +101,8 @@ export type FinancePaymentList = z.infer<typeof FinancePaymentListSchema>
 export type FinanceAccountList = z.infer<typeof FinanceAccountListSchema>
 export type FinanceJournalList = z.infer<typeof FinanceJournalListSchema>
 
+export * from './journal-entries'
+export * from './lookups'
 export * from './partners'
 export * from './report'
 export * from './setup'

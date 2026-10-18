@@ -2,8 +2,11 @@
 from . import (
     account,
     common,
+    debit_note,
+    entry,
     invoice,
     journal,
+    lookup,
     parsing,
     partner,
     payment,

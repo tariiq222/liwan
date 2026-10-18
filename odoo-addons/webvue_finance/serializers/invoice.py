@@ -54,6 +54,7 @@ def dump_invoice_detail(move):
     return {
         **dump_invoice(move),
         'ref': move.ref or '',
+        'debit_origin': dump_ref(move.debit_origin_id),
         'lines': [dump_invoice_line(line) for line in move.invoice_line_ids],
     }
 

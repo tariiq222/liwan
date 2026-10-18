@@ -85,9 +85,12 @@ describe('finance schemas', () => {
 })
 
 describe('FinanceInvoiceDetailSchema', () => {
-  it('adds the reference and the lines to the list shape', () => {
-    const detail = { ...INVOICE, ref: 'PO-1', lines: [LINE] }
+  it('adds the reference, the debit origin and the lines to the list shape', () => {
+    const detail = { ...INVOICE, ref: 'PO-1', debit_origin: null, lines: [LINE] }
     expect(FinanceInvoiceDetailSchema.parse(detail)).toEqual(detail)
+    const note = { ...detail, debit_origin: { id: 3, name: 'INV/2026/0003' } }
+    expect(FinanceInvoiceDetailSchema.parse(note)).toEqual(note)
+    expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, debit_origin: { id: 3 } })).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse(INVOICE)).toThrow()
     expect(() => FinanceInvoiceDetailSchema.parse({ ...detail, lines: [{ ...LINE, extra: 1 }] })).toThrow()
   })

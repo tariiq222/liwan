@@ -11,7 +11,7 @@
     # groups and the finance_manager role (spec R2). Stock account holds the data and
     # its record rules; base_vat validates partner VAT numbers and the company VAT number
     # (the Saudi 15-digit ZATCA TIN rule); l10n_sa supplies the Saudi chart and taxes.
-    'depends': ['webvue_api', 'account', 'base_vat', 'l10n_sa'],
+    'depends': ['webvue_api', 'account', 'account_debit_note', 'base_vat', 'l10n_sa'],
     'data': [
         'security/finance_capability_groups.xml',
         'data/finance_access_permissions.xml',
