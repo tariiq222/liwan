@@ -5658,6 +5658,109 @@
         ],
         "type": "object"
       },
+      "FinanceInvoiceCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "invoice_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_date_due": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "discount": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "name": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "price_unit": {
+                  "exclusiveMaximum": 1000000000000,
+                  "exclusiveMinimum": -1000000000000,
+                  "type": "number"
+                },
+                "quantity": {
+                  "exclusiveMaximum": 1000000000000,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "tax_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "price_unit"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "move_type": {
+            "enum": [
+              "out_invoice",
+              "in_invoice",
+              "out_refund",
+              "in_refund"
+            ],
+            "type": "string"
+          },
+          "partner_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "ref": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "required": [
+          "move_type",
+          "partner_id",
+          "lines"
+        ],
+        "type": "object"
+      },
       "FinanceInvoiceDetailSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -5892,6 +5995,50 @@
           "amount_residual",
           "ref",
           "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceInvoiceLineInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "discount": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "price_unit": {
+            "exclusiveMaximum": 1000000000000,
+            "exclusiveMinimum": -1000000000000,
+            "type": "number"
+          },
+          "quantity": {
+            "exclusiveMaximum": 1000000000000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "tax_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "price_unit"
         ],
         "type": "object"
       },
@@ -6141,6 +6288,95 @@
           "items",
           "total"
         ],
+        "type": "object"
+      },
+      "FinanceInvoicePatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "invoice_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_date_due": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "discount": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "name": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "price_unit": {
+                  "exclusiveMaximum": 1000000000000,
+                  "exclusiveMinimum": -1000000000000,
+                  "type": "number"
+                },
+                "quantity": {
+                  "exclusiveMaximum": 1000000000000,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "tax_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "price_unit"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "partner_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "ref": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "FinanceInvoiceSchema": {
@@ -6413,6 +6649,355 @@
         ],
         "type": "string"
       },
+      "FinancePartnerCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "company_registry": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "country_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "type": "boolean"
+          },
+          "is_company": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "state_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "street": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "vat": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "vendor": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "FinancePartnerListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "city": {
+                  "type": "string"
+                },
+                "company_registry": {
+                  "type": "string"
+                },
+                "country": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "customer": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "is_company": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "state": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "street": {
+                  "type": "string"
+                },
+                "vat": {
+                  "type": "string"
+                },
+                "vendor": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "vat",
+                "company_registry",
+                "street",
+                "city",
+                "state",
+                "country",
+                "is_company",
+                "customer",
+                "vendor",
+                "active"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinancePartnerPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "company_registry": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "country_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "type": "boolean"
+          },
+          "is_company": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "state_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "street": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "vat": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "vendor": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "FinancePartnerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "city": {
+            "type": "string"
+          },
+          "company_registry": {
+            "type": "string"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_company": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "street": {
+            "type": "string"
+          },
+          "vat": {
+            "type": "string"
+          },
+          "vendor": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "vat",
+          "company_registry",
+          "street",
+          "city",
+          "state",
+          "country",
+          "is_company",
+          "customer",
+          "vendor",
+          "active"
+        ],
+        "type": "object"
+      },
       "FinancePaymentListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -6537,6 +7122,51 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "FinancePaymentRegisterSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "exclusiveMaximum": 1000000000000,
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "invoice_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "journal_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "memo": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "payment_date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "payment_method_line_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "invoice_ids",
+          "amount",
+          "payment_date",
+          "journal_id"
         ],
         "type": "object"
       },
@@ -6788,6 +7418,16 @@
           "expense_count"
         ],
         "type": "object"
+      },
+      "FinanceWritableMoveTypeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "out_invoice",
+          "in_invoice",
+          "out_refund",
+          "in_refund"
+        ],
+        "type": "string"
       },
       "FontSizeSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -28440,9 +29080,98 @@
           "readonly": true,
           "route_type": "json2"
         }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinanceInvoiceController.create_invoice.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
       }
     },
     "/api/v1/finance/invoices/{invoice_id}": {
+      "delete": {
+        "operationId": "webvue_finance.FinanceInvoiceController.delete_invoice.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
       "get": {
         "operationId": "webvue_finance.FinanceInvoiceController.get_invoice.get",
         "parameters": [
@@ -28493,6 +29222,216 @@
           "readonly": true,
           "route_type": "json2"
         }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinanceInvoiceController.patch_invoice.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices/{invoice_id}/cancel": {
+      "post": {
+        "operationId": "webvue_finance.FinanceInvoiceController.cancel_invoice.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "cancel_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "cancel_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices/{invoice_id}/post": {
+      "post": {
+        "operationId": "webvue_finance.FinanceInvoiceController.post_invoice.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "post_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "post_invoice",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices/{invoice_id}/reset-to-draft": {
+      "post": {
+        "operationId": "webvue_finance.FinanceInvoiceController.reset_invoice_to_draft.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "reset_invoice_to_draft",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "reset_invoice_to_draft",
+          "readonly": false,
+          "route_type": "json2"
+        }
       }
     },
     "/api/v1/finance/journals": {
@@ -28535,6 +29474,294 @@
         }
       }
     },
+    "/api/v1/finance/partners": {
+      "get": {
+        "operationId": "webvue_finance.FinancePartnerController.list_partners.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_partners",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePartnerController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_partners",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinancePartnerController.create_partner.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_partner",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePartnerController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_partner",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/partners/{partner_id}": {
+      "get": {
+        "operationId": "webvue_finance.FinancePartnerController.get_partner.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partner_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_partner",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePartnerController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_partner",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "webvue_finance.FinancePartnerController.patch_partner.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partner_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_partner",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePartnerController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_partner",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/partners/{partner_id}/archive": {
+      "post": {
+        "operationId": "webvue_finance.FinancePartnerController.archive_partner.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partner_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "archive_partner",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePartnerController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "archive_partner",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/partners/{partner_id}/unarchive": {
+      "post": {
+        "operationId": "webvue_finance.FinancePartnerController.unarchive_partner.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partner_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "unarchive_partner",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePartnerController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "unarchive_partner",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/payments": {
       "get": {
         "operationId": "webvue_finance.FinancePaymentController.list_payments.get",
@@ -28571,6 +29798,150 @@
           "feature_operation": "read",
           "handler": "list_payments",
           "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinancePaymentController.register_payment.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "register_payment",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePaymentController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "register_payment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/payments/{payment_id}/cancel": {
+      "post": {
+        "operationId": "webvue_finance.FinancePaymentController.cancel_payment.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "cancel_payment",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePaymentController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "cancel_payment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/payments/{payment_id}/reset-to-draft": {
+      "post": {
+        "operationId": "webvue_finance.FinancePaymentController.reset_payment_to_draft.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "reset_payment_to_draft",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePaymentController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "reset_payment_to_draft",
+          "readonly": false,
           "route_type": "json2"
         }
       }
