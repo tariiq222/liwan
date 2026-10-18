@@ -1,0 +1,21 @@
+{
+  "integrations": {
+    "title": "Government and bank links",
+    "nav": "Integrations",
+    "description": "Status of the links to ZATCA and the banks. This page shows status only.",
+    "empty": "No links yet",
+    "forbidden": "You do not have permission to view integration status.",
+    "kind": {
+      "zatca": "E-invoicing (ZATCA)",
+      "bank": "Bank connection"
+    },
+    "state": {
+      "not_configured": "Not configured",
+      "pending": "Pending setup",
+      "connected": "Connected",
+      "error": "Error"
+    },
+    "lastChecked": "Last checked: {at}",
+    "neverChecked": "Not checked yet"
+  }
+}

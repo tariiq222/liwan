@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Runs on install and on every upgrade: each company gets its default connections once. -->
+    <function model="webvue.integration.connection" name="_webvue_ensure_default_connections"/>
+</odoo>

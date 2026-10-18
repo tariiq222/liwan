@@ -17,7 +17,8 @@
     "webvue_pmo_ai": 5,
     "base_tier_validation": 3,
     "webvue_operations_pmo": 5,
-    "webvue_registry_probe": 3
+    "webvue_registry_probe": 3,
+    "webvue_integrations_sa": 3
   },
   "exempt": [],
   "web_apps": {
