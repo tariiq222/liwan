@@ -95,7 +95,7 @@ class TestFinanceInvoices(WebVueFinanceCase):
 
     def test_bad_filters_are_a_422_invalid(self):
         for query in (
-            '?move_type=entry', '?state=open', '?partner_id=abc', '?date_from=18-10-2026',
+            '?move_type=entry', '?state=open', '?partner_id=abc', '?date_from=18-10-2026', '?date_from=20261018',
             '?date_from=2026-10-31&date_to=2026-10-01', '?limit=-1', '?offset=x',
         ):
             with self.subTest(query=query):

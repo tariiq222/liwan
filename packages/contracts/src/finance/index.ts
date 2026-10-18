@@ -1,10 +1,7 @@
 import { z } from 'zod'
+import { currency, day, FinanceRefSchema, id, list } from './shared'
 
-const id = z.number().int().positive()
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-const currency = z.string().min(1)
-
-export const FinanceRefSchema = z.object({ id, name: z.string() }).strict()
+export { FinanceRefSchema }
 
 export const FinanceMoveTypeSchema = z.enum([
   'out_invoice', 'out_refund', 'in_invoice', 'in_refund', 'out_receipt', 'in_receipt',
@@ -86,9 +83,6 @@ export const FinanceJournalSchema = z.object({
   currency,
 }).strict()
 
-const list = <T extends z.ZodType>(item: T) =>
-  z.object({ items: z.array(item), total: z.number().int().nonnegative() }).strict()
-
 export const FinanceInvoiceListSchema = list(FinanceInvoiceSchema)
 export const FinancePaymentListSchema = list(FinancePaymentSchema)
 export const FinanceAccountListSchema = list(FinanceAccountSchema)
@@ -105,3 +99,6 @@ export type FinanceInvoiceList = z.infer<typeof FinanceInvoiceListSchema>
 export type FinancePaymentList = z.infer<typeof FinancePaymentListSchema>
 export type FinanceAccountList = z.infer<typeof FinanceAccountListSchema>
 export type FinanceJournalList = z.infer<typeof FinanceJournalListSchema>
+
+export * from './partners'
+export * from './write'

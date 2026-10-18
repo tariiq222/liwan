@@ -4,7 +4,15 @@ from odoo import api, models
 FINANCE_PERMISSIONS = frozenset({
     'finance.invoices.read', 'finance.payments.read',
     'finance.accounts.read', 'finance.journals.read',
+    'finance.partners.read', 'finance.partners.manage',
+    'finance.invoices.manage', 'finance.invoices.post', 'finance.payments.manage',
 })
+FINANCE_PERMISSION_DEPENDENCIES = {
+    'finance.partners.manage': {'finance.partners.read'},
+    'finance.invoices.manage': {'finance.invoices.read'},
+    'finance.invoices.post': {'finance.invoices.manage'},
+    'finance.payments.manage': {'finance.payments.read', 'finance.invoices.read'},
+}
 
 
 class WebVueFinanceAccessService(models.AbstractModel):
@@ -15,6 +23,13 @@ class WebVueFinanceAccessService(models.AbstractModel):
         return super()._webvue_capability_definitions() + tuple(
             {'key': key, 'owner': 'webvue_finance'} for key in sorted(FINANCE_PERMISSIONS)
         )
+
+    @api.model
+    def _webvue_permission_dependencies(self):
+        dependencies = super()._webvue_permission_dependencies()
+        for key, required in FINANCE_PERMISSION_DEPENDENCIES.items():
+            dependencies[key] = dependencies.get(key, set()) | required
+        return dependencies
 
     @api.model
     def _webvue_builtin_role_grants(self):

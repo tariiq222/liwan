@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import re
 from datetime import date
 
 from odoo.http import request
@@ -8,6 +9,8 @@ from odoo.addons.webvue_api.controllers.common import (
     parse_page,
     parse_positive_int,
 )
+
+ISO_DAY = re.compile(r'\d{4}-\d{2}-\d{2}', re.ASCII)
 
 
 def require_capability(capability):
@@ -25,11 +28,14 @@ def parse_choice(value, allowed, field):
     return value
 
 
-def _parse_day(value, field):
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        raise ApiError(422, 'invalid', f'{field} must be an ISO date (YYYY-MM-DD)', field=field) from None
+def parse_day(value, field):
+    """A date that is exactly ``YYYY-MM-DD`` (the contract's pattern), else 422."""
+    if isinstance(value, str) and ISO_DAY.fullmatch(value):
+        try:
+            return date.fromisoformat(value)
+        except ValueError:
+            pass
+    raise ApiError(422, 'invalid', f'{field} must be an ISO date (YYYY-MM-DD)', field=field)
 
 
 def filter_domain(args, date_field):
@@ -40,8 +46,8 @@ def filter_domain(args, date_field):
     domain = []
     if args.get('partner_id'):
         domain.append(('partner_id', '=', parse_positive_int(args['partner_id'], 'partner_id')))
-    date_from = _parse_day(args['date_from'], 'date_from') if args.get('date_from') else None
-    date_to = _parse_day(args['date_to'], 'date_to') if args.get('date_to') else None
+    date_from = parse_day(args['date_from'], 'date_from') if args.get('date_from') else None
+    date_to = parse_day(args['date_to'], 'date_to') if args.get('date_to') else None
     if date_from and date_to and date_from > date_to:
         raise ApiError(422, 'invalid', 'date_to must be on or after date_from', field='date_to')
     if date_from:

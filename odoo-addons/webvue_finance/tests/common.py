@@ -25,12 +25,12 @@ class WebVueFinanceCase(WebVueApiCase):
         return company
 
     @classmethod
-    def _sale_invoice(cls, company, partner):
+    def _draft_sale_invoice(cls, company, partner):
         vat = cls.env['account.tax'].search([
             ('company_id', '=', company.id), ('type_tax_use', '=', 'sale'),
             ('amount_type', '=', 'percent'), ('amount', '=', 15),
         ], limit=1)
-        invoice = cls.env['account.move'].with_company(company).create({
+        return cls.env['account.move'].with_company(company).create({
             'move_type': 'out_invoice',
             'partner_id': partner.id,
             'invoice_date': '2026-10-18',
@@ -38,6 +38,10 @@ class WebVueFinanceCase(WebVueApiCase):
                 'name': 'Consulting', 'quantity': 1, 'price_unit': 1000, 'tax_ids': [Command.set(vat.ids)],
             })],
         })
+
+    @classmethod
+    def _sale_invoice(cls, company, partner):
+        invoice = cls._draft_sale_invoice(company, partner)
         invoice.action_post()
         return invoice
 

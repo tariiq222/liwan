@@ -68,8 +68,9 @@ class TestFinanceRouteAccess(WebVueFinanceCase):
             with self.subTest(route=route):
                 self.assertEqual(self.api('GET', route).status_code, 200)
 
-    def test_the_routes_are_read_only(self):
+    def test_the_collection_routes_have_no_patch_or_delete(self):
         self.authenticate(MANAGER_LOGIN, MANAGER_PASSWORD)
-        for method in ('POST', 'PATCH', 'DELETE'):
-            with self.subTest(method=method):
-                self.assertNotEqual(self.api(method, ROUTES[0], json={}).status_code, 200)
+        for route in ROUTES:
+            for method in ('PATCH', 'DELETE'):
+                with self.subTest(route=route, method=method):
+                    self.assertNotEqual(self.api(method, route, json={}).status_code, 200)
