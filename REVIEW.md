@@ -37,7 +37,8 @@ file the tool does not scan).
    - A write path with no capability check, or one that ignores current-company or record visibility.
    - A raw `read()` result sent to the client instead of a whitelisting serializer.
    - A schema change without its version bump and migration directory in the same commit.
-   - Timesheet, payroll, bank or compensation data added to the customer UI.
+   - Timesheet, payroll, employee bank account or compensation data added to the customer UI
+     (the company's own bank statements and reconciliation in `webvue_finance` are allowed).
 2. **Contract parity.** Serializer keys, the Zod `.strict()` schema, the test key set and what
    the composable reads must match; every write returns the full detail shape; errors carry a
    real HTTP status with `{code, message, field?}`.

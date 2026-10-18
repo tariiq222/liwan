@@ -260,8 +260,10 @@ cross-addon links.
 - The current delivery scope has no time logging or payroll product surface.
   These are stage constraints, not permanent exclusions from the product
   vision; adding them requires a separately scoped implementation request. Do not add
-  `hr_timesheet`, timesheet fields/endpoints, payroll, bank, or compensation
-  data to the customer UI.
+  `hr_timesheet`, timesheet fields/endpoints, payroll, employee bank accounts, or
+  compensation data to the customer UI. The company's own bank statements and
+  reconciliation in `webvue_finance` are accounting data and are allowed (owner decision
+  2026-10-18).
 - Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
   Presentation follows DESIGN.md. Preserve URL query filters when returning;
   do not promise scroll restoration without evidence.
