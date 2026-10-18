@@ -50,7 +50,7 @@ const table = (state: { rows?: Row[]; loading?: boolean; error?: unknown; select
         <p class="mt-1 text-sm text-muted">{{ row.manager }}</p>
       </template>
     </DataTable>
-    <p class="sr-only" data-testid="story-sort">{{ sort ? `${sort.column} ${sort.direction}` : 'none' }}</p>
+    <p class="sr-only" data-testid="story-sort">{{ sort ? sort.column + ' ' + sort.direction : 'none' }}</p>
     <p class="sr-only" data-testid="story-route">{{ $route.fullPath }}</p>
   </PageContainer></main>`,
 })

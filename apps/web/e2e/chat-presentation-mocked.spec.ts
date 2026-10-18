@@ -10,8 +10,7 @@ async function setup(page: Page) {
   await page.route('**/api/v1/chat/**', async route => {
     const url = new URL(route.request().url())
     let body: unknown = { items: [], total: 0 }
-    if (url.pathname.endsWith('/recipients')) body = { items: [{ id: 7, name: 'سارة' }, { id: 8, name: 'خالد' }], total: 2 }
-    else if (url.pathname.endsWith('/messages')) {
+    if (url.pathname.endsWith('/messages')) {
       const filtered = messages.filter(item => item.body.includes(url.searchParams.get('q') || ''))
       body = { items: filtered, total: filtered.length }
     } else if (url.pathname.endsWith('/conversations')) {
@@ -20,6 +19,7 @@ async function setup(page: Page) {
     } else if (/\/42(\/read)?$/.test(url.pathname)) body = conversation
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
+  await page.route('**/api/v1/people**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 7, user_id: 7, name: 'سارة' }, { id: 8, user_id: 8, name: 'خالد' }]) }))
   await page.goto('/login')
   await expect(page.getByRole('button', { name: 'دخول', exact: true })).toBeEnabled()
   await page.getByLabel('اسم المستخدم').fill('admin')
@@ -45,6 +45,13 @@ test('closing message search restores the thread and muted conversations stay ma
   await expect(page.locator('html')).not.toHaveAttribute('data-project-theme')
 })
 
+// The recipient field is a multi-select menu: open it, choose the option, close the menu again.
+async function pickRecipient(page: Page, name: RegExp) {
+  await page.getByTestId('person-picker').click()
+  await page.getByRole('option', { name }).click()
+  await page.keyboard.press('Escape')
+}
+
 test('explicit group creation requires two recipients and preserves their ids', async ({ page }) => {
   const creates = await setup(page)
   await page.goto('/chat/new?kind=group')
@@ -58,11 +65,11 @@ test('explicit group creation requires two recipients and preserves their ids', 
   await expect(dialog.getByRole('alert')).toContainText('اثنين على الأقل')
   await expect(dialog.locator('#chat-recipient-search')).toBeFocused()
   expect(creates).toEqual([])
-  await page.getByRole('button', { name: /سارة/ }).click()
+  await pickRecipient(page, /سارة/)
   await create.click()
   await expect(dialog.getByRole('alert')).toContainText('اثنين على الأقل')
   expect(creates).toEqual([])
-  await page.getByRole('button', { name: /خالد/ }).click()
+  await pickRecipient(page, /خالد/)
   await expect(create).toBeEnabled()
   await create.click()
   await expect(page).toHaveURL(/\/chat\/42/)
