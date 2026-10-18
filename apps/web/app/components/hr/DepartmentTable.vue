@@ -52,7 +52,7 @@ function actionsFor(department: HrDepartment): RowAction[] {
 </script>
 
 <template>
-  <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,528px)] [&_table]:table-fixed">
+  <div class="webvue-fixed-table min-w-0">
     <SharedDataTable
       bare
       data-testid="hr-department-table"

@@ -11,10 +11,10 @@ import { useAiRunActions, useAiRuns } from '@/composables/useAiRuns'
 // place or archived (both reversible); the archived ones are one toggle away and an open conversation stays open when archived.
 const props = defineProps<{ disclosure?: boolean }>()
 // Touch targets below 768px are 44px (DESIGN.md); the inline disclosure body is capped so it scrolls inside itself.
-const TOUCH_TARGET = 'max-md:min-h-[44px]'
-const TOUCH_TARGET_BUTTONS = 'max-md:[&_button]:min-h-[44px]'
-const TOUCH_TARGET_ROW_ACTION = 'max-md:[&_button]:min-h-[44px] max-md:[&_button]:min-w-[44px]'
-const DISCLOSURE_BODY = 'h-[min(26rem,60svh)] border-t border-default'
+const TOUCH_TARGET = 'webvue-touch-target'
+const TOUCH_TARGET_BUTTONS = 'webvue-touch-target-buttons'
+const TOUCH_TARGET_ROW_ACTION = 'webvue-touch-target-row-actions'
+const DISCLOSURE_BODY = 'webvue-disclosure-body border-t border-default'
 const route = useRoute()
 const { t } = useI18n()
 const toast = useToast()

@@ -421,3 +421,18 @@ html { caret-color: var(--brand-link); }
     margin-block-end: calc(var(--shell-inset) - 48px);
   }
 }
+
+/* Touch targets below 768px are 44px (DESIGN.md): `.webvue-touch-target` on a control, `-buttons` on a wrapper of
+   buttons, `-row-actions` where the buttons also need a 44px width. */
+@media (max-width: 767px) {
+  .webvue-touch-target,
+  .webvue-touch-target-buttons button,
+  .webvue-touch-target-row-actions button { min-height: 44px; }
+  .webvue-touch-target-row-actions button { min-width: 44px; }
+}
+
+/* An inline disclosure body (AiRunList below 768px): capped so it scrolls inside itself. */
+.webvue-disclosure-body { height: min(26rem, 60svh); }
+
+/* A table whose fixed-width columns decide its floor: it fills its card and never shrinks under their sum (528px). */
+.webvue-fixed-table table { width: 100%; min-width: max(100%, 528px); table-layout: fixed; }
