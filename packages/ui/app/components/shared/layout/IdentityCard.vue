@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
+import { avatarProps } from '../../../utils/avatarTone'
 
-// The identity hero of an HR record (employee, department): avatar, name, a status pill and one sub-line in a single
-// card. Both records open with it, so they read the same; the facts go in the aside's properties panel.
+// The identity hero of a person or unit record (employee, department, user): avatar, name, a status pill and one
+// sub-line in a single panel card. Every such record opens with it, so they read the same; the facts go in the
+// aside's properties panel. The sub-line is the `subtitle` text, or the `#subtitle` slot when it needs markup.
 defineProps<{ id: number; name: string; subtitle?: string }>()
 </script>
 
@@ -15,7 +16,9 @@ defineProps<{ id: number; name: string; subtitle?: string }>()
           <p class="truncate text-base font-semibold text-highlighted">{{ name }}</p>
           <slot name="badge" />
         </div>
-        <p v-if="subtitle" class="truncate text-sm text-muted">{{ subtitle }}</p>
+        <p v-if="subtitle || $slots.subtitle" class="truncate text-sm text-muted">
+          <slot name="subtitle">{{ subtitle }}</slot>
+        </p>
       </div>
     </div>
   </SharedRecordSection>

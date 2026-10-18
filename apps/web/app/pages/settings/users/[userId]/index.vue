@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { owningListBack, recordChildTo } from '@/utils/recordListOrigin'
 import { accessBadge } from '@/components/access/accessBadge'
-import { avatarProps } from '@webvue/ui/app/utils/avatarTone'
 import CapabilityGroups from '@/components/access/users/CapabilityGroups.vue'
 import { adminListQuery } from '@/composables/adminSettingsPaths'
 const route = useRoute()
@@ -47,18 +46,10 @@ const tabs = computed(() => {
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <SharedPageState v-else :empty="!query.data.value" :empty-text="t('access.notFound')">
       <template v-if="query.data.value">
-        <SharedRecordSection variant="panel" data-slot="identity-card">
-          <div class="flex items-center gap-4">
-            <UAvatar v-bind="avatarProps(query.data.value.name, query.data.value.id)" size="xl" />
-            <div class="min-w-0 flex-1 space-y-1.5">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="truncate text-base font-semibold text-highlighted">{{ query.data.value.name }}</p>
-                <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" />
-              </div>
-              <p class="truncate text-sm text-muted"><bdi dir="ltr">{{ query.data.value.login }}</bdi> · {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</p>
-            </div>
-          </div>
-        </SharedRecordSection>
+        <SharedIdentityCard :id="query.data.value.id" :name="query.data.value.name">
+          <template #badge><SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" /></template>
+          <template #subtitle><bdi dir="ltr">{{ query.data.value.login }}</bdi> · {{ query.data.value.employee?.name ?? t('access.users.noEmployee') }}</template>
+        </SharedIdentityCard>
         <SharedRecordSection id="roles" variant="panel" :title="t('access.users.rolesAndScopes')">
           <ul v-if="query.data.value.assignments.length" class="grid gap-2">
             <SharedSubCard v-for="assignment in query.data.value.assignments" :key="assignment.id" as="li" class="flex flex-wrap items-center justify-between gap-2">

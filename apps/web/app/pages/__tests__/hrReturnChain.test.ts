@@ -48,7 +48,7 @@ async function load(file: string, url: RouteLocationRaw, props: Record<string, u
     useSsrQuerySeed: () => {}, navigateTo: navigate, returnToQuery, buildDepartmentTree, filterDepartmentTree, fitOrgChart, layoutDepartmentOrgChart, nextOrgScale,
     refDebounced: (value: unknown) => value, hasPendingHrSearch: () => false, hrCommittedListParams: () => ({ q: '', offset: 0 }),
     formatCalendarDate: () => '', ApiError: class extends Error {},
-    DocumentList: {}, DocumentReader: {}, DocumentEditor: {}, DocumentCreateForm: {}, HrIdentityCard: {}, DepartmentForm: {}, DepartmentOrgChart: {}, DepartmentTree: {}, DepartmentTable: {}, FilterBar: {}, RecordNumber: {},
+    DocumentList: {}, DocumentReader: {}, DocumentEditor: {}, DocumentCreateForm: {}, DepartmentForm: {}, DepartmentOrgChart: {}, DepartmentTree: {}, DepartmentTable: {}, FilterBar: {}, RecordNumber: {},
     ...navigation, ...recordNavigation, provide: Vue.provide, useSlots: () => ({}), FORM_ACTIONS_HOST,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
