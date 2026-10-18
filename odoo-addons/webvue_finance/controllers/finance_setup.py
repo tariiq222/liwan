@@ -1,0 +1,126 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import http
+from odoo.http import request
+
+from .common import parse_day, require_capability
+from odoo.addons.webvue_api.controllers.common import (
+    ApiError,
+    api_handler,
+    parse_positive_int,
+    requires_feature,
+)
+from odoo.addons.webvue_finance.serializers.setup import dump_setup
+
+TEXT_FIELDS = ('vat', 'company_registry', 'street', 'city')
+RELATION_FIELDS = {'state_id': 'res.country.state', 'country_id': 'res.country'}
+# The hard lock date is irreversible in stock Odoo, so this route never writes it.
+LOCK_DATE_FIELDS = ('fiscalyear_lock_date', 'tax_lock_date', 'sale_lock_date', 'purchase_lock_date')
+FISCAL_DAYS = range(1, 32)
+FISCAL_MONTHS = range(1, 13)
+
+
+def _require_payload(payload, allowed):
+    unknown = sorted(set(payload) - set(allowed))
+    if unknown:
+        raise ApiError(422, 'invalid', f'unknown field: {unknown[0]}', field=unknown[0])
+    if not payload:
+        raise ApiError(422, 'invalid', 'no fields to update')
+
+
+def _parse_text(value, field):
+    if value is not None and not isinstance(value, str):
+        raise ApiError(422, 'invalid', f'{field} must be a string or null', field=field)
+    return (value or '').strip() or False
+
+
+def _parse_relation(value, field):
+    if value is None:
+        return False
+    record_id = parse_positive_int(value, field)
+    if not request.env[RELATION_FIELDS[field]].browse(record_id).exists():
+        raise ApiError(422, 'invalid', f'{field} does not exist', field=field)
+    return record_id
+
+
+def _parse_int_in(value, field, allowed):
+    if isinstance(value, bool) or not isinstance(value, int) or value not in allowed:
+        raise ApiError(422, 'invalid', f'{field} must be an integer from {allowed[0]} to {allowed[-1]}', field=field)
+    return value
+
+
+def _parse_lock_date(value, field):
+    if value is None:
+        return False
+    if not isinstance(value, str):
+        raise ApiError(422, 'invalid', f'{field} must be an ISO date (YYYY-MM-DD) or null', field=field)
+    return parse_day(value, field)
+
+
+def parse_company_vals(payload, company):
+    _require_payload(payload, (*TEXT_FIELDS, *RELATION_FIELDS))
+    vals = {
+        field: _parse_text(value, field) if field in TEXT_FIELDS else _parse_relation(value, field)
+        for field, value in payload.items()
+    }
+    state = request.env['res.country.state'].browse(vals.get('state_id', company.state_id.id) or [])
+    if state and state.country_id.id != vals.get('country_id', company.country_id.id):
+        raise ApiError(422, 'invalid', 'state_id does not belong to the country', field='state_id')
+    return vals
+
+
+def _require_not_loosened(field, new_value, current):
+    if current and (not new_value or new_value < current):
+        raise ApiError(
+            422, 'lock_date_loosening',
+            f'{field} can only move later here; an accounting administrator loosens it in Odoo', field=field,
+        )
+
+
+def parse_fiscal_vals(payload, company):
+    _require_payload(payload, ('fiscalyear_last_day', 'fiscalyear_last_month', *LOCK_DATE_FIELDS))
+    vals = {}
+    for field, value in payload.items():
+        if field == 'fiscalyear_last_day':
+            vals[field] = _parse_int_in(value, field, FISCAL_DAYS)
+        elif field == 'fiscalyear_last_month':
+            vals[field] = str(_parse_int_in(value, field, FISCAL_MONTHS))
+        else:
+            vals[field] = _parse_lock_date(value, field)
+            _require_not_loosened(field, vals[field], company[field])
+    return vals
+
+
+class FinanceSetupController(http.Controller):
+
+    @http.route('/api/v1/finance/setup', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('finance.enabled', operation='read')
+    def get_setup(self, **_):
+        require_capability('finance.setup.read')
+        return dump_setup(request.env.company)
+
+    @http.route('/api/v1/finance/setup/chart', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def load_chart(self, **_):
+        require_capability('finance.setup.manage')
+        company = request.env.company
+        request.env['webvue.finance.setup']._webvue_load_chart(company)
+        return dump_setup(company)
+
+    @http.route('/api/v1/finance/setup/company', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def patch_company(self, **payload):
+        require_capability('finance.setup.manage')
+        company = request.env.company
+        request.env['webvue.finance.setup']._webvue_write_company(company, parse_company_vals(payload, company))
+        return dump_setup(company)
+
+    @http.route('/api/v1/finance/setup/fiscal', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @api_handler
+    @requires_feature('finance.enabled', operation='write')
+    def patch_fiscal(self, **payload):
+        require_capability('finance.setup.manage')
+        request.env['webvue.finance.setup']._webvue_write_company(request.env.company, parse_fiscal_vals(payload, request.env.company))
+        return dump_setup(request.env.company)

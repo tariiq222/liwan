@@ -6681,6 +6681,532 @@
         ],
         "type": "object"
       },
+      "FinanceSetupBlockerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "chart_not_loaded",
+          "vat_15_tax_missing",
+          "company_vat_missing",
+          "company_registry_missing",
+          "company_address_incomplete",
+          "zatca_not_onboarded"
+        ],
+        "type": "string"
+      },
+      "FinanceSetupCompanyFieldSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "vat",
+          "company_registry",
+          "street",
+          "city",
+          "state",
+          "country"
+        ],
+        "type": "string"
+      },
+      "FinanceSetupCompanyInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "company_registry": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "street": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vat": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "FinanceSetupFiscalInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "fiscalyear_last_day": {
+            "maximum": 31,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "fiscalyear_last_month": {
+            "maximum": 12,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "fiscalyear_lock_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purchase_lock_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sale_lock_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tax_lock_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "FinanceSetupSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "blockers": {
+            "items": {
+              "enum": [
+                "chart_not_loaded",
+                "vat_15_tax_missing",
+                "company_vat_missing",
+                "company_registry_missing",
+                "company_address_incomplete",
+                "zatca_not_onboarded"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "chart": {
+            "additionalProperties": false,
+            "properties": {
+              "accounts_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "loaded": {
+                "type": "boolean"
+              },
+              "template": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "loaded",
+              "template",
+              "accounts_count"
+            ],
+            "type": "object"
+          },
+          "company": {
+            "additionalProperties": false,
+            "properties": {
+              "city": {
+                "type": "string"
+              },
+              "company_registry": {
+                "type": "string"
+              },
+              "country": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "missing_fields": {
+                "items": {
+                  "enum": [
+                    "vat",
+                    "company_registry",
+                    "street",
+                    "city",
+                    "state",
+                    "country"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "name": {
+                "type": "string"
+              },
+              "state": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "street": {
+                "type": "string"
+              },
+              "vat": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "vat",
+              "company_registry",
+              "street",
+              "city",
+              "state",
+              "country",
+              "currency",
+              "missing_fields"
+            ],
+            "type": "object"
+          },
+          "fiscal": {
+            "additionalProperties": false,
+            "properties": {
+              "fiscalyear_last_day": {
+                "maximum": 31,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "fiscalyear_last_month": {
+                "maximum": 12,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "fiscalyear_lock_date": {
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "hard_lock_date": {
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "purchase_lock_date": {
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "sale_lock_date": {
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "tax_lock_date": {
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "fiscalyear_last_day",
+              "fiscalyear_last_month",
+              "fiscalyear_lock_date",
+              "tax_lock_date",
+              "sale_lock_date",
+              "purchase_lock_date",
+              "hard_lock_date"
+            ],
+            "type": "object"
+          },
+          "journals": {
+            "additionalProperties": false,
+            "properties": {
+              "bank": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "cash": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "purchase": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sale": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "sale",
+              "purchase",
+              "bank",
+              "cash"
+            ],
+            "type": "object"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "taxes": {
+            "additionalProperties": false,
+            "properties": {
+              "purchase_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sale_count": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "vat_15_present": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "sale_count",
+              "purchase_count",
+              "vat_15_present"
+            ],
+            "type": "object"
+          },
+          "zatca": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "installed": {
+                    "const": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "installed"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "api_mode": {
+                    "enum": [
+                      "sandbox",
+                      "preprod",
+                      "prod"
+                    ],
+                    "type": "string"
+                  },
+                  "installed": {
+                    "const": true,
+                    "type": "boolean"
+                  },
+                  "journals": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "journal": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991,
+                              "type": "integer"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        "onboarded": {
+                          "type": "boolean"
+                        },
+                        "state": {
+                          "enum": [
+                            "not_started",
+                            "compliance_checked",
+                            "onboarded"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "journal",
+                        "onboarded",
+                        "state"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "onboarded": {
+                    "type": "boolean"
+                  },
+                  "private_key_present": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "installed",
+                  "api_mode",
+                  "private_key_present",
+                  "journals",
+                  "onboarded"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "required": [
+          "chart",
+          "company",
+          "fiscal",
+          "journals",
+          "taxes",
+          "zatca",
+          "ready",
+          "blockers"
+        ],
+        "type": "object"
+      },
       "FinanceSummarySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -6788,6 +7314,408 @@
           "expense_count"
         ],
         "type": "object"
+      },
+      "FinanceVatSectionSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "number"
+          },
+          "tax_amount": {
+            "type": "number"
+          },
+          "taxes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "base": {
+                  "type": "number"
+                },
+                "rate": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "tax": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "tax_amount": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "tax",
+                "rate",
+                "base",
+                "tax_amount"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "taxes",
+          "base",
+          "tax_amount"
+        ],
+        "type": "object"
+      },
+      "FinanceVatSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "net_payable": {
+            "type": "number"
+          },
+          "purchases": {
+            "additionalProperties": false,
+            "properties": {
+              "base": {
+                "type": "number"
+              },
+              "tax_amount": {
+                "type": "number"
+              },
+              "taxes": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "base": {
+                      "type": "number"
+                    },
+                    "rate": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "tax": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "tax_amount": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "tax",
+                    "rate",
+                    "base",
+                    "tax_amount"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "taxes",
+              "base",
+              "tax_amount"
+            ],
+            "type": "object"
+          },
+          "sales": {
+            "additionalProperties": false,
+            "properties": {
+              "base": {
+                "type": "number"
+              },
+              "tax_amount": {
+                "type": "number"
+              },
+              "taxes": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "base": {
+                      "type": "number"
+                    },
+                    "rate": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "tax": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "tax_amount": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "tax",
+                    "rate",
+                    "base",
+                    "tax_amount"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "taxes",
+              "base",
+              "tax_amount"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "currency",
+          "sales",
+          "purchases",
+          "net_payable"
+        ],
+        "type": "object"
+      },
+      "FinanceVatTaxRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "number"
+          },
+          "rate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tax": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "tax_amount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tax",
+          "rate",
+          "base",
+          "tax_amount"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaJournalSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "journal": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "onboarded": {
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "not_started",
+              "compliance_checked",
+              "onboarded"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "journal",
+          "onboarded",
+          "state"
+        ],
+        "type": "object"
+      },
+      "FinanceZatcaJournalStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "not_started",
+          "compliance_checked",
+          "onboarded"
+        ],
+        "type": "string"
+      },
+      "FinanceZatcaReadinessSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "installed": {
+                "const": false,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "installed"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "api_mode": {
+                "enum": [
+                  "sandbox",
+                  "preprod",
+                  "prod"
+                ],
+                "type": "string"
+              },
+              "installed": {
+                "const": true,
+                "type": "boolean"
+              },
+              "journals": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "journal": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    "onboarded": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "enum": [
+                        "not_started",
+                        "compliance_checked",
+                        "onboarded"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "journal",
+                    "onboarded",
+                    "state"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "onboarded": {
+                "type": "boolean"
+              },
+              "private_key_present": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "installed",
+              "api_mode",
+              "private_key_present",
+              "journals",
+              "onboarded"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "FontSizeSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -28571,6 +29499,206 @@
           "feature_operation": "read",
           "handler": "list_payments",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/vat": {
+      "get": {
+        "operationId": "webvue_finance.FinanceReportController.vat_summary.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Group taxes appear as their child taxes, cash-basis taxes at the invoice date, current company only.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceReportController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "vat_summary",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/setup": {
+      "get": {
+        "operationId": "webvue_finance.FinanceSetupController.get_setup.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_setup",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceSetupController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_setup",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/setup/chart": {
+      "post": {
+        "operationId": "webvue_finance.FinanceSetupController.load_chart.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "load_chart",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceSetupController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "load_chart",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/setup/company": {
+      "patch": {
+        "operationId": "webvue_finance.FinanceSetupController.patch_company.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_company",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceSetupController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_company",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/setup/fiscal": {
+      "patch": {
+        "operationId": "webvue_finance.FinanceSetupController.patch_fiscal.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_fiscal",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceSetupController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_fiscal",
+          "readonly": false,
           "route_type": "json2"
         }
       }

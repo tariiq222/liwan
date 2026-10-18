@@ -25,7 +25,7 @@ def parse_choice(value, allowed, field):
     return value
 
 
-def _parse_day(value, field):
+def parse_day(value, field):
     try:
         return date.fromisoformat(value)
     except ValueError:
@@ -40,8 +40,8 @@ def filter_domain(args, date_field):
     domain = []
     if args.get('partner_id'):
         domain.append(('partner_id', '=', parse_positive_int(args['partner_id'], 'partner_id')))
-    date_from = _parse_day(args['date_from'], 'date_from') if args.get('date_from') else None
-    date_to = _parse_day(args['date_to'], 'date_to') if args.get('date_to') else None
+    date_from = parse_day(args['date_from'], 'date_from') if args.get('date_from') else None
+    date_to = parse_day(args['date_to'], 'date_to') if args.get('date_to') else None
     if date_from and date_to and date_from > date_to:
         raise ApiError(422, 'invalid', 'date_to must be on or after date_from', field='date_to')
     if date_from:
@@ -56,3 +56,15 @@ def list_page(model, domain, dump_all):
     limit, offset = parse_page(request.httprequest.args)
     records = request.env[model].search(domain, limit=limit, offset=offset)
     return {'items': dump_all(records), 'total': request.env[model].search_count(domain)}
+
+
+def parse_period(args):
+    """The required ``date_from`` and ``date_to`` query dates as ``(date_from, date_to)``."""
+    days = {}
+    for field in ('date_from', 'date_to'):
+        if not args.get(field):
+            raise ApiError(422, 'invalid', f'{field} is required', field=field)
+        days[field] = parse_day(args[field], field)
+    if days['date_from'] > days['date_to']:
+        raise ApiError(422, 'invalid', 'date_to must be on or after date_from', field='date_to')
+    return days['date_from'], days['date_to']

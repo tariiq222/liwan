@@ -5,4 +5,7 @@ from . import (
     test_finance_capability_isolation,
     test_finance_invoices,
     test_finance_lists,
+    test_finance_reports,
+    test_finance_setup,
+    test_finance_zatca,
 )
