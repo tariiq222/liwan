@@ -5185,6 +5185,1781 @@
         ],
         "type": "string"
       },
+      "FinanceAgedAccountSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "name"
+            ],
+            "type": "object"
+          },
+          "current": {
+            "type": "number"
+          },
+          "days_1_30": {
+            "type": "number"
+          },
+          "days_31_60": {
+            "type": "number"
+          },
+          "days_61_90": {
+            "type": "number"
+          },
+          "days_91_120": {
+            "type": "number"
+          },
+          "days_over_120": {
+            "type": "number"
+          },
+          "partners": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "current": {
+                  "type": "number"
+                },
+                "days_1_30": {
+                  "type": "number"
+                },
+                "days_31_60": {
+                  "type": "number"
+                },
+                "days_61_90": {
+                  "type": "number"
+                },
+                "days_91_120": {
+                  "type": "number"
+                },
+                "days_over_120": {
+                  "type": "number"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "total": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "partner",
+                "current",
+                "days_1_30",
+                "days_31_60",
+                "days_61_90",
+                "days_91_120",
+                "days_over_120",
+                "total"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "account",
+          "current",
+          "days_1_30",
+          "days_31_60",
+          "days_61_90",
+          "days_91_120",
+          "days_over_120",
+          "total",
+          "partners"
+        ],
+        "type": "object"
+      },
+      "FinanceAgedPartnerBalanceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "current": {
+                  "type": "number"
+                },
+                "days_1_30": {
+                  "type": "number"
+                },
+                "days_31_60": {
+                  "type": "number"
+                },
+                "days_61_90": {
+                  "type": "number"
+                },
+                "days_91_120": {
+                  "type": "number"
+                },
+                "days_over_120": {
+                  "type": "number"
+                },
+                "partners": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "current": {
+                        "type": "number"
+                      },
+                      "days_1_30": {
+                        "type": "number"
+                      },
+                      "days_31_60": {
+                        "type": "number"
+                      },
+                      "days_61_90": {
+                        "type": "number"
+                      },
+                      "days_91_120": {
+                        "type": "number"
+                      },
+                      "days_over_120": {
+                        "type": "number"
+                      },
+                      "partner": {
+                        "anyOf": [
+                          {
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "exclusiveMinimum": 0,
+                                "maximum": 9007199254740991,
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ],
+                            "type": "object"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "total": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "partner",
+                      "current",
+                      "days_1_30",
+                      "days_31_60",
+                      "days_61_90",
+                      "days_91_120",
+                      "days_over_120",
+                      "total"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "total": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "account",
+                "current",
+                "days_1_30",
+                "days_31_60",
+                "days_61_90",
+                "days_91_120",
+                "days_over_120",
+                "total",
+                "partners"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "receivable",
+              "payable"
+            ],
+            "type": "string"
+          },
+          "target_move": {
+            "enum": [
+              "posted",
+              "all"
+            ],
+            "type": "string"
+          },
+          "totals": {
+            "additionalProperties": false,
+            "properties": {
+              "current": {
+                "type": "number"
+              },
+              "days_1_30": {
+                "type": "number"
+              },
+              "days_31_60": {
+                "type": "number"
+              },
+              "days_61_90": {
+                "type": "number"
+              },
+              "days_91_120": {
+                "type": "number"
+              },
+              "days_over_120": {
+                "type": "number"
+              },
+              "total": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "current",
+              "days_1_30",
+              "days_31_60",
+              "days_61_90",
+              "days_91_120",
+              "days_over_120",
+              "total"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "date_to",
+          "kind",
+          "target_move",
+          "currency",
+          "accounts",
+          "totals"
+        ],
+        "type": "object"
+      },
+      "FinanceAgedPartnerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "type": "number"
+          },
+          "days_1_30": {
+            "type": "number"
+          },
+          "days_31_60": {
+            "type": "number"
+          },
+          "days_61_90": {
+            "type": "number"
+          },
+          "days_91_120": {
+            "type": "number"
+          },
+          "days_over_120": {
+            "type": "number"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "partner",
+          "current",
+          "days_1_30",
+          "days_31_60",
+          "days_61_90",
+          "days_91_120",
+          "days_over_120",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetComputeInputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetComputeResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "entries"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "date_start": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "partner_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "purchase_value": {
+            "exclusiveMaximum": 1000000000000,
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "salvage_value": {
+            "exclusiveMaximum": 1000000000000,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "profile_id",
+          "name",
+          "purchase_value",
+          "date_start"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetDetailSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_start": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "depreciation_base": {
+            "type": "number"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "date": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "depreciated_value": {
+                  "type": "number"
+                },
+                "entry": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "posted": {
+                  "type": "boolean"
+                },
+                "remaining_value": {
+                  "type": "number"
+                },
+                "type": {
+                  "enum": [
+                    "create",
+                    "depreciate",
+                    "remove"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "date",
+                "amount",
+                "depreciated_value",
+                "remaining_value",
+                "posted",
+                "entry"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "method": {
+            "enum": [
+              "linear",
+              "linear-limit",
+              "degressive",
+              "degr-linear",
+              "degr-limit"
+            ],
+            "type": "string"
+          },
+          "method_number": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "method_period": {
+            "enum": [
+              "month",
+              "quarter",
+              "year"
+            ],
+            "type": "string"
+          },
+          "method_time": {
+            "enum": [
+              "year",
+              "number"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "prorata": {
+            "type": "boolean"
+          },
+          "purchase_value": {
+            "type": "number"
+          },
+          "salvage_value": {
+            "type": "number"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "open",
+              "close",
+              "removed"
+            ],
+            "type": "string"
+          },
+          "value_depreciated": {
+            "type": "number"
+          },
+          "value_residual": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "state",
+          "profile",
+          "partner",
+          "date_start",
+          "currency",
+          "purchase_value",
+          "salvage_value",
+          "depreciation_base",
+          "value_depreciated",
+          "value_residual",
+          "note",
+          "method",
+          "method_time",
+          "method_number",
+          "method_period",
+          "prorata",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "date_start": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "depreciation_base": {
+                  "type": "number"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "profile": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "purchase_value": {
+                  "type": "number"
+                },
+                "salvage_value": {
+                  "type": "number"
+                },
+                "state": {
+                  "enum": [
+                    "draft",
+                    "open",
+                    "close",
+                    "removed"
+                  ],
+                  "type": "string"
+                },
+                "value_depreciated": {
+                  "type": "number"
+                },
+                "value_residual": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "code",
+                "state",
+                "profile",
+                "partner",
+                "date_start",
+                "currency",
+                "purchase_value",
+                "salvage_value",
+                "depreciation_base",
+                "value_depreciated",
+                "value_residual"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetProfileListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "asset_account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "depreciation_account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "expense_account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "journal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "method": {
+                  "enum": [
+                    "linear",
+                    "linear-limit",
+                    "degressive",
+                    "degr-linear",
+                    "degr-limit"
+                  ],
+                  "type": "string"
+                },
+                "method_number": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "method_period": {
+                  "enum": [
+                    "month",
+                    "quarter",
+                    "year"
+                  ],
+                  "type": "string"
+                },
+                "method_time": {
+                  "enum": [
+                    "year",
+                    "number"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "prorata": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "method",
+                "method_time",
+                "method_number",
+                "method_period",
+                "prorata",
+                "asset_account",
+                "depreciation_account",
+                "expense_account",
+                "journal"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetProfileSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "asset_account": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "depreciation_account": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "expense_account": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "journal": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "linear",
+              "linear-limit",
+              "degressive",
+              "degr-linear",
+              "degr-limit"
+            ],
+            "type": "string"
+          },
+          "method_number": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "method_period": {
+            "enum": [
+              "month",
+              "quarter",
+              "year"
+            ],
+            "type": "string"
+          },
+          "method_time": {
+            "enum": [
+              "year",
+              "number"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prorata": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "method",
+          "method_time",
+          "method_number",
+          "method_period",
+          "prorata",
+          "asset_account",
+          "depreciation_account",
+          "expense_account",
+          "journal"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_start": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "depreciation_base": {
+            "type": "number"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profile": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "purchase_value": {
+            "type": "number"
+          },
+          "salvage_value": {
+            "type": "number"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "open",
+              "close",
+              "removed"
+            ],
+            "type": "string"
+          },
+          "value_depreciated": {
+            "type": "number"
+          },
+          "value_residual": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "state",
+          "profile",
+          "partner",
+          "date_start",
+          "currency",
+          "purchase_value",
+          "salvage_value",
+          "depreciation_base",
+          "value_depreciated",
+          "value_residual"
+        ],
+        "type": "object"
+      },
+      "FinanceAssetStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft",
+          "open",
+          "close",
+          "removed"
+        ],
+        "type": "string"
+      },
+      "FinanceBalanceSheetSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "code",
+                "label",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "target_move": {
+            "enum": [
+              "posted",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "date_to",
+          "target_move",
+          "currency",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceBankLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "amount_residual": {
+            "type": "number"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_reconciled": {
+            "type": "boolean"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "payment_ref",
+          "partner",
+          "amount",
+          "is_reconciled",
+          "amount_residual"
+        ],
+        "type": "object"
+      },
+      "FinanceBankReconcileSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "move_line_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "FinanceBankStatementCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "balance_end_real": {
+            "exclusiveMaximum": 1000000000000,
+            "exclusiveMinimum": -1000000000000,
+            "type": "number"
+          },
+          "balance_start": {
+            "exclusiveMaximum": 1000000000000,
+            "exclusiveMinimum": -1000000000000,
+            "type": "number"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "journal_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "exclusiveMaximum": 1000000000000,
+                  "exclusiveMinimum": -1000000000000,
+                  "type": "number"
+                },
+                "date": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "partner_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "payment_ref": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "date",
+                "payment_ref",
+                "amount"
+              ],
+              "type": "object"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "journal_id",
+          "date",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceBankStatementDetailSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "balance_end": {
+            "type": "number"
+          },
+          "balance_end_real": {
+            "type": "number"
+          },
+          "balance_start": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "journal": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "amount_residual": {
+                  "type": "number"
+                },
+                "date": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "is_reconciled": {
+                  "type": "boolean"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "payment_ref": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "payment_ref",
+                "partner",
+                "amount",
+                "is_reconciled",
+                "amount_residual"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "lines_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "date",
+          "journal",
+          "currency",
+          "balance_start",
+          "balance_end",
+          "balance_end_real",
+          "lines_count",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceBankStatementListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "balance_end": {
+                  "type": "number"
+                },
+                "balance_end_real": {
+                  "type": "number"
+                },
+                "balance_start": {
+                  "type": "number"
+                },
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "date": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "journal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "lines_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "date",
+                "journal",
+                "currency",
+                "balance_start",
+                "balance_end",
+                "balance_end_real",
+                "lines_count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceBankStatementSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "balance_end": {
+            "type": "number"
+          },
+          "balance_end_real": {
+            "type": "number"
+          },
+          "balance_start": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "journal": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "lines_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "date",
+          "journal",
+          "currency",
+          "balance_start",
+          "balance_end",
+          "balance_end_real",
+          "lines_count"
+        ],
+        "type": "object"
+      },
       "FinanceDeletedSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -5196,6 +6971,77 @@
         },
         "required": [
           "deleted"
+        ],
+        "type": "object"
+      },
+      "FinanceDepreciationLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "depreciated_value": {
+            "type": "number"
+          },
+          "entry": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "posted": {
+            "type": "boolean"
+          },
+          "remaining_value": {
+            "type": "number"
+          },
+          "type": {
+            "enum": [
+              "create",
+              "depreciate",
+              "remove"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "date",
+          "amount",
+          "depreciated_value",
+          "remaining_value",
+          "posted",
+          "entry"
         ],
         "type": "object"
       },
@@ -5655,6 +7501,177 @@
           "notes",
           "budget_entry_id",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "FinanceGeneralLedgerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "credit": {
+                  "type": "number"
+                },
+                "debit": {
+                  "type": "number"
+                },
+                "ending_balance": {
+                  "type": "number"
+                },
+                "initial_balance": {
+                  "type": "number"
+                },
+                "lines": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "balance": {
+                            "type": "number"
+                          },
+                          "credit": {
+                            "type": "number"
+                          },
+                          "date": {
+                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                            "type": "string"
+                          },
+                          "debit": {
+                            "type": "number"
+                          },
+                          "entry": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "journal": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "partner": {
+                            "anyOf": [
+                              {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "id": {
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991,
+                                    "type": "integer"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ],
+                                "type": "object"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "date",
+                          "entry",
+                          "journal",
+                          "partner",
+                          "label",
+                          "debit",
+                          "credit",
+                          "balance"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "total": {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "total"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "account",
+                "initial_balance",
+                "debit",
+                "credit",
+                "ending_balance",
+                "lines"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "target_move": {
+            "enum": [
+              "posted",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "target_move",
+          "currency",
+          "accounts"
         ],
         "type": "object"
       },
@@ -6628,6 +8645,212 @@
         ],
         "type": "string"
       },
+      "FinanceLedgerAccountSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "name"
+            ],
+            "type": "object"
+          },
+          "credit": {
+            "type": "number"
+          },
+          "debit": {
+            "type": "number"
+          },
+          "ending_balance": {
+            "type": "number"
+          },
+          "initial_balance": {
+            "type": "number"
+          },
+          "lines": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "balance": {
+                      "type": "number"
+                    },
+                    "credit": {
+                      "type": "number"
+                    },
+                    "date": {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    "debit": {
+                      "type": "number"
+                    },
+                    "entry": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "journal": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "partner": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "exclusiveMinimum": 0,
+                              "maximum": 9007199254740991,
+                              "type": "integer"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "date",
+                    "entry",
+                    "journal",
+                    "partner",
+                    "label",
+                    "debit",
+                    "credit",
+                    "balance"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "total": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "items",
+              "total"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "account",
+          "initial_balance",
+          "debit",
+          "credit",
+          "ending_balance",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceLedgerLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "type": "number"
+          },
+          "credit": {
+            "type": "number"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "debit": {
+            "type": "number"
+          },
+          "entry": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "journal": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "entry",
+          "journal",
+          "partner",
+          "label",
+          "debit",
+          "credit",
+          "balance"
+        ],
+        "type": "object"
+      },
       "FinanceMoveStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -6998,6 +9221,193 @@
         ],
         "type": "object"
       },
+      "FinancePartnerStatementSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currencies": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount_due": {
+                  "type": "number"
+                },
+                "balance_forward": {
+                  "type": "number"
+                },
+                "buckets": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "current": {
+                          "type": "number"
+                        },
+                        "days_1_30": {
+                          "type": "number"
+                        },
+                        "days_31_60": {
+                          "type": "number"
+                        },
+                        "days_61_90": {
+                          "type": "number"
+                        },
+                        "days_91_120": {
+                          "type": "number"
+                        },
+                        "days_over_120": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "current",
+                        "days_1_30",
+                        "days_31_60",
+                        "days_61_90",
+                        "days_91_120",
+                        "days_over_120",
+                        "total"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "ending_balance": {
+                  "type": "number"
+                },
+                "lines": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "balance": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "credit": {
+                        "type": "number"
+                      },
+                      "date": {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "type": "string"
+                      },
+                      "date_due": {
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "type": "string"
+                      },
+                      "debit": {
+                        "type": "number"
+                      },
+                      "entry": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "open_amount": {
+                        "type": "number"
+                      },
+                      "ref": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "date",
+                      "date_due",
+                      "entry",
+                      "ref",
+                      "label",
+                      "debit",
+                      "credit",
+                      "open_amount",
+                      "balance"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "currency",
+                "balance_forward",
+                "amount_due",
+                "ending_balance",
+                "lines",
+                "buckets"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "receivable",
+              "payable"
+            ],
+            "type": "string"
+          },
+          "partner": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "type": {
+            "enum": [
+              "activity",
+              "outstanding"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "kind",
+          "partner",
+          "date_from",
+          "date_to",
+          "currencies"
+        ],
+        "type": "object"
+      },
       "FinancePaymentListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -7292,6 +9702,243 @@
         ],
         "type": "string"
       },
+      "FinanceProfitLossSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "code",
+                "label",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "target_move": {
+            "enum": [
+              "posted",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "target_move",
+          "currency",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceReconcileProposalListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "amount_residual": {
+                  "type": "number"
+                },
+                "date": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "entry": {
+                  "type": "string"
+                },
+                "exact": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "entry",
+                "label",
+                "partner",
+                "account",
+                "amount_residual",
+                "exact"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceReconcileProposalSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "amount_residual": {
+            "type": "number"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "entry": {
+            "type": "string"
+          },
+          "exact": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "entry",
+          "label",
+          "partner",
+          "account",
+          "amount_residual",
+          "exact"
+        ],
+        "type": "object"
+      },
       "FinanceRefSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -7308,6 +9955,28 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "FinanceReportLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "value"
         ],
         "type": "object"
       },
@@ -7837,6 +10506,179 @@
         ],
         "type": "object"
       },
+      "FinanceStatementCurrencySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_due": {
+            "type": "number"
+          },
+          "balance_forward": {
+            "type": "number"
+          },
+          "buckets": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "current": {
+                    "type": "number"
+                  },
+                  "days_1_30": {
+                    "type": "number"
+                  },
+                  "days_31_60": {
+                    "type": "number"
+                  },
+                  "days_61_90": {
+                    "type": "number"
+                  },
+                  "days_91_120": {
+                    "type": "number"
+                  },
+                  "days_over_120": {
+                    "type": "number"
+                  },
+                  "total": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "current",
+                  "days_1_30",
+                  "days_31_60",
+                  "days_61_90",
+                  "days_91_120",
+                  "days_over_120",
+                  "total"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "ending_balance": {
+            "type": "number"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "balance": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "credit": {
+                  "type": "number"
+                },
+                "date": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "date_due": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "debit": {
+                  "type": "number"
+                },
+                "entry": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "open_amount": {
+                  "type": "number"
+                },
+                "ref": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "date",
+                "date_due",
+                "entry",
+                "ref",
+                "label",
+                "debit",
+                "credit",
+                "open_amount",
+                "balance"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "balance_forward",
+          "amount_due",
+          "ending_balance",
+          "lines",
+          "buckets"
+        ],
+        "type": "object"
+      },
+      "FinanceStatementLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "credit": {
+            "type": "number"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_due": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "debit": {
+            "type": "number"
+          },
+          "entry": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "open_amount": {
+            "type": "number"
+          },
+          "ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "date_due",
+          "entry",
+          "ref",
+          "label",
+          "debit",
+          "credit",
+          "open_amount",
+          "balance"
+        ],
+        "type": "object"
+      },
       "FinanceSummarySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -7942,6 +10784,203 @@
           "over_budget",
           "budget_count",
           "expense_count"
+        ],
+        "type": "object"
+      },
+      "FinanceTrialBalanceAmountsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "type": "number"
+          },
+          "credit": {
+            "type": "number"
+          },
+          "debit": {
+            "type": "number"
+          },
+          "ending_balance": {
+            "type": "number"
+          },
+          "initial_balance": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "initial_balance",
+          "debit",
+          "credit",
+          "balance",
+          "ending_balance"
+        ],
+        "type": "object"
+      },
+      "FinanceTrialBalanceRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "name"
+            ],
+            "type": "object"
+          },
+          "balance": {
+            "type": "number"
+          },
+          "credit": {
+            "type": "number"
+          },
+          "debit": {
+            "type": "number"
+          },
+          "ending_balance": {
+            "type": "number"
+          },
+          "initial_balance": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "initial_balance",
+          "debit",
+          "credit",
+          "balance",
+          "ending_balance",
+          "account"
+        ],
+        "type": "object"
+      },
+      "FinanceTrialBalanceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "accounts": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "code",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "balance": {
+                  "type": "number"
+                },
+                "credit": {
+                  "type": "number"
+                },
+                "debit": {
+                  "type": "number"
+                },
+                "ending_balance": {
+                  "type": "number"
+                },
+                "initial_balance": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "initial_balance",
+                "debit",
+                "credit",
+                "balance",
+                "ending_balance",
+                "account"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "target_move": {
+            "enum": [
+              "posted",
+              "all"
+            ],
+            "type": "string"
+          },
+          "totals": {
+            "additionalProperties": false,
+            "properties": {
+              "balance": {
+                "type": "number"
+              },
+              "credit": {
+                "type": "number"
+              },
+              "debit": {
+                "type": "number"
+              },
+              "ending_balance": {
+                "type": "number"
+              },
+              "initial_balance": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "initial_balance",
+              "debit",
+              "credit",
+              "balance",
+              "ending_balance"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "target_move",
+          "currency",
+          "accounts",
+          "totals"
         ],
         "type": "object"
       },
@@ -8214,6 +11253,75 @@
           "in_refund"
         ],
         "type": "string"
+      },
+      "FinanceZakatBaseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "disclaimer": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "code",
+                "label",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "rate": {
+            "type": "number"
+          },
+          "target_move": {
+            "enum": [
+              "posted",
+              "all"
+            ],
+            "type": "string"
+          },
+          "zakat_due": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date_to",
+          "target_move",
+          "currency",
+          "lines",
+          "base",
+          "rate",
+          "zakat_due",
+          "disclaimer"
+        ],
+        "type": "object"
       },
       "FinanceZatcaJournalSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -29970,6 +33078,507 @@
         }
       }
     },
+    "/api/v1/finance/asset-profiles": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAssetController.list_asset_profiles.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The asset profiles of the current company: accounts, journal and depreciation method.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_asset_profiles",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/assets": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAssetController.list_assets.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Fixed assets, filtered by ``state``, ``profile_id`` and ``q``.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_assets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinanceAssetController.create_asset.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A draft asset on a profile: the depreciation method comes from the profile, the board when it is validated.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_asset",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/assets/compute-depreciation": {
+      "post": {
+        "operationId": "webvue_finance.FinanceAssetController.compute_depreciation.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Posts the entry of every running asset's due depreciation line up to ``date`` (not in the future).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "compute_depreciation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/assets/{asset_id}": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAssetController.get_asset.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "An asset with its depreciation board.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_asset",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/assets/{asset_id}/validate": {
+      "post": {
+        "operationId": "webvue_finance.FinanceAssetController.validate_asset.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Runs the asset (draft to running) and computes its depreciation board.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAssetController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "validate_asset",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/bank-statement-lines/{line_id}/reconcile": {
+      "post": {
+        "operationId": "webvue_finance.FinanceBankController.reconcile.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Matches the line with open items; what they leave over is booked on ``account_id``.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBankController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "reconcile",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/bank-statement-lines/{line_id}/reconcile-proposals": {
+      "get": {
+        "operationId": "webvue_finance.FinanceBankController.reconcile_proposals.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Open items to match, the exact-amount ones first, then the newest; the line's partner narrows them.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBankController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "reconcile_proposals",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/bank-statements": {
+      "get": {
+        "operationId": "webvue_finance.FinanceBankController.list_bank_statements.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Bank statements, filtered by ``journal_id`` and ``date_from``/``date_to``.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBankController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_bank_statements",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "webvue_finance.FinanceBankController.create_bank_statement.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A bank statement with its lines, on a bank journal of the current company.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBankController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_bank_statement",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/bank-statements/{statement_id}": {
+      "get": {
+        "operationId": "webvue_finance.FinanceBankController.get_bank_statement.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "statement_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A bank statement with its lines.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceBankController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_bank_statement",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/invoices": {
       "get": {
         "operationId": "webvue_finance.FinanceInvoiceController.list_invoices.get",
@@ -30874,6 +34483,246 @@
         }
       }
     },
+    "/api/v1/finance/reports/aged-partner-balance": {
+      "get": {
+        "operationId": "webvue_finance.FinanceStatementController.aged_partner_balance.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Open balances as of ``date_to``, aged from their due date; ``kind`` is receivable (default) or payable.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceStatementController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "aged_partner_balance",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/balance-sheet": {
+      "get": {
+        "operationId": "webvue_finance.FinanceMisReportController.balance_sheet.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The position at ``date_to``; the current year earnings run from the start of its fiscal year.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceMisReportController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "balance_sheet",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/general-ledger": {
+      "get": {
+        "operationId": "webvue_finance.FinanceStatementController.general_ledger.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The ledger; ``limit``/``offset`` page the lines of the one ``account_id`` they require (date order).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceStatementController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "general_ledger",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/partner-statement": {
+      "get": {
+        "operationId": "webvue_finance.FinanceStatementController.partner_statement.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "``type=activity`` (default, ``date_from`` and ``date_to``) or ``type=outstanding`` (open items up to ``date_to``).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceStatementController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "partner_statement",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/profit-loss": {
+      "get": {
+        "operationId": "webvue_finance.FinanceMisReportController.profit_loss.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Revenue, costs, expenses and profit of a period (the MIS template ``mis_report_profit_loss``).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceMisReportController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "profit_loss",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/trial-balance": {
+      "get": {
+        "operationId": "webvue_finance.FinanceStatementController.trial_balance.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Debit, credit and balances per account for a period, with the totals (OCA account_financial_report).",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceStatementController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "trial_balance",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/finance/reports/vat": {
       "get": {
         "operationId": "webvue_finance.FinanceReportController.vat_summary.get",
@@ -30909,6 +34758,46 @@
           ],
           "feature_operation": "read",
           "handler": "vat_summary",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/zakat-base": {
+      "get": {
+        "operationId": "webvue_finance.FinanceMisReportController.zakat_base.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "A simplified Zakat base at ``date_to``: the formula is data and must be reviewed by a Saudi CPA.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceMisReportController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "zakat_base",
           "readonly": true,
           "route_type": "json2"
         }

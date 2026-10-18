@@ -7,6 +7,8 @@ FINANCE_PERMISSIONS = frozenset({
     'finance.partners.read', 'finance.partners.manage',
     'finance.invoices.manage', 'finance.invoices.post', 'finance.payments.manage',
     'finance.setup.read', 'finance.setup.manage', 'finance.reports.read',
+    'finance.statements.read', 'finance.zakat.read', 'finance.bank.read', 'finance.bank.manage',
+    'finance.assets.read', 'finance.assets.manage',
 })
 FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.partners.manage': {'finance.partners.read'},
@@ -14,6 +16,8 @@ FINANCE_PERMISSION_DEPENDENCIES = {
     'finance.invoices.post': {'finance.invoices.manage'},
     'finance.payments.manage': {'finance.payments.read', 'finance.invoices.read'},
     'finance.setup.manage': {'finance.setup.read'},
+    'finance.bank.manage': {'finance.bank.read'},
+    'finance.assets.manage': {'finance.assets.read'},
 }
 
 

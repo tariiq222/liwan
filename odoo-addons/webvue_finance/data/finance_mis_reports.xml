@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- MIS Builder templates evaluated by webvue.finance.mis.report (mis_builder's public evaluate API).
+         The formulas are data: edit an expression here to change a report, no code is involved.
+         Expressions use mis_builder syntax: balp[...] is the movement of the period, bale[...] the balance at its
+         end and balu[] the profit and loss of the earlier fiscal years not yet allocated to equity; the selector
+         is an account domain or a list of account codes. Amounts follow the caller's company currency, with
+         debits positive; liabilities, equity and income are negated so that they read positive. -->
+    <record id="mis_report_profit_loss" model="mis.report">
+        <field name="name">Profit and loss</field>
+    </record>
+    <record id="mis_pl_kpi_revenue" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">revenue</field><field name="description">Revenue</field><field name="sequence">10</field>
+        <field name="expression">-balp[('account_type', '=', 'income')]</field>
+    </record>
+    <record id="mis_pl_kpi_cost_of_revenue" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">cost_of_revenue</field><field name="description">Cost of revenue</field><field name="sequence">20</field>
+        <field name="expression">balp[('account_type', '=', 'expense_direct_cost')]</field>
+    </record>
+    <record id="mis_pl_kpi_gross_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">gross_profit</field><field name="description">Gross profit</field><field name="sequence">30</field>
+        <field name="expression">revenue - cost_of_revenue</field>
+    </record>
+    <record id="mis_pl_kpi_operating_expenses" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">operating_expenses</field><field name="description">Operating expenses</field><field name="sequence">40</field>
+        <field name="expression">balp[('account_type', '=', 'expense')]</field>
+    </record>
+    <record id="mis_pl_kpi_depreciation" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">depreciation</field><field name="description">Depreciation</field><field name="sequence">50</field>
+        <field name="expression">balp[('account_type', '=', 'expense_depreciation')]</field>
+    </record>
+    <record id="mis_pl_kpi_operating_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">operating_profit</field><field name="description">Operating profit</field><field name="sequence">60</field>
+        <field name="expression">gross_profit - operating_expenses - depreciation</field>
+    </record>
+    <record id="mis_pl_kpi_other_income" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">other_income</field><field name="description">Other income</field><field name="sequence">70</field>
+        <field name="expression">-balp[('account_type', '=', 'income_other')]</field>
+    </record>
+    <record id="mis_pl_kpi_other_expenses" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">other_expenses</field><field name="description">Other expenses</field><field name="sequence">80</field>
+        <field name="expression">balp[('account_type', '=', 'expense_other')]</field>
+    </record>
+    <record id="mis_pl_kpi_net_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_profit_loss"/>
+        <field name="name">net_profit</field><field name="description">Net profit</field><field name="sequence">90</field>
+        <field name="expression">operating_profit + other_income - other_expenses</field>
+    </record>
+
+    <record id="mis_report_balance_sheet" model="mis.report">
+        <field name="name">Balance sheet</field>
+    </record>
+    <record id="mis_bs_kpi_cash" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">cash</field><field name="description">Bank and cash</field><field name="sequence">10</field>
+        <field name="expression">bale[('account_type', '=', 'asset_cash')]</field>
+    </record>
+    <record id="mis_bs_kpi_receivables" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">receivables</field><field name="description">Receivables</field><field name="sequence">20</field>
+        <field name="expression">bale[('account_type', '=', 'asset_receivable')]</field>
+    </record>
+    <record id="mis_bs_kpi_current_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">current_assets</field><field name="description">Current assets</field><field name="sequence">30</field>
+        <field name="expression">bale[('account_type', '=', 'asset_current')]</field>
+    </record>
+    <record id="mis_bs_kpi_prepayments" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">prepayments</field><field name="description">Prepayments</field><field name="sequence">40</field>
+        <field name="expression">bale[('account_type', '=', 'asset_prepayments')]</field>
+    </record>
+    <record id="mis_bs_kpi_fixed_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">fixed_assets</field><field name="description">Fixed assets, net of depreciation</field><field name="sequence">50</field>
+        <field name="expression">bale[('account_type', '=', 'asset_fixed')]</field>
+    </record>
+    <record id="mis_bs_kpi_non_current_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">non_current_assets</field><field name="description">Non-current assets</field><field name="sequence">60</field>
+        <field name="expression">bale[('account_type', '=', 'asset_non_current')]</field>
+    </record>
+    <record id="mis_bs_kpi_total_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">total_assets</field><field name="description">Total assets</field><field name="sequence">70</field>
+        <field name="expression">cash + receivables + current_assets + prepayments + fixed_assets + non_current_assets</field>
+    </record>
+    <record id="mis_bs_kpi_payables" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">payables</field><field name="description">Payables</field><field name="sequence">80</field>
+        <field name="expression">-bale[('account_type', '=', 'liability_payable')]</field>
+    </record>
+    <record id="mis_bs_kpi_credit_cards" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">credit_cards</field><field name="description">Credit cards</field><field name="sequence">90</field>
+        <field name="expression">-bale[('account_type', '=', 'liability_credit_card')]</field>
+    </record>
+    <record id="mis_bs_kpi_current_liabilities" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">current_liabilities</field><field name="description">Current liabilities</field><field name="sequence">100</field>
+        <field name="expression">-bale[('account_type', '=', 'liability_current')]</field>
+    </record>
+    <record id="mis_bs_kpi_non_current_liabilities" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">non_current_liabilities</field><field name="description">Non-current liabilities</field><field name="sequence">110</field>
+        <field name="expression">-bale[('account_type', '=', 'liability_non_current')]</field>
+    </record>
+    <record id="mis_bs_kpi_total_liabilities" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">total_liabilities</field><field name="description">Total liabilities</field><field name="sequence">120</field>
+        <field name="expression">payables + credit_cards + current_liabilities + non_current_liabilities</field>
+    </record>
+    <record id="mis_bs_kpi_equity" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">equity</field><field name="description">Equity</field><field name="sequence">130</field>
+        <field name="expression">-bale[('account_type', '=', 'equity')]</field>
+    </record>
+    <record id="mis_bs_kpi_retained_earnings" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">retained_earnings</field><field name="description">Retained earnings of previous years</field><field name="sequence">140</field>
+        <field name="expression">-(bale[('account_type', '=', 'equity_unaffected')] + balu[])</field>
+    </record>
+    <record id="mis_bs_kpi_current_year_earnings" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">current_year_earnings</field><field name="description">Current year earnings</field><field name="sequence">150</field>
+        <field name="expression">-(balp[('internal_group', '=', 'income')] + balp[('internal_group', '=', 'expense')])</field>
+    </record>
+    <record id="mis_bs_kpi_total_equity" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">total_equity</field><field name="description">Total equity</field><field name="sequence">160</field>
+        <field name="expression">equity + retained_earnings + current_year_earnings</field>
+    </record>
+    <record id="mis_bs_kpi_total_liabilities_and_equity" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">total_liabilities_and_equity</field><field name="description">Total liabilities and equity</field><field name="sequence">170</field>
+        <field name="expression">total_liabilities + total_equity</field>
+    </record>
+    <record id="mis_bs_kpi_difference" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_balance_sheet"/>
+        <field name="name">difference</field><field name="description">Assets less liabilities and equity (zero when balanced)</field><field name="sequence">180</field>
+        <field name="expression">total_assets - total_liabilities_and_equity</field>
+    </record>
+
+    <record id="mis_report_zakat_base" model="mis.report">
+        <field name="name">Zakat base (simplified)</field>
+        <field name="description">Simplified Zakat base for management information only. The formula is not a ZATCA filing computation and must be reviewed by a Saudi certified public accountant (CPA) before it is relied on. The rate is 2.5% scaled by 365/354 for a Gregorian fiscal year.</field>
+    </record>
+    <record id="mis_zk_kpi_equity" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">equity</field><field name="description">Equity (capital, reserves and other equity accounts)</field><field name="sequence">10</field>
+        <field name="expression">-bale[('account_type', '=', 'equity')]</field>
+    </record>
+    <record id="mis_zk_kpi_retained_earnings" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">retained_earnings</field><field name="description">Retained earnings of previous years</field><field name="sequence">20</field>
+        <field name="expression">-(bale[('account_type', '=', 'equity_unaffected')] + balu[])</field>
+    </record>
+    <record id="mis_zk_kpi_long_term_liabilities" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">long_term_liabilities</field><field name="description">Long-term liabilities</field><field name="sequence">30</field>
+        <field name="expression">-bale[('account_type', '=', 'liability_non_current')]</field>
+    </record>
+    <record id="mis_zk_kpi_provisions" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">provisions</field><field name="description">Provisions (leave days and leave tickets)</field><field name="sequence">40</field>
+        <field name="expression">-bale[201005, 201006]</field>
+    </record>
+    <record id="mis_zk_kpi_net_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">net_profit</field><field name="description">Net profit of the fiscal year to date</field><field name="sequence">50</field>
+        <field name="expression">-(balp[('internal_group', '=', 'income')] + balp[('internal_group', '=', 'expense')])</field>
+    </record>
+    <record id="mis_zk_kpi_profit_addbacks" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">profit_addbacks</field><field name="description">Zakat and income tax expense added back</field><field name="sequence">60</field>
+        <field name="expression">balp[400072, 400055]</field>
+    </record>
+    <record id="mis_zk_kpi_adjusted_net_profit" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">adjusted_net_profit</field><field name="description">Adjusted net profit</field><field name="sequence">70</field>
+        <field name="expression">net_profit + profit_addbacks</field>
+    </record>
+    <record id="mis_zk_kpi_net_fixed_assets" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">net_fixed_assets</field><field name="description">Net fixed assets</field><field name="sequence">80</field>
+        <field name="expression">bale[('account_type', '=', 'asset_fixed')]</field>
+    </record>
+    <record id="mis_zk_kpi_long_term_investments" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">long_term_investments</field><field name="description">Long-term investments and non-current assets</field><field name="sequence">90</field>
+        <field name="expression">bale[('account_type', '=', 'asset_non_current')]</field>
+    </record>
+    <record id="mis_zk_kpi_total_additions" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">total_additions</field><field name="description">Total additions</field><field name="sequence">100</field>
+        <field name="expression">equity + retained_earnings + long_term_liabilities + provisions + adjusted_net_profit</field>
+    </record>
+    <record id="mis_zk_kpi_total_deductions" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">total_deductions</field><field name="description">Total deductions</field><field name="sequence">110</field>
+        <field name="expression">net_fixed_assets + long_term_investments</field>
+    </record>
+    <record id="mis_zk_kpi_zakat_base" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">zakat_base</field><field name="description">Zakat base</field><field name="sequence">120</field>
+        <field name="expression">total_additions - total_deductions</field>
+    </record>
+    <record id="mis_zk_kpi_zakat_rate" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">zakat_rate</field><field name="description">Zakat rate: 2.5% of the lunar year scaled to the Gregorian year (x 365/354)</field><field name="sequence">130</field>
+        <field name="type">pct</field>
+        <field name="expression">0.025 * 365 / 354</field>
+    </record>
+    <record id="mis_zk_kpi_zakat_due" model="mis.report.kpi">
+        <field name="report_id" ref="mis_report_zakat_base"/>
+        <field name="name">zakat_due</field><field name="description">Zakat due on the positive base</field><field name="sequence">140</field>
+        <field name="expression">(zakat_base if zakat_base &gt; 0 else 0) * zakat_rate</field>
+    </record>
+</odoo>

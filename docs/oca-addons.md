@@ -32,7 +32,8 @@ The OCA path always comes last, after the existing entries, so nothing existing 
 - CI: the `setup` action (`odoo: 'true'`) fetches and exports `WEBVUE_OCA_DIR`; `deploy/ci/odoo.sh`,
   `upgrade.sh` (the upgraded tree only) and `restore-drill.sh` append it. The standalone and bridge
   tasks stages install fixed non-finance modules and do not use it;
-- other launchers: `deploy/check_isolated.py` (`--with-oca` on `odoo`, `upgrade` and `runtime`),
+- other launchers: `deploy/check_isolated.py` (`--with-oca` on `odoo`, `upgrade` and `runtime`; the `odoo-isolated`
+  check of `deploy/verification-checks.json` and the `deploy/OPERATIONS.md` examples pass it),
   `deploy/rpo_rto_drill.py`, `tools/shared_isolation_acceptance/real-odoo-isolation-matrix.mjs`,
   `tools/shared_saas_lifecycle/admin_password_effect.py` (image path `/opt/oca`), the acceptance image
   overlay of `tools/continuous_updates_acceptance/docker_odoo.py`, and the local release migration
@@ -41,6 +42,22 @@ The OCA path always comes last, after the existing entries, so nothing existing 
   `deploy/odoo/entrypoint.sh` appends them (the image has no git, so it does not run `--check`; the pins
   were verified when the image was built). `deploy/provision.sh` and the compose files only build and
   run that image.
+
+## What uses them
+
+`webvue_finance` is the only WebVue addon that depends on OCA modules (`odoo-addons/webvue_finance/README.md`, "OCA-backed
+reports, assets and bank"). Only modules a route uses are declared:
+
+| OCA module (repository) | Used for |
+|---|---|
+| `account_financial_report` (account-financial-reporting) | trial balance, general ledger, aged partner balance |
+| `partner_statement` (account-financial-reporting) | partner activity and outstanding statements |
+| `account_asset_management` (account-financial-tools) | fixed assets and their depreciation board |
+| `account_reconcile_oca` (account-reconcile), with `account_statement_base` | bank statement line reconciliation |
+| `mis_builder` (mis-builder) | profit and loss, balance sheet, Zakat base (templates shipped as data) |
+
+`date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and
+`account_fiscal_year` are in the pinned repositories but unused.
 
 ## Bump a pin
 
@@ -70,7 +87,8 @@ requires.
 
 - `deploy/control-plane-outage/` (`outage-fixture`, `restart-odoo`, `rotate.py`): bound to one fixed
   worktree, and `restart-odoo` compares the exact argv of a running process, so it changes together
-  with a relaunch of that fixture.
+  with a relaunch of that fixture. Its module list includes `webvue_finance`, so **the fixture fails to install
+  `webvue_finance` until its addons path gets the OCA directories**.
 - The `addons_path` written into a managed bundle's `odoo.conf` (`tools/webvue_cli/managed_bundle.py`,
   checked by `managed_probe.py`): the image entrypoint passes `--addons-path`, which overrides it.
 - `deploy/verification-checks.json` does not pass `--with-oca`; add it when `webvue_finance` depends on

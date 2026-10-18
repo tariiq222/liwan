@@ -33,9 +33,31 @@
     <record id="group_cap_finance_invoices_post" model="res.groups"><field name="name">Capability: post finance invoices</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
     <record id="group_cap_finance_payments_manage" model="res.groups"><field name="name">Capability: manage finance payments</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
 
+    <!-- Reports, assets and bank capabilities (OCA modules), the least stock group that lets the ORM do the operation:
+         - statements.read, zakat.read, bank.read: account.group_account_readonly, which sees all journal items, the
+           bank statements and their lines (the OCA report models and mis_builder read them in the caller's own
+           environment; the report wizards and mis.report are open to every internal user).
+         - assets.read: account.group_account_readonly, plus read-only ACLs on the account_asset_management models in
+           security/ir.model.access.csv (that module grants the readonly group nothing). It cannot write assets or
+           create journal entries.
+         - assets.manage: account.group_account_invoice, which also creates and posts the depreciation entries
+           (account.asset create/write and account.move create/write).
+         - bank.manage: account.group_account_basic, the stock group for basic bank reconciliation: statements and
+           statement lines create/write/unlink. It implies the Invoicing group, so it is BROADER than the capability:
+           the holder can also create, edit and post invoices, bills and payments through the ORM. Reconciling
+           writes journal entries, which that group may do.
+         Consequence, as for the grants above: the stock group is broader than the capability, so the route is the
+         per-capability gate (tests/test_finance_oca_access.py). -->
+    <record id="group_cap_finance_statements_read" model="res.groups"><field name="name">Capability: read finance statements</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_zakat_read" model="res.groups"><field name="name">Capability: read the Zakat base</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_bank_read" model="res.groups"><field name="name">Capability: read finance bank statements</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_readonly'))]"/></record>
+    <record id="group_cap_finance_bank_manage" model="res.groups"><field name="name">Capability: manage finance bank statements</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_basic'))]"/></record>
+    <record id="group_cap_finance_assets_read" model="res.groups"><field name="name">Capability: read finance fixed assets</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.set([ref('account.group_account_readonly')])]"/></record>
+    <record id="group_cap_finance_assets_manage" model="res.groups"><field name="name">Capability: manage finance fixed assets</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/><field name="implied_ids" eval="[Command.link(ref('account.group_account_invoice'))]"/></record>
+
     <record id="group_finance_manager" model="res.groups">
         <field name="name">Finance Manager</field><field name="privilege_id" ref="webvue_core.res_groups_privilege_webvue"/>
-        <field name="implied_ids" eval="[Command.set([ref('webvue_core.group_employee'),ref('group_cap_finance_invoices_read'),ref('group_cap_finance_payments_read'),ref('group_cap_finance_accounts_read'),ref('group_cap_finance_journals_read'),ref('group_cap_finance_partners_read'),ref('group_cap_finance_partners_manage'),ref('group_cap_finance_invoices_manage'),ref('group_cap_finance_invoices_post'),ref('group_cap_finance_payments_manage'),ref('group_cap_finance_setup_read'),ref('group_cap_finance_setup_manage'),ref('group_cap_finance_reports_read')])]"/>
+        <field name="implied_ids" eval="[Command.set([ref('webvue_core.group_employee'),ref('group_cap_finance_invoices_read'),ref('group_cap_finance_payments_read'),ref('group_cap_finance_accounts_read'),ref('group_cap_finance_journals_read'),ref('group_cap_finance_partners_read'),ref('group_cap_finance_partners_manage'),ref('group_cap_finance_invoices_manage'),ref('group_cap_finance_invoices_post'),ref('group_cap_finance_payments_manage'),ref('group_cap_finance_setup_read'),ref('group_cap_finance_setup_manage'),ref('group_cap_finance_reports_read'),ref('group_cap_finance_statements_read'),ref('group_cap_finance_zakat_read'),ref('group_cap_finance_bank_read'),ref('group_cap_finance_bank_manage'),ref('group_cap_finance_assets_read'),ref('group_cap_finance_assets_manage')])]"/>
     </record>
 
     <!-- webvue_core's support group reaches Finance through this link. -->
