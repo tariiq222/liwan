@@ -253,7 +253,7 @@ html[dir="rtl"] body { padding-right: 0 !important; }
   align-items: center;
   justify-content: start;
   gap: 10px;
-  border-radius: var(--radius-control);
+  border-radius: 9999px;
   padding-block: 0;
   padding-inline: 8px;
   color: var(--ui-text-muted);
