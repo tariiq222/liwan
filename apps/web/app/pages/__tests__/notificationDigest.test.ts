@@ -58,6 +58,7 @@ async function renderPage(setup: () => Record<string, unknown>) {
   app.component('SharedRecordPage', RecordStub)
   app.component('SharedListCard', ListCardStub)
   app.component('SharedEmptyState', defineComponent({ inheritAttrs: false, props: ['title'], setup: (props, { attrs }) => () => h('p', attrs, props.title) }))
+  app.component('SharedErrorState', defineComponent({ inheritAttrs: false, props: ['title'], setup: (props, { attrs }) => () => h('p', attrs, props.title) }))
   app.component('ArrowLeft', defineComponent({ setup: () => () => null }))
   app.component('ArrowRight', defineComponent({ setup: () => () => null }))
   return renderToString(app)

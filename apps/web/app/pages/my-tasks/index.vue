@@ -217,9 +217,9 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
           <UButton v-else :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />
         </template>
         <ul ref="cardList" class="grid min-w-0 gap-4 p-(--webvue-card-pad-dense) sm:grid-cols-2 xl:grid-cols-3" :aria-label="t('myTasks.title')" data-testid="my-tasks-cards">
-          <li v-for="(task, index) in items" :key="`${task.source}:${task.id}`" data-shortcut-row :data-row-index="index" tabindex="-1" class="min-w-0 rounded-card bg-default p-4 ring ring-default outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <SharedSubCard v-for="(task, index) in items" :key="`${task.source}:${task.id}`" as="li" data-shortcut-row :data-row-index="index" tabindex="-1" class="outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <MyTaskRow :task="task" :to="rowTo(task)" :today="today" part="card" @open="openLiveTask" />
-          </li>
+          </SharedSubCard>
         </ul>
       </SharedPageState>
 

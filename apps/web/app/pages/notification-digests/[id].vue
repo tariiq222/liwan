@@ -68,13 +68,8 @@ async function retryNextPage() {
     <template #actions>
       <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
     </template>
-    <div v-if="idInvalid" class="grid gap-3 rounded-card bg-default py-8 text-center ring ring-default" role="alert" data-testid="digest-invalid">
-      <p class="text-sm text-error">{{ t('tasks.digest.invalid') }}</p>
-    </div>
-    <div v-else-if="isError && !items.length" class="grid gap-3 rounded-card bg-default py-8 text-center ring ring-default" role="alert" data-testid="digest-error">
-      <p class="text-sm text-error">{{ queryErrorMessage }}</p>
-      <UButton type="button" color="neutral" variant="outline" size="sm" class="mx-auto" :disabled="!hydrated || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
-    </div>
+    <SharedEmptyState v-if="idInvalid" bordered :title="t('tasks.digest.invalid')" data-testid="digest-invalid" />
+    <SharedErrorState v-else-if="isError && !items.length" :title="queryErrorMessage" data-testid="digest-error" @retry="retryDigest" />
     <SharedEmptyState v-else-if="!items.length" bordered :title="t('tasks.digest.empty')" data-testid="digest-empty" />
     <SharedListCard v-else>
       <ul class="divide-y divide-default">
