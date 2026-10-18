@@ -30,6 +30,7 @@ const foundationItems: NavItem[] = [
   { to: '/', labelKey: 'nav.home', icon: House, shortcut: 'h', goKey: 'h', module: 'home', capability: 'webvue.internal' },
   { to: '/settings/maintenance', labelKey: 'settings.maintenance.title', icon: 'i-lucide-calendar-clock', shortcut: 'u', group: 'settings', module: 'settings', capability: 'settings.maintenance.manage' },
   { to: '/settings/branding', labelKey: 'settings.branding.title', icon: Palette, shortcut: 'i', group: 'settings', module: 'settings', capability: 'settings.branding.manage' },
+  { to: '/settings/integrations', labelKey: 'integrations.nav', icon: 'i-lucide-plug-zap', shortcut: 'w', group: 'settings', module: 'settings', capability: 'integrations.read' },
   { to: '/settings/users', labelKey: 'nav.users', icon: UserCog, shortcut: '7', goKey: 'u', group: 'settings', module: 'settings', capability: 'access.users.read' },
   { to: '/settings/roles', labelKey: 'nav.roles', icon: ShieldCheck, shortcut: '8', goKey: 'r', group: 'settings', module: 'settings', capability: 'access.roles.read' },
   { to: '/settings/access-log', labelKey: 'nav.accessLog', icon: History, shortcut: '9', group: 'settings', module: 'settings', capability: 'access.audit.read' },
@@ -135,6 +136,7 @@ const foundationContextLinks: Record<string, ShellContextLink[]> = {
     { id: 'access-log', labelKey: 'nav.accessLog', icon: History, to: '/settings/access-log', capability: 'access.audit.read' },
     { id: 'maintenance', labelKey: 'settings.maintenance.title', icon: 'i-lucide-calendar-clock', to: '/settings/maintenance', capability: 'settings.maintenance.manage' },
     { id: 'branding', labelKey: 'settings.branding.title', icon: Palette, to: '/settings/branding', capability: 'settings.branding.manage' },
+    { id: 'integrations', labelKey: 'integrations.nav', icon: 'i-lucide-plug-zap', to: '/settings/integrations', capability: 'integrations.read' },
   ],
 }
 
