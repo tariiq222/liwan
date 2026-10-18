@@ -3213,7 +3213,7 @@
           "name": "modelValue",
           "type": "string | string[]",
           "required": true,
-          "description": "A string for single choice, an array for multiple choice."
+          "description": "A string for single choice, an array for multiple choice (chips only: the segment layout is single choice)."
         },
         {
           "name": "layout",
@@ -4667,6 +4667,49 @@
           "id": "Panel",
           "name": "لوحة إعدادات",
           "context": "apps/web/app/components/pmo/projects/ProjectCreateForm.vue:58"
+        }
+      ]
+    },
+    {
+      "name": "SharedIdentityCard",
+      "file": "packages/ui/app/components/shared/layout/IdentityCard.vue",
+      "story": "apps/web/stories/shared/IdentityCard.stories.ts",
+      "title": "Shared/IdentityCard",
+      "props": [
+        {
+          "name": "id",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "subtitle",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "events": [],
+      "slots": [
+        "badge",
+        "subtitle"
+      ],
+      "nuxtUi": [
+        "UAvatar"
+      ],
+      "stories": [
+        {
+          "id": "Employee",
+          "name": "موظف",
+          "context": "apps/web/app/components/hr/EmployeeCard.vue:15"
+        },
+        {
+          "id": "WithMarkupSubtitle",
+          "name": "سطر فرعي بعلامات",
+          "context": "apps/web/app/components/hr/EmployeeCard.vue:15"
         }
       ]
     },
