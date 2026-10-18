@@ -18,6 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LAYERS_FILE = Path(__file__).resolve().parent / 'arch_layers.json'
 BASELINE_FILE = Path(__file__).resolve().parent / 'arch_baseline.json'
+DOCUMENTED_SUDO_FILE = Path(__file__).resolve().parent / 'arch_documented_sudo.json'
+AGENTS_FILE = 'AGENTS.md'
 
 # Rank bands: 0-2 foundation (core, platform, api), 3 shared service, 4 app, 5 bridge, 6 customer overlay.
 APPROVAL_TRAILER = 'Architecture-approved-by'
@@ -402,8 +404,9 @@ def _git_show(root: Path, ref: str, rel: str) -> str | None:
 
 def ratchet_problems(
     ref: str, root: Path, layers_file: Path, baseline_file: Path, totals: dict[str, int], baseline_exists: bool,
+    documented_file: Path | None = None,
 ) -> list[str]:
-    """Compare the baseline totals and the layers file with the same files at REF."""
+    """Compare the baseline totals, the layers file and the documented sudo cases with the same files at REF."""
     ref_baseline = _git_show(root, ref, baseline_file.relative_to(root).as_posix())
     ref_layers = _git_show(root, ref, layers_file.relative_to(root).as_posix())
     problems = []
@@ -413,18 +416,70 @@ def ratchet_problems(
         problems += totals_growth(totals, rule_totals(json.loads(ref_baseline)), ref)
     if ref_layers is not None:
         layer_problems = layers_weakened(json.loads(ref_layers), json.loads(_read(layers_file)), root)
-        if layer_problems and not layers_change_approved(ref, root, layers_file):
+        if layer_problems and not change_approved(ref, root, layers_file):
             problems += layer_problems
+    if documented_file is not None:
+        problems += documented_growth(ref, root, documented_file)
     return problems
 
 
-def layers_change_approved(ref: str, root: Path, layers_file: Path) -> bool:
-    """True when a commit in REF..HEAD that changes the layers file carries the owner approval trailer."""
+def change_approved(ref: str, root: Path, tracked_file: Path) -> bool:
+    """True when a commit in REF..HEAD that changes the file carries the owner approval trailer."""
     done = subprocess.run(
-        ['git', 'log', '--format=%B', f'{ref}..HEAD', '--', layers_file.relative_to(root).as_posix()],
+        ['git', 'log', '--format=%B', f'{ref}..HEAD', '--', tracked_file.relative_to(root).as_posix()],
         cwd=root, capture_output=True, text=True, check=False, shell=False,
     )
     return bool(re.search(rf'^{re.escape(APPROVAL_TRAILER)}: .+$', done.stdout, re.MULTILINE))
+
+
+def documented_counts(documented: dict) -> dict[str, int]:
+    return {rel: case['count'] for rel, case in documented.get('cases', {}).items()}
+
+
+def documented_growth(ref: str, root: Path, documented_file: Path) -> list[str]:
+    """R7: a new documented sudo case or a higher count needs the owner trailer on the commit that changes the file."""
+    ref_text = _git_show(root, ref, documented_file.relative_to(root).as_posix())
+    old = documented_counts(json.loads(ref_text)) if ref_text is not None else {}
+    new = documented_counts(json.loads(_read(documented_file))) if documented_file.is_file() else {}
+    grown = [rel for rel, have in sorted(new.items()) if have > old.get(rel, 0)]
+    if not grown or change_approved(ref, root, documented_file):
+        return []
+    return [
+        f'R7: {rel}: documented sudo case added without {APPROVAL_TRAILER}: {new[rel]} documented, {ref} allows {old.get(rel, 0)}'
+        for rel in grown
+    ]
+
+
+def without_documented(current: Violations, documented: dict[str, int]) -> Violations:
+    """The violations that are left for the baseline once the documented sudo cases are taken out of R7."""
+    r7 = {rel: n - documented.get(rel, 0) for rel, n in current.get('R7', {}).items()}
+    return {**current, 'R7': {rel: n for rel, n in r7.items() if n > 0}}
+
+
+def documented_problems(documented: dict[str, int], current: Violations, root: Path) -> list[str]:
+    """Documented sudo cases must still exist in the code and be described in AGENTS.md."""
+    problems = []
+    for rel, allowed in sorted(documented.items()):
+        found = current.get('R7', {}).get(rel, 0)
+        if found < allowed:
+            problems.append(
+                f'R7: {rel}: {found} found, documented sudo case says {allowed}; lower or remove it in {DOCUMENTED_SUDO_FILE.name}',
+            )
+    agents = root / AGENTS_FILE
+    paragraph = sudo_paragraph(_read(agents)) if agents.is_file() else ''
+    for rel in sorted(documented):
+        addon = rel.split('/')[1] if rel.startswith('odoo-addons/') else rel
+        if f'`{addon}`' not in paragraph:
+            problems.append(f'R7: {rel}: documented case not described in {AGENTS_FILE}')
+    return problems
+
+
+def sudo_paragraph(agents_text: str) -> str:
+    """The AGENTS.md list item that lists the documented sudo cases."""
+    for item in re.split(r'\n(?=- )', agents_text):
+        if 'path.' in item and '`sudo()`' in item:
+            return item
+    return ''
 
 
 def _web_owners(web_apps: dict, kind: str) -> dict[str, str]:
@@ -617,18 +672,22 @@ def main(
     root: Path = ROOT,
     layers_file: Path = LAYERS_FILE,
     baseline_file: Path = BASELINE_FILE,
+    documented_file: Path | None = None,
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--write-baseline', action='store_true', help='record the current violations; refuses any rule total increase')
-    parser.add_argument('--base', metavar='REF', help='also ratchet the baseline and arch_layers.json against this git ref')
+    parser.add_argument('--base', metavar='REF', help='also ratchet the baseline, arch_layers.json and the documented sudo cases against this git ref')
     args = parser.parse_args(argv)
-    current, hard = collect(root, json.loads(_read(layers_file)))
+    documented_file = documented_file or baseline_file.with_name(DOCUMENTED_SUDO_FILE.name)
+    documented = documented_counts(json.loads(_read(documented_file))) if documented_file.is_file() else {}
+    found, hard = collect(root, json.loads(_read(layers_file)))
+    current = without_documented(found, documented)
     exists = baseline_file.is_file()
     baseline = json.loads(_read(baseline_file)) if exists else {}
     # The totals that end up on disk: today's violations when writing, the file itself when checking.
     totals = rule_totals(current) if args.write_baseline else rule_totals(baseline)
     try:
-        ratchet = ratchet_problems(args.base, root, layers_file, baseline_file, totals, exists or args.write_baseline) if args.base else []
+        ratchet = ratchet_problems(args.base, root, layers_file, baseline_file, totals, exists or args.write_baseline, documented_file) if args.base else []
     except UnknownRef as error:
         sys.stderr.write(f'{error}\n')
         return 2
@@ -642,7 +701,7 @@ def main(
             )
             print(f'wrote {baseline_file.name}')
     else:
-        problems = hard + compare(current, baseline) + ratchet
+        problems = hard + compare(current, baseline) + documented_problems(documented, found, root) + ratchet
     for problem in problems:
         print(problem, file=sys.stderr)
     return 1 if problems else 0

@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import contextlib
+import io
 import json
 import shutil
 import subprocess
@@ -952,6 +954,110 @@ class TestLayersRatchet(BaseRefCase):
         self.sudo('a', 5)
         self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 1)
         self.assertEqual(self.run_main('--base', 'main'), 1)
+
+
+class TestDocumentedSudo(BaseRefCase):
+    """R7 documented cases: a separate approved allowlist next to the shrink-only baseline."""
+
+    AGENTS = '# Agents\n\n- `webvue_a` has no `sudo()` path. `webvue_b` uses it only for X.\n- next item\n'
+
+    def setUp(self):
+        super().setUp()
+        self.documented_file = self.root / 'tools' / 'arch_documented_sudo.json'
+        self.b_file = 'odoo-addons/webvue_b/models/m.py'
+        (self.root / 'AGENTS.md').write_text(self.AGENTS, encoding='utf-8')
+        self.sudo('b', 2)
+
+    def document(self, count, rel=None):
+        cases = {rel or self.b_file: {'count': count, 'reason': 'test'}}
+        self.documented_file.write_text(json.dumps({'cases': cases}), encoding='utf-8')
+
+    def problems(self, *argv):
+        out = io.StringIO()
+        with contextlib.redirect_stderr(out):
+            code = self.run_main(*argv)
+        return code, out.getvalue()
+
+    def adopt_documented(self):
+        self.document(2)
+        self.adopt()
+
+    def test_documented_case_allows_exactly_its_count_and_stays_out_of_the_baseline(self):
+        self.adopt_documented()
+        self.assertEqual(self.problems(), (0, ''))
+        self.assertEqual(json.loads(self.baseline_file.read_text())['R7'], {'odoo-addons/webvue_a/models/m.py': 2})
+
+    def test_excess_over_the_documented_count_fails(self):
+        self.adopt_documented()
+        self.sudo('b', 3)
+        code, text = self.problems()
+        self.assertEqual(code, 1)
+        self.assertIn(f'R7: {self.b_file}: 1 found, baseline allows 0', text)
+
+    def test_a_file_in_neither_list_fails(self):
+        self.adopt_documented()
+        (self.root / 'odoo-addons/webvue_b/models/n.py').write_text(HEADER + "x = y.sudo()\n", encoding='utf-8')
+        code, text = self.problems()
+        self.assertEqual(code, 1)
+        self.assertIn('odoo-addons/webvue_b/models/n.py: 1 found, baseline allows 0', text)
+
+    def test_baseline_growth_logic_is_unchanged(self):
+        self.adopt_documented()
+        self.sudo('a', 5)
+        self.baseline_file.unlink()
+        self.assertEqual(self.run_main('--write-baseline', '--base', 'main'), 1)
+
+    def test_documented_count_is_not_part_of_the_totals(self):
+        self.sudo('b', 0)
+        self.adopt()
+        self.sudo('b', 2)
+        self.document(2)
+        self.assertEqual(self.run_main('--write-baseline'), 0)
+        self.assertEqual(rule_totals(json.loads(self.baseline_file.read_text()))['R7'], 2)
+
+    def test_new_case_without_the_trailer_fails_and_with_it_passes(self):
+        self.sudo('b', 0)
+        self.adopt()
+        self.git('checkout', '-q', '-b', 'work')
+        self.sudo('b', 2)
+        self.document(2)
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'document')
+        code, text = self.problems('--base', 'main')
+        self.assertEqual(code, 1)
+        self.assertIn('documented sudo case added without Architecture-approved-by', text)
+        self.git('commit', '-q', '--amend', '-m', 'document', '-m', TRAILER)
+        self.assertEqual(self.problems('--base', 'main'), (0, ''))
+
+    def test_raised_count_needs_the_trailer_and_a_net_lower_one_does_not(self):
+        self.adopt_documented()
+        self.git('checkout', '-q', '-b', 'work')
+        self.sudo('b', 3)
+        self.document(3)
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'raise')
+        self.assertEqual(self.problems('--base', 'main')[0], 1)
+        self.sudo('b', 1)
+        self.document(1)
+        self.git('add', '-A')
+        self.git('commit', '-q', '-m', 'lower')
+        self.assertEqual(self.problems('--base', 'main')[0], 0, 'net lower than REF')
+
+    def test_stale_or_missing_case_is_reported(self):
+        self.adopt_documented()
+        self.document(3)
+        code, text = self.problems()
+        self.assertEqual(code, 1)
+        self.assertIn(f'R7: {self.b_file}: 2 found, documented sudo case says 3', text)
+        self.document(1, rel='odoo-addons/webvue_b/models/gone.py')
+        self.assertIn('gone.py: 0 found, documented sudo case says 1', self.problems()[1])
+
+    def test_case_must_be_described_in_agents_md(self):
+        self.adopt_documented()
+        (self.root / 'AGENTS.md').write_text(self.AGENTS.replace('`webvue_b`', 'webvue_b'), encoding='utf-8')
+        code, text = self.problems()
+        self.assertEqual(code, 1)
+        self.assertIn(f'R7: {self.b_file}: documented case not described in AGENTS.md', text)
 
 
 class TestRepository(unittest.TestCase):

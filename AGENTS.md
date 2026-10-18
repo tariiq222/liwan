@@ -253,6 +253,10 @@ cross-addon links.
   writing the company tax identity and fiscal settings of the current company, after the
   `finance.setup.manage` check, with a field whitelist. Do not add
   another case without documenting it and fixing ACLs/rules where possible.
+  Documented cases are listed per file in `tools/arch_documented_sudo.json`, outside the
+  shrink-only baseline. Adding one or raising its count needs the owner's
+  `Architecture-approved-by:` trailer on the commit that changes that file, like
+  `tools/arch_layers.json`; agents never add that trailer.
 - The current delivery scope has no time logging or payroll product surface.
   These are stage constraints, not permanent exclusions from the product
   vision; adding them requires a separately scoped implementation request. Do not add

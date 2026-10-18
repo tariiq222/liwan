@@ -1,0 +1,8 @@
+{
+  "cases": {
+    "odoo-addons/webvue_finance/models/setup_service.py": {
+      "count": 2,
+      "reason": "finance setup: chart load and company tax identity, after the finance.setup.manage check, field whitelist"
+    }
+  }
+}
