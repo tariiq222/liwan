@@ -35,8 +35,10 @@ SESSION_ROUTES = frozenset({
     '/web/session/get_session_info',
     '/web/binary/company_logo',
 })
-# The app's own prefixes: /api/v1 routes, the websocket and Odoo's static assets.
-SESSION_ROUTE_PREFIXES = ('/api/v1/', '/websocket', '/web/assets/', '/web/static/')
+# WebVue's own Odoo routes: /api/v1 and the customer-commercial stub (R5 exception).
+API_PREFIXES = ('/api/v1/', '/api/commercial/v1/')
+# The app's own prefixes: those routes, the websocket and Odoo's static assets.
+SESSION_ROUTE_PREFIXES = (*API_PREFIXES, '/websocket', '/web/assets/', '/web/static/')
 # The exact image URLs the app builds: employee avatar and company favicon.
 SESSION_IMAGE_PATH = re.compile(
     r'^/web/image/(?:hr\.employee/[1-9][0-9]{0,9}/avatar_128|res\.company/[1-9][0-9]{0,9}/logo/32x32)$',
@@ -68,7 +70,7 @@ class WebVuePlatformIrHttp(models.AbstractModel):
         # auth='none' routes (/odoo) clear the environment user; the session still knows it.
         if not (request.session.uid or (user and not user._is_public())):
             return
-        exempt = path in SESSION_ALLOWLIST or path.startswith(SESSION_PREFIXES + ('/api/v1/',))
+        exempt = path in SESSION_ALLOWLIST or path.startswith(SESSION_PREFIXES + API_PREFIXES)
         if not exempt and user and not user._is_public():
             service = request.env['webvue.entitlement.service'].sudo()
             if service._webvue_session_forbidden(user):

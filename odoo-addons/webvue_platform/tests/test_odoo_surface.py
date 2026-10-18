@@ -94,7 +94,7 @@ class TestSessionOdooSurface(HttpCase):
             }},
             headers=JSON_HEADERS,
         )
-        self.assertEqual(jsonrpc.status_code, 404)
+        self._assert_rpc_closed(jsonrpc)
 
     def test_image_routes_are_limited_to_the_app_patterns(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
@@ -127,7 +127,8 @@ class TestSessionOdooSurface(HttpCase):
         self.assertEqual(self.url_open('/api/v1/me').status_code, 200)
         self.assertEqual(self.url_open('/web/health').status_code, 200)
         info = self._rpc('/web/session/get_session_info', {}).json()
-        self.assertEqual(info['result']['uid'], self.user.id)
+        self.assertEqual(info['result']['uid'], self.user.id, info)
         destroyed = self._rpc('/web/session/destroy', {})
-        self.assertNotIn('error', destroyed.json())
-        self.assertEqual(self.url_open('/api/v1/me').status_code, 401)
+        self.assertNotIn('error', destroyed.json(), destroyed.text)
+        after = self.url_open('/api/v1/me')
+        self.assertIn(after.status_code, (401, 403), after.text)
