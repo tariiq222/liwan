@@ -1,15 +1,17 @@
 <script setup lang="ts">
-const props = defineProps<{
+// Only the newest pending card of a thread is the page's one `action` block; an older pending one is `tinted`.
+const props = withDefaults(defineProps<{
   summary: string
   state: 'pending' | 'approved' | 'rejected'
-}>()
+  latest?: boolean
+}>(), { latest: true })
 const emit = defineEmits<{ open: []; discard: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 </script>
 
 <template>
-  <SharedRecordSection v-if="props.state === 'pending'" variant="action" :title="t('ai.draft.title')" data-testid="ai-draft">
+  <SharedRecordSection v-if="props.state === 'pending'" :variant="props.latest ? 'action' : 'tinted'" :title="t('ai.draft.title')" data-testid="ai-draft">
     <p class="break-words text-sm text-highlighted">{{ props.summary }}</p>
     <p class="mt-1 text-sm text-muted">{{ t('ai.draft.hint') }}</p>
     <div class="mt-3 flex w-full flex-wrap justify-end gap-2">

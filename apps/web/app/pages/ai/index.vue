@@ -12,6 +12,7 @@ import AiRecordCards from '@/components/ai/AiRecordCards.vue'
 import AiToolTrace from '@/components/ai/AiToolTrace.vue'
 import { useAiRun } from '@/composables/useAiRun'
 import { aiRunKeys } from '@/composables/useAiRuns'
+import { latestPendingIndex } from '@/utils/aiThread'
 import { forgetCreatedId, parseCreatedId, readCreatedId, rememberCreatedId } from '@/utils/aiDraft'
 
 const route = useRoute()
@@ -37,6 +38,8 @@ const context = computed(() => {
 const streaming = computed(() => status.value === 'streaming')
 // A pending card is answered before another message: the service holds one pending call per run.
 const composerDisabled = computed(() => !hydrated.value || limit.value === 'messages_monthly' || status.value === 'waiting_user')
+// Only the newest pending confirm/draft card is the page's one `action` block (DESIGN.md); older pending ones are tinted.
+const latestPending = computed(() => latestPendingIndex(items.value))
 const summary = (item: { summaryAr: string; summaryEn: string }) => (locale.value === 'en' ? item.summaryEn : item.summaryAr)
 
 // Reopen a run by link/refresh; a `resume` query means the create page finished (or left) a draft.
@@ -126,8 +129,8 @@ watch(status, (now, before) => {
               <AiRecordCards v-if="item.records.length" :records="item.records" />
             </template>
             <AiToolTrace v-else-if="item.kind === 'tool'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming" @retry="decide(item.callId, 'approved')" />
-            <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming || item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
-            <AiDraftCard v-else :summary="summary(item)" :state="item.state" @open="openDraft(item)" @discard="decide(item.callId, 'rejected')" />
+            <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :latest="index === latestPending" :disabled="!hydrated || streaming || item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
+            <AiDraftCard v-else :summary="summary(item)" :state="item.state" :latest="index === latestPending" @open="openDraft(item)" @discard="decide(item.callId, 'rejected')" />
           </template>
         </div>
       </SharedRecordSection>
