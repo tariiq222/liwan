@@ -101,4 +101,6 @@ export type FinanceAccountList = z.infer<typeof FinanceAccountListSchema>
 export type FinanceJournalList = z.infer<typeof FinanceJournalListSchema>
 
 export * from './partners'
+export * from './report'
+export * from './setup'
 export * from './write'

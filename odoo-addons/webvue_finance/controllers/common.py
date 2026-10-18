@@ -62,3 +62,15 @@ def list_page(model, domain, dump_all):
     limit, offset = parse_page(request.httprequest.args)
     records = request.env[model].search(domain, limit=limit, offset=offset)
     return {'items': dump_all(records), 'total': request.env[model].search_count(domain)}
+
+
+def parse_period(args):
+    """The required ``date_from`` and ``date_to`` query dates as ``(date_from, date_to)``."""
+    days = {}
+    for field in ('date_from', 'date_to'):
+        if not args.get(field):
+            raise ApiError(422, 'invalid', f'{field} is required', field=field)
+        days[field] = parse_day(args[field], field)
+    if days['date_from'] > days['date_to']:
+        raise ApiError(422, 'invalid', 'date_to must be on or after date_from', field='date_to')
+    return days['date_from'], days['date_to']

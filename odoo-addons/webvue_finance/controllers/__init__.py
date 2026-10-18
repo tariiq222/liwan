@@ -5,4 +5,6 @@ from . import (
     finance_journals,
     finance_partners,
     finance_payments,
+    finance_reports,
+    finance_setup,
 )

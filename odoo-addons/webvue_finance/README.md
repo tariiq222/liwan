@@ -1,7 +1,8 @@
 # webvue_finance
 
 The Finance application over stock `account`, `base_vat` and `l10n_sa`: reads of invoices,
-payments, accounts and journals, and writes for partners, invoices and payments.
+payments, accounts and journals, writes for partners, invoices and payments, the company setup
+and the VAT summary.
 
 ## Routes (`/api/v1/finance`, lists are `{items, total}` envelopes)
 
@@ -14,14 +15,17 @@ payments, accounts and journals, and writes for partners, invoices and payments.
 | `POST /payments` (201), `POST /payments/<id>/cancel`, `/reset-to-draft` | `finance.payments.manage` |
 | `GET /accounts` | `finance.accounts.read` |
 | `GET /journals` | `finance.journals.read` |
+| `GET /setup` | `finance.setup.read` |
+| `POST /setup/chart`, `PATCH /setup/company`, `PATCH /setup/fiscal` | `finance.setup.manage` |
+| `GET /reports/vat?date_from&date_to` | `finance.reports.read` |
 | `GET /partners` (`q`, `kind=customer\|vendor`, `archived=true\|false`), `GET /partners/<id>` | `finance.partners.read` |
 | `POST /partners` (201), `PATCH /partners/<id>`, `POST /partners/<id>/archive`, `/unarchive` | `finance.partners.manage` |
 
 Every route also requires the `finance.enabled` feature (writes check it as a write). There is
 no partner delete: archive instead. Capability dependencies: `partners.manage` needs
 `partners.read`; `invoices.manage` needs `invoices.read`; `invoices.post` needs `invoices.manage`;
-`payments.manage` needs `payments.read` and `invoices.read`. The built-in `finance_manager` role
-(and `webvue_core`'s vendor support role) holds all nine capabilities.
+`payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`. The built-in
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all twelve capabilities.
 
 ## Write semantics
 
@@ -64,12 +68,13 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 
 ## Deliberate ORM grant
 
-The routes read and write in the caller's own environment (no `sudo()`), so each capability
+The routes read and write in the caller's own environment (the only `sudo()` is the setup
+elevation below), so each capability
 group implies the least stock group that lets the ORM do the operation (documented per group in
 `security/finance_capability_groups.xml`):
 
-- the four read capabilities and `partners.read`: `account.group_account_readonly` (partners:
-  nothing, every internal user reads `res.partner`);
+- the four read capabilities, the setup and report capabilities and `partners.read`:
+  `account.group_account_readonly` (partners: nothing, every internal user reads `res.partner`);
 - `partners.manage`: `base.group_partner_manager`;
 - `invoices.manage`, `invoices.post`, `payments.manage`: `account.group_account_invoice`.
 
@@ -81,3 +86,59 @@ the route gates per capability (`tests/test_finance_capability_isolation.py`,
 
 The capability split is route-level and relies on the pending closing of Odoo's generic ORM
 endpoints, which would otherwise let the broader stock groups act directly.
+
+## Setup and VAT report routes
+
+- `GET /setup`: `finance.setup.read`. Chart, company tax identity, fiscal settings, journal and tax counts,
+  ZATCA readiness, `ready` and stable `blockers` codes (`chart_not_loaded`, `vat_15_tax_missing`,
+  `company_vat_missing`, `company_registry_missing`, `company_address_incomplete`, `zatca_not_onboarded`)
+- `POST /setup/chart` (loads the Saudi `sa` chart, 422 `chart_already_loaded` when one is loaded),
+  `PATCH /setup/company` (`vat`, `company_registry`, `street`, `city`, `state_id`, `country_id`) and
+  `PATCH /setup/fiscal` (`fiscalyear_last_day`, `fiscalyear_last_month`, the sale, purchase, tax and
+  global lock dates; never the irreversible hard lock date): `finance.setup.manage` (needs
+  `finance.setup.read`); each returns the full setup status
+- `GET /reports/vat?date_from&date_to`: `finance.reports.read`. Per tax base and tax amount for sales
+  and purchases of the posted entries of the current company, and `net_payable` (output minus input VAT)
+
+## Setup elevation (documented `sudo()` cases)
+
+Stock refuses `account.chart.template` loads to non-administrators and `res.company` writes without the
+Access Rights group. After the route's `finance.setup.manage` check, `webvue.finance.setup` elevates in
+exactly two methods, the R7 case "finance setup (chart load, company tax identity)":
+
+1. `_webvue_load_chart`: loads the Saudi template `sa` only, into the current company (`env.company`).
+   It refuses (422) when a chart is loaded (`chart_already_loaded`), the company has branches
+   (`company_has_branches`, stock recurses into them) or it already has journal entries.
+2. `_webvue_write_company`: writes the current company only, restricted to a field whitelist
+   (`vat`, `company_registry`, `street`, `city`, `state_id`, `country_id` and the fiscal year day/month and
+   the four non-hard lock dates). Any other field, including `hard_lock_date`, raises `AccessError`.
+
+Through `PATCH /setup/fiscal` a lock date can only be tightened (set, or moved later); removing or
+moving one earlier is 422 `lock_date_loosening`, done by an accounting administrator in Odoo. Stock
+`RedirectWarning`s (for example unreconciled bank lines before a lock date) become 422 `invalid`
+without the action link. Changing only `country_id` re-validates the existing `state_id` (422 on `state_id`).
+
+Both re-check that the record is the current company. Reads, validation and serializers stay in the
+caller's environment. A caller without `finance.setup.manage` gets 403 and nothing changes
+(`tests/test_finance_setup.py`).
+
+## VAT report scope
+
+`GET /reports/vat` groups posted journal items per individual tax: a group tax appears as its child
+taxes, cash-basis taxes count at the invoice date, and only the current company is read (not branches).
+
+## ZATCA readiness is read-only
+
+`serializers/zatca.py` reports, from stock `l10n_sa_edi` data when that module is installed
+(`{installed: false}` otherwise): the API mode, whether a private key exists, and per sale journal
+`onboarded` and `state` (`not_started`, `compliance_checked`, `onboarded`). Key material, CSR, CSIDs
+and tokens are never read into the shape (`tests/test_finance_zatca.py` scans every output for
+secret-like keys and values). No onboarding action and no network call exist here.
+
+## VAT summary source
+
+The Saudi 'VAT Return' (`l10n_sa.tax_report_vat_filing`) is data only in Community: the `account.report`
+engine that evaluates its `tax_tags` expressions ships with Enterprise `account_reports`. The summary
+therefore groups posted `account.move.line` rows with `_read_group` (base by `tax_ids` on product lines,
+tax by `tax_line_id`), signed as a return reads. A reverse-charge tax shows its base and a net tax of
+zero.

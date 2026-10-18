@@ -72,11 +72,35 @@
         <field name="group_xmlid">webvue_finance.group_cap_finance_payments_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
     </record>
+    <record id="permission_finance_setup_read" model="webvue.access.permission">
+        <field name="key">finance.setup.read</field><field name="domain">finance</field>
+        <field name="resource">setup</field><field name="action">read</field>
+        <field name="name_ar">قراءة إعداد المالية</field><field name="name_en">Read finance setup</field>
+        <field name="description_ar">قراءة إعداد المالية</field><field name="description_en">Read finance setup</field>
+        <field name="group_xmlid">webvue_finance.group_cap_finance_setup_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_finance_setup_manage" model="webvue.access.permission">
+        <field name="key">finance.setup.manage</field><field name="domain">finance</field>
+        <field name="resource">setup</field><field name="action">manage</field>
+        <field name="name_ar">إدارة إعداد المالية</field><field name="name_en">Manage finance setup</field>
+        <field name="description_ar">إدارة إعداد المالية</field><field name="description_en">Manage finance setup</field>
+        <field name="group_xmlid">webvue_finance.group_cap_finance_setup_manage</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
+    <record id="permission_finance_reports_read" model="webvue.access.permission">
+        <field name="key">finance.reports.read</field><field name="domain">finance</field>
+        <field name="resource">reports</field><field name="action">read</field>
+        <field name="name_ar">قراءة التقارير المالية</field><field name="name_en">Read finance reports</field>
+        <field name="description_ar">قراءة التقارير المالية</field><field name="description_en">Read finance reports</field>
+        <field name="group_xmlid">webvue_finance.group_cap_finance_reports_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/><field name="project_contextual" eval="False"/>
+    </record>
     <data noupdate="1">
         <record id="role_finance_manager" model="webvue.access.role">
             <field name="key">finance_manager</field><field name="name_ar">مدير المالية</field><field name="name_en">Finance manager</field>
             <field name="description">Finance manager</field><field name="type">built_in</field><field name="protected" eval="True"/><field name="assignable" eval="True"/>
-            <field name="permission_ids" eval="[Command.set([ref('permission_finance_invoices_read'),ref('permission_finance_payments_read'),ref('permission_finance_accounts_read'),ref('permission_finance_journals_read'),ref('permission_finance_partners_read'),ref('permission_finance_partners_manage'),ref('permission_finance_invoices_manage'),ref('permission_finance_invoices_post'),ref('permission_finance_payments_manage')])]"/>
+            <field name="permission_ids" eval="[Command.set([ref('permission_finance_invoices_read'),ref('permission_finance_payments_read'),ref('permission_finance_accounts_read'),ref('permission_finance_journals_read'),ref('permission_finance_partners_read'),ref('permission_finance_partners_manage'),ref('permission_finance_invoices_manage'),ref('permission_finance_invoices_post'),ref('permission_finance_payments_manage'),ref('permission_finance_setup_read'),ref('permission_finance_setup_manage'),ref('permission_finance_reports_read')])]"/>
         </record>
     </data>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and

@@ -18,6 +18,7 @@
     "odoo-addons/webvue_chat/controllers/chat.py": 1,
     "odoo-addons/webvue_chat/serializers/chat.py": 1,
     "odoo-addons/webvue_core/models/res_company.py": 1,
+    "odoo-addons/webvue_finance/models/setup_service.py": 2,
     "odoo-addons/webvue_meetings/models/calendar_event.py": 1,
     "odoo-addons/webvue_meetings/models/meeting_minute.py": 12,
     "odoo-addons/webvue_meetings/models/meeting_notification_types.py": 1,

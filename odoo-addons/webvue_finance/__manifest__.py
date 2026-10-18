@@ -9,8 +9,8 @@
     # webvue_api: shared api_handler/ApiError + WebVueApiCase. The application depends
     # on webvue_api and no other application (spec R3); it owns its capabilities,
     # groups and the finance_manager role (spec R2). Stock account holds the data and
-    # its record rules; base_vat validates partner VAT numbers (the Saudi 15-digit rule);
-    # l10n_sa supplies the Saudi chart and taxes.
+    # its record rules; base_vat validates partner VAT numbers and the company VAT number
+    # (the Saudi 15-digit ZATCA TIN rule); l10n_sa supplies the Saudi chart and taxes.
     'depends': ['webvue_api', 'account', 'base_vat', 'l10n_sa'],
     'data': [
         'security/finance_capability_groups.xml',

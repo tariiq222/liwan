@@ -248,7 +248,10 @@ cross-addon links.
   meeting-manager group lookup, the existence check of the minutes linked to a
   calendar event (read only, access is rechecked by the caller) and the
   recipient-owned bell candidates;
-  `webvue_meetings_pmo` only for the id-only lookup of converted tasks. Do not add
+  `webvue_meetings_pmo` only for the id-only lookup of converted tasks;
+  `webvue_finance` only in `models/setup_service.py`, for loading the Saudi chart of accounts and
+  writing the company tax identity and fiscal settings of the current company, after the
+  `finance.setup.manage` check, with a field whitelist. Do not add
   another case without documenting it and fixing ACLs/rules where possible.
 - The current delivery scope has no time logging or payroll product surface.
   These are stage constraints, not permanent exclusions from the product
