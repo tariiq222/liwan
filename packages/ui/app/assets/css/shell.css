@@ -338,7 +338,8 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 .webvue-page-band { margin: calc(-1 * var(--webvue-pad-top)) calc(-1 * var(--webvue-pad-x)) 0; padding: 16px var(--webvue-pad-x) 0; }
 /* Under a page band the detail and form widths start at the band's inline edge instead of centring, so records line up with the frame. */
 :is(.webvue-page-band ~ *, .webvue-page-band ~ * *):is(.webvue-page-width-detail, .webvue-page-width-form) { margin-inline: 0; }
-.webvue-shell:has(.webvue-context-sidebar[data-panel="true"]) .webvue-shell-main { --webvue-pad-x: 0px; --webvue-pad-top: 0px; padding: 0; overflow: hidden; }
+/* Full-bleed only for a WIDE panel (chat owns its own scrolling layout); a default-width panel (AI history) keeps the page padding and scroll. */
+.webvue-shell:has(.webvue-context-sidebar[data-panel="true"][data-panel-width="wide"]) .webvue-shell-main { --webvue-pad-x: 0px; --webvue-pad-top: 0px; padding: 0; overflow: hidden; }
 .webvue-page-content-motion { animation: webvue-page-content-enter 150ms ease both; }
 @keyframes webvue-page-content-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 [data-slot="table-head"] { background: color-mix(in srgb, var(--background) 80%, var(--card)); font-weight: 400; }
