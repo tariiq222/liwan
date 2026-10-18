@@ -5976,6 +5976,46 @@
               "cancel"
             ],
             "type": "string"
+          },
+          "zatca": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "confirmation_datetime": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "qr_code": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "qr_code",
+                  "confirmation_datetime"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -5994,6 +6034,7 @@
           "amount_total",
           "amount_residual",
           "ref",
+          "zatca",
           "lines"
         ],
         "type": "object"
@@ -6519,6 +6560,40 @@
           "amount_tax",
           "amount_total",
           "amount_residual"
+        ],
+        "type": "object"
+      },
+      "FinanceInvoiceZatcaSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirmation_datetime": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "qr_code": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "qr_code",
+          "confirmation_datetime"
         ],
         "type": "object"
       },
@@ -8202,6 +8277,127 @@
           "rate",
           "base",
           "tax_amount"
+        ],
+        "type": "object"
+      },
+      "FinanceWithholdingSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date_from": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "date_to": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "taxes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "base": {
+                  "type": "number"
+                },
+                "rate": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "tax": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "withheld": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "tax",
+                "rate",
+                "base",
+                "withheld"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "withheld": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date_from",
+          "date_to",
+          "currency",
+          "taxes",
+          "base",
+          "withheld"
+        ],
+        "type": "object"
+      },
+      "FinanceWithholdingTaxRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "number"
+          },
+          "rate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "tax": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "withheld": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tax",
+          "rate",
+          "base",
+          "withheld"
         ],
         "type": "object"
       },
@@ -30256,6 +30452,58 @@
         }
       }
     },
+    "/api/v1/finance/invoices/{invoice_id}/pdf": {
+      "get": {
+        "operationId": "webvue_finance.FinanceDocumentController.invoice_pdf.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "The stock invoice report of a posted document, rendered in the caller's own environment.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "finance",
+          "controller": "FinanceDocumentController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "invoice_pdf",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
     "/api/v1/finance/invoices/{invoice_id}/post": {
       "post": {
         "operationId": "webvue_finance.FinanceInvoiceController.post_invoice.post",
@@ -30909,6 +31157,46 @@
           ],
           "feature_operation": "read",
           "handler": "vat_summary",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/reports/withholding": {
+      "get": {
+        "operationId": "webvue_finance.FinanceReportController.withholding_summary.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Tax withheld from vendor payments per withholding tax, current company only.",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceReportController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "withholding_summary",
           "readonly": true,
           "route_type": "json2"
         }

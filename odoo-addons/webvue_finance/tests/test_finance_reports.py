@@ -96,3 +96,35 @@ class TestFinanceVatReport(WebVueFinanceCase):
             with self.subTest(query=query):
                 result = self.api('GET', REPORT + query)
                 self.assertEqual((result.status_code, result.json()['code']), (422, 'invalid'))
+
+    def test_withholding_taxes_are_not_vat_and_do_not_change_net_payable(self):
+        before = self._report()
+        wh_deducted = self.env['account.tax'].with_context(active_test=False).search([
+            ('company_id', '=', self.company.id), ('name', '=', '5% WH R D'),
+        ])
+        wh_deducted.active = True
+        wh_gross = self.env['account.tax'].search([('company_id', '=', self.company.id), ('name', '=', '5% WH R G')])
+        self.company.withholding_tax_base_account_id = self.env['account.account'].create({
+            'name': 'Withholding base', 'code': '999901', 'account_type': 'asset_current',
+            'company_ids': [Command.link(self.company.id)],
+        })
+        journal = self.env['account.journal'].search([('company_id', '=', self.company.id), ('type', '=', 'bank')], limit=1)
+        for tax, withholding in ((None, wh_deducted), (wh_gross, None)):
+            bill = self.env['account.move'].with_company(self.company).create({
+                'move_type': 'in_invoice', 'partner_id': self.partner.id, 'invoice_date': '2026-10-21', 'date': '2026-10-21',
+                'invoice_line_ids': [Command.create({
+                    'name': 'Rent', 'quantity': 1, 'price_unit': 1000, 'tax_ids': [Command.set(tax.ids if tax else [])],
+                })],
+            })
+            bill.action_post()
+            wizard = self.env['account.payment.register'].with_company(self.company).with_context(
+                active_model='account.move', active_ids=bill.ids,
+            ).create({
+                'amount': bill.amount_total, 'payment_date': '2026-10-22', 'journal_id': journal.id,
+                'withholding_line_ids': [Command.create({
+                    'tax_id': withholding.id, 'name': 'WH-1', 'base_amount': 1000,
+                })] if withholding else [],
+            })
+            wizard._create_payments()
+        after = self._report()
+        self.assertEqual(after, before)

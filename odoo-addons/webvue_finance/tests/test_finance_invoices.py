@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
+
+from odoo import fields
 from odoo.tests import tagged
 
 from .common import MANAGER_LOGIN, MANAGER_PASSWORD, WebVueFinanceCase
@@ -56,11 +59,37 @@ class TestFinanceInvoices(WebVueFinanceCase):
 
     def test_the_detail_carries_the_lines_with_their_taxes(self):
         body = self.api('GET', f'{INVOICES}/{self.invoice.id}').json()
-        self.assertEqual(set(body), INVOICE_KEYS | {'ref', 'lines'})
+        self.assertEqual(set(body), INVOICE_KEYS | {'ref', 'zatca', 'lines'})
         (line,) = body['lines']
         self.assertEqual(set(line), LINE_KEYS)
         self.assertEqual((line['price_subtotal'], line['price_total']), (1000, 1150))
         self.assertEqual(len(line['taxes']), 1)
+
+    def test_a_saudi_sale_invoice_carries_the_zatca_qr_payload_and_issue_time(self):
+        self.company.vat = '300000000000003'
+        body = self.api('GET', f'{INVOICES}/{self.invoice.id}').json()
+        self.assertEqual(set(body['zatca']), {'qr_code', 'confirmation_datetime'})
+        self.assertEqual(body['zatca']['qr_code'], self.invoice.l10n_sa_qr_code_str)
+        # The payload is base64 TLV: tag 2 holds the seller VAT number, tags 4 and 5 the total and the VAT.
+        payload = base64.b64decode(body['zatca']['qr_code'])
+        for value in (b'300000000000003', b'1150.00', b'150.00'):
+            self.assertIn(value, payload)
+        issued = fields.Datetime.to_string(self.invoice.l10n_sa_confirmation_datetime).replace(' ', 'T') + 'Z'
+        self.assertEqual(body['zatca']['confirmation_datetime'], issued)
+
+    def test_the_zatca_qr_is_null_until_the_company_has_a_vat_number(self):
+        self.assertFalse(self.company.vat)
+        zatca = self.api('GET', f'{INVOICES}/{self.invoice.id}').json()['zatca']
+        self.assertIsNone(zatca['qr_code'])
+        self.assertIsNotNone(zatca['confirmation_datetime'])
+
+    def test_a_draft_sale_invoice_has_no_qr_or_issue_time_yet(self):
+        draft = self._draft_sale_invoice(self.company, self.partner)
+        zatca = self.api('GET', f'{INVOICES}/{draft.id}').json()['zatca']
+        self.assertEqual(zatca, {'qr_code': None, 'confirmation_datetime': None})
+
+    def test_a_vendor_bill_has_no_zatca_block(self):
+        self.assertIsNone(self.api('GET', f'{INVOICES}/{self.bill.id}').json()['zatca'])
 
     def test_a_foreign_company_invoice_is_a_404_not_found(self):
         result = self.api('GET', f'{INVOICES}/{self.other_invoice.id}')

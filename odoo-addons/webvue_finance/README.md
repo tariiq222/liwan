@@ -8,7 +8,7 @@ and the VAT summary.
 
 | Route | Capability |
 | --- | --- |
-| `GET /invoices`, `GET /invoices/<id>` | `finance.invoices.read` |
+| `GET /invoices`, `GET /invoices/<id>` (carries the `zatca` block), `GET /invoices/<id>/pdf` | `finance.invoices.read` |
 | `POST /invoices` (201, a draft), `PATCH /invoices/<id>`, `DELETE /invoices/<id>` (204) | `finance.invoices.manage` |
 | `POST /invoices/<id>/post`, `/cancel`, `/reset-to-draft` | `finance.invoices.post` |
 | `GET /payments` | `finance.payments.read` |
@@ -17,7 +17,7 @@ and the VAT summary.
 | `GET /journals` | `finance.journals.read` |
 | `GET /setup` | `finance.setup.read` |
 | `POST /setup/chart`, `PATCH /setup/company`, `PATCH /setup/fiscal` | `finance.setup.manage` |
-| `GET /reports/vat?date_from&date_to` | `finance.reports.read` |
+| `GET /reports/vat?date_from&date_to`, `GET /reports/withholding?date_from&date_to` | `finance.reports.read` |
 | `GET /partners` (`q`, `kind=customer\|vendor`, `archived=true\|false`), `GET /partners/<id>` | `finance.partners.read` |
 | `POST /partners` (201), `PATCH /partners/<id>`, `POST /partners/<id>/archive`, `/unarchive` | `finance.partners.manage` |
 
@@ -125,7 +125,8 @@ caller's environment. A caller without `finance.setup.manage` gets 403 and nothi
 ## VAT report scope
 
 `GET /reports/vat` groups posted journal items per individual tax: a group tax appears as its child
-taxes, cash-basis taxes count at the invoice date, and only the current company is read (not branches).
+taxes, cash-basis taxes count at the invoice date, and only the current company is read (not branches). Withholding taxes (the taxes of the stock Saudi 'Withholding Return', see
+'Withholding summary source') are not VAT and are left out of both sections, so they never change `net_payable`.
 
 ## ZATCA readiness is read-only
 
@@ -142,3 +143,49 @@ engine that evaluates its `tax_tags` expressions ships with Enterprise `account_
 therefore groups posted `account.move.line` rows with `_read_group` (base by `tax_ids` on product lines,
 tax by `tax_line_id`), signed as a return reads. A reverse-charge tax shows its base and a net tax of
 zero.
+
+## Invoice PDF and ZATCA fields
+
+`GET /invoices/<id>/pdf` returns the stock invoice report of a posted invoice, bill or credit note as
+`application/pdf` with a `Content-Disposition: attachment` filename built from the stock report file name
+(Arabic is kept, RFC 5987 `filename*`; quotes, slashes and control characters are replaced). The report lists the
+invoice's payments, so it is `account.account_invoices` only for a caller who also holds `finance.payments.read`;
+anyone else gets `account.account_invoices_without_payment`. For a Saudi company Odoo prints the `l10n_sa` tax
+invoice, with the ZATCA QR code once the company has a VAT number. The language is Odoo's own: the partner's
+language, or both languages when the company has `l10n_gcc_dual_language_invoice` on. A draft or cancelled invoice
+is 422 `not_posted`, an invoice of another company 404, a missing `finance.invoices.read` 403, a missing or
+failing `wkhtmltopdf` 503 `pdf_unavailable` (any other render error stays 422 `invalid`).
+
+- The route is the only `type='http'` finance route: a file download is not JSON (the same convention as the
+  meeting minutes PDF). After authentication `api_handler` answers every refusal with the JSON error shape; an
+  expired session follows Odoo's 303 redirect to `/web/login` like the meeting minutes PDF, so the future Nuxt
+  proxy must treat a 3xx or `text/html` answer as 401.
+- The report is rendered in the caller's own environment (`_render_qweb_pdf`, no `sudo()`): the stock groups
+  the capability implies are enough. The report stores no attachment, so the route writes nothing
+  (`readonly=True`).
+- Rendering needs `wkhtmltopdf` on the server. Under test Odoo renders HTML instead, so the tests replace the
+  renderer for the PDF headers and render the real stock template separately.
+
+The invoice detail carries `zatca`: `null` unless the document is a Saudi sale document, else `{qr_code,
+confirmation_datetime}`. `qr_code` is the base64 TLV payload `l10n_sa` prints (seller, VAT number, issue time, total,
+VAT; `null` until the document is posted and the company has a VAT number) and `confirmation_datetime` the
+ISO-8601 UTC time `l10n_sa` stamps when it is posted.
+
+## Withholding summary source
+
+`GET /reports/withholding` has no withholding model to read in Community: `l10n_account_withholding_tax` lets a
+payment withhold a tax (its `account.payment.withholding.line` is readable only by the invoicing group, which the
+report capability does not imply), and the Saudi chart ships the withholding taxes of the three groups (5%, 15%,
+20%). The summary therefore groups posted journal items, as the VAT summary does, and selects the withholding tax
+lines the way the stock 'Withholding Return' (`l10n_sa.tax_report_withholding_tax`) does: by the tax tags of its
+'tax' column (whose `tax_tags` engine is Enterprise). One row per withholding tax:
+
+- a deducted (`... D`) tax, archived in the stock chart, is withheld by the payment: its tax line is in the
+  payment's journal entry;
+- a gross (`... G`) tax is a cash-basis tax of the vendor bill: it counts when the bill is paid, through the
+  cash basis entry.
+
+`withheld` is the credit balance of the tagged tax lines (reversals net out), `base` is added in the direction of
+the withheld amount, both in the company currency; a cancelled payment or an unpaid bill is not included. Only
+the current company is read. A custom withholding tax without the stock tags is not recognised: it stays in the VAT
+summary. A customer withholding from a sale is not reported.

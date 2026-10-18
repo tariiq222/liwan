@@ -3,6 +3,7 @@ import {
   FinanceSetupFiscalInputSchema,
   FinanceSetupSchema,
   FinanceVatSummarySchema,
+  FinanceWithholdingSummarySchema,
   FinanceZatcaReadinessSchema,
 } from '..'
 
@@ -85,5 +86,28 @@ describe('finance VAT report contract', () => {
   it('refuses a malformed day and a stray key', () => {
     expect(() => FinanceVatSummarySchema.parse({ ...SUMMARY, date_from: '01/10/2026' })).toThrow()
     expect(() => FinanceVatSummarySchema.parse({ ...SUMMARY, total: 1 })).toThrow()
+  })
+})
+
+describe('finance withholding report contract', () => {
+  const WITHHOLDING = {
+    date_from: '2026-10-01',
+    date_to: '2026-10-31',
+    currency: 'SAR',
+    taxes: [{ tax: { id: 4, name: '5% WH R D' }, rate: 5, base: 1000, withheld: 50 }],
+    base: 1000,
+    withheld: 50,
+  }
+
+  it('accepts the summary and a fixed-amount tax with no rate', () => {
+    expect(FinanceWithholdingSummarySchema.parse(WITHHOLDING)).toEqual(WITHHOLDING)
+    const fixed = { ...WITHHOLDING, taxes: [{ ...WITHHOLDING.taxes[0], rate: null }] }
+    expect(FinanceWithholdingSummarySchema.parse(fixed)).toEqual(fixed)
+  })
+
+  it('refuses a malformed day and a stray key', () => {
+    expect(() => FinanceWithholdingSummarySchema.parse({ ...WITHHOLDING, date_to: '31/10/2026' })).toThrow()
+    expect(() => FinanceWithholdingSummarySchema.parse({ ...WITHHOLDING, net: 1 })).toThrow()
+    expect(() => FinanceWithholdingSummarySchema.parse({ ...WITHHOLDING, taxes: [{ ...WITHHOLDING.taxes[0], x: 1 }] })).toThrow()
   })
 })

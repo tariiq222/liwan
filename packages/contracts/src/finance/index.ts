@@ -40,8 +40,16 @@ export const FinanceInvoiceLineSchema = z.object({
   price_total: z.number(),
 }).strict()
 
+/** ZATCA facts of a Saudi sale document; the QR payload is base64 TLV, null until the document is posted. */
+export const FinanceInvoiceZatcaSchema = z.object({
+  qr_code: z.string().min(1).nullable(),
+  confirmation_datetime: z.string().datetime().nullable(),
+}).strict()
+
 export const FinanceInvoiceDetailSchema = FinanceInvoiceSchema.extend({
   ref: z.string(),
+  /** Null for every document that is not a Saudi sale document. */
+  zatca: FinanceInvoiceZatcaSchema.nullable(),
   lines: z.array(FinanceInvoiceLineSchema),
 }).strict()
 
@@ -91,6 +99,7 @@ export const FinanceJournalListSchema = list(FinanceJournalSchema)
 export type FinanceRef = z.infer<typeof FinanceRefSchema>
 export type FinanceInvoice = z.infer<typeof FinanceInvoiceSchema>
 export type FinanceInvoiceLine = z.infer<typeof FinanceInvoiceLineSchema>
+export type FinanceInvoiceZatca = z.infer<typeof FinanceInvoiceZatcaSchema>
 export type FinanceInvoiceDetail = z.infer<typeof FinanceInvoiceDetailSchema>
 export type FinancePayment = z.infer<typeof FinancePaymentSchema>
 export type FinanceAccount = z.infer<typeof FinanceAccountSchema>
