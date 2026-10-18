@@ -1,5 +1,6 @@
 """Migration runs stock commands, parses ORM evidence and refuses unsafe phases."""
 import json
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -69,6 +70,44 @@ class MigrationTests(unittest.TestCase):
             migrate_tenant(self.binding, self.manifest,
                            {**self.config, 'addonsPaths': [str(self.root / 'addons')]}, 2)
         self.assertFalse(any('server' in argv for argv, _ in self.calls))
+
+    def oca_setup(self):
+        """A WebVue root with the real OCA helper and a one-repository pin file, plus that repository."""
+        repo = self.root / 'oca' / 'demo'
+        repo.mkdir(parents=True)
+        git = ['git', '-c', 'user.email=t@t', '-c', 'user.name=t']
+        for args in (['init', '-q'], ['commit', '-q', '--allow-empty', '-m', 'one']):
+            subprocess.run([*git, *args], cwd=repo, check=True, capture_output=True)
+        commit = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+        (self.root / 'webvue' / 'tools').mkdir()
+        (self.root / 'webvue' / 'deploy').mkdir()
+        shutil.copy(Path(__file__).resolve().parents[2] / 'tools' / 'oca_addons.py', self.root / 'webvue' / 'tools')
+        pins = {'repos': [{'repo': 'OCA/demo', 'branch': '19.0', 'commit': commit}]}
+        (self.root / 'webvue' / 'deploy' / 'oca-addons.json').write_text(json.dumps(pins))
+        return {**self.config, 'ocaDir': str(self.root / 'oca'),
+                'addonsPaths': [*self.config['addonsPaths'], str(repo)]}
+
+    def test_pinned_oca_repositories_are_allowed_when_verified_at_their_pin(self):
+        config = self.oca_setup()
+        self.assertTrue(migrate_tenant(self.binding, self.manifest, config, 2)['migrated'])
+        argv = next(argv for argv, kwargs in self.calls if '--update=webvue_a' in argv)
+        self.assertIn(str(self.root / 'oca' / 'demo'), next(a for a in argv if a.startswith('--addons-path=')))
+
+    def test_oca_repository_not_at_its_pin_or_unlisted_is_rejected(self):
+        config = self.oca_setup()
+        subprocess.run(['git', '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'two'],
+                       cwd=self.root / 'oca' / 'demo', check=True, capture_output=True)
+        with self.assertRaisesRegex(ValueError, '^addons_paths_rejected$'):
+            migrate_tenant(self.binding, self.manifest, config, 2)
+        stray = self.root / 'oca' / 'stray'
+        stray.mkdir()
+        config = self.oca_setup_paths(stray)
+        with self.assertRaisesRegex(ValueError, '^addons_paths_rejected$'):
+            migrate_tenant(self.binding, self.manifest, config, 2)
+        self.assertFalse(any('server' in argv for argv, _ in self.calls))
+
+    def oca_setup_paths(self, extra):
+        return {**self.config, 'addonsPaths': [*self.config['addonsPaths'], str(extra)]}
 
     def test_operator_python_can_be_a_virtualenv_executable_symlink(self):
         python = self.root / 'python'

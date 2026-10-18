@@ -13,10 +13,14 @@ case "${1:-}" in
     ;;
 esac
 
+# The pinned OCA repositories (deploy/oca-addons.json) come last, after the WebVue addons. The image has no git;
+# the pins were verified when the image was built.
+oca_path=$(/opt/venv/bin/python /opt/webvue/tools/oca_addons.py path --dest /opt/oca)
+
 exec /opt/venv/bin/python /opt/webvue/odoo_secure.py \
   --odoo-root /opt/odoo \
   "$subcommand" \
   -c /etc/odoo/odoo.conf \
-  --addons-path=/opt/odoo/addons,/opt/webvue/addons \
+  --addons-path=/opt/odoo/addons,/opt/webvue/addons,"$oca_path" \
   --data-dir=/var/lib/odoo \
   "$@"

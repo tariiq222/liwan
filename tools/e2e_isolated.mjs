@@ -218,7 +218,9 @@ function prepareOdoo({ port, pg, env }) {
   const conf = join(ODOO_DIR, 'odoo.conf')
   const logFile = join(ODOO_DIR, 'logs', 'odoo.log')
   const prepLog = join(ODOO_DIR, 'logs', 'prepare.log')
-  const addonsPath = [join(ODOO_ROOT, 'odoo', 'addons'), join(ODOO_ROOT, 'addons'), join(ROOT, 'odoo-addons')]
+  const oca = spawnSync('python3', ['-B', 'tools/oca_addons.py', 'path', '--check'], { cwd: ROOT, encoding: 'utf8' })
+  if (oca.status !== 0) throw new Error(`pinned OCA addons path failed: ${oca.stderr}`)
+  const addonsPath = [join(ODOO_ROOT, 'odoo', 'addons'), join(ODOO_ROOT, 'addons'), join(ROOT, 'odoo-addons'), ...oca.stdout.trim().split(',')]
   writeFileSync(conf, odooConf({ db, port, addonsPath, dataDir: join(ODOO_DIR, 'data'), logFile, pg }))
   const classification = join(ODOO_DIR, 'classification.json')
   rmSync(classification, { force: true })

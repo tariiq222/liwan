@@ -2,6 +2,8 @@
 # CI stage: the whole release installed on a scratch database with its Odoo tests.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+# Pinned OCA repositories (deploy/oca-addons.json), fetched by the setup action; appended after the WebVue addons.
+OCA_PATH="$(python3 -B tools/oca_addons.py path --check)"
 : "${ODOO_ROOT:?}" "${ODOO_PYTHON:?}" "${ODOO_PORT:?}" "${PGHOST:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}" "${GITHUB_RUN_ID:?}"
 SCRATCH_DB="webvue_scratch_ci_${GITHUB_RUN_ID}"
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
@@ -14,7 +16,7 @@ dropdb -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" --if-exists "$SCRATCH_DB" || true
 export WEBVUE_COMMERCIAL_CONFIG="$SCRATCH_ROOT/odoo-classification.json"
 python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode saas --output "$WEBVUE_COMMERCIAL_CONFIG"
 "$ODOO_PYTHON" "$ODOO_ROOT/odoo-bin" \
-  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons" \
+  --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" \
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d "$SCRATCH_DB" --db-filter="^${SCRATCH_DB}$" \
   --data-dir="$SCRATCH_ROOT/data" --logfile="$SCRATCH_ROOT/logs/odoo.log" \

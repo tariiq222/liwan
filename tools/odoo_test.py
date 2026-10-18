@@ -28,6 +28,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
+import oca_addons
+
 REPO = Path(__file__).resolve().parents[1]
 ODOO_ROOT = Path(os.environ.get('ODOO_ROOT', '/Users/tariq/code/odoo'))
 SCRATCH_DB = re.compile(r'webvue_scratch_[a-z0-9_]{1,42}')
@@ -135,8 +137,8 @@ def with_dependents(changed, depends):
     return result
 
 
-def template_name(odoo_commit, modules, addons_tree):
-    parts = [odoo_commit, ','.join(sorted(modules)), addons_tree, 'format%d' % TEMPLATE_FORMAT]
+def template_name(odoo_commit, modules, addons_tree, oca_pins):
+    parts = [odoo_commit, ','.join(sorted(modules)), addons_tree, oca_pins, 'format%d' % TEMPLATE_FORMAT]
     digest = hashlib.sha256('|'.join(parts).encode()).hexdigest()
     return require_scratch('webvue_scratch_tpl_' + digest[:12])
 
@@ -210,6 +212,17 @@ def odoo_commit():
     if result.returncode or not result.stdout.strip():
         raise OdooTestError('cannot read the Odoo commit in %s: %s' % (ODOO_ROOT, result.stderr.strip()))
     return result.stdout.strip()
+
+
+def oca_dirs():
+    """The pinned OCA repositories (``deploy/oca-addons.json``), verified to be fetched at their pins."""
+    try:
+        pins = oca_addons.load_pins(oca_addons.PINS)
+        dest = oca_addons.default_dest()
+        oca_addons.verify_all(pins, dest)
+    except oca_addons.OcaError as exc:
+        raise OdooTestError('%s' % exc) from None
+    return [oca_addons.repo_dir(dest, entry['repo']) for entry in pins['repos']]
 
 
 def changed_paths(merge_base):
@@ -338,7 +351,7 @@ def build_template(pg, name, modules, merge_base, scratch, cache, port, log):
         renamed = False
         try:
             code, log_text, err = run_odoo(
-                [addons], building, scratch, build_dir / 'data', port, ['-i', ','.join(present)], 'template.log')
+                [addons, *oca_dirs()], building, scratch, build_dir / 'data', port, ['-i', ','.join(present)], 'template.log')
             _check_template(code, log_text, err)
             pg.rename(building, name)
             renamed = True
@@ -360,7 +373,7 @@ def build_template(pg, name, modules, merge_base, scratch, cache, port, log):
 def current_template(base, release):
     merge_base = git('merge-base', base, 'HEAD')
     tree = git('rev-parse', merge_base + ':odoo-addons')
-    return merge_base, template_name(odoo_commit(), release, tree)
+    return merge_base, template_name(odoo_commit(), release, tree, oca_addons.pins_digest())
 
 
 def collect_garbage(pg, cache, current):
@@ -448,7 +461,7 @@ def main(argv=None):
             extra += ['-i', ','.join(install)]
         extra += ['--test-tags', ','.join('/' + a for a in sorted(selected))]
         warn('running tests on %s (port %d)' % (database, port))
-        code, log_text, err = run_odoo([addons_dir], database, scratch, scratch / 'data', port, extra, 'run.log')
+        code, log_text, err = run_odoo([addons_dir, *oca_dirs()], database, scratch, scratch / 'data', port, extra, 'run.log')
         result = parse_result(log_text)
         if result is None:
             tail = '\n'.join(log_text.splitlines()[-20:]) or err

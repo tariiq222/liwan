@@ -89,7 +89,9 @@ class RuntimeIdentityTests(unittest.TestCase):
                 self.refused()
 
     def test_a_mount_cannot_replace_the_guarded_launcher_or_its_imports(self):
-        for destination in ('/opt/webvue/shared/launch_odoo.py', '/opt/webvue/shared/validate_odoo_config.py', '/opt/webvue/addons', '/opt/odoo', '/opt/venv', '/usr/local/bin/webvue-odoo'):
+        for destination in ('/opt/webvue/shared/launch_odoo.py', '/opt/webvue/shared/validate_odoo_config.py', '/opt/webvue/addons', '/opt/odoo', '/opt/venv', '/usr/local/bin/webvue-odoo',
+                            '/opt/oca', '/opt/oca/server-ux', '/opt/webvue/tools', '/opt/webvue/tools/oca_addons.py',
+                            '/opt/webvue/deploy', '/opt/webvue/deploy/oca-addons.json'):
             with self.subTest(destination=destination):
                 original = copy.deepcopy(self.container['Mounts'])
                 self.container['Mounts'].append({'Type': 'bind', 'Source': '/tmp/unreviewed', 'Destination': destination, 'RW': False})

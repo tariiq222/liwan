@@ -5,6 +5,7 @@ The operator owns admission/fencing and source/image provenance.
 """
 import json
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import shutil
@@ -14,6 +15,25 @@ from .postgres import identifier
 
 MARKER = 'WEBVUE_RELEASE_OBSERVATION='
 PROFILE_FIELDS = {'commercial_mode', 'entitlement_source', 'status', 'root_company_id'}
+
+
+def pinned_oca_dirs(webvue_root, oca_dir):
+    """Directories of the pinned OCA repositories under ``oca_dir``, verified at their pins.
+
+    Pins and verifier come from the verified WebVue source root. Empty when no ``ocaDir`` is configured.
+    """
+    if oca_dir is None: return set()
+    script = webvue_root / 'tools' / 'oca_addons.py'
+    spec = importlib.util.spec_from_file_location('webvue_oca_addons', script)
+    if spec is None or spec.loader is None or not script.is_file(): raise ValueError('addons_paths_rejected')
+    oca = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(oca)
+    try:
+        pins = oca.load_pins(webvue_root / 'deploy' / 'oca-addons.json')
+        oca.verify_all(pins, oca_dir)
+    except oca.OcaError:
+        raise ValueError('addons_paths_rejected') from None
+    return {str(oca.repo_dir(oca_dir, entry['repo'])) for entry in pins['repos']}
 
 
 def source_tree_digest(webvue_root):
@@ -62,6 +82,8 @@ def _local(binding, manifest, config):
     addons = [str(_path(path, exists=True, directory=True)) for path in addons]
     allowed_addons = {str(roots['webvueRoot'] / 'odoo-addons'), str(roots['odooRoot'] / 'addons'),
                       str(roots['odooRoot'] / 'odoo' / 'addons')}
+    oca_dir = config.get('ocaDir')
+    allowed_addons |= pinned_oca_dirs(roots['webvueRoot'], _path(oca_dir, exists=True, directory=True) if oca_dir else None)
     if (set(addons) - allowed_addons or str(roots['webvueRoot'] / 'odoo-addons') not in addons
             or any(',' in path for path in addons)):
         raise ValueError('addons_paths_rejected')

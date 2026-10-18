@@ -192,6 +192,35 @@ class TestOdooWrapper(unittest.TestCase):
             self.assertIn('--stop-after-init', argv)
             self.assertEqual(worktree.name, 'worktree')
 
+    def test_pinned_oca_addons_are_appended_last_and_must_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _worktree, addons, stock = _fake_worktree(root)
+            oca = root / 'oca' / 'demo'
+            oca.mkdir(parents=True)
+            kwargs = {
+                'python': str(root / 'python'), 'odoo_bin': str(root / 'odoo-bin'),
+                'odoo_conf': str(root / 'odoo.conf'), 'stock_addons': str(stock),
+                'worktree_addons': str(addons), 'scratch_db': 'webvue_scratch_wp8_iso',
+                'scratch_lifecycle': check_isolated.SCRATCH_LIFECYCLE_TOKEN, 'http_port': 8169,
+            }
+            argv = check_isolated.build_runtime_argv(**kwargs, oca_addons=str(oca))
+            joined = next(item for item in argv if item.startswith('--addons-path='))
+            self.assertTrue(joined.endswith(f',{addons.resolve()},{oca.resolve()}'))
+            argv = check_isolated.build_runtime_argv(**kwargs)
+            self.assertTrue(next(item for item in argv if item.startswith('--addons-path=')).endswith(str(addons.resolve())))
+            with self.assertRaises(check_isolated.IsolationError):
+                check_isolated.build_runtime_argv(**kwargs, oca_addons=str(root / 'missing'))
+
+    def test_resolve_oca_addons_fails_closed_when_not_fetched(self) -> None:
+        class Done:
+            def __init__(self, code: int, out: str, err: str) -> None:
+                self.returncode, self.stdout, self.stderr = code, out, err
+        worktree = Path('/w')
+        self.assertEqual(check_isolated.resolve_oca_addons(worktree, runner=lambda *a, **k: Done(0, '/o/a,/o/b\n', '')), '/o/a,/o/b')
+        with self.assertRaises(check_isolated.IsolationError):
+            check_isolated.resolve_oca_addons(worktree, runner=lambda *a, **k: Done(2, '', 'run fetch'))
+
     def test_venv_python_symlink_is_kept_in_argv(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -348,6 +377,7 @@ class TestOdooWrapper(unittest.TestCase):
                 http_port=8169,
                 modules='webvue_core,webvue_api,webvue_pmo,webvue_hr',
                 test_tags='/webvue_core',
+                with_oca=False,
             )
             seen = {}
 

@@ -70,7 +70,7 @@ Run the two services with isolated values for each worktree:
 # Odoo, from the read-only upstream checkout
 cd /Users/tariq/code/odoo
 .venv/bin/python odoo-bin -c /Users/tariq/code/odoo/odoo.conf \
-  --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons \
+  --addons-path=/Users/tariq/code/odoo/addons,/path/to/webvue-worktree/odoo-addons,$(python3 -B /path/to/webvue-worktree/tools/oca_addons.py path) \
   -d webvue_scratch --http-port=8169
 
 # Nuxt, from the selected WebVue worktree
