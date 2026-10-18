@@ -86,7 +86,7 @@
   --webvue-rail-active: #d9ecff;
   /* Round icon chips (rail circles on hover, context sidebar links). */
   --webvue-chip: #f1f4fa;
-  --webvue-chip-active: #d9ecff;
+  --webvue-chip-active: #ffffff;
   --webvue-rail-active-ink: #0066cc;
   /* Floating shell cards (header, rail, context sidebar) lift off the canvas with these shadows; the active context link is tinted. */
   --webvue-shell-shadow: 0 12px 32px rgb(15 23 42 / 8%);
@@ -183,7 +183,7 @@
   --webvue-rail-ink: #cbd5e1;
   --webvue-rail-active: #1b2d5c;
   --webvue-chip: #15203b;
-  --webvue-chip-active: #223a73;
+  --webvue-chip-active: #0a1124;
   --webvue-rail-active-ink: #66b5ff;
   --webvue-shell-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   --webvue-rail-shadow: 0 12px 32px rgb(0 0 0 / 35%);
