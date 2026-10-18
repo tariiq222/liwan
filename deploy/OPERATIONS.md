@@ -115,8 +115,8 @@ python3 deploy/check_isolated.py odoo \
   --scratch-db webvue_scratch_example \
   --scratch-lifecycle CREATE_NEW_SCRATCH \
   --http-port 8169 \
-  --modules webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai \
-  --test-tags /webvue_core,/webvue_platform,/webvue_api,/webvue_directory,/webvue_notify,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_chat,/webvue_tasks,/webvue_tasks_pmo,/webvue_operations,/webvue_operations_pmo,/webvue_ai,/webvue_pmo_ai
+  --modules webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_finance,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai \
+  --test-tags /webvue_core,/webvue_platform,/webvue_api,/webvue_directory,/webvue_notify,/webvue_pmo,/webvue_meetings,/webvue_meetings_pmo,/webvue_hr,/webvue_finance,/webvue_chat,/webvue_tasks,/webvue_tasks_pmo,/webvue_operations,/webvue_operations_pmo,/webvue_ai,/webvue_pmo_ai
 
 python3 deploy/check_isolated.py e2e \
   --worktree /absolute/worktree \
@@ -232,7 +232,7 @@ PGBIN=$(dirname "$(command -v pg_dump)"); WORK=$(mktemp -d)
   --db_host="$PGHOST" --db_port="$PGPORT" --db_user="$PGUSER" \
   -d webvue_drill_src_scratch --db-filter='^webvue_drill_src_scratch$' \
   --data-dir="$WORK/data" --without-demo=all \
-  -i webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai \
+  -i webvue_core,webvue_platform,webvue_api,webvue_directory,webvue_notify,webvue_pmo,webvue_meetings,webvue_meetings_pmo,webvue_hr,webvue_finance,webvue_chat,webvue_tasks,webvue_tasks_pmo,webvue_operations,webvue_operations_pmo,webvue_ai,webvue_pmo_ai \
   --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
 python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
   --db-name webvue_drill_src_scratch --filestore "$WORK/data/filestore/webvue_drill_src_scratch" \

@@ -9,6 +9,7 @@
     "webvue_pmo": 4,
     "webvue_meetings": 4,
     "webvue_hr": 4,
+    "webvue_finance": 4,
     "webvue_chat": 4,
     "webvue_tasks": 4,
     "webvue_operations": 4,
@@ -84,6 +85,14 @@
       ],
       "pages": [
         "operations"
+      ]
+    },
+    "finance": {
+      "components": [
+        "accounting"
+      ],
+      "pages": [
+        "accounting"
       ]
     }
   },

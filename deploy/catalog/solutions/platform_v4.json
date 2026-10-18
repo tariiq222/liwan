@@ -48,6 +48,17 @@
       ]
     },
     {
+      "id": "finance",
+      "name": "Finance",
+      "description": "The Finance application: Saudi accounting over Odoo accounting.",
+      "modules": [
+        "webvue_finance"
+      ],
+      "features": [
+        "boolean:finance.enabled"
+      ]
+    },
+    {
       "id": "messaging",
       "name": "Messaging",
       "description": "The member-private chat application.",

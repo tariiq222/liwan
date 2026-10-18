@@ -5014,6 +5014,177 @@
         ],
         "type": "object"
       },
+      "FinanceAccountListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account_type": {
+                  "enum": [
+                    "asset_receivable",
+                    "asset_cash",
+                    "asset_current",
+                    "asset_non_current",
+                    "asset_prepayments",
+                    "asset_fixed",
+                    "liability_payable",
+                    "liability_credit_card",
+                    "liability_current",
+                    "liability_non_current",
+                    "equity",
+                    "equity_unaffected",
+                    "income",
+                    "income_other",
+                    "expense",
+                    "expense_other",
+                    "expense_depreciation",
+                    "expense_direct_cost",
+                    "off_balance"
+                  ],
+                  "type": "string"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "currency": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "reconcile": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "code",
+                "name",
+                "account_type",
+                "reconcile",
+                "currency"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceAccountSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account_type": {
+            "enum": [
+              "asset_receivable",
+              "asset_cash",
+              "asset_current",
+              "asset_non_current",
+              "asset_prepayments",
+              "asset_fixed",
+              "liability_payable",
+              "liability_credit_card",
+              "liability_current",
+              "liability_non_current",
+              "equity",
+              "equity_unaffected",
+              "income",
+              "income_other",
+              "expense",
+              "expense_other",
+              "expense_depreciation",
+              "expense_direct_cost",
+              "off_balance"
+            ],
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reconcile": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "account_type",
+          "reconcile",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "FinanceAccountTypeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "asset_receivable",
+          "asset_cash",
+          "asset_current",
+          "asset_non_current",
+          "asset_prepayments",
+          "asset_fixed",
+          "liability_payable",
+          "liability_credit_card",
+          "liability_current",
+          "liability_non_current",
+          "equity",
+          "equity_unaffected",
+          "income",
+          "income_other",
+          "expense",
+          "expense_other",
+          "expense_depreciation",
+          "expense_direct_cost",
+          "off_balance"
+        ],
+        "type": "string"
+      },
       "FinanceDeletedSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -5487,6 +5658,732 @@
         ],
         "type": "object"
       },
+      "FinanceInvoiceDetailSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_residual": {
+            "type": "number"
+          },
+          "amount_tax": {
+            "type": "number"
+          },
+          "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "invoice_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_date_due": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "journal": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "discount": {
+                  "type": "number"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "price_subtotal": {
+                  "type": "number"
+                },
+                "price_total": {
+                  "type": "number"
+                },
+                "price_unit": {
+                  "type": "number"
+                },
+                "quantity": {
+                  "type": "number"
+                },
+                "taxes": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "account",
+                "quantity",
+                "price_unit",
+                "discount",
+                "taxes",
+                "price_subtotal",
+                "price_total"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "move_type": {
+            "enum": [
+              "out_invoice",
+              "out_refund",
+              "in_invoice",
+              "in_refund",
+              "out_receipt",
+              "in_receipt"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_state": {
+            "enum": [
+              "not_paid",
+              "in_payment",
+              "paid",
+              "partial",
+              "reversed",
+              "blocked",
+              "invoicing_legacy"
+            ],
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "posted",
+              "cancel"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "move_type",
+          "state",
+          "payment_state",
+          "partner",
+          "journal",
+          "invoice_date",
+          "invoice_date_due",
+          "currency",
+          "amount_untaxed",
+          "amount_tax",
+          "amount_total",
+          "amount_residual",
+          "ref",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FinanceInvoiceLineSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "discount": {
+            "type": "number"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price_subtotal": {
+            "type": "number"
+          },
+          "price_total": {
+            "type": "number"
+          },
+          "price_unit": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "taxes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "account",
+          "quantity",
+          "price_unit",
+          "discount",
+          "taxes",
+          "price_subtotal",
+          "price_total"
+        ],
+        "type": "object"
+      },
+      "FinanceInvoiceListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount_residual": {
+                  "type": "number"
+                },
+                "amount_tax": {
+                  "type": "number"
+                },
+                "amount_total": {
+                  "type": "number"
+                },
+                "amount_untaxed": {
+                  "type": "number"
+                },
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "invoice_date": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "invoice_date_due": {
+                  "anyOf": [
+                    {
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "journal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "move_type": {
+                  "enum": [
+                    "out_invoice",
+                    "out_refund",
+                    "in_invoice",
+                    "in_refund",
+                    "out_receipt",
+                    "in_receipt"
+                  ],
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "payment_state": {
+                  "enum": [
+                    "not_paid",
+                    "in_payment",
+                    "paid",
+                    "partial",
+                    "reversed",
+                    "blocked",
+                    "invoicing_legacy"
+                  ],
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "draft",
+                    "posted",
+                    "cancel"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "move_type",
+                "state",
+                "payment_state",
+                "partner",
+                "journal",
+                "invoice_date",
+                "invoice_date_due",
+                "currency",
+                "amount_untaxed",
+                "amount_tax",
+                "amount_total",
+                "amount_residual"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceInvoiceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount_residual": {
+            "type": "number"
+          },
+          "amount_tax": {
+            "type": "number"
+          },
+          "amount_total": {
+            "type": "number"
+          },
+          "amount_untaxed": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "invoice_date": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_date_due": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "journal": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "move_type": {
+            "enum": [
+              "out_invoice",
+              "out_refund",
+              "in_invoice",
+              "in_refund",
+              "out_receipt",
+              "in_receipt"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_state": {
+            "enum": [
+              "not_paid",
+              "in_payment",
+              "paid",
+              "partial",
+              "reversed",
+              "blocked",
+              "invoicing_legacy"
+            ],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "posted",
+              "cancel"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "move_type",
+          "state",
+          "payment_state",
+          "partner",
+          "journal",
+          "invoice_date",
+          "invoice_date_due",
+          "currency",
+          "amount_untaxed",
+          "amount_tax",
+          "amount_total",
+          "amount_residual"
+        ],
+        "type": "object"
+      },
+      "FinanceJournalListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "sale",
+                    "purchase",
+                    "cash",
+                    "bank",
+                    "credit",
+                    "general"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "code",
+                "type",
+                "currency"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinanceJournalSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "sale",
+              "purchase",
+              "cash",
+              "bank",
+              "credit",
+              "general"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "type",
+          "currency"
+        ],
+        "type": "object"
+      },
       "FinanceKindSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -5494,6 +6391,295 @@
           "expense"
         ],
         "type": "string"
+      },
+      "FinanceMoveStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "draft",
+          "posted",
+          "cancel"
+        ],
+        "type": "string"
+      },
+      "FinanceMoveTypeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "out_invoice",
+          "out_refund",
+          "in_invoice",
+          "in_refund",
+          "out_receipt",
+          "in_receipt"
+        ],
+        "type": "string"
+      },
+      "FinancePaymentListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "number"
+                },
+                "currency": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "date": {
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "journal": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "memo": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "partner": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "partner_type": {
+                  "enum": [
+                    "customer",
+                    "supplier"
+                  ],
+                  "type": "string"
+                },
+                "payment_type": {
+                  "enum": [
+                    "inbound",
+                    "outbound"
+                  ],
+                  "type": "string"
+                },
+                "state": {
+                  "enum": [
+                    "draft",
+                    "in_process",
+                    "paid",
+                    "canceled",
+                    "rejected"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "payment_type",
+                "partner_type",
+                "state",
+                "partner",
+                "journal",
+                "date",
+                "memo",
+                "currency",
+                "amount"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "FinancePaymentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "date": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "journal": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ],
+            "type": "object"
+          },
+          "memo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "partner": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "partner_type": {
+            "enum": [
+              "customer",
+              "supplier"
+            ],
+            "type": "string"
+          },
+          "payment_type": {
+            "enum": [
+              "inbound",
+              "outbound"
+            ],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "draft",
+              "in_process",
+              "paid",
+              "canceled",
+              "rejected"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "payment_type",
+          "partner_type",
+          "state",
+          "partner",
+          "journal",
+          "date",
+          "memo",
+          "currency",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "FinancePaymentStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "not_paid",
+          "in_payment",
+          "paid",
+          "partial",
+          "reversed",
+          "blocked",
+          "invoicing_legacy"
+        ],
+        "type": "string"
+      },
+      "FinanceRefSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
       },
       "FinanceSummarySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -27042,6 +28228,219 @@
         }
       }
     },
+    "/api/v1/finance/accounts": {
+      "get": {
+        "operationId": "webvue_finance.FinanceAccountController.list_accounts.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_accounts",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceAccountController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_accounts",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices": {
+      "get": {
+        "operationId": "webvue_finance.FinanceInvoiceController.list_invoices.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_invoices",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_invoices",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/invoices/{invoice_id}": {
+      "get": {
+        "operationId": "webvue_finance.FinanceInvoiceController.get_invoice.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invoice_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_invoice",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceInvoiceController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_invoice",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/journals": {
+      "get": {
+        "operationId": "webvue_finance.FinanceJournalController.list_journals.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_journals",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinanceJournalController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_journals",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/finance/payments": {
+      "get": {
+        "operationId": "webvue_finance.FinancePaymentController.list_payments.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_payments",
+        "tags": [
+          "webvue_finance"
+        ],
+        "x-webvue": {
+          "addon": "webvue_finance",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "finance",
+          "controller": "FinancePaymentController",
+          "feature_keys": [
+            "finance.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_payments",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/departments": {
       "get": {
         "operationId": "webvue_hr.HrDepartmentController.list_departments.get",
@@ -35439,6 +36838,7 @@
     "webvue_api",
     "webvue_chat",
     "webvue_directory",
+    "webvue_finance",
     "webvue_hr",
     "webvue_meetings",
     "webvue_meetings_pmo",
