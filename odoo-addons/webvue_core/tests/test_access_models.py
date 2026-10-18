@@ -9,7 +9,7 @@ from odoo.addons.webvue_core.models.access_service import (
 )
 
 
-@tagged('webvue', 'webvue_access')
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestWebVueAccessModels(TransactionCase):
 
     @classmethod
@@ -45,7 +45,7 @@ class TestWebVueAccessModels(TransactionCase):
             self.assertEqual((role.type, role.protected), ('built_in', True), role_xmlid)
             self.assertTrue(keys <= set(role.permission_ids.mapped('key')), role_xmlid)
         vendor = self.env.ref('webvue_core.role_vendor_support')
-        self.assertEqual(set(vendor.permission_ids.mapped('key')), set(catalog))
+        self.assertEqual(set(vendor.permission_ids.mapped('key')), grants['webvue_core.role_vendor_support'])
         self.assertFalse(vendor.assignable)
         system_admin = self.env.ref('webvue_core.role_system_admin')
         self.assertTrue(set(system_admin.permission_ids.mapped('key')) >= SYSTEM_PERMISSIONS)

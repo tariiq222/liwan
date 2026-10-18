@@ -5,7 +5,7 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 
-@tagged('webvue', 'webvue_access')
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestWebVueAccessSecurity(TransactionCase):
 
     @classmethod

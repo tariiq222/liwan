@@ -4,7 +4,7 @@ from unittest.mock import patch
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 
-@tagged('webvue')
+@tagged('post_install', '-at_install', 'webvue')
 class TestTaskBus(TransactionCase):
 
     def test_write_notifies_old_and_new_assignees_and_writer(self):
