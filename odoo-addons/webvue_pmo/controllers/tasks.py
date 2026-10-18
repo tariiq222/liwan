@@ -205,7 +205,8 @@ class TaskController(http.Controller):
     @api_handler
     @requires_feature('pmo.enabled', operation='read')
     def summarize_tasks(self, **_):
-        """Counts for the tasks the list filters select (the list's `total` equals `total` here).
+        """Counts for the tasks the list filters select. The list shows open tasks unless `closed=1`, so its `total` equals
+        `open` here for the default scope and `total - open` for the closed one.
 
         `open` is unfinished tasks, `overdue` the open ones past their deadline, and `done` completed tasks only;
         a cancelled task counts in `total` but in neither `open` nor `done`. `closed` and paging keys are ignored.

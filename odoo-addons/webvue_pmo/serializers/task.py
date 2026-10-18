@@ -43,7 +43,7 @@ def _today(task, today=None):
 
 def local_day_start_utc(task, day):
     """The start of calendar `day` in the reader's timezone, as a naive UTC datetime."""
-    tz = pytz.timezone(task.env.user.tz or 'UTC')
+    tz = task.env.tz  # the same zone `fields.Date.context_today` uses (context tz, else the user's)
     local_midnight = tz.localize(datetime.combine(day, time.min))
     return local_midnight.astimezone(pytz.utc).replace(tzinfo=None)
 

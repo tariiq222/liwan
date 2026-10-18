@@ -33518,7 +33518,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "Counts for the tasks the list filters select (the list's `total` equals `total` here).",
+        "summary": "Counts for the tasks the list filters select. The list shows open tasks unless `closed=1`, so its `total` equals",
         "tags": [
           "webvue_pmo"
         ],
