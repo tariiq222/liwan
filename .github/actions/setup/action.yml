@@ -1,5 +1,5 @@
 name: Setup
-description: Toolchain for a CI stage - Node with dependencies, Python, and the pinned Odoo checkout with its virtualenv.
+description: Toolchain for a CI stage - Node with dependencies, Python, and the pinned Odoo checkout with its virtualenv and the pinned OCA addons.
 inputs:
   node:
     description: Install Node.js from .nvmrc with the npm cache.
@@ -14,7 +14,7 @@ inputs:
     description: Install Python 3.12 (implied by odoo).
     default: 'false'
   odoo:
-    description: Fetch the pinned Odoo commit and build its virtualenv; exports ODOO_ROOT and ODOO_PYTHON.
+    description: Fetch the pinned Odoo commit and build its virtualenv; exports ODOO_ROOT and ODOO_PYTHON (and WEBVUE_OCA_DIR for the OCA addons from deploy/oca-addons.json).
     default: 'false'
 runs:
   using: composite
@@ -85,3 +85,16 @@ runs:
       run: |
         echo "ODOO_ROOT=$RUNNER_TEMP/odoo" >> "$GITHUB_ENV"
         echo "ODOO_PYTHON=$RUNNER_TEMP/odoo-venv/bin/python" >> "$GITHUB_ENV"
+    - name: Pinned OCA addons cache
+      if: inputs.odoo == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/oca-19.0
+        key: oca-addons-${{ hashFiles('deploy/oca-addons.json') }}
+    - name: Fetch the pinned OCA addons
+      if: inputs.odoo == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "WEBVUE_OCA_DIR=$RUNNER_TEMP/oca-19.0" >> "$GITHUB_ENV"
+        WEBVUE_OCA_DIR="$RUNNER_TEMP/oca-19.0" python3 -B tools/oca_addons.py fetch

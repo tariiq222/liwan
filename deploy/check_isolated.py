@@ -188,6 +188,26 @@ def validate_stock_addons(path_str: str) -> Path:
     return stock
 
 
+def join_addons(core: Path, stock: Path, addons: Path, oca_addons: str) -> str:
+    """The addons path; the pinned OCA directories (``--with-oca``) come last and must exist."""
+    joined = f'{core},{stock},{addons}'
+    if not oca_addons:
+        return joined
+    oca = [str(validate_existing_dir(item, what='pinned OCA addons path')) for item in oca_addons.split(',')]
+    return f'{joined},{",".join(oca)}'
+
+
+def resolve_oca_addons(worktree: Path, *, runner=subprocess.run) -> str:
+    """The verified pinned OCA addons path of ``worktree`` (``tools/oca_addons.py path --check``)."""
+    completed = runner(
+        [sys.executable, '-B', str(worktree / 'tools' / 'oca_addons.py'), 'path', '--check'],
+        cwd=str(worktree), capture_output=True, text=True, shell=False, check=False,
+    )
+    if completed.returncode != 0:
+        fail(f'pinned OCA addons are not ready: {completed.stderr.strip()}')
+    return completed.stdout.strip()
+
+
 def validate_modules(raw: str) -> str:
     if not raw or raw != raw.strip():
         fail('modules list is required')
@@ -220,6 +240,7 @@ def build_odoo_argv(
     http_port: int,
     modules: str,
     test_tags: str,
+    oca_addons: str = '',
 ) -> list[str]:
     python_path = validate_existing_file(python, what='python interpreter')
     bin_path = validate_existing_file(odoo_bin, what='odoo-bin')
@@ -236,7 +257,7 @@ def build_odoo_argv(
     port = validate_port(http_port)
     mods = validate_modules(modules)
     tags = validate_test_tags(test_tags)
-    addons_joined = f'{core},{stock},{addons}'
+    addons_joined = join_addons(core, stock, addons, oca_addons)
     return [
         str(python_path),
         str(bin_path),
@@ -300,6 +321,7 @@ def build_upgrade_argv(
     http_port: int,
     modules: str,
     test_tags: str,
+    oca_addons: str = '',
 ) -> list[str]:
     argv = build_odoo_argv(
         python=python,
@@ -312,6 +334,7 @@ def build_upgrade_argv(
         http_port=http_port,
         modules=modules,
         test_tags=test_tags,
+        oca_addons=oca_addons,
     )
     argv[argv.index('-i')] = '-u'
     return argv
@@ -327,6 +350,7 @@ def build_runtime_argv(
     scratch_db: str,
     scratch_lifecycle: str,
     http_port: int,
+    oca_addons: str = '',
 ) -> list[str]:
     python_path = validate_existing_file(python, what='python interpreter')
     bin_path = validate_existing_file(odoo_bin, what='odoo-bin')
@@ -341,7 +365,7 @@ def build_runtime_argv(
     )
     db = validate_scratch_db(scratch_db, lifecycle=scratch_lifecycle)
     port = validate_port(http_port)
-    addons_joined = f'{core},{stock},{addons}'
+    addons_joined = join_addons(core, stock, addons, oca_addons)
     return [
         str(python_path),
         str(bin_path),
@@ -369,6 +393,7 @@ def build_shell_argv(
     worktree_addons: str,
     scratch_db: str,
     scratch_lifecycle: str,
+    oca_addons: str = '',
 ) -> list[str]:
     python_path = validate_existing_file(python, what='python interpreter')
     bin_path = validate_existing_file(odoo_bin, what='odoo-bin')
@@ -382,7 +407,7 @@ def build_shell_argv(
         worktree_addons,
     )
     db = validate_scratch_db(scratch_db, lifecycle=scratch_lifecycle)
-    addons_joined = f'{core},{stock},{addons}'
+    addons_joined = join_addons(core, stock, addons, oca_addons)
     return [
         str(python_path),
         str(bin_path),
@@ -459,6 +484,7 @@ def _add_odoo_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--http-port', required=True, type=int)
     parser.add_argument('--modules', required=True)
     parser.add_argument('--test-tags', required=True)
+    parser.add_argument('--with-oca', action='store_true', help='append the pinned OCA addons (deploy/oca-addons.json)')
 
 
 def _add_e2e_flags(parser: argparse.ArgumentParser) -> None:
@@ -499,13 +525,14 @@ def build_parser() -> argparse.ArgumentParser:
         help='must be CREATE_NEW_SCRATCH; name-only scratch is not accepted',
     )
     runtime_parser.add_argument('--http-port', required=True, type=int)
+    runtime_parser.add_argument('--with-oca', action='store_true', help='append the pinned OCA addons (deploy/oca-addons.json)')
     e2e_parser = sub.add_parser('e2e', help='run Playwright against an explicit non-default base URL')
     _add_e2e_flags(e2e_parser)
     return parser
 
 
 def _command_odoo_like(args: argparse.Namespace, *, builder, runner=subprocess.run) -> int:
-    _worktree, addons = validate_worktree_addons(args.worktree, args.addons_path)
+    worktree, addons = validate_worktree_addons(args.worktree, args.addons_path)
     if addons != Path(args.addons_path).resolve():
         fail('addons path failed resolution check')
     argv = builder(
@@ -519,6 +546,7 @@ def _command_odoo_like(args: argparse.Namespace, *, builder, runner=subprocess.r
         http_port=args.http_port,
         modules=args.modules,
         test_tags=args.test_tags,
+        oca_addons=resolve_oca_addons(worktree) if args.with_oca else '',
     )
     odoo_root = validate_existing_file(args.odoo_bin, what='odoo-bin').parent
     return run_argv(argv, cwd=str(odoo_root), env=os.environ, runner=runner)
@@ -533,7 +561,7 @@ def command_upgrade(args: argparse.Namespace, *, runner=subprocess.run) -> int:
 
 
 def command_runtime(args: argparse.Namespace, *, runner=subprocess.run) -> int:
-    _worktree, addons = validate_worktree_addons(args.worktree, args.addons_path)
+    worktree, addons = validate_worktree_addons(args.worktree, args.addons_path)
     if addons != Path(args.addons_path).resolve():
         fail('addons path failed resolution check')
     argv = build_runtime_argv(
@@ -545,6 +573,7 @@ def command_runtime(args: argparse.Namespace, *, runner=subprocess.run) -> int:
         scratch_db=args.scratch_db,
         scratch_lifecycle=args.scratch_lifecycle,
         http_port=args.http_port,
+        oca_addons=resolve_oca_addons(worktree) if args.with_oca else '',
     )
     odoo_root = validate_existing_file(args.odoo_bin, what='odoo-bin').parent
     return run_argv(argv, cwd=str(odoo_root), env=os.environ, runner=runner)

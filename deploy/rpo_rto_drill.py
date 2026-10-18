@@ -231,7 +231,11 @@ def odoo_python(cfg: DrillConfig) -> Path:
 
 
 def addons_path(cfg: DrillConfig) -> str:
-    return f'{cfg.odoo_root}/addons,{cfg.repo_root}/odoo-addons'
+    oca = run(
+        [sys.executable, '-B', 'tools/oca_addons.py', 'path', '--check'],
+        cwd=str(cfg.repo_root), capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    return f'{cfg.odoo_root}/addons,{cfg.repo_root}/odoo-addons,{oca}'
 
 
 def release_modules(cfg: DrillConfig) -> str:

@@ -17,7 +17,8 @@ class DockerAcceptanceBoundaryTests(unittest.TestCase):
         self.output.mkdir()
         self.paths = ['odoo-addons/webvue_core/__manifest__.py',
             'deploy/security/odoo_secure.py', 'deploy/shared/launch_odoo.py',
-            'deploy/shared/validate_odoo_config.py', 'deploy/odoo/entrypoint.sh']
+            'deploy/shared/validate_odoo_config.py', 'deploy/odoo/entrypoint.sh',
+            'tools/oca_addons.py', 'deploy/oca-addons.json']
         for name in self.paths:
             target = self.source / name
             target.parent.mkdir(parents=True, exist_ok=True)

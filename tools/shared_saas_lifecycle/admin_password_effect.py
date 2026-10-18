@@ -13,6 +13,7 @@ import secrets
 import signal
 import sys
 
+from tools import oca_addons
 from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, validate_database, effect_operation
 from tools.shared_saas_lifecycle.subscription_effect import ComposeRunner as SubscriptionComposeRunner, validate_tenant
 
@@ -146,7 +147,7 @@ class ComposeRunner(SubscriptionComposeRunner):
             '-e', 'WEBVUE_COMMERCIAL_CONFIG=/run/webvue-runtime/classifications/' + self.database + '.json',
             '--entrypoint', '/opt/venv/bin/python', 'odoo', '-c', build_bootstrap(script),
             '--odoo-root', '/opt/odoo', 'shell', '-c', '/etc/odoo/odoo.conf',
-            '--addons-path=/opt/odoo/addons,/opt/webvue/addons', '--data-dir=/var/lib/odoo',
+            '--addons-path=/opt/odoo/addons,/opt/webvue/addons,' + oca_addons.image_path(), '--data-dir=/var/lib/odoo',
             '-d', self.database, '--no-http', '--log-level=critical', '--log-handler=:CRITICAL']
         try:
             return self.command(args, stdin=stdin, timeout=180)
