@@ -114,6 +114,13 @@ Not measured: the agentic e2e runner (needs model credentials) and the Odoo-back
 Extend `WebVueApiCase` (or `WebVuePmoCase`) from `webvue_api/tests/common.py`. Every `test_*.py`
 is imported by its addon `tests/__init__.py`. Never run them against the dev `odoo19` DB.
 
+`tools/odoo_test.py` clones a template with every release module installed and runs `-u` of the
+selected addons, so an `at_install` test of a low-rank addon sees a PARTIAL registry (later modules
+such as `calendar` or `webvue_tasks_pmo` are not loaded yet) over a COMPLETE schema. Any test that
+creates users or tasks, or touches rules or fields owned by later modules, must be tagged
+`@tagged('post_install', '-at_install')` (examples: `webvue_core` `tests/test_access_models.py`,
+`webvue_pmo` `tests/test_transition.py`).
+
 ## 2. Unit tests
 
 `npm test` runs the policy checks, the contracts tests and the web unit tests. Keep pure
