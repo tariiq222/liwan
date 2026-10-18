@@ -36,7 +36,7 @@ describe('segmented groups', () => {
   it('are full pills around their pill segments', async () => {
     const { readFileSync } = await import('node:fs')
     const root = new URL('../app/components/shared/', import.meta.url)
-    for (const file of ['data/SegmentedControl.vue', 'data/FilterChoice.vue']) {
+    for (const file of ['data/SegmentedControl.vue']) {
       const source = readFileSync(new URL(file, root), 'utf8')
       expect(source, file).toMatch(/gap-0\.5 rounded-full/)
     }

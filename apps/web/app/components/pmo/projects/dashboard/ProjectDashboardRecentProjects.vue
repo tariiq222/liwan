@@ -31,8 +31,8 @@ const viewRows = computed(() => ({
 const rows = computed(() => viewRows.value[view.value])
 const tabs = computed(() => [
   { value: 'recent', label: t('projects.dashboard.attention.tabRecent') },
-  { value: 'late', label: t('projects.dashboard.attention.tabLate'), badge: lateRows.value.length },
-  { value: 'atRisk', label: t('projects.dashboard.attention.tabAtRisk'), badge: atRiskRows.value.length },
+  { value: 'late', label: `${t('projects.dashboard.attention.tabLate')} (${lateRows.value.length})` },
+  { value: 'atRisk', label: `${t('projects.dashboard.attention.tabAtRisk')} (${atRiskRows.value.length})` },
 ])
 const emptyText = computed(() => view.value === 'late'
   ? t('projects.dashboard.attention.emptyLate')
@@ -67,7 +67,7 @@ function updatedAt(value: string | null | undefined) {
 <template>
   <SharedRecordSection id="project-dashboard-recent" variant="list" :title="t('projects.dashboard.attention.title')" :description="t('projects.dashboard.attention.description')">
     <template #actions>
-      <UTabs v-model="view" :items="tabs" :content="false" variant="pill" size="sm" color="primary" :aria-label="t('projects.dashboard.attention.tabsLabel')" data-testid="project-dashboard-attention-tabs" />
+      <SharedSegmentedControl v-model="view" :items="tabs" :label="t('projects.dashboard.attention.tabsLabel')" data-testid="project-dashboard-attention-tabs" />
       <UButton color="neutral" variant="outline" size="sm" :to="{ path: '/projects', query: projectListQuery }" :label="t('projects.dashboard.allProjects')" />
     </template>
     <SharedDataTable bare :rows="[...rows]" :columns="columns" :row-key="row => row.project.id" :empty-text="emptyText" :caption="t('projects.dashboard.attention.title')">

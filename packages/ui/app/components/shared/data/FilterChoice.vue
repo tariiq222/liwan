@@ -1,14 +1,22 @@
 <template>
   <SharedFilterField :label="label">
-    <div :class="layout === 'segment' ? 'inline-flex items-center gap-0.5 rounded-full p-0.5 ring ring-default bg-default w-full' : 'flex flex-wrap gap-1.5'">
+    <SharedSegmentedControl
+      v-if="layout === 'segment'"
+      block
+      :label="label"
+      :items="items"
+      :model-value="singleValue"
+      :disabled="disabled"
+      @update:model-value="select"
+    />
+    <div v-else class="flex flex-wrap gap-1.5">
       <UButton
         v-for="item in items"
         :key="item.value"
         type="button"
         size="sm"
-        :class="layout === 'segment' ? 'flex-1 justify-center' : undefined"
-        :color="layout === 'chips' && isSelected(item.value) ? 'primary' : 'neutral'"
-        :variant="isSelected(item.value) ? 'soft' : layout === 'segment' ? 'ghost' : 'outline'"
+        :color="isSelected(item.value) ? 'primary' : 'neutral'"
+        :variant="isSelected(item.value) ? 'soft' : 'outline'"
         :aria-pressed="isSelected(item.value)"
         :disabled="disabled || item.disabled"
         :label="item.label"
@@ -28,7 +36,7 @@ export interface FilterChoiceItem {
 const props = withDefaults(defineProps<{
   label: string
   items: FilterChoiceItem[]
-  /** A string for single choice, an array for multiple choice. */
+  /** A string for single choice, an array for multiple choice (chips only: the segment layout is single choice). */
   modelValue: string | string[]
   layout?: 'chips' | 'segment'
   disabled?: boolean
@@ -38,6 +46,7 @@ const props = withDefaults(defineProps<{
 })
 const emit = defineEmits<{ 'update:modelValue': [string | string[]] }>()
 
+const singleValue = computed(() => Array.isArray(props.modelValue) ? '' : props.modelValue)
 function isSelected(value: string) {
   return Array.isArray(props.modelValue) ? props.modelValue.includes(value) : props.modelValue === value
 }
