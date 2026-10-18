@@ -257,13 +257,14 @@ cross-addon links.
   shrink-only baseline. Adding one or raising its count needs the owner's
   `Architecture-approved-by:` trailer on the commit that changes that file, like
   `tools/arch_layers.json`; agents never add that trailer.
-- The current delivery scope has no time logging or payroll product surface.
-  These are stage constraints, not permanent exclusions from the product
-  vision; adding them requires a separately scoped implementation request. Do not add
-  `hr_timesheet`, timesheet fields/endpoints, payroll, employee bank accounts, or
-  compensation data to the customer UI. The company's own bank statements and
-  reconciliation in `webvue_finance` are accounting data and are allowed (owner decision
-  2026-10-18).
+- The current delivery scope has no time logging product surface: do not add `hr_timesheet`
+  or timesheet fields/endpoints to the customer UI; adding them requires a separately scoped
+  implementation request. Payroll is approved (owner decision 2026-10-19) as the Saudi payroll
+  phase of the HR and finance plan:
+  salary structures, GOSI, WPS, end of service, employee bank accounts and compensation data live
+  only in the payroll addon, behind dedicated payroll capabilities, never in general employee,
+  directory or people views. The company's own bank statements and reconciliation in
+  `webvue_finance` are accounting data and are allowed.
 - Task detail routes are `/tasks/{id}` and `/projects/{id}/tasks/{taskId}`.
   Presentation follows DESIGN.md. Preserve URL query filters when returning;
   do not promise scroll restoration without evidence.
