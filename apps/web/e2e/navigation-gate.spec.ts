@@ -139,7 +139,7 @@ test.describe('every page has exactly one h1', () => {
     ['all projects', '/projects'],
     ['my tasks', '/tasks'],
     ['meetings', '/meetings'],
-    ['organization', '/hr'],
+    ['hr', '/hr'],
     ['users settings', '/settings/users'],
   ] as const
 
