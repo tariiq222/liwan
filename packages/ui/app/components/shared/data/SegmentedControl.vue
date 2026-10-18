@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /*
  * The one round segmented group (DESIGN.md §6): a full-pill container (ring + faint fill) with one pill button per
- * option, the chosen one `soft`, the rest `ghost`. In the default `toggle` mode it is a labelled group of toggle
+ * option; the chosen one is a raised white thumb (ring + soft shadow, primary icon or label) over the faint container,
+ * the rest are `ghost` and muted. In the default `toggle` mode it is a labelled group of toggle
  * buttons (`aria-pressed`), bound with v-model. Used for scopes (open/closed, active/archived), kinds, groupings,
  * scales and, icon-only, the list view switch. Waits for hydration like every interactive control.
  *
@@ -29,6 +30,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: string]; select: [value:
 const hydrated = useHydrated()
 const isActions = computed(() => props.mode === 'actions')
 
+function isSelected(item: SegmentedItem) { return !isActions.value && item.value === props.modelValue }
+
 function choose(item: SegmentedItem) {
   if (isActions.value) emit('select', item.value)
   else emit('update:modelValue', item.value)
@@ -50,7 +53,8 @@ function choose(item: SegmentedItem) {
         :block="props.block"
         :square="props.iconOnly"
         :to="isActions ? item.to : undefined"
-        :variant="!isActions && item.value === props.modelValue ? 'soft' : 'ghost'"
+        variant="ghost"
+        :class="isSelected(item) ? 'bg-default text-primary shadow-sm ring ring-default hover:bg-default' : 'text-muted'"
         :icon="item.icon"
         :label="props.iconOnly ? undefined : item.label"
         :aria-label="props.iconOnly ? item.label : undefined"

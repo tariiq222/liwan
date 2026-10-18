@@ -11,12 +11,21 @@ const render = (props: Record<string, unknown>, hydrated = true) =>
   renderShared('SegmentedControl', { items: ITEMS, label: 'Scope', modelValue: 'open', ...props }, {}, { hydrated, stubs: { UTooltip: TooltipStub as Component } })
 
 describe('SharedSegmentedControl', () => {
-  it('is a named group of pills with the chosen one pressed and soft', async () => {
+  it('is a named group of pills with the chosen one pressed', async () => {
     const html = await render({})
     expect(html).toContain('role="group" aria-label="Scope"')
     expect(html).toContain('rounded-full')
     expect(html).toMatch(/<button[^>]*aria-pressed="true"[^>]*data-value="open"[^>]*>/)
     expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*data-value="closed"[^>]*>/)
+  })
+
+  it('draws the chosen item as a raised white thumb and the others muted', async () => {
+    const html = await render({})
+    const chosen = html.match(/<button[^>]*data-value="open"[^>]*>/)?.[0] ?? ''
+    const other = html.match(/<button[^>]*data-value="closed"[^>]*>/)?.[0] ?? ''
+    for (const token of ['bg-default', 'text-primary', 'shadow-sm', 'ring-default']) expect(chosen, token).toContain(token)
+    expect(other).toContain('text-muted')
+    expect(other).not.toContain('shadow-sm')
   })
 
   it('keeps an item test id on its button only when it has one', async () => {

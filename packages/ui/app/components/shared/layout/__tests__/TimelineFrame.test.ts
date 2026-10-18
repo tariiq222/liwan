@@ -70,7 +70,7 @@ describe('SharedTimelineFrame', () => {
     const html = await render({ scales: SCALES, scale: 'week', 'onUpdate:scale': onScale })
     expect(html).toContain('role="group" aria-label="states.scale"')
     expect(html.match(/aria-pressed="true"/g)).toHaveLength(1)
-    expect(html).toMatch(/aria-pressed="true"[^>]*data-variant="soft"[^>]*>Week</)
+    expect(html).toMatch(/<button[^>]*(?:text-primary[^>]*aria-pressed="true"|aria-pressed="true"[^>]*text-primary)[^>]*>Week</)
     clicks.get('Week')!()
     expect(onScale).not.toHaveBeenCalled()
     clicks.get('Month')!()
