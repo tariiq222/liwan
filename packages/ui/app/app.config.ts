@@ -53,7 +53,9 @@ export default defineAppConfig({
     // Inset drawers and panels float over the canvas, so they take the card radius too.
     slideover: { slots: { content: 'z-[var(--webvue-ui-z-sheet)]' }, variants: { inset: { true: { content: 'rounded-card' } } } },
     toast: { slots: { root: 'rounded-card' } },
-    alert: { slots: { root: 'rounded-card' } },
+    // Alerts are subtle (soft tint) by default: the stock solid fill puts white text on saturated amber/red (about 2:1 for warning).
+    // Status text uses the same --status-*-foreground tokens as badges.
+    alert: { slots: { root: 'rounded-card' }, defaultVariants: { variant: 'subtle' }, compoundVariants: [{ color: 'success', variant: 'subtle', class: { root: 'text-status-success-foreground' } }, { color: 'info', variant: 'subtle', class: { root: 'text-status-info-foreground' } }, { color: 'warning', variant: 'subtle', class: { root: 'text-status-warning-foreground' } }, { color: 'error', variant: 'subtle', class: { root: 'text-status-danger-foreground' } }] },
     pageCard: { slots: { root: 'rounded-card' } },
     listbox: { slots: { root: 'rounded-control' } },
     fileUpload: { slots: { base: 'rounded-card' } },
