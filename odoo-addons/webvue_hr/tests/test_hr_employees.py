@@ -5,7 +5,7 @@ from .common import WebVueHrCase
 
 EMP_KEYS = {
     'id', 'name', 'job_title', 'department', 'work_email', 'work_phone', 'user_id',
-    'manager', 'active', 'access',
+    'manager', 'active', 'access', 'contract',
 }
 
 

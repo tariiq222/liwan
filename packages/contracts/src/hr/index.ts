@@ -13,6 +13,8 @@ export const HrEmployeeAccessSchema = z.object({
   active: z.boolean(),
 }).strict()
 
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+
 const nonEmptyTrimmedName = z.string().trim().min(1)
 const optionalEmail = z.string().email().or(z.literal('')).optional()
 const relationId = z.number().int().positive().nullable().optional()
@@ -28,6 +30,15 @@ export const HrDepartmentSchema = z.object({
   employee_count: z.number().int().nonnegative(),
 }).strict()
 
+export const HrEmployeeContractSchema = z.object({
+  type: HrRefSchema.nullable(),
+  start_date: isoDate.nullable(),
+  end_date: isoDate.nullable(),
+  probation_end_date: isoDate.nullable(),
+  notice_period_days: z.number().int().nonnegative(),
+  identity_expiry_date: isoDate.nullable(),
+}).strict()
+
 export const HrEmployeeSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
@@ -39,6 +50,8 @@ export const HrEmployeeSchema = z.object({
   manager: HrRefSchema.nullable(),
   active: z.boolean(),
   access: HrEmployeeAccessSchema.nullable(),
+  // Present on the detail shape for callers who manage employees; null on lists.
+  contract: HrEmployeeContractSchema.nullable(),
 }).strict()
 
 export const HrEmployeeCreateSchema = z.object({
@@ -50,6 +63,16 @@ export const HrEmployeeCreateSchema = z.object({
   parent_id: relationId,
 }).strict()
 
+// Dates and the type may be cleared with null; no salary or bank fields exist here.
+export const HrEmployeeContractPatchSchema = z.object({
+  start_date: isoDate.nullable().optional(),
+  end_date: isoDate.nullable().optional(),
+  probation_end_date: isoDate.nullable().optional(),
+  contract_type_id: relationId,
+  notice_period_days: z.number().int().nonnegative().optional(),
+  identity_expiry_date: isoDate.nullable().optional(),
+}).strict().refine(requirePatchField, { message: 'At least one field is required' })
+
 export const HrEmployeePatchSchema = z.object({
   name: nonEmptyTrimmedName.optional(),
   work_email: optionalEmail,
@@ -57,6 +80,7 @@ export const HrEmployeePatchSchema = z.object({
   job_title: z.string().optional(),
   department_id: relationId,
   parent_id: relationId,
+  contract: HrEmployeeContractPatchSchema.optional(),
 }).strict().refine(requirePatchField, { message: 'At least one field is required' })
 
 const password = z.string().trim().min(MIN_PASSWORD_LENGTH)
@@ -96,6 +120,7 @@ export const HrDocumentSchema = z.object({
   department: HrRefSchema,
   body: z.string(),
   attachment_ids: z.array(HrDocumentAttachmentSchema),
+  expiry_date: isoDate.nullable(),
   write_date: z.string(),
 }).strict()
 
@@ -116,6 +141,43 @@ export const HrDocumentListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
+export const HrExpiryKindSchema = z.enum(['document', 'contract_end', 'probation_end', 'identity'])
+
+export const HrExpiringItemSchema = z.object({
+  kind: HrExpiryKindSchema,
+  employee: HrRefSchema.nullable(),
+  document: HrRefSchema.nullable(),
+  due_date: isoDate,
+  // Negative when the item is already overdue.
+  days_left: z.number().int(),
+}).strict()
+
+export const HrExpiringListSchema = z.object({
+  items: z.array(HrExpiringItemSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+const saudizationCounts = {
+  total: z.number().int().nonnegative(),
+  saudi: z.number().int().nonnegative(),
+  non_saudi: z.number().int().nonnegative(),
+  unknown: z.number().int().nonnegative(),
+  // Share of saudi among employees with a known nationality (unknown is excluded
+  // from the denominator); null when none is known.
+  saudi_percent: z.number().min(0).max(100).nullable(),
+}
+
+export const HrSaudizationRowSchema = z.object({
+  department: HrRefSchema.nullable(),
+  ...saudizationCounts,
+}).strict()
+
+export const HrSaudizationSchema = z.object({
+  overall: z.object(saudizationCounts).strict(),
+  items: z.array(HrSaudizationRowSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
 export type HrDepartment = z.infer<typeof HrDepartmentSchema>
 export type HrEmployee = z.infer<typeof HrEmployeeSchema>
 export type HrRef = z.infer<typeof HrRefSchema>
@@ -132,3 +194,10 @@ export type HrDocumentDetail = z.infer<typeof HrDocumentDetailSchema>
 export type HrDepartmentList = z.infer<typeof HrDepartmentListSchema>
 export type HrEmployeeList = z.infer<typeof HrEmployeeListSchema>
 export type HrDocumentList = z.infer<typeof HrDocumentListSchema>
+export type HrEmployeeContractPatch = z.infer<typeof HrEmployeeContractPatchSchema>
+export type HrEmployeeContract = z.infer<typeof HrEmployeeContractSchema>
+export type HrExpiryKind = z.infer<typeof HrExpiryKindSchema>
+export type HrExpiringItem = z.infer<typeof HrExpiringItemSchema>
+export type HrExpiringList = z.infer<typeof HrExpiringListSchema>
+export type HrSaudizationRow = z.infer<typeof HrSaudizationRowSchema>
+export type HrSaudization = z.infer<typeof HrSaudizationSchema>

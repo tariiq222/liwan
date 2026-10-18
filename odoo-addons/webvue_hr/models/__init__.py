@@ -6,5 +6,6 @@ from . import (
     hr_department,
     hr_document,
     hr_employee,
+    hr_report,
     hr_version,
 )

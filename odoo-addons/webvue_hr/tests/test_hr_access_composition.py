@@ -54,6 +54,10 @@ class TestHrAccessComposition(TransactionCase):
             self.env.ref('hr.group_hr_user'),
             self.env.ref('webvue_hr.group_cap_hr_employees_manage').all_implied_ids,
         )
+        self.assertNotIn(
+            self.env.ref('hr.group_hr_manager'),
+            self.env.ref('webvue_hr.group_cap_hr_employees_manage').all_implied_ids,
+        )
 
     def test_dependencies_actor_keys_and_legacy_roles_include_hr(self):
         manage = self.Permission.search([('key', '=', 'hr.employees.manage')])

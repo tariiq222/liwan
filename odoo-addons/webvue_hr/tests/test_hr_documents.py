@@ -14,7 +14,7 @@ from odoo.addons.webvue_hr.serializers.hr_document import (
     parse_document_create,
 )
 
-DOC_KEYS = {'id', 'name', 'department', 'body', 'attachment_ids', 'write_date'}
+DOC_KEYS = {'id', 'name', 'department', 'body', 'attachment_ids', 'expiry_date', 'write_date'}
 
 
 @tagged('post_install', '-at_install', 'webvue')

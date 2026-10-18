@@ -85,9 +85,9 @@ class HrDocumentController(http.Controller):
     @http.route('/api/v1/hr/documents', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('hr.enabled', operation='write')
-    def create_document(self, name=None, body=None, department_id=None, **extra):
+    def create_document(self, name=None, body=None, department_id=None, expiry_date=None, **extra):
         _require('hr.documents.manage')
-        payload = {'name': name, 'body': body, 'department_id': department_id}
+        payload = {'name': name, 'body': body, 'department_id': department_id, 'expiry_date': expiry_date}
         payload.update(extra)
         payload = {k: v for k, v in payload.items() if v is not None or k == 'department_id'}
         vals = parse_document_create(payload)
