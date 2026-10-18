@@ -49,8 +49,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
   const item = findSearchShortcut(event, query.value, available.value)
   if (!item) return
   event.preventDefault()
-  if (item.to === '/odoo') window.open(item.to, '_blank', 'noopener')
-  else void navigateTo(item.to)
+  void navigateTo(item.to)
 })
 </script>
 <template>
@@ -84,8 +83,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
           <UBadge color="neutral" variant="subtle" size="sm" class="rounded-full tabular-nums" data-testid="search-group-count" :label="String(nav.length)" />
         </header>
         <div class="divide-y divide-default"><template v-for="item in visibleNav" :key="item.to">
-          <a v-if="item.to === '/odoo'" :href="item.to" target="_blank" rel="noopener" class="flex items-center gap-3 px-(--webvue-card-pad-dense) py-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></a>
-          <NuxtLink v-else :to="item.to" class="flex items-center gap-3 px-(--webvue-card-pad-dense) py-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></NuxtLink>
+          <NuxtLink :to="item.to" class="flex items-center gap-3 px-(--webvue-card-pad-dense) py-3 transition-colors hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"><UIcon :name="item.icon" class="size-4.5 shrink-0 text-muted" aria-hidden="true" />{{ t(item.labelKey) }}<UKbd v-if="item.shortcut" dir="ltr" class="ms-auto">{{ item.shortcut.toLocaleUpperCase() }}</UKbd></NuxtLink>
         </template></div>
         <div v-if="nav.length > NAV_LIMIT" class="flex flex-wrap items-center gap-3 border-t border-default px-(--webvue-card-pad-dense) py-3">
           <UButton
