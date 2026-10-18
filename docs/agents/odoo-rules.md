@@ -8,8 +8,8 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
 - Every Python file starts with `# Part of Odoo. See LICENSE file for full
   copyright and licensing details.` Addon manifests use `'license': 'LGPL-3'`,
   author `Tariq Alwalidi`, and a new addon starts at version `19.0.1.0.0` (later bumps follow
-  `docs/migrations.md`). Do not add OCA or
-  Enterprise dependencies. Keep `ruff check odoo-addons` clean.
+  `docs/migrations.md`). Do not add Enterprise dependencies; OCA dependencies only from the
+  pinned repositories of `deploy/oca-addons.json` (owner decision 2026-10-18). Keep `ruff check odoo-addons` clean.
 - Routes use `@http.route('/api/v1/...', type='json2', auth='user',
   methods=[...], readonly=<bool>)` and `@api_handler`. Errors use
   `{"code": "<snake_case>", "message": "<human>", "field"?: "<name>"}`

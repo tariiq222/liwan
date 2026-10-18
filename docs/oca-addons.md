@@ -58,13 +58,13 @@ The runtime already provides them through `deploy/odoo/requirements-python312-li
 `python-dateutil` (`account_asset_management`), `xlsxwriter` and `xlrd` (`report_xlsx`). Changing the
 pins must keep that file satisfying `python_requirements`.
 
-## Licensing (owner decision pending)
+## Licensing (owner decision 2026-10-18)
 
 Most OCA modules are AGPL-3 (some, such as `date_range` and `account_statement_base`, LGPL-3). They are
 used unmodified, as separate dependencies, and fetched from OCA rather than copied here. WebVue's own
-addons are LGPL-3. Whether AGPL-3 components are acceptable for the SaaS and sovereign
-(customer-hosted, non-SaaS) deployments, including the source-offer obligations that follow, is for
-the owner to confirm; this document does not decide it.
+addons are LGPL-3. The owner accepted AGPL-3 OCA dependencies for WebVue on 2026-10-18. Keep the OCA
+modules unmodified; if one ever has to be changed, the change is published with its source as AGPL-3
+requires.
 
 ## Launchers that do not use the OCA path yet
 
