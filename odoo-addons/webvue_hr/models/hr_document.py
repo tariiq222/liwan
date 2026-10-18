@@ -18,6 +18,7 @@ class WebVueHrDocument(models.Model):
     name = fields.Char(required=True)
     body = fields.Html()
     attachment_ids = fields.Many2many('ir.attachment')
+    expiry_date = fields.Date(index=True)
     department_id = fields.Many2one(
         'hr.department',
         required=True,

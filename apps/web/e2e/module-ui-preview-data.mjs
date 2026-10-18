@@ -186,6 +186,7 @@ const employee = {
   manager: PERSON,
   active: true,
   access: { user_id: 1, login: 'sara', role: 'admin', active: true },
+  contract: null,
 }
 
 const roleRef = {

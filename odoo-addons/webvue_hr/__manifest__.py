@@ -2,7 +2,7 @@
 {
     'name': 'webvue HR',
     'summary': 'webvue platform: the HR pillar — /api/v1/hr departments, employees, documents',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

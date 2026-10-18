@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
+from odoo.addons.webvue_hr.models.hr_version import CONTRACT_GROUPS
 from odoo.addons.webvue_hr.rules import WebVueHrRule
 
 EMPLOYEE_WRITE_ERROR = 'employee management capability is required'
@@ -15,6 +16,26 @@ ACCESS_USER_WRITE_MARKER = 'webvue_core.access_user_write'
 
 class WebVueHrEmployee(models.Model):
     _inherit = 'hr.employee'
+
+    # Version fields behind a group are redeclared on the employee, like stock hr does.
+    contract_date_start = fields.Date(
+        related='version_id.contract_date_start', readonly=False,
+        inherited=True, groups=CONTRACT_GROUPS)
+    contract_date_end = fields.Date(
+        related='version_id.contract_date_end', readonly=False,
+        inherited=True, groups=CONTRACT_GROUPS)
+    trial_date_end = fields.Date(
+        related='version_id.trial_date_end', readonly=False,
+        inherited=True, groups=CONTRACT_GROUPS)
+    contract_type_id = fields.Many2one(
+        related='version_id.contract_type_id', readonly=False,
+        inherited=True, groups=CONTRACT_GROUPS)
+    identification_expiration_date = fields.Date(
+        related='version_id.identification_expiration_date', readonly=False,
+        inherited=True, groups=CONTRACT_GROUPS)
+    notice_period_days = fields.Integer(
+        related='version_id.notice_period_days', readonly=False,
+        inherited=True, groups=CONTRACT_GROUPS)
 
     @api.model
     def _search(

@@ -1,9 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from odoo import api, models
+from odoo import api, fields, models
 from odoo.exceptions import AccessError
 from odoo.fields import Domain
 from odoo.tools import SQL
 
+# Stock gates the contract block behind hr.group_hr_manager, which also bypasses company
+# isolation on hr.version; the manage capability reads and writes it through these groups.
+CONTRACT_GROUPS = 'hr.group_hr_manager,webvue_hr.group_cap_hr_employees_manage'
 VERSION_SCOPE_ERROR = 'employee version is outside the current company'
 ACCESS_USER_CREATE_MARKER = 'webvue_core.access_user_create_depth'
 ACCESS_USER_WRITE_MARKER = 'webvue_core.access_user_write'
@@ -11,6 +14,25 @@ ACCESS_USER_WRITE_MARKER = 'webvue_core.access_user_write'
 
 class WebVueHrVersion(models.Model):
     _inherit = 'hr.version'
+
+    # Stock fields redeclared with the manage capability added to their groups.
+    contract_date_start = fields.Date(groups=CONTRACT_GROUPS)
+    contract_date_end = fields.Date(groups=CONTRACT_GROUPS)
+    trial_date_end = fields.Date(groups=CONTRACT_GROUPS)
+    contract_type_id = fields.Many2one(groups=CONTRACT_GROUPS)
+    identification_expiration_date = fields.Date(
+        string='Identification Expiration Date',
+        help='Expiry of the national ID or iqama held in identification_id.',
+        groups=CONTRACT_GROUPS, tracking=True)
+    notice_period_days = fields.Integer(
+        string='Notice Period (days)',
+        help='Days of notice either party must give to end the contract.',
+        groups=CONTRACT_GROUPS, tracking=True)
+
+    _notice_period_days_non_negative = models.Constraint(
+        'CHECK (notice_period_days >= 0)',
+        'The notice period cannot be negative.',
+    )
 
     def _webvue_trusted_internal_user_change(self):
         data = self.env.cr.precommit.data
