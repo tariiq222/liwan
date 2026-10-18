@@ -4,7 +4,7 @@ from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 
-@tagged('webvue')
+@tagged('post_install', '-at_install', 'webvue')
 class TestTransition(TransactionCase):
 
     @classmethod

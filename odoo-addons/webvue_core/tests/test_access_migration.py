@@ -6,7 +6,7 @@ from odoo.fields import Command
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 
-@tagged('webvue', 'webvue_access')
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestWebVueAccessMigration(TransactionCase):
 
     def test_builtin_role_repair_is_additive_and_idempotent(self):

@@ -5,7 +5,7 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 from .common import WebVuePmoCase
 
 
-@tagged('webvue', 'webvue_access')
+@tagged('post_install', '-at_install', 'webvue', 'webvue_access')
 class TestPmoAccessCapabilityModels(TransactionCase):
 
     @classmethod
