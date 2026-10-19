@@ -103,6 +103,22 @@ class TestFinanceBudgets(WebVueFinanceOcaCase):
             'net': {'budget': -10000, 'actual': -7500},
         })
 
+    def test_closing_a_year_leaves_its_budget_actuals_unchanged(self):
+        year = {'date_from': '2025-01-01', 'date_to': '2025-12-31'}
+        budget = self.create_budget(name='Budget 2025', **year)
+        self.add_line(budget, self.expense, 10000)
+        analytic_budget = self.create_budget(name='Riyadh 2025', **year)
+        self.add_line(analytic_budget, self.expense, 10000, analytic_account_id=self.analytic.id)
+        self.post_expense('2025-03-01', 7500, self.analytic)
+        self.assertEqual(self.row(self.report(budget), self.expense)['actual'], 7500)
+        closed = self.api('POST', '/api/v1/finance/fiscal-years/2025/close', json={})
+        self.assertEqual(closed.status_code, 200, closed.text)
+        closing = self.env['account.move'].browse(closed.json()['closing_entry']['id'])
+        self.assertTrue(closing.webvue_closing_year)
+        # The closing entry zeroes the expense account, yet the actual still reads the activity of the year.
+        self.assertEqual(self.row(self.report(budget), self.expense)['actual'], 7500)
+        self.assertEqual(self.row(self.report(analytic_budget), self.expense)['actual'], 7500)
+
     def test_an_overspent_budget_has_a_negative_variance(self):
         budget = self.create_budget()
         self.add_line(budget, self.expense, 1000)

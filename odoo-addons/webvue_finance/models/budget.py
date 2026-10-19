@@ -56,12 +56,17 @@ class WebVueFinanceBudget(models.AbstractModel):
 
         Without ``analytic`` it is the balance of the posted journal items; with it, the negated amount of the
         analytic lines of that account (an analytic amount is credit minus debit), both in the company currency.
+        Year-end closing entries (``webvue_closing_year`` set) are excluded: they zero the income and expense
+        accounts and are not activity the budget is compared with.
         """
         date_from, date_to = period
         company = self.env.company
         if analytic:
             column = analytic.plan_id._column_name()
-            domain = [(column, '=', analytic.id), ('general_account_id', 'in', accounts.ids)]
+            domain = [
+                (column, '=', analytic.id), ('general_account_id', 'in', accounts.ids),
+                ('move_line_id.move_id.webvue_closing_year', '=', False),
+            ]
             groups = self.env['account.analytic.line']._read_group(
                 domain + [('company_id', '=', company.id), ('date', '>=', date_from), ('date', '<=', date_to)],
                 ['general_account_id'], ['amount:sum'],
@@ -70,7 +75,7 @@ class WebVueFinanceBudget(models.AbstractModel):
         groups = self.env['account.move.line']._read_group(
             [
                 ('account_id', 'in', accounts.ids), ('company_id', '=', company.id), ('parent_state', '=', 'posted'),
-                ('date', '>=', date_from), ('date', '<=', date_to),
+                ('move_id.webvue_closing_year', '=', False), ('date', '>=', date_from), ('date', '<=', date_to),
             ],
             ['account_id'], ['balance:sum'],
         )
