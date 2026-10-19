@@ -13,8 +13,7 @@ the owner's priority order:
 6. Risk heat map and response strategy.
 
 Each phase below gets its own detailed plan, written when the previous phase has merged, so every
-plan argues from the code as it is when that phase starts. Only phase 1 is detailed now:
-[`2026-10-15-pmo-p1-charter-approval.md`](2026-10-15-pmo-p1-charter-approval.md).
+plan argues from the code as it is when that phase starts. Phase 1 (charter approval) and the phase gates are implemented in `webvue_pmo`; the remaining phases have no detailed plan yet.
 
 ## Phases
 

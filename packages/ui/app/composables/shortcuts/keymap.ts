@@ -5,7 +5,7 @@ import { isEditableKeyTarget } from '../useEscapeBack'
  * The shell keyboard layer (Tasmim spec §5). Every shortcut is decided here, so all of them
  * share one key rule and one "may a plain key act now" test. Nuxt UI's defineShortcuts is not
  * used: in 4.11.1 it cannot match `/`, `?` or `[` by position, ignores IME composition and
- * open menus (evidence: docs/superpowers/plans/2026-10-13-tasmim-plan-3-palette.md, "Decision").
+ * open menus.
  */
 
 /** The keydown fields the layer reads. A KeyboardEvent satisfies it; tests pass plain objects. */

@@ -2,7 +2,7 @@
 
 Status: design approved section by section by the owner on 2026-10-15; written spec awaiting owner review.
 Supersedes the unified-workspace decision in
-[company/vendor workspace design](2026-09-23-company-vendor-workspace-design.md) (2026-09-23).
+company/vendor workspace design (2026-09-23).
 Does not authorize deployment, DNS, merging, pushing, or any work listed under "Out of scope".
 
 ## Goal
@@ -261,7 +261,7 @@ Ordering constraints with parallel work open on 2026-10-15:
 
 | Document | Change |
 |---|---|
-| `docs/superpowers/specs/2026-09-23-company-vendor-workspace-design.md` | Mark superseded, link here; content kept |
+| company-vendor-workspace design (2026-09-23) | Superseded by this design; file deleted (history in Git) |
 | `AGENTS.md` | Restate R5 as above |
 | `DESIGN.md` | Remove section 9 and the `/odoo` navigation row; state that `apps/vendor-admin` follows `DESIGN.md` |
 | `docs/agents/web-rules.md` | Remove `/odoo` as a vendor console path |

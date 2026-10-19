@@ -126,7 +126,7 @@ need explicit authorization; do not imply that a push occurred.
 
 ## Documentation
 
-Phase specifications and plans are under `docs/superpowers/{specs,plans}`.
+Specifications and the open plans are under `docs/superpowers/{specs,plans}`.
 The shipped phase documents describe implementation intent and scope; current
 runtime and verification status must be confirmed from the active checkout and
 fresh checks before making a release claim.

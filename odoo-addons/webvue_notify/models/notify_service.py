@@ -214,7 +214,8 @@ class WebVueNotifyService(models.AbstractModel):
         self.env['webvue.entitlement.service'].require(
             self.env['webvue.notify.registry']._webvue_notify_feature_key(row),
         )
-        row.write({'is_read': True})
+        # The caller's own ACL and the group_user "write its own entries" rule decide.
+        row.with_user(self.env.user).write({'is_read': True})
         return 1
 
     @api.model
@@ -230,5 +231,5 @@ class WebVueNotifyService(models.AbstractModel):
                 continue
             writable.append(row.id)
         if writable:
-            self.env['mail.notification'].sudo().browse(writable).write({'is_read': True})
+            self.env['mail.notification'].browse(writable).write({'is_read': True})
         return len(writable)

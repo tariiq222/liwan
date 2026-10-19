@@ -11,7 +11,7 @@
 | **[بعد C2]** | يعتمد على شيفرة لم تكتمل؛ يؤكَّد بعد C2 |
 | **[محجوب]** | يحتاج بيئة أو مفاتيح غير متوفرة (staging، Moyasar، SMTP) |
 
-لا يقدّم هذا الدليل أي وعد SLA أو RPO/RTO؛ أهداف السعة وSLA مفتوحة (انظر `docs/verification/saas-commercial-staging.md`).
+لا يقدّم هذا الدليل أي وعد SLA أو RPO/RTO؛ أهداف السعة وSLA مفتوحة (القرارات المفتوحة في `docs/project-closure/saas-hosting-direction-status.md`).
 
 ## 1. المكوّنات
 

@@ -77,5 +77,5 @@ invitation, MFA, entitlement denial, fail-closed registry mutations, browser
 pages, backups/restores, live updates, capacity, Linux acceptance or `non_saas`.
 The old restore helper and output-suppression workaround were deliberately
 excluded: no current product publication path is proved by calling an internal
-library. [Historical results](../../docs/superpowers/plans/2026-10-16-nasq-foundation-acceptance.md)
+library. Historical results
 remain pinned to their original source and are not results for this tool.

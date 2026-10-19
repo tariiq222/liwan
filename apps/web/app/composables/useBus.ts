@@ -142,7 +142,6 @@ let warnedFallback = false
 function warnFallbackOnce(reason: string) {
   if (warnedFallback) return
   warnedFallback = true
-  // eslint-disable-next-line no-console
   console.warn(`[bus] using the pinned websocket worker version (${FALLBACK_WEBSOCKET_WORKER_VERSION}) - ${reason}`)
 }
 

@@ -307,7 +307,7 @@ the remaining later packages are phase-4-and-later work.
 |---|---|---|
 | 0 — Foundation | Monorepo, `webvue_core` groups + branding fields, `webvue_api` skeleton (`/branding`, `/me`), Nuxt shell (login, sidebar, ⌘K, tokens, RTL, proxy), `deploy/` compose, remove OCA modules | 1 week — done 2026-09-04 |
 | 1 — Core | My tasks table + board, task detail **modal** at `/tasks/{id}` (autosave, comments, sub-tasks), real-time | Delivered 2026-09-04 |
-| 2 — Projects | Projects list, project screen (list / board by project stage, status set by managers) — spec `2026-09-04-webvue-phase-2-projects-design.md` | Delivered 2026-09-05 |
+| 2 — Projects | Projects list, project screen (list / board by project stage, status set by managers) — delivered spec removed (history in Git) | Delivered 2026-09-05 |
 | **Demo to Erada** | | **~7 weeks** |
 | 3 — Completion | Decomposed 2026-09-05 into five packages — **3a project administration delivered 2026-09-05**; **3b people/access, branding, and account delivered locally 2026-09-05**; 3c Today, 3d Reports, 3e PWA/polish pending | 3 weeks |
 | 4 — Later packages | Gantt (custom build), risks, initiatives, meetings, KPIs, SSO, portal users | per package |

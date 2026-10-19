@@ -101,7 +101,6 @@ Storybook في `apps/web` هو **فهرس المكونات الملزم** لكل
 - لا تقرأ `isComposing`.
 - لا تعرف القوائم المفتوحة.
 
-الأدلة في `docs/superpowers/plans/2026-10-13-tasmim-plan-3-palette.md`.
 
 ## القوالب والحالات
 
