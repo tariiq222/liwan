@@ -275,9 +275,10 @@ class TestAccessAdminRoles(WebVueApiCase):
             module.name for module in self.env['ir.module.module'].search([('state', '=', 'installed')])
         }
         # 9 core capabilities; HR's two document permissions moved to Documents,
-        # leaving 10 for HR (departments, employees and leave).
+        # leaving 20 for HR (departments, employees, leave, recruitment, shifts,
+        # onboarding, offboarding and assets).
         total = (
-            9 + 10 * ('webvue_hr' in installed) + 5 * ('webvue_documents' in installed)
+            9 + 20 * ('webvue_hr' in installed) + 5 * ('webvue_documents' in installed)
             + 8 * ('webvue_pmo' in installed) + 3 * ('webvue_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.

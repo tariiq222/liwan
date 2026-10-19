@@ -68,13 +68,16 @@ class TestHrEngineGroups(TransactionCase):
             'hr_purpose': 'onboarding',
         })
         self.assertEqual(plan.hr_purpose, 'onboarding')
+        # The purpose belongs to employee plans only; any other res_model is refused.
         with self.assertRaises(ValidationError):
             self.env['mail.activity.plan'].create({
                 'name': 'Partner plan',
                 'res_model': 'res.partner',
                 'hr_purpose': 'onboarding',
             })
-        with self.assertRaises(ValidationError):
+        # An unknown purpose is refused by the Selection itself, before any constraint
+        # runs: the ORM raises ValueError, not ValidationError.
+        with self.assertRaises(ValueError):
             self.env['mail.activity.plan'].create({
                 'name': 'Unknown purpose',
                 'res_model': 'hr.employee',

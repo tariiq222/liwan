@@ -80,6 +80,12 @@ class WebVueHrAccessService(models.AbstractModel):
     def _webvue_permission_dependencies(self):
         dependencies = super()._webvue_permission_dependencies()
         for key, required in HR_PERMISSION_DEPENDENCIES.items():
+            # An HR capability without a dependency (hr.recruitment.read) is listed in the
+            # constant for completeness, but the composed map only names keys that require
+            # something: the stored permissions filter on dependency_ids, so a key with an
+            # empty set would make the composed and stored maps disagree.
+            if not required:
+                continue
             dependencies[key] = dependencies.get(key, set()) | required
         return dependencies
 
