@@ -1370,17 +1370,17 @@
         {
           "id": "Mine",
           "name": "Mine",
-          "context": "apps/web/app/pages/operations/index.vue:6"
+          "context": "apps/web/app/pages/operations/index.vue:10"
         },
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/pages/operations/index.vue:6"
+          "context": "apps/web/app/pages/operations/index.vue:10"
         },
         {
           "id": "Monitoring",
           "name": "Monitoring",
-          "context": "apps/web/app/pages/operations/index.vue:6"
+          "context": "apps/web/app/pages/operations/index.vue:10"
         }
       ]
     },
