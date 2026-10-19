@@ -240,6 +240,11 @@ export const HrLeaveAllocationCreateSchema = z.object({
   date_to: isoDate.nullable().optional(),
 }).strict()
 
+export const HrLeaveWithdrawalSchema = z.object({
+  id: z.number().int().positive(),
+  withdrawn: z.literal(true),
+}).strict()
+
 export const HrLeaveTypeListSchema = z.object({ items: z.array(HrLeaveTypeSchema), total: z.number().int().nonnegative() }).strict()
 export const HrLeaveListSchema = z.object({ items: z.array(HrLeaveSchema), total: z.number().int().nonnegative() }).strict()
 export const HrLeaveBalanceListSchema = z.object({ items: z.array(HrLeaveBalanceSchema), total: z.number().int().nonnegative() }).strict()
@@ -272,6 +277,7 @@ export type HrLeaveBalance = z.infer<typeof HrLeaveBalanceSchema>
 export type HrLeaveAllocation = z.infer<typeof HrLeaveAllocationSchema>
 export type HrLeaveRequestCreate = z.infer<typeof HrLeaveRequestCreateSchema>
 export type HrLeaveAllocationCreate = z.infer<typeof HrLeaveAllocationCreateSchema>
+export type HrLeaveWithdrawal = z.infer<typeof HrLeaveWithdrawalSchema>
 export type HrLeaveTypeList = z.infer<typeof HrLeaveTypeListSchema>
 export type HrLeaveList = z.infer<typeof HrLeaveListSchema>
 export type HrLeaveBalanceList = z.infer<typeof HrLeaveBalanceListSchema>

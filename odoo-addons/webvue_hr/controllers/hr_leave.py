@@ -233,7 +233,9 @@ class HrLeaveController(http.Controller):
             if not _is_own(leave):
                 raise ApiError(403, 'forbidden', 'only the requester can withdraw a request')
             leave.unlink()
-            return request.make_json_response(None, status=204)
+            # A body, not a bare 204: the shared client does not parse an empty
+            # response, and the caller needs to know the request is gone.
+            return {'id': leave_id, 'withdrawn': True}
         if not leave.can_cancel:
             raise ApiError(422, 'invalid', 'this leave cannot be cancelled')
         request.env['hr.holidays.cancel.leave'].create({

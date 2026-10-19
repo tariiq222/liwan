@@ -7,6 +7,7 @@ import {
   HrLeaveListSchema,
   HrLeaveSchema,
   HrLeaveTypeListSchema,
+  HrLeaveWithdrawalSchema,
   type HrLeave,
   type HrLeaveAllocationCreate,
   type HrLeaveRequestCreate,
@@ -88,6 +89,18 @@ export function useCreateLeaveRequest() {
 }
 
 export type HrLeaveDecision = 'approve' | 'refuse' | 'cancel'
+
+/** Withdrawing a pending request deletes it and the server confirms with the id. */
+export function useWithdrawLeaveRequest() {
+  const qc = useQueryClient()
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (id: number) => $api(`/api/v1/hr/leave/requests/${id}/cancel`, {
+      method: 'POST', body: {}, schema: HrLeaveWithdrawalSchema,
+    }),
+    onSuccess: () => refreshLeave(qc),
+  })
+}
 
 /** A state change waits for the server: the list refreshes from its answer, never optimistically. */
 export function useLeaveDecision() {

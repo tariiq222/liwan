@@ -298,7 +298,8 @@ class TestHrLeave(WebVueHrCase):
         self.assertFalse(created['can_cancel'])
         leave_id = created['id']
         res = self.api('POST', f'/api/v1/hr/leave/requests/{leave_id}/cancel', json={})
-        self.assertEqual(res.status_code, 204, res.text)
+        self.assertEqual(res.status_code, 200, res.text)
+        self.assertEqual(res.json(), {'id': leave_id, 'withdrawn': True})
         self.assertFalse(self.env['hr.leave'].browse(leave_id).exists())
         balances = self.api('GET', '/api/v1/hr/leave/balances').json()['items']
         annual = next(b for b in balances if b['leave_type']['id'] == self.annual.id)
