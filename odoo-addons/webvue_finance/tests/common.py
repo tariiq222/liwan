@@ -34,6 +34,7 @@ class WebVueFinanceCase(WebVueApiCase):
             'move_type': 'out_invoice',
             'partner_id': partner.id,
             'invoice_date': '2026-10-18',
+            'invoice_date_due': '2026-10-18',
             'invoice_line_ids': [Command.create({
                 'name': 'Consulting', 'quantity': 1, 'price_unit': 1000, 'tax_ids': [Command.set(vat.ids)],
             })],

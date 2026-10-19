@@ -30,7 +30,9 @@ class SourceScratchRuntime(LocalRuntime):
         os.kill(process['pid'], 0)
         argv = shlex.split(subprocess.check_output(['ps', '-p', str(process['pid']), '-o', 'command='], text=True))
         config = Path(process['configPath'])
-        if (str(config) not in argv or '--max-cron-threads=0' not in argv or '--workers=0' not in argv
+        workers=process.get('workers',0)
+        if (type(workers) is not int or not 0<=workers<=4
+                or str(config) not in argv or '--max-cron-threads=0' not in argv or '--workers='+str(workers) not in argv
                 or '--addons-path=' + process['addonsPath'] not in argv
                 or hashlib.sha256(config.read_bytes()).hexdigest() != process['configDigest']
                 or source_tree_digest(process['sourceRoot']) != process['treeDigest']):
@@ -40,7 +42,7 @@ class SourceScratchRuntime(LocalRuntime):
         if parser['options']['db_user'] != expected['dbUser'] or parser['options']['db_host'] != '127.0.0.1':
             raise ReleaseConflict('source_runtime_role_mismatch')
         return {'ready': True, 'dbUser': expected['dbUser'], 'running': True,
-                'bindingProof': 'local-source-process-and-config', 'pid': process['pid']}
+                'bindingProof': 'local-source-process-and-config', 'pid': process['pid'], 'httpWorkers':workers}
 
     def _source_pool(self, pool, manifest):
         process = self.config['pools'][pool]['sourceProcess']

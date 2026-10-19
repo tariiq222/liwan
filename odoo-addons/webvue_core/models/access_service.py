@@ -297,9 +297,10 @@ class WebVueAccessService(models.AbstractModel):
             raise WebVueAccessRule(msg, 'role was changed', status=409, details={'current_version': current})
 
     @api.model
-    def _webvue_lock_company(self, company):
+    def _webvue_lock_company(self, company, *, shared=False):
         self.env.cr.execute(
-            "SELECT pg_advisory_xact_lock(hashtext('webvue.access.last_admin'), %s)",
+            ("SELECT pg_advisory_xact_lock_shared(hashtext('webvue.access.last_admin'), %s)"
+             if shared else "SELECT pg_advisory_xact_lock(hashtext('webvue.access.last_admin'), %s)"),
             [company.id],
         )
 

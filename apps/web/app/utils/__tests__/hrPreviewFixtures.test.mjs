@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { hrPreviewData } from '../../../e2e/hr-ui-preview-data.mjs'
 import { capabilitiesForRequest } from '../../../e2e/mock-capabilities.mjs'
 import { moduleUiPreviewData } from '../../../e2e/module-ui-preview-data.mjs'
-import { HrDepartmentListSchema, HrDepartmentSchema, HrDocumentListSchema, HrDocumentSchema, HrEmployeeListSchema, HrEmployeeSchema } from '@webvue/contracts'
+import { HrDepartmentListSchema, HrDepartmentSchema, HrEmployeeListSchema, HrEmployeeSchema } from '@webvue/contracts'
 
 const at = (path, query = '') => new URL(`http://localhost${path}${query}`)
 const names = (list) => list.items.map(item => item.name)
@@ -12,14 +12,12 @@ describe('the HR preview fixtures', () => {
     for (const [path, schema] of [
       ['/api/v1/hr/employees', HrEmployeeListSchema], ['/api/v1/hr/employees/3', HrEmployeeSchema],
       ['/api/v1/hr/departments', HrDepartmentListSchema], ['/api/v1/hr/departments/3', HrDepartmentSchema],
-      ['/api/v1/hr/documents', HrDocumentListSchema], ['/api/v1/hr/documents/3', HrDocumentSchema],
     ]) expect(() => schema.parse(moduleUiPreviewData(path, at(path))), path).not.toThrow()
   })
 
   it('keep row 1 of each list exactly as the single-row preview served it', () => {
     expect(hrPreviewData('/api/v1/hr/employees/1', at('/api/v1/hr/employees/1'))).toMatchObject({ id: 1, name: 'سارة محمد', job_title: 'مديرة العمليات', work_email: 'sara@example.test' })
     expect(hrPreviewData('/api/v1/hr/departments/1', at('/api/v1/hr/departments/1'))).toMatchObject({ id: 1, name: 'إدارة العمليات', employee_count: 4 })
-    expect(hrPreviewData('/api/v1/hr/documents/1', at('/api/v1/hr/documents/1'))).toMatchObject({ id: 1, name: 'دليل إجراءات التشغيل' })
   })
 
   it('filter employees by search, department and the archived scope', () => {
@@ -29,14 +27,6 @@ describe('the HR preview fixtures', () => {
     expect(names(list('?department_id=2'))).toEqual(['خالد الشمري'])
     expect(names(list('?archived=true'))).toEqual(['ليلى الدوسري'])
     expect(list('?q=لا-يوجد')).toMatchObject({ items: [], total: 0 })
-  })
-
-  it('filter documents by search and department and page by offset and limit', () => {
-    const list = (query) => hrPreviewData('/api/v1/hr/documents', at('/api/v1/hr/documents', query))
-    expect(names(list('?department_id=2'))).toEqual(['سياسة الإجازات', 'نموذج تقييم الأداء'])
-    expect(names(list('?q=دليل'))).toEqual(['دليل إجراءات التشغيل'])
-    expect(names(list('?limit=1&offset=1'))).toEqual(['سياسة الإجازات'])
-    expect(list('?limit=1&offset=1').total).toBe(3)
   })
 
   it('give the record with missing data no job, department, email, phone, manager or access', () => {
@@ -50,7 +40,7 @@ describe('the HR preview fixtures', () => {
 })
 
 describe('capabilitiesForRequest', () => {
-  const all = ['hr.employees.read', 'hr.employees.manage', 'hr.employees.archive', 'hr.documents.manage', 'access.users.grant', 'hr.departments.read']
+  const all = ['hr.employees.read', 'hr.employees.manage', 'hr.employees.archive', 'documents.items.manage', 'access.users.grant', 'hr.departments.read']
   it('returns every capability without the reader cookie', () => {
     expect(capabilitiesForRequest(undefined, all)).toEqual(all)
     expect(capabilitiesForRequest('session_id=x', all)).toEqual(all)

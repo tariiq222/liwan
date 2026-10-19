@@ -76,7 +76,8 @@ class TestCheckFast(unittest.TestCase):
         self.assertEqual(extra(['deploy/backup.py']), {'catalog_check', 'deploy_unittest'})
         steps = dict(plan(['deploy/backup.py'], 'main'))
         self.assertEqual(steps['catalog_check'], ['python3', '-B', 'tools/catalog_check.py'])
-        self.assertEqual(steps['deploy_unittest'][-4:], ['-s', 'deploy', '-p', 'test_*.py'])
+        self.assertIn('-t',steps['deploy_unittest'])
+        self.assertEqual(steps['deploy_unittest'][steps['deploy_unittest'].index('-t')+1],'.')
 
     def test_commercial_contracts_change_runs_its_tests(self):
         self.assertEqual(extra(['packages/commercial-contracts/src/a.ts']), {'commercial_contracts_test'} | VENDOR_EXTRA)

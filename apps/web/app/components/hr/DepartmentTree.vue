@@ -56,7 +56,7 @@ function nodeActions(node: DepartmentTreeNode): SegmentedItem[] {
     items.push({ value: 'createChild', label: t('hr.depts.newChild'), icon: 'i-lucide-plus' })
   }
   if (props.canReadEmployees) items.push({ value: 'employees', label: t('hr.depts.viewEmployees'), icon: 'i-lucide-users', to: `/hr?department_id=${id}` })
-  if (props.canReadDocuments) items.push({ value: 'documents', label: t('hr.depts.viewDocuments'), icon: 'i-lucide-file-text', to: `/hr/documents?department_id=${id}` })
+  if (props.canReadDocuments) items.push({ value: 'documents', label: t('hr.depts.viewDocuments'), icon: 'i-lucide-file-text', to: `/documents?context_kind=hr.department&context_id=${id}` })
   return items
 }
 

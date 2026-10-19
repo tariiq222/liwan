@@ -11,8 +11,6 @@ class WebVueHrEntitlementService(models.AbstractModel):
             'nav.organization',
             'nav.employees',
             'nav.departments',
-            'nav.documents',
             'hr.directory.title',
             'hr.depts.title',
-            'hr.docs.title',
         })

@@ -9,6 +9,8 @@ export type SubscriptionRunner = (input: {job:SharedReconfigureJob;action:'obser
 export interface SubscriptionAdapter {
   subscriptionRunner?: SubscriptionRunner
   observeSubscription?: ObserveRunner
+  /** Isolated restore topology only. A source observer must never be substituted. */
+  observeRestoreSubscription?: ObserveRunner
   observeUsage?: import('../commercial/usage-collector.js').UsageObserveRunner
 }
 function digest(job:SharedReconfigureJob) {return createHash('sha256').update(JSON.stringify(job)).digest('hex')}

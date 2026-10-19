@@ -26,7 +26,7 @@ test.describe('Plan 6b: the HR forms', () => {
     for (const [name, path, heading] of [
       ['employee', '/hr/employees/new?q=خالد', 'موظف جديد'],
       ['department', '/hr/departments/new?parent_id=1', 'قسم جديد'],
-      ['document', '/hr/documents/new?department_id=2', 'مستند جديد'],
+      ['document', '/documents/new?context_kind=hr.department&context_id=2', 'مستند جديد'],
     ] as const) {
       test(`the ${name} create route is a panel over its list, with one heading and a way back`, async ({ page }) => {
         await open(page, path)
@@ -72,7 +72,7 @@ test.describe('Plan 6b: the HR forms', () => {
     })
 
     test('the document edit page keeps its labels, ids and file field in two panel sections', async ({ page }) => {
-      await open(page, '/hr/departments/1/documents/1/edit')
+      await open(page, '/documents/1/edit')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('تعديل المستند')
       await expect(page.locator('#hr-doc-title')).toHaveValue('دليل إجراءات التشغيل')
       await expect(page.getByLabel('رفع ملف')).toBeVisible()
@@ -99,7 +99,7 @@ test.describe('Plan 6b: the HR forms', () => {
     test('a reader gets the forbidden state on every edit page and no form', async ({ page }) => {
       test.slow()
       await asReader(page)
-      for (const path of ['/hr/employees/1/edit', '/hr/departments/2/edit', '/hr/departments/1/documents/1/edit']) {
+      for (const path of ['/hr/employees/1/edit', '/hr/departments/2/edit', '/documents/1/edit']) {
         const response = await page.goto(path)
         expect(response?.status(), path).toBe(403)
         // The route capability gate answers a reader with the app's 403 page; the in-page state is the fallback.
@@ -119,7 +119,7 @@ test.describe('Plan 6b: the HR forms', () => {
     test.use({ viewport: { width: 390, height: 844 } })
 
     test('on a 390px phone the edit forms and the create panel fit the width', async ({ page }) => {
-      for (const path of ['/hr/employees/1/edit', '/hr/departments/2/edit', '/hr/departments/1/documents/1/edit']) {
+      for (const path of ['/hr/employees/1/edit', '/hr/departments/2/edit', '/documents/1/edit']) {
         await open(page, path)
         expect(await fitsWidth(page), path).toBe(true)
       }

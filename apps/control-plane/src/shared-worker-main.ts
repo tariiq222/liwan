@@ -1,3 +1,4 @@
+import {dispatchRestorePublication} from './shared/restore-publication.js'
 import { Pool } from 'pg'
 import { getConfig } from './config.js'
 import { attachPoolErrorHandler,migrate } from './db.js'
@@ -40,5 +41,5 @@ try{
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
   scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,signal:controller.signal})
-  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick()}})
+  await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:async()=>{await reconcileOdooOnboardings(pool,config,adapter);await scheduler!.tick();await dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})}})
 }finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}

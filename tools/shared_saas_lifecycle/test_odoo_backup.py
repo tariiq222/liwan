@@ -229,6 +229,7 @@ class ReleaseBackupBoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve()
             runner = object.__new__(odoo_backup.BackupRunner)
+            runner.config = {}
             calls = []
             runner.assert_no_effect_containers = lambda **kwargs: calls.append('runtime')
             with patch.dict(os.environ, {'WEBVUE_RELEASE_ROUTES_DIR': str(root)}):

@@ -167,18 +167,40 @@ class LocalRuntime:
             raise ReleaseConflict('maintenance_gate_changed')
         with self.connector(binding['database']) as connection:
             with connection.cursor() as cursor:
-                cursor.execute('SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND usename=%s',
-                    (binding['database'],self._role(binding,route['poolId'])))
+                cursor.execute("SELECT (SELECT count(*) FROM pg_stat_activity WHERE datname=%s AND pid<>pg_backend_pid() AND (usename=%s OR state<>'idle' OR xact_start IS NOT NULL)) + (SELECT count(*) FROM pg_prepared_xacts WHERE database=%s)",
+                    (binding['database'],self._role(binding,route['poolId']),binding['database']))
                 if cursor.fetchone()[0]: raise ReleaseConflict('old_connections_remain')
         return self.proofs[binding['tenantId']]
 
-    def capture(self, binding, proof):
+    def prepare_backup(self, binding, route):
+        if self.config['targetPool'] == route['poolId']:
+            raise ReleaseConflict('backup_fence_role_missing')
+        self._bind_role(binding, route['poolId'])
+        self._bind_role(binding, self.config['targetPool'], candidate=True)
+        if self.config['backup']['image'] != self.config['pools'][route['poolId']]['odooRuntime']['image']:
+            raise ReleaseConflict('backup_source_image_mismatch')
+
+    def resume_backup(self, binding, route):
+        if self.state.route(binding['tenantId']) != route:
+            raise ReleaseConflict('backup_route_changed')
+        self._recheck(binding)
+        restored = fence_runtime({**binding,'fence':route['fence'],'gateClosed':True,'admittedWriters':0},
+            self._role(binding,self.config['targetPool']),self._role(binding,route['poolId']),self.connector,
+            deadline_seconds=self.config.get('drainSeconds',30))
+        if restored.get('fenced') is not True:raise ReleaseConflict('backup_resume_unverified')
+        self.activate_jobs(binding,route)
+        return {'ready':True}
+
+    def capture_into(self, binding, proof, output):
         tenant = self._tenant(binding)
-        output = self.state.root/'backups'/binding['tenantId']/str(proof['fence'])
         config = {**self.config['backup'], 'mode':'local','outputDir':str(output),
                   'filestorePath':tenant['filestorePath'],'recheck':self._recheck}
         receipt = capture_tenant({**binding,'fence':proof['fence']},proof,config)
         return {**receipt,'digest':digest(receipt),'path':str(output)}
+
+    def capture(self, binding, proof):
+        output = self.state.root/'backups'/binding['tenantId']/str(proof['fence'])
+        return self.capture_into(binding,proof,output)
 
     def migration_config(self, binding, proof=None):
         config = {**self.config['migration'],**self._tenant(binding)['migration'], 'mode':'local'}

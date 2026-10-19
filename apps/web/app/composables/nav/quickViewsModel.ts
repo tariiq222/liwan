@@ -177,17 +177,18 @@ export function quickViewsModel(input: QuickViewsInput): QuickViewsModel {
     }
   }
 
-  if (path === '/hr' || path === '/hr/departments' || path === '/hr/documents' || /^\/hr\/departments\/[^/]+\/documents$/.test(path)) {
+  if (path === '/documents') return {
+    views: [], actions: [
+      ...createAction(input, 'documents.items.manage', 'new-document', 'documents.new', '/documents/new', true),
+      ...(input.can('documents.items.archive') ? [{ id: 'archived-documents', labelKey: 'documents.archived', icon: 'i-lucide-archive' as NavIcon, to: { path: '/documents', query: { archived: '1' } }, active: input.query.archived === '1', primary: false }] : []),
+    ],
+  }
+  if (path === '/hr' || path === '/hr/departments') {
     const onDepartments = path === '/hr/departments'
-    const onDocuments = path.endsWith('/documents')
-    return {
-      views: [],
-      actions: [
-        ...createAction(input, 'hr.employees.manage', 'new-employee', 'hr.directory.newEmployee', '/hr/employees/new', !onDepartments && !onDocuments),
-        ...createAction(input, 'hr.departments.manage', 'new-department', 'hr.depts.new', '/hr/departments/new', onDepartments),
-        ...createAction(input, 'hr.documents.manage', 'new-document', 'hr.docs.new', '/hr/documents/new', onDocuments),
-      ].sort((a, b) => Number(b.primary) - Number(a.primary)),
-    }
+    return { views: [], actions: [
+      ...createAction(input, 'hr.employees.manage', 'new-employee', 'hr.directory.newEmployee', '/hr/employees/new', !onDepartments),
+      ...createAction(input, 'hr.departments.manage', 'new-department', 'hr.depts.new', '/hr/departments/new', onDepartments),
+    ].sort((a, b) => Number(b.primary) - Number(a.primary)) }
   }
 
   if (OPERATION_PATHS.has(path)) {

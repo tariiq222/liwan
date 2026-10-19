@@ -18,7 +18,7 @@ const DESCRIPTION_KEYS: Record<string, string> = {
   '/chat': 'chat.description',
   '/hr': 'hr.directory.description',
   '/hr/departments': 'hr.depts.pageDescription',
-  '/hr/documents': 'hr.docs.description',
+  '/documents': 'documents.description',
   '/meetings/follow-up': 'meetingsUx.followupDescription',
 }
 const describe = (to: string) => {

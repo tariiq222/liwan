@@ -27,6 +27,13 @@ export function subscriptionRequest(input:{job:SharedReconfigureJob;action:'obse
   return {action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},releaseBinding:input.job.binding,...input.job.authority,attemptId:input.attemptId,fence:input.fence,
     ...(typeof adminLogin==='string' && adminLogin.length>0?{admin_login:adminLogin}:{})}
 }
+/** Source usage/subscription observations must match the current source binding.
+ * Isolated restores require their own physically verified adapter; never route a
+ * target database through the source service or weaken release admission. */
+export function subscriptionObservationRequest(binding:{tenantId:string;database:string;filestore:string;registryRevision:number;host:string},input:{database:string}){
+  if(binding.database!==input.database || binding.filestore!==input.database)throw Error('tenant_binding_mismatch')
+  return {action:'observe',tenant:{database:binding.database,host:binding.host},releaseBinding:binding,attemptId:randomUUID(),fence:0}
+}
 export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present','runtime_writer_after_effect'])
 
 /** Non-reclaimable physical reservation + current durable claim per stage.
@@ -162,7 +169,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const observeSubscription:ObserveRunner=async input=>{
     const row=await pool.query('SELECT host,tenant_id AS "tenantId",database_name AS database,filestore,registry_revision::float8 AS "registryRevision" FROM shared_registry_bindings WHERE control_tenant_id=$1 AND enabled=true',[input.tenant_id])
     if(!row.rowCount)throw Error('tenant_binding_mismatch')
-    return await subscriptionExecute({action:'observe',tenant:{database:input.database,host:row.rows[0].host},releaseBinding:row.rows[0],attemptId:randomUUID(),fence:0},undefined,input.signal) as Awaited<ReturnType<ObserveRunner>>
+    return await subscriptionExecute(subscriptionObservationRequest(row.rows[0],input),undefined,input.signal) as Awaited<ReturnType<ObserveRunner>>
   }
   // The same read-only observe action; the collector validates every field it keeps.
   const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>await observeSubscription(input) as unknown

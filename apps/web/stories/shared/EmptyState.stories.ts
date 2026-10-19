@@ -37,3 +37,14 @@ export const Bordered: Story = {
     template: `<div class="max-w-2xl bg-muted p-4"><EmptyState bordered :title="$t('tasks.empty.title')"><template #action><UButton size="sm">{{ $t('tasks.empty.action') }}</UButton></template></EmptyState></div>`,
   }),
 }
+
+export const Compact: Story = {
+  name: 'حالة فارغة مدمجة داخل قسم',
+  args: { compact: true },
+  render: args => ({
+    components: { EmptyState },
+    setup: () => ({ args }),
+    template: `<EmptyState v-bind="args" :title="$t('documents.noFiles')" />`,
+  }),
+  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:34'),
+}

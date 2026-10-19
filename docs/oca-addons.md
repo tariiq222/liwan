@@ -1,7 +1,7 @@
 # Pinned OCA addons
 
 WebVue's Odoo runs with a few OCA 19.0 repositories on its addons path (finance reporting,
-reconciliation, assets, MIS reports). They are separate, pinned dependencies fetched at run or build
+reconciliation, assets, MIS reports and document management). They are separate, pinned dependencies fetched at run or build
 time. OCA code is never copied into this repository, and never into `odoo-addons/`.
 
 ## Source of truth
@@ -45,7 +45,7 @@ The OCA path always comes last, after the existing entries, so nothing existing 
 
 ## What uses them
 
-`webvue_finance` is the only WebVue addon that depends on OCA modules (`odoo-addons/webvue_finance/README.md`, "OCA-backed
+`webvue_finance` depends on OCA finance modules (`odoo-addons/webvue_finance/README.md`, "OCA-backed
 reports, assets and bank"). Only modules a route uses are declared:
 
 | OCA module (repository) | Used for |
@@ -58,6 +58,11 @@ reports, assets and bank"). Only modules a route uses are declared:
 
 `date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and
 `account_fiscal_year` are in the pinned repositories but unused.
+
+`dms` (OCA/dms) is pinned for the independent documents replacement. Its adoption remains
+subject to the attachment, migration and access acceptance gates; the pin alone does not
+replace HR documents. Provenance and license headers are recorded in
+[the DMS provenance record](verification/oca-dms/PROVENANCE.md).
 
 ## Bump a pin
 

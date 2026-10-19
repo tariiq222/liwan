@@ -114,6 +114,17 @@
         "limit:ai.messages.monthly",
         "limit:ai.tool_calls.per_run"
       ]
+    },
+    {
+      "id": "documents",
+      "name": "Documents",
+      "description": "The Documents application.",
+      "modules": [
+        "webvue_documents"
+      ],
+      "features": [
+        "boolean:documents.enabled"
+      ]
     }
   ]
 }

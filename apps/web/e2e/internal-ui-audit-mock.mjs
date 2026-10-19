@@ -18,7 +18,7 @@ const CAPABILITIES = [
   'access.users.read', 'access.users.grant', 'access.users.assign_roles', 'access.users.disable',
   'access.users.reset_password', 'access.roles.read', 'access.roles.manage', 'access.audit.read',
   'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive', 'hr.employees.access_status.read',
-  'hr.departments.read', 'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
+  'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage',
   'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage', 'pmo.settings.manage',
   'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write', 'pmo.tasks.approve',
   'settings.branding.manage', 'ai.use',
@@ -30,15 +30,15 @@ const ME = {
   roles: [{ id: 1, key: 'admin', name: { ar: 'مدير', en: 'Admin' }, type: 'built_in', protected: true, source: 'assignment' }],
   capabilities: CAPABILITIES, access_policy_version: 1,
   company: { id: 1, name: 'WebVue' },
-  modules: ['webvue_chat', 'webvue_hr', 'webvue_pmo'],
+  modules: ['webvue_chat', 'webvue_hr', 'webvue_documents', 'webvue_pmo'],
   entitlements: {
-    'pmo.enabled': true, 'meetings.enabled': true, 'hr.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
+    'pmo.enabled': true, 'meetings.enabled': true, 'documents.enabled': true, 'hr.enabled': true, 'chat.enabled': true, 'ai.enabled': true,
     'users.limit': null, 'projects.max_projects': null, 'storage.limit_mb': null,
   },
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['ai.enabled', 'chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
-    writable_features: ['ai.enabled', 'chat.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    readable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
+    writable_features: ['ai.enabled', 'chat.enabled', 'documents.enabled', 'hr.enabled', 'meetings.enabled', 'pmo.enabled'],
   },
   terminology: { ar: {}, en: {} },
 }

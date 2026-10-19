@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import restore_verify as rv
+from deploy import restore_verify as rv
 
 
 class Completed:

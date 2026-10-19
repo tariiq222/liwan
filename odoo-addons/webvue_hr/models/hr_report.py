@@ -18,42 +18,38 @@ class WebVueHrReport(models.AbstractModel):
     _description = 'HR Reports'
 
     @api.model
-    def _webvue_expiring(self, within_days, *, documents):
+    def _webvue_expiring(self, within_days):
         """Dated items due up to ``within_days`` days ahead, overdue ones first.
 
         An item already past its date stays listed with a negative ``days_left``.
 
         Reads run with the caller's access, so the models enforce capability and
-        company scope; ``documents`` says whether the caller may read HR documents.
+        company scope. Installed bridges may add their visible dated items.
         """
         today = fields.Date.context_today(self)
         limit = today + timedelta(days=within_days)
         items = []
-        for employee in self.env['hr.employee'].search([('company_id', '=', self.env.company.id)]):
+        for employee in self.env['hr.employee'].search(
+            [('company_id', '=', self.env.company.id)],
+        ):
             for kind, field in EMPLOYEE_EXPIRY_FIELDS:
                 due = employee[field]
                 if due and due <= limit:
-                    items.append({
-                        'kind': kind,
-                        'employee': {'id': employee.id, 'name': employee.name},
-                        'document': None,
-                        'due_date': due,
-                        'days_left': (due - today).days,
-                    })
-        if documents:
-            for document in self.env['webvue.hr.document'].search([
-                ('company_id', '=', self.env.company.id),
-                ('expiry_date', '!=', False),
-                ('expiry_date', '<=', limit),
-            ]):
-                items.append({
-                    'kind': 'document',
-                    'employee': None,
-                    'document': {'id': document.id, 'name': document.name},
-                    'due_date': document.expiry_date,
-                    'days_left': (document.expiry_date - today).days,
-                })
+                    items.append(
+                        {
+                            'kind': kind,
+                            'employee': {'id': employee.id, 'name': employee.name},
+                            'document': None,
+                            'due_date': due,
+                            'days_left': (due - today).days,
+                        },
+                    )
+        items.extend(self._webvue_additional_expiring(within_days))
         return sorted(items, key=lambda item: (item['due_date'], item['kind']))
+
+    @api.model
+    def _webvue_additional_expiring(self, within_days):
+        return []
 
     @api.model
     def _webvue_saudization(self):
@@ -64,25 +60,40 @@ class WebVueHrReport(models.AbstractModel):
         """
         counts = defaultdict(lambda: {'saudi': 0, 'non_saudi': 0, 'unknown': 0})
         departments = {}
-        for employee in self.env['hr.employee'].search([('company_id', '=', self.env.company.id)]):
+        for employee in self.env['hr.employee'].search(
+            [('company_id', '=', self.env.company.id)],
+        ):
             department = employee.department_id
             departments[department.id] = department
             country = employee.country_id
-            bucket = 'unknown' if not country else (
-                'saudi' if country.code == SAUDI_COUNTRY_CODE else 'non_saudi'
+            bucket = (
+                'unknown'
+                if not country
+                else ('saudi' if country.code == SAUDI_COUNTRY_CODE else 'non_saudi')
             )
             counts[department.id][bucket] += 1
         # Departments by name, the employees without one last.
-        ordered = sorted(counts, key=lambda dept_id: (not dept_id, departments[dept_id].name or ''))
+        ordered = sorted(
+            counts, key=lambda dept_id: (not dept_id, departments[dept_id].name or ''),
+        )
         rows = [
             {
-                'department': {'id': dept_id, 'name': departments[dept_id].name} if dept_id else None,
+                'department': {'id': dept_id, 'name': departments[dept_id].name}
+                if dept_id
+                else None,
                 **self._webvue_saudization_row(counts[dept_id]),
             }
             for dept_id in ordered
         ]
-        overall = {key: sum(c[key] for c in counts.values()) for key in ('saudi', 'non_saudi', 'unknown')}
-        return {'overall': self._webvue_saudization_row(overall), 'items': rows, 'total': len(rows)}
+        overall = {
+            key: sum(c[key] for c in counts.values())
+            for key in ('saudi', 'non_saudi', 'unknown')
+        }
+        return {
+            'overall': self._webvue_saudization_row(overall),
+            'items': rows,
+            'total': len(rows),
+        }
 
     @api.model
     def _webvue_saudization_row(self, counts):

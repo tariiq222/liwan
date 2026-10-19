@@ -205,3 +205,30 @@ Dockerfile build. Reports distinguish Docker identity, session/attachment reads,
 role fencing and singleton cron polling from business-job execution and complete
 restore acceptance. Never publish its private output configurations or session
 files. See the dated local verification report for actual commands and limits.
+
+## Independent Nitro bundles
+
+Prepare a completed build outside every running output directory. Record the exact source-input digest independently; this argument is an operator assertion, not image/build attestation.
+
+```sh
+python3 -B -m deploy.releases.cli bundle-prepare --source-output /srv/webvue/builds/candidate/.output --releases /srv/webvue/bundles --release-id release_20261019 --source-digest <64-hex-source-input-digest>
+python3 -B -m deploy.releases.cli bundle-verify --bundle /srv/webvue/bundles/release_20261019 --source-digest <64-hex-source-input-digest>
+```
+
+Run the verified bundle's `server/index.mjs` with its matching backend configuration; never run a build in that bundle. Internal Nitro dependency links are materialized, external/cyclic links rejected. Existing release IDs cannot be replaced. Public hashed assets use the existing append-only asset store. Old browser sessions still require the guard's configured asset-store route; copying a bundle alone does not activate a blue/green route.
+
+## Backup without a shared-service stop
+
+`backup-current` uses the same durable tenant maintenance barrier, guard acknowledgement and PostgreSQL role fencing as releases. It refuses an active drain, wrong binding, missing independent candidate role, wrong source image, running candidate cron or changed quiescence. It stops only the declared tenant cron; it never stops the shared HTTP service. Success restores admission to the current runtime role and restarts that tenant's cron. A failure remains in maintenance with `needs_intervention`; replay does not automatically overwrite an artifact or clear an uncertain fence.
+
+```sh
+python3 -B -m deploy.releases.cli backup-current --state /var/lib/webvue/releases --binding /etc/webvue/tenant-binding.json --runtime /etc/webvue/backup-runtime.json --request-id backup_20261019 --output /var/lib/webvue/backups/tenant-a-20261019
+```
+
+The runtime uses the existing `LocalRuntime` schema, two separately bound pool roles and a backup `image` matching the currently serving pool. This is tenant maintenance, not zero downtime for the affected tenant. Measure actual interruption and other-tenant continuity.
+
+For the shared control worker, the optional `releaseBackupConfig` field in its private `SharedRuntimeConfig` references an absolute, canonical JSON file with `stateDir` and `runtime` (the same release adapter configuration). The worker compares queued and registered tenant bindings and the physical PostgreSQL cluster identity, captures through this barrier, and emits the existing verified-backup manifest. The API cannot supply this file, a target, a proof or an image. Without it an enabled release-routed backup refuses rather than falling back to a global stop. Traditional non-release captures retain their explicit shared maintenance behavior.
+
+Restore publication is requested through `POST /v1/shared/tenants/:tenant/restore-publications/:approval` with only `{reason}`. It requires a fresh stepped-up vendor session with operations and tenant-management capabilities; the worker rechecks current grants, tenant state, physical observation and commercial reconciliation before using the existing isolated restore publisher. `GET` on that URL and shared operation detail report queued/published/needs-intervention. A failed/uncertain publication is not automatically requeued.
+
+The default Compose adapter currently supplies source-tenant subscription/usage observation only. It does **not** advertise `observeRestoreSubscription`. Commercial restores remain queued behind `commercial_reconciliation_pending` until an independently verified isolated-target observer and executor are provided; a source observer cannot substitute for them. Legacy tenants without an applied subscription do not require this commercial gate. PostgreSQL seam tests prove authority and queue behavior, not physical commercial restore acceptance. The inherited filesystem-publication/control-transaction recovery window also remains a release gate; this change does not establish crash-safe publication.

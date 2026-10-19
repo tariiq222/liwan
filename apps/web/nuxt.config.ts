@@ -12,6 +12,8 @@ const odoo = process.env.NUXT_ODOO_URL ?? (shared ? 'http://guard:8080' : 'http:
 
 export default defineNuxtConfig({
   extends: ['@webvue/ui', '@webvue/commercial-ui'],
+  // Test helpers must never become pages or production browser chunks.
+  ignore: ['**/__tests__/**'],
   compatibilityDate: '2025-07-15',
   hooks: {
     ready(nuxt) {

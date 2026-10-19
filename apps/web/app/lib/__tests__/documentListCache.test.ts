@@ -1,18 +1,18 @@
 import { QueryClient } from '@tanstack/vue-query'
 import { describe, expect, it } from 'vitest'
-import type { HrDocument } from '@/composables/useHrDocuments'
+import type { DocumentDetail } from '@webvue/contracts'
+import { documentKeys } from '../documentKeys'
 import {
-  documentListQueryKey,
   invalidateDocumentLists,
   replaceDocumentDetail,
 } from '../documentListCache'
 
-const document = (overrides: Partial<HrDocument> = {}): HrDocument => ({
+const document = (overrides: Partial<DocumentDetail> = {}): DocumentDetail => ({
   id: 7,
   name: 'Handbook',
-  department: { id: 3, name: 'People' },
+  visibility: 'restricted', active: true, revision: 1, file_count: 0, tags: [], context: { kind: 'hr.department', id: 3, label: 'People', href: null },
+  allowed_actions: { update: true, archive: true, restore: false, upload_file: true, manage_access: true },
   body: '<p>Updated</p>',
-  attachment_ids: [],
   expiry_date: null,
   write_date: '2026-09-05T00:00:00Z',
   ...overrides,
@@ -20,31 +20,32 @@ const document = (overrides: Partial<HrDocument> = {}): HrDocument => ({
 
 describe('document list cache', () => {
   it('keeps search, department, limit, and offset in distinct query keys', () => {
-    expect(documentListQueryKey({ q: 'hand', department_id: 3, limit: 20, offset: 40 })).toEqual([
-      'hr',
+    expect(documentKeys.list(1, { q: 'hand', context_id: 3, limit: 20, offset: 40 })).toEqual([
       'documents',
-      { q: 'hand', department_id: 3, limit: 20, offset: 40 },
+      1,
+      'list',
+      { q: 'hand', context_id: 3, limit: 20, offset: 40 },
     ])
-    expect(documentListQueryKey({ q: 'hand', department_id: 3, limit: 20, offset: 60 })).not.toEqual(
-      documentListQueryKey({ q: 'hand', department_id: 3, limit: 20, offset: 40 }),
+    expect(documentKeys.list(1, { q: 'hand', context_id: 3, limit: 20, offset: 60 })).not.toEqual(
+      documentKeys.list(1, { q: 'hand', context_id: 3, limit: 20, offset: 40 }),
     )
   })
 
   it('replaces the selected document detail with the server response', () => {
     const client = new QueryClient()
-    replaceDocumentDetail(client, document())
+    replaceDocumentDetail(client, 1, document())
 
-    expect(client.getQueryData(['hr', 'document', 7])).toEqual(document())
+    expect(client.getQueryData(['documents', 1, 'detail', 7])).toEqual(document())
   })
 
   it('keeps filtered list data scoped while invalidating every list variant', async () => {
     const client = new QueryClient()
-    const allKey = documentListQueryKey({ limit: 20, offset: 0 })
-    const departmentKey = documentListQueryKey({ department_id: 3, limit: 20, offset: 0 })
-    const searchKey = documentListQueryKey({ q: 'hand', limit: 20, offset: 0 })
-    const pageKey = documentListQueryKey({ q: 'hand', department_id: 3, limit: 20, offset: 20 })
+    const allKey = documentKeys.list(1, { limit: 20, offset: 0 })
+    const departmentKey = documentKeys.list(1, { context_id: 3, limit: 20, offset: 0 })
+    const searchKey = documentKeys.list(1, { q: 'hand', limit: 20, offset: 0 })
+    const pageKey = documentKeys.list(1, { q: 'hand', context_id: 3, limit: 20, offset: 20 })
     const allData = { items: [document()], total: 1 }
-    const departmentData = { items: [document({ id: 8, department: { id: 3, name: 'People' } })], total: 1 }
+    const departmentData = { items: [document({ id: 8, context: { kind: 'hr.department', id: 3, label: 'People', href: null } })], total: 1 }
     const searchData = { items: [document({ id: 9, name: 'Handbook: Search' })], total: 1 }
     const pageData = { items: [], total: 21 }
 
@@ -53,7 +54,7 @@ describe('document list cache', () => {
     client.setQueryData(searchKey, searchData)
     client.setQueryData(pageKey, pageData)
 
-    await invalidateDocumentLists(client)
+    await invalidateDocumentLists(client, 1)
 
     expect(client.getQueryData(allKey)).toEqual(allData)
     expect(client.getQueryData(departmentKey)).toEqual(departmentData)
@@ -64,4 +65,21 @@ describe('document list cache', () => {
     expect(client.getQueryState(searchKey)?.isInvalidated).toBe(true)
     expect(client.getQueryState(pageKey)?.isInvalidated).toBe(true)
   })
+})
+
+it('keeps the highest full-detail revision within one company and record', () => {
+  const client = new QueryClient()
+  const newer = document({ revision: 5, body: 'New content' })
+  replaceDocumentDetail(client, 1, newer)
+  replaceDocumentDetail(client, 1, document({ revision: 3, body: 'Stale content' }))
+  expect(client.getQueryData(documentKeys.detail(1, 7))).toEqual(newer)
+  replaceDocumentDetail(client, 2, document({ revision: 1, body: 'Other company content' }))
+  expect(client.getQueryData(documentKeys.detail(2, 7))).toMatchObject({ body: 'Other company content', revision: 1 })
+})
+
+it('accepts refreshed permissions at the same revision without losing monotonic content revisions', () => {
+  const client = new QueryClient()
+  replaceDocumentDetail(client, 1, document({ revision: 5 }))
+  replaceDocumentDetail(client, 1, document({ revision: 5, allowed_actions: { update: false, archive: false, restore: false, upload_file: false, manage_access: false } }))
+  expect(client.getQueryData(documentKeys.detail(1, 7))).toMatchObject({ revision: 5, allowed_actions: { update: false, manage_access: false } })
 })

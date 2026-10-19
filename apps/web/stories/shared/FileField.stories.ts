@@ -17,17 +17,17 @@ export const InMeetingAttachments: Story = {
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<div style="display: grid; min-width: 0; gap: 8px; margin-block-start: 16px; padding-block-start: 16px; border-block-start: 1px solid var(--border)"><label for="meeting-attachment-upload" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.uploadAttachment') }}</label><FileField id="meeting-attachment-upload" class="w-full" :disabled="args.disabled" /><p class="text-xs text-muted-foreground">{{ t('meetingsUi.attachmentHelp') }}</p></div>`,
+    template: `<div class="grid min-w-0 gap-(--webvue-gap-card) mt-4 border-t border-default pt-4"><label for="meeting-attachment-upload" class="text-sm font-medium text-highlighted">{{ t('meetingsUi.uploadAttachment') }}</label><FileField id="meeting-attachment-upload" class="w-full" :disabled="args.disabled" /><p class="text-xs text-muted">{{ t('meetingsUi.attachmentHelp') }}</p></div>`,
   }),
 }
 
 export const InDocumentCard: Story = {
-  name: 'داخل بطاقة مرفقات مستند',
-  parameters: storyContext('apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue:95'),
+  name: 'رفع فوري من ترويسة المستند',
+  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:30', 'زر رفع مباشر بلا اسم ملف معلّق؛ يحافظ الحقل في النماذج على الاختيار التقليدي افتراضيًا.'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),
-    template: `<UCard class="rounded-card ring ring-default bg-default overflow-hidden" :ui="{ header: '' }"><template #header><h2 class="text-lg font-semibold text-highlighted">{{ t('hr.docs.attachments') }}</h2></template><div class="space-y-3"><UFormField :label="t('hr.docs.upload')" name="hr-doc-upload"><FileField id="hr-doc-upload" class="w-full" :disabled="args.disabled" /></UFormField></div></UCard>`,
+    template: `<UFormField name="document-upload"><FileField id="document-upload" :label="t('documents.upload')" :aria-label="t('documents.upload')" :show-file-name="false" :disabled="args.disabled" /></UFormField>`,
   }),
 }
 

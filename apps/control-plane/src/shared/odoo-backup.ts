@@ -11,7 +11,7 @@ import {assertSameBinding,businessKey,payloadDigest} from './provisioning.js'
 import {assertNoSymlink,type SharedRuntimeConfig} from './runtime-config.js'
 import {prepareCommercialRestorePublication,revalidateCommercialRestorePublication,type CommercialRestoreRunner} from './shared-backup.js'
 import {RegistryError} from './registry-store.js'
-import { actorLabel } from '../admin-auth/grants.js'
+import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 const hash=z.string().regex(/^[a-f0-9]{64}$/)
 export const manifestSchema=z.strictObject({
@@ -107,6 +107,10 @@ export async function odooJobProgress(pool:Pool,tenantId:string,jobId:string){
  const r=result.rows[0]
  return {id:r.id,state:r.state,operation:r.operation,...(r.state==='verified' && r.backup_id?{backupId:r.backup_id}:{}),...(r.approval_id?{approvalId:r.approval_id}:{})}
 }
+export async function requireOdooRestorePublicationAuthority(client:import('pg').PoolClient,tenantId:string,actor:RegistryActor){
+ if(!await actorHolds(client,actor,['vendor.tenants.manage','vendor.operations.run'],true))throw new RegistryError('restore_publication_forbidden',403)
+ if(!(await client.query("SELECT id FROM tenants WHERE id=$1 AND commercial_mode='saas' AND operations_enabled=true FOR SHARE",[tenantId])).rowCount)throw new RegistryError('tenant_operations_unavailable')
+}
 /** Separate restore registry only. Caller must freshly observe the exact effect first. */
 export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,actor:RegistryActor,approvalId:string,observe:(job:SharedJob)=>Promise<unknown>,options:{runner?:CommercialRestoreRunner}={}){
  z.uuid().parse(approvalId)
@@ -119,6 +123,7 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
  const receipt=sharedReceiptSchema.parse(row.receipt)
  if(receipt.payloadDigest!==payloadDigest(job) || receipt.businessKey!==businessKey(job) || receipt.operation!=='restore')throw Error('shared_restore_unverified')
  assertSameBinding(receipt.binding,job.binding)
+ await transaction(pool,client=>requireOdooRestorePublicationAuthority(client,row.control_tenant_id,actor))
  const result=await observe(job) as {state?:string;verified?:boolean;payloadDigest?:string;businessKey?:string;binding?:unknown}
  if(result.state!=='present'||!result.verified||result.payloadDigest!==receipt.payloadDigest||result.businessKey!==receipt.businessKey)throw Error('shared_restore_unverified')
  assertSameBinding(result.binding,job.binding)
@@ -128,14 +133,14 @@ export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
  const preflight=await pool.connect()
  let commercial:{ready:boolean;applied_revision_id:string|null}
  try{
-  await requireJobAuthority(preflight,row.control_tenant_id,actor)
+  await requireOdooRestorePublicationAuthority(preflight,row.control_tenant_id,actor)
   commercial=await prepareCommercialRestorePublication(pool,preflight,row.control_tenant_id,{database:row.target_database,filestore:row.target_database,host},options.runner,approvalId)
  }finally{preflight.release()}
  if(!commercial.ready)throw new RegistryError('commercial_reconciliation_pending')
  // Serialize only the small file publication, after external physical readback.
  await transaction(pool,async client=>{
   await client.query('SELECT pg_advisory_xact_lock($1)',[REGISTRY_ADVISORY_LOCK])
-  await requireJobAuthority(client,row.control_tenant_id,actor)
+  await requireOdooRestorePublicationAuthority(client,row.control_tenant_id,actor)
   const {enabled,...sourceBinding}=await resolveRegistryBinding(client,row.control_tenant_id)
   if(!enabled)throw Error('tenant_unavailable')
   assertSameBinding(sourceBinding,job.binding)

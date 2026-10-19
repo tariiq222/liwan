@@ -14,8 +14,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-import backup
-import check_isolated
+from deploy import backup, check_isolated
 
 
 def _touch(path: Path, content: str = '') -> None:

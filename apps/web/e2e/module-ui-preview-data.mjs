@@ -1,4 +1,5 @@
 // Opt-in synthetic responses for internal module UI review. Never reads or writes Odoo data.
+import { documentsPreviewData } from './documents-ui-preview-data.mjs'
 import { hrPreviewData } from './hr-ui-preview-data.mjs'
 
 export const moduleUiCapabilities = [
@@ -16,8 +17,8 @@ export const moduleUiCapabilities = [
   'hr.employees.access_status.read',
   'hr.departments.read',
   'hr.departments.manage',
-  'hr.documents.read',
-  'hr.documents.manage',
+  'documents.items.read',
+  'documents.items.manage',
   'pmo.projects.read',
   'pmo.projects.create',
   'pmo.projects.manage',
@@ -342,6 +343,7 @@ export function moduleUiPreviewData(path, url) {
   if (normalizedPath === '/api/v1/meeting-series/1/events') return page(events, parsedUrl)
   if (normalizedPath === '/api/v1/meeting-series/1/resolutions') return page([{ ...resolution, meeting_id: 1, meeting_name: meeting.name }], parsedUrl)
 
+  if (normalizedPath.startsWith('/api/v1/documents')) return documentsPreviewData(normalizedPath, parsedUrl)
   if (normalizedPath.startsWith('/api/v1/hr/')) return hrPreviewData(normalizedPath, parsedUrl)
 
   if (normalizedPath === '/api/v1/admin/users') return page([adminUser], parsedUrl)

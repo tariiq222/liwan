@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { login, open } from './support/tasmim6'
 
 const lists = [
-  { name: 'documents', path: '/hr/documents', input: '[data-shortcut-search] input', search: 'دليل', record: '/hr/departments/1/documents/1', create: 'hr-document-new' },
+  { name: 'documents', path: '/documents', input: '[data-shortcut-search] input', search: 'دليل', record: '/documents/1', create: 'document-new' },
   { name: 'meetings', path: '/meetings', input: '#meeting-search', search: 'اجتماع', record: '/meetings/1', create: 'meeting-new' },
   { name: 'series', path: '/meetings/series', input: '#meeting-series-search', search: 'اجتماعات', record: '/meetings/series/1', create: 'meeting-series-new' },
 ] as const

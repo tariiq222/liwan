@@ -8,7 +8,7 @@ import json
 import shlex
 import unittest
 
-from test_edge_rate_limit import CADDYFILE, _adapt_shared_caddyfile, _caddy_container
+from deploy.test_edge_rate_limit import CADDYFILE, _adapt_shared_caddyfile, _caddy_container
 
 
 def edge_requests(cases):

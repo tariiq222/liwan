@@ -108,14 +108,14 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
   z.uuid().parse(id)
   // Preflight only on the subscription-capable path; legacy adapters (no
   // subscriptionRunner/observeSubscription) never see this extra query.
-  const subscriptionCapable=Boolean(adapter.subscriptionRunner || adapter.observeSubscription)
+  const subscriptionCapable=Boolean(adapter.subscriptionRunner || adapter.observeSubscription || adapter.observeRestoreSubscription)
   const kind=subscriptionCapable?await pool.query("SELECT payload->>'operation' AS operation,* FROM shared_jobs WHERE id=$1",[id]):{rows:[] as any[]}
   if(kind.rows[0]?.operation==='reconfigure')return runSubscriptionReconfigure(pool,id,adapter.subscriptionRunner)
   if(kind.rows[0]?.journal?.stage==='waiting_commercial_reconcile'){
     const row=kind.rows[0],job=bindJob(row.payload)
     if(job.operation!=='restore' || row.state!=='queued')throw Error('shared_job_not_claimable')
     const target=await pool.query('SELECT target_database FROM shared_restore_approvals WHERE id=$1',[job.approvalId])
-    const gate=await commercialRestoreGate(pool,{tenant_id:row.control_tenant_id,restore_id:job.approvalId,target:{database:target.rows[0].target_database,filestore:target.rows[0].target_database,host:job.binding.tenantId+'.restore'},runner:adapter.observeSubscription})
+    const gate=await commercialRestoreGate(pool,{tenant_id:row.control_tenant_id,restore_id:job.approvalId,target:{database:target.rows[0].target_database,filestore:target.rows[0].target_database,host:job.binding.tenantId+'.restore'},runner:adapter.observeRestoreSubscription})
     if(gate.ready){
       // Effect and receipt were stored when the job was requeued; never re-claim or re-execute.
       await pool.query("UPDATE shared_jobs SET state='verified',journal=jsonb_set(journal,'{stage}','\"verified\"'),lease_until=NULL WHERE id=$1 AND state='queued' AND receipt IS NOT NULL",[id])
@@ -212,7 +212,7 @@ export async function runSharedJob(pool: Pool, id: string, adapter?: SharedFence
       await owned(client => finalizeVerifiedRestore(client,claim.job,actor))
       const approval = await pool.query('SELECT target_database FROM shared_restore_approvals WHERE id=$1',[claim.job.approvalId])
       const database = approval.rows[0]?.target_database
-      const gate = database ? await commercialRestoreGate(pool,{tenant_id:claim.row.control_tenant_id,restore_id:claim.job.approvalId,target:{database,filestore:database,host:claim.job.binding.tenantId+'.restore'},runner:adapter.observeSubscription}) : { ready:true }
+      const gate = database ? await commercialRestoreGate(pool,{tenant_id:claim.row.control_tenant_id,restore_id:claim.job.approvalId,target:{database,filestore:database,host:claim.job.binding.tenantId+'.restore'},runner:adapter.observeRestoreSubscription}) : { ready:true }
       if (!gate.ready) {
         await owned(async (client,row) => {
           // Store the receipt (non-final: state stays queued) so the re-claim
