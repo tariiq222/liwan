@@ -116,10 +116,21 @@
     },
     "finance": {
       "components": [
-        "accounting"
+        "finance"
       ],
       "pages": [
-        "accounting"
+        "finance"
+      ],
+      "tags": [
+        "Accounting",
+        "FinancePartner",
+        "FinanceSetup",
+        "FinanceDraft",
+        "FinanceInvoices",
+        "FinancePayments"
+      ],
+      "composables": [
+        "composables/finance/*"
       ]
     },
     "documents": {
