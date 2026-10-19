@@ -1,0 +1,259 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""/api/v1/hr/shifts: the WebVue surface over stock resource.calendar and the OCA
+hr_employee_calendar_planning engine (spec 6.2).
+
+A schedule is a company-owned, non-auto-generated resource.calendar; an assignment is
+one hr.employee.calendar planning row. The engine keeps its own behaviour (overlap
+refusal, the employee's auto calendar regeneration, the in-use refusal on archive);
+this controller checks the WebVue capability, scopes every query to the current
+company and serializes the whitelisted shape. Writes run as the caller: the
+hr.shifts.manage capability depends on hr.employees.manage, whose group supplies the
+engine ACLs.
+"""
+from odoo import http
+from odoo.exceptions import MissingError
+from odoo.http import request
+
+from odoo.addons.webvue_api.controllers.common import (
+    ApiError,
+    api_handler,
+    parse_page,
+    parse_positive_int,
+    requires_capability,
+    requires_feature,
+)
+from odoo.addons.webvue_hr.serializers.dates import parse_optional_date
+from odoo.addons.webvue_hr.serializers.shifts.hr_shift import (
+    dump_assignment,
+    dump_schedule,
+    parse_assignment_create,
+    parse_assignment_patch,
+    parse_schedule_create,
+    parse_schedule_patch,
+)
+
+ACTIVE_VALUES = {'1': True, 'true': True, '0': False, 'false': False, 'all': None}
+
+
+def _parse_active(value):
+    """The ``active`` filter: on by default, ``all`` includes the archived schedules."""
+    if value is None:
+        return True
+    if value in ACTIVE_VALUES:
+        return ACTIVE_VALUES[value]
+    raise ApiError(422, 'invalid', "active must be '0', 'false', '1', 'true' or 'all'", field='active')
+
+
+def _timezones():
+    """Every timezone the engine's Selection field accepts."""
+    calendar = request.env['resource.calendar']
+    return dict(calendar._fields['tz']._description_selection(calendar.env))
+
+
+def _missing(model, record_id):
+    raise MissingError(request.env._('%(model)s %(id)s does not exist', model=model, id=record_id))
+
+
+def _current_schedule(schedule_id):
+    """A schedule of the current company, archived ones included."""
+    schedule = request.env['resource.calendar'].with_context(active_test=False).search([
+        ('id', '=', int(schedule_id)),
+        ('company_id', '=', request.env.company.id),
+        ('auto_generate', '=', False),
+    ], limit=1)
+    if not schedule:
+        _missing('resource.calendar', schedule_id)
+    return schedule
+
+
+def _assignable_schedule(schedule_id):
+    """The schedule an assignment points at: current-company and not auto-generated."""
+    schedule = request.env['resource.calendar'].search([
+        ('id', '=', schedule_id),
+        ('company_id', '=', request.env.company.id),
+        ('auto_generate', '=', False),
+    ], limit=1)
+    if not schedule:
+        raise ApiError(
+            422, 'invalid', 'schedule_id is not an available work schedule', field='schedule_id',
+        )
+    return schedule
+
+
+def _current_employee(employee_id):
+    """The employee an assignment points at: current-company and active."""
+    employee = request.env['hr.employee'].search([
+        ('id', '=', employee_id),
+        ('company_id', '=', request.env.company.id),
+        ('active', '=', True),
+    ], limit=1)
+    if not employee:
+        raise ApiError(
+            422, 'invalid', 'employee_id is not an active employee of the current company',
+            field='employee_id',
+        )
+    return employee
+
+
+def _current_assignment(assignment_id):
+    """One planning row of the current company (another company's row is a 404)."""
+    row = request.env['hr.employee.calendar'].search([
+        ('id', '=', int(assignment_id)),
+        ('company_id', '=', request.env.company.id),
+    ], limit=1)
+    if not row:
+        _missing('hr.employee.calendar', assignment_id)
+    return row
+
+
+def _own_employee():
+    employee = request.env.user.employee_ids.filtered(
+        lambda record: record.company_id == request.env.company,
+    )[:1]
+    if not employee:
+        raise ApiError(422, 'invalid', 'the current user has no employee record in this company')
+    return employee
+
+
+def _reject_self_assignment(employee):
+    """Self-decision: nobody plans their own shifts."""
+    if employee in request.env.user.employee_ids:
+        raise ApiError(403, 'forbidden', 'an assignment of the caller cannot be planned by the caller')
+
+
+class HrShiftController(http.Controller):
+
+    @http.route('/api/v1/hr/shifts/schedules', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='read')
+    @requires_capability('hr.shifts.read')
+    def list_schedules(self, **_):
+        args = request.httprequest.args
+        active = _parse_active(args.get('active'))
+        limit, offset = parse_page(args)
+        schedules = request.env['resource.calendar'].with_context(active_test=active is not False)
+        domain = [('company_id', '=', request.env.company.id), ('auto_generate', '=', False)]
+        if active is not None:
+            domain.append(('active', '=', active))
+        total = schedules.search_count(domain)
+        records = schedules.search(domain, limit=limit, offset=offset, order='name, id')
+        return {'items': [dump_schedule(record) for record in records], 'total': total}
+
+    @http.route('/api/v1/hr/shifts/schedules', type='json2', auth='user', methods=['POST'])
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='write')
+    @requires_capability('hr.shifts.manage')
+    def create_schedule(self, **payload):
+        vals = parse_schedule_create(payload, _timezones(), request.env.company.id)
+        return dump_schedule(request.env['resource.calendar'].create(vals))
+
+    @http.route('/api/v1/hr/shifts/schedules/<int:schedule_id>', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='read')
+    @requires_capability('hr.shifts.read')
+    def get_schedule(self, schedule_id, **_):
+        return dump_schedule(_current_schedule(schedule_id))
+
+    @http.route('/api/v1/hr/shifts/schedules/<int:schedule_id>', type='json2', auth='user', methods=['PATCH'])
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='write')
+    @requires_capability('hr.shifts.manage')
+    def update_schedule(self, schedule_id, **payload):
+        schedule = _current_schedule(schedule_id)
+        schedule.write(parse_schedule_patch(payload, _timezones()))
+        return dump_schedule(schedule)
+
+    @http.route('/api/v1/hr/shifts/schedules/<int:schedule_id>/archive', type='json2', auth='user', methods=['POST'])
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='write')
+    @requires_capability('hr.shifts.manage')
+    def archive_schedule(self, schedule_id, **payload):
+        schedule = _current_schedule(schedule_id)
+        if payload:
+            field = sorted(payload)[0]
+            raise ApiError(422, 'invalid', f"field {field!r} is not writable", field=field)
+        # The engine refuses a schedule that is still planned for a current employee (422).
+        schedule.write({'active': False})
+        return dump_schedule(schedule)
+
+    @http.route('/api/v1/hr/shifts/assignments', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='read')
+    @requires_capability('hr.shifts.read')
+    def list_assignments(self, **_):
+        args = request.httprequest.args
+        limit, offset = parse_page(args)
+        domain = [('company_id', '=', request.env.company.id)]
+        if args.get('employee_id'):
+            domain.append(('employee_id', '=', parse_positive_int(args['employee_id'], 'employee_id')))
+        if args.get('schedule_id'):
+            domain.append(('calendar_id', '=', parse_positive_int(args['schedule_id'], 'schedule_id')))
+        if args.get('on_date'):
+            on_date = parse_optional_date(args['on_date'], 'on_date')
+            # A row covers the date when each open end of its range includes it.
+            domain.extend([
+                '|', ('date_start', '<=', on_date), ('date_start', '=', False),
+                '|', ('date_end', '>=', on_date), ('date_end', '=', False),
+            ])
+        rows = request.env['hr.employee.calendar']
+        total = rows.search_count(domain)
+        records = rows.search(domain, limit=limit, offset=offset, order='date_start desc, id desc')
+        return {'items': [dump_assignment(record) for record in records], 'total': total}
+
+    @http.route('/api/v1/hr/shifts/assignments', type='json2', auth='user', methods=['POST'])
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='write')
+    @requires_capability('hr.shifts.manage')
+    def create_assignment(self, **payload):
+        vals = parse_assignment_create(payload)
+        employee = _current_employee(vals['employee_id'])
+        schedule = _assignable_schedule(vals['schedule_id'])
+        _reject_self_assignment(employee)
+        # An overlapping period for the same employee is refused by the engine (422).
+        row = request.env['hr.employee.calendar'].create({
+            'employee_id': employee.id,
+            'calendar_id': schedule.id,
+            'date_start': vals['date_start'] or False,
+            'date_end': vals['date_end'] or False,
+        })
+        return dump_assignment(row)
+
+    @http.route('/api/v1/hr/shifts/assignments/<int:assignment_id>', type='json2', auth='user', methods=['PATCH'])
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='write')
+    @requires_capability('hr.shifts.manage')
+    def update_assignment(self, assignment_id, **payload):
+        row = _current_assignment(assignment_id)
+        _reject_self_assignment(row.employee_id)
+        vals = parse_assignment_patch(payload, row)
+        if 'calendar_id' in vals:
+            vals['calendar_id'] = _assignable_schedule(vals['calendar_id']).id
+        row.write(vals)
+        return dump_assignment(row)
+
+    @http.route('/api/v1/hr/shifts/assignments/<int:assignment_id>', type='json2', auth='user', methods=['DELETE'])
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='write')
+    @requires_capability('hr.shifts.manage')
+    def delete_assignment(self, assignment_id, **_):
+        row = _current_assignment(assignment_id)
+        _reject_self_assignment(row.employee_id)
+        row.unlink()
+        return {'id': int(assignment_id)}
+
+    @http.route('/api/v1/hr/shifts/me', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('hr.enabled', 'hr.shifts', operation='read')
+    @requires_capability('hr.employees.read')
+    def my_assignments(self, **_):
+        """The caller's own planning rows in the current company."""
+        employee = _own_employee()
+        limit, offset = parse_page(request.httprequest.args)
+        domain = [
+            ('company_id', '=', request.env.company.id),
+            ('employee_id', '=', employee.id),
+        ]
+        rows = request.env['hr.employee.calendar']
+        total = rows.search_count(domain)
+        records = rows.search(domain, limit=limit, offset=offset, order='date_start desc, id desc')
+        return {'items': [dump_assignment(record) for record in records], 'total': total}
