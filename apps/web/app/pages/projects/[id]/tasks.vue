@@ -119,6 +119,7 @@ function columnCreateTo(column: { state?: TaskState; stageId?: number }) {
       create-test-id="project-header-create"
       :views="views"
       views-in-filters
+      kpi-toggle
     >
       <section class="min-w-0 space-y-4" :aria-label="t('projects.tabs.tasks')">
         <div class="flex justify-end">

@@ -12,20 +12,23 @@ const props = defineProps<{
   description?: string
   tags?: PageHeaderTag[]
   hideHeader?: boolean
+  /** The metrics row is the page's KPI strip: the header draws the show/hide toggle and the row follows it. */
+  kpiToggle?: boolean
 }>()
 const { t } = useI18n()
+const { shown: kpisShown } = useKpiVisibility()
 </script>
 
 <template>
   <SharedPageContainer width="list" data-template="dashboard-page">
-    <SharedPageHeader :title="props.title" :description="props.description" :tags="props.tags" :hide-title="props.hideHeader">
+    <SharedPageHeader :title="props.title" :description="props.description" :tags="props.tags" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
     </SharedPageHeader>
     <div v-if="$slots.filters" data-template="dashboard-filters" class="min-w-0"><slot name="filters" /></div>
     <div v-if="$slots.primary" data-template="dashboard-primary" class="min-w-0"><slot name="primary" /></div>
-    <section v-if="$slots.metrics" :aria-label="t('states.metrics')" data-template="dashboard-metrics" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4">
+    <section v-if="$slots.metrics && (!props.kpiToggle || kpisShown)" :aria-label="t('states.metrics')" data-template="dashboard-metrics" class="grid gap-(--webvue-gap-card) sm:grid-cols-2 xl:grid-cols-4">
       <slot name="metrics" />
     </section>
     <div class="@container min-w-0">

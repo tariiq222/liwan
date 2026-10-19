@@ -160,7 +160,7 @@ const statusLabel = computed(() => t(filters.status === 'unset' ? 'projects.filt
 </script>
 
 <template>
-  <SharedDashboardPage :title="t('projects.dashboard.title')" data-testid="project-dashboard-page">
+  <SharedDashboardPage :title="t('projects.dashboard.title')" kpi-toggle data-testid="project-dashboard-page">
     <template #filters>
       <FilterBar embedded class="w-full" :title="t('filterCard.title')" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
         <template #search>

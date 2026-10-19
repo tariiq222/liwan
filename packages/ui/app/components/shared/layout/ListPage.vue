@@ -29,6 +29,8 @@ const props = defineProps<{
   /** A link back to the page this list was opened from (the archive's back link). */
   backTo?: RouteLocationRaw
   backLabel?: string
+  /** The page carries a KPI strip: the header draws the one show/hide toggle (SharedPageHeader `kpiToggle`). */
+  kpiToggle?: boolean
 }>()
 const route = useRoute()
 const router = useRouter()
@@ -45,7 +47,7 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
 
 <template>
   <PageContainer width="list" data-template="list">
-    <PageHeader :title="props.title" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
+    <PageHeader :title="props.title" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle">
       <template v-if="props.createTo || $slots.actions" #actions>
         <UButton
           v-if="props.createTo"

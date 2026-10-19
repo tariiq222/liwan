@@ -19,6 +19,8 @@ const props = withDefaults(defineProps<{
    * that already carries the identity band, or a docked `SharedListCard fill` board.
    */
   sticky?: boolean
+  /** The page carries a KPI strip: draw the one show/hide toggle for it before the actions (DESIGN.md; the choice is `useKpiVisibility`). */
+  kpiToggle?: boolean
 }>(), { sticky: true })
 
 const { t } = useI18n()
@@ -89,7 +91,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
 
 <template>
   <header
-    v-if="!props.hideTitle || $slots.actions || $slots.default"
+    v-if="!props.hideTitle || $slots.actions || $slots.default || props.kpiToggle"
     data-slot="page-header"
     data-empty="false"
     :data-sticky="stickyHead ? 'true' : undefined"
@@ -132,7 +134,8 @@ const trail = computed<HeaderTrailStep[]>(() => {
         </div>
       </div>
     </template>
-    <div v-if="$slots.actions || $slots.default" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-3">
+    <div v-if="$slots.actions || $slots.default || props.kpiToggle" class="ms-auto flex min-w-0 max-w-full flex-wrap items-center gap-3">
+      <SharedKpiToggle v-if="props.kpiToggle" />
       <slot name="actions"><slot /></slot>
     </div>
   </header>
