@@ -65,6 +65,435 @@
       ]
     },
     {
+      "name": "DocumentsDocumentAccessForm",
+      "file": "apps/web/app/components/documents/DocumentAccessForm.vue",
+      "story": "apps/web/stories/documents/DocumentAccessForm.stories.ts",
+      "title": "Documents/DocumentAccessForm",
+      "props": [
+        {
+          "name": "access",
+          "type": "{ visibility: \"company\" | \"restricted\"; revision: number; grants: { user: { id: number; name: string; }; access: \"reader\" | \"editor\"; }[]; }",
+          "required": true
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "conflict",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "backTo",
+          "type": "string | it | et",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "save",
+          "payload": "[body: { expected_revision: number; visibility: \"company\" | \"restricted\"; grants: { user_id: number; access: \"reader\" | \"editor\"; }[]; }]"
+        },
+        {
+          "name": "reload",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UForm",
+        "UFormField",
+        "USelect"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/pages/documents/[documentId]/access.vue:25"
+        },
+        {
+          "id": "Company",
+          "name": "Company",
+          "context": "apps/web/app/pages/documents/[documentId]/access.vue:25"
+        },
+        {
+          "id": "LastEditor",
+          "name": "LastEditor",
+          "context": "apps/web/app/pages/documents/[documentId]/access.vue:25"
+        },
+        {
+          "id": "Conflict",
+          "name": "Conflict",
+          "context": "apps/web/app/pages/documents/[documentId]/access.vue:25"
+        }
+      ]
+    },
+    {
+      "name": "DocumentsDocumentContextField",
+      "file": "apps/web/app/components/documents/DocumentContextField.vue",
+      "story": "apps/web/stories/documents/DocumentContextField.stories.ts",
+      "title": "Documents/DocumentContextField",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "{ kind: string; id: number; } | null",
+          "required": true
+        },
+        {
+          "name": "known",
+          "type": "{ kind: string; id: number; label: string | null; href: string | null; } | null",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[value: { kind: string; id: number; } | null]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "USelect",
+        "USelectMenu"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/components/documents/DocumentMetadataFields.vue:34"
+        }
+      ]
+    },
+    {
+      "name": "DocumentsDocumentCreateForm",
+      "file": "apps/web/app/components/documents/DocumentCreateForm.vue",
+      "story": "apps/web/stories/documents/DocumentCreateForm.stories.ts",
+      "title": "Documents/DocumentCreateForm",
+      "props": [
+        {
+          "name": "initialContext",
+          "type": "{ kind: string; id: number; } | null",
+          "required": false
+        },
+        {
+          "name": "backTo",
+          "type": "string | it | et",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "saved",
+          "payload": "[id: number]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UForm",
+        "UFormField",
+        "UInput"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/pages/documents/new.vue:15"
+        }
+      ]
+    },
+    {
+      "name": "DocumentsDocumentEditor",
+      "file": "apps/web/app/components/documents/DocumentEditor.vue",
+      "story": "apps/web/stories/documents/DocumentEditor.stories.ts",
+      "title": "Documents/DocumentEditor",
+      "props": [
+        {
+          "name": "modelValue",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "documentId",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "debounce",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false,
+          "default": "false"
+        }
+      ],
+      "events": [
+        {
+          "name": "update:modelValue",
+          "payload": "[string, number]"
+        },
+        {
+          "name": "escape",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UButton",
+        "UInput",
+        "USkeleton"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/components/documents/DocumentCreateForm.vue:35"
+        }
+      ]
+    },
+    {
+      "name": "DocumentsDocumentFiles",
+      "file": "apps/web/app/components/documents/DocumentFiles.vue",
+      "story": "apps/web/stories/documents/DocumentFiles.stories.ts",
+      "title": "Documents/DocumentFiles",
+      "props": [
+        {
+          "name": "document",
+          "type": "{ id: number; name: string; visibility: \"company\" | \"restricted\"; active: boolean; expiry_date: string | null; write_date: string; revision: number; file_count: number; tags: { id: number; name: string; }[]; context: { kind: string; id: number; label: string | null; href: string | null; } | null; allowed_actions: { update: boolean; archive: boolean; restore: boolean; upload_file: boolean; manage_access: boolean; }; body: string; }",
+          "required": true
+        },
+        {
+          "name": "files",
+          "type": "{ id: number; name: string; mimetype: string; file_size: number; active: boolean; is_locked: boolean; is_lock_editor: boolean; download_url: string; allowed_actions: { archive: boolean; restore: boolean; lock: boolean; unlock: boolean; }; }[]",
+          "required": false
+        },
+        {
+          "name": "pending",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "error",
+          "type": "unknown",
+          "required": false
+        },
+        {
+          "name": "page",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "pages",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "events": [
+        {
+          "name": "upload",
+          "payload": "[file: File]"
+        },
+        {
+          "name": "action",
+          "payload": "[file: { id: number; name: string; mimetype: string; file_size: number; active: boolean; is_locked: boolean; is_lock_editor: boolean; download_url: string; allowed_actions: { archive: boolean; restore: boolean; lock: boolean; unlock: boolean; }; }, action: \"archive\" | \"restore\" | \"lock\" | \"unlock\"]"
+        },
+        {
+          "name": "page",
+          "payload": "[value: number]"
+        },
+        {
+          "name": "retry",
+          "payload": "[]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UFormField"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+        },
+        {
+          "id": "Reader",
+          "name": "Reader",
+          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+        },
+        {
+          "id": "Uploading",
+          "name": "Uploading",
+          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+        },
+        {
+          "id": "Locked",
+          "name": "Locked",
+          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+        },
+        {
+          "id": "Empty",
+          "name": "Empty",
+          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+        },
+        {
+          "id": "EmptyReader",
+          "name": "EmptyReader",
+          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+        }
+      ]
+    },
+    {
+      "name": "DocumentsDocumentList",
+      "file": "apps/web/app/components/documents/DocumentList.vue",
+      "story": "apps/web/stories/documents/DocumentList.stories.ts",
+      "title": "Documents/DocumentList",
+      "props": [
+        {
+          "name": "documents",
+          "type": "{ id: number; name: string; visibility: \"company\" | \"restricted\"; active: boolean; expiry_date: string | null; write_date: string; revision: number; file_count: number; tags: { id: number; name: string; }[]; context: { kind: string; id: number; label: string | null; href: string | null; } | null; allowed_actions: { update: boolean; archive: boolean; restore: boolean; upload_file: boolean; manage_access: boolean; }; }[]",
+          "required": true
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "returnTo",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/pages/documents.vue:205"
+        }
+      ]
+    },
+    {
+      "name": "DocumentsDocumentMetadataFields",
+      "file": "apps/web/app/components/documents/DocumentMetadataFields.vue",
+      "story": "apps/web/stories/documents/DocumentMetadataFields.stories.ts",
+      "title": "Documents/DocumentMetadataFields",
+      "props": [
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "knownTags",
+          "type": "{ id: number; name: string; }[]",
+          "required": false
+        },
+        {
+          "name": "knownContext",
+          "type": "{ kind: string; id: number; label: string | null; href: string | null; } | null",
+          "required": false
+        },
+        {
+          "name": "expiry",
+          "type": "string | null",
+          "required": true
+        },
+        {
+          "name": "context",
+          "type": "{ kind: string; id: number; } | null",
+          "required": true
+        },
+        {
+          "name": "tags",
+          "type": "number[]",
+          "required": true
+        }
+      ],
+      "events": [
+        {
+          "name": "update:expiry",
+          "payload": "[value: string | null]"
+        },
+        {
+          "name": "update:context",
+          "payload": "[value: { kind: string; id: number; } | null]"
+        },
+        {
+          "name": "update:tags",
+          "payload": "[value: number[]]"
+        }
+      ],
+      "slots": [],
+      "nuxtUi": [
+        "UAlert",
+        "UButton",
+        "UFormField",
+        "UInput",
+        "USelectMenu"
+      ],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/components/documents/DocumentCreateForm.vue:40"
+        }
+      ]
+    },
+    {
+      "name": "DocumentsDocumentReader",
+      "file": "apps/web/app/components/documents/DocumentReader.vue",
+      "story": "apps/web/stories/documents/DocumentReader.stories.ts",
+      "title": "Documents/DocumentReader",
+      "props": [
+        {
+          "name": "document",
+          "type": "{ id: number; name: string; visibility: \"company\" | \"restricted\"; active: boolean; expiry_date: string | null; write_date: string; revision: number; file_count: number; tags: { id: number; name: string; }[]; context: { kind: string; id: number; label: string | null; href: string | null; } | null; allowed_actions: { update: boolean; archive: boolean; restore: boolean; upload_file: boolean; manage_access: boolean; }; body: string; }",
+          "required": true
+        }
+      ],
+      "events": [],
+      "slots": [],
+      "nuxtUi": [],
+      "stories": [
+        {
+          "id": "Default",
+          "name": "Default",
+          "context": "apps/web/app/pages/documents/[documentId].vue:84"
+        }
+      ]
+    },
+    {
       "name": "MeetingsMeetingAttachmentsTab",
       "file": "apps/web/app/components/meetings/MeetingAttachmentsTab.vue",
       "story": "apps/web/stories/meetings/MeetingAttachmentsTab.stories.ts",
@@ -162,12 +591,12 @@
       ],
       "events": [
         {
-          "name": "retry",
-          "payload": "[]"
-        },
-        {
           "name": "page",
           "payload": "[page: number]"
+        },
+        {
+          "name": "retry",
+          "payload": "[]"
         }
       ],
       "slots": [],
@@ -694,12 +1123,12 @@
       ],
       "events": [
         {
-          "name": "retry",
-          "payload": "[]"
-        },
-        {
           "name": "page",
           "payload": "[page: number]"
+        },
+        {
+          "name": "retry",
+          "payload": "[]"
         },
         {
           "name": "select",
@@ -1137,7 +1566,7 @@
         },
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; next: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; previous: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; next: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; previous: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
           "required": false
         },
         {
@@ -1190,12 +1619,12 @@
       ],
       "events": [
         {
-          "name": "cancel",
-          "payload": "[]"
+          "name": "saved",
+          "payload": "[outcome: \"saved\" | \"approved\" | \"submitted\" | \"reopened\"]"
         },
         {
-          "name": "saved",
-          "payload": "[outcome: \"approved\" | \"saved\" | \"submitted\" | \"reopened\"]"
+          "name": "cancel",
+          "payload": "[]"
         },
         {
           "name": "created",
@@ -1287,7 +1716,7 @@
       "props": [
         {
           "name": "project",
-          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"write\" | \"read\" | \"archive\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; next: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; previous: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
+          "type": "{ id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; manager?: { id: number; name: string; } | null | undefined; date_end?: string | null | undefined; } | { id: number; name: string; status: \"done\" | \"on_track\" | \"at_risk\" | \"off_track\" | \"on_hold\" | null; progress: number; task_count: number; closed_task_count: number; active: boolean; can_manage: boolean; allowed_actions: (\"archive\" | \"write\" | \"read\")[]; charter_state: \"draft\" | \"approved\" | \"submitted\"; phase: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; stages: { id: number; name: string; sequence: number; fold: boolean; task_count: number; }[]; description_html: string; manager: { id: number; name: string; } | null; privacy_visibility: \"followers\" | \"employees\"; date_start: string | null; date_end: string | null; tags: { id: number; name: string; color: number; }[]; followers_count: number; milestone_count: number; allow_task_dependencies: boolean; completion_approval: \"none\" | \"project_manager\" | \"specific_user\"; completion_approver: { id: number; name: string; } | null; updated_at: string; charter: { code: string | null; type: { id: number; name: string; charter_steps: (\"scope\" | \"justification\" | \"schedule\" | \"budget\" | \"risks\")[]; } | null; owning_unit: { id: number; name: string; } | null; sponsor: { id: number; name: string; } | null; authority: string; rationale: string; objectives: { goal: string; metric: string; target: string; }[]; benefits: string; scope: string; exclusions: string; high_level_requirements: string; deliverables: { name: string; description: string; acceptance: string; }[]; success: string; budget_state: \"unknown\" | \"estimate\"; amount: number | null; currency: { id: number; name: string; symbol: string; decimal_places: number; } | null; priority: \"low\" | \"normal\" | \"high\" | \"critical\" | null; assumptions: string; constraints: string; closure: string; state: \"draft\" | \"approved\" | \"submitted\"; approval_required: boolean; can_review: boolean; submitted_by: { id: number; name: string; } | null; submitted_at: string | null; approved_by: { id: number; name: string; } | null; approved_at: string | null; return_note: string; }; phase_state: { current: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\"; next: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; previous: \"closed\" | \"initiating\" | \"planning\" | \"executing\" | \"closing\" | null; next_checks: { key: string; ok: boolean; }[]; }; }",
           "required": true
         },
         {
@@ -1940,16 +2369,16 @@
       ],
       "events": [
         {
-          "name": "submit",
-          "payload": "[]"
+          "name": "update:modelValue",
+          "payload": "[value: string]"
         },
         {
           "name": "input",
           "payload": "[event: Event]"
         },
         {
-          "name": "update:modelValue",
-          "payload": "[value: string]"
+          "name": "submit",
+          "payload": "[]"
         },
         {
           "name": "keydown",
@@ -2033,11 +2462,11 @@
       ],
       "events": [
         {
-          "name": "draft",
+          "name": "update:modelValue",
           "payload": "[{ html: string; taskId: number; }]"
         },
         {
-          "name": "update:modelValue",
+          "name": "draft",
           "payload": "[{ html: string; taskId: number; }]"
         }
       ],
@@ -2621,7 +3050,7 @@
       "props": [
         {
           "name": "summary",
-          "type": "{ items: { id: string; subscription_id: string; tenant_id: string; name: string; kind: \"hq\" | \"extra\"; billing: \"included\" | \"free_extra\" | \"paid\"; state: \"pending\" | \"archived\" | \"active\" | \"failed\"; odoo_company_id: number | null; order_id: string | null; activated_at: string | null; archived_at: string | null; }[]; total: number; hq: 1; free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null; }",
+          "type": "{ items: { id: string; subscription_id: string; tenant_id: string; name: string; kind: \"hq\" | \"extra\"; billing: \"included\" | \"free_extra\" | \"paid\"; state: \"active\" | \"pending\" | \"archived\" | \"failed\"; odoo_company_id: number | null; order_id: string | null; activated_at: string | null; archived_at: string | null; }[]; total: number; hq: 1; free_extra_used: number; free_extra_allowed: number; paid: number; limit: number | null; }",
           "required": true
         }
       ],
@@ -3708,11 +4137,11 @@
       ],
       "events": [
         {
-          "name": "select",
+          "name": "update:modelValue",
           "payload": "[value: string]"
         },
         {
-          "name": "update:modelValue",
+          "name": "select",
           "payload": "[value: string]"
         }
       ],
@@ -3869,6 +4298,11 @@
           "name": "bordered",
           "type": "boolean",
           "required": false
+        },
+        {
+          "name": "compact",
+          "type": "boolean",
+          "required": false
         }
       ],
       "events": [],
@@ -3892,6 +4326,11 @@
           "id": "Bordered",
           "name": "بطاقة كاملة لصفحة فارغة",
           "context": "unused"
+        },
+        {
+          "id": "Compact",
+          "name": "حالة فارغة مدمجة داخل قسم",
+          "context": "apps/web/app/components/documents/DocumentFiles.vue:34"
         }
       ]
     },
@@ -4236,6 +4675,17 @@
           "required": false
         },
         {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "showFileName",
+          "type": "boolean",
+          "required": false,
+          "default": "true"
+        },
+        {
           "name": "ariaLabel",
           "type": "string",
           "required": false
@@ -4275,8 +4725,8 @@
         },
         {
           "id": "InDocumentCard",
-          "name": "داخل بطاقة مرفقات مستند",
-          "context": "apps/web/app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue:95"
+          "name": "رفع فوري من ترويسة المستند",
+          "context": "apps/web/app/components/documents/DocumentFiles.vue:30"
         },
         {
           "id": "Disabled",

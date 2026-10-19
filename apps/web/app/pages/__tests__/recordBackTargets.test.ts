@@ -1,3 +1,4 @@
+import * as documentNavigation from '../../lib/documentNavigation'
 import * as editorContext from '../../utils/meetingEditorContext'
 import { useMeetingFormFeedback } from '../../composables/useMeetingFormFeedback'
 import * as recordNavigation from './helpers/recordNavigation'
@@ -39,7 +40,7 @@ function loadSetupState(rel: string, router: Router) {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None },
   }).outputText
   const bindings: Record<string, unknown> = { ...editorContext, useMeetingFormFeedback,
-    ...recordNavigation,
+    ...recordNavigation, ...documentNavigation,
     ...hrNavigation,
     _defineComponent: Vue.defineComponent,
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, shallowRef: Vue.shallowRef, reactive: Vue.reactive,
@@ -100,8 +101,8 @@ function makeRouter() {
       { path: '/meetings/:id/resolutions/new', component: { template: '<div/>' } },
       { path: '/meetings/series/:id/edit', component: { template: '<div/>' } },
       { path: '/hr/employees/:employeeId/edit', component: { template: '<div/>' } },
-      { path: '/hr/departments/:departmentId/documents/new', component: { template: '<div/>' } },
-      { path: '/hr/departments/:departmentId/documents/:documentId/edit', component: { template: '<div/>' } },
+      { path: '/documents/new', component: { template: '<div/>' } },
+      { path: '/documents/:documentId/edit', component: { template: '<div/>' } },
       { path: '/hr/departments/:departmentId/edit', component: { template: '<div/>' } },
       { path: '/settings/roles/:roleId/edit', component: { template: '<div/>' } },
       { path: '/projects/:id/register/new', component: { template: '<div/>' } },
@@ -137,7 +138,7 @@ const withState = (path: string) => `${path}?${REFERRER}&${FILTER}`
 const CREATES: [string, string, string][] = [
   [withState('/meetings/new'), 'app/pages/meetings/new.vue', '/meetings'],
   [withState('/meetings/7/resolutions/new'), 'app/pages/meetings/[id]/resolutions/new.vue', '/meetings/7'],
-  [withState('/hr/departments/4/documents/new'), 'app/pages/hr/departments/[departmentId]/documents/new.vue', '/hr/documents'],
+  [withState('/documents/new'), 'app/pages/documents/new.vue', '/documents'],
   [withState('/projects/7/register/new'), 'app/pages/projects/[id]/register/new.vue', '/projects/7/register'],
 ]
 
@@ -146,7 +147,7 @@ const EDITS: [string, string, string][] = [
   [withState('/meetings/series/12/edit'), 'app/pages/meetings/series/[id]/edit.vue', '/meetings/series/12'],
   [withState('/hr/employees/12/edit'), 'app/pages/hr/employees/[employeeId]/edit.vue', '/hr/employees/12'],
   [withState('/hr/departments/4/edit'), 'app/pages/hr/departments/[departmentId]/edit.vue', '/hr/departments/4'],
-  [withState('/hr/departments/4/documents/9/edit'), 'app/pages/hr/departments/[departmentId]/documents/[documentId]/edit.vue', '/hr/departments/4/documents/9'],
+  [withState('/documents/9/edit'), 'app/pages/documents/[documentId]/edit.vue', '/documents/9'],
   [withState('/settings/roles/6/edit'), 'app/pages/settings/roles/[roleId]/edit.vue', '/settings/roles/6'],
   [withState('/projects/7/register/3/edit'), 'app/pages/projects/[id]/register/[registerId]/edit.vue', '/projects/7/register/3'],
   [withState('/projects/7/finance/5/edit'), 'app/pages/projects/[id]/finance/[entryId]/edit.vue', '/projects/7/finance/5'],

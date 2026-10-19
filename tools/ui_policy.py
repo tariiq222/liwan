@@ -80,6 +80,14 @@ LOCALE_ROOTS = ('apps/web/i18n/locales/', 'apps/vendor-admin/i18n/locales/')
 # Reused building blocks that must each have a story (spec §1). Add a path here when a
 # component starts being reused across pages, together with its story.
 STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
+    'documents/DocumentEditor.vue',
+    'documents/DocumentReader.vue',
+    'documents/DocumentList.vue',
+    'documents/DocumentCreateForm.vue',
+    'documents/DocumentFiles.vue',
+    'documents/DocumentAccessForm.vue',
+    'documents/DocumentContextField.vue',
+    'documents/DocumentMetadataFields.vue',
     'operations/RequestList.vue', 'operations/ProcessList.vue', 'operations/RequestForm.vue',
     'operations/ProcessForm.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',

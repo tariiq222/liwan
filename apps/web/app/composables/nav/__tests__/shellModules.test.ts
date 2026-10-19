@@ -4,9 +4,9 @@ import { appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 import { activeShellModule } from '../activeRoute'
 
-const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read'] }
+const employee = { role: 'employee', capabilities: ['pmo.tasks.read', 'pmo.projects.read', 'meetings.read', 'hr.employees.read', 'hr.departments.read', 'documents.items.read'] }
 const admin = { role: 'admin', capabilities: [...employee.capabilities, 'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage'] }
-const full = { role: 'admin', capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read', 'pmo.settings.manage', 'access.users.read', 'access.roles.read', 'access.audit.read'] }
+const full = { role: 'admin', capabilities: ['webvue.internal', 'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read', 'pmo.settings.manage', 'access.users.read', 'access.roles.read', 'access.audit.read'] }
 
 describe('capability-based navigation', () => {
   it('has no links before authenticated capabilities arrive', () => {
@@ -15,8 +15,8 @@ describe('capability-based navigation', () => {
   })
   it('groups the employee product pages without administrative links', () => {
     const nav = useNav(employee)
-    expect(nav.map(item => item.to)).toEqual(['/', '/projects/dashboard', '/projects', '/tasks', '/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/hr/documents'])
-    expect(nav.filter(item => item.group === 'hr')).toHaveLength(3)
+    expect(nav.map(item => item.to)).toEqual(['/', '/projects/dashboard', '/projects', '/tasks', '/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series', '/chat', '/hr', '/hr/departments', '/documents'])
+    expect(nav.filter(item => item.group === 'hr')).toHaveLength(2)
     expect(nav.filter(item => item.group === 'chat')).toHaveLength(1)
     // Account and appearance live in the header, so an employee has no settings module.
     expect(nav.filter(item => item.group === 'settings')).toEqual([])
@@ -87,11 +87,11 @@ describe('contextual module links', () => {
     expect(contextLinksForModule('projects', taskCreator).map(link => link.id)).toEqual(['tasks'])
     expect(contextLinksForModule('projects', full).some(link => link.id === 'new-task')).toBe(false)
 
-    const hrManager = { capabilities: ['hr.employees.read', 'hr.employees.manage', 'hr.departments.read', 'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage'] }
+    const hrManager = { capabilities: ['hr.employees.read', 'hr.employees.manage', 'hr.departments.read', 'hr.departments.manage', 'documents.items.read', 'documents.items.manage'] }
     expect(contextLinksForModule('hr', hrManager, '/hr').filter(link => link.pinned).map(link => link.id)).toEqual(['new-employee'])
     expect(contextLinksForModule('hr', hrManager, '/hr/departments').filter(link => link.pinned).map(link => link.id)).toEqual(['new-department'])
-    expect(contextLinksForModule('hr', hrManager, '/hr/documents').filter(link => link.pinned).map(link => link.id)).toEqual(['new-document'])
-    expect(contextLinksForModule('hr', hrManager, '/hr/departments/7/documents').filter(link => link.pinned).map(link => link.id)).toEqual(['new-document'])
+    expect(contextLinksForModule('documents', hrManager, '/documents').filter(link => link.pinned).map(link => link.id)).toEqual(['new-document'])
+    expect(contextLinksForModule('hr', hrManager, '/hr/departments/7').filter(link => link.pinned).map(link => link.id)).toEqual(['new-department'])
   })
 
   it('keeps settings links in one flat capability-gated order', () => {
@@ -168,7 +168,7 @@ describe('projects dashboard navigation', () => {
   })
   it('orders meetings as list, calendar, recurring series after the pinned create action', () => {
     expect(contextLinksForModule('meetings', full).map(link => link.id)).toEqual(['new-meeting', 'meetings', 'meeting-followup', 'meeting-series'])
-    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments', 'nav.documents'])
+    expect(contextLinksForModule('hr', full, '/hr').map(link => link.labelKey)).toEqual(['nav.employees', 'nav.departments'])
   })
 })
 

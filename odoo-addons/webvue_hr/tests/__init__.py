@@ -8,8 +8,6 @@ from . import (
     test_hr_avatar_route,
     test_hr_contracts,
     test_hr_departments,
-    test_hr_document_acl,
-    test_hr_documents,
     test_hr_employees,
     test_hr_reports,
 )

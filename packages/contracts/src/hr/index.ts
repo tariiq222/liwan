@@ -107,25 +107,6 @@ export const HrDepartmentPatchSchema = z.object({
   manager_id: relationId,
 }).strict().refine(requirePatchField, { message: 'At least one field is required' })
 
-export const HrDocumentAttachmentSchema = z.object({
-  id: z.number().int().positive(),
-  name: z.string(),
-  mimetype: z.string(),
-  file_size: z.number(),
-}).strict()
-
-export const HrDocumentSchema = z.object({
-  id: z.number().int().positive(),
-  name: z.string(),
-  department: HrRefSchema,
-  body: z.string(),
-  attachment_ids: z.array(HrDocumentAttachmentSchema),
-  expiry_date: isoDate.nullable(),
-  write_date: z.string(),
-}).strict()
-
-export const HrDocumentDetailSchema = HrDocumentSchema
-
 export const HrDepartmentListSchema = z.object({
   items: z.array(HrDepartmentSchema),
   total: z.number().int().nonnegative(),
@@ -133,11 +114,6 @@ export const HrDepartmentListSchema = z.object({
 
 export const HrEmployeeListSchema = z.object({
   items: z.array(HrEmployeeSchema),
-  total: z.number().int().nonnegative(),
-}).strict()
-
-export const HrDocumentListSchema = z.object({
-  items: z.array(HrDocumentSchema),
   total: z.number().int().nonnegative(),
 }).strict()
 
@@ -188,12 +164,8 @@ export type HrAccessGrant = z.infer<typeof HrAccessGrantSchema>
 export type HrAccessPatch = z.infer<typeof HrAccessPatchSchema>
 export type HrDepartmentCreate = z.infer<typeof HrDepartmentCreateSchema>
 export type HrDepartmentPatch = z.infer<typeof HrDepartmentPatchSchema>
-export type HrDocumentAttachment = z.infer<typeof HrDocumentAttachmentSchema>
-export type HrDocument = z.infer<typeof HrDocumentSchema>
-export type HrDocumentDetail = z.infer<typeof HrDocumentDetailSchema>
 export type HrDepartmentList = z.infer<typeof HrDepartmentListSchema>
 export type HrEmployeeList = z.infer<typeof HrEmployeeListSchema>
-export type HrDocumentList = z.infer<typeof HrDocumentListSchema>
 export type HrEmployeeContractPatch = z.infer<typeof HrEmployeeContractPatchSchema>
 export type HrEmployeeContract = z.infer<typeof HrEmployeeContractSchema>
 export type HrExpiryKind = z.infer<typeof HrExpiryKindSchema>

@@ -267,20 +267,21 @@ class TestAccessAdminRoles(WebVueApiCase):
         body = response.json()
         installed = {
             module.name for module in self.env['ir.module.module'].search([
-                ('name', 'in', ['webvue_hr', 'webvue_pmo', 'webvue_meetings']), ('state', '=', 'installed'),
+                ('name', 'in', ['webvue_hr', 'webvue_documents', 'webvue_pmo', 'webvue_meetings']),
+                ('state', '=', 'installed'),
             ])
         }
         installed_all = {
             module.name for module in self.env['ir.module.module'].search([('state', '=', 'installed')])
         }
-        # 9 core capabilities, plus 8 for HR, 8 for PMO and 3 for meetings.
+        # 9 core capabilities; HR's two document permissions moved to Documents.
         total = (
-            9 + 8 * ('webvue_hr' in installed) + 8 * ('webvue_pmo' in installed)
-            + 3 * ('webvue_meetings' in installed)
+            9 + 6 * ('webvue_hr' in installed) + 5 * ('webvue_documents' in installed)
+            + 8 * ('webvue_pmo' in installed) + 3 * ('webvue_meetings' in installed)
         )
         # An application added later adds capabilities; today's are exact.
         owners = self.env['webvue.access.service']._webvue_capability_map()
-        release = {'webvue_core', 'webvue_hr', 'webvue_pmo', 'webvue_meetings'}
+        release = {'webvue_core', 'webvue_hr', 'webvue_documents', 'webvue_pmo', 'webvue_meetings'}
         items = [item for item in body['items'] if owners[item['key']]['owner'] in release]
         extra = len(body['items']) - len(items)
         self.assertEqual((len(items), body['total'] - extra), (total, total))
@@ -290,6 +291,13 @@ class TestAccessAdminRoles(WebVueApiCase):
         self.assertEqual(
             {item['key'] for item in body['items'] if item['key'].startswith('meetings.')},
             {'meetings.read', 'meetings.create', 'meetings.manage'} if 'webvue_meetings' in installed else set(),
+        )
+        self.assertEqual(
+            {item['key'] for item in body['items'] if item['key'].startswith('documents.')},
+            {
+                'documents.items.read', 'documents.items.manage', 'documents.items.archive',
+                'documents.access.manage', 'documents.library.manage',
+            } if 'webvue_documents' in installed else set(),
         )
         permission = next(item for item in body['items'] if item['key'] == 'access.users.assign_roles')
         self.assertFalse(permission['custom_role_allowed'])

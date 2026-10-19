@@ -18,8 +18,14 @@ class WebVueHrDepartment(models.Model):
 
     @api.model
     def _search(
-        self, domain, offset=0, limit=None, order=None, *,
-        active_test=True, bypass_access=False,
+        self,
+        domain,
+        offset=0,
+        limit=None,
+        order=None,
+        *,
+        active_test=True,
+        bypass_access=False,
     ):
         if (
             not bypass_access
@@ -28,11 +34,17 @@ class WebVueHrDepartment(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability('hr.departments.read')
+            self.env['webvue.access.service']._webvue_require_capability(
+                'hr.departments.read',
+            )
             domain = Domain(domain) & Domain('company_id', '=', self.env.company.id)
         return super()._search(
-            domain, offset=offset, limit=limit, order=order,
-            active_test=active_test, bypass_access=bypass_access,
+            domain,
+            offset=offset,
+            limit=limit,
+            order=order,
+            active_test=active_test,
+            bypass_access=bypass_access,
         )
 
     def check_access(self, operation):
@@ -43,24 +55,33 @@ class WebVueHrDepartment(models.Model):
             and not self.env.cr.precommit.data.get(ACCESS_USER_CREATE_MARKER)
             and not self.env.cr.precommit.data.get(ACCESS_USER_WRITE_MARKER)
         ):
-            self.env['webvue.access.service']._webvue_require_capability('hr.departments.read')
+            self.env['webvue.access.service']._webvue_require_capability(
+                'hr.departments.read',
+            )
             self._webvue_validate_scope()
         return super().check_access(operation)
 
     def _webvue_require_admin(self):
         if not self.env['webvue.access.service']._webvue_has_capability(
-            self.env.user, 'hr.departments.manage',
+            self.env.user,
+            'hr.departments.manage',
         ):
             raise AccessError(DEPARTMENT_WRITE_ERROR)
 
     def _webvue_validate_scope(self):
         if not self.ids:
             return
-        self.env.cr.execute(SQL(
-            'SELECT company_id FROM %s WHERE id = ANY(%s)',
-            SQL.identifier(self._table), self.ids,
-        ))
-        if any(company_id != self.env.company.id for company_id, in self.env.cr.fetchall()):
+        self.env.cr.execute(
+            SQL(
+                'SELECT company_id FROM %s WHERE id = ANY(%s)',
+                SQL.identifier(self._table),
+                self.ids,
+            ),
+        )
+        if any(
+            company_id != self.env.company.id
+            for (company_id,) in self.env.cr.fetchall()
+        ):
             raise AccessError(DEPARTMENT_SCOPE_ERROR)
 
     @staticmethod
@@ -68,11 +89,18 @@ class WebVueHrDepartment(models.Model):
         return value.id if hasattr(value, 'id') else value
 
     def _webvue_validate_relations(self, vals):
-        for key, model in (('parent_id', 'hr.department'), ('manager_id', 'hr.employee')):
+        for key, model in (
+            ('parent_id', 'hr.department'),
+            ('manager_id', 'hr.employee'),
+        ):
             if key not in vals or not vals[key]:
                 continue
-            record = self.env[model].browse(self._webvue_relation_id(vals[key])).exists()
-            if not record or any(item.company_id != self.env.company for item in record):
+            record = (
+                self.env[model].browse(self._webvue_relation_id(vals[key])).exists()
+            )
+            if not record or any(
+                item.company_id != self.env.company for item in record
+            ):
                 raise AccessError('%s is outside the current company' % key)
 
     def _webvue_create(self, vals):
@@ -94,16 +122,25 @@ class WebVueHrDepartment(models.Model):
 
     def _webvue_usage(self):
         self.ensure_one()
-        employees = self.env['hr.employee'].with_context(active_test=False).search_count([
-            ('department_id', '=', self.id),
-        ])
-        children = self.env['hr.department'].with_context(active_test=False).search_count([
-            ('parent_id', '=', self.id),
-        ])
-        documents = self.env['webvue.hr.document'].with_context(active_test=False).search_count([
-            ('department_id', '=', self.id),
-        ])
-        return {'employees': employees, 'children': children, 'documents': documents}
+        employees = (
+            self.env['hr.employee']
+            .with_context(active_test=False)
+            .search_count(
+                [
+                    ('department_id', '=', self.id),
+                ],
+            )
+        )
+        children = (
+            self.env['hr.department']
+            .with_context(active_test=False)
+            .search_count(
+                [
+                    ('parent_id', '=', self.id),
+                ],
+            )
+        )
+        return {'employees': employees, 'children': children}
 
     def _webvue_serialized_relations(self):
         self.ensure_one()
@@ -114,15 +151,18 @@ class WebVueHrDepartment(models.Model):
             return {}
         self._webvue_validate_scope()
         company_id = self.env.company.id
-        self.env.cr.execute(SQL(
-            '''
+        self.env.cr.execute(
+            SQL(
+                """
                 SELECT department.id, department.parent_id, manager.id, manager.name
                   FROM hr_department department
                   LEFT JOIN hr_employee manager ON manager.id = department.manager_id
                  WHERE department.id = ANY(%s) AND department.company_id = %s
-            ''',
-            self.ids, company_id,
-        ))
+            """,
+                self.ids,
+                company_id,
+            ),
+        )
         rows = self.env.cr.fetchall()
         if len(rows) != len(set(self.ids)):
             raise AccessError(DEPARTMENT_SCOPE_ERROR)
@@ -134,23 +174,28 @@ class WebVueHrDepartment(models.Model):
             managers[department_id] = (
                 {'id': manager_id, 'name': text(manager_name)} if manager_id else None
             )
-        self.env.cr.execute(SQL(
-            '''
+        self.env.cr.execute(
+            SQL(
+                """
                 SELECT parent_id, id
                   FROM hr_department
                  WHERE parent_id = ANY(%s) AND company_id = %s
                  ORDER BY id
-            ''',
-            self.ids, company_id,
-        ))
+            """,
+                self.ids,
+                company_id,
+            ),
+        )
         child_ids = {department_id: [] for department_id in self.ids}
         for parent_id, child_id in self.env.cr.fetchall():
             child_ids[parent_id].append(child_id)
         include_archived = self.env['webvue.access.service']._webvue_has_capability(
-            self.env.user, 'hr.employees.archive',
+            self.env.user,
+            'hr.employees.archive',
         )
-        self.env.cr.execute(SQL(
-            '''
+        self.env.cr.execute(
+            SQL(
+                """
                 SELECT version.department_id, COUNT(*)
                   FROM hr_employee employee
                   JOIN hr_version version ON version.id = employee.current_version_id
@@ -158,9 +203,12 @@ class WebVueHrDepartment(models.Model):
                    AND version.department_id = ANY(%s)
                    AND (%s OR employee.active IS TRUE)
                  GROUP BY version.department_id
-            ''',
-            company_id, self.ids, include_archived,
-        ))
+            """,
+                company_id,
+                self.ids,
+                include_archived,
+            ),
+        )
         counts = dict.fromkeys(self.ids, 0)
         for department_id, count in self.env.cr.fetchall():
             counts[department_id] = count
@@ -181,7 +229,8 @@ class WebVueHrDepartment(models.Model):
         for department, details in usages:
             if any(details.values()):
                 raise WebVueHrRule(
-                    DEPARTMENT_IN_USE_CODE, 'department still has employees, children, or documents',
+                    DEPARTMENT_IN_USE_CODE,
+                    'department still has employees, children, or documents',
                     details=details,
                 )
         with self.env.cr.savepoint():
@@ -190,7 +239,9 @@ class WebVueHrDepartment(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        if not self.env.is_superuser() and not self.env.user.has_group('base.group_system'):
+        if not self.env.is_superuser() and not self.env.user.has_group(
+            'base.group_system',
+        ):
             self._webvue_require_admin()
             for vals in vals_list:
                 if vals.get('company_id', self.env.company.id) != self.env.company.id:
@@ -199,7 +250,9 @@ class WebVueHrDepartment(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        if not self.env.is_superuser() and not self.env.user.has_group('base.group_system'):
+        if not self.env.is_superuser() and not self.env.user.has_group(
+            'base.group_system',
+        ):
             self._webvue_require_admin()
             self._webvue_validate_scope()
             if vals.get('company_id', self.env.company.id) != self.env.company.id:
@@ -208,7 +261,9 @@ class WebVueHrDepartment(models.Model):
         return super().write(vals)
 
     def unlink(self):
-        if not self.env.is_superuser() and not self.env.user.has_group('base.group_system'):
+        if not self.env.is_superuser() and not self.env.user.has_group(
+            'base.group_system',
+        ):
             msg = 'use_protected_webvue_hr_operation:hr_department_unlink'
             raise AccessError(msg)
         return super().unlink()

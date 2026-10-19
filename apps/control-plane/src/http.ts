@@ -1,3 +1,4 @@
+import {requestRestorePublication,restorePublication} from './shared/restore-publication.js'
 import { accountCapabilities, vendorActorIssuer } from './admin-auth/grants.js'
 import { packageHttp } from './package-http.js'
 import { PackageError } from './packages.js'
@@ -396,6 +397,18 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (method === 'GET' && sharedProgress) {
         requireCapability(auth, 'vendor.read')
         return respond(res, 200, await sharedProvisioningProgress(pool,sharedProgress[1]!))
+      }
+      const publication=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-publications/(${UUID})$`))
+      if(publication && (method==='GET'||method==='POST')){
+        if(process.env.WEBVUE_TENANCY_MODE!=='shared'||!config.sharedRuntimeConfigPath)throw new ApiError(503,'shared_execution_unavailable','Shared runtime is unavailable')
+        if(method==='GET'){
+          requireCapability(auth,'vendor.read')
+          return respond(res,200,await restorePublication(pool,publication[1]!,publication[2]!))
+        }
+        requireCapability(auth,'vendor.operations.run');requireCapability(auth,'vendor.tenants.manage')
+        const input=parseJson(raw,reasonRequestSchema)
+        const result=await requestRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath),{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},publication[1]!,publication[2]!,input.reason)
+        return respond(res,result.status==='queued'?202:200,result)
       }
       const realProgress=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs/(${UUID})$`))
       const realApproval=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-approvals$`))

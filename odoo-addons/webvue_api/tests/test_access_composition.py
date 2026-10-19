@@ -11,7 +11,7 @@ SYSTEM = frozenset({
 HR = frozenset({
     'hr.employees.read', 'hr.employees.manage', 'hr.employees.archive',
     'hr.employees.access_status.read', 'hr.departments.read',
-    'hr.departments.manage', 'hr.documents.read', 'hr.documents.manage',
+    'hr.departments.manage',
 })
 PMO = frozenset({
     'pmo.projects.read', 'pmo.projects.create', 'pmo.projects.manage',
@@ -20,7 +20,7 @@ PMO = frozenset({
 })
 MEETINGS = frozenset({'meetings.read', 'meetings.create', 'meetings.manage'})
 EMPLOYEE = frozenset({
-    'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
+    'hr.employees.read', 'hr.departments.read',
     'pmo.projects.read', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.tasks.write',
     'meetings.read',
 })
@@ -40,7 +40,6 @@ DEPENDENCIES = {
     'hr.employees.archive': {'hr.employees.read'},
     'hr.employees.access_status.read': {'hr.employees.read'},
     'hr.departments.manage': {'hr.departments.read'},
-    'hr.documents.manage': {'hr.documents.read'},
     'pmo.projects.create': {'pmo.projects.read'},
     'pmo.projects.manage': {'pmo.projects.read'},
     'pmo.settings.manage': {'pmo.projects.read'},
@@ -83,10 +82,10 @@ class TestAccessComposition(TransactionCase):
     def _group(self, key):
         return self.env.ref(self.Permission.search([('key', '=', key)]).group_xmlid)
 
-    def test_catalog_is_the_same_28_keys_each_owned_by_one_addon(self):
+    def test_catalog_is_the_same_26_keys_each_owned_by_one_addon(self):
         catalog = self.service._webvue_capability_map()
         self.assertEqual(self._release(catalog), CATALOG)
-        self.assertEqual(len(self._release(catalog)), 28)
+        self.assertEqual(len(self._release(catalog)), 26)
         permissions = self.Permission.search([])
         self.assertEqual(sorted(permissions.mapped('key')), sorted(catalog))
         installed = set(self.env['ir.module.module'].search([('state', '=', 'installed')]).mapped('name'))

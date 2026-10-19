@@ -84,12 +84,17 @@ export const sharedProvisioningProgressSchema = z.strictObject({
 })
 
 // Additive vendor read model. Legacy operationSchema remains unchanged.
+export const restorePublicationSchema = z.strictObject({
+  approvalId:z.uuid(), status:z.enum(['not_requested','queued','published','needs_intervention']),
+  code:z.string().nullable(), host:z.string().nullable(),
+})
 export const sharedOperationFeedSchema = operationSchema.extend({
   source: z.literal('shared'),
   type: z.enum(['provision', 'backup', 'restore', 'unknown']),
   status: z.enum(['queued', 'running', 'verified', 'needs_intervention']),
   stage: z.enum(['queued', 'running', 'prepared', 'started', 'verified', 'needs_intervention']),
   reason: z.enum(['shared_execution_pending', 'shared_execution_verified', 'shared_execution_needs_attention']),
+  restore_publication:restorePublicationSchema.optional(),
   result: z.null(), updated_at: z.null(), last_event_at: z.iso.datetime().nullable(),
 })
 export const operationFeedSchema = z.discriminatedUnion('source', [

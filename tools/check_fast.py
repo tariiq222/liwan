@@ -63,7 +63,7 @@ def plan(changed, base):
         steps.append(('e2e_isolated_test', ['node', '--test', 'tools/test_e2e_isolated.mjs']))
     if touched('deploy/'):
         steps.append(('catalog_check', [PY, '-B', 'tools/catalog_check.py']))
-        steps.append(('deploy_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'deploy', '-p', 'test_*.py']))
+        steps.append(('deploy_unittest', [PY, '-B', '-m', 'unittest', 'discover', '-s', 'deploy', '-t', '.', '-p', 'test_*.py']))
     if touched('packages/commercial-contracts/'):
         steps.append(('commercial_contracts_test', ['npm', '-w', 'packages/commercial-contracts', 'run', 'test']))
     if any(path in FULL_TEST_FILES for path in changed):

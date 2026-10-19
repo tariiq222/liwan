@@ -6,12 +6,15 @@ defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(defineProps<{
   accept?: string
+  label?: string
+  showFileName?: boolean
   ariaLabel?: string
   disabled?: boolean
   id?: string
   name?: string
 }>(), {
   disabled: false,
+  showFileName: true,
 })
 
 const emit = defineEmits<{ change: [event: Event] }>()
@@ -80,7 +83,7 @@ function onChange(event: Event) {
       variant="outline"
       class="shrink-0"
       icon="i-lucide-paperclip"
-      :label="t('app.chooseFile')"
+      :label="props.label || t('app.chooseFile')"
       :aria-label="ariaLabel"
       :aria-controls="inputId"
       :highlight="formFieldHighlight"
@@ -89,6 +92,6 @@ function onChange(event: Event) {
       @focus="emitFormFocus"
       @blur="emitFormBlur"
     />
-    <span class="min-w-0 flex-1 truncate text-sm text-muted" :title="fileLabel">{{ fileLabel }}</span>
+    <span v-if="props.showFileName" class="min-w-0 flex-1 truncate text-sm text-muted" :title="fileLabel">{{ fileLabel }}</span>
   </div>
 </template>

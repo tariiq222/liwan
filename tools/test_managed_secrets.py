@@ -2,6 +2,7 @@
 """Hermetic local file tests for managed secret handles; no secret output."""
 import importlib.util
 import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -47,6 +48,10 @@ class ManagedSecretsCase(unittest.TestCase):
     def test_only_exact_private_readable_modes(self):
         for mode in [0o644, 0o640, 0o604, 0o666, 0o700, 0o200, 0o000, 0o4600]:
             self.path.chmod(mode)
+            # Some filesystems clear setuid on chmod for ordinary files, so
+            # 0o4600 can become the accepted 0o600 mode on this host.
+            if stat.S_IMODE(self.path.stat().st_mode) != mode:
+                continue
             self.refuse()
         self.path.chmod(0o600)
 

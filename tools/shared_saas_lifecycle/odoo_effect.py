@@ -176,12 +176,14 @@ class Runner:
         self.request = request
         self.config = request['config']
         config = self.config
-        if (set(config) != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
+        if (set(config) - {'releaseBackupConfig'} != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
                 or config['schemaVersion'] != 1
                 or not re.fullmatch(r'webvue-(?:saas|shared)-[a-z0-9-]{3,48}', config['projectName'])):
             raise EffectError('runtime_invalid')
         for key in ('composeFile', 'envFile', 'stateDir'):
             no_symlink(config[key])
+        if config.get('releaseBackupConfig'):
+            no_symlink(config['releaseBackupConfig'])
         self.database = validate_database(request['job']['binding']['database'])
         if request['job']['operation'] not in ('provision', 'backup', 'restore') or request['job']['binding']['filestore'] != self.database:
             raise EffectError('operation_unavailable')

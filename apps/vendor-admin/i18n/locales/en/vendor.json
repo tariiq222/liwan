@@ -285,7 +285,21 @@
       },
       "operationId": "Operation ID",
       "workspaceId": "Workspace ID",
-      "customerId": "Customer ID"
+      "customerId": "Customer ID",
+      "publication": {
+        "title": "Restored workspace access",
+        "action": "Make restored workspace available",
+        "confirm": "Confirm access after restore verification",
+        "reason": "Reason for publication",
+        "reconcile": "Waiting for the restored workspace to match the current subscription.",
+        "failure": "Operator review is required. Access was not opened automatically.",
+        "states": {
+          "not_requested": "Restore verified; access has not been requested.",
+          "queued": "Access request is being verified and processed.",
+          "published": "Restored workspace is available at the following host.",
+          "needs_intervention": "Publication stopped and requires operator review."
+        }
+      }
     },
     "audit": {
       "title": "Audit log",

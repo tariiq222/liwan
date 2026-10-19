@@ -8,14 +8,14 @@ export const shellMe = MeSchema.parse({
   role: 'admin', roles: [], access_policy_version: 1, company: { id: 1, name: 'شركة المثال' },
   capabilities: [
     'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.settings.manage',
-    'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'hr.documents.read',
+    'meetings.read', 'meetings.create', 'hr.employees.read', 'hr.departments.read', 'documents.items.read',
     'access.users.read', 'access.roles.read', 'access.audit.read', 'settings.branding.manage',
   ],
-  modules: ['webvue_pmo', 'webvue_meetings', 'webvue_hr'],
+  modules: ['webvue_pmo', 'webvue_meetings', 'webvue_hr', 'webvue_documents'],
   platform: {
     schema_version: 1, policy_revision: 1, state: 'active', valid_until: null, read_only: false,
-    readable_features: ['pmo.enabled', 'meetings.enabled', 'hr.enabled'],
-    writable_features: ['pmo.enabled', 'meetings.enabled', 'hr.enabled'],
+    readable_features: ['pmo.enabled', 'meetings.enabled', 'documents.enabled', 'hr.enabled'],
+    writable_features: ['pmo.enabled', 'meetings.enabled', 'documents.enabled', 'hr.enabled'],
   },
 })
 

@@ -61,11 +61,11 @@ describe('app manifests', () => {
     ['/projects/dashboard', 'pmo.projects.read'], ['/tasks/4', 'pmo.tasks.read'],
     ['/meetings/new', 'meetings.create'], ['/meetings/series/new', 'meetings.create'],
     ['/meetings/9/edit', 'meetings.read'], ['/meetings/9/resolutions/new', 'meetings.read'], ['/meetings/9', 'meetings.read'],
-    ['/hr/documents/new', 'hr.documents.manage'], ['/hr/departments/7/documents/new', 'hr.documents.manage'],
-    ['/hr/departments/7/documents/2/edit', 'hr.documents.manage'], ['/hr/departments/7/documents', 'hr.documents.read'],
+    ['/documents/new', 'documents.items.manage'],
+    ['/documents/2/edit', 'documents.items.manage'], ['/documents/2/access', 'documents.access.manage'],
     ['/hr/employees/new', 'hr.employees.manage'], ['/hr/employees/3/edit', 'hr.employees.manage'],
     ['/hr/departments/new', 'hr.departments.manage'], ['/hr/employees/3/access', 'access.users.grant'],
-    ['/hr/departments', 'hr.departments.read'], ['/hr/documents', 'hr.documents.read'],
+    ['/hr/departments', 'hr.departments.read'], ['/documents', 'documents.items.read'],
     ['/notifications', 'webvue.notifications'], ['/settings/users/new', 'access.users.grant'],
     ['/settings/users/3/access', 'access.users.assign_roles'], ['/settings/roles/4/edit', 'access.roles.manage'],
     ['/settings/roles/4', 'access.roles.read'], ['/settings/branding', 'settings.branding.manage'],
@@ -78,7 +78,7 @@ describe('app manifests', () => {
     ['/projects/dashboard', '/projects', false], ['/projects/settings/x', '/projects', false], ['/projects/5', '/projects', true],
     ['/meetings/calendar', '/meetings', true], ['/meetings/calendar', '/meetings/calendar', true],
     ['/meetings/series/3', '/meetings/series', true], ['/hr/employees/7/edit', '/hr', true], ['/hr/documents', '/hr', false],
-    ['/hr/departments/7/documents/2', '/hr/departments', false], ['/hr/departments/7/documents/2', '/hr/documents', true],
+    ['/documents/2', '/documents', true],
   ])('nav active %s vs %s -> %s', (path, target, active) => {
     expect(isNavPathActive(path, target)).toBe(active)
   })
@@ -175,7 +175,7 @@ describe('palette declarations', () => {
     }
     expect(ids).toEqual(expect.arrayContaining([
       'pmo.new-project', 'pmo.new-task', 'meetings.new-meeting', 'meetings.new-series',
-      'chat.new-conversation', 'hr.new-employee', 'hr.new-department', 'hr.new-document',
+      'chat.new-conversation', 'hr.new-employee', 'hr.new-department', 'documents.new-document',
     ]))
   })
 

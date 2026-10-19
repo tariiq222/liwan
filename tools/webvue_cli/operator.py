@@ -45,7 +45,8 @@ CREATE_MODULES = (
     'webvue_core', 'webvue_platform', 'webvue_api', 'webvue_directory', 'webvue_notify',
     'webvue_pmo', 'webvue_meetings', 'webvue_meetings_pmo', 'webvue_hr', 'webvue_finance',
     'webvue_integrations_sa', 'webvue_chat', 'webvue_tasks', 'webvue_tasks_pmo',
-    'webvue_operations', 'webvue_operations_pmo', 'webvue_ai', 'webvue_pmo_ai',
+    'webvue_operations', 'webvue_operations_pmo', 'webvue_ai', 'webvue_pmo_ai', 'webvue_documents',
+    'webvue_documents_hr',
 )
 CATALOG_PATH = Path(__file__).resolve().parents[2] / 'deploy' / 'catalog' / 'solutions' / 'platform.json'
 PROFILE_SQL = (

@@ -186,3 +186,55 @@ TAGS="/${MODULES//,/,/}"
   -i "$MODULES" --test-tags "$TAGS" \
   --http-port=8169 --workers=0 --max-cron-threads=0 --stop-after-init
 ```
+
+
+## Managed document engine boundaries
+
+`webvue_documents` uses pinned, unmodified OCA DMS in attachment mode. Its business
+policy lives on `webvue.document`; native groups do not grant a second document ACL.
+Only the actual Odoo operator identity passes bootstrap/migration guards. An elevated
+environment retaining a customer uid and `base.group_system` are insufficient.
+
+The scoped `odoo-addons/webvue_documents/models/ir_binary.py` override of `ir.binary._record_to_stream` is the
+required R9 exception: Odoo's `_find_record` accepts a limited-field token and elevates
+before ordinary ACL checks ([Odoo 19 binary source](/Users/tariq/code/odoo/odoo/addons/base/models/ir_binary.py:23)). The source calls
+this an extensible hook. The adapter checks the original actor, canonical attachment,
+company, feature and archive policy before delegating streaming; it wraps response
+headers with private/no-store and nosniff. No Odoo method body is copied.
+Regression evidence: `odoo-addons/webvue_documents/tests/test_document_downloads.py` exercises real limited-field tokens,
+legacy tokens, unmanaged aliases, native portal routes, HEAD/Range, authorized reads
+and archive revocation. `odoo-addons/webvue_documents/tests/test_dms_boundaries.py` covers raw ORM and warm caches.
+
+OCA's public `filtered_domain` returns all elevated records. The managed file/directory
+extensions filter its result by the owned document policy so core warm-cache ACL
+checks and exports cannot bypass it; non-managed resources keep their base policy.
+Public read/copy guards retain original actor checks. Do not add private native
+`_search`, `check_access` or `_check_access` overrides or customer `sudo` here.
+
+The attachment-mode create adapter fills existing DMS size/checksum metadata from the
+same attachment because upstream removes content before its inverse runs. It neither
+copies bytes nor claims quota. `webvue_platform` remains the sole quota writer through
+`ir.attachment`. A company policy fence handles stale role snapshots; lock order is
+company policy, document policy fence, document, tenant profile, then file/grant writes.
+Metadata operations share the company/fence/profile policy locks while each
+aggregate retains an exclusive document lock. Upload takes an exclusive profile
+lock upfront, reused by quota claims; existing non-document callers remain
+exclusive. Public routes perform one protected operation per transaction; future
+multi-operation transactions need an explicit lock-upgrade design and tests.
+Independent cursor tests cover parallel different-document edits, stale writers,
+role/grant/feature revocation and competing upload capacity.
+
+Document/native rules embed the owned permission SQL subquery. The existing owned
+`_filtered_access` and read guard batch candidate checks; serializers batch page
+permissions and registered provider labels. Never introduce a long-lived permission
+result cache. Pinned OCA still discovers inherited candidates with `array_agg` and
+materializes IDs on cold native rule construction; this upstream O(n) boundary is
+not removed by the adapter optimization.
+
+Document detail contains summary plus body. Files use the bounded collection
+`GET /api/v1/documents/<id>/files` (default 50, maximum 200), returning
+`items`, `total`, `revision`. UI requests pin the observed positive `revision`;
+a mismatched revision returns 409 and restarts traversal after refreshing detail.
+Mutation responses retain the complete current detail shape and invalidate file
+pages. Metadata context/tag lookups search and page in the provider's normal
+company/ACL environment, retaining selected values outside the current page.

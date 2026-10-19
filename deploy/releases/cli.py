@@ -68,6 +68,9 @@ def arguments(argv):
     actions = parser.add_subparsers(dest='action', required=True)
     required = {
         'classify': ('base', 'target', 'manifest', 'installed-modules'),
+        'bundle-prepare': ('source-output', 'releases', 'release-id', 'source-digest'),
+        'bundle-verify': ('bundle', 'source-digest'),
+        'backup-current': ('state', 'binding', 'runtime', 'request-id', 'output'),
         'render': ('manifest', 'operator-config'),
         'restore': ('backup', 'binding', 'runtime'),
         'bootstrap': ('state', 'binding', 'route', 'bootstrap-evidence'),
@@ -90,6 +93,29 @@ def arguments(argv):
 def main(argv=None):
     args = arguments(argv)
     try:
+        if args.action == 'backup-current':
+            from .backup_operation import backup_current
+            from .backup import validate_backup
+            state = ReleaseState(local_path(args.state, directory=True))
+            binding = document(args.binding)
+            runtime = LocalRuntime(state, document(args.runtime))
+            output = canonical_path(args.output)
+            def verify_capture(result):
+                if not validate_backup(result['path'])['valid']:
+                    raise ValueError('backup_validation_failed')
+            result = backup_current(state, runtime, binding, args.request_id, output, verify_capture)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        if args.action == 'bundle-prepare':
+            from .bundle import prepare_bundle
+            result = prepare_bundle(local_path(args.source_output, directory=True), canonical_path(args.releases), args.release_id, args.source_digest)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        if args.action == 'bundle-verify':
+            from .bundle import verify_bundle
+            result = verify_bundle(local_path(args.bundle, directory=True), args.source_digest)
+            print(json.dumps(result, sort_keys=True))
+            return 0
         if args.action == 'classify':
             installed = document(args.installed_modules)
             if not isinstance(installed, list) or len(installed) != len(set(installed)):
