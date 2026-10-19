@@ -1,5 +1,6 @@
 {
   "documents": {
+    "countTag": "{count} document | {count} documents",
     "title": "Documents",
     "new": "New document",
     "edit": "Edit document",

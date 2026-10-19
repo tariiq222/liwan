@@ -34,7 +34,7 @@ export const Disabled: Story = { name: 'معطّل', parameters: formContext, ar
 
 export const InFilterPopover: Story = {
   name: 'داخل نافذة الفلاتر',
-  parameters: storyContext('apps/web/app/pages/meetings/index.vue:282', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
+  parameters: storyContext('apps/web/app/pages/meetings/index.vue:285', 'نافذة الفلاتر مفتوحة عبر `default-open` في `FilterBar`.'),
   render: () => ({
     components: { DateField, FilterBar, PageContainer },
     setup: () => ({ t: useI18n().t, from: ref<string | null>(null) }),

@@ -334,31 +334,17 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 /* Workspace: leaves the rail and the context sidebar on the inline start. */
 .webvue-shell-workspace { min-height: 100svh; margin-inline: calc(var(--shell-inset) * 2 + var(--module-rail-width) + var(--context-sidebar-width) + var(--context-sidebar-gap)) var(--shell-inset); padding-block-start: calc(var(--shell-top) - var(--shell-inset)); background: var(--webvue-canvas); transition: margin-inline-start var(--shell-duration) var(--shell-ease); }
 .webvue-shell-main { --webvue-pad-x: 12px; --webvue-pad-top: 24px; min-height: calc(100svh - var(--shell-top) + var(--shell-inset)); min-width: 0; background: var(--webvue-canvas); padding: var(--webvue-pad-top) var(--webvue-pad-x) 48px; }
-/* Sticky page headings (owner request 2026-10-19): a page's own heading holds its place under the floating
-   header while its content scrolls beneath it, on the same canvas wash and blur as the shell's own backdrop.
-   It sticks below that backdrop, never into it, and stays under the header card's own layer (z 62). */
+/* Sticky page headings (owner request 2026-10-19): a page's own heading card holds its place under the floating
+   header while its content scrolls beneath it. It sticks below that backdrop, never into it, and stays under
+   the header card's own layer (z 62). The card is solid, so scrolled content passes under it without a wash. */
 @media (min-width: 768px) {
   [data-slot="page-header"][data-sticky="true"] {
     position: sticky;
     inset-block-start: calc(var(--shell-top) - var(--shell-inset) + 8px);
     z-index: 30;
-    padding-block: 8px;
-    margin-block: -8px;
-  }
-  [data-slot="page-header"][data-sticky="true"]::before {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    inset-block: 0;
-    inset-inline: calc(-1 * var(--webvue-pad-x, 12px));
-    /* Near-opaque: scrolled content is read as passing under a solid band, never as ghosting through it. */
-    background: color-mix(in srgb, var(--webvue-canvas) 96%, transparent);
-    backdrop-filter: blur(10px);
-    pointer-events: none;
   }
   /* A docked board card owns the sticky slot under the floating header; the heading scrolls away instead. */
   .webvue-page-stack:has(.webvue-list-card-fill) [data-slot="page-header"][data-sticky="true"] { position: static; }
-  .webvue-page-stack:has(.webvue-list-card-fill) [data-slot="page-header"][data-sticky="true"]::before { content: none; }
   /* The project frame's white band (identity, meta, phase stepper, tabs) is that page's sticky heading. */
   .webvue-page-band[data-sticky="true"] {
     position: sticky;

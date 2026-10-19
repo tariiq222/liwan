@@ -2,7 +2,7 @@
 import type { HrEmployee } from '@webvue/contracts'
 import { hrAccessBadge } from '@/utils/hrAccessBadge'
 
-// The employee record's main column: the identity hero (avatar, name, status, job line) and, for a reader who may
+// The employee record's main column: the identity hero (avatar, name, job line; the status is a tag in the page heading) and, for a reader who may
 // see account status, a tinted account block. The facts are EmployeeProperties (the aside). The page owns the query,
 // so this takes the loaded employee.
 defineProps<{ employee: HrEmployee }>()
@@ -12,11 +12,7 @@ const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
 </script>
 
 <template>
-  <SharedIdentityCard :id="employee.id" :name="employee.name" :subtitle="[employee.job_title, employee.department?.name].filter(Boolean).join(' · ')">
-    <template #badge>
-      <SharedStatusBadge size="sm" :tone="employee.active ? 'success' : 'neutral'" :label="t(employee.active ? 'hr.directory.status.active' : 'hr.directory.status.archived')" />
-    </template>
-  </SharedIdentityCard>
+  <SharedIdentityCard :id="employee.id" :name="employee.name" :subtitle="[employee.job_title, employee.department?.name].filter(Boolean).join(' · ')" />
   <SharedRecordSection v-if="canSeeAccess" variant="tinted" :title="t('hr.card.account')">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm text-muted">{{ t('hr.employee.accessManagedInSettings') }}</p>

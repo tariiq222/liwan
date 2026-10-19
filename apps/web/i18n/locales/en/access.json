@@ -18,6 +18,7 @@
     "protectedUser": "This account is protected and cannot be changed here.",
     "protectedRole": "Built-in roles are protected and cannot be edited.",
     "users": {
+      "countTag": "{count} user | {count} users",
       "title": "Users",
       "description": "Manage login accounts and their assigned roles.",
       "grantAccount": "Grant account to employee",
@@ -78,6 +79,7 @@
       "confirmReactivate": "Confirm reactivating access for {name}."
     },
     "roles": {
+      "countTag": "{count} role | {count} roles",
       "title": "Roles and permissions",
       "description": "Built-in roles and custom roles from the permission catalog.",
       "create": "Create role",

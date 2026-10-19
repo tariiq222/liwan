@@ -7,7 +7,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/ListFooter',
   component: ListFooter,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/projects/index.vue:339', 'تذييل بطاقة القائمة: العدد في البداية والترقيم في النهاية، داخل خانة `footer` لبطاقة القائمة. يختفي الترقيم حين تتسع صفحة واحدة.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/projects/index.vue:342', 'تذييل بطاقة القائمة: العدد في البداية والترقيم في النهاية، داخل خانة `footer` لبطاقة القائمة. يختفي الترقيم حين تتسع صفحة واحدة.') },
   args: { countLabel: 'عرض 20 من 143 نتيجة', page: 2, pages: 8, disabled: false },
   render: args => ({
     components: { ListFooter, ListCard },

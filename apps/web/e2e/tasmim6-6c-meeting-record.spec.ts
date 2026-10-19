@@ -25,7 +25,7 @@ test.describe('Plan 6c: the meeting record', () => {
       await expect(page.locator('#meeting-summary')).toBeVisible()
       const aside = page.getByRole('complementary', { name: 'الخصائص' })
       await expect(aside.locator('[data-slot="property-row"]')).toHaveCount(5)
-      await expect(aside.getByTestId('meeting-state-badge')).toHaveText('مؤكد')
+      await expect(page.getByTestId('meeting-state-badge')).toHaveText('مؤكد')
       await expect(aside).toContainText('MTG-001')
       await expect(aside.getByRole('link', { name: 'اجتماعات متابعة التحول الرقمي' })).toHaveAttribute('href', '/meetings/series/1')
       await expect(aside).toContainText('تطوير الخدمات الرقمية')

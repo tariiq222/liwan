@@ -8,9 +8,9 @@ const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLi
 describe('rail model', () => {
   it('keeps rail order and puts settings in the utility slot', () => {
     const rail = railModel([
-      { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard' },
-      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/users' },
-      { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects' },
+      { id: 'home', labelKey: 'nav.home', icon: 'i-lucide-house', to: '/projects/dashboard', accent: 'slate' },
+      { id: 'settings', labelKey: 'nav.settings', icon: 'i-lucide-settings', to: '/settings/users', accent: 'slate' },
+      { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', accent: 'blue' },
     ])
     expect(rail.all.map(item => item.id)).toEqual(['home', 'settings', 'projects'])
     expect(rail.primary.map(item => item.id)).toEqual(['home', 'projects'])

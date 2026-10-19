@@ -154,10 +154,12 @@ const deadlineText = (value: string | null) => formatCalendarDate(deadlineDay(va
     :error="pageError"
     @retry="refetch"
   >
-    <template v-if="task" #actions>
+    <template v-if="task" #tags>
       <span data-testid="my-task-state-live" aria-live="polite" aria-atomic="true">
-        <SharedStatusBadge data-testid="my-task-state" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
+        <SharedStatusBadge size="sm" data-testid="my-task-state" :tone="STATE_TONE[task.state]" :label="t(`myTasks.state.${task.state}`)" />
       </span>
+    </template>
+    <template v-if="task" #actions>
       <UButton v-if="task.allowed_actions.write" type="button" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('myTasks.actions.edit')" :disabled="!hydrated || transitioning || convertPending" :to="editTo" />
       <UButton v-if="task.allowed_actions.done" type="button" data-primary-action icon="i-lucide-check" :label="t('myTasks.actions.done')" :loading="transitioning" :disabled="!hydrated || transitioning || convertPending || hasDraft || pendingElsewhere" @click="run('done')" />
       <UButton v-if="task.allowed_actions.reopen" type="button" data-primary-action color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('myTasks.actions.reopen')" :loading="transitioning" :disabled="!hydrated || transitioning || convertPending || hasDraft || pendingElsewhere" @click="run('reopen')" />

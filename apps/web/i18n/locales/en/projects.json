@@ -1,5 +1,6 @@
 {
   "projects": {
+    "countTag": "{count} project | {count} projects",
     "title": "Projects",
     "description": "One workspace for project status, progress, and the next step.",
     "myDescription": "Projects you manage",

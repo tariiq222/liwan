@@ -27,6 +27,8 @@ const page = computed(() => Math.floor((filters.offset ?? 0) / (filters.limit ??
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / (filters.limit ?? 25))))
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+// The list's total as a tag in the heading, once the first page has arrived.
+const countTags = computed(() => query.data.value ? [{ label: t('access.users.countTag', { count: total.value }, total.value) }] : [])
 const activeFilterCount = computed(() => Number(Boolean(filters.q?.trim())) + Number(Boolean(filters.status)) + Number(Boolean(filters.role_id)) + Number(Boolean(filters.department_id)))
 
 function isUsersList() {
@@ -74,6 +76,7 @@ function clearSearch() { filters.q = ''; updateFilters() }
   <SharedListPage
     data-testid="settings-layout"
     :title="t('access.users.title')"
+    :tags="countTags"
     :create-to="can('access.users.grant') ? { path: '/settings/users/new', query: listQuery } : undefined"
     :create-label="t('access.users.grantAccount')"
     create-test-id="settings-user-new"

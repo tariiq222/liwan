@@ -7,6 +7,7 @@ import { useAdminUsers } from '@/composables/useAdminUsers'
 import { useAdminPermissionCatalog, useAdminRole, useDeleteAdminRole, useDisableAdminRole, useEnableAdminRole } from '@/composables/useAdminRoles'
 import { ADMIN_PAGE_SIZE, adminListQuery } from '@/composables/adminSettingsPaths'
 import { accessBadge } from '@/components/access/accessBadge'
+import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@webvue/ui/app/components/shared/data/RowActions.vue'
 
 const route = useRoute()
@@ -62,6 +63,10 @@ const tabs = computed(() => [
 ])
 const userTo = (user: { id: number }) => ({ path: `/settings/users/${user.id}`, query: { role_id: String(id.value) } })
 const badge = computed(() => accessBadge({ active: role.data.value?.active ?? false, protected: role.data.value?.protected }))
+// The role's status and type sit in the heading as tags.
+const headerTags = computed<PageHeaderTag[]>(() => role.data.value
+  ? [{ ...statusTag({ tone: badge.value.tone, label: t(badge.value.labelKey) }), icon: badge.value.icon }, { label: typeLabel.value }]
+  : [])
 // Edit is the one primary action (clone for a role that cannot be edited); the rest sit in one menu with delete last.
 const primaryAction = computed(() => {
   const allowed = role.data.value?.allowed_actions ?? []
@@ -86,6 +91,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
   <SharedRecordPage :keep-content="!!role.data.value"
     data-testid="settings-layout"
     :title="roleName"
+    :tags="headerTags"
     :back-to="returnTo"
     :loading="role.isLoading.value"
     :error="versionConflict ? null : pageError"
@@ -130,10 +136,6 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
     </SharedPageState>
     <template v-if="role.data.value && !forbidden" #aside>
       <SharedPropertiesPanel :title="t('access.roles.details')">
-        <SharedPropertyRow :label="t('access.roles.columns.type')" :value="typeLabel" />
-        <SharedPropertyRow :label="t('access.roles.columns.status')">
-          <SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" />
-        </SharedPropertyRow>
         <SharedPropertyRow :label="t('access.roles.columns.users')" :value="role.data.value.user_count" />
         <SharedPropertyRow :label="t('access.roles.columns.description')" :value="role.data.value.description" />
       </SharedPropertiesPanel>

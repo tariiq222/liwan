@@ -4,6 +4,7 @@ import { ApiError } from '@/composables/useApi'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
 import { useHrLeaveRequest, useLeaveDecision, type HrLeaveDecision } from '@/composables/useHrLeave'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
+import { statusTag } from '@webvue/ui/app/utils/pageHeaderTag'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -19,6 +20,10 @@ const leave = computed(() => query.data.value)
 const pageError = computed(() => query.error.value ?? (validId.value ? null : new ApiError(404, 'not_found', t('errors.generic'))))
 const sourcePaths = useRecordListPaths(['/hr/leave'])
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
+
+const headerTags = computed(() => leave.value
+  ? [statusTag({ tone: hrLeaveBadge(leave.value.state).tone, label: t(hrLeaveBadge(leave.value.state).labelKey) }, 'hr-leave-state')]
+  : [])
 
 const decision = useLeaveDecision()
 const decisionError = ref('')
@@ -41,6 +46,7 @@ async function decide(kind: HrLeaveDecision) {
     :keep-content="!!leave"
     :title="leave?.leave_type.name || t('hr.leave.record')"
     :description="leave?.employee.name"
+    :tags="headerTags"
     :back-to="backTo"
     :loading="query.isLoading.value"
     :error="pageError"
@@ -52,11 +58,7 @@ async function decide(kind: HrLeaveDecision) {
     </template>
     <UAlert v-if="decisionError" role="alert" color="error" variant="subtle" :title="decisionError" data-testid="hr-leave-decision-error" />
     <template v-if="leave">
-      <SharedIdentityCard :id="leave.id" :name="leave.leave_type.name" :subtitle="leave.employee.name">
-        <template #badge>
-          <SharedStatusBadge size="sm" :tone="hrLeaveBadge(leave.state).tone" :label="t(hrLeaveBadge(leave.state).labelKey)" data-testid="hr-leave-state" />
-        </template>
-      </SharedIdentityCard>
+      <SharedIdentityCard :id="leave.id" :name="leave.leave_type.name" :subtitle="leave.employee.name" />
       <SharedRecordSection v-if="leave.notes" :title="t('hr.leave.form.notes')">
         <p class="whitespace-pre-line text-sm">{{ leave.notes }}</p>
       </SharedRecordSection>

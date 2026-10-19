@@ -1,5 +1,6 @@
 {
   "meetingsUi": {
+    "countTag": "{count} meeting | {count} meetings",
     "attachmentsTitle": "Attachments",
     "uploadAttachment": "Add attachment",
     "attachmentHelp": "Choose a file to attach to this meeting.",

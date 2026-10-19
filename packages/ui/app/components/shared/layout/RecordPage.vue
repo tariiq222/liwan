@@ -4,6 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import LoadingSkeleton from '../feedback/LoadingSkeleton.vue'
 import PageContainer from './PageContainer.vue'
 import PageHeader from './PageHeader.vue'
+import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 import PageState from '../feedback/PageState.vue'
 
 /*
@@ -14,6 +15,7 @@ import PageState from '../feedback/PageState.vue'
 const props = withDefaults(defineProps<{
   title: string
   description?: string
+  tags?: PageHeaderTag[]
   backTo?: RouteLocationRaw
   backLabel?: string
   loading?: boolean
@@ -34,11 +36,12 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
 
 <template>
   <PageContainer :width="props.width" data-template="record">
-    <PageHeader :title="heading" :description="props.description" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
+    <PageHeader :title="heading" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader">
       <template v-if="props.loading && !props.title" #title>
         <USkeleton class="inline-block h-6 w-48 align-middle" /><span class="sr-only">{{ t('app.loading') }}</span>
       </template>
       <template v-if="$slots.back" #back><slot name="back" /></template>
+      <template v-if="$slots.tags" #tags><slot name="tags" /></template>
       <template v-if="ready && $slots.actions" #actions><slot name="actions" /></template>
     </PageHeader>
     <div v-if="ready && $slots.summary" data-slot="record-summary" class="min-w-0"><slot name="summary" /></div>

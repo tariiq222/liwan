@@ -341,32 +341,32 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+          "context": "apps/web/app/pages/documents/[documentId].vue:87"
         },
         {
           "id": "Reader",
           "name": "Reader",
-          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+          "context": "apps/web/app/pages/documents/[documentId].vue:87"
         },
         {
           "id": "Uploading",
           "name": "Uploading",
-          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+          "context": "apps/web/app/pages/documents/[documentId].vue:87"
         },
         {
           "id": "Locked",
           "name": "Locked",
-          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+          "context": "apps/web/app/pages/documents/[documentId].vue:87"
         },
         {
           "id": "Empty",
           "name": "Empty",
-          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+          "context": "apps/web/app/pages/documents/[documentId].vue:87"
         },
         {
           "id": "EmptyReader",
           "name": "EmptyReader",
-          "context": "apps/web/app/pages/documents/[documentId].vue:85"
+          "context": "apps/web/app/pages/documents/[documentId].vue:87"
         }
       ]
     },
@@ -399,7 +399,7 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/documents.vue:205"
+          "context": "apps/web/app/pages/documents.vue:208"
         }
       ]
     },
@@ -489,7 +489,7 @@
         {
           "id": "Default",
           "name": "Default",
-          "context": "apps/web/app/pages/documents/[documentId].vue:84"
+          "context": "apps/web/app/pages/documents/[documentId].vue:86"
         }
       ]
     },
@@ -522,17 +522,17 @@
         {
           "id": "Editable",
           "name": "مع رفع وحذف",
-          "context": "apps/web/app/pages/meetings/[id].vue:294"
+          "context": "apps/web/app/pages/meetings/[id].vue:298"
         },
         {
           "id": "ReadOnly",
           "name": "للقراءة فقط",
-          "context": "apps/web/app/pages/meetings/[id].vue:294"
+          "context": "apps/web/app/pages/meetings/[id].vue:298"
         },
         {
           "id": "Empty",
           "name": "بلا مرفقات",
-          "context": "apps/web/app/pages/meetings/[id].vue:294"
+          "context": "apps/web/app/pages/meetings/[id].vue:298"
         }
       ]
     },
@@ -605,22 +605,22 @@
         {
           "id": "Populated",
           "name": "سجل الأحداث",
-          "context": "apps/web/app/pages/meetings/[id].vue:249"
+          "context": "apps/web/app/pages/meetings/[id].vue:253"
         },
         {
           "id": "Paginated",
           "name": "سجل بصفحات متعددة",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:360"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:369"
         },
         {
           "id": "Empty",
           "name": "بلا أحداث",
-          "context": "apps/web/app/pages/meetings/[id].vue:249"
+          "context": "apps/web/app/pages/meetings/[id].vue:253"
         },
         {
           "id": "Loading",
           "name": "جارٍ التحميل",
-          "context": "apps/web/app/pages/meetings/[id].vue:249"
+          "context": "apps/web/app/pages/meetings/[id].vue:253"
         }
       ]
     },
@@ -691,7 +691,7 @@
         {
           "id": "Structured",
           "name": "محضر منظّم",
-          "context": "apps/web/app/pages/meetings/[id].vue:216"
+          "context": "apps/web/app/pages/meetings/[id].vue:220"
         },
         {
           "id": "Legacy",
@@ -701,12 +701,12 @@
         {
           "id": "Empty",
           "name": "بلا مواضيع",
-          "context": "apps/web/app/pages/meetings/[id].vue:216"
+          "context": "apps/web/app/pages/meetings/[id].vue:220"
         },
         {
           "id": "Compact",
           "name": "قراءة المحضر داخل الاجتماع",
-          "context": "apps/web/app/pages/meetings/[id].vue:216"
+          "context": "apps/web/app/pages/meetings/[id].vue:220"
         }
       ]
     },
@@ -950,12 +950,12 @@
         {
           "id": "Summary",
           "name": "تبويب الملخص",
-          "context": "apps/web/app/pages/meetings/[id].vue:174"
+          "context": "apps/web/app/pages/meetings/[id].vue:178"
         },
         {
           "id": "LogTab",
           "name": "تبويب السجل بعد الفاصل",
-          "context": "apps/web/app/pages/meetings/[id].vue:174"
+          "context": "apps/web/app/pages/meetings/[id].vue:178"
         }
       ]
     },
@@ -992,12 +992,12 @@
         {
           "id": "WithResolutions",
           "name": "توصيات بحالات مختلفة",
-          "context": "apps/web/app/pages/meetings/[id].vue:291"
+          "context": "apps/web/app/pages/meetings/[id].vue:295"
         },
         {
           "id": "Empty",
           "name": "بلا توصيات",
-          "context": "apps/web/app/pages/meetings/[id].vue:291"
+          "context": "apps/web/app/pages/meetings/[id].vue:295"
         }
       ]
     },
@@ -1060,17 +1060,17 @@
         {
           "id": "Timeline",
           "name": "خط زمني",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:308"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:317"
         },
         {
           "id": "Table",
           "name": "جدول",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:308"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:317"
         },
         {
           "id": "Empty",
           "name": "بلا لقاءات",
-          "context": "apps/web/app/pages/meetings/series/[id].vue:308"
+          "context": "apps/web/app/pages/meetings/series/[id].vue:317"
         }
       ]
     },
@@ -1143,22 +1143,22 @@
         {
           "id": "Populated",
           "name": "نسخ المحضر",
-          "context": "apps/web/app/pages/meetings/[id].vue:261"
+          "context": "apps/web/app/pages/meetings/[id].vue:265"
         },
         {
           "id": "Selected",
           "name": "نسخة محددة",
-          "context": "apps/web/app/pages/meetings/[id].vue:261"
+          "context": "apps/web/app/pages/meetings/[id].vue:265"
         },
         {
           "id": "Empty",
           "name": "بلا نسخ",
-          "context": "apps/web/app/pages/meetings/[id].vue:261"
+          "context": "apps/web/app/pages/meetings/[id].vue:265"
         },
         {
           "id": "Loading",
           "name": "جارٍ التحميل",
-          "context": "apps/web/app/pages/meetings/[id].vue:261"
+          "context": "apps/web/app/pages/meetings/[id].vue:265"
         }
       ]
     },
@@ -1729,12 +1729,12 @@
         {
           "id": "AboveProjectList",
           "name": "فوق قائمة المشاريع",
-          "context": "apps/web/app/pages/projects/index.vue:273"
+          "context": "apps/web/app/pages/projects/index.vue:276"
         },
         {
           "id": "StatusFilterCountsOnly",
           "name": "فلتر حالة: أرقام فقط",
-          "context": "apps/web/app/pages/projects/index.vue:273"
+          "context": "apps/web/app/pages/projects/index.vue:276"
         }
       ]
     },
@@ -2724,7 +2724,7 @@
         {
           "id": "Default",
           "name": "الشريط والقائمة السياقية",
-          "context": "apps/web/app/layouts/default.vue:62"
+          "context": "apps/web/app/layouts/default.vue:69"
         }
       ]
     },
@@ -2960,7 +2960,7 @@
         {
           "id": "Default",
           "name": "مهامي",
-          "context": "apps/web/app/layouts/default.vue:61"
+          "context": "apps/web/app/layouts/default.vue:68"
         }
       ]
     },
@@ -3583,32 +3583,32 @@
         {
           "id": "InPageToolbar",
           "name": "شريط أدوات صفحة",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:280"
         },
         {
           "id": "WithActiveFilters",
           "name": "مع فلاتر نشطة",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:280"
         },
         {
           "id": "FiltersOpen",
           "name": "نافذة الفلاتر مفتوحة",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:280"
         },
         {
           "id": "EmbeddedInCardHeader",
           "name": "مدمج في ترويسة بطاقة (صف واحد)",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:280"
         },
         {
           "id": "EmbeddedTaskFilters",
           "name": "مدمج: فلاتر المهام (الأولوية والمسؤول والموعد)",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:280"
         },
         {
           "id": "Disabled",
           "name": "معطّل",
-          "context": "apps/web/app/pages/projects/index.vue:277"
+          "context": "apps/web/app/pages/projects/index.vue:280"
         }
       ]
     },
@@ -3643,12 +3643,12 @@
         {
           "id": "ActiveRow",
           "name": "صف الفلاتر النشطة",
-          "context": "apps/web/app/pages/meetings/index.vue:291"
+          "context": "apps/web/app/pages/meetings/index.vue:294"
         },
         {
           "id": "Disabled",
           "name": "معطّلة",
-          "context": "apps/web/app/pages/meetings/index.vue:291"
+          "context": "apps/web/app/pages/meetings/index.vue:294"
         }
       ]
     },
@@ -3796,17 +3796,17 @@
         {
           "id": "WithPager",
           "name": "عدد وترقيم",
-          "context": "apps/web/app/pages/projects/index.vue:339"
+          "context": "apps/web/app/pages/projects/index.vue:342"
         },
         {
           "id": "SinglePage",
           "name": "صفحة واحدة (العدد فقط)",
-          "context": "apps/web/app/pages/projects/index.vue:339"
+          "context": "apps/web/app/pages/projects/index.vue:342"
         },
         {
           "id": "Fetching",
           "name": "أثناء التحميل",
-          "context": "apps/web/app/pages/projects/index.vue:339"
+          "context": "apps/web/app/pages/projects/index.vue:342"
         }
       ]
     },
@@ -4256,22 +4256,22 @@
         {
           "id": "Pending",
           "name": "Pending",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
+          "context": "apps/web/app/components/operations/RequestList.vue:81"
         },
         {
           "id": "Completed",
           "name": "Completed",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
+          "context": "apps/web/app/components/operations/RequestList.vue:81"
         },
         {
           "id": "Returned",
           "name": "Returned",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
+          "context": "apps/web/app/components/operations/RequestList.vue:81"
         },
         {
           "id": "Rejected",
           "name": "Rejected",
-          "context": "apps/web/app/pages/operations/[id]/index.vue:108"
+          "context": "apps/web/app/components/operations/RequestList.vue:81"
         }
       ]
     },
@@ -4304,7 +4304,7 @@
         {
           "id": "Default",
           "name": "جدول ولوحة",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:62"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:64"
         }
       ]
     },
@@ -4684,7 +4684,7 @@
         {
           "id": "InFilterPopover",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:282"
+          "context": "apps/web/app/pages/meetings/index.vue:285"
         },
         {
           "id": "WithTime",
@@ -5099,6 +5099,11 @@
           "required": false
         },
         {
+          "name": "tags",
+          "type": "PageHeaderTag[]",
+          "required": false
+        },
+        {
           "name": "hideHeader",
           "type": "boolean",
           "required": false
@@ -5319,6 +5324,11 @@
           "required": false
         },
         {
+          "name": "tags",
+          "type": "PageHeaderTag[]",
+          "required": false
+        },
+        {
           "name": "createTo",
           "type": "RouteLocationRaw",
           "required": false
@@ -5416,12 +5426,12 @@
         {
           "id": "List",
           "name": "صفحة قائمة",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:45"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:47"
         },
         {
           "id": "Detail",
           "name": "صفحة تفاصيل",
-          "context": "packages/ui/app/components/shared/layout/RecordPage.vue:36"
+          "context": "packages/ui/app/components/shared/layout/RecordPage.vue:38"
         },
         {
           "id": "Form",
@@ -5452,6 +5462,18 @@
           "required": false
         },
         {
+          "name": "icon",
+          "type": "string",
+          "required": false,
+          "description": "Replaces the icon the shell publishes for the current application (the chip keeps that application's hue)."
+        },
+        {
+          "name": "tags",
+          "type": "PageHeaderTag[]",
+          "required": false,
+          "description": "Short facts about the page's subject (state, owner, count), drawn inline after the title; a tag with `to` is a link."
+        },
+        {
           "name": "backTo",
           "type": "RouteLocationRaw",
           "required": false
@@ -5478,11 +5500,13 @@
       "events": [],
       "slots": [
         "title",
+        "tags",
         "back",
         "actions",
         "default"
       ],
       "nuxtUi": [
+        "UBadge",
         "UButton",
         "UIcon"
       ],
@@ -5493,6 +5517,16 @@
           "context": "apps/web/app/pages/projects/[id]/settings.vue:22"
         },
         {
+          "id": "TitleOnly",
+          "name": "عنوان فقط",
+          "context": "packages/ui/app/components/shared/layout/RecordPage.vue:39"
+        },
+        {
+          "id": "WithTags",
+          "name": "وسوم بعد العنوان",
+          "context": "packages/ui/app/components/shared/layout/RecordPage.vue:39"
+        },
+        {
           "id": "WithBack",
           "name": "مسار تحت العنوان",
           "context": "apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:67"
@@ -5500,7 +5534,7 @@
         {
           "id": "TrailUnderTitle",
           "name": "مسار الأسلاف تحت العنوان",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:46"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:48"
         },
         {
           "id": "TitleAndDescription",
@@ -5510,12 +5544,12 @@
         {
           "id": "UnifiedHeaderWithFilters",
           "name": "الترويسة والفلاتر الموحدة (شامل المكونات)",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:46"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:48"
         },
         {
           "id": "StickyHeading",
           "name": "رأس ثابت مع تمرير",
-          "context": "packages/ui/app/components/shared/layout/ListPage.vue:46"
+          "context": "packages/ui/app/components/shared/layout/ListPage.vue:48"
         },
         {
           "id": "HiddenTitle",
@@ -5601,6 +5635,11 @@
           "required": false
         },
         {
+          "name": "tags",
+          "type": "PageHeaderTag[]",
+          "required": false
+        },
+        {
           "name": "backTo",
           "type": "RouteLocationRaw",
           "required": false
@@ -5647,6 +5686,7 @@
       ],
       "slots": [
         "back",
+        "tags",
         "actions",
         "summary",
         "tabs",
@@ -6058,12 +6098,12 @@
         {
           "id": "Default",
           "name": "الإطار الكامل",
-          "context": "apps/web/app/layouts/default.vue:60"
+          "context": "apps/web/app/layouts/default.vue:67"
         },
         {
           "id": "Collapsed",
           "name": "القائمة السياقية مطويّة",
-          "context": "apps/web/app/layouts/default.vue:60"
+          "context": "apps/web/app/layouts/default.vue:67"
         }
       ]
     },

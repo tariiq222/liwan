@@ -2,6 +2,7 @@
 import { deadlineLabel, deadlineTone } from '@/composables/taskState'
 import { taskDaysRemaining } from './taskDeadline'
 import type { RouteLocationRaw } from 'vue-router'
+import { statusTag, type PageHeaderTag } from '@webvue/ui/app/utils/pageHeaderTag'
 import { ApiError } from '@/composables/useApi'
 import { withTaskAttributeFilters } from '@/composables/taskFilterParams'
 import { normalizeTaskSort } from '@/composables/taskSort'
@@ -96,11 +97,22 @@ useEventListener(document, 'keydown', onKeydown)
 const title = computed(() => task.value?.name ?? t('tasks.detail.pageLabel'))
 // Counted from the same instant the Deadline property prints, so the badge and the date cannot disagree.
 const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) : null))
+// The task's context sits in the heading: its project (a link), the workflow stage and the deadline.
+const headerTags = computed<PageHeaderTag[]>(() => {
+  const current = task.value
+  if (!current) return []
+  return [
+    ...(current.project ? [{ label: current.project.name, icon: 'i-lucide-folder-kanban', to: `/projects/${current.project.id}`, testId: 'task-detail-context' }] : []),
+    { label: `${t('tasks.detail.workflowStage')}: ${current.stage?.name ?? t('tasks.detail.stageUnset')}`, icon: 'i-lucide-git-commit-horizontal' },
+    statusTag({ tone: deadlineTone(deadlineDays.value, current.is_closed), label: deadlineLabel(deadlineDays.value, t) }, 'deadline-badge'),
+  ]
+})
 </script>
 
 <template>
   <SharedRecordPage
     :title="title"
+    :tags="headerTags"
     :back-to="archiveConfirmOpen ? undefined : backTo"
     :back-label="props.backLabel ?? t('tasks.detail.back')"
     :loading="!task && !error"
@@ -132,19 +144,12 @@ const deadlineDays = computed(() => (task.value ? taskDaysRemaining(task.value) 
     </template>
 
     <template v-if="task">
-      <div v-if="task.project" data-testid="task-detail-context" class="flex min-w-0 items-center gap-2">
-        <span class="text-xs text-muted">{{ t('tasks.project') }}</span>
-        <NuxtLink :to="`/projects/${task.project.id}`" class="min-w-0 truncate text-sm font-semibold hover:underline">{{ task.project.name }}</NuxtLink>
-      </div>
-
       <SharedInlineConfirm v-if="archiveConfirmOpen" data-testid="task-archive-confirm" :title="t('tasks.drawer.archive')" :description="t('tasks.drawer.archiveConfirm')" :confirm-label="t('tasks.drawer.archive')" :pending="archiving" @confirm="doArchive" @cancel="archiveConfirmOpen = false" />
 
       <div data-testid="task-detail-grid" class="space-y-6">
         <div data-testid="task-details-card" class="space-y-6">
           <div class="flex flex-wrap items-center gap-2">
             <StateMenu :task="task" :can-approve="task.can_approve" />
-            <span class="text-xs text-muted">{{ t('tasks.detail.workflowStage') }}: {{ task.stage?.name ?? t('tasks.detail.stageUnset') }}</span>
-            <SharedStatusBadge data-testid="deadline-badge" :tone="deadlineTone(deadlineDays, task.is_closed)" :label="deadlineLabel(deadlineDays, t)" />
           </div>
           <TaskCompletionApproval :task="task" />
           <TaskDetails :key="task.id" :task="task" :base-path="props.basePath" />

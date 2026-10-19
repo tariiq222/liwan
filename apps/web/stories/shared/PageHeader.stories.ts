@@ -9,6 +9,7 @@ import ViewSwitch from '@webvue/ui/app/components/shared/data/ViewSwitch.vue'
 import PageContainer from '@webvue/ui/app/components/shared/layout/PageContainer.vue'
 import PageHeader from '@webvue/ui/app/components/shared/layout/PageHeader.vue'
 import RecordSection from '@webvue/ui/app/components/shared/layout/RecordSection.vue'
+import { providePageAccent } from '@webvue/ui/app/composables/usePageAccent'
 import { providePageTrail } from '@webvue/ui/app/composables/usePageTrail'
 import { storyContext } from '../support/context'
 
@@ -31,6 +32,40 @@ export const WithActions: Story = {
   }),
 }
 
+// The compact card (DESIGN.md §3): the chip takes the icon and hue of the active application from the shell, so a
+// page passes nothing; a title alone is the smallest header.
+export const TitleOnly: Story = {
+  name: 'عنوان فقط',
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'أصغر ترويسة: بطاقة مدمجة بأيقونة التطبيق ولونه من الغلاف وعنوان واحد، بلا وصف ولا وسوم ولا إجراءات.'),
+  render: () => ({
+    components: { PageContainer, PageHeader },
+    setup: () => {
+      providePageAccent({ icon: 'i-lucide-folder-kanban', accent: 'blue' })
+      return { t: useI18n().t }
+    },
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('projects.title')" /></PageContainer></main>`,
+  }),
+}
+
+// Tags are short facts about the page's subject (state, count, owner) drawn inline after the title; a tag with `to` is a link.
+export const WithTags: Story = {
+  name: 'وسوم بعد العنوان',
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
+  render: () => ({
+    components: { PageContainer, PageHeader },
+    setup: () => {
+      providePageAccent({ icon: 'i-lucide-calendar-days', accent: 'violet' })
+      const { t } = useI18n()
+      const tags = [
+        { label: t('projects.status.at_risk'), tone: 'warning' as const },
+        { label: t('nav.projects'), icon: 'i-lucide-folder-kanban', to: '/projects' },
+      ]
+      return { t, tags }
+    },
+    template: `<main class="webvue-shell-main"><PageContainer width="list"><PageHeader :title="t('tasks.title')" :description="t('tasks.description')" :tags="tags"><template #actions><UButton icon="i-lucide-plus">{{ t('tasks.new') }}</UButton><UButton color="neutral" variant="outline">{{ t('taskLifecycle.archivedTasks') }}</UButton></template></PageHeader></PageContainer></main>`,
+  }),
+}
+
 // The trail under the title (DESIGN.md §3): the page's own back target is its nearest step, and the
 // shell's published ancestors come before it. A step that only links back to this same page is dropped.
 export const WithBack: Story = {
@@ -47,7 +82,7 @@ export const WithBack: Story = {
 // above stays quiet and the reader still sees where the page sits.
 export const TrailUnderTitle: Story = {
   name: 'مسار الأسلاف تحت العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:46', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها تحت العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:48', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها تحت العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -77,7 +112,7 @@ export const TitleAndDescription: Story = {
 // on the shell's canvas wash and blur, while the sections pass beneath it.
 export const UnifiedHeaderWithFilters: Story = {
   name: 'الترويسة والفلاتر الموحدة (شامل المكونات)',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:46', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:48', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
   render: () => ({
     components: { FilterBar, FilterChip, PageContainer, PageHeader, RecordSection, SegmentedControl, ViewSwitch },
     setup: () => {
@@ -180,7 +215,7 @@ export const UnifiedHeaderWithFilters: Story = {
 
 export const StickyHeading: Story = {
   name: 'رأس ثابت مع تمرير',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:46', 'الرأس الملتصق: يبقى عنوان الصفحة وإجراءاتها أسفل الهيدر العائم أثناء التمرير، بخلفية ضبابية على لون اللوحة، ولا يلتصق على الجوال (أقل من 768px) ولا حين تملك البطاقة المرساة خانة الالتصاق.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:48', 'الرأس الملتصق: يبقى عنوان الصفحة وإجراءاتها أسفل الهيدر العائم أثناء التمرير، بخلفية ضبابية على لون اللوحة، ولا يلتصق على الجوال (أقل من 768px) ولا حين تملك البطاقة المرساة خانة الالتصاق.'),
   render: () => ({
     components: { PageContainer, PageHeader, RecordSection },
     setup: () => ({ t: useI18n().t, rows: [1, 2, 3, 4, 5, 6, 7, 8] }),
