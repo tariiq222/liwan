@@ -108,6 +108,8 @@ export async function renderShared(
 ): Promise<string> {
   const app = Vue.createSSRApp({ render: () => Vue.h(loadShared(name, options), props, slots) })
   app.config.globalProperties.$t = fakeT(options.messages) as never
-  for (const [tag, component] of Object.entries({ ...DEFAULT_STUBS, ...options.stubs })) app.component(tag, component)
+  // Components the layer's own shared components draw through their auto-import name are compiled for real.
+  const layerComponents = { SharedHeaderTags: loadShared('HeaderTags', options) }
+  for (const [tag, component] of Object.entries({ ...DEFAULT_STUBS, ...layerComponents, ...options.stubs })) app.component(tag, component)
   return renderToString(app)
 }

@@ -63,7 +63,7 @@ async function loadPage(page: string, url: RouteLocationRaw, overrides: Record<s
     useSsrQuerySeed: () => undefined, navigateTo: navigate,
     ApiError: class ApiError extends Error {},
     TaskBoard: {}, TaskTable: {}, TaskToolbar: {}, TaskKpiStrip: {}, FilterBar: {}, DocumentEditor: {},
-    projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', ProjectWorkspaceTabs: {}, ProjectPhaseStepper: {},
+    projectStatusBadge: () => ({ tone: 'neutral', labelKey: '' }), badgeLabel: () => '', statusTag: () => ({ label: '' }), ProjectWorkspaceTabs: {}, ProjectPhaseStepper: {},
     ...overrides,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
