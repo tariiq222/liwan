@@ -1,10 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-from . import (
-    test_assignment_notifications,
-    test_comment_notifications,
-    test_convert,
-    test_links,
-    test_personal_create,
-    test_personal_read,
-    test_pmo_routes,
-)
+from odoo.addons.webvue_core.testing import import_all_tests
+
+import_all_tests(__name__)
