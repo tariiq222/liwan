@@ -89,7 +89,9 @@ class TestFinanceSetup(WebVueFinanceCase):
         self.assertGreaterEqual(body['journals']['sale'], 1)
         self.assertEqual(set(body['journals']), {'sale', 'purchase', 'bank', 'cash'})
         self.assertNotIn('chart_not_loaded', body['blockers'])
-        self.assertEqual(body['blockers'], ['company_vat_missing', 'company_registry_missing', 'company_address_incomplete'])
+        self.assertEqual(body['blockers'], [
+            'company_vat_missing', 'company_registry_missing', 'company_address_incomplete', 'zatca_not_onboarded',
+        ])
         self.assertFalse(body['ready'])
 
     def test_a_company_without_a_chart_is_blocked_on_it(self):
@@ -115,7 +117,10 @@ class TestFinanceSetup(WebVueFinanceCase):
         body = result.json()
         self.assertEqual((body['company']['vat'], body['company']['city']), (VALID_VAT, 'Riyadh'))
         self.assertEqual(body['company']['country']['name'], self.env.ref('base.sa').name)
-        self.assertEqual((body['company']['missing_fields'], body['blockers'], body['ready']), ([], [], True))
+        # The identity is complete; only the ZATCA onboarding of the sales journal is left.
+        self.assertEqual(
+            (body['company']['missing_fields'], body['blockers'], body['ready']), ([], ['zatca_not_onboarded'], False),
+        )
         self.assertEqual(self._get(), body)
 
     def test_loading_the_chart_twice_is_refused(self):

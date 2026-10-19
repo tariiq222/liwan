@@ -3,6 +3,10 @@
     "odoo-addons/webvue_finance/models/setup_service.py": {
       "count": 2,
       "reason": "finance setup: chart load and company tax identity, after the finance.setup.manage check, field whitelist (owner approved 2026-10-18)"
+    },
+    "odoo-addons/webvue_finance/models/zatca_service.py": {
+      "count": 2,
+      "reason": "finance ZATCA e-invoicing: onboarding (stock wizard) and one-invoice submission, after the finance.zatca.manage/submit and current-company checks, sandbox api mode only (owner approved 2026-10-19)"
     }
   }
 }

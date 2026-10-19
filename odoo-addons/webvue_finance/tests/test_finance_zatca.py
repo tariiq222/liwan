@@ -11,13 +11,12 @@ from .write_common import INVOICES, WebVueFinanceWriteCase
 from odoo.addons.webvue_finance.serializers.setup import dump_setup
 from odoo.addons.webvue_finance.serializers.zatca import dump_zatca_readiness
 
-INSTALLED = 'odoo.addons.webvue_finance.serializers.zatca.zatca_installed'
 SECRET_KEY = re.compile(r'secret|token|password|csr|certificate|csid|credential|otp|^key$|private', re.IGNORECASE)
 # The only key naming a secret holds a boolean: whether the private key exists.
 PRESENCE_FLAGS = {'private_key_present'}
 SECRET_VALUE = 'TOP-SECRET-MATERIAL'
 JOURNAL_KEYS = {'journal', 'onboarded', 'state'}
-ZATCA_KEYS = {'installed', 'api_mode', 'private_key_present', 'journals', 'onboarded'}
+ZATCA_KEYS = {'api_mode', 'private_key_present', 'journals', 'onboarded'}
 
 
 def secret_keys(value):
@@ -61,26 +60,15 @@ class TestFinanceZatcaReadiness(WebVueFinanceCase):
         self.assertEqual(result.status_code, 200, result.text)
         return result.json()
 
-    def test_without_l10n_sa_edi_the_readiness_is_just_not_installed(self):
-        with patch(INSTALLED, return_value=False):
-            body = self._setup()
-        self.assertEqual(body['zatca'], {'installed': False})
-        self.assertNotIn('zatca_not_onboarded', body['blockers'])
-
-    def test_the_real_company_matches_the_installed_state_of_the_module(self):
+    def test_the_real_company_reports_its_readiness_in_the_setup(self):
         zatca = dump_zatca_readiness(self.company)
-        installed = bool(self.env['ir.module.module'].search_count([
-            ('name', '=', 'l10n_sa_edi'), ('state', '=', 'installed'),
-        ]))
-        self.assertEqual(zatca['installed'], installed)
-        self.assertEqual(set(zatca), ZATCA_KEYS if installed else {'installed'})
+        self.assertEqual(set(zatca), ZATCA_KEYS)
         self.assertEqual(self._setup()['zatca'], zatca)
 
     def test_each_sale_journal_reports_its_onboarding_state(self):
         company = fake_company([fake_journal(1, ready=True, checks_passed=True), fake_journal(2, False, True),
                                 fake_journal(3, False, False)])
-        with patch(INSTALLED, return_value=True):
-            zatca = dump_zatca_readiness(company)
+        zatca = dump_zatca_readiness(company)
         self.assertEqual(set(zatca), ZATCA_KEYS)
         self.assertEqual(
             [(row['journal']['id'], row['onboarded'], row['state']) for row in zatca['journals']],
@@ -92,13 +80,12 @@ class TestFinanceZatcaReadiness(WebVueFinanceCase):
 
     def test_the_company_is_onboarded_only_with_a_key_and_every_journal_onboarded(self):
         ready = [fake_journal(1, True, True)]
-        with patch(INSTALLED, return_value=True):
-            self.assertTrue(dump_zatca_readiness(fake_company(ready))['onboarded'])
-            self.assertFalse(dump_zatca_readiness(fake_company(ready, has_key=False))['onboarded'])
-            self.assertFalse(dump_zatca_readiness(fake_company([]))['onboarded'])
+        self.assertTrue(dump_zatca_readiness(fake_company(ready))['onboarded'])
+        self.assertFalse(dump_zatca_readiness(fake_company(ready, has_key=False))['onboarded'])
+        self.assertFalse(dump_zatca_readiness(fake_company([]))['onboarded'])
 
     def test_a_company_that_is_not_onboarded_blocks_setup(self):
-        zatca = {'installed': True, 'onboarded': False}
+        zatca = {'onboarded': False}
         with patch('odoo.addons.webvue_finance.serializers.setup.dump_zatca_readiness', return_value=zatca):
             body = dump_setup(self.company)
         self.assertIn('zatca_not_onboarded', body['blockers'])
@@ -106,8 +93,7 @@ class TestFinanceZatcaReadiness(WebVueFinanceCase):
 
     def test_no_secret_key_or_value_reaches_any_serializer_output(self):
         company = fake_company([fake_journal(1, True, True), fake_journal(2, False, False)])
-        with patch(INSTALLED, return_value=True):
-            fake = dump_zatca_readiness(company)
+        fake = dump_zatca_readiness(company)
         self.assertEqual(secret_keys(fake), set())
         self.assertNotIn(SECRET_VALUE, json.dumps(fake))
         self.assertEqual(secret_keys(dump_zatca_readiness(self.company)), set())
@@ -122,23 +108,15 @@ class TestFinanceZatcaReadiness(WebVueFinanceCase):
 
 @tagged('post_install', '-at_install', 'webvue')
 class TestFinanceZatcaRealModule(WebVueFinanceWriteCase):
-    """Runs only in a database that has l10n_sa_edi installed (the module list of the run decides;
-    a test never installs a module). The Saudi company's sales journal is not ZATCA-onboarded, so
-    Odoo refuses to post and the route answers 422 ``zatca_not_onboarded``. No onboarding or
-    network call is made.
-
-    With l10n_sa_edi installed the shared fixture cannot post its sample invoices, so this class
-    keeps them as drafts; run it alone: ``--test-tags /webvue_finance:TestFinanceZatcaRealModule``.
+    """The real l10n_sa_edi refusal. The shared fixture sells through journals without the ZATCA
+    format; this class links the format back, so the Saudi company's sales journal is not
+    ZATCA-onboarded and Odoo refuses to post: the route answers 422 ``zatca_not_onboarded``.
+    No onboarding or network call is made.
     """
 
-    @classmethod
-    def _sale_invoice(cls, company, partner):
-        return cls._draft_sale_invoice(company, partner)
-
     def test_posting_on_a_journal_that_is_not_onboarded_is_a_422_zatca_not_onboarded(self):
-        if not self.env['ir.module.module'].search_count([('name', '=', 'l10n_sa_edi'), ('state', '=', 'installed')]):
-            self.skipTest('l10n_sa_edi is not installed in this database')
         draft = self.create_invoice()
+        self._journal(self.company, 'sale').edi_format_ids = self.env.ref('l10n_sa_edi.edi_sa_zatca')
         result = self.api('POST', f'{INVOICES}/{draft["id"]}/post', json={})
         self.assertRefused(result, 422, 'zatca_not_onboarded')
         self.assertIn('not onboarded', result.json()['details']['detail'])

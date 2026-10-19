@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { currency, day, FinanceRefSchema, id, list } from './shared'
+import { FinanceZatcaSubmissionSchema } from './zatca'
 
 export { FinanceRefSchema }
 
@@ -44,6 +45,7 @@ export const FinanceInvoiceLineSchema = z.object({
 export const FinanceInvoiceZatcaSchema = z.object({
   qr_code: z.string().min(1).nullable(),
   confirmation_datetime: z.string().datetime().nullable(),
+  submission: FinanceZatcaSubmissionSchema,
 }).strict()
 
 export const FinanceInvoiceDetailSchema = FinanceInvoiceSchema.extend({
@@ -119,3 +121,4 @@ export * from './report'
 export * from './setup'
 export * from './statements'
 export * from './write'
+export * from './zatca'

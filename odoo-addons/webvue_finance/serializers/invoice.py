@@ -9,6 +9,7 @@ from .parsing import (
     reject_unknown,
     require_keys,
 )
+from .zatca import dump_zatca_submission
 from odoo.addons.webvue_api.controllers.common import ApiError
 from odoo.addons.webvue_api.serializers.common import iso
 
@@ -62,6 +63,7 @@ def dump_invoice_zatca(move):
     return {
         'qr_code': move.l10n_sa_qr_code_str or None,
         'confirmation_datetime': iso(move.l10n_sa_confirmation_datetime),
+        'submission': dump_zatca_submission(move),
     }
 
 

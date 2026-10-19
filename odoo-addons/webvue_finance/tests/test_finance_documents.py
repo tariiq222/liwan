@@ -72,7 +72,9 @@ class TestFinanceInvoicePdf(WebVueFinanceCase):
         self.assertTrue(result.content.startswith(b'%PDF'))
         disposition = result.headers['Content-Disposition']
         self.assertTrue(disposition.startswith('attachment;'), disposition)
-        self.assertIn('INV_2026_00001.pdf', disposition)
+        # A Saudi sale document carries the ZATCA file name: <seller VAT>_<issue time>_<number>.
+        self.assertIn('300000000000003_', disposition)
+        self.assertIn('_INV-2026-00001.pdf', disposition)
         self.assertNotIn('/', disposition)
         (_report, report_ref, res_ids), _kwargs = render.call_args
         self.assertEqual((report_ref, res_ids), ('account.account_invoices', self.invoice.ids))
@@ -88,10 +90,11 @@ class TestFinanceInvoicePdf(WebVueFinanceCase):
         self.assertEqual(render.call_args[0][1], 'account.account_invoices_without_payment')
 
     def test_the_filename_keeps_arabic_and_cannot_inject_a_header(self):
-        self.invoice.sudo().name = 'فاتورة/2026/00001'
-        result, _render = self._pdf(self.invoice)
+        with patch.object(type(self.invoice), '_get_report_base_filename', return_value='فاتورة/2026/00001'):
+            result, _render = self._pdf(self.invoice)
         self.assertIn("filename*=UTF-8''", result.headers['Content-Disposition'])
         self.assertIn('%D9%81%D8%A7%D8%AA%D9%88%D8%B1%D8%A9', result.headers['Content-Disposition'])
+        self.assertNotIn('/', result.headers['Content-Disposition'])
         hostile = 'INV"; x=y\r\nSet-Cookie: a=b/1'
         with patch.object(type(self.invoice), '_get_report_base_filename', return_value=hostile):
             result, _render = self._pdf(self.invoice)

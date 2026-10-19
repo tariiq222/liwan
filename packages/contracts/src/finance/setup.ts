@@ -22,16 +22,12 @@ export const FinanceZatcaJournalSchema = z.object({
   state: FinanceZatcaJournalStateSchema,
 }).strict()
 
-export const FinanceZatcaReadinessSchema = z.discriminatedUnion('installed', [
-  z.object({ installed: z.literal(false) }).strict(),
-  z.object({
-    installed: z.literal(true),
-    api_mode: z.enum(['sandbox', 'preprod', 'prod']),
-    private_key_present: z.boolean(),
-    journals: z.array(FinanceZatcaJournalSchema),
-    onboarded: z.boolean(),
-  }).strict(),
-])
+export const FinanceZatcaReadinessSchema = z.object({
+  api_mode: z.enum(['sandbox', 'preprod', 'prod']),
+  private_key_present: z.boolean(),
+  journals: z.array(FinanceZatcaJournalSchema),
+  onboarded: z.boolean(),
+}).strict()
 
 export const FinanceSetupSchema = z.object({
   chart: z.object({

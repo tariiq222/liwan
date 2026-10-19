@@ -3,8 +3,10 @@ from . import (
     access_service,
     feature_registry,
     mis_report,
+    res_company,
     setup_service,
     statement_report,
     vat_report,
     withholding_report,
+    zatca_service,
 )

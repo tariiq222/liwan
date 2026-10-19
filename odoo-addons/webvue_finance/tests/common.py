@@ -22,6 +22,10 @@ class WebVueFinanceCase(WebVueApiCase):
             'name': name, 'country_id': saudi_arabia.id, 'currency_id': cls.env.ref('base.SAR').id,
         })
         cls.env['account.chart.template'].try_loading('sa', company)
+        # ZATCA phase 2 refuses to post until a journal is onboarded against ZATCA; the fixtures
+        # sell through journals without that format. The ZATCA tests link it back where they need it.
+        zatca = cls.env.ref('l10n_sa_edi.edi_sa_zatca')
+        cls.env['account.journal'].search([('company_id', '=', company.id)]).edi_format_ids = [Command.unlink(zatca.id)]
         return company
 
     @classmethod
@@ -34,6 +38,7 @@ class WebVueFinanceCase(WebVueApiCase):
             'move_type': 'out_invoice',
             'partner_id': partner.id,
             'invoice_date': '2026-10-18',
+            'invoice_date_due': '2026-10-18',  # fixed: Odoo otherwise derives the due date from today
             'invoice_line_ids': [Command.create({
                 'name': 'Consulting', 'quantity': 1, 'price_unit': 1000, 'tax_ids': [Command.set(vat.ids)],
             })],

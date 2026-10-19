@@ -68,7 +68,7 @@ class TestFinanceInvoices(WebVueFinanceCase):
     def test_a_saudi_sale_invoice_carries_the_zatca_qr_payload_and_issue_time(self):
         self.company.vat = '300000000000003'
         body = self.api('GET', f'{INVOICES}/{self.invoice.id}').json()
-        self.assertEqual(set(body['zatca']), {'qr_code', 'confirmation_datetime'})
+        self.assertEqual(set(body['zatca']), {'qr_code', 'confirmation_datetime', 'submission'})
         self.assertEqual(body['zatca']['qr_code'], self.invoice.l10n_sa_qr_code_str)
         # The payload is base64 TLV: tag 2 holds the seller VAT number, tags 4 and 5 the total and the VAT.
         payload = base64.b64decode(body['zatca']['qr_code'])
@@ -86,7 +86,8 @@ class TestFinanceInvoices(WebVueFinanceCase):
     def test_a_draft_sale_invoice_has_no_qr_or_issue_time_yet(self):
         draft = self._draft_sale_invoice(self.company, self.partner)
         zatca = self.api('GET', f'{INVOICES}/{draft.id}').json()['zatca']
-        self.assertEqual(zatca, {'qr_code': None, 'confirmation_datetime': None})
+        self.assertEqual((zatca['qr_code'], zatca['confirmation_datetime']), (None, None))
+        self.assertEqual(zatca['submission']['state'], 'not_applicable')
 
     def test_a_vendor_bill_has_no_zatca_block(self):
         self.assertIsNone(self.api('GET', f'{INVOICES}/{self.bill.id}').json()['zatca'])
