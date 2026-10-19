@@ -914,7 +914,7 @@
         {
           "id": "WithLabel",
           "name": "بعنوان ظاهر في الفلاتر",
-          "context": "apps/web/app/pages/meetings/series.vue:127"
+          "context": "apps/web/app/pages/meetings/series.vue:132"
         }
       ]
     },
@@ -3639,12 +3639,12 @@
         {
           "id": "ActiveRow",
           "name": "صف الفلاتر النشطة",
-          "context": "apps/web/app/pages/meetings/index.vue:294"
+          "context": "apps/web/app/pages/meetings/index.vue:305"
         },
         {
           "id": "Disabled",
           "name": "معطّلة",
-          "context": "apps/web/app/pages/meetings/index.vue:294"
+          "context": "apps/web/app/pages/meetings/index.vue:305"
         }
       ]
     },
@@ -4680,7 +4680,7 @@
         {
           "id": "InFilterPopover",
           "name": "داخل نافذة الفلاتر",
-          "context": "apps/web/app/pages/meetings/index.vue:285"
+          "context": "apps/web/app/pages/meetings/index.vue:296"
         },
         {
           "id": "WithTime",

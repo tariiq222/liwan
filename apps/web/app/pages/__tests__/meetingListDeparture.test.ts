@@ -40,6 +40,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
     useAccess: () => ({ can: () => permission.value }), useRecordPickerAvailable: () => Vue.computed(() => permission.value),
     usePeople: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useMeetings: () => ({ data: Vue.ref({ items: [], total: 120 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null) }),
+    useMeetingListKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false) }), useMeetingSeriesKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false) }),
     useMeetingSeriesList: () => ({ data: Vue.ref({ items: [], total: 120 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null) }),
     formatCalendarDate: () => '', formatWebVueTime: () => '', formatLocalDateTime: () => '', meetingStateBadgeProps: () => ({}),
     FilterBar: {}, RecordNumber: {}, MeetingProjectFilter: {},

@@ -392,5 +392,20 @@
     "signature": "التوقيع",
     "readOnlyMeeting": "هذا الاجتماع نهائي أو ملغى ولا يمكن تعديله.",
     "selectedVersion": "المعروضة"
+  },
+  "meetingsKpi": {
+    "label": "ملخص الاجتماعات",
+    "total": "إجمالي الاجتماعات",
+    "upcoming": "اجتماعات قادمة مؤكدة",
+    "draft": "مسودات",
+    "doneMonth": "منتهية هذا الشهر",
+    "series": "إجمالي السلاسل",
+    "openResolutions": "توصيات نشطة",
+    "overdueResolutions": "توصيات متأخرة",
+    "allMeetings": "كل الاجتماعات",
+    "followupTotal": "إجمالي التوصيات",
+    "followupActive": "توصيات نشطة",
+    "followupOverdue": "توصيات متأخرة",
+    "followupDone": "توصيات منجزة"
   }
 }
