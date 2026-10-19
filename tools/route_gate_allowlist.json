@@ -38,6 +38,7 @@
       "routes": [
         "webvue_chat/controllers/chat.py:add_members",
         "webvue_chat/controllers/chat.py:create_conversation",
+        "webvue_chat/controllers/chat.py:download_attachment",
         "webvue_chat/controllers/chat.py:get_conversation",
         "webvue_chat/controllers/chat.py:leave_conversation",
         "webvue_chat/controllers/chat.py:list_attachments",
@@ -127,6 +128,7 @@
         "webvue_pmo/controllers/project_governance.py:list_stakeholders",
         "webvue_pmo/controllers/project_schedule.py:get_schedule",
         "webvue_pmo/controllers/project_updates.py:list_updates",
+        "webvue_pmo/controllers/task_attachments.py:download_task_attachment",
         "webvue_pmo/controllers/task_attachments.py:list_task_attachments",
         "webvue_pmo/controllers/task_dependencies.py:list_candidates",
         "webvue_pmo/controllers/task_dependencies.py:list_dependencies",
