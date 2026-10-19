@@ -14127,6 +14127,9 @@
                 "can_refuse": {
                   "type": "boolean"
                 },
+                "can_withdraw": {
+                  "type": "boolean"
+                },
                 "date_from": {
                   "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
                   "type": "string"
@@ -14205,7 +14208,8 @@
                 "notes",
                 "can_approve",
                 "can_refuse",
-                "can_cancel"
+                "can_cancel",
+                "can_withdraw"
               ],
               "type": "object"
             },
@@ -14267,6 +14271,9 @@
             "type": "boolean"
           },
           "can_refuse": {
+            "type": "boolean"
+          },
+          "can_withdraw": {
             "type": "boolean"
           },
           "date_from": {
@@ -14347,7 +14354,8 @@
           "notes",
           "can_approve",
           "can_refuse",
-          "can_cancel"
+          "can_cancel",
+          "can_withdraw"
         ],
         "type": "object"
       },
