@@ -11,6 +11,7 @@ from . import (
     test_finance_bank,
     test_finance_budgets,
     test_finance_capability_isolation,
+    test_finance_closing,
     test_finance_debit_notes,
     test_finance_documents,
     test_finance_entries,

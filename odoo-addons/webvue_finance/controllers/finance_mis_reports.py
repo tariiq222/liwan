@@ -29,7 +29,7 @@ class FinanceMisReportController(http.Controller):
         only_posted = parse_only_posted()
         company = request.env.company
         _template, amounts = request.env['webvue.finance.mis.report']._webvue_evaluate(
-            'webvue_finance.mis_report_profit_loss', company, date_from, date_to, only_posted,
+            'webvue_finance.mis_report_profit_loss', company, date_from, date_to, only_posted, exclude_closing=True,
         )
         return dump_profit_loss(company, date_from, date_to, only_posted, amounts)
 
@@ -58,5 +58,6 @@ class FinanceMisReportController(http.Controller):
         company = request.env.company
         template, amounts = request.env['webvue.finance.mis.report']._webvue_evaluate(
             'webvue_finance.mis_report_zakat_base', company, _fiscal_year_start(company, date_to), date_to, only_posted,
+            exclude_closing=True,
         )
         return dump_zakat_base(company, date_to, only_posted, template, amounts)

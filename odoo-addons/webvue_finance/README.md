@@ -38,6 +38,8 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `POST /invoices/<id>/zatca/submit`, `POST /invoices/<id>/zatca/retry` | `finance.zatca.submit` |
 | `GET /analytic-plans` (`q`), `GET /analytic-plans/<id>`, `GET /analytic-accounts` (`q`, `plan_id`, `archived=true\|false`), `GET /analytic-accounts/<id>`, `GET /reports/analytic?date_from&date_to&plan_id?`, `GET /reports/analytic/lines?account_id&date_from&date_to` | `finance.analytic.read` |
 | `POST /analytic-plans` (201), `PATCH /analytic-plans/<id>`, `POST /analytic-accounts` (201), `PATCH /analytic-accounts/<id>` (`active` archives) | `finance.analytic.manage` |
+| `GET /fiscal-years`, `GET /fiscal-years/<year>/closing-preview` | `finance.closing.read` |
+| `POST /fiscal-years/<year>/close` | `finance.closing.manage` |
 | `GET /partners` (`q`, `kind=customer\|vendor`, `archived=true\|false`), `GET /partners/<id>` | `finance.partners.read` |
 | `POST /partners` (201), `PATCH /partners/<id>`, `POST /partners/<id>/archive`, `/unarchive` | `finance.partners.manage` |
 
@@ -46,8 +48,8 @@ no partner delete: archive instead. Capability dependencies: `partners.manage` n
 `partners.read`; `invoices.manage` needs `invoices.read`; `invoices.post` needs `invoices.manage`;
 `payments.manage` needs `payments.read` and `invoices.read`; `setup.manage` needs `setup.read`; `entries.manage` needs
 `entries.read`; `entries.post` needs `entries.manage`; `assets.manage` needs `assets.read`; `bank.manage` needs
-`bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`. The built-in
-`finance_manager` role (and `webvue_core`'s vendor support role) holds all twenty-eight capabilities.
+`bank.read`; `analytic.manage` needs `analytic.read`; `budgets.manage` needs `budgets.read`; `zatca.read` needs `invoices.read`; `zatca.manage` and `zatca.submit` need `zatca.read`; `closing.manage` needs `closing.read` and `setup.manage`. The built-in
+`finance_manager` role (and `webvue_core`'s vendor support role) holds all thirty capabilities.
 
 ## Write semantics
 
@@ -226,6 +228,52 @@ without the action link. Changing only `country_id` re-validates the existing `s
 Both re-check that the record is the current company. Reads, validation and serializers stay in the
 caller's environment. A caller without `finance.setup.manage` gets 403 and nothing changes
 (`tests/test_finance_setup.py`).
+
+## Fiscal year-end closing (`finance.closing.*`)
+
+Stock Odoo already needs no closing entry for its reports: the balance sheet adds the unallocated earnings of
+the open and earlier years to the `equity_unaffected` account itself. Closing is therefore the accounting act of
+allocating the year's result and locking the year. OCA `account_fiscal_year_closing` (account-closing, 19.0)
+exists but is a wizard over closing templates that the Saudi chart has none of, so it is not pinned; the
+smallest correct close is built here from public ORM reads, with no new `sudo()`.
+
+- A fiscal year is named by the calendar year in which it ends; its dates come from the company's fiscal year
+  day and month (`compute_fiscalyear_dates`). `result` is net profit (negative: loss) of the posted income and
+  expense lines, closing entry excluded.
+- `state`: `closed` = the close posted its closing entry; `locked` = `fiscalyear_lock_date` covers the year end
+  without a closing entry (locked through `PATCH /setup/fiscal`, or closed while it had no income or expense);
+  `open` otherwise. A `closed` or `locked` year answers 422 `already_closed` to a close and a preview.
+- `GET /fiscal-years` lists the years from the first posted line to the current one (today in the user's time
+  zone). `GET /fiscal-years/<year>/closing-preview` returns the lines the close would create (each non-zero income
+  or expense account reversed, the net result on the retained-earnings account), the rounded totals, and
+  `blockers`: the refusals a close would hit now (`code`, `message`, `details`). It writes nothing.
+- `POST /fiscal-years/<year>/close` creates and posts ONE balanced entry dated the last day of the year in the
+  company's first miscellaneous journal, then sets `fiscalyear_lock_date` to the year end. A year with no income
+  or expense is only locked. Refusals (422), in this order: `already_closed`, `year_not_ended` (the year end is
+  not before today), `has_drafts` (`details.drafts`), `previous_year_open`, `account_not_closable`
+  (`details.account_ids`: an archived account or one with a forced foreign currency holds a balance),
+  `no_retained_earnings_account`, `no_general_journal`, and `period_locked` (a lock date, for example the hard
+  lock, covers the year end). Closing lines carry no analytic distribution.
+- `previous_year_open` looks only at earlier years NOT covered by the fiscal-year or hard lock date: a locked
+  earlier year may keep unallocated income and expense (the balance sheet shows it as earlier-years earnings).
+- The retained-earnings account is the company's `equity_unaffected` account: the Saudi chart (`l10n_sa`) has no
+  other equity account than `999999` "Undistributed Profits/Losses".
+- The closing entry is marked by the server-set stored field `account.move.webvue_closing_year` (the fiscal year
+  number; `ref` `FYC/<year>` is only a human label). Nothing in the API writes it, so a manual entry with that
+  ref is an ordinary entry, and a later change of the fiscal year end does not lose the link. Any consumer of
+  profit-and-loss actuals (the reports here, the budgets later) must leave out moves with `webvue_closing_year`
+  set; `webvue.finance.closing._webvue_closing_moves` returns them.
+- The lock date is written through `webvue.finance.setup._webvue_write_company`, the existing documented setup
+  elevation, so `POST /close` requires BOTH `finance.closing.manage` and `finance.setup.manage` (the dependency map
+  makes a role with the first carry the second). Only ever a later date (the tighten-only rule); nothing else is
+  elevated and the documented sudo case is not widened.
+- Reopening a year is deliberately not offered: lock dates only tighten here, so a reopen needs an approved
+  policy first. Until then an accounting administrator loosens the lock in Odoo.
+- `GET /reports/profit-loss`, `GET /reports/zakat-base` and the year `result` leave the closing entries out, so a
+  closed year still reports its real result (the Zakat base is the same as before the close). The balance sheet
+  keeps them: the result sits in the `equity_unaffected` account and the current-year earnings are zero, never
+  counted twice.
+- Schema: version 1.1.0 adds the stored field; `migrations/19.0.1.1.0/README.md` records that no data moves.
 
 ## VAT report scope
 
