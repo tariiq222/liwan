@@ -1,9 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """RED-first contract tests for the single-adapter managed runtime (Package 2).
 
-These tests encode the frozen P2 design
-(``docs/verification/2026-09-23-saas-p2-design-review.md``) and the confirmed
-Package 2 plan (``docs/superpowers/plans/2026-09-23-saas-p2-managed-runtime-plan.md``).
+These tests encode the frozen P2 managed-runtime design.
 They are authored before ``tools/webvue_cli/managed_runtime.py`` exists, so the
 first run is the RED gate.
 
