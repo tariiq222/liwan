@@ -68,6 +68,26 @@ class TestMeetingSeries(WebVueMeetingsCase):
             self.assertEqual(response.status_code, 201, response.text)
             self.assertEqual(len(response.json()['meetings']), expected_count)
 
+    def test_http_add_occurrence_rejects_lone_or_inverted_times(self):
+        self._grant_meeting_create()
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        series = self.api('POST', '/api/v1/meeting-series', {'name': 'On demand', 'recurrence': 'none'}).json()
+        url = f"/api/v1/meeting-series/{series['id']}/occurrences"
+        for body, field in (
+            ({'start_datetime': '2026-09-08T09:00:00Z'}, 'end_datetime'),
+            ({'end_datetime': '2026-09-08T10:00:00Z'}, 'start_datetime'),
+            ({'start_datetime': '2026-09-08T10:00:00Z', 'end_datetime': '2026-09-08T10:00:00Z'}, 'end_datetime'),
+            ({'start_datetime': '2026-09-08T11:00:00Z', 'end_datetime': '2026-09-08T10:00:00Z'}, 'end_datetime'),
+        ):
+            response = self.api('POST', url, body)
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertEqual(response.json()['code'], 'invalid')
+            self.assertEqual(response.json()['field'], field)
+        ok = self.api('POST', url, {
+            'start_datetime': '2026-09-08T09:00:00Z', 'end_datetime': '2026-09-08T10:00:00Z',
+        })
+        self.assertEqual(ok.status_code, 201, ok.text)
+
     def test_http_series_creation_rejects_bad_recurrence_datetimes_and_bounds(self):
         self._grant_meeting_create()
         self.authenticate('api_emp', 'api_emp_pass_123')

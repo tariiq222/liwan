@@ -1,5 +1,5 @@
 import { test, expect, type APIResponse } from '@playwright/test'
-import { FinanceEntrySchema, ProjectReportListSchema } from '@webvue/contracts'
+import { FinanceEntrySchema, ProjectDashboardAnalyticsSchema } from '@webvue/contracts'
 
 test.skip(process.env.E2E_PHASES_ISOLATED !== '1', 'Requires an explicitly isolated integration runtime')
 
@@ -28,9 +28,9 @@ test('schedule, governance, finance and report remain consistent in one project'
   const budget = FinanceEntrySchema.parse(await body(await page.request.post(`${path}/finance`, { data: { kind: 'budget', title: 'ميزانية التنفيذ', amount: 1000 } }), 201))
   await body(await page.request.post(`${path}/finance`, { data: { kind: 'expense', title: 'التكلفة الأولى', amount: 250, expense_date: '2030-05-01', budget_entry_id: budget.id } }), 201)
   await body(await page.request.post(`/api/v1/tasks/${first.id}/transition`, { data: { state: 'done' } }))
-  const report = ProjectReportListSchema.parse(await body(await page.request.get(`/api/v1/reports/projects?q=${encodeURIComponent(name)}`)))
-  expect(report.total).toBe(1)
-  expect(report.items[0]).toMatchObject({ task_count: 2, closed_task_count: 1, progress: 50, finance: { planned: 1000, actual: 250, remaining: 750 } })
+  const report = ProjectDashboardAnalyticsSchema.parse(await body(await page.request.get(`/api/v1/reports/projects/analytics?q=${encodeURIComponent(name)}`)))
+  expect(report.project_count).toBe(1)
+  expect(report.projects[0]).toMatchObject({ task_count: 2, closed_task_count: 1, progress: 50, finance: { planned: 1000, actual: 250, remaining: 750 } })
   expect((await body(await page.request.get(`${path}/raci`))).items).toContainEqual(expect.objectContaining({ task: expect.objectContaining({ id: first.id }), role: 'A' }))
   await page.goto(`/projects/${project.id}`)
   for (const section of ['schedule', 'stakeholders', 'raci', 'register', 'finance']) {

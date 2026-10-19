@@ -13,7 +13,7 @@ function replay(server, trusted) {
 }
 test('source SSR replay trusted local paths only; no external/traversal/encoded token leakage', async () => {
   const { api, calls } = replay(true, true)
-  for (const path of ['/api/v1/me', '/api/v1/tasks/1', '/api/v1/reports/projects']) { await api.$api(path); assert.deepEqual(calls.at(-1).options.headers, incoming) }
+  for (const path of ['/api/v1/me', '/api/v1/tasks/1', '/api/v1/reports/projects/summary']) { await api.$api(path); assert.deepEqual(calls.at(-1).options.headers, incoming) }
   for (const path of ['https://evil.test/api/v1/me', '//evil.test/api/v1/me', '/api/v1/../auth/login', '/api/v1/%2e%2e/auth', '/api/v1/a%2fb', '/api/v1/a%5cb', '/api/v1/a\\b', '/api/v1/me?db=x', '/api/v1/me#fragment', '/other']) { await api.$api(path); assert.deepEqual(calls.at(-1).options.headers, {}) }
   assert.deepEqual(Object.keys(api), ['$api']); assert.ok(!JSON.stringify(api).includes(secret))
 })

@@ -1915,20 +1915,6 @@
       "handler": "list_updates",
       "no_capability_reason": "Read of a project or task record: get_record or _project checks read access and record visibility (_webvue_check_visible_current / record rules); the data is not capability gated. Catalog items are readable by anyone when active (inactive ones need manage)."
     },
-    "GET /api/v1/reports/projects": {
-      "addon": "webvue_pmo",
-      "auth": "user",
-      "capability_keys": [
-        "pmo.projects.read"
-      ],
-      "capability_match": "all",
-      "capability_source": "body",
-      "feature_keys": [
-        "pmo.enabled"
-      ],
-      "handler": "list_project_reports",
-      "no_capability_reason": null
-    },
     "GET /api/v1/reports/projects/analytics": {
       "addon": "webvue_pmo",
       "auth": "user",

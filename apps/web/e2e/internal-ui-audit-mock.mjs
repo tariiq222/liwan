@@ -563,22 +563,6 @@ async function handle(req, res) {
   if (method === 'GET' && path === '/api/v1/settings/projects/create-defaults') {
     return json(res, 200, { require_manager_on_create: false, require_end_date_on_create: false, default_manager_id: 2 })
   }
-  if (method === 'GET' && path === '/api/v1/reports/projects') {
-    const items = PROJECTS.map(reportRow)
-    return json(res, 200, {
-      items,
-      total: items.length,
-      totals: [{
-        currency: CURRENCY,
-        project_count: items.length,
-        budgeted_project_count: items.length,
-        planned: 3000,
-        actual: 900,
-        remaining: 2100,
-        over_budget_count: 0,
-      }],
-    })
-  }
   if (method === 'GET' && path === '/api/v1/project-charter/defaults') return json(res, 200, { currency: null })
   if (method === 'GET' && path === '/api/v1/project-charter/catalogs/types') {
     return json(res, 200, { items: [{ id: 1, name: 'داخلي', sequence: 1, active: true }], total: 1 })

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { FinanceEntrySchema, FinanceEntryListSchema, FinanceSummarySchema, ProjectReportListSchema } from '@webvue/contracts'
+import { FinanceEntrySchema, FinanceEntryListSchema, FinanceSummarySchema, ProjectDashboardAnalyticsSchema } from '@webvue/contracts'
 
 const LOGIN = process.env.E2E_PHASE2_LOGIN ?? 'phase2_manager'
 const PASSWORD = process.env.E2E_PHASE2_PASSWORD ?? 'phase2_test_only_2026'
@@ -44,9 +44,9 @@ test('finance API preserves actual ledger, unknown budgets, revisions and comple
   expect(updated.updated_at).not.toBe(expense.updated_at)
   const stale = await page.request.patch(`${path}/${expense.id}`, { data: { amount: 500, expected_updated_at: expense.updated_at } })
   expect(stale.status()).toBe(409)
-  const reports = ProjectReportListSchema.parse(await (await page.request.get(`/api/v1/reports/projects?q=${encodeURIComponent(project.name)}&limit=1`)).json())
-  expect(reports.total).toBe(1)
-  expect(reports.items[0]?.finance).toMatchObject({ actual: 300, remaining: 700 })
+  const reports = ProjectDashboardAnalyticsSchema.parse(await (await page.request.get(`/api/v1/reports/projects/analytics?q=${encodeURIComponent(project.name)}`)).json())
+  expect(reports.project_count).toBe(1)
+  expect(reports.projects[0]?.finance).toMatchObject({ actual: 300, remaining: 700 })
   expect(reports.totals[0]).toMatchObject({ project_count: 1, planned: 1000, actual: 300, remaining: 700 })
   expect((await page.request.delete(`${path}/${expense.id}`, { data: { expected_updated_at: updated.updated_at } })).status()).toBe(200)
   expect((await page.request.delete(`${path}/${budget.id}`, { data: { expected_updated_at: budget.updated_at } })).status()).toBe(200)
@@ -91,7 +91,7 @@ test('project reader can inspect finance and reports but cannot change entries',
   await page.context().clearCookies()
   await login(page, 'phase2_no_pmo')
   expect((await page.request.get(path)).status()).toBe(403)
-  expect((await page.request.get('/api/v1/reports/projects')).status()).toBe(403)
+  expect((await page.request.get('/api/v1/reports/projects/analytics')).status()).toBe(403)
 })
 
 test('concurrent edits using the same revision allow exactly one writer', async ({ page }) => {

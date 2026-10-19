@@ -45,7 +45,7 @@ test('pure registry, forged headers/selectors, session expiry/key rotation and r
   const signed = sessionCodec(keys, 'test', () => 1).seal('sid', a)
   assert.throws(() => sessionCodec(keys, 'test', () => 3601).open(signed, a))
   assert.throws(() => sessionCodec({ new: 'n'.repeat(40) }, 'new').open(cookie(a).slice(11), a))
-  for (const path of ['/api/v1/branding', '/api/v1/reports/projects', '/api/v1/auth/totp']) assert.equal(requestPlan(req(a, path), r, token, codec).odoo, true)
+  for (const path of ['/api/v1/branding', '/api/v1/reports/projects/summary', '/api/v1/auth/totp']) assert.equal(requestPlan(req(a, path), r, token, codec).odoo, true)
 })
 
 test('configuration replay: dedicated proxies remain frozen when runtime env changes (finding)', () => {
