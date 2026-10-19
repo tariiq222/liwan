@@ -5174,7 +5174,7 @@
       ]
     },
     {
-      "name": "SharedHeaderTags",
+      "name": "HeaderTags",
       "file": "packages/ui/app/components/shared/layout/HeaderTags.vue",
       "story": "apps/web/stories/shared/HeaderTags.stories.ts",
       "title": "Shared/HeaderTags",
