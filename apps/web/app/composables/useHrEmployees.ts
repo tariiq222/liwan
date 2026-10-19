@@ -68,9 +68,10 @@ export function retryHrManagerQueries(
   void selectedRefetch()
 }
 
-export function useHrEmployees(params: MaybeRefOrGetter<HrEmployeeListParams> = {}) {
+export function useHrEmployees(params: MaybeRefOrGetter<HrEmployeeListParams> = {}, enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
+    enabled: computed(() => toValue(enabled)),
     queryKey: computed(() => hrEmployeeKeys.list(toValue(params))),
     queryFn: () => $api('/api/v1/hr/employees', { query: hrEmployeeListQuery(toValue(params)), schema: HrEmployeeListSchema }),
   })

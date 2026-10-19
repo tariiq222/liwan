@@ -5,6 +5,7 @@ import { useDocuments, useDocumentContexts, useDocumentContextOptions } from '@/
 import DocumentList from '@/components/documents/DocumentList.vue'
 import { returnToQuery } from '@webvue/ui/app/utils/safeReturnTo'
 import { refDebounced } from '@vueuse/core'
+import { documentKpiTiles } from '@/utils/documentKpis'
 import { documentCommittedListParams, hasPendingDocumentSearch } from '@/lib/documentKeys'
 
 const route = useRoute()
@@ -37,6 +38,14 @@ const params = computed(() => {
   }
 })
 const query = useDocuments(params, isListRoute)
+// The KPI tiles are the server totals of the unfiltered lists (one row asked for, its `total`), so the filters and paging below do not move them.
+const canArchive = computed(() => can('documents.items.archive'))
+const totalQuery = useDocuments({ limit: 1 }, isListRoute)
+const archivedQuery = useDocuments({ limit: 1, archived: true }, computed(() => isListRoute.value && canArchive.value))
+const kpiTiles = computed(() => documentKpiTiles({
+  total: totalQuery.data.value?.total ?? null,
+  archived: canArchive.value ? archivedQuery.data.value?.total ?? null : undefined,
+}, t))
 const contexts = useDocumentContexts(isListRoute)
 const contextKind = ref(typeof route.query.context_kind === 'string' ? route.query.context_kind : '')
 const provider = computed(() => can('documents.items.manage') && contexts.data.value?.items.some(item => item.kind === contextKind.value) ? contextKind.value : null)
@@ -168,8 +177,10 @@ function openLiveCreate(event: MouseEvent) {
     :create-to="createTo"
     :create-label="t('documents.new')"
     create-test-id="document-new"
+    kpi-toggle
     @click.capture="openLiveCreate"
   >
+    <SharedKpiStrip :tiles="kpiTiles" :loading="totalQuery.isLoading.value" :label="t('documents.kpi.label')" data-testid="document-kpi-strip" />
     <SharedListCard>
       <template #filters>
         <div class="w-full min-w-0" data-testid="documents-toolbar">

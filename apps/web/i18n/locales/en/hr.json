@@ -3,6 +3,17 @@
     "form": {
       "saveError": "Unable to save changes. Review the details and try again."
     },
+    "kpi": {
+      "label": "Employee figures",
+      "headcount": "Active employees",
+      "archived": "Archived employees",
+      "saudization": "Saudization rate",
+      "expiring": "Expiring or overdue",
+      "expiringHint": "Within {days} day | Within {days} days",
+      "departmentsLabel": "Department figures",
+      "departments": "Departments",
+      "unmanaged": "Without a manager"
+    },
     "actions": {
       "back": "Back"
     },
