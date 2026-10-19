@@ -165,7 +165,60 @@
       "accessManagedInSettings": "Sign-in access is managed in System administration.",
       "manageAccount": "Manage account"
     },
+    "reports": {
+      "title": "Reports",
+      "description": "Saudization and upcoming expiries across the company.",
+      "forbidden": "Reports are available to HR managers only.",
+      "saudization": {
+        "title": "Saudization",
+        "rate": "Saudization rate",
+        "rateHint": "Employees with an unknown nationality are not counted.",
+        "saudi": "Saudi employees",
+        "nonSaudi": "Non-Saudi employees",
+        "unknown": "Unknown nationality",
+        "unknownHint": "Excluded from the rate.",
+        "byDepartment": "By department",
+        "noDepartment": "No department",
+        "empty": "No employees yet",
+        "rateFor": "Saudization rate of {name}",
+        "columns": {
+          "department": "Department",
+          "total": "Employees",
+          "saudi": "Saudi",
+          "nonSaudi": "Non-Saudi",
+          "unknown": "Unknown",
+          "rate": "Rate"
+        }
+      },
+      "expiring": {
+        "title": "Upcoming expiries",
+        "windowLabel": "Expiry window",
+        "window": "{days} days",
+        "empty": "Nothing expires in this window",
+        "caption": "Items expiring soon",
+        "today": "Due today",
+        "daysLeft": "{count} day left | {count} days left",
+        "overdue": "Overdue by {count} day | Overdue by {count} days",
+        "footer": "{count} item | {count} items",
+        "alert": "{count} item expires within 30 days | {count} items expire within 30 days",
+        "viewReports": "View reports",
+        "columns": {
+          "employee": "Employee",
+          "kind": "Item",
+          "document": "Document",
+          "due": "Due date",
+          "status": "Status"
+        },
+        "kind": {
+          "contract_end": "Contract end",
+          "probation_end": "Probation end",
+          "identity": "Identity document",
+          "document": "Document"
+        }
+      }
+    },
       "leave": {
+        "record": "Leave request",
         "description": "Leave balances, requests and approvals.",
         "new": "Request leave",
         "allocate": "Grant balance",

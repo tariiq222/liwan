@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { hrPreviewData } from '../../../e2e/hr-ui-preview-data.mjs'
 import { capabilitiesForRequest } from '../../../e2e/mock-capabilities.mjs'
 import { moduleUiPreviewData } from '../../../e2e/module-ui-preview-data.mjs'
-import { HrDepartmentListSchema, HrDepartmentSchema, HrEmployeeListSchema, HrEmployeeSchema } from '@webvue/contracts'
+import { HrDepartmentListSchema, HrDepartmentSchema, HrEmployeeListSchema, HrEmployeeSchema, HrExpiringListSchema, HrLeaveListSchema, HrLeaveSchema, HrSaudizationSchema } from '@webvue/contracts'
 
 const at = (path, query = '') => new URL(`http://localhost${path}${query}`)
 const names = (list) => list.items.map(item => item.name)
@@ -13,6 +13,19 @@ describe('the HR preview fixtures', () => {
       ['/api/v1/hr/employees', HrEmployeeListSchema], ['/api/v1/hr/employees/3', HrEmployeeSchema],
       ['/api/v1/hr/departments', HrDepartmentListSchema], ['/api/v1/hr/departments/3', HrDepartmentSchema],
     ]) expect(() => schema.parse(moduleUiPreviewData(path, at(path))), path).not.toThrow()
+  })
+
+  it('serve schema-valid reports and leave requests', () => {
+    for (const [path, schema] of [
+      ['/api/v1/hr/saudization', HrSaudizationSchema], ['/api/v1/hr/expiring', HrExpiringListSchema],
+      ['/api/v1/hr/leave/requests', HrLeaveListSchema], ['/api/v1/hr/leave/requests/1', HrLeaveSchema],
+    ]) expect(() => schema.parse(moduleUiPreviewData(path, at(path))), path).not.toThrow()
+  })
+
+  it('narrow the expiring items to the asked window, overdue ones included', () => {
+    const list = (days) => hrPreviewData('/api/v1/hr/expiring', at('/api/v1/hr/expiring', `?within_days=${days}`))
+    expect(list(30).items.map(item => item.days_left)).toEqual([-3, 5, 12, 25])
+    expect(list(90).total).toBe(6)
   })
 
   it('keep row 1 of each list exactly as the single-row preview served it', () => {

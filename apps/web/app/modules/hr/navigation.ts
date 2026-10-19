@@ -1,1 +1,1 @@
-export const EMPLOYEE_LIST_PATHS = ['/hr'] as const
+export const EMPLOYEE_LIST_PATHS = ['/hr', '/hr/reports'] as const
