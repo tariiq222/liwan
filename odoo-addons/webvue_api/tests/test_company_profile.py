@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import base64
 from io import BytesIO
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -17,7 +18,7 @@ EMPLOYEE = 'company_profile_employee'
 ROUTE = '/api/v1/admin/company'
 VALID_VAT = '300000000000003'
 PROFILE_KEYS = {
-    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat',
+    'id', 'name', 'logo_url', 'report_header', 'company_registry', 'vat', 'saudi_fields',
     'l10n_sa_edi_additional_identification_scheme', 'l10n_sa_edi_additional_identification_number',
     'address', 'email', 'phone', 'website', 'currency', 'completeness',
 }
@@ -79,15 +80,17 @@ class TestCompanyProfile(WebVueApiCase):
         self.assertEqual(body['address']['country'], {'id': self.saudi.id, 'name': self.saudi.name, 'code': 'SA'})
         self.assertEqual(set(body['currency']), {'id', 'name', 'symbol'})
         self.assertEqual(body['currency']['id'], self.company.currency_id.id)
+        self.assertEqual(body['saudi_fields'], 'l10n_sa_edi_building_number' in self.company._fields)
         self.assertIsNone(body['logo_url'])
         self.assertIsNone(body['phone'])
 
     def test_patch_writes_every_editable_field_and_returns_the_profile(self):
+        self.company.country_id = self.saudi
         self.authenticate(ADMIN, PASSWORD)
         payload = {
             'name': 'Erada Co', 'report_header': 'Built to last', 'company_registry': '1010000000', 'vat': VALID_VAT,
             'street': 'King Fahd Road', 'street2': 'Al Olaya', 'city': 'Riyadh', 'zip': '12211',
-            'state_id': self.state.id, 'country_id': self.saudi.id,
+            'state_id': self.state.id,
             'email': 'info@erada.example', 'phone': '+966110000000', 'website': 'https://erada.example',
             'l10n_sa_edi_building_number': '1234', 'l10n_sa_edi_plot_identification': '5678',
             'l10n_sa_edi_additional_identification_scheme': 'CRN', 'l10n_sa_edi_additional_identification_number': '1010000000',
@@ -126,8 +129,9 @@ class TestCompanyProfile(WebVueApiCase):
             ({'city': 'After', 'vat': 12}, 'invalid', 'vat'),
             ({'city': 'After', 'email': 'nope'}, 'invalid', 'email'),
             ({'city': 'After', 'phone': 'x' * 300}, 'invalid', 'phone'),
-            ({'city': 'After', 'country_id': 0}, 'invalid', 'country_id'),
-            ({'city': 'After', 'country_id': 999999999}, 'invalid', 'country_id'),
+            ({'city': 'After', 'country_id': self.saudi.id}, 'invalid', 'country_id'),
+            ({'country_id': None}, 'invalid', 'country_id'),
+            ({'city': 'After', 'state_id': 999999999}, 'invalid', 'state_id'),
             ({'city': 'After', 'state_id': other_state.id}, 'invalid', 'state_id'),
             ({'city': 'After', 'l10n_sa_edi_additional_identification_scheme': 'XXX'}, 'invalid',
              'l10n_sa_edi_additional_identification_scheme'),
@@ -139,13 +143,15 @@ class TestCompanyProfile(WebVueApiCase):
                     self.assertEqual(response.json()['field'], field)
         self.assertEqual(self.api('GET', ROUTE).json(), before)
 
-    def test_changing_only_the_country_revalidates_the_state(self):
+    def test_the_country_is_read_only_and_the_state_must_belong_to_it(self):
+        self.company.write({'country_id': self.saudi.id, 'state_id': False})
         self.authenticate(ADMIN, PASSWORD)
-        self.assertEqual(self._patch({'country_id': self.saudi.id, 'state_id': self.state.id}).status_code, 200)
         other_country = self.env['res.country.state'].search([('country_id', '!=', self.saudi.id)], limit=1).country_id
         response = self._patch({'country_id': other_country.id})
-        self.assertEqual((response.status_code, response.json()['field']), (422, 'state_id'))
-        self.assertEqual(self._patch({'country_id': other_country.id, 'state_id': None}).status_code, 200)
+        self.assertEqual((response.status_code, response.json()['field']), (422, 'country_id'))
+        self.assertEqual(self._patch({'state_id': self.state.id}).status_code, 200)
+        self.env.invalidate_all()
+        self.assertEqual(self.company.country_id, self.saudi)
 
     def test_the_logo_upload_sets_the_logo_and_counts_toward_completeness(self):
         self.authenticate(ADMIN, PASSWORD)
@@ -173,27 +179,44 @@ class TestCompanyProfile(WebVueApiCase):
     def test_the_completeness_counts_the_filled_profile_fields(self):
         self.company.write({
             'company_registry': False, 'vat': False, 'street': False, 'city': False, 'zip': False,
-            'email': False, 'phone': False, 'country_id': False,
+            'email': False, 'phone': False, 'country_id': self.saudi.id,
         })
         self.authenticate(ADMIN, PASSWORD)
         empty = self.api('GET', ROUTE).json()['completeness']
-        self.assertEqual(empty['done'], 1)
+        self.assertEqual(empty['done'], 2)
         full = self._patch({
             'company_registry': '1', 'vat': VALID_VAT, 'street': 's', 'city': 'c', 'zip': '12345',
-            'email': 'a@b.co', 'phone': '1', 'country_id': self.saudi.id,
+            'email': 'a@b.co', 'phone': '1',
         }).json()['completeness']
         self.assertEqual((full['done'], full['total']), (empty['total'] - 1, empty['total']))
 
     def test_a_contact_under_the_company_partner_does_not_block_a_vat_change(self):
+        self.company.country_id = self.saudi
         self.env['res.partner'].create({'name': 'Accountant', 'parent_id': self.company.partner_id.id})
         self.authenticate(ADMIN, PASSWORD)
-        response = self._patch({'company_registry': '1010000001', 'vat': VALID_VAT, 'country_id': self.saudi.id})
+        response = self._patch({'company_registry': '1010000001', 'vat': VALID_VAT})
         self.assertEqual(response.status_code, 200, response.text)
+
+    def test_the_profile_write_goes_through_the_whole_write_chain(self):
+        company_model = type(self.env['res.company'])
+        original = company_model.write
+        written = []
+
+        def spy(records, vals):
+            written.append(set(vals))
+            return original(records, vals)
+
+        self.authenticate(ADMIN, PASSWORD)
+        with patch.object(company_model, 'write', spy):
+            self.assertEqual(self._patch({'city': 'Riyadh'}).status_code, 200)
+        self.assertEqual(written, [{'city'}])
 
     def test_the_address_lookups_list_countries_and_the_states_of_one(self):
         self.authenticate(READER, PASSWORD)
         countries = self.api('GET', f'{ROUTE}/countries').json()
-        self.assertEqual(countries['total'], len(countries['items']))
+        self.assertEqual(set(countries), {'items', 'total'})
+        self.assertGreater(countries['total'], len(countries['items']))
+        countries = self.api('GET', f'{ROUTE}/countries?q=saudi').json()
         self.assertIn({'id': self.saudi.id, 'name': self.saudi.name, 'code': 'SA'}, countries['items'])
         states = self.api('GET', f'{ROUTE}/countries/{self.saudi.id}/states').json()
         self.assertIn(self.state.id, [state['id'] for state in states['items']])

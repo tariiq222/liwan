@@ -14,7 +14,7 @@ const documents = [
 ]
 function matchesListFilters(item, params) {
   if (params.get('visibility') && item.visibility !== params.get('visibility')) return false
-  if (params.get('expiring_within') && !(item.expiry_date && item.expiry_date <= daysFromToday(Number(params.get('expiring_within'))))) return false
+  if (params.get('expiring_within') && !(item.expiry_date && item.expiry_date >= daysFromToday(0) && item.expiry_date <= daysFromToday(Number(params.get('expiring_within'))))) return false
   if (['1', 'true'].includes(params.get('expired') ?? '') && !(item.expiry_date && item.expiry_date < daysFromToday(0))) return false
   return true
 }

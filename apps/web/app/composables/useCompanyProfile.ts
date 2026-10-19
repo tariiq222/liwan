@@ -1,8 +1,8 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  CompanyLookupListSchema,
   CompanyProfileSchema,
+  LookupListSchema,
   type Branding,
   type CompanyLogoUpload,
   type CompanyProfile,
@@ -12,7 +12,6 @@ import {
 const ROUTE = '/api/v1/admin/company'
 const companyKeys = {
   all: ['company-profile'] as const,
-  countries: ['company-profile', 'countries'] as const,
   states: (countryId: number) => ['company-profile', 'states', countryId] as const,
 }
 
@@ -25,20 +24,11 @@ export function useCompanyProfile() {
   })
 }
 
-export function useCompanyCountries() {
-  const { $api } = useApi()
-  return useQuery({
-    queryKey: companyKeys.countries,
-    queryFn: () => $api(`${ROUTE}/countries`, { schema: CompanyLookupListSchema }),
-    staleTime: Infinity,
-  })
-}
-
 export function useCompanyStates(countryId: MaybeRefOrGetter<number | null>) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => companyKeys.states(toValue(countryId) ?? 0)),
-    queryFn: () => $api(`${ROUTE}/countries/${toValue(countryId)}/states`, { schema: CompanyLookupListSchema }),
+    queryFn: () => $api(`${ROUTE}/countries/${toValue(countryId)}/states`, { query: { limit: 200 }, schema: LookupListSchema }),
     enabled: computed(() => toValue(countryId) !== null),
     staleTime: Infinity,
   })

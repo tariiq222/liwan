@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CompanyLogoUploadSchema, CompanyLookupListSchema, CompanyProfilePatchSchema, CompanyProfileSchema } from '../company'
+import { CompanyLogoUploadSchema, CompanyProfilePatchSchema, CompanyProfileSchema } from '../company'
 
 const PROFILE = {
   id: 1,
@@ -8,6 +8,7 @@ const PROFILE = {
   report_header: null,
   company_registry: '1010000000',
   vat: '300000000000003',
+  saudi_fields: true,
   l10n_sa_edi_additional_identification_scheme: null,
   l10n_sa_edi_additional_identification_number: null,
   address: {
@@ -45,7 +46,7 @@ describe('CompanyProfilePatchSchema', () => {
   })
 
   it('refuses read-only, unknown and empty-name fields', () => {
-    for (const patch of [{ currency: 'USD' }, { logo: 'x' }, { completeness: {} }, { name: '  ' }, { state_id: 0 }]) {
+    for (const patch of [{ currency: 'USD' }, { logo: 'x' }, { completeness: {} }, { name: '  ' }, { state_id: 0 }, { country_id: 192 }, { phone: 'x'.repeat(256) }]) {
       expect(CompanyProfilePatchSchema.safeParse(patch).success).toBe(false)
     }
   })
@@ -56,13 +57,5 @@ describe('CompanyLogoUploadSchema', () => {
     expect(CompanyLogoUploadSchema.parse({ data: 'cG5n' })).toEqual({ data: 'cG5n' })
     expect(CompanyLogoUploadSchema.safeParse({ data: '' }).success).toBe(false)
     expect(CompanyLogoUploadSchema.safeParse({ data: 'cG5n', name: 'x' }).success).toBe(false)
-  })
-})
-
-describe('CompanyLookupListSchema', () => {
-  it('is the {items, total} envelope of id, name and code', () => {
-    const list = { items: [{ id: 1, name: 'Saudi Arabia', code: 'SA' }], total: 1 }
-    expect(CompanyLookupListSchema.parse(list)).toEqual(list)
-    expect(CompanyLookupListSchema.safeParse({ items: [{ id: 1, name: 'x' }], total: 1 }).success).toBe(false)
   })
 })

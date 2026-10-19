@@ -86,12 +86,12 @@ class TestDocumentsApi(DocumentHttpCase):
         self.assertEqual(
             listed('visibility=restricted'), {self.secret.id, *ids.values()},
         )
-        self.assertEqual(listed('expiring_within=30'), {ids['Soon'], ids['Past']})
+        self.assertEqual(listed('expiring_within=30'), {ids['Soon']})
         self.assertEqual(
-            listed('expiring_within=365'), {ids['Soon'], ids['Later'], ids['Past']},
+            listed('expiring_within=365'), {ids['Soon'], ids['Later']},
         )
         self.assertEqual(listed('expired=1'), {ids['Past']})
-        self.assertEqual(listed('expired=0&expiring_within=30'), {ids['Soon'], ids['Past']})
+        self.assertEqual(listed('expired=0&expiring_within=30'), {ids['Soon']})
         for query in (
             'visibility=public',
             'expiring_within=0',

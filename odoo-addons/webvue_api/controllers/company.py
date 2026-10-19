@@ -1,12 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
-from odoo.exceptions import MissingError
 from odoo.http import request
 
 from odoo.addons.webvue_api.controllers.common import api_handler, requires_capability
+from odoo.addons.webvue_api.controllers.lookups import list_countries, list_states
 from odoo.addons.webvue_api.serializers.company_profile import (
     dump_company_profile,
-    dump_lookup,
     parse_company_profile_vals,
     parse_logo_upload,
 )
@@ -40,13 +39,10 @@ class CompanyController(http.Controller):
     @api_handler
     @requires_capability('settings.company.read')
     def list_company_countries(self, **_):
-        return dump_lookup(request.env['res.country'].search([], order='name'), 'code')
+        return list_countries()
 
     @http.route('/api/v1/admin/company/countries/<int:country_id>/states', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_capability('settings.company.read')
     def list_company_states(self, country_id, **_):
-        country = request.env['res.country'].browse(country_id).exists()
-        if not country:
-            raise MissingError(request.env._('res.country %(id)s does not exist', id=country_id))
-        return dump_lookup(request.env['res.country.state'].search([('country_id', '=', country.id)], order='name'), 'code')
+        return list_states(country_id)

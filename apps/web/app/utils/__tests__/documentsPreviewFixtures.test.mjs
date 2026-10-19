@@ -11,6 +11,6 @@ it('validates summary and detail previews and filters canonical context ids', ()
 it('filters the preview list by visibility and expiry like the API', () => {
   const ids = query => DocumentListSchema.parse(documentsPreviewData('/api/v1/documents', new URL('http://localhost/api/v1/documents?' + query))).items.map(item => item.id)
   expect(ids('visibility=restricted')).toEqual([1])
-  expect(ids('expiring_within=30')).toEqual([1, 2])
+  expect(ids('expiring_within=30')).toEqual([1])
   expect(ids('expired=1')).toEqual([2])
 })

@@ -8,7 +8,7 @@ export const IDENTIFICATION_SCHEMES = ['TIN', 'CRN', 'MOM', 'MLS', '700', 'SAG',
 /** The editable fields of each page, in their form order. */
 export const SECTION_FIELDS = {
   profile: ['name', 'report_header', 'company_registry', 'vat', 'l10n_sa_edi_additional_identification_scheme', 'l10n_sa_edi_additional_identification_number'],
-  address: ['country_id', 'state_id', 'city', 'street2', 'street', 'zip', 'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification'],
+  address: ['state_id', 'city', 'street2', 'street', 'zip', 'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification'],
   contact: ['email', 'phone', 'website'],
 } as const satisfies Record<CompanySection, readonly (keyof CompanyProfilePatch)[]>
 
@@ -30,7 +30,6 @@ export function profileToForm(profile: CompanyProfile): CompanyForm {
     city: address.city,
     zip: address.zip,
     state_id: address.state?.id ?? null,
-    country_id: address.country?.id ?? null,
     l10n_sa_edi_building_number: address.l10n_sa_edi_building_number,
     l10n_sa_edi_plot_identification: address.l10n_sa_edi_plot_identification,
     email: profile.email,

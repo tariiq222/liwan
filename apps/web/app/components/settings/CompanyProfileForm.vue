@@ -3,7 +3,6 @@ import type { CompanyProfilePatch } from '@webvue/contracts'
 import CompanyHeaderCard from '@/components/settings/CompanyHeaderCard.vue'
 import { ApiError } from '@/composables/useApi'
 import {
-  useCompanyCountries,
   useCompanyProfile,
   useCompanyStates,
   useUpdateCompany,
@@ -26,7 +25,6 @@ const { can } = useAccess()
 const { data: profile, isLoading, error, refetch } = useCompanyProfile()
 const update = useUpdateCompany()
 const uploadLogo = useUploadCompanyLogo()
-const { data: countries } = useCompanyCountries()
 
 const editable = computed(() => can('settings.company.manage'))
 const draft = reactive<CompanyForm>({} as CompanyForm)
@@ -47,13 +45,14 @@ watch(profile, (value) => {
 }, { immediate: true })
 
 const busy = computed(() => update.isPending.value || uploadLogo.isPending.value)
-const countryId = computed(() => (typeof draft.country_id === 'number' ? draft.country_id : null))
+// The country is set at provisioning: shown read-only, and the region list follows it.
+const country = computed(() => profile.value?.address.country ?? null)
+const countryId = computed(() => country.value?.id ?? null)
 const { data: states } = useCompanyStates(countryId)
 
-const countryItems = computed(() => (countries.value?.items ?? []).map(country => ({ value: country.id, label: country.name })))
 const stateItems = computed(() => (states.value?.items ?? []).map(state => ({ value: state.id, label: state.name })))
 const schemeItems: { value: string; label: string }[] = IDENTIFICATION_SCHEMES.map(code => ({ value: code, label: t(`settings.company.schemes.${code}`) }))
-const hasSaudiFields = computed(() => saved.value?.l10n_sa_edi_additional_identification_scheme !== undefined)
+const hasSaudiFields = computed(() => profile.value?.saudi_fields === true)
 
 function text(field: keyof CompanyForm) {
   return computed({
@@ -70,11 +69,6 @@ const fields = {
 
 function setField(field: keyof CompanyForm, value: string | number | null | undefined) {
   draft[field] = value ?? null
-}
-
-function chooseCountry(value: number | undefined) {
-  setField('country_id', value)
-  setField('state_id', null)
 }
 
 function cancel() {
@@ -178,8 +172,8 @@ async function onLogo(event: Event) {
 
       <SharedFormSection v-else-if="section === 'address'" panel :title="t('settings.company.address.title')" :description="t('settings.company.address.hint')">
         <div class="grid gap-5 sm:grid-cols-2">
-          <UFormField name="country_id" :label="t('settings.company.country')" :error="fieldErrors.country_id">
-            <USelectMenu id="company-country" :model-value="countryId ?? undefined" class="w-full" value-key="value" :items="countryItems" data-testid="company-country" :disabled="!editable || busy" @update:model-value="chooseCountry($event as number | undefined)" />
+          <UFormField name="country_id" :label="t('settings.company.country')" :hint="t('settings.company.countryFixed')">
+            <UInput id="company-country" :model-value="country?.name ?? ''" class="w-full" data-testid="company-country" readonly disabled />
           </UFormField>
           <UFormField name="state_id" :label="t('settings.company.state')" :error="fieldErrors.state_id">
             <USelectMenu id="company-state" :model-value="(draft.state_id as number | null) ?? undefined" class="w-full" value-key="value" :items="stateItems" data-testid="company-state" :disabled="!editable || busy || !countryId" @update:model-value="setField('state_id', $event as number | undefined)" />

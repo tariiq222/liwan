@@ -87,9 +87,8 @@ class ResCompany(models.Model):
         if not vals or set(vals) - allowed:
             msg = 'invalid_company_profile_fields'
             raise AccessError(msg)
-        partners = self.partner_id | self.partner_id.with_context(active_test=False).child_ids
-        with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: set(partners.ids)}):
-            return super().write(vals)
+        with marked(self.env, {COMPANY_PROFILE_MARKER: {self.id}, PARTNER_COMPANY_MARKER: {self.partner_id.id}}):
+            return self.write(vals)
 
     @api.model
     def _webvue_has_company_partner(self, partner_ids):

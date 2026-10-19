@@ -14,7 +14,7 @@ PARTNER_COMPANY_MARKER = 'webvue_core.company_profile_partner_ids'
 # The partner side of the company profile: identity, address, contact and the Saudi (l10n_sa_edi) fields.
 PARTNER_COMPANY_FIELDS = {
     'image_1920', 'name', 'company_registry', 'vat', 'email', 'phone', 'website',
-    'street', 'street2', 'city', 'zip', 'state_id', 'country_id',
+    'street', 'street2', 'city', 'zip', 'state_id',
     'l10n_sa_edi_building_number', 'l10n_sa_edi_plot_identification',
     'l10n_sa_edi_additional_identification_scheme', 'l10n_sa_edi_additional_identification_number',
 }

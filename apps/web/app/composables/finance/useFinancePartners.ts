@@ -2,10 +2,9 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  FinanceCountryListSchema,
-  FinanceCountryStateListSchema,
   FinancePartnerListSchema,
   FinancePartnerSchema,
+  LookupListSchema,
   type FinancePartner,
   type FinancePartnerCreate,
   type FinancePartnerPatch,
@@ -63,7 +62,7 @@ export function useFinanceCountries(q: MaybeRefOrGetter<string>) {
   const { $api } = useApi()
   return useQuery({
     queryKey: computed(() => financePartnerKeys.countries(toValue(q))),
-    queryFn: () => $api('/api/v1/finance/countries', { query: { q: toValue(q) || undefined, limit: 50 }, schema: FinanceCountryListSchema }),
+    queryFn: () => $api('/api/v1/finance/countries', { query: { q: toValue(q) || undefined, limit: 50 }, schema: LookupListSchema }),
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -73,7 +72,7 @@ export function useFinanceStates(countryId: MaybeRefOrGetter<number | null>) {
   return useQuery({
     queryKey: computed(() => financePartnerKeys.states(toValue(countryId) ?? 0)),
     enabled: computed(() => !!toValue(countryId)),
-    queryFn: () => $api(`/api/v1/finance/countries/${toValue(countryId)}/states`, { query: { limit: 200 }, schema: FinanceCountryStateListSchema }),
+    queryFn: () => $api(`/api/v1/finance/countries/${toValue(countryId)}/states`, { query: { limit: 200 }, schema: LookupListSchema }),
     staleTime: 5 * 60 * 1000,
   })
 }
